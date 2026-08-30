@@ -73,8 +73,6 @@ import {
 // `placement` selects and, more importantly, for what it may never select.
 import { BookingPanel } from "@/components/availability/booking-panel";
 import { BookingStickyBar } from "@/components/booking/booking-sticky-bar";
-import { STICKY_BAR_CLEARANCE } from "@/lib/design/measurements";
-import { cn } from "@/lib/utils";
 import { CancellationPolicyDisclosure } from "@/components/booking/cancellation-policy-disclosure";
 import { RailRateHeadline } from "@/components/booking/rail-rate-headline";
 import { placeHold, placeOpenHold } from "@/app/actions/booking";
@@ -492,12 +490,16 @@ export default async function PublicListingPage({
     : [];
 
   return (
-    // `STICKY_BAR_CLEARANCE` is 80px = 64 (the bar) + 16 (a gap), the same arithmetic the app shell's
-    // `lg:top-20` uses from the other end of the viewport. Without it the last row of this page — the
-    // host block — sits permanently under the fixed bar, which is a line of the page a booker can never
-    // reach (T-12-10-CLEARANCE). It is unconditional rather than `lg:pb-0` because 80px of trailing
-    // space on a desktop page is invisible and a breakpoint here is one more thing to keep true.
-    <main className={cn("mx-auto w-full max-w-5xl px-4 py-8 sm:py-12", STICKY_BAR_CLEARANCE)}>
+    // ⚠ `STICKY_BAR_CLEARANCE` IS NOT HERE ANY MORE — it moved to `(detail)/layout.tsx`'s wrapper on
+    // 2026-08-30 (quick `260830-r4b`, closing `[17-D9]` + `[17-D10]`). It sat on this `<main>` from
+    // plan 12-10, and it was measurably INERT there: `SiteFooter` renders after `<main>`, so the
+    // bottom of the DOCUMENT is footer and 80px inside `<main>` never reached the control that was
+    // actually under the bar — the footer's `a("Privacy")` at `{y: 515, bottom: 533}` against a bar
+    // at `{y: 504, bottom: 568}`. The layout's wrapper is the smallest element containing both this
+    // `<main>` and the footer, so that is where the 80px now hangs (with `lg:pb-0`, since both bars
+    // are `lg:hidden`). The full argument is written at that class site. `book/page.tsx` still
+    // carries its own on `<main>` because that route renders no footer.
+    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-12">
       <PhotoGallery photos={pub.photos} title={title} />
 
       {/* Phase-12 seam A: the provider owns the DAY, not just the selection, so the sheet's second

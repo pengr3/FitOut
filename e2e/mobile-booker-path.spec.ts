@@ -310,19 +310,22 @@ async function pickWindowInSheet(
 // before it: zero. `price-breakdown.tsx`'s GREP TRIPWIRE rule, which a first draft of this very
 // paragraph tripped.)
 //
-// ⚠ WATCHED RED (plan 17-04, run and reverted) — AND THE FIRST DRIVE WAS GREEN, WHICH IS THE MORE
-// USEFUL HALF. 17-RESEARCH Pattern 3 prescribes "temporarily drop the `pb-20` clearance and confirm the
-// intersection assertion reports it". Both routes carry that clearance; the two drives disagreed.
+// ⚠ WATCHED RED (plan 17-04 and quick `260830-r4b`, each run and reverted) — AND THE FIRST DRIVE WAS
+// GREEN, WHICH IS THE MORE USEFUL HALF. 17-RESEARCH Pattern 3 prescribes "temporarily drop the
+// `pb-20` clearance and confirm the intersection assertion reports it". Both routes carry that
+// clearance; the drives disagreed, and WHERE it is dropped from turns out to be the whole question.
 //
-//   DRIVE 1 — `STICKY_BAR_CLEARANCE` deleted from `src/app/listings/[id]/(detail)/page.tsx:480`:
+//   DRIVE 1 (17-04) — `STICKY_BAR_CLEARANCE` deleted from `<main>` in
+//   `src/app/listings/[id]/(detail)/page.tsx` (recorded as `:480` at the time; it was `:500` on that
+//   tree, and since `260830-r4b` there is no clearance on that `<main>` at all — see DRIVE 4):
 //   BOTH cases STILL PASSED. Not a hole in the assertion — a fact about the route. `<main>` there is
 //   followed by a site footer far taller than 64px, so nothing in `<main>` can reach the bar's band
 //   whether the clearance is present or not, and the last control inside `<main>` is
 //   `a("OpenStreetMap")` (the map attribution), measured at `{y: 243}` with the document scrolled to its
 //   bottom. The clearance is INERT on that route today, and no reading of the source says so.
 //
-//   DRIVE 2 — the same deletion in `src/app/listings/[id]/book/page.tsx:521`, the route that renders no
-//   footer, run as `npx playwright test e2e/mobile-booker-path.spec.ts --project=chromium --workers=1
+//   DRIVE 2 (17-04) — the same deletion in `src/app/listings/[id]/book/page.tsx:521`, the route that
+//   renders no footer, run as `npx playwright test e2e/mobile-booker-path.spec.ts --project=chromium --workers=1
 //   -g "a confirm bar"`:
 //
 //     Error: court · checkout · 320px: the sticky bar OCCLUDES the last interactive control on the page.
@@ -334,8 +337,46 @@ async function pickWindowInSheet(
 //
 //     1 failed, 1 did not run (`mode: "serial"`). Restored; 10 passed.
 //
-// The failure names BOTH boxes and the control, which is the difference between "an assertion went red"
-// and "this 44px control is twelve pixels under the bar".
+//   DRIVE 3 (17-04) — the restoration of DRIVE 2. Green.
+//
+//   DRIVE 4 (quick `260830-r4b`, 2026-08-30) — THE DRIVE THAT MAKES THE STRENGTHENED CLAUSE MEAN
+//   SOMETHING. `[17-D9]` moved `STICKY_BAR_CLEARANCE` off `<main>` and onto `(detail)/layout.tsx`'s
+//   wrapper, and deleted the named footer exception this file used to carry. Deleting an exception
+//   makes a clause strictly stronger, and a strictly stronger clause that has never been red is a
+//   rubber stamp — so the clearance was deleted from the LAYOUT wrapper (not from `<main>`, which
+//   DRIVE 1 already measured as inert on this route) and the file re-run:
+//
+//     npx playwright test e2e/mobile-booker-path.spec.ts --project=chromium --workers=1
+//
+//     x   4 [chromium] › e2e\mobile-booker-path.spec.ts:883:9 › RESP-02 — the 320×568 floor › court ·
+//     320px · the bar is present, 64px, pinned and non-occluding — and absent at 1280px (1.6s)
+//
+//     Error: court · listing · 320px: the sticky bar OCCLUDES the last interactive control on the
+//     page. a("Privacy") occupies {x: 16, y: 515, width: 47, height: 18, bottom: 533} and the bar
+//     occupies {x: 0, y: 504, width: 320, height: 64, bottom: 568}. `STICKY_BAR_CLEARANCE` (pb-20 =
+//     80px = 64 + 16) is the knob that is supposed to make this impossible, and it hangs off
+//     whichever element ENDS the document: on `/listings/[id]` that is the `(detail)` LAYOUT shell —
+//     below `<main>` and below the site footer, because the footer is what ends that page — and on
+//     `/listings/[id]/book` it is `<main>` itself, because that route renders no footer. Whichever
+//     bar this is, the clearance is one element too high or it is gone. Asserting that class is not
+//     the same as asserting this outcome, which is why this reads boxes. A control under a fixed bar
+//     cannot be tapped and cannot be scrolled to, because the document is already at its end
+//     (RESP-03 AC#7).
+//
+//       Expected: false
+//       Received: true
+//
+//     1 failed, 3 skipped, 7 did not run, 3 passed (18.8s)
+//
+//   (The run's stack frames are omitted deliberately: recording `expectBarDoesNotOcclude` at a line
+//   number would pin a pointer that WRITING THIS BLOCK invalidates. The boxes are the evidence.)
+//
+//   Those are `[17-D9]`'s two boxes to the pixel — `a("Privacy")` at `bottom: 533` inside a bar
+//   spanning `504..568` — reproduced from the ASSERTION side rather than from the ledger. Clearance
+//   restored; re-run of the same command: 11 passed, 3 skipped, and the checkout half green with it.
+//
+// Every failure above names BOTH boxes and the control, which is the difference between "an assertion
+// went red" and "this 44px control is twelve pixels under the bar".
 
 /** Two boxes overlap when they overlap on BOTH axes. Half-open on purpose: touching edges do not. */
 function boxesIntersect(a: Box, b: Box): boolean {
@@ -353,7 +394,7 @@ function fmtBox(b: Box): string {
   )}, bottom: ${Math.round(b.y + b.height)}}`;
 }
 
-type OccludedControl = { readonly descriptor: string; readonly box: Box; readonly inFooter: boolean };
+type OccludedControl = { readonly descriptor: string; readonly box: Box };
 
 type OcclusionProbe = {
   readonly barBox: Box | null;
@@ -362,8 +403,8 @@ type OcclusionProbe = {
   readonly maxScroll: number;
   /** Laid-out focusable candidates OUTSIDE the bar. Zero means the probe measured an empty page. */
   readonly examined: number;
-  /** AC#7's subject — the last candidate outside the site footer. See the docblock for the scope. */
-  readonly lastOutsideFooter: { readonly descriptor: string; readonly box: Box } | null;
+  /** AC#7's subject — the last laid-out candidate on the page, the site footer INCLUDED. */
+  readonly last: { readonly descriptor: string; readonly box: Box } | null;
   /** Every candidate whose box overlaps the bar's, in document order. */
   readonly occluded: readonly OccludedControl[];
 };
@@ -411,65 +452,66 @@ async function probeOcclusion(page: Page, barSelector: string): Promise<Occlusio
       r.top < barRect.bottom &&
       barRect.top < r.bottom;
 
-    const inFooter = (el: Element): boolean => el.closest('[data-testid="site-footer"]') !== null;
-    const outside = laid.filter((el) => !inFooter(el));
-    const last = outside.length > 0 ? outside[outside.length - 1] : null;
+    const last = laid.length > 0 ? laid[laid.length - 1] : null;
 
     return {
       barBox: barRect === null ? null : box(barRect),
       scrolledTo: Math.round(window.scrollY),
       maxScroll: Math.round(document.documentElement.scrollHeight - window.innerHeight),
       examined: laid.length,
-      lastOutsideFooter:
+      last:
         last === null ? null : { descriptor: describe(last), box: box(last.getBoundingClientRect()) },
       occluded: laid
         .filter((el) => overlaps(el.getBoundingClientRect()))
-        .map((el) => ({
-          descriptor: describe(el),
-          box: box(el.getBoundingClientRect()),
-          inFooter: inFooter(el),
-        })),
+        .map((el) => ({ descriptor: describe(el), box: box(el.getBoundingClientRect()) })),
     };
   }, barSelector);
 }
 
 /**
- * AC#7 — scrolled to the bottom, the bar does not sit on top of a control.
+ * AC#7 — scrolled to the bottom, the bar does not sit on top of a control. NOTHING IS EXCLUDED.
  *
- * ⚠ THE SITE FOOTER IS EXCLUDED, AND THAT EXCLUSION IS A MEASURED FINDING RATHER THAN A CONVENIENCE.
- * RESP-03's wording is "the document's last interactive control", and on `/listings/[id]` that is a
- * FOOTER link which IS occluded on shipped markup. MEASURED 2026-08-29 at 320×568, scrolled to the
- * document bottom, identically in BOTH themes:
+ * ⚠ THIS CLAUSE CARRIED A NAMED FOOTER EXCEPTION FOR EXACTLY ONE DAY, AND THE HISTORY IS THE POINT.
+ * RESP-03's wording is "the document's last interactive control", and between 2026-08-29 and
+ * 2026-08-30 that control WAS occluded on `/listings/[id]` on shipped markup. MEASURED 2026-08-29 at
+ * 320×568, scrolled to the document bottom, identically in BOTH themes:
  *
  *     last candidate   a("Privacy")   {y: 515, height: 18, bottom: 533}
  *     bar              {y: 504, height: 64, bottom: 568}
  *
- * — the link sits entirely inside the bar's band; `a("Terms")` clears it by 3px. The cause is structural
- * and is one line of source: `STICKY_BAR_CLEARANCE` is applied to `<main>`
- * (`listings/[id]/(detail)/page.tsx:480`, `book/page.tsx:521`) and `SiteFooter` renders AFTER `<main>`,
- * so the bottom 64px of the DOCUMENT is footer, which no clearance covers.
+ * — the link sat entirely inside the bar's band; `a("Terms")` cleared it by 3px. That was `[17-D9]`,
+ * and its cause was structural: `STICKY_BAR_CLEARANCE` was applied to `<main>` (then
+ * `listings/[id]/(detail)/page.tsx:500`) while `SiteFooter` renders AFTER `<main>`, so the bottom
+ * 64px of the DOCUMENT was footer, which no clearance inside `<main>` can cover.
  *
- * ⚠ AND THE CLEARANCE IS INERT ON THAT ROUTE TODAY — measured, and not what anybody would predict from
- * the source. Deleting `STICKY_BAR_CLEARANCE` from `listings/[id]/(detail)/page.tsx:480` changed NOTHING:
- * both cases stayed green, because `<main>`'s tail is followed by a footer far taller than 64px and the
+ * ⚠ AND ON THAT ROUTE THE CLEARANCE WAS INERT — measured (`[17-D10]`), and not what anybody would
+ * predict from the source. Deleting `STICKY_BAR_CLEARANCE` from that `<main>` changed NOTHING: both
+ * cases stayed green, because `<main>`'s tail is followed by a footer far taller than 64px and the
  * last control inside `<main>` is `a("OpenStreetMap")` — the map attribution, measured at `{y: 243}`
- * with the document at its bottom, some 1,700px above the fold. What actually protects this route's
- * content is the footer's height; what the clearance was declared to protect is a footer link it does
- * not cover. On `/listings/[id]/book` the same knob IS load-bearing (that route renders no footer —
- * `shell.spec.ts:1221` pins "0 footers" on a live checkout), which is where the red-watch above was run.
+ * with the document at its bottom, some 1,700px above the fold. One knob, declared to protect a
+ * control that was never at risk, not reaching the one that was.
  *
- * Neither half is fixed here. The cheapest correct repair moves a clearance onto a component shared by
- * every route in the app — a layout change inside an audit (D-199/D-200), escalate-class under
- * 17-UI-SPEC § Remediation — so both are recorded for plan 17-13. What this function does instead is
- * BOUND the residue, in two clauses that between them are STRONGER than AC#7's wording:
+ * ⭐ BOTH HALVES ARE FIXED (quick `260830-r4b`, 2026-08-30). `STICKY_BAR_CLEARANCE` now hangs off
+ * `(detail)/layout.tsx`'s `flex min-h-dvh flex-col` wrapper — the smallest element containing BOTH
+ * `<main>` and `SiteFooter` — with `lg:pb-0`, because both bars are `lg:hidden` and 80px of unpainted
+ * background under a `bg-muted` footer at desktop widths would be a new defect rather than a fix.
+ * `/listings/[id]/book` keeps its clearance on `<main>`, which is correct and not an inconsistency:
+ * that route renders NO footer (`shell.spec.ts:1221` pins "0 footers" on a live checkout), so there
+ * `<main>` IS the document's bottom. One constant, applied on each route to whatever ends the document.
  *
- *   • AC#7's literal shape, against the last laid-out control OUTSIDE the footer; and
- *   • the set form — NO control anywhere on the page may lie under the bar except a footer one. AC#7
- *     asks about one element; this asks about all of them, so a control that slid under the bar in the
- *     middle of the page (a `sticky` toolbar, a floating action) is red here and invisible to AC#7.
+ * So the exception is DELETED, and NOTHING ELSE in this function was relaxed to absorb it — which is
+ * exactly why 17-04 wrote it as an exception rather than as a narrower subject. What remains is two
+ * clauses that between them are STRONGER than AC#7's wording, now with no carve-out at all:
  *
- * The day the clearance moves to cover the footer, the exclusion simply stops mattering and no
- * assertion here has to be relaxed to notice.
+ *   • AC#7's literal shape, against the last laid-out control on the page, the footer included; and
+ *   • the set form — NO control anywhere on the page may lie under the bar. AC#7 asks about one
+ *     element; this asks about all of them, so a control that slid under the bar in the middle of the
+ *     page (a `sticky` toolbar, a floating action) is red here and invisible to AC#7.
+ *
+ * DRIVE 4 in this file's header is what stops the strengthened clause being a rubber stamp: with the
+ * clearance deleted from the layout wrapper it reproduces `[17-D9]`'s two boxes from the assertion
+ * side. A strictly stronger clause that has never been watched red is a strictly stronger claim
+ * nobody has checked.
  */
 async function expectBarDoesNotOcclude(page: Page, barSelector: string, where: string): Promise<void> {
   const p = await probeOcclusion(page, barSelector);
@@ -497,34 +539,38 @@ async function expectBarDoesNotOcclude(page: Page, barSelector: string, where: s
       "different question.",
   ).toBeGreaterThanOrEqual(p.maxScroll - TOLERANCE_PX);
   expect(
-    p.lastOutsideFooter,
-    `${where}: the page holds no laid-out focusable control outside the site footer at all, so the ` +
-      "clause below has no subject.",
+    p.last,
+    `${where}: the page holds no laid-out focusable control at all, so the clause below has no ` +
+      "subject.",
   ).not.toBeNull();
 
-  const last = p.lastOutsideFooter!;
+  const last = p.last!;
   const bar = p.barBox!;
   expect(
     boxesIntersect(last.box, bar),
     `${where}: the sticky bar OCCLUDES the last interactive control on the page. ` +
       `${last.descriptor} occupies ${fmtBox(last.box)} and the bar occupies ${fmtBox(bar)}. ` +
-      `\`STICKY_BAR_CLEARANCE\` (${STICKY_BAR_CLEARANCE} = 80px = 64 + 16) on this route's \`<main>\` ` +
-      "is the knob that is supposed to make this impossible — and asserting that class is not the same " +
+      `\`STICKY_BAR_CLEARANCE\` (${STICKY_BAR_CLEARANCE} = 80px = 64 + 16) is the knob that is ` +
+      "supposed to make this impossible, and it hangs off whichever element ENDS the document: on " +
+      "`/listings/[id]` that is the `(detail)` LAYOUT shell — below `<main>` and below the site " +
+      "footer, because the footer is what ends that page — and on `/listings/[id]/book` it is " +
+      "`<main>` itself, because that route renders no footer. Whichever bar this is, the clearance " +
+      "is one element too high or it is gone. Asserting that class is not the same " +
       "as asserting this outcome, which is why this reads boxes. A control under a fixed bar cannot be " +
       "tapped and cannot be scrolled to, because the document is already at its end (RESP-03 AC#7).",
   ).toBe(false);
 
-  const outsideFooter = p.occluded
-    .filter((c) => !c.inFooter)
-    .map((c) => `${c.descriptor} ${fmtBox(c.box)}`);
+  const under = p.occluded.map((c) => `${c.descriptor} ${fmtBox(c.box)}`);
   expect(
-    outsideFooter,
-    `${where}: ${outsideFooter.length} control(s) outside the site footer lie under the bar ` +
-      `${fmtBox(bar)}:\n${outsideFooter.map((c) => `  ${c}`).join("\n")}\n` +
-      "The footer is EXCLUDED here because its occlusion is a measured, recorded finding with a named " +
-      "owner (see this function's docblock — `STICKY_BAR_CLEARANCE` sits on `<main>` and the footer " +
-      "renders after it; routed to plan 17-13). Nothing else is excused: every other control on the " +
-      "page is inside a container the clearance covers, so a name in this list is a new defect.",
+    under,
+    `${where}: ${under.length} control(s) lie under the bar ${fmtBox(bar)}:\n` +
+      `${under.map((c) => `  ${c}`).join("\n")}\n` +
+      "NOTHING IS EXCUSED, and that is the change. This set is every laid-out control on the page, " +
+      "the site footer INCLUDED. The named footer exception this clause carried between 2026-08-29 " +
+      "and 2026-08-30 was deleted the day `[17-D9]` was fixed (see this function's docblock): the " +
+      "clearance moved onto the `(detail)` layout shell, so the footer is now inside an element the " +
+      "padding covers and there is nothing left to excuse. A name in this list is a defect, and not " +
+      "a known one.",
   ).toEqual([]);
 }
 
@@ -1540,13 +1586,20 @@ test.describe("BFLOW-06 / BFLOW-07 — checkout at 375px", () => {
       // the disclosure is open from (j) — which makes the page TALLER and the scroll-to-bottom clause
       // strictly harder, not easier.
       //
-      // ⚠ THE SAME CLAUSE, GREEN, ONE ROUTE AWAY. `expectBarDoesNotOcclude`'s docblock records that
-      // `/listings/[id]` occludes its footer's last link because `STICKY_BAR_CLEARANCE` sits on
-      // `<main>` and the footer renders after it. This route renders NO footer (`shell.spec.ts:1221`
-      // pins "0 footers" on a live checkout), so its last control — `a("Back to the listing")`,
-      // measured at `bottom: 468` against a bar at `y: 504` — clears the bar by 36px with the clearance
-      // doing exactly what it is declared to do. Two routes, one clause, and the difference between
-      // them is the finding.
+      // ⚠ THE SAME CLAUSE, GREEN ON BOTH ROUTES NOW — BY TWO DIFFERENT PLACEMENTS OF ONE CONSTANT.
+      // `expectBarDoesNotOcclude`'s docblock records that `/listings/[id]` USED to occlude its
+      // footer's last link (`[17-D9]`), because `STICKY_BAR_CLEARANCE` sat on `<main>` while the
+      // footer renders after it. Since quick `260830-r4b` (2026-08-30) that route carries the
+      // clearance on its `(detail)` LAYOUT wrapper instead — below `<main>` and below the footer,
+      // gated `lg:pb-0` — so the footer is inside what the padding covers and the named exception in
+      // that helper is gone.
+      //
+      // THIS route still carries it on `<main>`, and that is the correct placement here rather than a
+      // leftover: checkout renders NO footer (`shell.spec.ts:1221` pins "0 footers" on a live
+      // checkout), so `<main>` IS this document's bottom. Its last control — `a("Back to the
+      // listing")`, measured at `bottom: 468` against a bar at `y: 504` — clears the bar by 36px, and
+      // DRIVE 2 in this file's header is the watched red proving the knob is what buys that. Two
+      // routes, one clause, one constant, applied on each to whatever element ends the document.
       await expectStickyBar(page, CHECKOUT_BAR, floorWhere, {
         width: FLOOR_PX,
         height: FLOOR.height,
