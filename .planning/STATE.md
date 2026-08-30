@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 14
-status: phase-complete
-stopped_at: Phase 17 complete and verified (4/4); its 25 findings are TRIAGED. Next: Phase 17.1 (INSERTED) -- close the four escalations the PM promoted ([17-D9]/[17-D10] sticky-bar occlusion, [17-D1]/[17-D2] soft-404 measured-first, [17-D18] PayMongo interception, [17-D3] delete the unreachable boundary). Run /gsd-discuss-phase 17.1 or /gsd-plan-phase 17.1. Phase 18 (Search-Results Map, MAP-01/MAP-02) follows.
-last_updated: "2026-08-30T17:30:00.000Z"
-last_activity: 2026-08-30 -- PHASE 17 COMPLETE, verified 4/4. Re-verification passed after ONE blocker was found and closed: e2e/axe-sweep.spec.ts AC#2 failed because 17-07 built the axe route table against 42 files and 17-12 later added four dev-throw routes, reconciling every OTHER inventory instrument but not that one. Fixed at 64da86f (four rows entered as reasoned skips -- a route whose whole body is a server-side throw renders no document of its own -- plus four boundary rows converted from a skip reason 17-12 had made FALSE into eight real scans, clean at 320 and 1280; count measured 42->46). Gates: npm run build exit 0; npm test ALONE 186 files / 2169 passed / 5 skipped; axe sweep 60 passed / 36 skipped. Code review (17-REVIEW.md) 0 Critical / 6 Warning / 5 Info -- the PM authorised fixing five, incl. WR-06, the only product defect: ui/progress.tsx destructured value out of the spread so Radix never emitted aria-valuenow and the wizard bar announced as INDETERMINATE while visibly filling; WR-04 and all Info findings accepted as deferred. GATE-01 evidence chain (D-202) ends at ci 33300952565 GREEN on a2f6973 = origin/dev = HEAD, zero baseline PNGs moved since 085eb07. TWO PM CHECKPOINTS shaped this phase: the baseline round-trip was authorised end-to-end, and [17-D26] was PROMOTED from deferred to in-scope after the phase discovered four GATE-01 baselines encoded the wall clock (gate-visual had been red on dev since 2026-08-27 unnoticed); its first prescribed fix was REFUTED BY MEASUREMENT (page.clock is browser-side, todayLocal is computed in the RSC) and the delivered fix is a NODE_ENV-gated dev-only today seam, proven inert in a real production build and traced to reach no money or availability path. REQUIREMENTS DELIBERATELY LEFT PENDING: RESP-03, RESP-04, GATE-02, GATE-06 all carry open, measured exceptions ([17-D9] a 320px footer link fully occluded by the sticky bar, [17-D13] the drop-in calendar fork with no container id, [17-D23] the wizard rail at zero tab stops) -- every executor reached this independently and the verifier confirmed the exceptions are correctly classified must-escalate. 25 escalate-class findings await the PM in deferred-items.md. ONE PROCESS FINDING worth the next phase's attention: none of the seven Playwright specs run in CI (D-24, pre-existing), which is why the axe gap survived four review passes -- the phase's proof is a rigorously verified SNAPSHOT, not yet a self-sustaining regression gate.
+current_plan: —
+status: executing
+stopped_at: Completed 17-09-PLAN.md (RESP-04 rendered half)
+last_updated: "2026-08-30T14:46:59.046Z"
+last_activity: 2026-08-30 -- Phase 17.1 planning complete
 progress:
-  total_phases: 13
+  total_phases: 14
   completed_phases: 10
-  total_plans: 142
-  completed_plans: 133
-  percent: 77
+  total_plans: 149
+  completed_plans: 147
+  percent: 71
 ---
 
 # Project State
@@ -47,8 +47,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 Phase: 17 (cross-cutting-audit-themes-responsive-a11y-baselines) — COMPLETE (verified 2026-08-30, 4/4)
 Plan: 14 of 14
 Current Plan: —
-Total Plans in Phase: 14
-Status: Phase 17 complete and triaged. Next: Phase 17.1 (INSERTED) — four promoted escalations, not yet discussed or planned. Phase 18 (Search-Results Map) follows.
+Total Plans in Phase: 7
+Status: Ready to execute
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
 declaration, and `--verify` exits 0 both before the walk and after every upload in it. The
 credential-bearing walkthrough is done — nine checks with pasted evidence in `16.1-UAT.md`.
@@ -496,7 +496,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-29 -- 17-01 complete: e2e baseline red set declared, axe helper landed
+Last activity: 2026-08-30 -- Phase 17.1 planning complete
 
 ## Performance Metrics
 
