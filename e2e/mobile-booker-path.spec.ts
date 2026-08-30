@@ -1783,10 +1783,23 @@ test.describe("BFLOW-06 / BFLOW-07 — checkout at 375px", () => {
       //
       // THIS route still carries it on `<main>`, and that is the correct placement here rather than a
       // leftover: checkout renders NO footer (`shell.spec.ts:1221` pins "0 footers" on a live
-      // checkout), so `<main>` IS this document's bottom. Its last control — `a("Back to the
-      // listing")`, measured at `bottom: 468` against a bar at `y: 504` — clears the bar by 36px, and
-      // DRIVE 2 in this file's header is the watched red proving the knob is what buys that. Two
-      // routes, one clause, one constant, applied on each to whatever element ends the document.
+      // checkout), so `<main>` IS this document's bottom. Two routes, one clause, one constant,
+      // applied on each to whatever element ends the document.
+      //
+      // ⚠ THE PLACEMENT WAS RIGHT AND THE SPELLING WAS NOT — AND DRIVE 2 COULD NOT HAVE SEEN IT.
+      // This block used to close by quoting a single number and reading it as the route's whole story:
+      // the last control, `a("Back to the listing")` at `bottom: 468` against a bar at `y: 504`,
+      // clearing by 36px, with DRIVE 2 offered as the watched red proving the knob buys that. Both
+      // halves of that are true AT 320px AND NOWHERE ELSE. DRIVE 2 was run at the floor, which is
+      // inside the band where the unvariant clearance does take effect — so the widths where it did
+      // not were driven by nothing in this suite, and a green run said so about a page that was
+      // already wrong. `§ P2` drove them: across 640–1023px, in both themes, the same last control
+      // cleared the bar by 4px (court) / 5px (grove) instead of 36, `main` reserved 48px of bottom
+      // padding against a 64px bar, and the hold promise under the link rendered 15.6px of a 16px line
+      // BEHIND it. `§ P4` then measured the repair the same way — `sm:pb-20`, plus `lg:pb-12` handing
+      // `sm:py-12`'s 48 back at the width where no bar renders — so `book/page.tsx` now reserves 80px
+      // at 320 / 640 / 768 / 1023 and 48px at 1024 / 1280. (m1) and (m2) below are what keep that
+      // measured rather than remembered.
       await expectStickyBar(page, CHECKOUT_BAR, floorWhere, {
         width: FLOOR_PX,
         height: FLOOR.height,

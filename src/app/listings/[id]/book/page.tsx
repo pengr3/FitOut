@@ -512,13 +512,44 @@ export default async function ReservePage({
   );
 
   return (
-    // `STICKY_BAR_CLEARANCE` is 80px = 64 (the bar) + 16 (a gap) — the same arithmetic the app shell's
-    // `lg:top-20` uses from the other end of the viewport, and the same clearance `/listings/[id]` spends
-    // for its own bar. Without it the last row of this page — the way back — sits permanently under the
-    // fixed confirm bar, on the one route where the alternative to reading the page is paying for
-    // something else. Unconditional rather than `lg:pb-0` for 12-10's reason: 80px of trailing space on a
-    // desktop page is invisible, and a breakpoint here is one more thing to keep true.
-    <main className={cn("mx-auto w-full max-w-4xl px-4 py-8 sm:py-12", STICKY_BAR_CLEARANCE)}>
+    // `STICKY_BAR_CLEARANCE` (`pb-20` = 80px = 64 for the bar + 16 for a gap) — the same arithmetic the
+    // app shell's `lg:top-20` uses from the other end of the viewport, and the same clearance
+    // `/listings/[id]` spends for its own bar. It hangs off `<main>` HERE and off the `(detail)` layout
+    // wrapper on the sibling route, and that is one constant correctly placed twice rather than an
+    // inconsistency: checkout renders NO footer (`shell.spec.ts:1221` pins "0 footers" on a live
+    // checkout), so on this route `<main>` IS the document's bottom. One constant, applied on each route
+    // to whatever element ends the document. Without it the last rows of this page — the way back, and
+    // the sentence promising the hold survives following it — sit permanently under the fixed confirm
+    // bar, on the one route where the alternative to reading the page is paying for something else.
+    //
+    // ⚠ `sm:pb-20` IS WHAT MAKES THE CONSTANT TRUE RATHER THAN MERELY DECLARED, AND IT IS NOT OPTIONAL.
+    // Tailwind v4 emits the `sm:` layer after the whole base layer, so `sm:py-12`'s 48px beat the
+    // unvariant `pb-20`'s 80px from 640px up — while both sticky bars are `lg:hidden` and therefore
+    // render all the way to 1023px. Across **640–1023px** this page carried a 64px fixed bar over 48px
+    // of bottom padding: 16px short of the bar's own height, against a declared 80. MEASURED on the live
+    // route, both themes (`17.1-EVIDENCE.md` § P2): 80px at 320, 48px at 640 / 768 / 1023, with the hold
+    // promise rendering 15.6px of a 16px line behind the bar at every band width where the document
+    // scrolls. `§ P4` measured the repair the same way: `sm:pb-20` wins its own layer, 80px at all three.
+    //
+    // ⚠ `lg:pb-12` IS COUPLED TO `sm:py-12` AND THE TWO MOVE TOGETHER. Its only job is to hand back the
+    // exact 48px `sm:py-12` supplies, at the first width where no bar renders — without it the desktop
+    // page would gain 32px of trailing space it never had and `checkout-1280-court-visual-linux.png`
+    // would move. Change the 12 in `sm:py-12` and this 12 changes with it. It is a LITERAL rather than a
+    // constant deliberately: Tailwind v4 scans source TEXT, so a composed class name is never emitted
+    // and a `lg:`-prefixed template of some constant would resolve to nothing at all — the same
+    // in-the-class-list / not-on-the-box failure the paragraph above exists to close.
+    //
+    // The instrument that keeps all of this true is the band case in `e2e/mobile-booker-path.spec.ts`
+    // (`expectDocumentEndClearsBar`, driven at 640 / 768 / 1023 in both themes with a 320px positive
+    // control). It compares the COMPUTED padding against the RENDERED bar height and never against this
+    // spelling, so a later repair may reach the same box by any other route and keep it green.
+    <main
+      className={cn(
+        "mx-auto w-full max-w-4xl px-4 py-8 sm:py-12",
+        STICKY_BAR_CLEARANCE,
+        "sm:pb-20 lg:pb-12",
+      )}
+    >
       {/* D-49 / plan 12-03 — the deadline crosses UP into the checkout header's countdown, which the
           LAYOUT mounts and which therefore cannot be handed a prop by this page. This renders nothing;
           it writes one already-authorised ISO string into `HoldProvider`. `bk.expiresAt` is non-null
