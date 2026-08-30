@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 6
+current_plan: 7
 status: executing
-stopped_at: Completed 17.1-05-PLAN.md
-last_updated: "2026-08-30T20:00:12.639Z"
+stopped_at: Completed 17.1-06-PLAN.md
+last_updated: "2026-08-30T20:45:57.312Z"
 last_activity: 2026-08-30
 progress:
   total_phases: 14
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 17.1 (close-phase-17-escalations-sticky-bar-clearance-soft-404-pro) — EXECUTING
-Plan: 6 of 7
-Current Plan: 6
+Plan: 7 of 7
+Current Plan: 7
 Total Plans in Phase: 7
 Status: Ready to execute
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
@@ -794,6 +794,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 17.1 P03 | 21min | 2 tasks | 2 files |
 | Phase 17.1 P04 | 22min | 3 tasks | 4 files |
 | Phase 17.1 P05 | 48min | 3 tasks | 4 files |
+| Phase 17.1 P06 | 52min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1327,6 +1328,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 17.1-05: plan 17.1-06's seam must use an enableNetConnect predicate admitting every host EXCEPT api.paymongo.com — disableNetConnect() refuted by the measured host set
 - [Phase ?]: 17.1-05: undici declared at the exact pin 7.27.0 after a blocking human supply-chain gate; version/resolved/integrity proved unchanged, lockfile entry untouched
 - [Phase ?]: 17.1-05: three findings filed — [17-D27] a third PayMongo endpoint (6x/run, so [17-D18]'s 2 is really 8), [17-D28] api.resend.com 14x/run on a live key, [17-D29] better-auth's optional vitest peer keeps undici in the production tree
+- [Phase ?]: 17.1-06: D-07 refuted in practice: [17-D18]'s prescribed page.route repair cannot work — page.route is browser-scoped and the PayMongo POST is issued in the Next server process (second instance of the class [17-D26] caught)
+- [Phase ?]: 17.1-06: seam D shipped: instrumentation.ts + undici MockAgent, process-level, origin-level persisted catch-all. Seam A (settable PAYMONGO_BASE) stays rejected as a credential-exfiltration primitive
+- [Phase ?]: 17.1-06: net-connect policy is a deny-of-one enableNetConnect predicate, not disableNetConnect(): P3 measured four outbound hosts, two intermittent and one (api.resend.com) reached by shipped code
 
 ### Pending Todos
 
@@ -1443,8 +1447,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-30T20:00:12.609Z
-Stopped at: Completed 17.1-05-PLAN.md
+Last session: 2026-08-30T20:45:57.281Z
+Stopped at: Completed 17.1-06-PLAN.md
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte
