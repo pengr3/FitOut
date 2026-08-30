@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 3
+current_plan: 4
 status: executing
-stopped_at: Completed 17.1-02-PLAN.md
-last_updated: "2026-08-30T16:14:43.949Z"
+stopped_at: Completed 17.1-03-PLAN.md
+last_updated: "2026-08-30T16:41:18.884Z"
 last_activity: 2026-08-30
 progress:
   total_phases: 14
   completed_phases: 10
   total_plans: 149
-  completed_plans: 149
+  completed_plans: 150
   percent: 71
 ---
 
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 17.1 (close-phase-17-escalations-sticky-bar-clearance-soft-404-pro) — EXECUTING
-Plan: 3 of 7
-Current Plan: 3
+Plan: 4 of 7
+Current Plan: 4
 Total Plans in Phase: 7
 Status: Ready to execute
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
@@ -791,6 +791,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 16.1 P06 | 16min | 2 tasks | 6 files |
 | Phase 16.1 P07 | 5h | 3 tasks | 6 files |
 | Phase 17.1 P02 | 42min | 3 tasks | 8 files |
+| Phase 17.1 P03 | 21min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1313,6 +1314,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 17.1-02: deleted src/app/listings/[id]/(detail)/not-found.tsx — unreachable in every state; all 10 references across 5 files moved in the same commit ([17-D3] RESOLVED)
 - [Phase ?]: 17.1-02: the axe-sweep row for that boundary was GREEN while auditing the ROOT not-found — driven with the file deleted, not inferred; removing it costs zero real coverage
 - [Phase ?]: 17.1-02: [17-D3]'s own claims corrected rather than propagated — 7-across-4 is really 10-across-5, and loading-coverage.test.ts's four pins do NOT move (RESEARCH C2)
+- [Phase 17.1]: 17.1-03: the 640-1023px checkout band is OUTCOME B — no control occluded (clears by 4/5px, against 36/37px at the 320 floor), but HOLD_PROMISE renders behind the bar at every band viewport that scrolls
+- [Phase 17.1]: 17.1-03: D-04's computed-padding clause compares against the RENDERED bar height and takes the document-ending element as a PARAMETER, so a Shape-B repair moves a selector instead of reding the clause
+- [Phase 17.1]: 17.1-03: mobile-booker-path.spec.ts is committed RED for exactly one plan (owner 17.1-04) and NO row was added to e2e-baseline-reds.md — a scheduled red is not a declared standing one (D-14)
+- [Phase 17.1]: 17.1-03: RESP-03 is NOT marked complete — this phase advances it and does not close it (17.1-RESEARCH § phase_requirements); the checkout currently FAILS the clause it now has
 
 ### Pending Todos
 
@@ -1429,8 +1434,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-30T16:14:43.921Z
-Stopped at: Completed 17.1-02-PLAN.md
+Last session: 2026-08-30T16:41:18.854Z
+Stopped at: Completed 17.1-03-PLAN.md
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte
