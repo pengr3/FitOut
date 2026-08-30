@@ -4,10 +4,18 @@
 happened: the prediction **before** the dispatch, the diff **read** against that prediction, and
 the **comparison** run id that is the phase's closing evidence per **D-202**.
 
-> **CURRENT CLOSING EVIDENCE: comparison run [`33298297450`](https://github.com/pengr3/FitOut/actions/runs/33298297450), green, on `247d1e4`** — § 7.
-> It supersedes `33295755823` (§ 6), which superseded `33273927029` (§ 3). Both are kept, with the
-> reason each was superseded stated where it sits. Round 3 fired **no** generation run: the code
-> review's remediation changed **zero** baseline bytes, which is what § 7.1 predicted in writing.
+> **CURRENT CLOSING EVIDENCE: comparison run [`33300479520`](https://github.com/pengr3/FitOut/actions/runs/33300479520), green, on `64da86f`** — § 8.
+> It supersedes `33298587807` (§ 8.1/§ 8.5), which superseded `33298297450` (§ 7), which superseded
+> `33295755823` (§ 6), which superseded `33273927029` (§ 3). Every one is kept, with the reason it was
+> superseded stated where it sits — and only the FIRST of those supersessions was caused by a defect.
+> Rounds 3 and 4 each fired **no** generation run: neither the code review's remediation nor round 4's
+> single test-file fix changed one baseline byte, which is what § 7.1 and § 8.2 each predicted in
+> writing before their push.
+>
+> ⚠ **Round 4 exists because the phase VERIFIER found a blocker, not because the evidence was wrong.**
+> `e2e/axe-sweep.spec.ts` failed its own AC#2 completeness assertion on `1751fb0` — a wave-2/wave-3
+> route-table gap, mechanical, and therefore must-fix under D-200. No CI job runs that spec (D-24), so
+> no comparison run in this chain was ever measuring it and none of them over-claimed. See § 8.
 
 > ⚠ **A generation run is not the evidence.** `[13-16]` records a phase completing with
 > `gate-visual` red and nothing noticing, and `baselines.yml`'s own header records why: its push
@@ -1072,3 +1080,159 @@ read by no job in `ci.yml`, and unable to change a rendered pixel. The check:
 | No newly minted PNG | **holds** — no generation run exists this round |
 | No pixel threshold widened | **holds** — no `maxDiffPixels` / `threshold` anywhere in the diff |
 | **AC#32** — zero schema migrations | **holds** — `drizzle/` clean, **26** `.sql` |
+
+---
+
+# 8 · Round 4 — the verifier's gap, and the comparison that re-establishes the evidence again
+
+## 8.1 Why there is a round 4, and the run § 7 could not name
+
+The phase verifier (`17-VERIFICATION.md`, 2026-08-30) found **one blocker**, and it is the reason
+this round exists: `e2e/axe-sweep.spec.ts` — the single artifact this phase built to prove GATE-02's
+"an automated axe pass is green in court" clause — **failed its own AC#2 completeness assertion when
+run**, deterministically, twice, at `--workers=1`. `declaredRouteFiles()` walks the tree and found
+**46** route files; `ROWS` declared **42**. Plan 17-07 built that table in wave 2; plan 17-12 added
+four group-local throw routes in wave 3 and reconciled every OTHER route-inventory instrument
+(`tests/design/loading-coverage.test.ts` 29→33 / 8→12, and this file's D-201 sibling in
+`e2e/overflow-320.spec.ts`) except that one. Mechanical, and therefore **not** closeable-around under
+D-200 — the phase's own rule is that escalate-class findings are the deliverable and mechanical ones
+are fixed.
+
+**FIRST, THE RUN § 7 STRUCTURALLY COULD NOT RECORD.** § 7.4 named `33298297450` (on `247d1e4`) as the
+closing evidence, and § 7.6 then landed one `.planning`-only commit — `1751fb0`, the commit that
+*contains* § 7. That push fired its own CI run, and a document cannot cite the run of the commit that
+carries it. The verifier confirmed it independently via `gh run view`, and it is recorded here for the
+first time so the chain has no invisible link:
+
+| Item | Value |
+|---|---|
+| **Run id** | **`33298587807`** |
+| Head SHA | **`1751fb0bc414cc72f2563ad84d783a82afc6a98e`** (`1751fb0`) |
+| Workflow / event | `ci` / `push` |
+| **Conclusion** | **`success`** — all 4 jobs |
+| Started / finished | `2026-08-30T07:10:30Z` / `2026-08-30T07:17:12Z` |
+| `gate-visual` | **success** — **42 passed / 1 flaky / 42 skipped / 0 failed** |
+
+⚠ **The `1 flaky` is read out rather than rounded off.** `dev-theme-1280-court.png` failed its first
+attempt and passed on `retry #1`, so that job is green on a retry rather than on the first pass. The
+denominator is unchanged (42 + 1 = the same 43 shot rows), the flake is in the **audit instrument's**
+own baseline (`/dev/theme`, D-201 exclusion 1) and not in a product surface, and `updateSnapshots:
+"none"` means nothing was written either way. It is named because a green-on-retry is a weaker reading
+than a green-on-first-pass, and the run that supersedes it below is the stronger one.
+
+By the same tree-moved rule § 7.5 states, `33298587807` **superseded `33298297450`** the moment
+`1751fb0` landed: § 7.4's claim stays true of `247d1e4` and simply stopped speaking for the head. That
+link was missing from this document until now, which is the second reason to record the run at all.
+
+## 8.2 What landed, and the mechanical proof that no pixel could follow
+
+One commit on top of `1751fb0`:
+
+| Commit | Finding | Files |
+|---|---|---|
+| `64da86f` | the verifier's single blocker | `e2e/axe-sweep.spec.ts` — **one file, and it is a Playwright spec** |
+
+**The prediction, written in the same falsifiable form § 7.1 used, and before the push:** a spec under
+`e2e/` is read by **no** rendering path. It is not imported by `src/`, not bundled, not served, and
+`e2e/*.spec.ts` belongs to the `chromium` project while every baseline belongs to `visual` — the two
+projects' `testMatch` globs are disjoint by construction (`playwright.config.ts`). **If any baseline
+PNG had moved, that would be a FINDING and not something to absorb by regenerating.**
+
+| Check | Result |
+|---|---|
+| `git diff 1751fb0..HEAD --stat -- '*.png'` | **0 lines** — not one baseline byte moved |
+| `git diff 1751fb0..HEAD --stat -- . ':(exclude).planning'` | **1 file, +128 / −20** — `e2e/axe-sweep.spec.ts` only |
+| Files under `src/` in the diff | **0** |
+| Baselines on disk | **36**, every one `*-court-visual-linux.png`; the grove / `win32` / `darwin` count = **0** |
+| `playwright.config.ts:78` | `updateSnapshots: "none"` — unconditional, byte-unchanged since `e439bf9` |
+| `git status --porcelain drizzle/` | empty; `drizzle/*.sql` = **26** |
+
+**No `baselines.yml` dispatch was fired in this round, and no threshold was widened.** There is no
+generation run to label because nothing was generated.
+
+## 8.3 The gates, re-run locally because a spec moved
+
+| Check | Result |
+|---|---|
+| `npx playwright test e2e/axe-sweep.spec.ts --project=chromium --workers=1` — **the whole file, not just AC#2** | **60 passed / 36 skipped, 1.8m, exit 0** — the gap is closed |
+| — the same command on `1751fb0` | **1 failed** (`AC#2 … the table's row set equals the declared surface set`) |
+| — what the four new rows cost | 47 rows now (46 route files + 1 non-route class): **29 measured × 2 widths + 2 AC#2 tests = 60 passed**, 18 skipped × 2 = **36 skipped** |
+| `npm run build` (lint + `test:design` + `next build`) | **exit 0** |
+| `npm test` — run **ALONE**, after the build, never concurrently | **exit 0** — **186 files, 2169 passed / 5 skipped**, identical to § 7.3 |
+| `e2e/overflow-320.spec.ts -g "D-201 / AC#2"` — the sibling inventory, **verified rather than assumed** | **8 passed** |
+| `tests/design/loading-coverage.test.ts` pins vs. disk, measured by hand | **33 / 21 / 12** against 33 `page.tsx` and 21 `loading.tsx` — consistent |
+
+⚠ **THE FIX WAS LARGER THAN "FOUR ROWS", AND THE EXTRA IS THE PART WORTH READING.** Four of the five
+error-boundary rows carried a skip reason that plan 17-12 had made **false** — *"no dev throw
+affordance exists inside the (app) route group"* — and it would otherwise have stood directly beside
+four new rows citing those very affordances by name. All four are now **measured**, at 320 and 1280,
+through the routes 17-12 shipped; and every boundary `tell` (the root's included) now names its own
+route out rather than the shared `error-state` hook, because all five boundaries render the same panel
+and the bare hook proves "a boundary rendered" and not "THIS boundary rendered". Eight scans that did
+not exist before, all clean.
+
+## 8.4 THE RUN
+
+| Item | Value |
+|---|---|
+| **COMPARISON run id** | **`33300479520`** |
+| Workflow / event | `ci` / `push` |
+| **Conclusion** | **`success`** |
+| **Head SHA it ran against** | **`64da86ffeb83531a809e1131fe965e60ceac01a9`** (`64da86f`) |
+| Started / finished | `2026-08-30T07:59:33Z` / `2026-08-30T08:06:19Z` |
+| `gate-visual (GATE-01 visual regression)` | **success** — **43 passed / 42 skipped / 0 failed / 0 flaky** |
+| `gate-db-free (lint + design + build + workflow parse)` | **success** |
+| `gate-db (vitest against PostGIS 18)` | **success** |
+| `gate-price-parity (DB-vs-DOM price, 1 spec)` | **success** |
+
+**43 / 42 / 0 — identical to `33298297450`, row for row, and one flake better than `33298587807`.**
+No baseline changed on disk *and* the running app still renders every one of the 43 shot rows
+pixel-identically to its committed reference. Those are two different statements and both are needed.
+
+*(Checked so it is not mistaken for new: the `gate-visual` log carries **2** `Hydration failed` lines
+from the dev `WebServer` — `grep -c` — the same **2** that runs `33295755823` and `33298297450` carry.
+Pre-existing and unmoved.)*
+
+> ### RUN `33300479520`, GREEN, ON `64da86f`, IS PHASE 17's CLOSING EVIDENCE (D-202).
+
+## 8.5 ⚠ Run `33298587807` is SUPERSEDED — recorded, not deleted
+
+`33298587807` (green, on `1751fb0`) was the green comparison run on the head commit at the moment the
+verifier read the tree, and it is the run that verification cites. It is **superseded rather than
+wrong**, and for the § 7.5 reason and not the § 6.2 one — that distinction is the whole point of
+keeping both:
+
+* `33273927029` was superseded because the tree it compared had a **defect**: clock-dependent
+  baselines that would have gone red at the next day-rollover.
+* `33295755823`, `33298297450` and now `33298587807` have no such flaw. **`33298587807` is superseded
+  only because the tree moved underneath it** — one commit landed to close a gap the verifier found in
+  a *test file*, so the commit it ran against is no longer the head. Its green is still true of
+  `1751fb0`. **Nothing about the prior evidence was found wanting**: the gap was in
+  `e2e/axe-sweep.spec.ts`, which no CI job runs (D-24), so no comparison run — past or present — was
+  ever measuring it, and none of them over-claimed.
+* `33300479520` makes the **same** GATE-01 claim — 43 / 42 / 0 — about a head that also carries the
+  fix, and makes it without the retry `33298587807` needed. Strictly more, about strictly more code,
+  on a strictly stronger reading.
+
+Kept because the chain `33273927029 → 33295755823 → 33298297450 → 33298587807 → 33300479520` is the
+readable history of why this phase's evidence is trustworthy, and deleting a link hides a decision.
+
+## 8.6 What lands after the comparison
+
+Same rule and same proof shape as § 3.3, § 6.3 and § 7.6: **no code, test, workflow, config, schema or
+baseline commit lands after `64da86f`.** The only commit after it is this section plus the verification
+report it answers — `.planning/` only, read by no job in `ci.yml`, and unable to change a rendered
+pixel. The check: `git diff 64da86f..HEAD -- . ':(exclude).planning'` prints **nothing**.
+
+## 8.7 The AC roll-call, re-measured at the end of round 4
+
+| Criterion | Result |
+|---|---|
+| **AC#25** — regeneration only via `baselines.yml` in the pinned image; `updateSnapshots: "none"` unchanged and unconditional | **holds**, vacuously again: **no regeneration was dispatched**. `playwright.config.ts:78` byte-unchanged since `e439bf9` |
+| **AC#26** — zero grove / `win32` / `darwin` baselines | **holds** — **0**; disk **36** |
+| **AC#27 / D-202** — a green COMPARISON run on the head commit, id recorded | **holds** — `33300479520` on `64da86f` |
+| Every changed PNG predicted in writing | **holds, in its strongest form** — **zero** PNGs changed, predicted in § 8.2 before the push |
+| No newly minted PNG | **holds** — no generation run exists this round |
+| No pixel threshold widened | **holds** — no `maxDiffPixels` / `threshold` anywhere in the diff |
+| **AC#32** — zero schema migrations | **holds** — `drizzle/` clean, **26** `.sql` |
+| **GATE-02's axe half** — the clause the verifier falsified | **now holds** — `e2e/axe-sweep.spec.ts` runs **60 passed / 36 skipped**, whole file, `--workers=1` |

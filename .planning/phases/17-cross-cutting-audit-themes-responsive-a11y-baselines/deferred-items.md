@@ -912,6 +912,69 @@ it is a **source** comment describing shipped product behaviour on a route whose
 undecided — editing it would state a product position from inside an audit. Every other stale comment
 this phase found was in an **instrument**, where the comment is the deliverable.
 
+**⚠ FOUND BY THE PHASE VERIFIER AND FIXED — the axe table's four missing rows. Recorded HERE, and the
+fact that it was not recorded ANYWHERE until the verifier ran is itself the finding.**
+
+Like `[17-D26]` above, this is not one of 17-UI-SPEC § *May fix in place*'s declared rows, so it is
+closed beneath the table rather than inside it. It is written up in full because the verification
+report's own `missing` list asks for it by name: *"this gap exists in none of the phase's 25 logged
+findings, so it was never surfaced to the PM at all."*
+
+**The finding.** `e2e/axe-sweep.spec.ts` — the one artifact this phase built to prove GATE-02's
+"automated axe pass green in court" clause — **failed its own AC#2 completeness assertion when run**,
+on `1751fb0`, deterministically, twice, at `--workers=1`. Its `declaredRouteFiles()` walk found **46**
+route files on disk; its `ROWS` table declared **42**. The four missing were plan 17-12's group-local
+throw routes. Plan 17-07 built the table in **wave 2**; 17-12 landed the routes in **wave 3** and
+reconciled every OTHER route-inventory instrument — `tests/design/loading-coverage.test.ts` (29→33 and
+8→12) and `e2e/overflow-320.spec.ts`'s D-201 table (four `coveredBy` entries) — and not this one.
+
+**Mechanical, and therefore NOT closeable-around.** D-200 is explicit; this is the rule the whole
+section above exists to enforce, applied to an item the section did not know about.
+
+**Why nothing caught it, which is the part worth escalating.** **None of this phase's Playwright specs
+run in CI (D-24, pre-existing).** 17-12 did not re-run the sibling instrument it had just invalidated;
+17-13's "closed inventory re-proof" re-proved five inventories, none of them this one; the code review
+ran two vitest invocations and no Playwright; and 17-14's closing evidence is a CI comparison run,
+which by D-24 cannot execute this file. **The assertion worked perfectly and nobody ran it.** That is a
+process gap rather than a code one, and it is the standing risk in every one of the seven specs this
+phase added: each is a one-time audit result, not an ongoing regression gate.
+
+**What was fixed, and it was larger than four rows.** Commit `64da86f`, `e2e/axe-sweep.spec.ts` only:
+
+* **Four rows added**, one per `dev-throw-*` route, each a named skip — their whole body is a
+  server-side throw, so the only document each can produce is its group's `error.tsx`. They are **not**
+  D-201 exclusions (that clause names `src/app/dev`, and these sit *inside* the route groups on
+  purpose): the same *covered, not excluded* disposition `overflow-320.spec.ts` already records.
+* **Four skips became measurements.** The (app)/(auth)/(host)/(legal) boundary rows still carried
+  *"no dev throw affordance exists inside the (app) route group"* — a sentence **17-12 made false**,
+  which would otherwise have stood directly beside four new rows citing those affordances by name. All
+  four now scan clean at 320 and 1280: **eight scans that did not exist before.**
+* **Every boundary `tell` now names its own route out** (root `Back to search`, (app) `Your bookings`,
+  (host) `Host dashboard`, (auth) `Back to log in`, (legal) `Back to FitOut`) instead of the shared
+  `error-state` hook, because all five render the same panel and the bare hook proves *"a boundary
+  rendered"*, not *"THIS boundary rendered"*.
+* **The docblock count corrected 42 → 46, re-measured** (33 `page.tsx` + 4 `not-found.tsx` + 5
+  `error.tsx` + 1 `global-error.tsx` + 3 `opengraph-image.tsx`) rather than copied from the failure
+  message — this phase found seven acceptance criteria whose stated counts were false of the tree.
+
+**Proven:** `npx playwright test e2e/axe-sweep.spec.ts --project=chromium --workers=1` → **60 passed /
+36 skipped**, whole file. `npm run build` exit 0; `npm test` (alone) exit 0, 2169 passed / 5 skipped.
+Sibling instruments **verified rather than assumed**: `overflow-320.spec.ts -g "D-201 / AC#2"` → 8
+passed, and `loading-coverage.test.ts`'s 33/21/12 pins re-measured against disk. **Zero baseline PNGs
+moved**, no `baselines.yml` dispatch, no threshold widened; green comparison run **`33300479520`** on
+`64da86f` recorded in `baseline-evidence.md` § 8.
+
+**⚠ AND TWO NUMBERS IN THE TABLE ABOVE ARE NOW HISTORY RATHER THAN CURRENT READINGS.** Two rows cite
+*"the axe sweep's **48** measured rows"* (the skeleton-mechanism row and the `color-contrast` row).
+That was 17-07's reading of its own first run and it is left byte-identical as the record of what was
+measured then; **the sweep now measures 58** (29 reachable rows × 2 widths). Both claims survive the
+change — the ten new scans reported **0** violations of either class — but the denominator moved, and
+saying so is the point of saying it.
+
+**Suggested owner:** the PM, for the *process* half only. The code half is closed. The open question is
+whether any of this phase's seven Playwright specs should join CI (D-24 currently says no), because
+without one nothing will notice the next wave-ordering gap either.
+
 ---
 
 # D-199 / D-200 — the statement for the PM
