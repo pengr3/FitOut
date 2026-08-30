@@ -84,9 +84,23 @@
 // "zero outbound requests" assertion: should the catch-all interceptor ever stop matching, the request
 // does not quietly leave the machine — it throws, loudly, naming the origin.
 //
-// (`api.resend.com` is its own finding, `[17-D28]`: 14 real POSTs per run pass through this seam
-// untouched, on a live key. That is deliberately OUT of this seam's scope — silencing it is a separate
-// decision on a separate finding, taken on purpose or not at all.)
+// (`api.resend.com` is its own finding, `[17-D28]`: 14 real POSTs per run passed through this seam
+// untouched, on a live key. This paragraph used to end *"silencing it is a separate decision on a
+// separate finding, taken on purpose or not at all"* — kept here as history, because THE DECISION HAS
+// NOW BEEN TAKEN, and not in this seam. Quick task **`260831-9qx`** silenced it at the PLAYWRIGHT
+// BOUNDARY instead: `playwright.config.ts`'s `webServer.env` sets `RESEND_API_KEY: ""` and
+// `reuseExistingServer: false` makes that unbypassable, measured 12 → 0 and 2 → 0 on the same two spec
+// files § P3 counted, and pinned by `tests/design/e2e-email-silence.test.ts`.
+//
+// ⚠ THE SEAM REMAINS THE WRONG TOOL FOR RESEND, and the reason is the exact inverse of `:20-22` above.
+// There, `authHeader()` falls back to `""` and still sends `Basic <base64 of ":">`, so clearing the
+// credential removes the credential and not the network — only an interception removes the network.
+// Here, `src/lib/email.ts:34-35` binds `resend = key ? new Resend(key) : null` at MODULE LOAD and
+// `send()` returns on the `!resend` branch before any transport object exists: for Resend the key IS
+// the switch. Two same-looking findings, opposite mechanisms, therefore different correct answers.
+// Widening this seam to that origin would also change every dev boot rather than just Playwright runs
+// — `register()` is unconditional outside production on purpose (see guard 1) — costing the operator
+// the `[email:dev]` console link as well as the send. Do not fold `api.resend.com` in here.)
 //
 // ── A NOTE ON WHAT THIS DOES *NOT* WIDEN ──────────────────────────────────────────────────────────
 //
