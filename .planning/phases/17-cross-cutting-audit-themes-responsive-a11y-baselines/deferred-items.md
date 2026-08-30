@@ -1312,6 +1312,61 @@ delivery, that is a named opt-in, not the default.
 **Suggested owner:** whichever plan next opens `playwright.config.ts` or `src/lib/email.ts`; and Phase
 18's CI work, where D-35's boundary is actually crossed.
 
+**RESOLVED 2026-08-31 — quick `260831-9qx`, commits `57a85e1` / `ef8c34a`.** **14 → 0**, measured on
+the same two spec files this row measured, at the same flags (`--project=chromium --workers=1`, each
+file driven alone), under an instrument that reproduced this row's own numbers first:
+`e2e/overflow-320.spec.ts` **12 → 0** and `e2e/axe-sweep.spec.ts` **2 → 0**
+(`260831-9qx-EVIDENCE.md` § 3-4). Both files still report **0 failed** with delivery off — 100/7 and
+58/36, unchanged in every cell — so no spec silently depended on real delivery, which this row asserted
+and the drive confirmed. **This task itself sent zero real email:** both the before and the after drives
+INTERCEPTED `api.resend.com` and counted, rather than delegating. The 14 that really left the machine
+were already paid for by § P3 and were not re-purchased.
+
+**The repair was this row's own, and `src/lib/email.ts` was not touched.** `playwright.config.ts`'s
+`webServer` gained `env: REAL_EMAIL ? {} : { RESEND_API_KEY: "" }`. ⚠ `""`, not an unset, and both
+halves of that were measured rather than assumed: `webServer.env` MERGES over `process.env` (Playwright
+1.60.0), so a key merely omitted inherits the live one; and `@next/env` re-applies a `.env.local` value
+only for keys whose initial value is `undefined`, so a DELETED variable would be re-supplied at server
+boot while `""` — a defined string — survives and shadows it. The `INSTALLED … resend_key_set=no
+resend_key_len=0` line in both after-transcripts is the direct proof it reached the booted server's own
+process env.
+
+**Where this went beyond what is written above, and why.** This row prescribed *"an environment change
+plus the assertion that pins it"* and named the trap in the same breath — `[17-D24]`'s
+`reuseExistingServer: !CI` adoption. That prescription is **not self-enforcing**: under an adopted
+server the `env` block is silently ignored, so the guarantee holds only on machines where nothing else
+happened to hold :3000, and this phase family has already been given false results by that trap twice.
+So the adoption case was **deleted rather than tolerated** — `reuseExistingServer: false`,
+unconditional — which is what lets the guarantee be a static property of the config instead of a runtime
+condition that must itself be trusted. On CI the trap never existed (`!process.env.CI` is already
+`false` there), so this changes local behaviour only, while the exposure that actually mattered — real
+secrets, every push, this row's credential paragraph — was never subject to it. The cost is stated in
+the config rather than hidden: `npx playwright test` now FAILS loudly when anything else holds :3000.
+
+**Real delivery is still reachable, by one named flag and nothing accidental:** `FITOUT_E2E_REAL_EMAIL=1`
+makes the config emit **no** `RESEND_API_KEY` entry at all, so the merge inherits the operator's own
+environment — which means the config **never reads the secret's value in either branch**. Proved rather
+than asserted: the same `axe-sweep` drive, at the same commit as its zero, returned to **2** under the
+flag with `resend_key_len=36`. That is the control that makes the zero attributable to this fix and not
+to anything else that changed.
+
+**Pinned by `tests/design/e2e-email-silence.test.ts`**, placed in the suite `npm run build` runs and NOT
+in `tests/security/`, which it does not (`instrumentation.ts:104-106` complains about exactly that gap).
+Two links, each driven RED in BOTH positions before any green was trusted — deleting the `env` line and
+restoring `!process.env.CI` each turn it red, and the mechanism is pinned as `0` captured sends on an
+empty key AND `1` on a fake key. The `1` is not decoration: `0` is equally what a capture that never
+installed reports, which is the vacuity quick `260831-99f` met head-on when a guard PASSED over a tree
+whose subject had been deleted.
+
+**One stale sentence elsewhere was corrected in the same task, not left to rot.** `instrumentation.ts`'s
+parenthetical about this row said silencing Resend was *"a separate decision on a separate finding, taken
+on purpose or not at all."* It is taken; the comment now says where, how, and why that seam is still the
+wrong tool for it — `src/lib/email.ts:34-35` binds the client at module load and `send()` returns before
+any transport exists, so for Resend the key IS the switch, the exact inverse of the PayMongo case at
+`instrumentation.ts:20-22` where clearing the credential removes the credential and not the network. Two
+same-looking findings, opposite mechanisms, different correct answers — which is the reason this row did
+not become a second interception.
+
 ---
 
 ## [17-D29] — `better-auth`'s optional `vitest` peer keeps a test runner, `jsdom` and `undici` in the PRODUCTION dependency tree
