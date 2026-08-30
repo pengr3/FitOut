@@ -743,22 +743,38 @@ Plans:
 **Goal:** The four escalate-class findings the PM promoted at Phase 17's D-199 review stop being recorded and start being fixed.
 **Requirements**: RESP-03 (advances its sticky-bar clause via [17-D9]); the rest close findings, not requirements
 **Depends on:** Phase 17
-**Plans:** 0 plans
+**Plans:** 7 plans, 7 waves (serial by construction — see the planning note below)
 
 **Scope — decided at the D-199 triage, 2026-08-30. Four items, one per decision:**
 
 1. **[17-D9] + [17-D10] — the 320px sticky-bar occlusion.** On `/listings/[id]` at 320px the footer link sits ENTIRELY under the sticky booking bar: measured `a("Privacy")` at `{y:515, bottom:533}` against a bar at `{y:504, bottom:568}` — untappable and unscrollable-to, in both themes. `STICKY_BAR_CLEARANCE` is applied to `<main>` but `SiteFooter` renders after `<main>`, so no clearance covers the bottom 64px of the DOCUMENT. [17-D10] is the same knob's other half: the clearance is INERT on `/listings/[id]` (deleting `pb-20` at `page.tsx:480` changed nothing) and load-bearing only on `/listings/[id]/book`. Fix the document-level clearance; do not widen a threshold.
+   [17.1-PLANNING 2026-08-30 — THIS ITEM'S TEXT IS STALE AND D-01 SUPERSEDES IT. The clearance move SHIPPED at commit `4636206` (quick `260830-r4b`) 22 minutes before the triage commit that inserted this phase, and both `[17-D9]` and `[17-D10]` carry dated RESOLVED lines. **Do not plan the clearance move.** What remains is **1a** — the held `baselines.yml` dispatch and its forced comparison run (plan 17.1-07, the phase's FINAL wave, alone, because `ci.yml` has no `workflow_dispatch` and §7d requires `headSha == git rev-parse HEAD`) — and **1b**, an unrecorded defect the fix surfaced: `sm:py-12` beats the unvariant `pb-20`, so `STICKY_BAR_CLEARANCE` has NEVER been in effect at or above 640px, and `/listings/[id]/book` still carries the overridden spelling: a 64px bar over 48px of padding across 640-1023px (plans 17.1-03 and 17.1-04). The bullet above is left standing as the record of what the triage decided against.]
 
 2. **[17-D1] + [17-D2] — the soft-404, MEASURED FIRST.** ~10 `loading.tsx` files sit above a `page.tsx` calling `notFound()`; the shell flushes and commits `200` before the body raises. RESEARCH assumption **A6 — that this behaves the same in a production build — has never been driven**. Every reading to date is a `next dev` reading, and 17-01's re-measure did NOT reproduce. **Task 1 is the probe** (`next build && next start` against `/listings/{draft-id}`); the fix is CONDITIONAL on it reproducing. Do not restructure ten boundaries before knowing.
+   [17.1-PLANNING 2026-08-30 — THE QUESTION HAS INVERTED (RESEARCH C1). `[17-D1]`'s claim that `git log d24b212..HEAD -- 'src/app/listings/[id]/(detail)/'` is empty is FALSE: the range holds three commits, one of which is `89fb451 fix(260826-l1o): /listings/[id] answers a real 404 again`, landed 72 minutes after `[16-D6]` measured the 200. 17-01 measured a REPAIRED route, not a flaky one. The probe still runs first (plan 17.1-01) but it asks whether the shipped layout-assert HOLDS under `next build && next start` — expected **404 / 404 / 200** (draft / nonexistent / published control), and a 200 on the draft is a REGRESSION, not a reproduction.]
 
 3. **[17-D18] — intercept the PayMongo fetch.** `/host/payouts/refresh` issues **2 real POSTs** to `api.paymongo.com/v1/linked_accounts/onboarding_links` per full e2e run, carrying whatever `PAYMONGO_SECRET_KEY` the local `.env` holds, and consumes 2 of a 5-per-60s per-identity budget. Repair is `page.route` on the PayMongo origin returning the gated-error shape — **keep the row**; dropping it would leave the route unmeasured, which the finding argues is worse. Matters before this suite ever runs in CI with a live key (D-35's boundary).
+   [17.1-PLANNING 2026-08-30 — THE PRESCRIBED REPAIR IS REFUTED (D-07 / RESEARCH C3). `page.route` intercepts requests the BROWSER makes; this POST is issued by `paymongoFetch` in the Next SERVER process, so a `page.route` handler would report green and measure nothing — the same class of error `[17-D26]` already caught with `page.clock`. The seam is D (D-08): `instrumentation.ts` + undici `MockAgent`, process-level, covering BOTH endpoints and BOTH spec files (plans 17.1-05 and 17.1-06). The exposure is also LARGER than this bullet records: `axe-sweep.spec.ts` reaches a second, unlisted endpoint — `POST /v1/linked_accounts`, carrying the host's email — which plan 17.1-05's census measures before any seam is written (D-11).]
 
 4. **[17-D3] — delete the unreachable boundary.** `src/app/listings/[id]/(detail)/not-found.tsx` cannot render in any state: `(detail)/layout.tsx` raises `notFound()` from a LAYOUT, so the parent segment's boundary wins and `src/app/listings/[id]/` has none — it falls through to the root, whose document was measured (404, 1 `empty-state`, this file's own copy appearing **0** times). Delete the file and its header, which claims the opposite. The root not-found already serves this case correctly.
 
 **Out of scope, and deliberately so:** the 13 Bucket-C findings ([17-D7], [17-D8], [17-D11]–[17-D25] minus those above) stay parked for "whichever plan next opens the file" — a convention with a track record here, since Phase 17 itself closed [13-15], [15-12], [16-D9] and [14-WR-03] in place. [17-D5] (`wizard-cover-preview`) stays blocked until the PM schedules it; [17-D16] (`/host/earnings` ships zero actions) is accepted as intended product.
 
+**Planning note (2026-08-30):** the seven plans are **serial**, one per wave, and that is a measured
+constraint rather than a missed parallelisation. Every plan's gate runs `npm run build` (which rewrites
+`.next/`), plan 17.1-01 runs `next build && next start`, and four plans drive Playwright against one
+long-lived dev server and one shared seeded Postgres. RESEARCH Pitfall 8 records what concurrency costs
+here: *"a collision manufactures convincing failures in files nothing touched."* D-03 independently
+forces 17.1-07 to be last and alone.
+
 Plans:
-- [ ] TBD (run /gsd-plan-phase 17.1 to break down)
+- [ ] 17.1-01-PLAN.md — item 2: the production soft-404 probe (404/404/200 with a published control), and C1/C2 as dated corrections on `[17-D1]` — **has a conditional checkpoint**
+- [ ] 17.1-02-PLAN.md — item 4: delete `(detail)/not-found.tsx` coupled to its four instruments and all 10 references across 5 files, with the free watched red
+- [ ] 17.1-03-PLAN.md — item 1b: drive the 640-1023px band probe, then land the permanent band case + D-04's computed-padding clause, red against the shipped tree
+- [ ] 17.1-04-PLAN.md — item 1b: the repair on `book/page.tsx:521` (Shape A, zero predicted baseline movement), both stale comments corrected, the probe disposed
+- [ ] 17.1-05-PLAN.md — item 3: the outbound census across both specs, and `undici` declared at an exact pin — **has a blocking supply-chain checkpoint**
+- [ ] 17.1-06-PLAN.md — item 3: the `instrumentation.ts` seam + its inertness test with a positive control; both rows kept, zero outbound requests
+- [ ] 17.1-07-PLAN.md — item 1a: the `baselines.yml` dispatch, the five-point diff read against §7a's corrected prediction, and the forced comparison run — **FINAL wave, alone; nothing lands after it**
 
 ### Phase 18: Search-Results Map
 
@@ -855,7 +871,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). `dev` pushed at `025c1ad`; ci run 32939455683 GREEN on all four jobs incl. gate-visual — W-2 discharged | 2026-08-26 |
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-28 |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 14/14 | Complete (verified 2026-08-30 — 4/4 must-haves after one gap closed; GATE-01 evidence ci 33300952565 GREEN on a2f6973). 25 escalate-class findings filed in deferred-items.md for PM review; RESP-03/RESP-04/GATE-02/GATE-06 remain Pending by design | 2026-08-30 |
-| 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 0/? | Not started | - |
+| 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 0/7 | Planned | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
 
