@@ -341,8 +341,28 @@ function declaredRouteFiles(): string[] {
 // ---------------------------------------------------------------------------
 
 /**
- * ONE ROW PER DECLARED SURFACE — 42 route files on disk plus the one non-route class below, and the
+ * ONE ROW PER DECLARED SURFACE — 46 route files on disk plus the one non-route class below, and the
  * equality test underneath this table is what keeps that sentence true.
+ *
+ * ⚠ THAT NUMBER READ 42, AND THE STALE COUNT WAS THE SYMPTOM RATHER THAN THE DEFECT — FOUR ROWS WERE
+ * MISSING. Plan 17-07 built this table in wave 2 against the tree as it then stood. Plan 17-12 landed
+ * four new route files in wave 3 — the group-local throw affordances — and reconciled every OTHER
+ * instrument that reads the route tree: `tests/design/loading-coverage.test.ts`'s pins moved 29→33
+ * pages and 8→12 non-qualifying, and `e2e/overflow-320.spec.ts`'s D-201 inventory gained four
+ * `coveredBy` entries. This table was not reconciled, and the equality test below then failed —
+ * CORRECTLY, and it was the only thing in the repository that noticed, because none of these specs
+ * run in CI (D-24), so the phase's own three closing cross-checks all passed over it.
+ *
+ * THE COUNT HERE IS RE-MEASURED RATHER THAN COPIED FROM THE FAILURE MESSAGE, which is the same rule
+ * the surface-filename docblock above states for itself: `src/app/` holds 33 `page.tsx`, 4
+ * `not-found.tsx`, 5 `error.tsx`, 1 `global-error.tsx` and 3 `opengraph-image.tsx` — 46. The 33 is
+ * the same number `loading-coverage.test.ts` independently pins, which is a second reading of the
+ * same tree rather than a restatement of this one.
+ *
+ * AND CLOSING IT WAS NOT FOUR SKIPS. Four of the five error-boundary rows below carried a skip whose
+ * reason was *"no dev throw affordance exists inside the (app) route group"* — a sentence plan 17-12
+ * made FALSE and which would have been left standing beside four new rows citing those routes by
+ * name. All four are now measured, at both widths, through the affordances 17-12 shipped.
  *
  * THE ORDER IS THE ROUTE TREE'S, not the owning plan's. This table's reading question is "is this
  * document audited", which is asked from a file path; `overflow-320.spec.ts` orders by owning plan
@@ -673,12 +693,40 @@ const ROWS: readonly SweepRow[] = [
 
   // ─── the error boundaries ────────────────────────────────────────────────────────────────────────
   //
-  // ONE OF FIVE IS REACHABLE, and the asymmetry is the finding rather than a shortfall. Plan 11-18
-  // shipped exactly one dev throw affordance and `src/app/dev/` sits under no route group, so it can
-  // only ever reach the ROOT boundary. What covers the other four instead: each renders
-  // `patterns/error-state.tsx` inside its group's shell, the shells are audited by the reachable rows
-  // above, and the panel itself is rendered by the dev theme page — which is an audit instrument and
-  // not an audit subject, so that half is a source claim rather than a scanned one.
+  // ALL FIVE ARE REACHABLE, AND FOUR OF THEM STOPPED BEING SKIPS ON 30 AUGUST 2026 — the history is
+  // kept rather than deleted, because a reader arriving from a green run should be able to see what
+  // this block used to claim and why the claim expired.
+  //
+  // WHAT THESE FOUR ROWS USED TO SAY. Until plan 17-12 landed, the (app) row read: *"no dev throw
+  // affordance exists inside the (app) route group — plan 11-18 shipped one route, at
+  // `src/app/dev/throw`, and because `src/app/dev/` sits under no route group that route reaches the
+  // ROOT boundary only. Reaching this one needs a new `page.tsx` inside (app), which moves
+  // `tests/design/loading-coverage.test.ts`'s pinned 29/21/8 counts and adds a route to the production
+  // route table."* The other three said "same as (app)", plus: (host) additionally sits behind the
+  // canHost capability gate; (auth)'s routes are all forms that render successfully, so no input makes
+  // them throw; and `/terms` and `/privacy` are static prose with no data path that can fail, which
+  // made (legal) *"the most stubborn"* of the five. EVERY ONE OF THOSE SENTENCES IS STILL TRUE ABOUT
+  // THE PRODUCT. What changed is that 17-12 paid the price they named — four `page.tsx` files, one per
+  // group, each a copy of `src/app/dev/throw` behind the same build-time production guard — and moved
+  // the pinned counts (29→33 pages, 8→12 non-qualifying) with the decision recorded beside them.
+  //
+  // WHICH BOUNDARY CATCHES A THROW IS A PROPERTY OF THE THROWING FILE'S PATH, not of its URL and not
+  // of a segment parameter, which is why it takes four files. 17-UI-SPEC's `[11-21]` row proposed one
+  // parameterised `src/app/dev/throw-in/[group]/page.tsx`; that file would sit under no route group
+  // either, so every value of `[group]` would land on the ROOT boundary and this block would have
+  // gained four rows reporting success while scanning the same document four more times. Recorded so
+  // it is not re-proposed.
+  //
+  // ⚠ AND THAT IS WHY EVERY `tell` BELOW NAMES THE ROUTE OUT RATHER THAN `[data-testid="error-state"]`
+  // ALONE — INCLUDING THE ROOT ROW, WHOSE HOOK IS NARROWED HERE. All five boundaries render the same
+  // `ErrorState` with the same title and the same body (`tests/design/error-boundaries.test.ts` pins
+  // that uniformity and owns it), so the panel hook proves "a boundary rendered" and NOT "THIS
+  // boundary rendered" — and a scan that audits the root boundary five times while reporting five
+  // surfaces is 17-RESEARCH Pitfall 6 exactly. The route out is the one thing each of the five
+  // composes differently: root `Back to search`, (app) `Your bookings`, (host)/host `Host dashboard`,
+  // (auth) `Back to log in`, (legal) `Back to FitOut`. Read out of the five `error.tsx` files, not
+  // assumed, and `e2e/overflow-320.spec.ts`'s equivalent block measured each document rendering
+  // exactly one `error-state` carrying its OWN route out and the root's copy ZERO times.
   {
     file: "src/app/error.tsx",
     name: "error boundary · root",
@@ -686,35 +734,48 @@ const ROWS: readonly SweepRow[] = [
     // The route is the INSTRUMENT here, not the subject: what is audited is the boundary's rendered
     // document, and `src/app/dev/throw/page.tsx` has its own row saying it is not a subject.
     path: "/dev/throw",
-    tell: '[data-testid="error-state"]',
+    tell: '[data-testid="error-state"]:has-text("Back to search")',
   },
   {
     file: "src/app/(app)/error.tsx",
     name: "error boundary · (app)",
-    path: null,
-    skip: "no dev throw affordance exists inside the (app) route group — plan 11-18 shipped one route, at `src/app/dev/throw`, and because `src/app/dev/` sits under no route group that route reaches the ROOT boundary only. Reaching this one needs a new `page.tsx` inside (app), which moves `tests/design/loading-coverage.test.ts`'s pinned 29/21/8 counts and adds a route to the production route table — a source change no acceptance criterion in this phase asks for, and one that file's own comment says must be a decision rather than a bumped number. What IS covered is both halves separately: the (app) shell by `/profile` and `/bookings` above, and `ErrorState` itself by the root boundary row.",
-    tell: '[data-testid="error-state"]',
+    // ⚠ THE SESSION IS NOT OPTIONAL AND THE ROW WOULD LIE WITHOUT IT. `(app)/layout.tsx` carries a
+    // blocking session gate, so an anonymous request to `/dev-throw-app` is answered by
+    // `redirect("/login")` before the page body runs — and since plan 15-07 `/login` renders
+    // `[data-testid="panel-card"]`, not an `error-state`, so the tell would catch it. The cookie is
+    // the fixture's, rather than this row driving a fifth sign-up: `beforeAll` already minted one.
+    path: "/dev-throw-app",
+    session: "booker",
+    tell: '[data-testid="error-state"]:has-text("Your bookings")',
   },
   {
     file: "src/app/(auth)/error.tsx",
     name: "error boundary · (auth)",
-    path: null,
-    skip: "same structural reason as (app): there is no dev throw affordance inside the (auth) route group, and adding one moves the pinned route counts. This boundary is additionally the hardest of the five to reach even in principle — every route under (auth) is a form that renders successfully with no server read that can fail, so there is no input that makes it throw either. The (auth) shell is audited four times over by the four form rows above, and `ErrorState` by the root boundary row; what is unaudited is only the composite.",
-    tell: '[data-testid="error-state"]',
+    // No session: `(auth)/layout.tsx` is presentational and gates nothing. The URL segment is
+    // `dev-throw-auth` rather than `dev-throw` because `(app)` and `(auth)` share the root URL
+    // namespace and two pages resolving to one path fail the build — the route file says so too.
+    path: "/dev-throw-auth",
+    tell: '[data-testid="error-state"]:has-text("Back to log in")',
   },
   {
     file: "src/app/(host)/host/error.tsx",
     name: "error boundary · (host)",
-    path: null,
-    skip: "same structural reason as (app), plus one this boundary alone carries: it sits behind the canHost capability gate, so reaching it needs a signed-up host as well as a new throw route inside the group. This file already has a host session, so the marginal cost here is exactly the route file — which is the part that moves `loading-coverage.test.ts`'s pinned counts and is therefore the part that is out of scope. The (host) shell is audited by nine host rows above and `ErrorState` by the root boundary row.",
-    tell: '[data-testid="error-state"]',
+    // BOTH of `(host)/host/layout.tsx`'s gates are real on the way in: anonymous it redirects to
+    // `/login`, and a booker-only session redirects to `/`. The host cookie the fixture already
+    // carries satisfies both, and the route it drives reads no listing, booking or ledger row — it
+    // throws — so this row needs a capability and not a seed.
+    path: "/host/dev-throw",
+    session: "host",
+    tell: '[data-testid="error-state"]:has-text("Host dashboard")',
   },
   {
     file: "src/app/(legal)/error.tsx",
     name: "error boundary · (legal)",
-    path: null,
-    skip: "same structural reason as (app): no dev throw affordance inside the (legal) route group. `/terms` and `/privacy` are static prose with no data path that can fail, which makes them the two routes in the app least able to reach their own boundary — the same property that makes them the cheapest rows in this table makes this row the most stubborn. Both halves are covered separately (the legal shell by the two prose rows, `ErrorState` by the root boundary row) and the composite is not.",
-    tell: '[data-testid="error-state"]',
+    // No session either. This row closes the boundary the old skip called the least reachable in the
+    // app — and in the sense that mattered it still is: nothing a visitor can do to `/terms` or
+    // `/privacy` reaches it. What reaches it is a route built for the purpose.
+    path: "/dev-throw-legal",
+    tell: '[data-testid="error-state"]:has-text("Back to FitOut")',
   },
   {
     file: "src/app/global-error.tsx",
@@ -743,6 +804,53 @@ const ROWS: readonly SweepRow[] = [
     path: null,
     skip: "the same D-201 exclusion as the dev theme page, plus a structural fact that makes a measurement impossible even if the exclusion were lifted: this route renders no document of its own because its whole body is a server-side throw. The document it produces is `src/app/error.tsx`'s, which is audited under its own row above and reaches that row BY DRIVING THIS ROUTE — so this file is exercised on every invocation of the sweep while never being its subject. Listed rather than omitted for the reason the row above gives: an invisible exclusion and a forgotten surface look identical.",
     tell: '[data-testid="error-state"]',
+  },
+
+  // ─── the four group-local throw routes (plan 17-12) — VEHICLES, AND NOT D-201 EXCLUSIONS ─────────
+  //
+  // ⚠ THESE FOUR SKIP FOR A DIFFERENT REASON FROM THE TWO ROWS DIRECTLY ABOVE, AND THE TWO LOOK ALIKE
+  // ENOUGH THAT CONFLATING THEM IS THE LIKELY NEXT MISTAKE. `/dev/theme` and `/dev/throw` are EXCLUDED
+  // as subjects, under D-201's `src/app/dev` clause. These four are not under `src/app/dev` at all —
+  // they sit inside the four route groups, deliberately, because that is the only way a throw reaches
+  // a group's own boundary — so no exclusion covers them and none is claimed. They skip because their
+  // whole body is a server-side throw and the ONLY document any of them can produce is its group's
+  // `error.tsx` inside that group's real layout stack, which is exactly what the four boundary rows
+  // above now measure, at both widths, by driving these four routes. A vehicle and its subject
+  // coincide, so there is no unmeasured surface left over for a skip to be hiding: `covered, not
+  // excluded` is `e2e/overflow-320.spec.ts`'s wording for the identical disposition in its own D-201
+  // inventory, and the two instruments now agree on all four rather than on none.
+  //
+  // ⚠ AND THEY ARE THE ROWS THAT WERE MISSING. This block is the gap the phase-17 verifier found on
+  // `1751fb0`: 17-12 added the files, nothing added the rows, and AC#2 below went red exactly as it
+  // was built to. It is recorded here rather than only in a summary because the next reader's question
+  // — "why does a dev-only throw route get a row at all" — is answered by that failure.
+  {
+    file: "src/app/(app)/dev-throw-app/page.tsx",
+    name: "/dev-throw-app · VEHICLE FOR THE (app) BOUNDARY, NOT A SUBJECT",
+    path: null,
+    skip: "this route renders no document of its own: its whole body is `throw new Error(SENTINEL_LEAK_PROBE)` behind a build-time `NODE_ENV` guard that `notFound()`s it in production (measured by plan 17-12 against `next start`: a hard 404). The document it produces is `src/app/(app)/error.tsx`'s, rendered inside the (app) layout stack, and that boundary is MEASURED above — at 320 and 1280 — by a row that reaches it BY DRIVING THIS ROUTE, so this file is exercised on every invocation of the sweep while never being its subject. It is not a D-201 exclusion and does not claim to be: D-201 excludes `src/app/dev`, and this file is inside a route group precisely because a throw's boundary is a property of the throwing file's path. Listed rather than omitted because an invisible surface and a forgotten one look identical, which is the whole subject of the assertion below.",
+    tell: '[data-testid="error-state"]:has-text("Your bookings")',
+  },
+  {
+    file: "src/app/(auth)/dev-throw-auth/page.tsx",
+    name: "/dev-throw-auth · VEHICLE FOR THE (auth) BOUNDARY, NOT A SUBJECT",
+    path: null,
+    skip: "the same structural reason as `/dev-throw-app`: a server-side throw behind the production guard, so the only document it can produce is `src/app/(auth)/error.tsx`'s, which is measured above by the row that drives this route. Two facts specific to this one, both worth keeping where somebody looking at the route tree will find them: the segment is `dev-throw-auth` rather than `dev-throw` because `(app)` and `(auth)` share the root URL namespace and two pages resolving to one path fail the build; and this is the boundary that had no other way in even in principle, since every route under (auth) is a form that renders successfully with no server read that can fail. Not a D-201 exclusion — it is not under `src/app/dev` — and listed rather than omitted so the enumeration has no silent members.",
+    tell: '[data-testid="error-state"]:has-text("Back to log in")',
+  },
+  {
+    file: "src/app/(host)/host/dev-throw/page.tsx",
+    name: "/host/dev-throw · VEHICLE FOR THE (host) BOUNDARY, NOT A SUBJECT",
+    path: null,
+    skip: "the same structural reason as `/dev-throw-app`, and the document it produces — `src/app/(host)/host/error.tsx`'s, behind both of the group's gates — is measured above by the row that drives this route with the host session. ⚠ THE ONE ASYMMETRY, MEASURED AND RECORDED RATHER THAN SMOOTHED OVER: in a production build this route answers a SOFT 404 (status 200, the root not-found document) where the other three answer a hard one, because `(host)` is the only one of the four groups carrying a group-level `loading.tsx` whose Suspense boundary flushes the shell before the guard runs. That is `[17-D2]` in this phase's `deferred-items.md`, escalate-class and unfixed on purpose; the security control is unaffected (the guard fires, the throw never happens, the sentinel appears zero times). It changes nothing here — the sweep runs against the dev server, where the throw does happen. Not a D-201 exclusion.",
+    tell: '[data-testid="error-state"]:has-text("Host dashboard")',
+  },
+  {
+    file: "src/app/(legal)/dev-throw-legal/page.tsx",
+    name: "/dev-throw-legal · VEHICLE FOR THE (legal) BOUNDARY, NOT A SUBJECT",
+    path: null,
+    skip: "the same structural reason as `/dev-throw-app`: a server-side throw behind the production guard, whose only document is `src/app/(legal)/error.tsx`'s and which is measured above by the row that drives this route anonymously. This is the vehicle for the boundary the old skip called the most stubborn in the app, and the reason it gave is still true of the product — `/terms` and `/privacy` are static prose with no data path that can fail, so nothing a visitor does reaches their boundary. What reaches it is this file, which exists for no other purpose. Not a D-201 exclusion (it is not under `src/app/dev`), and listed rather than omitted for the reason every row in this block gives.",
+    tell: '[data-testid="error-state"]:has-text("Back to FitOut")',
   },
 
   // ─── the OG image routes — in the table, with their reason, never as absences ─────────────────────
