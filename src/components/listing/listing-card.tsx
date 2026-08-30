@@ -198,18 +198,50 @@ export function ListingCard({
    * reason: a card is a fragment of somebody else's outline, and only the page knows what level it
    * sits at.
    *
-   * ⚠ THE DEFAULT IS THE SEARCH GRID'S LEVEL, AND IT IS CORRECT THERE — MEASURED (plan 17-07). On `/`
-   * the outline is `h1` "Find a space to play" → `h2` the results heading (`search-results.tsx:187`)
-   * → these titles, so `h3` is the right rung and the first GATE-02 axe sweep scanned that page clean.
-   * On `/host/listings` there is no intermediate heading — the page is its `h1` and then the grid —
-   * so the same default SKIPPED a level, and the sweep reported `heading-order (moderate) x1: h3` at
-   * both 320 and 1280. That call site passes `h2`.
+   * ⚠ THIS PARAGRAPH USED TO ARGUE THE DEFAULT FROM A CALL SITE THAT DOES NOT EXIST. Corrected by the
+   * phase-17 code review (WR-05); the previous text is quoted rather than deleted, because it reads as
+   * a measurement and was not one. It said: *"THE DEFAULT IS THE SEARCH GRID'S LEVEL, AND IT IS CORRECT
+   * THERE — MEASURED (plan 17-07). On `/` the outline is `h1` "Find a space to play" → `h2` the results
+   * heading (`search-results.tsx:187`) → these titles, so `h3` is the right rung […] Changing the
+   * default to `h2` would have flattened the search grid's titles into siblings of the results heading
+   * they belong under."*
    *
-   * The level is a prop rather than a fix inside the card, because the card is right in one document
-   * and wrong in the other with identical markup: which rung a fragment sits on is a property of the
-   * page, and baking either answer in makes the other page wrong. Changing the default to `h2` would
-   * have flattened the search grid's titles into siblings of the results heading they belong under —
-   * legal to `heading-order` and a worse outline, which is the trade this prop refuses to make.
+   * `/` DOES NOT RENDER THIS COMPONENT, and that is the whole correction. `search-results.tsx:116`
+   * renders `SearchResultCard`, which composes `ResultCard` (`search-result-card.tsx:41,248`), and that
+   * pattern hard-codes its title at `patterns/result-card.tsx:153` — `<h3 …>{title}</h3>`, not settable
+   * by any prop. So the search grid's `h3` is real and correct, it is simply not THIS card's and cannot
+   * be steered from here. `fixtures.ts:257-258` already said the plain version of this: *"`ListingCard`
+   * is a HOST management surface."*
+   *
+   * WHAT IS ACTUALLY MEASURED, as of the WR-05 fix:
+   *   • `grep -rn "<ListingCard" src/` → ONE call site for this component,
+   *     `(host)/host/listings/page.tsx:160`, and it passes `titleAs="h2"` at `:170`. (The other hit is
+   *     a DIFFERENT, locally-declared `ListingCard` inside `listings/[id]/opengraph-image.tsx:72`.)
+   *   • The `heading-order (moderate) x1: h3` the first GATE-02 sweep reported at 320 and 1280 was on
+   *     `/host/listings` — the page is its `h1` and then the grid, so the default skipped a rung. That
+   *     half of the original paragraph is TRUE and is why the prop exists.
+   *   • No PRODUCT surface exercises the default. `tests/listing/listing-card.test.tsx` mounts this
+   *     card 9 times and passes `titleAs` 0 of them, so the default is reached — by the component's own
+   *     unit tests, in isolation, where there is no document outline to be right or wrong about.
+   *
+   * ⚠ THE DEFAULT STAYS, AND IT STAYS AT `h3` — DECIDED ON THAT EVIDENCE, not inherited. Two reasons,
+   * and neither is the one above:
+   *
+   *   1. IT IS THE LOUD WRONG ANSWER RATHER THAN THE SILENT ONE. Both legal values are wrong on some
+   *      page. `h3` under a page that goes straight from `h1` to the grid SKIPS a level, and
+   *      `heading-order` fires on exactly that — which is how the one real call site was caught and
+   *      corrected inside this same phase. `h2` under a page that has a section heading FLATTENS the
+   *      titles into siblings of the heading they belong under, which is a worse outline that axe is
+   *      silent about. A default that fails audibly is a better guard than one that fails quietly.
+   *   2. Making the prop REQUIRED was considered and rejected as the more invasive change: it would
+   *      force `titleAs` onto 9 unit-test renders that deliberately mount the card with no page around
+   *      it, and it would break the layer's symmetry with `EmptyState` (`:117`, default `h2`) and
+   *      `PanelCard` (`:114`, default `h2`), both of which keep an optional rung with a default.
+   *
+   * Either way the rule for a NEW call site is unchanged and is the reason the prop exists at all: a
+   * card is a fragment of somebody else's outline, so PASS YOUR RUNG. The repo already treats that as
+   * the idiom rather than the exception — `profile-pass.test.tsx:1062` pins that the profile panels
+   * pass `titleAs="h2"` explicitly even though it is the default.
    */
   titleAs?: "h2" | "h3";
   editHref?: string;

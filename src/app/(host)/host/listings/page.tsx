@@ -163,10 +163,18 @@ export default async function HostListingsPage() {
                 priceParts={priceParts}
                 // ⚠ `h2`, NOT THE CARD'S DEFAULT `h3` — MEASURED (plan 17-07). This page's outline is
                 // the `<h1>` above and then this grid, with nothing between them, so the card's
-                // search-grid default skipped a rung: the first GATE-02 axe sweep reported
-                // `heading-order (moderate) x1: h3` here at both 320 and 1280. `/` keeps the default
-                // because it HAS the intermediate heading (`search-results.tsx:187`'s results `h2`),
-                // which is why the level is a prop rather than a change inside the card.
+                // default skipped a rung: the first GATE-02 axe sweep reported `heading-order
+                // (moderate) x1: h3` here at both 320 and 1280.
+                //
+                // ⚠ THE SENTENCE THAT USED TO FOLLOW WAS FALSE, and is corrected here rather than
+                // deleted (phase-17 code review, WR-05). It read: *"`/` keeps the default because it
+                // HAS the intermediate heading (`search-results.tsx:187`'s results `h2`), which is
+                // why the level is a prop rather than a change inside the card."* `/` does not render
+                // `ListingCard` at all — it renders `SearchResultCard` → `ResultCard`, whose title is
+                // hard-coded at `patterns/result-card.tsx:153`. THIS IS THE COMPONENT'S ONLY CALL
+                // SITE. The prop still earns its place: it is what lets the page own its rung instead
+                // of the card guessing, and `listing-card.tsx`'s docblock carries the full argument
+                // for why the default stays `h3` anyway.
                 titleAs="h2"
                 bookable={bookable}
                 hoursMissing={missingHours.has(r.id)}
