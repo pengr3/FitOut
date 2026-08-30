@@ -768,7 +768,7 @@ here: *"a collision manufactures convincing failures in files nothing touched."*
 forces 17.1-07 to be last and alone.
 
 Plans:
-- [ ] 17.1-01-PLAN.md — item 2: the production soft-404 probe (404/404/200 with a published control), and C1/C2 as dated corrections on `[17-D1]` — **has a conditional checkpoint**
+- [x] 17.1-01-PLAN.md — item 2: the production soft-404 probe (404/404/200 with a published control), and C1/C2 as dated corrections on `[17-D1]` — **has a conditional checkpoint** — DONE 2026-08-30 (`cfac9c7` · `ed3e85d`): the probe read **404 / 404 / 200** exactly as C1 predicted, so `[A6]` is settled POSITIVELY, the shipped layout-assert survives a production build, **no repair is licensed on `/listings/[id]`**, and the conditional checkpoint was **NOT REACHED** (its entry condition was a 200 on the draft). Zero code files changed. Transcript: `17.1-EVIDENCE.md` § P1.
 - [ ] 17.1-02-PLAN.md — item 4: delete `(detail)/not-found.tsx` coupled to its four instruments and all 10 references across 5 files, with the free watched red
 - [ ] 17.1-03-PLAN.md — item 1b: drive the 640-1023px band probe, then land the permanent band case + D-04's computed-padding clause, red against the shipped tree
 - [ ] 17.1-04-PLAN.md — item 1b: the repair on `book/page.tsx:521` (Shape A, zero predicted baseline movement), both stale comments corrected, the probe disposed
@@ -871,7 +871,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). `dev` pushed at `025c1ad`; ci run 32939455683 GREEN on all four jobs incl. gate-visual — W-2 discharged | 2026-08-26 |
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-28 |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 14/14 | Complete (verified 2026-08-30 — 4/4 must-haves after one gap closed; GATE-01 evidence ci 33300952565 GREEN on a2f6973). 25 escalate-class findings filed in deferred-items.md for PM review; RESP-03/RESP-04/GATE-02/GATE-06 remain Pending by design | 2026-08-30 |
-| 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 0/7 | Planned | - |
+| 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 1/7 | In Progress — item 2 CLOSED by 17.1-01 with a negative result: `/listings/[id]` reads 404 / 404 / 200 under `next build && next start`, so `[A6]` is settled, `89fb451` is not regressed and no boundary was restructured. The plan's conditional checkpoint was not reached | - |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
 

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: —
+current_plan: 2
 status: executing
-stopped_at: Completed 17-09-PLAN.md (RESP-04 rendered half)
-last_updated: "2026-08-30T14:46:59.046Z"
-last_activity: 2026-08-30 -- Phase 17.1 planning complete
+stopped_at: Completed 17.1-01-PLAN.md — [A6] settled on /listings/[id]: 404 / 404 / 200 in a production build
+last_updated: "2026-08-30T15:33:13.389Z"
+last_activity: 2026-08-30 -- Phase 17.1 plan 01 complete ([A6] measured, item 2 closed)
 progress:
   total_phases: 14
   completed_phases: 10
   total_plans: 149
-  completed_plans: 147
+  completed_plans: 148
   percent: 71
 ---
 
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 17 COMPLETE and TRIAGED (2026-08-30). Next: **Phase 17.1 (INSERTED)** — the four findings the PM promoted at the D-199 review. Of the 25: 4 promoted to 17.1, 2 closed at triage ([17-D5] stays blocked until scheduled, [17-D16] accepted as intended product), 13 parked for whichever plan next opens their file (a convention with a track record — Phase 17 closed four inherited items in place), 6 informational or already closed. RESP-03/RESP-04/GATE-02/GATE-06 remain Pending with measured, filed exceptions.
+**Current focus:** Phase 17.1 — close-phase-17-escalations-sticky-bar-clearance-soft-404-pro
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -44,11 +44,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 17 (cross-cutting-audit-themes-responsive-a11y-baselines) — COMPLETE (verified 2026-08-30, 4/4)
-Plan: 14 of 14
-Current Plan: —
+Phase: 17.1 (close-phase-17-escalations-sticky-bar-clearance-soft-404-pro) — EXECUTING
+Plan: 2 of 7
+Current Plan: 2
 Total Plans in Phase: 7
-Status: Ready to execute
+Status: Executing Phase 17.1
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
 declaration, and `--verify` exits 0 both before the walk and after every upload in it. The
 credential-bearing walkthrough is done — nine checks with pasted evidence in `16.1-UAT.md`.
@@ -496,7 +496,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-30 -- Phase 17.1 planning complete
+Last activity: 2026-08-30 -- Phase 17.1 execution started
 
 ## Performance Metrics
 
@@ -521,6 +521,20 @@ Last activity: 2026-08-30 -- Phase 17.1 planning complete
 | 14 | 14 | - | - |
 | 15 | 14 | - | - |
 | 16.1 | 7 | - | - |
+| 17.1 | 1 | - | - |
+
+*17.1-01: ~42 min wall-clock, 2 tasks executed + 1 not reached, 1 file created + 1 modified, 2 commits + 1 metadata.
+ZERO code files and zero packages — the whole plan is one production build and three numbers. The deliverable is a
+NEGATIVE result and it is the cheapest one available: `/listings/[id]` read **404 / 404 / 200** (draft / nonexistent /
+published control) under `next build && next start -p 3100` at Next.js 16.2.7, so assumption `[A6]` is settled
+POSITIVELY, `89fb451` is not regressed, and the largest scope risk in the phase (a 200 would have re-scoped 17.1 into
+escalate-class SEO work across up to nine segments) did not materialise. Task 3 — a `checkpoint:decision` gated on a
+200 — was therefore NOT REACHED, and no boundary was restructured. The finding worth carrying is about the CONTROL:
+a probe that reads only 404 cannot distinguish "the guard works" from "the whole app is 500ing", and the published
+row is what converts two 404s from an ambiguity into evidence. Second finding, operational: clearing `.next/` broke a
+pre-existing `next dev` server on :3000 into answering 500 on every route, and `reuseExistingServer: !CI` would have
+had Playwright ADOPT it — the `[17-D24]` trap arriving from the dev side. Recorded in `17.1-EVIDENCE.md` § P1 so the
+next plan that clears `.next/` inherits the rule instead of rediscovering it.*
 
 *16.1-01: ~23 min wall-clock, 3 tasks (all auto), 4 files created + 1 modified, 3 commits + 1 metadata.
 The whole plan is one declaration and three gates: `upload-policy.ts` is now the only place in the repo that
@@ -791,6 +805,11 @@ deferred walk is inconsistent rather than honest.*
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [17.1-01]: **`[A6]` is settled POSITIVELY on `/listings/[id]`, by measurement rather than inference.** The production probe read **404 / 404 / 200** (draft / nonexistent / published control) under `npm run build` + `node ./node_modules/next/dist/bin/next start -p 3100` at Next.js 16.2.7, identical on a second pass, no 5xx on either. The shipped layout-assert survives a production build, `89fb451` is not regressed, and **no repair is licensed on this route** — item 2 closes with zero boundaries restructured. Full transcript in `17.1-EVIDENCE.md` § P1.
+- [17.1-01]: **Task 3's checkpoint was NOT REACHED, and that is a result rather than a skip.** Its entry condition was a 200 on the draft listing; the draft read 404, so no repair shape was chosen and D-06's constraint on `(app)/bookings/[id]` was never engaged. This plan hoisted nothing, so the OWNER GATE (T-04-CONFIRMIDOR) still serves the document it has always served.
+- [17.1-01]: **`[17-D1]`'s measurement stands; two of its inferences do not.** C1: its `git log d24b212..HEAD -- "src/app/listings/[id]/(detail)/"` claim is false — the range holds three commits, one being `89fb451`, which landed **72 minutes after** `[16-D6]` measured the 200, so 17-01 measured a REPAIRED route rather than a flaky environment. C2: "both repair shapes move `loading-coverage.test.ts`'s pins" is false for shape A — the gate's collector takes `page.tsx` (`:502`) and `loading.tsx` (`:515`) only, so `layout.tsx` is invisible to all four pins. Both landed as an APPENDED dated correction: 80 insertions, **0 deletions**.
+- [17.1-01]: **A status-line probe without a published control proves nothing.** Two 404s alone cannot be distinguished from a server that 500s on everything. The control is what makes the reading evidence, and it is now a standing requirement for every probe of this shape in the phase.
+- [17.1-01]: **Any drive that clears `.next/` must first account for a dev server already running against it.** Clearing `.next/` left a pre-existing `next dev` on :3000 answering 500 on every route, and `playwright.config.ts:113`'s `reuseExistingServer: !process.env.CI` would have had Playwright adopt it — producing a wall of false reds attributable to nothing in the phase. This is `[17-D24]`'s adoption trap arriving from the dev side rather than the production side.
 - [16.1-04]: **The two mandated mutations were RE-RUN in the continuation, not inherited from the interrupted run.** This plan was executed across an interruption: Task 1 committed (`fe181c6`), then the executor stopped with `tests/design/photo-uploader-options.test.ts` written but uncommitted and its observed-RED transcripts already in the file header. A transcript nobody in the current run watched is a claim, not evidence — the same thing the phase says about a comment that reads like a guard. Both mutations were therefore applied again, run, transcribed and reverted with `git checkout --` and a verified-empty `git diff --exit-code`. Both reproduced the header's transcripts exactly (2 reds each, same test names, same messages), so the header stands as written.
 - [16.1-04]: **The `maxFiles` prohibition is narrowed to the `options={{ … }}` region, because a whole-file check is falsely RED on the correct component.** `delayDuration={200}` further down the file carries the photo cap's digits as a substring, so `expect(CODE).not.toContain("20")` fails against a component that spells the cap nowhere. Narrowing to the parsed options object is 16.1-PATTERNS § S-2's other precedented escape, used here ALONGSIDE stripping rather than instead of it — and the narrowing THROWS if it matches nothing, so a restructured widget reports itself instead of silently asserting over an empty string.
 - [16.1-04]: **The prohibited literals are derived from the imported constants, never typed out.** The test forbids `String(LISTING_MAX_BYTES)`, `String(LISTING_MAX_PHOTOS)`, `LISTING_UPLOAD_PRESET` and each entry of `LISTING_ALLOWED_FORMATS` — so if the declaration's numbers ever change, the prohibition follows them instead of going quietly stale against a value nothing uses. The one hard-coded literal is `fitout_listing_v1`, asserted alongside the derived one so a rename cannot leave the old name behind.
@@ -1406,8 +1425,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-29T15:43:44.000Z
-Stopped at: Completed 17-09-PLAN.md (RESP-04 rendered half)
+Last session: 2026-08-30T15:33:13.389Z
+Stopped at: Completed 17.1-01-PLAN.md — [A6] settled on /listings/[id]: 404 / 404 / 200 in a production build. Next: plan 17.1-02.
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte
