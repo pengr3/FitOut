@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 4
+current_plan: 5
 status: executing
-stopped_at: Completed 17.1-03-PLAN.md
-last_updated: "2026-08-30T16:41:18.884Z"
+stopped_at: Completed 17.1-04-PLAN.md
+last_updated: "2026-08-30T17:05:35.859Z"
 last_activity: 2026-08-30
 progress:
   total_phases: 14
@@ -45,8 +45,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 17.1 (close-phase-17-escalations-sticky-bar-clearance-soft-404-pro) — EXECUTING
-Plan: 4 of 7
-Current Plan: 4
+Plan: 5 of 7
+Current Plan: 5
 Total Plans in Phase: 7
 Status: Ready to execute
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
@@ -792,6 +792,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 16.1 P07 | 5h | 3 tasks | 6 files |
 | Phase 17.1 P02 | 42min | 3 tasks | 8 files |
 | Phase 17.1 P03 | 21min | 2 tasks | 2 files |
+| Phase 17.1 P04 | 22min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1318,6 +1319,9 @@ Recent decisions affecting current work:
 - [Phase 17.1]: 17.1-03: D-04's computed-padding clause compares against the RENDERED bar height and takes the document-ending element as a PARAMETER, so a Shape-B repair moves a selector instead of reding the clause
 - [Phase 17.1]: 17.1-03: mobile-booker-path.spec.ts is committed RED for exactly one plan (owner 17.1-04) and NO row was added to e2e-baseline-reds.md — a scheduled red is not a declared standing one (D-14)
 - [Phase 17.1]: 17.1-03: RESP-03 is NOT marked complete — this phase advances it and does not close it (17.1-RESEARCH § phase_requirements); the checkout currently FAILS the clause it now has
+- [Phase 17.1]: 17.1-04: Shape A — sm:pb-20 + lg:pb-12 on book/page.tsx's <main>. A2 measured (sm:pb-20 beats sm:py-12: 80px vs 48px at 640/768/1023), so the clearance is repaired IN PLACE rather than moved, preserving [17-D10]'s recorded placement and moving zero baselines
+- [Phase 17.1]: 17.1-04: [17-D10]'s 'load-bearing only on /listings/[id]/book' is CORRECTED, not propagated — measured, it was load-bearing there only across 320-639px; 640-1023 was as inert on checkout as on the listing route
+- [Phase 17.1]: 17.1-04: RESP-03 stays [ ] — this plan advances its sticky-bar clause across the 640-1023px checkout band and does not close it; REQUIREMENTS.md untouched
 
 ### Pending Todos
 
@@ -1434,8 +1438,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-30T16:41:18.854Z
-Stopped at: Completed 17.1-03-PLAN.md
+Last session: 2026-08-30T17:05:35.831Z
+Stopped at: Completed 17.1-04-PLAN.md
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte

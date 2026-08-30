@@ -743,7 +743,7 @@ Plans:
 **Goal:** The four escalate-class findings the PM promoted at Phase 17's D-199 review stop being recorded and start being fixed.
 **Requirements**: RESP-03 (advances its sticky-bar clause via [17-D9]); the rest close findings, not requirements
 **Depends on:** Phase 17
-**Plans:** 3/7 plans executed
+**Plans:** 4/7 plans executed
 
 **Scope — decided at the D-199 triage, 2026-08-30. Four items, one per decision:**
 
@@ -771,7 +771,7 @@ Plans:
 - [x] 17.1-01-PLAN.md — item 2: the production soft-404 probe (404/404/200 with a published control), and C1/C2 as dated corrections on `[17-D1]` — **has a conditional checkpoint** — DONE 2026-08-30 (`cfac9c7` · `ed3e85d`): the probe read **404 / 404 / 200** exactly as C1 predicted, so `[A6]` is settled POSITIVELY, the shipped layout-assert survives a production build, **no repair is licensed on `/listings/[id]`**, and the conditional checkpoint was **NOT REACHED** (its entry condition was a 200 on the draft). Zero code files changed. Transcript: `17.1-EVIDENCE.md` § P1.
 - [x] 17.1-02-PLAN.md — item 4: delete `(detail)/not-found.tsx` coupled to its four instruments and all 10 references across 5 files, with the free watched red
 - [x] 17.1-03-PLAN.md — item 1b: drive the 640-1023px band probe, then land the permanent band case + D-04's computed-padding clause, red against the shipped tree — DONE 2026-08-31 (`836e7f6` · `b40bec2`): the probe read **OUTCOME B** — no control occluded across 640-1023 (the last one clears by 4/5px, against 36/37px at the 320 floor), but `HOLD_PROMISE` renders behind the bar at every band viewport that scrolls. `main` computed `paddingBottom` is 80px at 320 and **48px against a 64px bar** at 640/768/1023, both themes — §7a's prediction confirmed on the SHIPPED route. The permanent case + D-04's computed-padding clause are committed **RED**, obtained with **no protection deleted** (the defect is live), and no row was added to `e2e-baseline-reds.md`. Transcripts: `17.1-EVIDENCE.md` § P2 and § W2.
-- [ ] 17.1-04-PLAN.md — item 1b: the repair on `book/page.tsx:521` (Shape A, zero predicted baseline movement), both stale comments corrected, the probe disposed
+- [x] 17.1-04-PLAN.md — item 1b: the repair on `book/page.tsx:521` (Shape A, zero predicted baseline movement), both stale comments corrected, the probe disposed
 - [ ] 17.1-05-PLAN.md — item 3: the outbound census across both specs, and `undici` declared at an exact pin — **has a blocking supply-chain checkpoint**
 - [ ] 17.1-06-PLAN.md — item 3: the `instrumentation.ts` seam + its inertness test with a positive control; both rows kept, zero outbound requests
 - [ ] 17.1-07-PLAN.md — item 1a: the `baselines.yml` dispatch, the five-point diff read against §7a's corrected prediction, and the forced comparison run — **FINAL wave, alone; nothing lands after it**
@@ -871,7 +871,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). `dev` pushed at `025c1ad`; ci run 32939455683 GREEN on all four jobs incl. gate-visual — W-2 discharged | 2026-08-26 |
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-28 |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 14/14 | Complete (verified 2026-08-30 — 4/4 must-haves after one gap closed; GATE-01 evidence ci 33300952565 GREEN on a2f6973). 25 escalate-class findings filed in deferred-items.md for PM review; RESP-03/RESP-04/GATE-02/GATE-06 remain Pending by design | 2026-08-30 |
-| 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 3/7 | In Progress|  |
+| 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 4/7 | In Progress|  |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
 
