@@ -93,6 +93,7 @@ import type { SlotSelectionValue } from "@/components/availability/slot-selectio
 // so the reserve + confirmation surfaces share ONE source and can never drift from the listing page).
 import { gmtLabelFor, cityLabelFor } from "@/lib/venue-time";
 import { listingCardFacts, listingShareDescription } from "@/lib/listing/og-facts";
+import { devTodayOverride } from "@/lib/dev/today-override";
 
 /**
  * SHELL-04 — what this page's link says about itself when it is pasted somewhere.
@@ -203,6 +204,12 @@ export default async function PublicListingPage({
     /** Phase-9 (OPEN-02) — the drop-in resume pair; a pass has a date and a count, never a window. */
     date?: string;
     passes?: string;
+    /**
+     * 17-D26 — the venue-local "today" override, honoured OUTSIDE production ONLY and ignored
+     * everywhere else. It exists so the GATE-01 visual baselines that photograph this page's calendar
+     * stop expiring at the next day-rollover. See `@/lib/dev/today-override`, which owns both guards.
+     */
+    today?: string;
   }>;
 }) {
   const { id } = await params;
@@ -392,7 +399,20 @@ export default async function PublicListingPage({
   const gmtLabel = gmtLabelFor(timezone);
   const nowInTz = tz(timezone);
   const now = new Date();
-  const todayLocal = {
+  // 17-D26 — venue-local today, OR the non-production `?today=` override when one is supplied.
+  //
+  // The override is `null` in production unconditionally (a build-time constant prunes the branch, not
+  // a runtime check) and `null` for any value that is not a real calendar date, so this expression is
+  // byte-equivalent to the wall-clock read it replaces on every shipped request. What it buys is that
+  // the four GATE-01 baselines photographing this calendar can pin the day they were shot on, instead
+  // of encoding whichever day the dispatch happened to run and going red at the next rollover.
+  //
+  // It is applied HERE, at the single origin, rather than at the three `todayDate={…}` call sites:
+  // `todayStart`, `horizonEnd` and the `initialDate` fallback below are all derived from this one
+  // value, and an override that moved the ring without moving the disabled set would be a worse lie
+  // than the wall clock.
+  const todayOverride = devTodayOverride(sp.today);
+  const todayLocal = todayOverride ?? {
     year: Number(format(now, "yyyy", { in: nowInTz })),
     month: Number(format(now, "M", { in: nowInTz })),
     day: Number(format(now, "d", { in: nowInTz })),

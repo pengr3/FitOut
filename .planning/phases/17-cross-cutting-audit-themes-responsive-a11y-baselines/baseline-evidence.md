@@ -663,3 +663,133 @@ and it is right — it converts a real regression detector into a rubber stamp.
 - **The four calendar baselines still encode "today = 30 August 2026" and will be red at the next
   Manila day-rollover.** That was true before this section and is still true; what changed is that it
   is now a known, promoted, owned item rather than a deferred one.
+
+---
+
+# 5 · Round 2 — the `?today=` seam, proven before it was trusted
+
+The PM chose **option 1** from § 4.5. This section is the second round-trip, written in the same
+order as the first: prove the mechanism, write the prediction, dispatch, read the diff, force the
+comparison.
+
+## 5.1 What was built
+
+| File | Change |
+|---|---|
+| `src/lib/dev/today-override.ts` | **new.** `devTodayOverride(raw)` — returns `null` in production always, otherwise the shared strict `parsePickedDate` result. Two guards, both documented on the line that ships them. |
+| `src/app/listings/[id]/(detail)/page.tsx` | `today?: string` added to the `searchParams` type; `todayLocal` becomes `devTodayOverride(sp.today) ?? <the wall-clock read>` at the **single origin** (`:394`), so `todayStart`, `horizonEnd` and the `initialDate` fallback all move together. |
+| `e2e/helpers/visual-drive.ts` | `listingUrl()` appends `&today=${VRT_COLLISION.dayIso}` — one origin, reached by all six call sites. |
+| `tests/security/dev-today-override.test.ts` | **new.** 17 assertions: production inertness with a positive control, the guard's spelling and position, the single-env-read property, the parse/reject table, and blast radius. |
+
+**It follows the D-08 precedent rather than inventing a second idiom**, deliberately and in three
+specific ways: the guard is `process.env.NODE_ENV === "production"` (a **build-time constant** the
+bundler inlines and prunes, *not* an operator-settable env var that could be flipped on a live
+deploy); the value is **parsed by the shared parser, never cast** — `parsePickedDate`, the same one
+the searched-window contract already uses for the same `YYYY-MM-DD` shape, regex-anchored and
+round-trip guarded so `2026-02-31` is rejected; and the reasoning lives beside the code it governs.
+
+## 5.2 THE MECHANISM WAS WATCHED WORKING BEFORE A PREDICTION WAS WRITTEN
+
+This is the bar the last round set, and it is met before anything else happened. Probed against the
+running dev server and the local `uat_listing_bookable` fixture:
+
+| URL | month caption | disabled cells | today cell |
+|---|---|---|---|
+| `?date=2026-09-16` (no override) | **August 2026** | **29** | **30** |
+| `?date=2026-09-16&today=2026-09-16` | **September 2026** | **15** | (see note) |
+| `?date=2026-09-16&today=2026-02-31` | **August 2026** | **29** | **30** |
+| `?date=2026-09-16&today=not-a-date` | **August 2026** | **29** | **30** |
+
+**All three readings moved, and both malformed values were inert** — an impossible calendar date and
+a garbage string both fall back to the wall clock rather than throwing or 404ing. Compare the
+refuted `page.clock` prescription in § 4.2, where the browser clock moved two months and **nothing**
+followed.
+
+*Note on the today cell:* under the override, today (`2026-09-16`) **coincides with the selected
+day**, so the cell carries `data-selected-single="true" … aria-label="Wednesday, September 16th,
+2026, selected"` and the `data-today` marker sits on its wrapper. Recorded because it has a
+consequence for coverage: **the today-ring and the coral selected style overlap on the pinned day, so
+the ring is not separately visible in the new references.** Pinning `today` a day or two *before*
+`VRT_COLLISION.dayIso` would show both states. The PM's instruction named the fixture's own day and
+that is what shipped; this is flagged as a cheap future improvement, not a defect.
+
+## 5.3 PRODUCTION INERTNESS — measured end-to-end, not asserted
+
+The PM asked for proof rather than a claim. A production build was started on port 3101
+(`next start`, the same build `npm run build` produced) and the **identical probe** was run against
+both servers:
+
+| Server | no override | `&today=2026-09-16` | override honoured? |
+|---|---|---|---|
+| **dev** `:3000` | `August 2026` · 29 disabled · today 30 | `September 2026` · **15** disabled | **YES** |
+| **prod** `:3101` | `August 2026` · 29 disabled · today 30 | `August 2026` · **29** disabled · today 30 | **NO** |
+
+**In production the parameter changes nothing at all — the two readings are identical in every
+field.** This is the whole property, demonstrated on the real route by a real production build,
+rather than inferred from a source grep.
+
+**How production reachability is prevented, stated for the record:** `process.env.NODE_ENV` is a
+**build-time constant**. The production bundler substitutes the literal `"production"`, the guard
+becomes `if ("production" === "production") return null;`, and the parse below it is dead code that
+is eliminated — so the affordance is not merely skipped at runtime, it is **absent from the
+production bundle**. It is deliberately not keyed off a bespoke env var, because an env var can be
+flipped on a live deploy and a build-time constant cannot. `tests/security/dev-today-override.test.ts`
+pins the guard's exact spelling, pins that it is the **first statement** in the function, and pins
+that the module reads **no other environment variable at all** — so a later refactor cannot quietly
+turn a request parameter into something that steers a production render without failing a gate.
+
+## 5.4 The local gates, re-run because `src/` moved
+
+| Check | Result |
+|---|---|
+| `npm run build` (lint + design + `next build`) | **exit 0**; design suite **66 files, 1248 passed / 3 skipped** |
+| `npx tsc --noEmit` | **exit 0** |
+| `npm test` — run **alone**, after the build, never concurrently | **exit 0** — **186 files, 2165 passed / 5 skipped** |
+| `tests/security/dev-today-override.test.ts` | **17 passed** |
+
+⚠ **One self-inflicted red, and it is the `[17-D20]` defect class for the third time in this plan.**
+The first draft of the "reads no other environment variable" assertion scanned the whole source file
+and failed against the *correct* module, because the header necessarily **names** the variable it is
+explaining. Re-run alone first (never trust a red straight after a build) — it reproduced, so it was
+real. Fixed by scanning **code lines only**, which is also the stronger assertion: a comment cannot
+read an env var, so including comments could only ever produce a false red.
+
+## 5.5 THE PREDICTION — written before the dispatch
+
+### 5.5.1 Predicted CHANGED — exactly five files
+
+| # | Baseline | Why |
+|---|---|---|
+| 1 | `listing-detail-320-court-visual-linux.png` | the calendar switches from **today's** month to the **pinned** month |
+| 2 | `listing-detail-768-court-visual-linux.png` | same |
+| 3 | `listing-detail-1280-court-visual-linux.png` | same |
+| 4 | `listing-sheet-375-court-visual-linux.png` | the same picker inside the 375px overlay |
+| 5 | `collision-notice-1280-court-visual-linux.png` | same listing, same calendar |
+
+**Predicted SHAPE, and it is much larger than last round's delta.** Round 1 moved a today-ring one
+cell and greyed four days — 173px. This changes **the whole month grid**: from *August 2026* (ring on
+30, everything before Aug 30 disabled) to *September 2026* (Sep 16 selected **and** today, everything
+before Sep 16 disabled). Measured on the probe as **29 → 15** disabled cells and a different caption.
+So a **large** diff on these five rows is the expected result; a *small* one would be the surprise.
+
+### 5.5.2 Predicted UNCHANGED — and the two interesting ones have EVIDENCE, not an argument
+
+`listingUrl()` is shared, so **six** call sites now emit `&today=`, but only five baselines can move:
+
+* **`listing-lightbox-1280` — predicted UNCHANGED.** Its URL gains the parameter, but its capture is
+  the lightbox over a scroll-locked body. **The evidence is empirical rather than architectural:** it
+  **passed** in run `33272796552` on 2026-08-30, at a moment when the calendar behind it had
+  demonstrably moved from Aug 26 to Aug 30 and four other rows failed for exactly that reason. A
+  surface that ignored a calendar change once will ignore this one.
+* **`checkout-320` / `checkout-1280` — predicted UNCHANGED.** `listingUrl(slot)` is only the staging
+  navigation; the captured document is `/listings/[id]/book`, which does not read `today`. Same
+  empirical evidence: both passed in `33272796552` while the calendar moved.
+* **`booking-not-found-1280` — predicted UNCHANGED.** Different route, does not use `listingUrl()`.
+* **The five `search-*` rows — predicted UNCHANGED.** Round 1's padding change is already in the
+  references; nothing here touches them.
+* **All remaining rows — predicted UNCHANGED.**
+
+### 5.5.3 Predicted NEW — ZERO
+
+`EXPECTED_BLOCKED` stays **24**, `EXPECTED_BASELINE_COUNT` stays **78**, disk stays **36**,
+`wizard-cover-preview` stays blocked. **A newly minted PNG is a finding, not an outcome.**

@@ -329,9 +329,36 @@ async function expectMapSettled(page: Page, where: string): Promise<void> {
   ).toBeVisible({ timeout: 20_000 });
 }
 
-/** The listing URL for a drive: the row's own declared prefix plus, optionally, a searched window. */
+/**
+ * The listing URL for a drive: the row's own declared prefix, the non-production `today` pin, and
+ * optionally a searched window.
+ *
+ * ⚠ `&today=` IS WHAT STOPS THESE BASELINES EXPIRING, AND IT IS NOT INTERCHANGEABLE WITH `?date=`
+ * (17-D26). `date` pins the SELECTED day and the hour grid beneath it. It does NOT pin the calendar's
+ * opening month, the today-ring, or the set of disabled past days — all three are derived from
+ * venue-local TODAY, which the RSC reads from the wall clock. Measured: the references minted on
+ * 2026-08-26 went red on 2026-08-27 for that reason alone, on `listing-detail` at all three widths,
+ * on `listing-sheet-375` and on `collision-notice-1280`, and nobody noticed for four days because
+ * nothing was pushed. A baseline that expires overnight trains its readers to expect red.
+ *
+ * THE PIN IS THE FIXTURE'S OWN DAY, deliberately: the same literal the seeded collision window uses,
+ * so the calendar's "today", the day the URL selects and the day the fixture books are one date and
+ * cannot drift apart. If the fixture's day ever moves, this moves with it — that is why it reads
+ * `VRT_COLLISION.dayIso` rather than a second copy of the literal.
+ *
+ * ⚠ DO NOT REACH FOR `page.clock` HERE. It was the first prescription and it was MEASURED WRONG:
+ * with the browser clock moved two months, the in-page `new Date()` moved and the rendered calendar
+ * did not — `data-today` stayed put, the caption stayed put, the disabled count stayed put. The value
+ * is computed in the RSC, in the Node process, before the HTML is sent. `checkoutDrive`'s clock is a
+ * real precedent for a client-side `setInterval`, which is a different problem.
+ *
+ * The parameter is honoured OUTSIDE PRODUCTION ONLY — `src/lib/dev/today-override.ts` guards it with
+ * a build-time constant and parses it with the shared strict date parser, and
+ * `tests/security/dev-today-override.test.ts` pins both halves. Both visual jobs boot the app with
+ * `npm run dev`, so the pin is live exactly where the baselines are shot and inert where it ships.
+ */
 function listingUrl(slot?: Slot): string {
-  const base = `/listings/${LISTING_ID}?date=${VRT_COLLISION.dayIso}`;
+  const base = `/listings/${LISTING_ID}?date=${VRT_COLLISION.dayIso}&today=${VRT_COLLISION.dayIso}`;
   return slot === undefined ? base : `${base}&start=${slot.start}&end=${slot.end}`;
 }
 
