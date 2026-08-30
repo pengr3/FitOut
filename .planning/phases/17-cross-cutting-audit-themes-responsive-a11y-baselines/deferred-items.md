@@ -78,6 +78,76 @@ assert, which is what the listing route already did — and which produced `[17-
 
 **Suggested owner:** the PM, as a next-milestone SEO decision. Not a phase-17 or phase-18 mechanical.
 
+**CORRECTED 2026-08-30 — plan 17.1-01, commit `cfac9c7`.** Everything above is left byte-identical.
+This row's **measurement** stands; two of its **inferences** do not, and `[A6]` is now measured rather
+than assumed. Three corrections, in the order they matter.
+
+**(a) C1 — the git-log claim above is FALSE, and the route was already fixed.** The body asserts
+*"`git log d24b212..HEAD -- 'src/app/listings/[id]/(detail)/'` is empty"*. Re-run on this tree at
+`cfac9c7`:
+
+```
+$ git log --oneline d24b212..HEAD -- "src/app/listings/[id]/(detail)/"
+4636206 fix(260830-r4b): hang the sticky-bar clearance off the listing shell, where it reaches the footer
+c7f1a1a fix(17-14): pin venue-local today for the calendar baselines via a dev-only seam
+89fb451 fix(260826-l1o): /listings/[id] answers a real 404 again
+```
+
+Three commits, not zero — and the third of them is the fix for this very defect.
+`git merge-base --is-ancestor 89fb451 d24b212` returns **non-zero**: `89fb451` is **not** an ancestor
+of `d24b212`. The timestamps say why that matters. `[16-D6]` measured the **200** at
+`d24b212`, **2026-08-26 14:51:54 +0800**; `89fb451 fix(260826-l1o): /listings/[id] answers a real 404
+again` landed at **2026-08-26 16:03:03 +0800** — **72 minutes later**.
+
+So 17-01's re-measurement on 2026-08-29 (**8 passed**, twice, alone) was reading a **REPAIRED route**,
+not a flaky environment. This row's sentence *"A green on one machine on one day is an environment
+result, not a fix"* was a correct piece of scepticism applied to the wrong tree state: there **was** a
+fix, it was already in, and the green was it. The disposition that followed from the inference — that
+the defect was live and unfixed on this route — does not hold.
+
+**(b) C2 — "Both move `tests/design/loading-coverage.test.ts`'s pins" is false for one of the two
+shapes.** The claim is true only of the shape that deletes a `loading.tsx`. The gate's four pins are
+`EXPECTED_PAGES`, `EXPECTED_QUALIFYING`, `EXPECTED_NON_QUALIFYING`, and the
+`LOADING_FILES.length === EXPECTED_QUALIFYING` clause. Its collector takes **`page.tsx` (`:502`) and
+`loading.tsx` (`:515`) only** — `layout.tsx` and `not-found.tsx` are invisible to it. Therefore:
+
+| Candidate repair | Moves a `loading-coverage` pin? |
+|---|---|
+| Hoist the guard into a `layout.tsx` (shape A) | **No.** Adds no page and no loading file; all four pins hold. |
+| Delete a `loading.tsx` from a qualifying route (shape B) | **Yes, and it goes RED** — the *"gives every async-default page a sibling loading.tsx"* clause **and** the `LOADING_FILES.length === EXPECTED_QUALIFYING` pin. This is a **build-blocking** gate (`test:design` runs inside `npm run build` and inside CI's `gate-db-free`), so shape B is a gate amendment, not a two-line change. |
+
+The practical consequence is that the *cheaper* of the two shapes is also the *free* one, which the
+row's text obscured by pricing them the same.
+
+**(c) The probe this row asked for was driven, and it settles `[A6]`.** The row's own cheapest-correct-fix
+sentence — *"first, measure `[A6]` — one `npx next build && npx next start` probe with
+`curl -o /dev/null -w '%{http_code}'` against a draft listing id"* — is discharged. Recorded in full,
+with its build provenance, its exact invocation and its teardown, at
+**`.planning/phases/17.1-close-phase-17-escalations-sticky-bar-clearance-soft-404-pro/17.1-EVIDENCE.md`
+§ P1**. Driven at `d69f1e4` under `npm run build` then
+`PLATFORM_WALLET_NUMBER=… PLATFORM_WALLET_NAME=… node ./node_modules/next/dist/bin/next start -p 3100`
+(Next.js **16.2.7**), on port 3100 rather than 3000 to avoid the `[17-D24]` adoption trap. Both listing
+ids were queried from `fitout-db-1` on that run. The three readings, verbatim:
+
+| Route | Kind | Status |
+|---|---|---|
+| `/listings/0454c21f-4f18-44cc-9cee-5f376f1470c6` | draft | **404** |
+| `/listings/a-listing-that-must-never-exist-17-1` | nonexistent id | **404** |
+| `/listings/uat_listing_notpayable` | published — the CONTROL | **200** |
+
+**404 / 404 / 200**, identical on a second pass, no 5xx on either — so this is a status-line reading and
+not the `src/lib/paymongo.ts` boot guard misread as one. The published control is what makes the two
+404s mean anything: without it they would be indistinguishable from a server that 500s on everything.
+
+**What that licenses.** `[A6]` is settled **POSITIVELY** on this route: the shipped layout-assert
+survives a production build, and `89fb451` is not regressed. **No repair on `/listings/[id]`.** This
+row's remaining live scope is the **eight** routes that `src/lib/listing/public-listing.ts`'s header
+already argues are ACCEPTED rather than overlooked — `listings/[id]/book`, reachable only by
+`redirect()` from a server action and needing an unguessable `?hold=<uuid>`, and the seven
+`bookings/[id]*` / `host/*` routes that 307 to `/login` and never render anonymously, so their status
+lines are unobservable from outside a session. Nothing in this phase touches them, and no boundary was
+restructured on the strength of an assumption.
+
 ---
 
 ## [17-D2] — `/host/dev-throw` answers a SOFT 404 in a PRODUCTION build; the other three groups answer a hard one
@@ -107,6 +177,16 @@ finding's value is entirely as **evidence for `[17-D1]`** — it is the producti
 mechanism, taken on the one segment where taking it was free. Read the two rows together.
 
 **Suggested owner:** folded into `[17-D1]`'s decision.
+
+**CORRECTED 2026-08-30 — plan 17.1-01, commit `cfac9c7`.** Folded in, as this row asks to be: it is
+now part of `[17-D1]`'s decision above, beside `§ P1`'s three status codes. Nothing measured here is
+withdrawn — this stays the production measurement of the **UNFIXED** mechanism, on `(host)`, and the
+listing route's `404 / 404 / 200` is the production measurement of the **FIXED** one. Read as a matched
+pair they isolate the variable: same mechanism, same build type, same probe shape, same port; the only
+difference is whether a guard renders above the Suspense boundary. **This row is not closed by phase
+17.1** — `src/app/(host)/host/loading.tsx` is untouched, its cheapest-correct-fix (*nothing, unless a
+caller depends on the status line of a route that 404s in production anyway*) is unchanged, and
+`/host/dev-throw` remains `NODE_ENV`-gated out of production by construction.
 
 ---
 
