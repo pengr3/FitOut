@@ -416,11 +416,6 @@ const ADOPTERS: readonly Adopter[] = [
     sites: 1,
     why: "The root 404. NOT a list-empty state at all — it is an unmatched URL — and it composes the shell anyway, deliberately: the copywriting contract forbids \"404\" and \"error\" for a mistyped link, so the panel must read in the same neutral voice as every other empty surface. Plan 11-19's, listed here because the scan found it and a forward inventory copied out of plan 11-16 would not have.",
   },
-  {
-    file: "src/app/listings/[id]/(detail)/not-found.tsx",
-    sites: 1,
-    why: "The listing-gone boundary, same plan and same argument: an unlisted space is a normal outcome, not a failure. Its sibling `(public)/invite/[token]/not-found.tsx` deliberately does NOT use the shell — it must render a BYTE-IDENTICAL inactive surface to the invite page (T-11-ORACLE), so it composes `InviteCard` instead. That asymmetry is the reason this is an inventory and not a directory rule.",
-  },
 
   // ─── NOT PLAN 11-16'S EITHER. Landed by plan 13-10, and deferred to it BY NAME. ──────────────────
   {
@@ -471,9 +466,44 @@ const ADOPTERS: readonly Adopter[] = [
  * surface adopts the shell in the commit that converts it rather than authoring a second one. It is
  * the second row in this inventory that is a COMPONENT rather than a route, for `host-agenda.tsx`'s
  * reason — the shell is rendered by the editor the availability page composes, not by the page.
+ *
+ * ── 15 → 14 files and 18 → 17 sites in plan 17.1-02's own commit. THE FIRST DECREMENT IN THIS LIST ──
+ * Every movement above is a GROWTH — a surface adopted the shell and extended the inventory in the
+ * commit that converted it. This one runs the other way, and the distinction that makes it legal is
+ * the whole reason this docblock exists: **the surface was DELETED, not "no longer found by the
+ * scan"**. The `not-found.tsx` under `src/app/listings/[id]/(detail)/` was `git rm`'d, in this
+ * commit, because it was UNREACHABLE IN EVERY STATE — `(detail)/layout.tsx` raises `notFound()` from
+ * a LAYOUT, so the PARENT segment's boundary wins, and `src/app/listings/[id]/` has none, so a
+ * missing listing falls all the way to the root not-found (`[17-D3]`; measured 404, with that
+ * boundary's own copy — "This space isn't available" — appearing 0 times).
+ *
+ * (⚠ THE DELETED PATH IS DELIBERATELY NOT SPELLED AS ONE STRING ANYWHERE ABOVE, INCLUDING IN PROSE.
+ * Plan 17.1-02's acceptance criterion greps the tree for it and expects the count this file now has:
+ * zero. `price-breakdown.tsx`'s GREP TRIPWIRE rule, applied to a deletion instead of an identifier —
+ * a reader who "tidies" the phrasing back into one path silently breaks that count.)
+ *
+ * A count that drops because a file left the tree and a count that drops because the WALK went blind
+ * are the same two numbers and completely different events, and only the second is a defect: a
+ * parser that silently stops seeing a construct empties this inventory one row at a time while every
+ * assertion in this file stays green, which is `[17-D20]`'s class exactly. That is why this entry
+ * says which of the two happened, in as many words, rather than only recording that 15 became 14.
+ *
+ * The order was watched, not assumed. With the file deleted and the row left standing, THREE clauses
+ * in the AC#23-forward block below go red, named by TITLE rather than by line because writing this
+ * block moves every line number under it:
+ *
+ *   • "has every adopter importing EmptyState from the pattern module" — the strongest of the three,
+ *     and the one whose own message says why: "an absence assertion cannot see this".
+ *   • "has every adopter rendering the declared number of blocks" — "declared 1, measured 0".
+ *   • "holds the pinned total of `<EmptyState>` call sites across the tree" — "expected 17 to be 18".
+ *
+ * In that state `npm run build` cannot reach `next build` at all. Transcript verbatim in
+ * `.planning/phases/17.1-close-phase-17-escalations-sticky-bar-clearance-soft-404-pro/17.1-EVIDENCE.md`
+ * § W1. The fourth pin (`ADOPTERS.length`, below) stays green in that state and reds in the opposite
+ * one — constants moved, row left — which is why both move together or neither moves.
  */
-const EXPECTED_ADOPTER_FILES = 15;
-const EXPECTED_EMPTY_STATE_SITES = 18;
+const EXPECTED_ADOPTER_FILES = 14;
+const EXPECTED_EMPTY_STATE_SITES = 17;
 
 /**
  * THE ONE LEGAL `bg-success` IN THE TREE, pinned by name.

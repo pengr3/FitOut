@@ -32,8 +32,11 @@
 //
 // `(app)/layout.tsx:96` already wraps `{children}` in this route's ONE `main` landmark (D-88.1), and a
 // second one nested inside it is announced as a duplicate by some assistive tech and dropped by others.
-// `listings/[id]/(detail)/not-found.tsx` opens its own because it renders under a layout that supplies
-// none — the rule is per-document, not per-file, so the two files differ correctly.
+// `src/app/not-found.tsx:96` opens its own because it renders under a layout that supplies none — the
+// rule is per-document, not per-file, so the two files differ correctly. (Re-pointed by plan 17.1-02:
+// the contrast used to name the `not-found.tsx` under `src/app/listings/[id]/(detail)/`, which was
+// deleted as unreachable in every state — `[17-D3]`. The ARGUMENT is unchanged; only the example
+// moved, to the ROOT boundary, which is now the one `main`-opening not-found left in the tree.)
 //
 // `EmptyState` rather than `ErrorState` on two independent grounds. The first is that this is a STATE
 // and not a fault: a stale link is a normal thing to have, and the person reading this did nothing

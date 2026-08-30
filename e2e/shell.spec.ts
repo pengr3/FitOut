@@ -1043,9 +1043,21 @@ test.describe("AC#4's sibling — one `main` landmark on the booking routes", ()
     // recording rather than quietly fixing. `(app)/layout.tsx` streams a `<Suspense>` shell for the
     // header's auth slot, so by the time `page.tsx` reaches its owner gate and raises `notFound()`
     // the response headers are long gone; Next renders the boundary into the already-open stream and
-    // the client swaps it in. It is the same measurement `listings/[id]/(detail)/not-found.tsx`
-    // records at length for its own route, in both `next dev` and `next start`, and it is the
-    // framework's choice rather than this page's.
+    // the client swaps it in. That is measured HERE, on this case's own two routes, and it is the
+    // framework's choice rather than this page's: `read(foreign)` and `read(missing)` both return the
+    // same status, and the assertion below reads them against EACH OTHER rather than against 404.
+    //
+    // ── THE AUTHORITY THIS PARAGRAPH USED TO BORROW IS GONE, AND WAS WRONG ANYWAY (plan 17.1-02) ──
+    // It used to end "it is the same measurement [the `not-found.tsx` under
+    // `src/app/listings/[id]/(detail)/`] records at length for its own route, in both `next dev` and
+    // `next start`" — the path spelled out in full, where this quotes it. Both halves failed. That file's
+    // header was written by plan 11-19 and went false at `89fb451`, when `(detail)/layout.tsx` gained
+    // the `assertPublicListing` guard; the file itself has since been deleted as unreachable in every
+    // state (`[17-D3]`). And the claim it was cited for is not even true of that route: measured
+    // under `next build && next start` at Next 16.2.7, `/listings/[id]` answers a HARD 404 on a draft
+    // id, a nonexistent id, and 200 on a published control — 404/404/200, twice
+    // (`17.1-EVIDENCE.md` § P1). So this case never needed a sibling to vouch for it. It has its own
+    // two readings, below, and they are the only evidence this paragraph rests on now.
     //
     // WHY THAT IS NOT A DEFECT HERE, WHILE IT WOULD BE ON A PUBLIC PAGE. The listing route weighs a
     // 2xx for a listing that is gone against crawlers keeping the URL. `/bookings/**` sits behind

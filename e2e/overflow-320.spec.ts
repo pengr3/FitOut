@@ -505,6 +505,23 @@ type RouteRow = {
  *     bullets above are left standing as the history they are; what they DESCRIBE is the tree before
  *     30 August 2026, and the four skip strings themselves are quoted in full at the rows that
  *     replaced them.]
+ *     [17.1: ZERO are not (plan 17.1-02). 22 rows and 44 cases become 21 and 42, and the count of
+ *     `path: null` rows in this table is now NIL — every row drives a real URL. The difference from
+ *     the two brackets above is the whole point and is why this one is worth reading: 17-12 moved
+ *     four rows from unreachable to measured by BUILDING what they needed, and this moves the last row off
+ *     the table by DELETING ITS SUBJECT: the `not-found.tsx` under `src/app/listings/[id]/(detail)/`
+ *     is gone from the tree ([17-D3], resolved). The row did not become reachable and its reason did
+ *     not change; there is no longer a file for it to name. Its measurement is not lost — the skip
+ *     string it carried is quoted in full in that commit's message and in `[17-D3]`'s RESOLVED block,
+ *     the same way 17-12 preserved the four skip strings it replaced. An unreachable count that falls
+ *     because a surface was DELETED and one that falls because somebody stopped looking are the same
+ *     number and opposite events, so this bracket says which.
+ *     ⚠ THE ONE PLACE THAT PATH IS STILL SPELLED IN THIS TREE IS THE `[17-11:` BRACKET FOUR LINES UP,
+ *     and it stays. 17.1-02's own acceptance criterion greps for zero occurrences, which cannot be
+ *     reconciled with that bracket being frozen history — and freezing wins. A dated amendment that
+ *     edits the sentence it amends is not an amendment. Everything the plan could move, moved; what
+ *     is left is a record of what was true in August 2026, which is the one thing here that must not
+ *     be true of the tree.]
  *   • 4 STATES ride alongside their routes: the booking sheet open (12-10), forgot-password after
  *     submit and reset-password with no token (both 15-10), and the avatar crop dialog open (16-15).
  *   • 8 of the 42 cases are the four unreachable rows × two themes.
@@ -619,58 +636,6 @@ const ROUTES: readonly RouteRow[] = [
     name: "root not-found",
     path: "/a-route-that-does-not-exist-11-21",
     tell: '[data-testid="empty-state"]',
-  },
-  {
-    // ⚠ ADDED BY PLAN 17-11 AS A MEASURED ROW, AND DEMOTED TO A NAMED SKIP BY THE MEASUREMENT ITSELF.
-    // Both halves are kept here because the second is a FINDING and the first is how it was found.
-    //
-    // 17-11 § interfaces lists the four `not-found.tsx` files as "root ✓ · listing ✗ · booking ✓ ·
-    // invite ✓" and asks for a named reason wherever a surface cannot be measured. This file's own
-    // header (plan 11-19) says the boundary IS reachable — *"`curl` against `next start`:
-    // `/listings/does-not-exist` answers with the right status … this component arrives in the flight
-    // payload"* — so the row was written as a measurement first, with `path:
-    // "/listings/a-listing-that-must-never-exist-17-11"` and a copy-carrying tell.
-    //
-    // IT WENT RED AT `expectReachable` IN BOTH THEMES, and the probe that followed is the finding:
-    //
-    //   status 404 · url unchanged · h2 "We couldn't find that page" · empty-state x1 · header x1 ·
-    //   footer x1 · body text "The link may be old, or the page may have moved." / "Back to search"
-    //
-    // That is `src/app/not-found.tsx` — the ROOT boundary — not `(detail)/not-found.tsx`, whose copy
-    // ("This space isn't available") is nowhere in the document. THE CAUSE IS A SEGMENT-BOUNDARY FACT
-    // and it is in the tree's own comments, one file apart: `(detail)/layout.tsx:41` awaits
-    // `assertPublicListing(id)`, which calls `notFound()` at `public-listing.ts:104` — and it was put
-    // there deliberately, because `loading.tsx`'s Suspense boundary means the page's own `notFound()`
-    // runs after the shell has flushed and can no longer win the 404 status. A `notFound()` raised in a
-    // LAYOUT is handled by the boundary of the PARENT segment, and `src/app/listings/[id]/` has none —
-    // so it falls all the way to the root. The layout and the page share one predicate ("one rule, one
-    // expression, two call sites"), so the page's call can never fire on a listing the layout let
-    // through. `(detail)/not-found.tsx` is therefore unreachable in every state.
-    //
-    // THE FILE HEADER IT CONTRADICTS IS LEFT ALONE. It was true when it was written — the layout's
-    // assert arrived later, with the soft-404 fix — and editing a source comment is a product change
-    // this audit may not make (17-UI-SPEC § Remediation). Recorded here and for 17-13's ledger instead,
-    // which is where the disposition belongs: deleting or relocating a route file is escalate-class.
-    name: "listing not-found · src/app/listings/[id]/(detail)/not-found.tsx",
-    path: null,
-    skip:
-      "UNREACHABLE IN EVERY STATE, AND THE REASON IS A SEGMENT BOUNDARY RATHER THAN A MISSING FIXTURE. " +
-      "MEASURED 30 August 2026 against `/listings/a-listing-that-must-never-exist-17-11`: status 404, " +
-      "and the document that renders is the ROOT not-found (`We couldn't find that page`, one " +
-      "`empty-state`, the public header and the site footer) — this boundary's own copy, `This space " +
-      "isn't available`, appears nowhere. Cause: `(detail)/layout.tsx` awaits `assertPublicListing`, " +
-      "which raises `notFound()` from a LAYOUT, and a layout's `notFound()` is handled by the PARENT " +
-      "segment's boundary — `src/app/listings/[id]/` has none, so it falls to the root. That assert " +
-      "cannot move into the page: it is there precisely because `loading.tsx`'s Suspense boundary " +
-      "flushes the shell before the page body runs, which is what made the route answer a soft 200. " +
-      "The layout and the page share ONE predicate, so the page's own `notFound()` can never fire on a " +
-      "listing the layout admitted. Reaching this file needs either a `not-found.tsx` at " +
-      "`src/app/listings/[id]/` or the assert moved back below the boundary — the first adds a route " +
-      "state, the second re-opens the soft-404, and both are source changes no acceptance criterion in " +
-      "this plan asks for. ⚠ THIS FILE'S OWN HEADER STILL SAYS THE OPPOSITE (plan 11-19, written " +
-      "before the layout gained the assert); it is left byte-identical and contradicted HERE rather " +
-      "than edited. Escalate-class — recorded for plan 17-13.",
-    tell: '[data-testid="empty-state"]:has-text("This space")',
   },
   {
     name: "error boundary · src/app/error.tsx (root)",
@@ -3747,12 +3712,8 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
     coveredBy: ["error boundary · src/app/(legal)/error.tsx"],
   },
 
-  // ─── ROUTE STATES · not-found (4) ─────────────────────────────────────────────────────────────
+  // ─── ROUTE STATES · not-found (3) ─────────────────────────────────────────────────────────────
   { surface: "src/app/not-found.tsx", coveredBy: ["root not-found"] },
-  {
-    surface: "src/app/listings/[id]/(detail)/not-found.tsx",
-    coveredBy: ["listing not-found · src/app/listings/[id]/(detail)/not-found.tsx"],
-  },
   { surface: "src/app/(app)/bookings/[id]/not-found.tsx", coveredBy: ["bookings/[id]/not-found"] },
   {
     // The `/invite/[token]` row drives a DELIBERATELY unmatched token, so the document it measures IS

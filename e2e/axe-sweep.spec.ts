@@ -399,15 +399,6 @@ const ROWS: readonly SweepRow[] = [
     tell: hookOf("listing-detail"),
   },
   {
-    file: "src/app/listings/[id]/(detail)/not-found.tsx",
-    name: "/listings/[id] · not found",
-    // A literal that must never become a real id, in `visual-baselines.ts`'s own shape and for its
-    // stated reason: a SHORT one is a value somebody might later seed, and the day it exists this row
-    // silently starts auditing a real listing page instead of the boundary it names.
-    path: "/listings/a-listing-id-that-must-never-exist-17-07",
-    tell: '[data-testid="empty-state"]',
-  },
-  {
     file: "src/app/listings/[id]/book/page.tsx",
     name: "/listings/[id]/book · served shell + loading skeleton",
     path: async (page) => {
