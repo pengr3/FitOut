@@ -907,6 +907,103 @@ under measurement and takes the network out of it.
 **Suggested owner:** the PM decides whether it is acceptable; whoever wires CI implements the
 interception if it is not.
 
+**RESOLVED 2026-08-30 — plan 17.1-06, commits `6231f54` / `2e5080a`.** (UTC; local date 2026-08-31, this
+box is UTC+8 — the audit rows below are stamped `2026-08-30 20:26+00`.) The row's body above is left
+byte-identical: it was right about the exposure and it is the reason this was fixed at all. What follows
+is the correction to its prescription, the exposure it understated, and the seam that shipped.
+
+**⚠ THIS ROW'S OWN "CHEAPEST CORRECT FIX" CANNOT WORK, AND WAS NOT BUILT.** It prescribes
+*"`page.route` on the PayMongo origin, returning the gated-error shape"*. **`page.route` intercepts
+requests the BROWSER makes.** Every hop here is server-side — `refresh/page.tsx` →
+`refreshOnboardingLink()` → `startPayoutOnboarding()` → `paymongoFetch` → Node's global `fetch` — so a
+`page.route` handler on that origin never fires, the POST leaves the machine exactly as before, and the
+spec reports **green while measuring nothing**. That is strictly worse than the finding it claims to
+close, because it converts a known exposure into a believed-fixed one.
+
+**This is the SECOND instance of one error class in this phase family, and naming the class is the
+point.** `[17-D26]` prescribed `page.clock` against a value the RSC computes in the Node process; it was
+refuted by measurement and replaced with a server seam (`src/lib/dev/today-override.ts`). The pattern:
+**a Playwright browser-scoped API prescribed against a value produced before the HTML is sent.** Both
+prescriptions were written by reading the route rather than by driving it. Anything in this file that
+proposes a `page.*` repair for a server-side behaviour should be re-derived, not trusted.
+
+**AND THE OBVIOUS CHEAPER FIX DOES NOT WORK EITHER — unsetting `PAYMONGO_SECRET_KEY` does NOT stop the
+call.** `authHeader()` (`src/lib/paymongo.ts:58-61`) is `process.env.PAYMONGO_SECRET_KEY ?? ""`, so with
+the variable cleared the client still sends `Basic <base64 of ":">` to the same URL. That removes the
+credential, not the network — the request still leaves this machine, still spends PayMongo's rate-limit
+budget, and still fails in a way indistinguishable from the gated failure. Recorded so nobody re-derives
+it as a shortcut.
+
+**THE EXPOSURE THIS ROW UNDERSTATED — measured, not argued (`17.1-EVIDENCE.md` § P3, plan 17.1-05).**
+The row records **2** outbound requests, from one spec, on one endpoint. The census measured **10**,
+from two specs, on **three** endpoints:
+
+| spec | method | full URL | per full run |
+|---|---|---|---|
+| `overflow-320.spec.ts` | POST | `…/v1/linked_accounts/onboarding_links` | **2** — the endpoint this row names |
+| `overflow-320.spec.ts` | GET | `…/v1/checkout_sessions/{id}` (2 synthetic ids, 4 + 2) | **6** — a THIRD endpoint, from a different route entirely; filed as `[17-D27]` |
+| `axe-sweep.spec.ts` | POST | `…/v1/linked_accounts` | **2** — a resource-CREATE call carrying the host's email |
+
+**`e2e/axe-sweep.spec.ts` reaches `POST /v1/linked_accounts` with the host's email address, twice per
+run** (once per width in `WIDTHS = [320, 1280]`) — a call this row does not name at all. `signUp` is a
+bare sign-up, so there is no `host_payout` row and no `paymongo_account_id`, `ensureLinkedAccount` falls
+through to `createLinkedAccount`, the gated POST throws and the transaction rolls back.
+
+**⚠ AND THIS ROW'S "0 PayMongo resources are created" IS CONTINGENT, NOT STRUCTURAL.**
+`createLinkedAccount` keys idempotency on `linked-account:${email}` and `signUp` mints a **unique email
+per run**, so **every run presents a distinct Idempotency-Key**. The claim holds only while Platforms /
+Linked Accounts stays sales-gated. The day the platform is enabled on the account, `axe-sweep` mints a
+real Linked Account per run against whatever key `.env` holds. That is D-35's boundary, and it is why
+this was escalated rather than accepted.
+
+**THE SEAM THAT SHIPPED — seam D, `instrumentation.ts` at the repo root + undici `MockAgent`.**
+Process-level, so it catches the server's `fetch` where `page.route` cannot. Origin-level and a
+**persisted catch-all** (`path: () => true, method: () => true`) rather than one interceptor per known
+endpoint — which is what makes it cover `[17-D27]`'s third endpoint, on a route this row never mentions,
+and whatever endpoint is added next. The reply is exactly the gated-error shape (`404`,
+`content-type: application/json`, `{ errors: [{ detail }] }`). Net-connect policy is a **deny-of-one**
+`enableNetConnect` predicate, not `disableNetConnect()`: § P3 measured four outbound hosts, two of them
+Next's own and **intermittent**, and one (`api.resend.com`) reached by shipped application code — so a
+blanket block would have changed the behaviour of the very runs the audit uses to measure the product,
+which is this row's own objection to dropping it.
+
+**Two guards, and they are the protection.** `process.env.NODE_ENV === "production"` is the **first
+statement** of `register()` and a **build-time constant**, so a production build prunes the branch
+rather than skipping it; a second check returns off the `nodejs` runtime. The `undici` specifier is
+reached only through a **dynamic** `await import(...)` after both. ⚠ The inertness argument deliberately
+does **not** rest on "undici is a devDependency" — `[17-D29]` measured that it survives
+`npm ci --omit=dev` on this repo. `tests/security/paymongo-seam.test.ts` pins all of it with an
+inertness triad, a **positive control**, an unnamed-third-path clause, three comment-stripped source
+scans and an inverted blast-radius walk; both its watched reds are in `17.1-EVIDENCE.md` § W3.
+
+**SEAM A WAS REJECTED AND `src/lib/paymongo.ts` IS UNTOUCHED.** Making `PAYMONGO_BASE` settable would
+have been a one-line fix and is a **credential-exfiltration primitive**: the `Authorization: Basic
+<secret key>` header follows the base URL, so an operator-settable target on the one module holding the
+key is a way to post the key somewhere else. `git diff` on that file, on `paymongo-connect.ts` and on
+the refresh page is empty for this plan.
+
+**THE ROW'S OWN CONDITION IS MET — the rows were KEPT, in both specs.** This row argues, correctly, that
+*"an audit that refuses to visit a route BECAUSE the route makes a call is an audit that does not
+measure the route."* Measured after the seam (`17.1-EVIDENCE.md` § P3-AFTER): all four rows still green
+and still rendering `Let's pick up where you left off`; the `audit` rows read **from the database during
+the run** are byte-identical (`action: "startPayoutOnboarding"`, `outcome: "error"`,
+`meta: {"reason": "paymongo_error"}`, 2 per spec); the rate-limit accounting is unchanged at 2 of the
+5-per-60s per-identity budget with **no** `outcome: "denied"` row; and **0** of the 10 requests reached
+`api.paymongo.com`. `100 passed · 7 skipped` and `58 passed · 36 skipped`, 0 failed, no row added to
+`e2e-baseline-reds.md`.
+
+**⚠ THE SAMPLING GAP, STATED HONESTLY AND EXPLICITLY NOT CLOSED BY THIS PLAN.**
+`tests/security/paymongo-seam.test.ts` runs under `npm test` and CI's **`gate-db`** job, so the *seam* is
+sampled **per commit**. But **neither spec runs in CI at all** (`[17-D24]`), so the *spec rows* remain
+sampled at "whenever a human runs the file". Concretely: if someone deletes `instrumentation.ts`, CI
+goes red the same day; if someone adds a fourth PayMongo endpoint, the catch-all covers it silently and
+correctly, but nobody re-measures the row counts until a human drives the specs. Raising the spec rows'
+sampling rate is `[17-D24]`'s problem, not this one's.
+
+**Filed alongside, not fixed here:** `[17-D27]` (the third endpoint), `[17-D28]` (`api.resend.com` — 14
+real POSTs per run on a live key, larger by count than the PayMongo exposure and **not** covered by this
+seam by deliberate choice), `[17-D29]` (the `--omit=dev` correction).
+
 ---
 
 ## [17-D19] — The AC#29 block calls `expectTargets` and `expectVisibleFocus` on NO row
