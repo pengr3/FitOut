@@ -185,6 +185,26 @@ const FLOOR = { width: 320, height: 568 };
 /** `lg:` and Desktop Chrome's default. The width at which the rail is the booking surface. */
 const DESKTOP = { width: 1280, height: 900 };
 
+/**
+ * THE 640–1023px BAND — the widths where a `lg:hidden` bar still renders and the declared clearance
+ * does not survive the cascade. Until plan 17.1-03 this file drove `PHONE`, `FLOOR` and `DESKTOP` and
+ * nothing between 376 and 1279, which left RESP-03's literal subject — "with the sticky bar present" —
+ * unmeasured across 384px of width on the one route that takes money.
+ *
+ * The HEIGHTS are load-bearing rather than arbitrary. `§ P2` in `17.1-EVIDENCE.md` measured all three
+ * widths at two heights each; these are the short ones, and they scroll (273 / 241 / 263px of travel
+ * in court). The tall 768×1024 variant does NOT: the checkout document is shorter than that viewport
+ * (`maxScroll 0`, `doc 1024` against a `<main>` ending at 841), so the bar never catches up with
+ * anything and `expectBarDoesNotOcclude`'s third vacuity guard correctly refuses the reading. A case
+ * pinned there would go red on the guard rather than on the geometry, which is a worse assertion
+ * wearing a better-looking number.
+ */
+const BAND = [
+  { width: 640, height: 568 },
+  { width: 768, height: 600 },
+  { width: 1023, height: 600 },
+];
+
 /** `STICKY_BAR_HEIGHT` is `h-16`. Asserted as the literal, in its own expectation. */
 const BAR_HEIGHT_PX = 64;
 
@@ -374,6 +394,51 @@ async function pickWindowInSheet(
 //   Those are `[17-D9]`'s two boxes to the pixel — `a("Privacy")` at `bottom: 533` inside a bar
 //   spanning `504..568` — reproduced from the ASSERTION side rather than from the ledger. Clearance
 //   restored; re-run of the same command: 11 passed, 3 skipped, and the checkout half green with it.
+//
+//   DRIVE 5 (plan 17.1-03, 2026-08-31) — THE FIRST ONE THAT NEEDED NOTHING DELETED, AND THAT IS THE
+//   FINDING. DRIVEs 1-4 each removed a shipped protection to see whether an assertion would notice.
+//   This one is an assertion landing on a tree where the defect is already live: `4636206` fixed the
+//   listing route by MOVING its clearance, and `/listings/[id]/book` still spells its own the way the
+//   listing route stopped spelling it. `sm:py-12` is emitted after the whole base layer, so from
+//   640px up that `<main>` reserves 48px under a 64px bar which is `lg:hidden` and therefore renders
+//   to 1023px. Run against the shipped tree with NO edit to `src/`:
+//
+//     npx playwright test e2e/mobile-booker-path.spec.ts --project=chromium --workers=1
+//
+//     x  13 [chromium] › BFLOW-06 / BFLOW-07 — checkout at 375px › court · 375px · a confirm bar, a
+//     collapsed derivation, and one amount (7.0s)
+//
+//     Error: court · checkout · 640px: the element that ends the document (`main`) reserves 48px of
+//     bottom padding against a bar measured at 64px — 16px short, on /listings/[id]/book.
+//     `STICKY_BAR_CLEARANCE` (pb-20) is the declared knob for this and is named here as a POINTER,
+//     never as the subject: the assertion is the arithmetic above, so a repair may reach it by any
+//     spelling and on any element that ends the document. MEASURED (`§ P2`, both themes): the
+//     clearance is in effect at 320px and gone from 640px up […]. Nothing is occluded in that band
+//     TODAY — the last control clears by 4px, against 36px at the floor — but the hold promise under
+//     it does not clear at all. […]
+//
+//       Expected: true
+//       Received: false
+//
+//     1 failed, 3 skipped, 1 did not run, 9 passed (40.4s).
+//
+//   (Line numbers omitted for DRIVE 4's reason, which applies with extra force here: writing THIS
+//   block moves the case it names.)
+//
+//   READ THE RUN, NOT JUST THE RED. Three things had to pass for the red to mean anything, and did:
+//     • the 320px POSITIVE CONTROL — the same clause, same helper, same `main`, 80px against the same
+//       64px bar. So the band red is about the band, and not about a helper pointed at the wrong
+//       element on every width;
+//     • `expectStickyBar` at all three band widths, all four clauses, the occlusion pair included.
+//       Nothing interactive is under that bar today, which is `§ P2`'s outcome B reproduced from the
+//       assertion side rather than from the probe's;
+//     • every case in this file that existed before the band loop.
+//
+//   NO PROTECTION WAS DELETED TO OBTAIN THIS RED. That is what separates it from DRIVEs 1-4, and it
+//   is why the file is left RED for exactly one plan: 17.1-04 lands the repair, and an assertion that
+//   arrives after its own fix has never been anything but green. ⚠ NO ROW WAS ADDED TO
+//   `e2e-baseline-reds.md` for it — D-14 forbids using that file to make a run read green, and this
+//   is an intended intermediate state, not a declared standing red.
 //
 // Every failure above names BOTH boxes and the control, which is the difference between "an assertion
 // went red" and "this 44px control is twelve pixels under the bar".
@@ -666,6 +731,128 @@ async function expectBarAbsentAtDesktop(
       "variant — RESP-04's failure, surfacing through RESP-03's harness — and it also means two " +
       "reachable copies of the same hold CTA on the money path.",
   ).toEqual([]);
+}
+
+/**
+ * D-04's clause — THE END OF THE DOCUMENT RESERVES AT LEAST THE BAR'S OWN HEIGHT, read as a computed
+ * property rather than waited for as a consequence.
+ *
+ * ⚠ WHY THIS EXISTS BESIDE `expectBarDoesNotOcclude` AND NOT INSTEAD OF IT. `§ P2` in
+ * `17.1-EVIDENCE.md` drove `/listings/[id]/book` across 640–1023px and found NO control occluded
+ * there: the last one clears the bar by 4px in court and 5px in grove. At the 320px floor the same
+ * control clears by 36px and 37px. Same page, same bar, same clause — a ninefold collapse, and the
+ * whole of it is the 32px that `sm:py-12` takes back from the unvariant clearance from 640px up,
+ * because Tailwind emits the `sm:` layer after the whole base layer. The occlusion clause is GREEN
+ * across that band and stays green until one more line of copy, one label wrapping to two lines, or
+ * one taller bar spends those last four pixels. This clause reads the property that is already wrong.
+ *
+ * ⚠ IT COMPARES AGAINST THE RENDERED BAR HEIGHT, NEVER AGAINST THE DECLARED SPELLING. Asserting the
+ * CSS length `STICKY_BAR_CLEARANCE` resolves to would be a class-list assertion wearing a
+ * computed-style costume: it pins the SOURCE, so it goes red on any legitimate repair that reaches
+ * the same outcome another way. That is not hypothetical — `4636206` moved this exact clearance onto
+ * `(detail)/layout.tsx`'s wrapper on the sibling route, which leaves that `<main>` reporting a
+ * smaller number while the document is MORE correct than before. The property is "the document's end
+ * reserves the bar's band"; the spelling is one way of getting there.
+ *
+ * `BAR_HEIGHT_PX` is deliberately not the bound either. It is already pinned in its own expectation
+ * by `expectStickyBar` clause 2, and re-using it here would let this clause stay green off the back
+ * of a bar that grew — the padding must answer to the box that is actually painted over the page.
+ *
+ * (⚠ THE SPELLING IS DELIBERATELY NOT WRITTEN AS A QUOTED LITERAL ANYWHERE ABOVE, INCLUDING IN PROSE.
+ * Plan 17.1-03's acceptance criterion greps for the quoted form and expects zero — the same GREP
+ * TRIPWIRE rule this file's header applies to the class-list matcher's identifier, and for the same
+ * reason. Do not "tidy" the sentences above into the obvious quoted shape.)
+ *
+ * `endSelector` is the element that ENDS the document on the route under test, and it is a parameter
+ * rather than a constant because the answer differs per route BY DESIGN: on `/listings/[id]/book`
+ * that is `<main>`, since the route renders no footer (`shell.spec.ts:1221` pins "0 footers" on a
+ * live checkout); on `/listings/[id]` it is the `(detail)` layout wrapper, below both `<main>` and the
+ * site footer. If a repair moves the clearance up a level, the SELECTOR moves with it in the same
+ * commit. That is the intended maintenance, and it is a smaller and far more honest edit than
+ * relaxing the number.
+ *
+ * The vacuity guards are the S2 shape and not one of them is optional: an element that was not found,
+ * a box that never laid out, a bar that rendered nothing, or a padding that parses to `NaN` each make
+ * "at least the bar's height" a claim about nothing. The `NaN` case is asserted EXPLICITLY rather
+ * than left to the comparison, because a `NaN` compares false against every bound — safe in this
+ * operand order, silently green in the other one, which is one refactor away.
+ */
+async function expectDocumentEndClearsBar(
+  page: Page,
+  barSelector: string,
+  endSelector: string,
+  where: string,
+): Promise<void> {
+  // ONE evaluate, ONE typed object, asserted in Node — `probeOcclusion`'s idiom, and the same reason:
+  // a read that crossed the boundary twice would be comparing a padding and a box from two different
+  // layouts. The computed value comes back as the STRING the engine reports, never as a class list.
+  const read = await page.evaluate(
+    ([endSel, barSel]: [string, string]) => {
+      const box = (el: HTMLElement | null) => {
+        if (el === null) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.x, y: r.y, width: r.width, height: r.height };
+      };
+      const end = document.querySelector<HTMLElement>(endSel);
+      const bar = document.querySelector<HTMLElement>(barSel);
+      return {
+        paddingBottom: end === null ? null : getComputedStyle(end).paddingBottom,
+        endBox: box(end),
+        barBox: box(bar),
+      };
+    },
+    [endSelector, barSelector] as [string, string],
+  );
+
+  expect(
+    read.paddingBottom,
+    `${where}: nothing matched \`${endSelector}\`, so "the end of the document reserves the bar's ` +
+      'band" would be a statement about an element that is not on the page.',
+  ).not.toBeNull();
+
+  const endBox = read.endBox;
+  expect(
+    endBox !== null && endBox.width > 0 && endBox.height > 0,
+    `${where}: \`${endSelector}\` is in the document but laid out ` +
+      `${endBox === null ? "no box at all" : `${Math.round(endBox.width)}×${Math.round(endBox.height)}`}` +
+      ". A padding read off an element with no box is a number about nothing, and it would be the " +
+      "same number on a page that rendered nothing at all.",
+  ).toBe(true);
+
+  const barBox = read.barBox;
+  expect(
+    barBox !== null && barBox.height > 0,
+    `${where}: no \`${barSelector}\` laid out a box, so there is no measured height for the ` +
+      "document's end to reserve and every page in the app satisfies this clause trivially. Below " +
+      "`lg:` the bar is the thing being cleared; this guard is what stops the clause reporting green " +
+      "about a bar that silently stopped rendering.",
+  ).toBe(true);
+
+  const padding = Number.parseFloat(read.paddingBottom!);
+  expect(
+    Number.isFinite(padding),
+    `${where}: the computed bottom padding on \`${endSelector}\` is ${JSON.stringify(
+      read.paddingBottom,
+    )}, which does not parse to a number. Asserted explicitly rather than left to the comparison ` +
+      "below: a NaN is false against every bound, which happens to be safe in THIS operand order and " +
+      "is silently green in the other — a property of how the line is written, not of the page.",
+  ).toBe(true);
+
+  const barHeight = barBox!.height;
+  expect(
+    padding >= barHeight,
+    `${where}: the element that ends the document (\`${endSelector}\`) reserves ${padding}px of ` +
+      `bottom padding against a bar measured at ${Math.round(barHeight)}px — ` +
+      `${Math.round(barHeight - padding)}px short, on /listings/[id]/book. ` +
+      `\`STICKY_BAR_CLEARANCE\` (${STICKY_BAR_CLEARANCE}) is the declared knob for this and is named ` +
+      "here as a POINTER, never as the subject: the assertion is the arithmetic above, so a repair " +
+      "may reach it by any spelling and on any element that ends the document. MEASURED (`§ P2`, " +
+      "both themes): the clearance is in effect at 320px and gone from 640px up, because `sm:py-12` " +
+      "is emitted after the base layer and beats it, while the bar is `lg:hidden` and renders to " +
+      "1023px. Nothing is occluded in that band TODAY — the last control clears by 4px, against 36px " +
+      "at the floor — but the hold promise under it does not clear at all. This clause is the one " +
+      "that says so before a single extra line of copy makes the occlusion clause say it instead.",
+  ).toBe(true);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1604,6 +1791,48 @@ test.describe("BFLOW-06 / BFLOW-07 — checkout at 375px", () => {
         width: FLOOR_PX,
         height: FLOOR.height,
       });
+
+      // ── (m1) D-04's COMPUTED-PADDING CLAUSE, AT 320px — THE POSITIVE CONTROL ─────────────────────
+      // This call is not decoration and it is not a second way of saying (m). It runs at the ONE width
+      // where the clearance is measured to be in effect (`§ P2`: 80px of computed bottom padding at
+      // 320, both themes), so it must pass on today's tree. Without it, "the padding is short in the
+      // band" below is indistinguishable from "the helper is pointed at the wrong element at every
+      // width" — a red that looks like a finding and is a typo.
+      await expectDocumentEndClearsBar(page, CHECKOUT_BAR, "main", floorWhere);
+
+      // ── (m2) THE 640–1023px BAND — RESP-03'S LITERAL SUBJECT, DRIVEN FOR THE FIRST TIME ──────────
+      // "Every surface is verified from 320px up, WITH THE STICKY BAR PRESENT." Both bars are
+      // `lg:hidden`, so one renders to 1023px — and until this loop nothing in the suite drove a pixel
+      // between 376 and 1279. That is an INSTRUMENT gap as much as a code defect, and `§ P2` measured
+      // both halves of it: the four clauses of `expectStickyBar` are green across the band today (the
+      // last control clears by 4px in court, 5px in grove), while the computed padding is 48px against
+      // a 64px bar at every one of these widths.
+      //
+      // Appended to this case rather than given a new case of its own, and that is a fixture-budget
+      // decision rather than a preference — see (m)'s block above: reaching a RESOLVED checkout costs
+      // a signup and a real hold, and every hold makes its hours unbookable on the shared seeded
+      // listing for the rest of the run. Three viewport changes on a page this case is already
+      // standing in front of cost nothing; a second case would cost a third window per theme.
+      //
+      // (⚠ A SECOND GREP TRIPWIRE, and a first draft of the sentence above tripped it: plan 17.1-03's
+      // acceptance criterion counts the declaration keyword this file opens its cases with and
+      // requires the number to be UNCHANGED — that count IS the fixture-budget assertion. Naming the
+      // keyword in prose adds a match and makes it read as though a case were added. It is spelled
+      // around here on purpose, the same way this file's header spells around the class-list
+      // matcher's identifier.)
+      for (const band of BAND) {
+        await page.setViewportSize(band);
+        await page.evaluate(() => document.fonts.ready);
+        const bandWhere = `${theme} · checkout · ${band.width}px`;
+        await expectStickyBar(page, CHECKOUT_BAR, bandWhere, band);
+        await expectDocumentEndClearsBar(page, CHECKOUT_BAR, "main", bandWhere);
+      }
+
+      // Back to the floor before (n). Everything below is a 320px measurement and every failure it
+      // raises is labelled `floorWhere`; leaving the viewport at 1023px would make that label a lie
+      // and would measure AC#8's declared no-wrap rows at a width they were never written for.
+      await page.setViewportSize({ width: FLOOR_PX, height: FLOOR.height });
+      await page.evaluate(() => document.fonts.ready);
 
       // ── (n) RESP-03 CLAUSE C ON THE CHECKOUT'S FOUR DECLARED NO-WRAP ROWS — AC#8 ─────────────────
       // Still at the 320px floor, and deliberately AFTER (j) opened the disclosure: the breakdown's
