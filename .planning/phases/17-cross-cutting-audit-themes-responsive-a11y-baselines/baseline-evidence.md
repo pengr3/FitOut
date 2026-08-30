@@ -559,3 +559,107 @@ availability calendar renders the real venue-local *today*, so four GATE-01 base
 reason alone with nobody watching. The regeneration re-pinned it to 30 August 2026 rather than fixing
 it — **it could not fix it, and did not pretend to.** Full write-up, mechanism, timeline and the
 cheapest correct fix: `[17-D26]` in this phase's `deferred-items.md`.
+
+---
+
+# 4 · The PM promoted `[17-D26]` to in-scope — and the prescribed fix was measured and refuted
+
+## 4.1 The decision, and what it authorised
+
+At the D-199 checkpoint the PM **promoted `[17-D26]` from deferred to in-scope**, approved the other
+25 as filed, and explicitly overrode the three reasons this plan declined the fix:
+`e2e/helpers/visual-drive.ts` was put in scope despite not being in `files_modified`, and a **second
+regeneration plus a second comparison** were authorised, with run `33273927029` to be superseded by
+the new comparison.
+
+Their reasoning, recorded because it is correct: *a gate whose baselines expire within a day trains
+its readers to expect red, and closing the phase on evidence known to be false tomorrow is worse than
+spending another CI cycle.*
+
+**The instruction was followed to the letter up to the point where it stopped being possible**, which
+is the first step: measure before you write.
+
+## 4.2 The measurement that stopped it
+
+The prescribed fix was to set `needsClock` on `listingDetailDrive`, `sheetDrive` and `collisionDrive`
+and pin `page.clock` to a literal instant. That prescription came from **this plan's own ledger
+entry**, so the error is this plan's, not the PM's — they adopted a recommendation that was written
+without being tested.
+
+Probed on **2026-08-30** against the running dev server on `localhost:3000` and the local
+`uat_listing_bookable` fixture, launching Chromium twice against
+`/listings/uat_listing_bookable?date=2026-09-16` — once bare, once with
+`page.clock.install({ time: new Date("2026-11-05T04:00:00Z") })` called **before the first
+navigation**, exactly the way `surfaces.spec.ts:438` does it:
+
+| Reading | no clock | clock at **2026-11-05** | moved? |
+|---|---|---|---|
+| `new Date().toISOString()` **inside the page** | `2026-08-30T05:15:08Z` | `2026-11-05T04:00:01Z` | **YES** — the clock really was installed |
+| the cell carrying `data-today="true"` | **30** | **30** | **no** |
+| the month caption | **August 2026** | **August 2026** | **no** |
+| `button[disabled]` count in the calendar | **29** | **29** | **no** |
+
+**The browser clock moved by more than two months and not one rendered pixel of the calendar followed
+it.**
+
+*(Two things worth keeping from the control run: it independently reproduces the finding on a
+**different** listing — today-ring on **30**, caption **August**, 29 disabled — and it shows the
+probe was capable of detecting a change, since the in-page `Date` did move. A probe that cannot
+detect the thing it is looking for proves nothing, so both halves are reported.)*
+
+## 4.3 Why it cannot work — structural, not a tuning problem
+
+`/listings/[id]` is an **RSC**. `todayLocal` is computed on the **server** at
+`src/app/listings/[id]/(detail)/page.tsx:394` (`const now = new Date()`); `todayStart` and
+`horizonEnd` are built from it at `:415-427` and handed to the client component as `startMonth`,
+`endMonth` and `disabled`. `page.clock` emulates time **in the browser**, and cannot reach a value
+computed in the Node process before the HTML was sent.
+
+`checkoutDrive` is a genuine precedent for `page.clock` — for controlling a **client-side
+`setInterval`** (the hold countdown). That is a different problem, and the resemblance is what made
+the wrong prescription look right.
+
+**Consequence: there is no fix available inside the authorised file.** A drive controls the URL, the
+viewport, storage, cookies and interactions. None of those reaches the server's clock. Implementing
+`needsClock` on the three drives would have produced a change that compiles, passes review, regenerates
+cleanly, goes green once — and fixes nothing, with the defect now wearing a fix's clothes. That is a
+worse outcome than the finding staying open.
+
+## 4.4 What was NOT done, and why
+
+**No second regeneration was dispatched.** The tree is unchanged, so a second dispatch would
+regenerate the same four calendar rows against a *new* wall-clock reading — re-pinning the defect to
+a different day, burning the recorded closing evidence, and leaving the gate exactly as fragile. The
+PM's authorisation to spend another CI cycle was authorisation to spend it on a **fix**; there is no
+fix to spend it on yet.
+
+**`33273927029` therefore stands as the phase's closing evidence and is NOT superseded**, because
+nothing that would supersede it was produced. `origin/dev` is still `708de3a`, the exact commit it
+ran against.
+
+**`[17-D26]` was NOT moved to the `# Fixed in place` closure record.** That record is a *closure*
+record; moving an unfixed finding into it would make the one checkable thing in this document false.
+It stays in the findings list, now carrying the PM's promotion, the refutation above, and the three
+options below.
+
+## 4.5 The decision the PM now owns — three options, measured costs
+
+| # | Fix | What it costs | Result |
+|---|---|---|---|
+| **1** | A **dev-only "today" seam** in `page.tsx`, honoured only when `NODE_ENV !== "production"` — the pattern `?theme=` already uses *"outside production"* (D-08) and `allowedDevOrigins` already uses in `next.config.ts`. Both visual jobs boot with `npm run dev`, so it is live where needed and inert in production. | A production `src/` change on the public listing page. **Rule-4 architectural call.** | Calendar stays fully pixel-covered **and** becomes deterministic. **Recommended.** |
+| **2** | **Pin the server clock in the two visual jobs** (`libfaketime`, or the container date, around the `npm run dev` the Playwright `webServer` boots). | A new package inside the one job carrying `contents: write` — `baselines.yml`'s header calls that *"a supply-chain decision to raise explicitly, not to absorb"* (T-11-SC). Also shifts "now" relative to the fixture's fixed September instants. | Works, but buys it in the most dangerous file in the repository. |
+| **3** | **Mask the calendar** — `toHaveScreenshot({ mask: […] })` on the four calendar-bearing rows. | `e2e/visual/surfaces.spec.ts` plus a declaration in `visual-baselines.ts`. **Removes the availability calendar from GATE-01 coverage on four rows.** | Cheapest to build, worst to own: buys determinism by deleting the coverage this phase exists to defend. |
+
+**Not an option: widening a pixel threshold.** The row's own comment names that as the wrong answer,
+and it is right — it converts a real regression detector into a rubber stamp.
+
+## 4.6 Status
+
+- **Phase 17's closing evidence is unchanged: comparison run `33273927029`, green, on `708de3a`.**
+- `[17-D26]` is **promoted, open, and blocked on the PM's choice of option** — no longer merely
+  deferred input, and recorded as such in `deferred-items.md`.
+- The ledger's D-199 statement now reads *"may close green around **25 of the 26**"*, naming the
+  twenty-sixth as promoted.
+- **The four calendar baselines still encode "today = 30 August 2026" and will be red at the next
+  Manila day-rollover.** That was true before this section and is still true; what changed is that it
+  is now a known, promoted, owned item rather than a deferred one.

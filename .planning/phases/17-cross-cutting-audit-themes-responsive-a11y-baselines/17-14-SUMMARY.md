@@ -384,3 +384,65 @@ discover:
   pre-existing untracked `.claude/`
 - Every Task-1 and Task-2 acceptance criterion re-run; the two measured false as written are recorded
   in `baseline-evidence.md` § 1.4 with the parsed assertions that replace them
+
+---
+
+## Addendum — the PM's D-199 decision, and the measurement that blocked it
+
+**Added after the checkpoint. The committed sections above are unchanged.**
+
+At the D-199 review the PM **promoted `[17-D26]` from deferred to in-scope**, approved the other 25
+as filed, put `e2e/helpers/visual-drive.ts` in scope and authorised a second regeneration and a
+second comparison.
+
+**The prescribed fix was measured first, and refuted.** Set `needsClock` on the three calendar-bearing
+drives and pin `page.clock`: probed on 2026-08-30 against the local dev server and
+`uat_listing_bookable`, launching Chromium twice — once bare, once with
+`page.clock.install({ time: 2026-11-05T04:00:00Z })` before the first navigation, exactly as
+`surfaces.spec.ts:438` installs it:
+
+| Reading | no clock | clock at 2026-11-05 | moved? |
+|---|---|---|---|
+| `new Date().toISOString()` inside the page | `2026-08-30T05:15:08Z` | `2026-11-05T04:00:01Z` | **YES** |
+| cell carrying `data-today="true"` | **30** | **30** | **no** |
+| month caption | **August 2026** | **August 2026** | **no** |
+| `button[disabled]` count | **29** | **29** | **no** |
+
+**The browser clock moved two months and the calendar did not follow.** `/listings/[id]` is an RSC:
+`todayLocal` is computed on the **server** at `page.tsx:394`, and `todayStart` / `horizonEnd` are
+built from it at `:415-427` and passed down as props. `page.clock` emulates time in the **browser**
+and cannot reach a value computed in the Node process before the HTML was sent. `checkoutDrive` is a
+real precedent for `page.clock` — for a client-side `setInterval` — and that resemblance is what made
+the wrong prescription look right. **The error was this plan's ledger entry, not the PM's decision.**
+
+**What was decided rather than measured, and why:**
+
+1. **No `needsClock` change was written.** It would compile, review cleanly, regenerate, go green
+   once, and fix nothing — leaving the defect wearing a fix's clothes, which is worse than an open
+   finding.
+2. **No second regeneration was dispatched.** The tree is unchanged, so a re-mint would re-pin the
+   defect to a new day and burn the recorded evidence. The authorisation to spend a CI cycle was
+   authorisation to spend it on a fix; there is not one yet.
+3. **`33273927029` stands and is NOT superseded.** `origin/dev` is still `708de3a`, the commit it ran
+   against.
+4. **`[17-D26]` was NOT moved to `# Fixed in place`.** It is a *closure* record; filing an unfixed
+   finding there would make the one checkable thing in that document false. It stays in the findings
+   list carrying the promotion, the refutation and three costed options.
+
+**The three options now with the PM** (full costs in `baseline-evidence.md` § 4.5 and in the ledger
+row): **(1)** a dev-only "today" seam in `page.tsx`, gated on `NODE_ENV !== "production"` — the
+pattern `?theme=` and `allowedDevOrigins` already use; **recommended**, keeps the calendar covered and
+makes it deterministic, but is a Rule-4 production change. **(2)** pin the server clock in the two
+visual jobs — works, but adds a package to the one job holding `contents: write` (T-11-SC). **(3)**
+mask the calendar — cheapest, but deletes GATE-01 coverage of the availability calendar on four rows.
+**Widening a pixel threshold remains excluded.**
+
+**Ledger corrections made in the same change:** the D-199 statement now reads *"may close green around
+25 of the 26"* and names the twenty-sixth as promoted; the header note that records the append was
+rewritten because its first draft **spelled the four part-labels and inflated one of them from 26 to
+27** — the `[17-D20]` defect class, self-inflicted, caught by re-running the gate. Format re-measured:
+findings **26**, anchored and unanchored heading greps both **26**, the four part-labels **26 / 26 /
+26 / 26**, level-3 headings **0**.
+
+**Still true and still owed:** the four calendar baselines encode *today = 30 August 2026* and will be
+red at the next Manila day-rollover.
