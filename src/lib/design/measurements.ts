@@ -341,6 +341,14 @@ export const STICKY_BAR_HEIGHT = "h-16";
  * 64 (the bar) + 16 (a gap) — the SAME arithmetic as the app shell's `lg:top-20`, from the other end
  * of the viewport. It is a measurement rather than a taste call because without it the last row of
  * content sits under the bar and the page has a permanently unreachable line.
+ *
+ * ITS ARGUMENT POSITION IS LOAD-BEARING, BECAUSE `cn` IS tailwind-merge. This is composed through
+ * `cn()` at two sites, and tailwind-merge DELETES a `pb-*` that precedes a conflicting `py-*` before
+ * any CSS exists. Folding the `sm:` variant in here (`"pb-20 sm:pb-20"`) does NOT remove that hazard
+ * and MAKES IT WORSE — measured, the same hoist then deletes BOTH terms instead of one, because the
+ * killer is `py-*` and not the sibling `pb-*` — and it changes the classes `(detail)/layout.tsx`
+ * emits for a hazard that route does not have. The rule is pinned by
+ * `tests/design/clearance-merge-order.test.ts`, where that counterfactual is a watched red.
  */
 export const STICKY_BAR_CLEARANCE = "pb-20";
 

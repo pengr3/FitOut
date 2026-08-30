@@ -539,10 +539,35 @@ export default async function ReservePage({
     // and a `lg:`-prefixed template of some constant would resolve to nothing at all — the same
     // in-the-class-list / not-on-the-box failure the paragraph above exists to close.
     //
+    // ⚠ `cn` IS tailwind-merge, SO THE ARGUMENT ORDER BELOW IS LOAD-BEARING AND NOT COSMETIC. `cn`
+    // is not class concatenation: it is `clsx` + `extendTailwindMerge` (`src/lib/utils.ts:41-47`), and
+    // tailwind-merge resolves a `py-*` / `pb-*` conflict by DELETING the earlier class BEFORE ANY CSS
+    // EXISTS. That is a DIFFERENT MECHANISM from the cascade-layer argument two paragraphs up, at an
+    // earlier stage, and nothing in that paragraph covers it: there, both classes reach the stylesheet
+    // and one wins its layer; here the loser never reaches the DOM at all. So `STICKY_BAR_CLEARANCE`
+    // must stay AFTER the `"… py-8 sm:py-12"` argument, and `sm:pb-20` AFTER `sm:py-12`. MEASURED
+    // through this repo's own `cn`, 2026-08-31, with `P = "mx-auto w-full max-w-4xl px-4 py-8 sm:py-12"`:
+    //
+    //     cn(P, STICKY_BAR_CLEARANCE, "sm:pb-20 lg:pb-12")  →  … py-8 sm:py-12 pb-20 sm:pb-20 lg:pb-12
+    //     cn(STICKY_BAR_CLEARANCE, P, "sm:pb-20 lg:pb-12")  →  … py-8 sm:py-12 sm:pb-20 lg:pb-12
+    //                                                                            ↑ `pb-20` GONE
+    //
+    // Hoisting the named constant to the front of a call whose first argument is a bare literal is the
+    // single most plausible tidy anyone will ever perform on this line, and it leaves `<main>` reserving
+    // 32px (`py-8`) under a 64px bar below 640px — STRICTLY WORSE than the defect § P2 measured, which
+    // was 80px below 640px and only failed from 640px up. The instrument is
+    // `tests/design/clearance-merge-order.test.ts`, which reads THIS argument list out of the source
+    // with the TypeScript AST rather than a retyped copy of it, and has been watched red on that exact
+    // edit.
+    //
     // The instrument that keeps all of this true is the band case in `e2e/mobile-booker-path.spec.ts`
     // (`expectDocumentEndClearsBar`, driven at 640 / 768 / 1023 in both themes with a 320px positive
     // control). It compares the COMPUTED padding against the RENDERED bar height and never against this
-    // spelling, so a later repair may reach the same box by any other route and keep it green.
+    // spelling, so a later repair may reach the same box by any other route and keep it green. It also
+    // does not run in CI — `.github/workflows/ci.yml:841` runs exactly `e2e/price-parity.spec.ts` —
+    // while the design gate named above runs on every push inside job 1's `npm run build`. That is why
+    // there are now TWO instruments and not one: the one that measures the rendered box never executes
+    // on a push, and the one that executes on every push cannot see a rendered box.
     <main
       className={cn(
         "mx-auto w-full max-w-4xl px-4 py-8 sm:py-12",
