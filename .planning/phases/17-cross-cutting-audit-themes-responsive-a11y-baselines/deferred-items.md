@@ -30,17 +30,19 @@ D-198. The first draft of this note listed all four by name and took one of them
 them with the greps, not from a sentence: each of the four labels must equal the finding-heading
 count, and level-3 headings must stay at zero so the unanchored heading grep is unambiguous.
 
-**APPENDED BY PLAN 17.1-05, 2026-08-31 — THE LIST IS NOW 27.** Everything above stays byte-identical;
+**APPENDED BY PLAN 17.1-05, 2026-08-31 — THE LIST IS NOW 28.** Everything above stays byte-identical;
 this is the correction, dated, in the format S5 requires. Phase **17.1**'s item-3 outbound census
 (`17.1-EVIDENCE.md` § P3) drove the two spec files that touch `/host/payouts/refresh` under a
 server-side `fetch` instrument and read the result against the prediction. **Two of the measured rows
 were unpredicted**, so under D-11 each became a finding **before** the seam that will fix them exists:
 `[17-D27]` (a third PayMongo endpoint this file's own `[17-D18]` does not record) and `[17-D28]` (a
-second third-party origin, reached on a live key, that no row here records at all). Both sit at the end
-of the list below, in the same shape as every row above them. The invariants this header names still
-hold and were re-checked at the splice: the finding-heading count and each of the four part-label counts
-are all **27**, and the unanchored level-3 heading grep is still **0**. This paragraph names none of the
-four labels, for the reason the paragraph above it gives.
+second third-party origin, reached on a live key, that no row here records at all). The same plan's
+Task 3 then added a third, `[17-D29]`, on measuring the scope of its own approved dependency change
+instead of asserting it. All three sit at the end of the list below, in the same shape as every row
+above them. The invariants this header names still hold and were re-checked after each splice: the
+finding-heading count and each of the four part-label counts are all **28**, and the unanchored level-3
+heading grep is still **0**. This paragraph names none of the four labels, for the reason the paragraph
+above it gives.
 
 **Nothing was relocated here.** Phases 13, 14, 15 and 16 keep their own `deferred-items.md` rows;
 plans 17-06 and 17-10 annotated the ones this phase closed **in place** (`[13-15]`, `[15-12]`,
@@ -1212,6 +1214,69 @@ delivery, that is a named opt-in, not the default.
 
 **Suggested owner:** whichever plan next opens `playwright.config.ts` or `src/lib/email.ts`; and Phase
 18's CI work, where D-35's boundary is actually crossed.
+
+---
+
+## [17-D29] — `better-auth`'s optional `vitest` peer keeps a test runner, `jsdom` and `undici` in the PRODUCTION dependency tree
+
+- **Found by:** plan 17.1-05, Task 3, measuring the `undici` promotion's scope instead of asserting it, 2026-08-31
+- **Owner file:** `package.json` — the interaction between `dependencies.better-auth` and
+  `devDependencies.vitest`; visible in `package-lock.json` as three entries carrying no `dev` flag
+- **Severity:** a **stated** dependency scope that the tree does not have. Every argument of the form
+  *"it is a `devDependency`, so production never resolves it"* is unsound in this repo until this is
+  closed — and this plan's own supply-chain gate was approved with exactly that sentence in it.
+
+**Measured, not inferred.** On this machine, npm **11.8.0**, at commit `2822284` (before the `undici`
+declaration) and again at `ab7001b` (after it) — **identical both times**:
+
+```
+$ npm ls undici --omit=dev
+fitout@0.1.0
+`-- better-auth@1.6.14
+  `-- vitest@4.1.8
+    `-- jsdom@29.1.1
+      `-- undici@7.27.0
+
+$ npm ci --omit=dev --dry-run
+removed 232 packages in 3s
+$ npm ci --omit=dev --dry-run | grep -E "^remove (undici|jsdom|vitest) "
+(no output)
+```
+
+**232** packages are removed by a production install and **`vitest`, `jsdom` and `undici` are not among
+them.** Read straight off the lockfile, `node_modules/vitest`, `node_modules/jsdom` and
+`node_modules/undici` all carry **no `dev` flag** — against **264** entries that do, out of **1183**.
+
+**The mechanism, traced.** `better-auth@1.6.14` is a **production** dependency here, and declares
+`"peerDependencies": { "vitest": "^2.0.0 || ^3.0.0 || ^4.0.0" }` with
+`"peerDependenciesMeta": { "vitest": { "optional": true } }`. This repo declares `vitest` in its own
+`devDependencies`, so npm satisfies that optional peer from the hoisted root copy. **A peer edge
+originating at a production package is not a dev edge**, so the whole `vitest → jsdom → undici` chain is
+unflagged and survives `--omit=dev`. The repo's own manifest is correct in both places; the scope
+collapses at their intersection, which is why reading either file alone does not show it.
+
+**Why it was not fixed here.** Plan 17.1-05's declared `files_modified` are `package.json`,
+`package-lock.json` and two planning files, and its sanctioned manifest change was **one line** approved
+at a human gate — the smallest reviewable unit a supply-chain decision can have. Re-scoping a production
+peer edge is a different change with a different blast radius (it touches what `npm ci --omit=dev`
+installs for **every** deploy), and folding it into the same commit would have made the approved
+one-liner unreviewable. It also changes nothing this plan measured: the property is **pre-existing and
+unchanged** by the declaration, in both directions.
+
+**Cheapest correct fix:** first decide whether it is a defect at all — a deploy that ships a test runner
+is wasted image size and extra attack surface, but it is not a code path. If it is to be closed, the
+smallest correct repair is **not** to drop `vitest`: it is to stop the optional peer being satisfied from
+the production graph, either by pinning `better-auth`'s peer resolution out of the production tree
+(`overrides`, or `omit`-aware install config in the deploy job) or by asserting the intended scope with a
+test — `npm ci --omit=dev --dry-run` must not resolve `vitest`, and that assertion is what actually keeps
+it true. ⚠ **Whatever is done, do not "fix" it by deleting the `undici` declaration**: `undici` was in the
+production tree *before* the declaration and would still be after deleting it, so removing the pin would
+lose the version control and keep the exposure.
+
+**Suggested owner:** whichever plan next opens `package.json` for a dependency decision; and Phase 18's
+CI/deploy work, where the production install is actually performed. ⚠ **Plan 17.1-06 must read this
+before writing the seam's inertness argument** — the seam's safety rests on D-09's build-time `NODE_ENV`
+guard and its dynamic import, **not** on `undici` being absent from a production install, which is false.
 
 ---
 
