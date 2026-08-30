@@ -563,6 +563,89 @@ red, and `mobile-booker-path.spec.ts` re-ran green on that half after the move.
 The desktop consequence is real and recorded: at `lg:` and above, `/listings/[id]` loses 80px of
 trailing whitespace it was never using for anything. That is this row's finding, spent.
 
+**THE OTHER HALF — RESOLVED 2026-08-31, plan `17.1-04`, commits `8b71b21` / `41dd74e`.** The line
+above closed the listing route. This closes `/listings/[id]/book`, and it starts by correcting this
+row's own title.
+
+**The measurement.** Route **`/listings/[id]/book`**, at **640×800 / 640×568 / 768×600 / 1023×768 /
+1023×600**, themes **court** and **grove**, on the shipped tree (`17.1-EVIDENCE.md` § P2, plan
+17.1-03): `main` computed `padding-bottom` was **48px** against a confirm bar measured at **64px** —
+**16px short of the bar's own height, against a declared 80px**. `80px` at 320px and 48px from 640px
+up, both themes, no exceptions. Cause: Tailwind v4 emits the `sm:` layer after the whole base layer,
+so `sm:py-12`'s 48px beat the unvariant `pb-20`, while both bars are `lg:hidden` and render to 1023px.
+
+No interactive control was occluded there — the last one, `a("Back to the listing")`, cleared the bar
+by **4px** in court and **5px** in grove, against **36px / 37px** at the 320px floor. But a leaf
+paragraph was under it at every band viewport where the document scrolls, in `[17-D9]`'s box format
+(court · 640×800):
+
+| | box |
+|---|---|
+| `p("We'll keep your hold — the timer keeps r")` | `{x: 16, y: 735.59, width: 608, height: 16, bottom: 751.59}` |
+| `[data-testid="checkout-sticky-bar"]` | `{x: 0, y: 736, width: 640, height: 64, bottom: 800}` |
+
+**15.6px of a 16px line behind the bar** (grove: 16.45 of 17.33). That paragraph is `HOLD_PROMISE`,
+`src/components/booking/way-back-link.tsx:78` — the sentence that component's own header calls the
+thing that makes the link above it safe to press, on the route whose only escape hatch that link is
+(`shell.spec.ts:1233` pins exactly one anchor in `<main>` on a live checkout).
+
+**The repair.** `src/app/listings/[id]/book/page.tsx:521` — `sm:pb-20` added (the term that actually
+wins the `sm:` layer, measured at seven widths in `§ P4` before it landed, not inferred), plus
+`lg:pb-12` to hand `sm:py-12`'s 48px back at the width where no bar renders. **`STICKY_BAR_CLEARANCE`
+stayed on `<main>` exactly as this row's RESOLVED line said it should** — checkout renders no footer,
+so `<main>` IS this document's bottom, and the defect was the *class*, never the *element*. The
+alternative (mirroring the listing route's wrapper move onto `book/layout.tsx`) would have reversed
+that recorded decision — must-escalate under 17-UI-SPEC § Remediation — and moved
+`checkout-320-court-visual-linux.png` by +32px. It was not taken. `src/lib/design/measurements.ts`
+gained no new value and `book/layout.tsx` was not touched.
+
+Measured after, live route, both themes (`§ P4`): **80px** at 320 / 639 / 640 / 768 / 1023 and **48px**
+at 1024 / 1280; the last control clears by **36px / 37px** across the whole band, back to the floor's
+figure; and `TEXT UNDER BAR` reads `(none)` at every viewport in both themes. Zero baseline PNGs moved
+(disk still 36; there is no `checkout-768` baseline, which is why the band was never pictured).
+
+**⚠ THE CORRECTION THIS ROW OWES THE RECORD.** This row's title says the clearance is *"load-bearing
+only on `/listings/[id]/book`"*. **Measured, it was load-bearing there only across 320–639px.** From
+640 to 1023 it was as inert on the checkout route as this row correctly says it was on the listing
+route — the same defect, on both routes, arriving from a direction nobody was watching, and hidden on
+the checkout route because the only instrument that ever drove it (plan 17-04's DRIVE 2) ran at 320px,
+inside the band where the knob does fire. The row's *finding* was right and its *scoping* was too
+generous to one of the two routes. Recorded here rather than propagated.
+
+**The instrument left behind.** `e2e/mobile-booker-path.spec.ts` — `expectDocumentEndClearsBar`
+(D-04's computed-padding clause) plus the four `expectStickyBar` clauses, driven at **640 / 768 /
+1023** in both themes inside the existing checkout case, with a **320px positive control** so a band
+red cannot be confused with a mis-pointed helper. It compares the COMPUTED padding against the
+RENDERED bar height, never against the spelling, so a later repair may reach the same box another way.
+It was committed **red** by plan 17.1-03 against the shipped tree with nothing deleted, and this plan
+made it green: `3 skipped · 11 passed`, zero failures. **Sampling rate, stated honestly:** this clause
+runs only when a human runs the file — `mobile-booker-path.spec.ts` is not in any CI gate (`[17-D24]`)
+— so the rate is "on request", not "on push". Raising it is explicitly out of scope for phase 17.1.
+
+**RESP-03: ADVANCED, NOT CLOSED.** It stays `[ ]` in `.planning/REQUIREMENTS.md:107` and this plan did
+not touch that file. What moved: the **640–1023px band on `/listings/[id]/book`** — RESP-03's literal
+subject ("every surface … **with the sticky bar present**") across a 384px-wide band that, until plan
+17.1-03, **no instrument in the suite drove at all** (`mobile-booker-path.spec.ts` ran 375 / 320 /
+1280 and nothing between 376 and 1279). What still stands: `[17-D11]`'s named skip (the sixth no-wrap
+member has no instrument without a source change), and the requirement's own word *"every"* — two
+routes at three widths is not every surface. `RESP-04`, `GATE-02` and `GATE-06` exceptions are
+untouched by this plan.
+
+**Disposal.** `e2e/tmp-checkout-band.spec.ts` — the untracked throwaway probe whose own header set its
+terms (*"Not committed. Deleted after the measurement."*) — is **deleted**. Its transcript survives
+independently as `§ P2` and its after-reading as `§ P4`'s `MEASURED AFTER THE REPAIR` table, and its
+band definition now exists as a permanent case with real assertions. It was deleted rather than
+promoted because it is `console.log`-only: it carries no `expect` on the band at all, so committing it
+would have added a spec that can never fail.
+
+**Observed in passing, NOT fixed (out of this plan's declared files):**
+`src/app/listings/[id]/book/loading.tsx:26` renders the checkout's `<main>` shell as
+`"mx-auto w-full max-w-4xl px-4 py-8 sm:py-12"` with **no clearance term at all** — the skeleton
+reserves nothing for the bar at any width. It is a skeleton, so nothing is occluded that a booker can
+press, and the shipped page replaces it within a paint; but the shell and its skeleton have now
+diverged. Whichever plan next opens that file should carry `STICKY_BAR_CLEARANCE` and both variant
+terms across.
+
 ---
 
 ## [17-D11] — One member of the declared no-wrap set has no instrument, and cannot get one without a source change
