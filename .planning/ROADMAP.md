@@ -871,7 +871,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). `dev` pushed at `025c1ad`; ci run 32939455683 GREEN on all four jobs incl. gate-visual — W-2 discharged | 2026-08-26 |
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-28 |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 14/14 | Complete (verified 2026-08-30 — 4/4 must-haves after one gap closed; GATE-01 evidence ci 33300952565 GREEN on a2f6973). 25 escalate-class findings filed in deferred-items.md for PM review; RESP-03/RESP-04/GATE-02/GATE-06 remain Pending by design | 2026-08-30 |
-| 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete   | 2026-08-30 |
+| 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-30 |
 | 18. Search-Results Map | v1.1 | 0/? | Not started | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
 

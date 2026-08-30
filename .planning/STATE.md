@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 7
-status: verifying
-stopped_at: Completed 17.1-07-PLAN.md — dev is GREEN (ci 33336650152 on d87ff54)
-last_updated: "2026-08-30T21:43:11.937Z"
+status: ready_to_plan
+stopped_at: Phase 17.1 complete (7/7) — ready to discuss Phase 999.1
+last_updated: 2026-08-30T22:20:56.355Z
 last_activity: 2026-08-30
 progress:
   total_phases: 14
@@ -22,7 +22,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 17.1 — close-phase-17-escalations-sticky-bar-clearance-soft-404-pro
+**Current focus:** Phase 999.1 — auth flow tells the user nothing thin emails and silent post
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -44,11 +44,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 17.1 (close-phase-17-escalations-sticky-bar-clearance-soft-404-pro) — EXECUTING
+Phase: 999.1
 Plan: 7 of 7
-Current Plan: 7
+Current Plan: Not started
 Total Plans in Phase: 7
-Status: Phase complete — ready for verification
+Status: Ready to plan
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
 declaration, and `--verify` exits 0 both before the walk and after every upload in it. The
 credential-bearing walkthrough is done — nine checks with pasted evidence in `16.1-UAT.md`.
@@ -502,7 +502,7 @@ Last activity: 2026-08-30
 
 **Velocity:**
 
-- Total plans completed: 73
+- Total plans completed: 80
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -521,7 +521,7 @@ Last activity: 2026-08-30
 | 14 | 14 | - | - |
 | 15 | 14 | - | - |
 | 16.1 | 7 | - | - |
-| 17.1 | 1 | - | - |
+| 17.1 | 7 | - | - |
 
 *17.1-01: ~42 min wall-clock, 2 tasks executed + 1 not reached, 1 file created + 1 modified, 2 commits + 1 metadata.
 ZERO code files and zero packages — the whole plan is one production build and three numbers. The deliverable is a
