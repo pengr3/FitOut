@@ -94,6 +94,108 @@
 // not merely a reasonable home for this rule; it is the only place a guard for it can bite.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WATCHED RED — ALL THREE PROBES, DRIVEN AGAINST THE REAL TREE. 31 August 2026. GREEN IS 15 PASSED.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// A gate that has never been watched failing is not a gate (`tests/design/infra.test.ts:5-9`). Each
+// probe below was applied to the SOURCE, run, its output copied here verbatim, then REVERTED and
+// re-greened before the next was started. No probe was kept; `git status --porcelain src/` was clean
+// after each. A watched red that is later tidied to match the tree is no longer evidence of anything
+// (`sticky-offset.test.ts:~111`).
+//
+// Command for all three: `npx vitest run --config vitest.design.config.ts
+// tests/design/clearance-merge-order.test.ts`
+//
+//   (a) THE HOIST — THE EDIT THIS GATE EXISTS FOR. `STICKY_BAR_CLEARANCE` moved to be the FIRST
+//       argument of `cn` in `src/app/listings/[id]/book/page.tsx:547-551`, the layout literal second.
+//       Nothing else touched. **2 failed / 13 passed.** The rule names the file, the LINE, the class
+//       that vanished and the string that came out, so the failure is readable without a REPL:
+//
+//         AssertionError: `cn` is tailwind-merge, not class concatenation: it DELETES a `pb-*` that
+//         precedes a conflicting `py-*`, before any CSS exists. A clearance composed BEFORE the
+//         layout string is therefore not a smaller padding — it is NO padding, and the page's last
+//         rows sit under the fixed bar. Keep `STICKY_BAR_CLEARANCE` AFTER the "… py-8 sm:py-12"
+//         argument, and `sm:pb-20` AFTER `sm:py-12`.: expected [ Array(1) ] to deeply equal []
+//
+//         - []
+//         + [
+//         +   "src/app/listings/[id]/book/page.tsx:547 — `pb-20` was DELETED by the merge (variant
+//         +    `<none>`). Merged output: \"mx-auto w-full max-w-4xl px-4 py-8 sm:py-12 sm:pb-20
+//         +    lg:pb-12\"",
+//         + ]
+//
+//       The SECOND failure is the positive half, and it is worth reading beside the first because it
+//       fires on the same edit from the other direction — not "something was deleted" but "the result
+//       is no longer the one that was measured on the live route":
+//
+//         AssertionError: the `pb-*` classes that survive the merge changed. …
+//         expected { …(2) } to deeply equal { …(2) }
+//
+//           "src/app/listings/[id]/book/page.tsx": {
+//         -   "": "pb-20",
+//             "lg": "lg:pb-12",
+//             "sm": "sm:pb-20",
+//           },
+//
+//       Both fired, which is what the pairing is for: one bad edit, two readable failures. Reverted →
+//       15 passed.
+//
+//   (b) THE FLATTEN — THE EDIT THAT DELETES THE GATE'S SUBJECT INSTEAD OF REORDERING IT. The whole
+//       argument list at `:547-551` replaced by the single literal
+//       `"mx-auto w-full max-w-4xl px-4 pb-20 py-8 sm:pb-20 sm:py-12 lg:pb-12"`, and the now-unused
+//       import deleted. That string merges to `… px-4 py-8 sm:py-12 lg:pb-12` — BOTH clearance terms
+//       gone, the page silently reserving 32px under a 64px bar — and the checkout site no longer
+//       matches the rule at all. **3 failed / 12 passed**, and the two counts fire together, which is
+//       precisely the signature that says "abandoned" rather than "moved":
+//
+//         AssertionError: the number of files importing `STICKY_BAR_CLEARANCE` changed. This is not a
+//         failure of the merge-order rule — every site may still be safe — it is a prompt to read the
+//         new one and update this count deliberately, in the commit that changes it. Importers found:
+//         src/app/listings/[id]/(detail)/layout.tsx: expected 1 to be 2 // Object.is equality
+//
+//         AssertionError: the number of `cn()` calls composing `STICKY_BAR_CLEARANCE` changed. Read
+//         this beside the importer count above: the two dropping TOGETHER means a call site abandoned
+//         the constant; this one dropping ALONE means the constant is still imported but is no longer
+//         composed through `cn` — so this rule silently stopped covering it, which is the direction no
+//         absence assertion can notice. Sites found: src/app/listings/[id]/(detail)/layout.tsx:80:
+//         expected 1 to be 2 // Object.is equality
+//
+//       …plus the positive table, which loses the whole `book/page.tsx` row. Note what did NOT fire:
+//       `deletes no pb-* clearance at any site` PASSED, over a tree where the checkout clearance had
+//       just been merged out of existence — because the surviving site is clean and an absence
+//       assertion cannot notice its subject was taken away. That is the entire reason the counts are
+//       pinned separately from the rule, and this is the probe that measures it. Reverted → 15 passed.
+//
+//   (c) THE SHAPE-A COUNTERFACTUAL — WHY THE VARIANT WAS NOT FOLDED INTO THE CONSTANT.
+//       `src/lib/design/measurements.ts:345` set to `"pb-20 sm:pb-20"`, the literal `sm:pb-20` dropped
+//       from the checkout call, and the hoist from (a) applied on top. **2 failed / 13 passed**, and
+//       the rule names BOTH variants where (a) named one — the fold does not remove the hazard, it
+//       doubles it:
+//
+//         AssertionError: … expected [ …(2) ] to deeply equal []
+//
+//         - []
+//         + [
+//         +   "src/app/listings/[id]/book/page.tsx:547 — `pb-20` was DELETED by the merge (variant
+//         +    `<none>`). Merged output: \"mx-auto w-full max-w-4xl px-4 py-8 sm:py-12 lg:pb-12\"",
+//         +   "src/app/listings/[id]/book/page.tsx:547 — `sm:pb-20` was DELETED by the merge (variant
+//         +    `sm`). Merged output: \"mx-auto w-full max-w-4xl px-4 py-8 sm:py-12 lg:pb-12\"",
+//         + ]
+//
+//       And the positive half recorded the fold's OTHER cost, unprompted — the sibling route, which
+//       has no `py-*` to lose to and was never fragile, silently changed the classes it emits:
+//
+//           "src/app/listings/[id]/(detail)/layout.tsx": {
+//             "": "pb-20",
+//             "lg": "lg:pb-0",
+//         +   "sm": "sm:pb-20",
+//           },
+//
+//       A no-op on that route's computed padding, and a change to a shipped route's class list for a
+//       hazard it does not have. Shape A is therefore rejected on a measurement rather than on taste.
+//       Both files reverted → 15 passed.
+//
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED — real blind spots, stated so the next reader under-trusts this file
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //   • IT READS SOURCE, NOT COMPUTED GEOMETRY. It proves the class SURVIVES THE MERGE. It cannot
