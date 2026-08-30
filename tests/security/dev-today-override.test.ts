@@ -1,7 +1,7 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, type Dirent } from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { devTodayOverride } from "@/lib/dev/today-override";
 
@@ -46,19 +46,82 @@ describe("17-D26 — the dev-only ?today= override", () => {
    * (it can only over-include), and `tests/design/strip-comments.test.ts` owns the real thing.
    */
   const NEWLINE = String.fromCharCode(10);
-  const CODE = SOURCE.split(NEWLINE)
-    .filter((line) => {
-      const t = line.trim();
-      return t !== "" && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("*");
-    })
-    .join(NEWLINE);
+  const codeOnly = (text: string): string =>
+    text
+      .split(NEWLINE)
+      .filter((line) => {
+        const t = line.trim();
+        return t !== "" && !t.startsWith("//") && !t.startsWith("/*") && !t.startsWith("*");
+      })
+      .join(NEWLINE);
+  const CODE = codeOnly(SOURCE);
+
+  /**
+   * ⚠ THE ENV STUB IS RESTORED HERE, NOT IN A TEST BODY (phase-17 code review, WR-03).
+   *
+   * WHAT THIS REPLACES. `vi.unstubAllEnvs()` was the LAST LINE of the production-inertness test, after
+   * the `expect`. `expect` THROWS on failure, so the restore was skipped on exactly the run where it
+   * mattered and `NODE_ENV=production` survived into every test after it. Verified that Vitest does not
+   * clean it up on its own: `unstubEnvs` defaults to `false` and is set in neither `vitest.config.ts`
+   * nor `vitest.design.config.ts` nor `tests/setup.ts`.
+   *
+   * THE CONSEQUENCE WAS SPECIFIC AND BAD, which is why this is a fix rather than tidying: a real
+   * failure in test 1 also LEAKS the stub, so every later assertion that expects a non-null result
+   * measures the production branch and false-reds.
+   *
+   * ⚠ RED-WATCHED, AND THE MEASURED CASCADE IS 4 — NOT THE 7 THE REVIEW PREDICTED. Both shapes were
+   * run against the same synthetic failure (test 1's `toBeNull()` swapped for a `toEqual` that cannot
+   * hold), with the module itself untouched so nothing but the isolation differed:
+   *
+   *   pre-fix shape (restore as the last line of the test body) → 4 failed / 16 passed
+   *       × returns null for a PERFECTLY VALID date when NODE_ENV is production   ← the true one
+   *       × is not inert merely because every input is rejected …                 ← THE POSITIVE CONTROL
+   *       × accepts exactly the YYYY-MM-DD shape the searched-window contract already uses
+   *       × returns a plain date triple and nothing else
+   *   this shape (describe-level afterEach)                     → 1 failed / 20 passed
+   *
+   *   THE REVIEW'S NUMBER WAS WRONG IN THE SAFE DIRECTION and the correction is recorded rather than
+   *   quietly adopted: WR-03 predicted the eight rows of the parse table would fall too. They do not.
+   *   Every one of them asserts `toBeNull()`, and the leaked production branch RETURNS null — so they
+   *   stay green for the wrong reason, which is its own small unpleasantness. What actually cascades
+   *   is the three assertions that expect a REAL date back.
+   *
+   *   The count is smaller than reported and the point is unchanged: the loudest false alarm in that
+   *   output is the POSITIVE CONTROL — the one assertion that exists to prove this suite is not
+   *   vacuous — and a reader triaging four failures is being actively misled about which one broke.
+   *
+   * ⚠ `afterEach` HERE RATHER THAN `unstubEnvs: true` IN THE CONFIG, and that is a measurement, not a
+   * preference. The global switch restores after EVERY test, and this repo has suites that stub in
+   * `beforeAll` and restore in `afterAll` on purpose — `tests/payments/payment-reconcile.test.ts:247`
+   * / `:288` and `tests/payments/retire-checkout.test.ts:84` / `:113` both do. Flipping the config key
+   * would clear their harness key after their first test and break them. The file-local `afterEach` is
+   * also the repo's existing idiom for exactly this shape (`tests/auth/secret-config.test.ts:27`,
+   * `tests/booking/checkout-probe.test.ts:78-80`), so this file now looks like its neighbours.
+   */
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
 
   describe("production inertness — the load-bearing half", () => {
     it("returns null for a PERFECTLY VALID date when NODE_ENV is production", () => {
       vi.stubEnv("NODE_ENV", "production");
-      // The same value that is honoured outside production, one line below.
+      // The same value that is honoured outside production, one line below. The stub is restored by
+      // the file's `afterEach` — NEVER by a line after this `expect`, which is unreachable on the one
+      // run that matters. See the `afterEach` docblock above (WR-03).
       expect(devTodayOverride("2026-09-16")).toBeNull();
-      vi.unstubAllEnvs();
+    });
+
+    it("does not leak the production stub into the tests that follow it", () => {
+      // THE ISOLATION ITSELF, ASSERTED. WR-03's defect was invisible while the suite was green: the
+      // leak only appeared on a failing run, which is the run nobody is reading carefully. This test
+      // makes the restore a property of every green run instead. It must sit immediately after the
+      // stubbing test, because "the tests that follow it" is what it asserts, and it reads the env
+      // rather than the function so it cannot be confused with the positive control below.
+      expect(
+        process.env.NODE_ENV,
+        "NODE_ENV is still stubbed to production after the test above, so every assertion from here " +
+          "down is measuring the production branch and the positive control is about to false-red",
+      ).not.toBe("production");
     });
 
     it("is not inert merely because every input is rejected — the SAME value is honoured outside production", () => {
@@ -203,14 +266,111 @@ describe("17-D26 — the dev-only ?today= override", () => {
   });
 
   describe("blast radius", () => {
-    it("is imported by exactly one route file", () => {
-      // A dev-only seam that spreads is no longer a seam. If this count grows, the new call site needs
-      // its own argument for why a request parameter may steer it.
-      const page = readFileSync(
-        path.join(process.cwd(), "src/app/listings/[id]/(detail)/page.tsx"),
-        "utf8",
-      );
-      expect(page).toContain('from "@/lib/dev/today-override"');
+    /**
+     * Every `.ts`/`.tsx` file under `src/`, repo-relative and slash-normalised so the expected set
+     * below reads the same on Windows and Linux.
+     *
+     * `[]` on an unreadable directory rather than a throw — the repo's rule (11-02, and
+     * `tests/design/focus-definition.test.ts:192-205` is the shape this follows): a broken scan
+     * surfaces as ONE named guard-the-guard failure, never a stack trace that buries which gate went
+     * quiet. The floor assertion below is what converts that `[]` into a red.
+     */
+    const rel = (p: string): string => path.relative(process.cwd(), p).split(path.sep).join("/");
+
+    const collectSources = (dir: string, out: string[] = []): string[] => {
+      let entries: Dirent[];
+      try {
+        entries = readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return out;
+      }
+      for (const entry of entries) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) collectSources(full, out);
+        else if (/\.tsx?$/.test(entry.name)) out.push(rel(full));
+      }
+      return out;
+    };
+
+    /** The module specifier every reference to the seam must spell, whatever shape the reference takes. */
+    const SEAM_SPECIFIER = "@/lib/dev/today-override";
+
+    /**
+     * The floor that makes the scan's emptiness impossible to mistake for its cleanliness. Measured at
+     * 352 `.ts`/`.tsx` files under `src/` on 30 August 2026; 200 leaves generous room for deletion
+     * without leaving room for a walk that silently stopped at the first directory.
+     */
+    const MIN_SCANNED_FILES = 200;
+
+    const scanned = collectSources("src");
+    const referrers = scanned
+      .filter((file) =>
+        codeOnly(readFileSync(path.join(process.cwd(), file), "utf8")).includes(SEAM_SPECIFIER),
+      )
+      .sort();
+
+    it("walks a real tree — the scan is not empty and the matcher is not a no-op", () => {
+      // GUARD THE GUARD, and it is not ceremony here: the assertion below is `toEqual([one file])`,
+      // which a walk that returned nothing would fail loudly — but a walk that returned nothing while
+      // someone was ALSO deleting the seam would pass, and so would a matcher that matched nothing if
+      // the expected list were ever emptied. Both halves are pinned before either is trusted.
+      expect(
+        scanned.length,
+        "the src/ walk collected almost nothing, so the blast-radius assertion below is measuring an " +
+          "empty tree rather than the seam",
+      ).toBeGreaterThan(MIN_SCANNED_FILES);
+
+      // The matcher, controlled against every shape a reference can take and against the two shapes
+      // that must NOT count. MEASURED — the last two are why this scans `codeOnly` rather than raw
+      // source: `src/app/listings/[id]/(detail)/page.tsx:210` already names the module in a block
+      // comment, and `e2e/helpers/visual-drive.ts` names it twice more.
+      const references = (line: string): boolean => codeOnly(line).includes(SEAM_SPECIFIER);
+      expect(references(`import { devTodayOverride } from "${SEAM_SPECIFIER}";`)).toBe(true);
+      expect(references(`import type { TodayOverride } from "${SEAM_SPECIFIER}";`)).toBe(true);
+      expect(references(`export { devTodayOverride } from "${SEAM_SPECIFIER}";`)).toBe(true);
+      expect(references(`  const m = await import("${SEAM_SPECIFIER}");`)).toBe(true);
+      expect(references(`// see ${SEAM_SPECIFIER} for both guards`)).toBe(false);
+      expect(references(` * See \`${SEAM_SPECIFIER}\`, which owns both guards.`)).toBe(false);
+    });
+
+    it("is referenced by exactly one file in src/, and that file is the listing route", () => {
+      // ⚠ THIS TEST USED TO COUNT NOTHING (phase-17 code review, WR-02). Its name and its comment both
+      // stated a BLAST-RADIUS property, and its body read one known file and asserted that file
+      // contained the import:
+      //
+      //     const page = readFileSync(path.join(process.cwd(), "src/app/listings/[id]/(detail)/page.tsx"), "utf8");
+      //     expect(page).toContain('from "@/lib/dev/today-override"');
+      //
+      // Adding `devTodayOverride` to a second route, a server action or a client component left that
+      // green. The property the test was NAMED for was unenforced — and the seam it guards is a query
+      // parameter that steers date arithmetic on a public page, so "it spread and nothing said so" is
+      // the failure that matters most here.
+      //
+      // THE SET IS THE ASSERTION NOW. A new referrer changes the array and the diff names the file.
+      //
+      // ⚠ RED-WATCHED (30 August 2026). `import { devTodayOverride } from "@/lib/dev/today-override";`
+      // was added to `src/app/(app)/dev-throw-app/page.tsx` — a second route, which is exactly the
+      // spread this test is named for — and the file was reverted:
+      //
+      //   × is referenced by exactly one file in src/, and that file is the listing route
+      //     → AssertionError: the dev-only ?today= seam is referenced somewhere new. […]:
+      //       expected [ …(2) ] to deeply equal [ Array(1) ]
+      //       +   "src/app/(app)/dev-throw-app/page.tsx"
+      //
+      //   1 failed / 20 passed, and the diff NAMES the new file rather than saying a number moved.
+      //   On that same tree the assertion this replaces was measured GREEN (`page.toContain(…)` against
+      //   the untouched listing route → true), which is WR-02 stated as an experiment. Reverted → 21.
+      //
+      // Scope is `src/` on purpose: this is a claim about PRODUCT code. `e2e/` and `tests/` reference
+      // the module by name in prose (and this file imports it outright), and neither can put a request
+      // parameter on a shipped route.
+      expect(
+        referrers,
+        "the dev-only ?today= seam is referenced somewhere new. A dev-only seam that spreads is no " +
+          "longer a seam: each new site needs its own argument for why a request parameter may steer " +
+          "it, and its own reason why the production guard is still sufficient. Add it here once that " +
+          "argument is written down.",
+      ).toEqual(["src/app/listings/[id]/(detail)/page.tsx"]);
     });
 
     it("returns a plain date triple and nothing else", () => {
