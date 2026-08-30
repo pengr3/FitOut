@@ -367,8 +367,90 @@ $ md5sum .planning/phases/17-*/e2e-baseline-reds.md              → f354deb4643
    the 10-row denominator, byte-identical across the whole phase
 ```
 
-### 7d. Comparison run — THE evidence
+### 7d. Comparison run — THE CLOSING EVIDENCE
 
-To be recorded: the forced `ci.yml` run's id, conclusion and `headSha`, with `headSha` equal to
-`git rev-parse HEAD`. A green comparison run on the head commit is the deliverable. **Nothing lands
-after it** — a later commit invalidates it.
+**This is the deliverable.** The run recorded below is the first thing in this repository's history
+that has ever *compared* against the two PNGs §7b's job wrote. §7b is the run that **wrote** them and
+is explicitly **not** this evidence; writing is not comparing.
+
+**How it was forced, and why there was no other way.** `ci.yml`'s trigger block, read off the parsed
+tree by `scripts/verify-workflows.mjs`, is `triggers=["push","pull_request"]` — **there is no
+`workflow_dispatch`**. And "Re-run all jobs" on an older run re-runs at *that run's* SHA, which predates
+the new PNGs. So a **new commit on `dev` is the only path**, taken as `git pull --ff-only` (mandatory —
+the bot commit `e48654f` had landed on `origin/dev`, and committing without it pushes a divergent
+history) followed by `git commit --allow-empty`.
+
+> ⚠ `260830-r4b/PLAN.md` Task 3d offers *"or re-dispatch `ci.yml`"* as an alternative. **That
+> alternative does not exist on this tree and was not attempted.** It is recorded here so the next
+> reader does not go looking for it.
+
+| | |
+|---|---|
+| run id | **33336650152** |
+| workflow **name** | **`ci`** — *not* `baselines` |
+| event | `push` (the forcing commit) |
+| conclusion | **`success`** |
+| `headSha` | `d87ff54022fbacc846da853117ca21286095f257` |
+| forcing commit | `d87ff54` — *chore(17.1): force a gate-visual comparison against the regenerated baselines*, empty of file changes |
+
+**The assertion this section exists to make, shown as two strings rather than asserted in prose:**
+
+```
+$ gh run view 33336650152 --json name,conclusion,headSha --jq '[.name,.conclusion,.headSha]'
+  ["ci","success","d87ff54022fbacc846da853117ca21286095f257"]
+
+$ git rev-parse HEAD
+  d87ff54022fbacc846da853117ca21286095f257
+```
+
+`headSha` **==** `git rev-parse HEAD`. Identical, character for character.
+
+**The workflow name is stated because the id alone is not enough.** RESEARCH Pitfall 3's warning sign
+is *"a recorded run id whose workflow name is `baselines`"* — an id copied from the generation run and
+presented as the comparison. The `name` field above is read from the API in the same call as the
+conclusion, so the two cannot be separated: this is `ci`, and `baselines`'s run (33336290052) is
+recorded one section up under a heading that says it is not the evidence.
+
+**Per-job breakdown — all four green:**
+
+| job | conclusion | job id |
+|---|---|---|
+| `gate-db-free` (lint + design + build + workflow parse) | **success** | 99324664775 |
+| `gate-db` (vitest against PostGIS 18) | **success** | 99324664879 |
+| **`gate-visual` (GATE-01 visual regression)** | **success** | 99324664900 |
+| `gate-price-parity` (DB-vs-DOM price, 1 spec) | **success** | 99324664940 |
+
+`gate-visual` tally: **`43 passed · 42 skipped (2.2m)`** — **zero failed and zero flaky.** The two rows
+that had been red for four consecutive runs both pass **on their first attempt**:
+
+```
+✓  22 [visual] › surfaces.spec.ts:413:7 › listing-detail-320-court.png (6.4s)
+✓  23 [visual] › surfaces.spec.ts:413:7 › listing-detail-768-court.png (3.6s)
+```
+
+And `dev-theme-1280-court.png` — the row §7c records the generation log naming, and the row `D1` named
+in advance as the live candidate — **passed on its first attempt in 3.3s** (it took 6.0s in the
+generation run). One clean pass is not proof that its intermittency is gone, and §7c's watch item
+stands; but nothing transient was baked into the reference set by this dispatch.
+
+**`dev` is green.** `[17-D9]` / GATE-01's four-run red is closed by a regeneration through the one
+sanctioned write path, read against a prediction written before the dispatch.
+
+**WHY THIS RECORD IS DELIBERATELY UNCOMMITTED.** §7d cannot be written before the run it describes, so
+it cannot be inside the commit that triggered that run — and any commit landing after `d87ff54` moves
+`HEAD` and makes the assertion above false. This section and plan 17.1-07's SUMMARY are therefore left
+**uncommitted in the working tree** and flagged `uncommitted_for_orchestrator:` in that SUMMARY's
+frontmatter (this repo's established idiom — quick `260828-qd5` used it for exactly this reason), so
+that `headSha == git rev-parse HEAD` is true at the moment a reader checks it. When the orchestrator
+commits these documents, that docs-only commit will trigger its own `ci` run, whose conclusion must
+**also** be green — **appended below as a confirmation line, never as a replacement for the run
+recorded above.**
+
+```
+Confirmation line (to be appended by the orchestrator after its docs-only commit):
+  ci run <id> on <sha>, conclusion <...>, gate-visual <...>
+```
+
+**Nothing else landed after this run.** No code change, no gate change, no threshold, and no row added
+to `.planning/phases/17-*/e2e-baseline-reds.md` (`f354deb46435e464c5b8eaba70f81357` — byte-identical
+across the whole phase).

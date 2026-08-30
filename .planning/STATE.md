@@ -3,16 +3,16 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 current_plan: 7
-status: executing
-stopped_at: Completed 17.1-06-PLAN.md
-last_updated: "2026-08-30T20:45:57.312Z"
+status: verifying
+stopped_at: Completed 17.1-07-PLAN.md — dev is GREEN (ci 33336650152 on d87ff54)
+last_updated: "2026-08-30T21:43:11.937Z"
 last_activity: 2026-08-30
 progress:
   total_phases: 14
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 149
-  completed_plans: 152
-  percent: 71
+  completed_plans: 154
+  percent: 79
 ---
 
 # Project State
@@ -48,7 +48,7 @@ Phase: 17.1 (close-phase-17-escalations-sticky-bar-clearance-soft-404-pro) — E
 Plan: 7 of 7
 Current Plan: 7
 Total Plans in Phase: 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
 declaration, and `--verify` exits 0 both before the walk and after every upload in it. The
 credential-bearing walkthrough is done — nine checks with pasted evidence in `16.1-UAT.md`.
@@ -795,6 +795,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 17.1 P04 | 22min | 3 tasks | 4 files |
 | Phase 17.1 P05 | 48min | 3 tasks | 4 files |
 | Phase 17.1 P06 | 52min | 3 tasks | 4 files |
+| Phase 17.1 P07 | 55min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1331,6 +1332,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 17.1-06: D-07 refuted in practice: [17-D18]'s prescribed page.route repair cannot work — page.route is browser-scoped and the PayMongo POST is issued in the Next server process (second instance of the class [17-D26] caught)
 - [Phase ?]: 17.1-06: seam D shipped: instrumentation.ts + undici MockAgent, process-level, origin-level persisted catch-all. Seam A (settable PAYMONGO_BASE) stays rejected as a credential-exfiltration primitive
 - [Phase ?]: 17.1-06: net-connect policy is a deny-of-one enableNetConnect predicate, not disableNetConnect(): P3 measured four outbound hosts, two intermittent and one (api.resend.com) reached by shipped code
+- [Phase ?]: 17.1-07: the held baselines.yml dispatch was executed and read against D1 — a per-PNG prediction over all 36 baselines committed at its own SHA (9507989) BEFORE the dispatch. Result: 2 changed, 0 added, 0 deleted, disk 36, exact to the pixel.
+- [Phase ?]: 17.1-07: the generation run (33336290052) is recorded as NOT the evidence — a GITHUB_TOKEN push triggers no workflow, so writing is not comparing. The deliverable is the forced comparison run 33336650152 (workflow name 'ci', conclusion success, gate-visual 43 passed / 0 failed / 0 flaky) whose headSha equals git rev-parse HEAD (d87ff54).
+- [Phase ?]: 17.1-07: dev-theme-1280 was named by the generation log but its md5 did not move. Written up as a near-miss with the mechanism left explicitly unestablished; no threshold touched and no re-dispatch. Standing watch item — 2nd signal in 4 runs, and by far the tallest baseline at 1280x8026.
 
 ### Pending Todos
 
@@ -1447,8 +1451,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-30T20:45:57.281Z
-Stopped at: Completed 17.1-06-PLAN.md
+Last session: 2026-08-30T21:43:11.906Z
+Stopped at: Completed 17.1-07-PLAN.md — dev is GREEN (ci 33336650152 on d87ff54)
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte
