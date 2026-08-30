@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-current_plan: 2
+current_plan: 3
 status: executing
-stopped_at: Completed 17.1-01-PLAN.md — [A6] settled on /listings/[id]: 404 / 404 / 200 in a production build
-last_updated: "2026-08-30T15:33:13.389Z"
-last_activity: 2026-08-30 -- Phase 17.1 plan 01 complete ([A6] measured, item 2 closed)
+stopped_at: Completed 17.1-02-PLAN.md
+last_updated: "2026-08-30T16:14:43.949Z"
+last_activity: 2026-08-30
 progress:
   total_phases: 14
   completed_phases: 10
   total_plans: 149
-  completed_plans: 148
+  completed_plans: 149
   percent: 71
 ---
 
@@ -45,10 +45,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 17.1 (close-phase-17-escalations-sticky-bar-clearance-soft-404-pro) — EXECUTING
-Plan: 2 of 7
-Current Plan: 2
+Plan: 3 of 7
+Current Plan: 3
 Total Plans in Phase: 7
-Status: Executing Phase 17.1
+Status: Ready to execute
 preset `fitout_listing_v1` now EXISTS on the Cloudinary account, created from the committed
 declaration, and `--verify` exits 0 both before the walk and after every upload in it. The
 credential-bearing walkthrough is done — nine checks with pasted evidence in `16.1-UAT.md`.
@@ -496,7 +496,7 @@ Executing Phase 10 — plans 01-10 complete. **DS-10 IS CLOSED, and the status v
 
 </details>
 
-Last activity: 2026-08-30 -- Phase 17.1 execution started
+Last activity: 2026-08-30
 
 ## Performance Metrics
 
@@ -790,6 +790,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 16.1 P05 | 18min | 3 tasks | 4 files |
 | Phase 16.1 P06 | 16min | 2 tasks | 6 files |
 | Phase 16.1 P07 | 5h | 3 tasks | 6 files |
+| Phase 17.1 P02 | 42min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -1309,6 +1310,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 16.1-07: a script whose product is an exit code must not call process.exit() after a fetch — the 404 branch was aborting to 127 on Node v24 Windows
 - [Phase ?]: 16.1-07: Open Question 1 ANSWERED 'acceptable' — the widget's English beside our toast reads fine to a host; D-179 needs no follow-up
 - [Phase ?]: 16.1-07: T-16.1-06 remains an ACCEPTED residual — --verify ran at the start AND true end of the walk, but a dashboard edit between two runs is still undetectable
+- [Phase ?]: 17.1-02: deleted src/app/listings/[id]/(detail)/not-found.tsx — unreachable in every state; all 10 references across 5 files moved in the same commit ([17-D3] RESOLVED)
+- [Phase ?]: 17.1-02: the axe-sweep row for that boundary was GREEN while auditing the ROOT not-found — driven with the file deleted, not inferred; removing it costs zero real coverage
+- [Phase ?]: 17.1-02: [17-D3]'s own claims corrected rather than propagated — 7-across-4 is really 10-across-5, and loading-coverage.test.ts's four pins do NOT move (RESEARCH C2)
 
 ### Pending Todos
 
@@ -1425,8 +1429,8 @@ it is now **Phase 16**, carrying **CROP-01..04**; its spec stays at
 
 ## Session Continuity
 
-Last session: 2026-08-30T15:33:13.389Z
-Stopped at: Completed 17.1-01-PLAN.md — [A6] settled on /listings/[id]: 404 / 404 / 200 in a production build. Next: plan 17.1-02.
+Last session: 2026-08-30T16:14:43.921Z
+Stopped at: Completed 17.1-02-PLAN.md
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte
@@ -1569,7 +1573,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-CONTEXT.md
+Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
