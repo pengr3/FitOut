@@ -879,8 +879,19 @@ export function ListingWizard({
           THE ID IS THE PROGRESS BAR'S ACCESSIBLE NAME, and it exists for a MEASURED reason (plan
           17-07). The first GATE-02 axe sweep reported `aria-progressbar-name (serious)` on this bar
           at both 320 and 1280 — a `role="progressbar"` with no name at all, which is SC 4.1.2's
-          Name clause failing outright, so a screen-reader user heard a percentage with nothing
-          saying what it measured.
+          Name clause failing outright.
+
+          ⚠ THIS PARAGRAPH USED TO END WITH A SENTENCE THAT WAS NEVER TRUE, and the history is kept
+          rather than deleted because the false version reads more convincingly than the correction.
+          It said: *"so a screen-reader user heard a percentage with nothing saying what it
+          measured."* There was no percentage to hear — before this line or after it. `ui/progress.tsx`
+          destructured `value` out of the props spread and spent it on the indicator's CSS transform
+          only, so `ProgressPrimitive.Root` was INDETERMINATE and emitted no `aria-valuenow` and no
+          `aria-valuetext` at all. Plan 17-07 supplied the NAME; the VALUE was still missing, and this
+          comment asserted the half it had not fixed. The phase-17 code review (WR-06) measured it
+          against the installed Radix build and the primitive is now fixed — `value` is forwarded to
+          Root, `tests/design/progress-value.test.tsx` pins it, and the sentence above is corrected to
+          claim only the clause plan 17-07 actually closed.
 
           ⚠ `aria-labelledby` RATHER THAN AN INVENTED `aria-label`, and the choice is the phase's
           copywriting rule rather than a preference. This sentence is already the visible answer to
