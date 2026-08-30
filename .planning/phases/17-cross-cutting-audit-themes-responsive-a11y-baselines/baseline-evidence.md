@@ -793,3 +793,96 @@ So a **large** diff on these five rows is the expected result; a *small* one wou
 
 `EXPECTED_BLOCKED` stays **24**, `EXPECTED_BASELINE_COUNT` stays **78**, disk stays **36**,
 `wizard-cover-preview` stays blocked. **A newly minted PNG is a finding, not an outcome.**
+
+## 5.6 The pre-dispatch CI run — the prediction confirmed BEFORE anything was minted
+
+**Run [`33295272924`](https://github.com/pengr3/FitOut/actions/runs/33295272924)** — `ci` / `push`,
+head **`c7f1a1a`** (the seam commit).
+
+| Job | Conclusion |
+|---|---|
+| `gate-db-free (lint + design + build + workflow parse)` | **success** |
+| `gate-db (vitest against PostGIS 18)` | **success** |
+| `gate-price-parity (DB-vs-DOM price, 1 spec)` | **success** |
+| `gate-visual (GATE-01 visual regression)` | **failure** — **5 failed / 38 passed / 42 skipped** |
+
+**The five failures are the five predicted rows, and nothing else:** `listing-detail-320`,
+`listing-detail-768`, `listing-detail-1280`, `listing-sheet-375`, `collision-notice-1280`.
+Magnitudes **3121 px** on the listing rows and **7357 px** (ratio 0.03) on the sheet — **large**, as
+§ 5.5.1 predicted, against round 1's 173.
+
+**Every row predicted UNCHANGED passed**, including the two that were predicted from empirical
+evidence rather than from architecture: `listing-lightbox-1280` and both `checkout` rows, whose URLs
+gained `&today=` and whose pixels did not move. **Zero unpredicted failures. Zero predicted failures
+that did not occur.**
+
+## 5.7 The GENERATION run — recorded, and again explicitly NOT the evidence
+
+| Item | Value |
+|---|---|
+| **Generation run id** | **`33295540219`** |
+| Conclusion | `success` |
+| Ran against | `c7f1a1aaa5082cb44746ed495ec39319a84d50f8` (`c7f1a1a`) |
+| Started | `2026-08-30T05:49:41Z` |
+| Commit produced | **`bac4b62da7121ce7f9aa0ec7b682389f0db8fa2b`** (`bac4b62`), author `github-actions[bot]` |
+| Files staged | **5** — the job's own tripwire reported `staged 5 baseline file(s)` |
+
+> **Run `33295540219` is the generation run and is NOT the evidence.** Same reason as § 2.1: its push
+> used `GITHUB_TOKEN` and triggered nothing, so at `bac4b62` the new PNGs existed and nothing had
+> compared against them.
+
+| Check | Result |
+|---|---|
+| Every path ends `-visual-linux.png` | **yes** — non-PNG paths in the commit: **0** |
+| Status letters | **5 × `M`**, `A` **0**, `D` **0** |
+| Disk count / grove / `win32` / `darwin` | **36** / **0** / **0** / **0** (AC#26) |
+| `EXPECTED_BLOCKED` / `EXPECTED_BASELINE_COUNT` | **24** / **78**, unmoved; `wizard-cover-preview` still blocked |
+
+**The prediction held exactly: five predicted, five changed, five committed, zero minted.**
+
+## 5.8 The diff, READ — and one sub-shape that was not predicted
+
+| File | Changed px | Bounding box |
+|---|---|---|
+| `listing-detail-1280` | 9729 | x 144–469, y 1372–1754 |
+| `collision-notice-1280` | 9729 | x 144–469, y 1372–1754 |
+| `listing-sheet-375` | 20895 | x 16–341, y 228–811 |
+| `listing-detail-320` | — | **image height 3038 → 2986** |
+| `listing-detail-768` | — | **image height 2460 → 2408** |
+
+**⚠ Two files changed SIZE, and that was not in the prediction.** Both shrank by exactly **52px**.
+Investigated rather than accepted, and it is an arithmetic consequence of the change that *was*
+predicted: **August 2026 needs six week rows** (Aug 1 is a Saturday, so the grid runs Jul 26 → Sep 5)
+and **September 2026 needs five** (Sep 1 is a Tuesday, Aug 30 → Oct 3). One fewer 44px row plus its
+gap is 52px, and a `fullPage` capture is as tall as the document. At 1280 the height is unchanged
+because the calendar sits in the `md:grid-cols-[auto_1fr]` two-column layout where the taller column
+sets the height; the sheet is a fixed 812px viewport capture. **Predicted row, unpredicted
+sub-shape** — recorded as such rather than folded into the prediction after the fact.
+
+**The crop, old beside new** (`listing-detail-320`, x 10–310, y 1280–1700):
+
+```
+OLD  (today = the wall clock, 30 Aug)        NEW  (today pinned to 2026-09-16)
+   9 10 11 12 13 14 15   (grey)                13 14 15 [16] 17 18 19   <- 16 CORAL = selected
+  16 17 18 19 20 21 22   (grey)                20 21 22  23  24 25 26
+  23 24 25 26 27 28 29   (grey)                27 28 29  30   1  2  3
+ [30] 31  1  2  3  4  5  <- ring on 30
+  ─────────────────────────────────────────────────────────────────────────
+  "Wednesday, Sep 16"  + the hour grid         "Wednesday, Sep 16"  + the hour grid
+```
+
+**The new reference is not merely deterministic, it is a better picture of the product.** The old one
+photographed an incoherent state: the hour grid said *Wednesday, Sep 16* while the calendar above it
+displayed **August** and highlighted **30** — the selected day was not visible at all. The new one
+shows September with the 16th selected in coral, directly above the hours it belongs to. That was a
+consequence of pinning today, not a goal of it, and it is recorded because it is the kind of thing a
+reviewer should be told rather than left to notice.
+
+**The one coverage note, carried from § 5.2:** today and the selected day now coincide, so the coral
+selected style sits on top of the neutral today-ring and the ring is not separately visible in these
+references. Pinning `today` one or two days before `VRT_COLLISION.dayIso` would show both states.
+Flagged for the PM; not changed here, because the instruction named the fixture's own day and
+changing it would need a third round-trip.
+
+**Verdict: nothing in this diff is unexplained.** Five files, all predicted; two sub-shapes
+(the 52px height change) investigated to an arithmetic cause and confirmed by crop.
