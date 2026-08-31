@@ -22,6 +22,13 @@
 // `held` and stays there until netted against a future payout by the sweep. Unscoped, it would be polled
 // as if it had a transfer AND would trip the stuck-`held` alert on every single host cancellation.
 //
+// SUSPENSION SCOPING (Phase 18, ENF-02 / D-222 / D-234): the suspension freeze itself lives in
+// `payout-sweep.ts` as a PRE-CLAIM predicate (its invariant 4), so a suspended host normally owns no
+// ledger row for this file to see. What lives HERE is a NARROW mirror on the stuck-`held` alert only —
+// for the row that was already claimed when the suspension landed (the CR-01 crash window). The
+// Processing poll is deliberately NOT mirrored: that money has already left the platform wallet, and a
+// stranded transfer must page an operator whether or not its host is suspended.
+//
 // DB CLOCK for the terminal timestamp (`paid_at = now()`), an injectable-free discipline matching the
 // sweep + Phase-4 lazy-expiry; only the stuck-age comparison uses createdAt vs Date.now() (advisory alert
 // timing, not a money-moving decision).
@@ -67,6 +74,13 @@ export function mapTransferStatus(status: string): "paid" | "failed" | "processi
  * The Processing rows to reconcile: `state='processing'` with a `transfer_id` set (the sweep sets both on
  * release). ORDER BY created_at ASC + LIMIT bounds a single pass. Takes an explicit `dbConn` so a test can
  * inject an isolated-schema db; defaults to the prod `db`.
+ *
+ * ⚠️ THIS PREDICATE CARRIES NO SUSPENSION EXCLUSION, AND MUST NOT — do not "complete" the ENF-02 mirror
+ * that `alertStuckHeld` carries. A Processing row means the transfer ALREADY FIRED and the money has
+ * ALREADY LEFT the platform wallet; a stranded one is a real operator case whether or not the host was
+ * suspended afterwards, and suspending a host must never silence it. The freeze is on the HELD predicate
+ * only (payout-sweep.ts invariant 4 + alertStuckHeld below). `tests/payments/payout-suspension-freeze.test.ts`
+ * pins this with a case that FAILS if the exclusion is ever extended here.
  */
 export async function queryProcessingLedger(dbConn: DbConn = db): Promise<ProcessingLedgerRow[]> {
   return (await dbConn.execute(sql`
@@ -134,17 +148,35 @@ export async function reconcileOne(
  * release. The money is still on the platform wallet (never mis-sent), so we do NOT auto-move it; we surface
  * it for an operator so no ledger row can silently sit un-paid (T-05-28). Explicit `dbConn` for isolated-
  * schema tests. Returns the count of stuck-held rows found (for the cron's summary).
+ *
+ * ENF-02 / D-234 (phase 18): this is the ONE query in the payout pair that mirrors the sweep's suspension
+ * freeze, and only for the crash-window row — see the predicate. The sweep's freeze is pre-claim, so a
+ * suspended host normally has no ledger row here at all; the mirror exists for the row that was already
+ * `held` when the suspension landed.
  */
 export async function alertStuckHeld(dbConn: DbConn = db): Promise<number> {
   const rows = (await dbConn.execute(sql`
-    SELECT booking_id AS "bookingId", created_at AS "createdAt"
-    FROM host_payout_ledger
+    SELECT p.booking_id AS "bookingId", p.created_at AS "createdAt"
+    FROM host_payout_ledger p
+    -- ENF-02 / D-234 (phase 18) — the SUSPENSION mirror, and it is genuinely new SQL: this query read
+    -- the ledger with no host join at all. host_payout_ledger carries host_id DIRECTLY, so the join
+    -- needs no listing hop. LEFT, not INNER: a host with NO host_verification row is the common case
+    -- and must still be alerted on. Aliased because host_verification also has a created_at.
+    LEFT JOIN host_verification hv ON hv.user_id = p.host_id
     -- Finding 3 / Pitfall 7 — a host_cancel_fee DEBIT row is inserted as 'held' and stays there until
     -- fully netted. Without this kind scope it would fire a FALSE [payout-alert] on every host
     -- cancellation, and operators who learn to ignore the channel will miss a real transfer failure.
-    WHERE kind = 'payout' AND state = 'held'
-      AND created_at <= now() - make_interval(hours => ${RECONCILE_STUCK_HOURS}::int)
-    ORDER BY created_at ASC
+    WHERE p.kind = 'payout' AND p.state = 'held'
+      -- The SAME reasoning, one enum along. payout-sweep's freeze is PRE-CLAIM, so a suspended host
+      -- can own a held row in exactly ONE case: it was ALREADY held when the suspension landed — the
+      -- CR-01 crash window between claim and release, described above. Left alone it would age past
+      -- the stuck threshold and page an operator about a payout that is deliberately frozen. This is
+      -- a NARROW mirror of a filter that mostly does its work elsewhere, not a second freeze. Polarity
+      -- note: the sell-gate enumerates POSITIVE values so a missing row fails closed; this is the
+      -- opposite question, so a host nobody has checked is NOT suspended and their stuck row still pages.
+      AND COALESCE(hv.status::text, 'unverified') <> 'suspended'
+      AND p.created_at <= now() - make_interval(hours => ${RECONCILE_STUCK_HOURS}::int)
+    ORDER BY p.created_at ASC
     LIMIT 200
   `)) as unknown as { bookingId: string; createdAt: Date | string }[];
   for (const r of rows) {

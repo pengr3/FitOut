@@ -6,7 +6,8 @@
 // host-cancellation debit (D-71), and fires an inhouse `/v2/batch_transfers` of exactly the netted amount
 // (D-52), moving the ledger Held → Processing.
 //
-// CORRECTNESS RESTS ON THREE DB-LEVEL INVARIANTS, exactly as double-booking rests on the GiST EXCLUDE:
+// CORRECTNESS RESTS ON FOUR INVARIANTS. The first three are DB-LEVEL, exactly as double-booking rests on
+// the GiST EXCLUDE; the fourth is a PREDICATE, and WHERE it sits is the whole of its design:
 //   1. `UNIQUE(booking_id, kind)` on host_payout_ledger — the INSERT itself is the at-most-once lock
 //      (mirrors createPendingHold's "the INSERT is the lock", units.ts). There is deliberately NO app-level
 //      "already paid out?" query-then-insert — that is the exact race the constraint exists to kill.
@@ -25,6 +26,18 @@
 //      alert, and mis-total the earnings view. The netting arithmetic is clamped —
 //      `deduction = LEAST(outstanding, netCents)` — so `transferAmt >= 0` by construction and a NEGATIVE
 //      ledger is structurally impossible, never merely unlikely.
+//   4. THE SUSPENSION FREEZE IS A PRE-CLAIM PREDICATE, NOT A BRANCH (Phase 18, ENF-02 / D-222 / D-234).
+//      A host whose `host_verification.status` is suspended is excluded by `queryDuePayouts` ITSELF —
+//      BEFORE the claim in (1) — so `payOne` never runs for them and NO ledger row is ever created.
+//      That placement is the whole design. ENF-02 has a SECOND clause — *a frozen row must not read as
+//      a stuck row to the reconciler and must not page an operator* — and a pre-claim filter makes it
+//      true BY CONSTRUCTION: a row that does not exist cannot go stale. Freezing AFTER the claim would
+//      strand one `held` row per suspended booking and fire a FALSE [payout-alert] on every one of them
+//      forever — the exact failure `payout-reconcile.ts`'s own stuck-held comment warns about for
+//      `host_cancel_fee` debits. Suspension rides the SAME status column the sell-gate reads (D-222):
+//      no second suspension flag, no new ledger state. And UN-suspension costs ZERO writes — the freeze
+//      is a WHERE over LIVE state, so the next hourly sweep simply selects the booking again (the D-14
+//      auto-revert property `bookability.ts` describes for `payoutsEnabled`).
 //
 // DB CLOCK, not an injectable JS clock: the due predicate uses Postgres `now()` (mirrors the Phase-4
 // lazy-expiry discipline). Never pays before the session — funds are held until T+24h post endsAt.
@@ -95,6 +108,10 @@ export type PayOneResult =
  *
  * ⚠️ `AND p.kind = 'payout'` on the LEFT JOIN is load-bearing (Finding 3): without it a `host_cancel_fee`
  * DEBIT row would make the booking look already-claimed and would silently SUPPRESS a legitimate payout.
+ *
+ * ⚠️ Invariant 4 (ENF-02) lives HERE and nowhere else: a suspended host's booking is dropped by this
+ * SELECT, so `payOne`'s claim INSERT never runs for it. See the comment at the predicate for why the
+ * placement — not the predicate — is the design.
  */
 export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
   const rows = (await dbConn.execute(sql`
@@ -105,6 +122,10 @@ export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
     FROM booking b
     JOIN listing l ON l.id = b.listing_id
     JOIN host_payout hp ON hp.user_id = l.host_id
+    -- LEFT, not INNER, and for the same reason src/lib/search/query.ts states at its own copy of this
+    -- join: host_verification is 1:1 to user but is NOT created with the user, so a host with NO ROW is
+    -- the common case. An INNER JOIN here would silently stop paying every un-checked host.
+    LEFT JOIN host_verification hv ON hv.user_id = l.host_id
     LEFT JOIN host_payout_ledger p ON p.booking_id = b.id AND p.kind = 'payout'
     -- Finding 1 — D-69's "zero new mechanism" was not true: a cancellation sets status='cancelled', and the
     -- old "status = 'confirmed'" predicate meant a partially-refunded booking was NEVER swept, so the host
@@ -128,6 +149,22 @@ export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
           AND p.created_at >= now() - make_interval(hours => ${PAYOUT_RETRY_MAX_AGE_HOURS}::int)
         )
       )
+      -- INVARIANT 4 / ENF-02 (D-222/D-234) — THE SUSPENSION FREEZE, AND THE PLACEMENT IS THE DESIGN.
+      -- Filtering HERE means payOne's claim INSERT never runs, so no ledger row is ever created, so
+      -- payout-reconcile's stuck-held alert has NOTHING to page an operator about. Freezing after the
+      -- claim would satisfy "no payout leaves" and BREAK "a frozen row does not page an operator": it
+      -- would leave one held row per suspended booking, each firing a FALSE [payout-alert] forever --
+      -- the exact failure alertStuckHeld's own comment names for host_cancel_fee debits. Un-suspension
+      -- needs NO write and no repair: this is a WHERE over live state, so the next sweep simply selects
+      -- the booking again (the D-14 auto-revert property). Added INSIDE the predicate above, never in
+      -- place of any of it, and the neighbouring kind scoping is untouched.
+      --
+      -- POLARITY WARNING, and the two COALESCEs look alike and mean OPPOSITE things. The sell-gate
+      -- (src/lib/search/query.ts, src/lib/bookability.ts) asks "is this host APPROVED?" and enumerates
+      -- POSITIVE values, so a missing row fails CLOSED. This asks "is this host SUSPENDED?", so a
+      -- missing row means NOT suspended and must still be PAID. Inverting this into the sell-gate's
+      -- shape would freeze the payouts of every host nobody has checked yet -- most of them.
+      AND COALESCE(hv.status::text, 'unverified') <> 'suspended'
     ORDER BY b.ends_at ASC
     LIMIT ${SWEEP_BATCH_SIZE}
   `)) as unknown as DuePayout[];
