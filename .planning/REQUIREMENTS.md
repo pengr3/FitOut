@@ -21,7 +21,7 @@
 - [x] **DS-06**: Every colour token pair actually used on a surface meets WCAG AA (4.5:1 text, 3:1 non-text), verified by an automated contrast test rather than by inspection — this corrects the shipped coral CTA (3.60:1), success badge (3.24:1) and focus ring (2.58:1, and ~1.54:1 as rendered)
 - [x] **DS-07**: `--destructive` is brought inside the sRGB gamut so it renders identically across P3 and sRGB displays and does not produce false visual-regression diffs
 - [x] **DS-08**: The coral accent is a button variant, not a repeated string — the 19 literal `bg-brand …` recipes are replaced by a CVA `brand` variant, and the button hierarchy (brand → default → outline → ghost → link, destructive edge-only) is expressed as variants
-- [ ] **DS-09**: A `touch` control size (44px) exists as a named size and is the standard for booker-facing primary actions and all mobile controls. *Contract half COMPLETE in Phase 10 (`buttonVariants({size:"touch"})` → `h-11`, tested); ADOPTION half deferred — 2 adopters, nothing enforces breadth. Owner: Phase 17's axe pass (WCAG 2.5.5/2.5.8 target-size). See `deferred-items.md` D-10 and `src/components/ui/button.tsx:80-83`.*
+- [x] **DS-09**: A `touch` control size (44px) exists as a named size and is the standard for booker-facing primary actions and all mobile controls — **COMPLETE 2026-08-31.** The contract half shipped in Phase 10 (`buttonVariants({size:"touch"})` → `h-11`, tested). The **adoption half closed in Phase 17 plan 17-05**: the last five hand-rolled `h-11` Buttons across four files were converted to `size="touch"`, and `tests/design/brand-recipe.test.ts` was flipped from an advisory `toBeLessThanOrEqual(6)` to a blocking `toBe(0)` scanning all of `src/`. Ticked at milestone close — 17-05's frontmatter claimed GATE-02 only, so the box was missed (`v1.1-MILESTONE-AUDIT.md` § *The four that are done but unrecorded*).
 - [x] **DS-10**: Status is a closed semantic vocabulary (neutral / positive / attention / soft-accent), every status is icon + text and never colour-only, and no lifecycle state is rendered in red or green as decoration
 - [ ] **DS-11**: Three named card patterns exist (ResultCard, RowCard, PanelCard) and every card surface in the app uses one of them rather than re-deciding padding, radius and hover locally
 - [x] **DS-12**: Theme values are exported as a TypeScript module with hex fallbacks alongside the oklch, generated from the token contract, so non-CSS consumers (email, the Leaflet marker, `global-error`) cannot drift — this closes the shipped `BRAND_CORAL = "#E8484E"` vs `#ef4445` drift at `listing-map.tsx:22`
@@ -105,16 +105,16 @@
 - [x] **RESP-01**: A single mobile-overlay primitive (sheet) is adopted for filters, breakdowns, the booking rail and navigation, rather than every mobile pattern degrading into a full-screen dialog
 - [x] **RESP-02**: A mobile booker reaches the booking CTA without scrolling the listing page, via a sticky bottom bar carrying the price and a 44px action
 - [x] **RESP-03**: Every surface is verified from 320px up, with the sticky bar present, and no price, countdown or label wraps or overflows
-- [ ] **RESP-04**: Search, listing detail, calendar, wizard, checkout and list surfaces each hold their defined structure at mobile, tablet and desktop from one component tree rather than forked mobile/desktop variants
+- [x] **RESP-04**: Search, listing detail, calendar, wizard, checkout and list surfaces each hold their defined structure at mobile, tablet and desktop from one component tree rather than forked mobile/desktop variants — **COMPLETE 2026-08-30**, verified in `17-VERIFICATION.md` Truth 2 with one escalated residual (`[17-D13]`, recorded not silenced). Ticked at milestone close.
 
 ### Quality gates (GATE)
 
 - [x] **GATE-01**: Visual-regression baselines exist, are generated **only** inside the pinned Playwright Docker image, and CI fails on a missing baseline rather than writing one and reporting green (D-135)
-- [ ] **GATE-02**: Every surface is operable by keyboard alone, with a visible focus indicator throughout — including the calendar, the slot picker, the wizard, dialogs and sheets
+- [x] **GATE-02**: Every surface is operable by keyboard alone, with a visible focus indicator throughout — including the calendar, the slot picker, the wizard, dialogs and sheets — **COMPLETE 2026-08-30**, verified in `17-VERIFICATION.md` Truth 3 after the axe-pass clause closed: `e2e/axe-sweep.spec.ts` 60 passed / 36 skipped, re-run independently by the verifier. Ticked at milestone close.
 - [x] **GATE-03**: The countdown timer and every live status region announce correctly to a screen reader, once rather than per tick
 - [x] **GATE-04**: **GATE-NOREG** — a structural-selector inventory exists and is checked, so a restyle cannot silently break the e2e specs that prove the double-booking guarantee (`src/` contains zero test ids today)
 - [x] **GATE-05**: **GATE-NOREG** — an automated check fails the build if a money or availability computation crosses into a client component, and an end-to-end check asserts the price rendered in the DOM equals the price the database holds
-- [ ] **GATE-06**: The milestone ships zero schema migrations; a migration proposed in any phase plan is raised explicitly rather than absorbed
+- [x] **GATE-06**: The milestone ships zero schema migrations; a migration proposed in any phase plan is raised explicitly rather than absorbed — **COMPLETE 2026-08-31.** `drizzle/` ends at `0025_audit_resolved_by.sql`, committed before Phase 10's first commit; no commit in any v1.1 phase, or in quick tasks `260831-ndc` / `260831-rpt`, touches `drizzle/*.sql`. Re-confirmed independently at milestone-audit time.
 
 ### Search query model (SEARCH) — ⏸ DEFERRED OUT of v1.1 (D-141)
 
@@ -196,7 +196,7 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | DS-06 | Phase 10 | Complete |
 | DS-07 | Phase 10 | Complete |
 | DS-08 | Phase 10 | Complete |
-| DS-09 | Phase 10 | Pending (contract done; adoption → Phase 17) |
+| DS-09 | Phase 10 + Phase 17 (17-05) | Complete |
 | DS-10 | Phase 10 | Complete |
 | DS-11 | Phase 11 | Pending |
 | DS-12 | Phase 10 | Complete |
@@ -250,13 +250,13 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | RESP-01 | Phase 11 | Complete |
 | RESP-02 | Phase 12 | Complete |
 | RESP-03 | Phase 17 | Complete |
-| RESP-04 | Phase 17 | Pending |
+| RESP-04 | Phase 17 | Complete |
 | GATE-01 | Phase 11 | Complete |
-| GATE-02 | Phase 17 | Pending |
+| GATE-02 | Phase 17 | Complete |
 | GATE-03 | Phase 12 | Complete |
 | GATE-04 | Phase 11 | Complete |
 | GATE-05 | Phase 11 | Complete |
-| GATE-06 | Phase 17 | Pending |
+| GATE-06 | Phase 17 | Complete |
 | SEARCH-06 | ~~Phase 18~~ → backlog 999.3 | **Deferred** |
 | SEARCH-07 | ~~Phase 18~~ → backlog 999.3 | **Deferred** |
 | SEARCH-08 | ~~Phase 18~~ → backlog 999.3 | **Deferred** |
