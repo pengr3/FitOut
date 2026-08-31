@@ -138,8 +138,10 @@
 
 ### Availability copy (HOURS) — net-new capability, own phase (D-136)
 
-- [ ] **HOURS-01**: A host can copy one day's operating hours to other days instead of re-entering them
-- [ ] **HOURS-02**: The host sees what will change before it applies, and can undo it before saving
+**Shipped 2026-08-31 as quick task `260831-ndc`, not as Phase 19 (D-142).** The heading keeps its D-136 provenance because that record is still true and still load-bearing: this capability was never allowed to fold into a surface-polish phase, and it did not. D-142 demoted the CONTAINER only, after measuring that Phase 14 had already shipped the infrastructure — the flat `windows` field array, a full-set-replace server action with its own ownership re-check and schema re-parse, and the live week strip. Zero server changes, zero migrations. See `.planning/quick/260831-ndc-availability-copy-to-all/`.
+
+- [x] **HOURS-01**: A host can copy one day's operating hours to other days instead of re-entering them
+- [x] **HOURS-02**: The host sees what will change before it applies, and can undo it before saving
 
 ---
 
@@ -263,8 +265,8 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | MAP-02 | ~~Phase 18~~ → backlog 999.3 | **Deferred** |
 | MAP-03 | ~~Phase 18~~ → backlog 999.3 | **Deferred** |
 | MAP-04 | ~~Phase 18~~ → backlog 999.3 | **Deferred** |
-| HOURS-01 | Phase 19 | Pending |
-| HOURS-02 | Phase 19 | Pending |
+| HOURS-01 | ~~Phase 19~~ → quick `260831-ndc` (D-142) | **Satisfied** |
+| HOURS-02 | ~~Phase 19~~ → quick `260831-ndc` (D-142) | **Satisfied** |
 
 **Per-phase counts:**
 
@@ -279,15 +281,15 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | 16 | Image Crop & Framing | CROP-01..04 | 4 |
 | 17 | Cross-Cutting Audit | RESP-03/04, GATE-02, GATE-06 | 4 |
 | ~~18~~ | ~~Search & Discovery~~ — deferred to backlog 999.3 (D-141) | SEARCH-06..09, MAP-01..04 | (8) |
-| 19 | Availability Copy-to-All | HOURS-01..02 | 2 |
+| ~~19~~ → quick `260831-ndc` | Availability Copy-to-All — shipped as a quick task rather than a phase (D-142), 2026-08-31 | HOURS-01..02 | 2 |
 
 **Coverage:**
 - v1.1 requirements: 79 defined (DS 14 · THEME 5 · STATE 8 · SHELL 4 · BFLOW 8 · TRUST 5 · HFLOW 5 · AUTHUI 3 · EMAIL 3 · CROP 4 · RESP 4 · GATE 6 · SEARCH 4 · MAP 4 · HOURS 2)
 - **Deferred out of the milestone (D-141, 2026-08-31): 8** — SEARCH-06..09 + MAP-01..04, to backlog 999.3
 - **In scope for v1.1: 71**
-- Mapped to phases: **71 / 71 ✓**
+- Mapped: **71 / 71 ✓** — 69 to phases 10–17, and HOURS-01..02 to quick task `260831-ndc` (D-142 demoted Phase 19's container, not its requirements, so the two stay mapped and stay counted)
 - Unmapped: **0**
-- Duplicated across phases: **0** (every requirement maps to exactly one phase)
+- Duplicated across phases: **0** (every requirement maps to exactly one phase or, for HOURS-01..02, to the one quick task that replaced its phase)
 
 **Notes on two intentional near-overlaps** (both requirements stand; neither is double-mapped):
 - **AUTHUI-02** (Phase 15) carries "avatar removal is possible" and **CROP-03** (Phase 16) is "A user can remove their avatar." Phase 15 owns the profile page's design-system pass; the removal affordance itself is delivered by CROP-03 in Phase 16.

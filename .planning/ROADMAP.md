@@ -56,7 +56,7 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 - [x] **Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines** - The gates stop being per-phase promises and become the milestone's closing proof (completed 2026-08-30)
 - [x] **Phase 17.1: Close Phase 17 Escalations (INSERTED)** - The four audit findings the PM promoted to in-scope stop being recorded and start being fixed (completed 2026-08-30)
 - ~~**Phase 18: Search & Discovery**~~ - **DEFERRED to the backlog as 999.3 on 2026-08-31 (D-141)**, before any plan was written. Spikes 001-004 are complete and keep their findings; see `.planning/spikes/` and Backlog 999.3
-- [ ] **Phase 19: Availability Copy-to-All** - A host copies one day's hours across days instead of re-entering them (net-new capability, D-136)
+- [x] **Phase 19: Availability Copy-to-All** - A host copies one day's hours across days instead of re-entering them (net-new capability, D-136) — **shipped 2026-08-31 as quick task `260831-ndc`, not as a phase (D-142)**
 
 ## Phase Details
 
@@ -778,6 +778,8 @@ Plans:
 
 ### Phase 19: Availability Copy-to-All
 
+> **DEMOTED TO A QUICK TASK AND SHIPPED — 2026-08-31 (D-142).** This never ran as a phase. Its infrastructure had already shipped in Phase 14, so what remained was one pure derivation, one overlay and the wiring; it was built as `.planning/quick/260831-ndc-availability-copy-to-all/`. **The goal, the requirements and the three success criteria below are kept VERBATIM** — they are the contract the work was built against. Of the three: **SC-1 is satisfied**; **SC-3 is satisfied** (the days that already hold hours are named before the copy applies, and a target that already matches the source is not reported as a change); and **SC-2 is satisfied as the PM scoped it** — the host is told by name which days will be replaced, sees the live week strip redraw what they will change to, and can undo before saving. A full before/after diff table was ruled OUT of scope by the PM and is what had pushed the work back toward phase-sized. Zero server changes; zero migrations.
+
 **Goal**: A host stops re-entering the same operating hours seven times.
 **Depends on**: Phase 17 (net-new capability, sequenced after the polish work — D-136); Phase 14's availability-editor pass
 **Requirements**: HOURS-01, HOURS-02
@@ -830,7 +832,7 @@ D-131 declares four; D-134 adds the fifth. A phase is not done until all five ho
 
 **Execution Order:**
 v1.0 phases executed in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
-v1.1: 10 → 11 → **{12, 13, 14, 15}** → 16 → 16.1 → 17 → 19  (18 deferred to the backlog on 2026-08-31 — D-141; nothing depended on it, Phase 19 depends on 17)
+v1.1: 10 → 11 → **{12, 13, 14, 15}** → 16 → 16.1 → 17 → ~~19~~  (18 deferred to the backlog on 2026-08-31 — D-141; nothing depended on it. **Phase 19 never ran as a phase either**: it depended on 17, and by the time 17 closed, Phase 14 had already shipped everything it needed — so it was demoted to quick task `260831-ndc` and shipped on 2026-08-31, D-142.)
 16.1 is sequenced immediately after 16 rather than in parallel: both touch `photo-uploader.tsx` and the Cloudinary helpers, so they collide rather than run alongside each other.
 Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `patterns/` and the tokens), but 12 is sequenced first among them. Worktrees are OFF (`use_worktrees: false`), so plans execute sequentially on `dev` regardless.
 
@@ -857,7 +859,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 14/14 | Complete (verified 2026-08-30 — 4/4 must-haves after one gap closed; GATE-01 evidence ci 33300952565 GREEN on a2f6973). 25 escalate-class findings filed in deferred-items.md for PM review; RESP-03/RESP-04/GATE-02/GATE-06 remain Pending by design | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-30 |
 | ~~18. Search & Discovery~~ | v1.1 | — | **Deferred to backlog 999.3** (2026-08-31, D-141) — spiked first, never planned | - |
-| 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
+| 19. Availability Copy-to-All | v1.1 | 1/1 | **Shipped as quick task `260831-ndc`, never run as a phase (D-142)** — HOURS-01/02 satisfied, zero server changes, zero migrations; awaiting verification | 2026-08-31 |
 
 ## Carried Forward from v1.0 (not v1.1 work)
 
