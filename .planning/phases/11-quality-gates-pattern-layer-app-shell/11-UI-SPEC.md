@@ -746,7 +746,17 @@ Shared, inherited from `ui/card.tsx` and unchanged: `rounded-xl` (= `--radius-xl
   **7.46 / 7.36**, so the indicator clears the 3.0 bar without the offset band. Record it; do not add an
   offset that would render as a 2px band inside the card's own content.
 - Replaces: `booking/booking-row.tsx`, `host/host-booking-row.tsx`, `host/request-row.tsx`,
-  `host/payout-row.tsx`, `notifications/notification-item.tsx` (containers only — the domain logic stays).
+  `host/payout-row.tsx` (containers only — the domain logic stays).
+
+> **CORRECTION (DS-11 amendment, 2026-08-31): `notifications/notification-item.tsx` is DROPPED from the
+> list above.** It was named here as a RowCard adopter. It is not one, and cannot be: its `href` is
+> **nullable by security design** — `safeHref` refuses `javascript:`, `data:` and protocol-relative URLs
+> and degrades the row to non-navigable content — whereas `RowCard`'s contract assumes a navigable row.
+> It is also a `divide-y` popover row, where the separation between rows is a property of the list, not
+> of a card. This mirrors plan 14-13's correction dropping `listing/listing-card.tsx` from `ResultCard`
+> immediately above. Both refusals are enforced by name in `tests/design/card-pattern-coverage.test.ts`;
+> a third surface joining them fails the build. Recorded under the D-26 precedent rather than left
+> implicit.
 - Hook: `data-testid="row-card"`.
 
 #### `PanelCard` — the boxed panel

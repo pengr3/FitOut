@@ -49,14 +49,29 @@ why it needs a human: this is a product call on requirement text, not a coding t
 
 Both are enforced as declared, reasoned exclusions in `tests/design/card-pattern-coverage.test.ts` — a third surface joining them fails by name. The parallel precedent is D-26, which formally amended UI-SPEC AC#8 in four places rather than leaving the discrepancy implicit. DS-11 has had no equivalent amendment. Either amend the requirement text and the UI-SPEC's `Replaces` list to name these two exceptions, or leave DS-11 Pending on purpose.
 
-result: [pending]
+result: [PASS — RESOLVED 2026-08-31]
+
+**PM ruling at v1.1 milestone close: amend the text, mark DS-11 Complete.** The two refusals are
+measured, argued and machine-enforced, which is what D-26 established as sufficient. Recorded in three
+places rather than left implicit:
+
+1. `.planning/REQUIREMENTS.md` — DS-11's text now reads "...with two named, measured exceptions" and
+   names both files with the reason each cannot adopt; the traceability row reads Complete.
+2. `11-UI-SPEC.md` — `notifications/notification-item.tsx` dropped from `RowCard`'s `Replaces` list
+   with a CORRECTION note stating the nullable-`href` security design. (`listing/listing-card.tsx` was
+   already dropped from `ResultCard`'s list by plan 14-13's own correction on 2026-08-23, so the
+   ResultCard half needed no new edit.)
+3. This file — this scenario.
+
+`tests/design/card-pattern-coverage.test.ts` is unchanged and remains the enforcement: it already names
+both exclusions, and a third surface joining them fails the build.
 
 ## Summary
 
 total: 4
-passed: 0
+passed: 1
 issues: 0
-pending: 4
+pending: 3
 skipped: 0
 blocked: 0
 
