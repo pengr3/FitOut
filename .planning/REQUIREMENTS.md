@@ -93,8 +93,8 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OPS-01 | Phase 18 | Pending |
-| OPS-02 | Phase 18 | Pending |
+| OPS-01 | Phase 18 | Partial (18-01 — staff standing reads server-side from `user.role`; `/api/auth/update-user` provably cannot write it. The "signs in to FitOut Ops" half needs the console, 18-12) |
+| OPS-02 | Phase 18 | Partial (18-01 — `requireStaff()` is the boundary and refuses non-staff / NULL-role / signed-out with `notFound()`. The route half lands in 18-12; the HTTP status-line audit in 18-14) |
 | OPS-03 | Phase 18 | Pending |
 | OPS-04 | Phase 18 | Pending |
 | OPS-05 | Phase 18 | Pending |

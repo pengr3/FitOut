@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Phase 18 PLANNED — 14 plans, 8 waves, checker passed after a one-line fix (18-08 Task 1 was missing --config vitest.design.config.ts). Baseline before execution: tsc exit 0; npm test 190 passed / 2 skipped (192 files), 2223 passed / 5 skipped, exit 0. Next — /gsd-execute-phase 18, SEQUENTIALLY (use_worktrees:false). The KYC vendor is NOT settled and must not be: D-206 ships a provider port + ops-manual provider; the PayMongo-vs-standalone comparison is a PM-facing deliverable (HVER-04, plan 18-14). D-236 (ops refund retains the service fee, against the host-cancel precedent) is the PM's to settle and leads the phase summary.
-last_updated: "2026-09-01T06:40:00.000Z"
-last_activity: 2026-09-01 — Phase 18 discussed, researched, pattern-mapped, UI-specced and planned (14 plans / 8 waves); execution starting
+stopped_at: Completed 18-01-PLAN.md (Wave 1 — staff identity + the ops guard). FitOut now HAS an authenticated staff identity — `readStaff`/`requireStaff`/`assertStaff` in `src/lib/ops/staff.ts`, granted only by `npm run ops:grant -- <email> --by "<name>"`. Predicate is POSITIVE equality `role === "staff"` (the column is nullable; the inverted form was mutation-tested and reddens 4 of 7 cases). The Better Auth admin plugin was REJECTED — 15 privileged routes the existing catch-all would publish instantly. Suite after: tsc 0; npm test 193 files / 2248 passed / 5 skipped (baseline 190 / 2223 — the delta is exactly this plan's 3 files and 25 tests); test:design 71 / 1291. Next — 18-02. ⚠ CARRY FORWARD: `requireStaff()` is correct only while `session.cookieCache` stays unconfigured; enabling it keeps a REVOKED grant alive for the cache TTL and no test goes red. The KYC vendor is still NOT settled and must not be (D-206 port + ops-manual provider; HVER-04 comparison is the PM's fork, plan 18-14), and D-236 (ops refund retains the service fee, against the host-cancel precedent) is the PM's to settle and leads the phase summary.
+last_updated: "2026-08-31T20:30:00.000Z"
+last_activity: 2026-08-31 — 18-01 executed (2 tasks, 2 commits): staff identity, the ops guard triple, and the CLI-only grant
 progress:
   total_phases: 14
   completed_phases: 11
   total_plans: 163
-  completed_plans: 149
+  completed_plans: 150
   percent: 79
 ---
 
@@ -43,10 +43,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 18 — Host Verification, Listing Review & FitOut Ops (PLANNED — executing)
-Plan: 0 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
-Status: Ready to execute
-Last activity: 2026-09-01 — discussed → researched → pattern-mapped → UI-specced → planned (14 plans / 8 waves); plan-checker passed after one one-line fix
+Phase: 18 — Host Verification, Listing Review & FitOut Ops (EXECUTING)
+Plan: 1 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
+Status: Executing — next is 18-02
+Last activity: 2026-08-31 — 18-01 executed: `src/lib/ops/staff.ts` (readStaff/requireStaff/assertStaff), `src/lib/ops/grant.ts` + `scripts/ops-grant.ts`, three test files (25 cases). No route, no middleware change, no new dependency.
 
 ## Performance Metrics
 
@@ -72,6 +72,26 @@ Last activity: 2026-09-01 — discussed → researched → pattern-mapped → UI
 | 15 | 14 | - | - |
 | 16.1 | 7 | - | - |
 | 17.1 | 7 | - | - |
+| 18 | 1 | ~21 min | ~21 min |
+
+*18-01: ~21 min wall-clock, 2 tasks (both auto), 6 files created + 1 modified (package.json), 2 commits + 1 metadata.
+The plan that everything else in Phase 18 consumes. `src/lib/ops/staff.ts` is ONE `cache()`'d expression with three
+callers doing three jobs: `readStaff` (the expression), `requireStaff` (the security boundary, D-216, which
+`notFound()`s rather than 403s so an ops route is not an existence oracle, D-219), and `assertStaff` (LAYER 1, whose
+own header says it is NOT the boundary — it exists only to win the 404 STATUS LINE above the `loading.tsx` Suspense
+boundary, the same mechanism `src/lib/listing/public-listing.ts` documents for `/listings/[id]`). The shipped
+predicate is POSITIVE equality `role === "staff"`; the column is `text("role").default("user")` with no `.notNull()`,
+so the inverted form reads a NULL as staff. That was MUTATION-TESTED rather than argued: installing `!== "user"`
+reddens cases 3, 4, 6 and 7 and leaves 1, 2 and 5 — staff is staff, `role='user'` refused, signed-out refused —
+perfectly green, which is the finding. Staff is granted ONLY by `npm run ops:grant -- <email> --by "<name>"`; the
+policy is an importable module over an INJECTED `DbConn` with no `= db` default (that default is the import that hangs
+a short-lived script), and its audit row goes through the same injected connection rather than `recordAudit`. Three
+measured corrections worth carrying: a smuggled `role` does NOT get stripped from an `update-user` body — it takes the
+WHOLE request down with 400 FIELD_NOT_ALLOWED, so a legitimate field riding alongside is not written either (stronger
+than the plan predicted); `role: null` is dropped, not written; and `npx tsx` cannot resolve `postgres` from a file
+outside the repo tree, nor take top-level await under CJS. ZERO packages installed, ZERO changes to
+`src/middleware.ts`, ZERO files under `src/app/` — `(ops)` belongs to 18-12 with its pinned design-gate constants in
+the same commit. Commits d0e6913 (T1) + d19ed17 (T2).*
 
 *17.1-01: ~42 min wall-clock, 2 tasks executed + 1 not reached, 1 file created + 1 modified, 2 commits + 1 metadata.
 ZERO code files and zero packages — the whole plan is one production build and three numbers. The deliverable is a
@@ -364,6 +384,16 @@ deferred walk is inconsistent rather than honest.*
 
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
+
+- [18-01]: **The staff predicate is POSITIVE equality — `role === "staff"` — and that was mutation-tested, not argued.** `role` is `text("role").default("user")` with no `.notNull()` (`src/lib/db/schema.ts:45`), and a DEFAULT is not a constraint: any path that names the column explicitly can leave NULL, which the inverted form (`!== "user"`) reads as STAFF. Installing that inverted predicate and changing nothing else reddens `tests/ops/staff-guard.test.ts` cases 3 (NULL role), 4 (near-miss role `admin`), 6 (indistinguishability) and 7 (layer agreement) — and leaves cases 1, 2 and 5 (staff is staff, `role='user'` refused, signed-out refused) perfectly **green**. The three obvious cases are exactly the ones that cannot see the defect; that is why the near-miss and the NULL exist.
+- [18-01]: **The Better Auth admin plugin is NOT added, and the number is FIFTEEN.** Read out of the installed package (`node_modules/better-auth/dist/plugins/admin/routes.mjs`), not out of docs: it mounts fifteen privileged endpoints, and `src/app/api/auth/[...all]/route.ts` is `toNextJsHandler(auth)` — a catch-all — so adding the plugin publishes all fifteen INSTANTLY, among them `set-role` (a role-grant HTTP endpoint, when D-217 says grants are CLI-only), `impersonate-user` on a marketplace that moves real money, `set-user-password` and `remove-user`. Its own `role` declaration is attribute-identical to the one already at `src/lib/auth.ts:112`, so it adds nothing to the field this phase uses. The rejection is recorded in `src/lib/ops/staff.ts`'s header so it reads as a decision rather than an omission.
+- [18-01]: **⚠ `requireStaff()`'s correctness DEPENDS ON `session.cookieCache` STAYING UNCONFIGURED, and nothing would go red if that changed.** `auth.api.getSession()` hits the database on every call (repo-wide grep for `cookieCache`: one hit, in a comment at `src/lib/session-check.ts:20`), which is what makes a staff REVOCATION take effect on the very next request with no session-invalidation step. Enabling cookie caching as an ordinary performance change would keep a revoked grant opening every ops surface for the cache TTL. The dependency is written into `src/lib/ops/staff.ts`'s header the way `src/lib/auth.ts:73` writes down its dependency on `revokeSessionsOnPasswordReset`'s non-default. Carry this into any future auth-performance work.
+- [18-01]: **MEASURED, and the plan's prediction was WRONG in the safe direction: a smuggled `role` takes the WHOLE `update-user` request down.** Probed through `auth.handler` (the same handler the `[...all]` catch-all dispatches to) on Better Auth 1.6.14: `{role:"staff"}` → **400 `{"code":"FIELD_NOT_ALLOWED"}`**; `{bio, role:"staff"}` → **400, and `bio` is NOT written either**; `{bio}` alone → 200; `{bio, role:null}` → 200 with `role` untouched (a null is DROPPED, not written). So it is a request-level rejection, not the field-level strip the plan expected — stronger, and it forced a control case (`{bio}` alone) to prove the 400 was caused by `role` and not by anything else about the request. The `role: null` half matters specifically here, because NULL is the value the guard must fail closed on.
+- [18-01]: **The CLI's `actorId` is ASSERTED, not authenticated; the console's (18-05) will be authenticated.** `scripts/ops-grant.ts` has no session, so `--by` records who CLAIMS to have made a grant — byte-for-byte the limitation `scripts/ops-alerts.ts` records about its own `resolved_by`. It cannot be otherwise: the first staff member must be granted by something that is not the console they cannot yet reach. `requireStaff()` returning the staff id is what makes the authenticated actor available at every ops call site for free, which is the phase's answer to `audit.resolved_by` being *"asserted, not authenticated"* since Phase 8.
+- [18-01]: **`audit.meta` on a staff grant carries ids and enum-shaped values ONLY — never the email the operator typed (D-72), and the consequence is stated rather than hidden.** A `denied` row for an unknown target CANNOT name what was attempted, because the only handle supplied was PII; it records that a grant was attempted, by whom, and that it found nothing. `tests/ops/grant-cli.test.ts` case 3 serialises the WHOLE row and asserts the address is absent from `meta`, `actor_id` and `action` alike — the narrower "meta has a reason key" assertion would stay green with the address sitting in the next key over.
+- [18-01]: **`src/lib/ops/grant.ts` takes an injected `DbConn` with NO `= db` default, deviating from the `alertStuckHeld(dbConn: DbConn = db)` idiom the plan named.** That function lives in `src/inngest/` and can afford the singleton; this module is imported by a short-lived CLI, and `@/lib/db` opens a connection nothing in that process closes — the script prints and then hangs forever. `src/lib/ops/alerts.ts` is the shipped module under the identical constraint and makes the same omission; its import set was copied exactly. Same reason the audit row is inserted through the injected connection instead of `recordAudit`.
+- [18-01]: **`parseGrantArgs` was added as a fourth export of `grant.ts` rather than living in the script (Rule 2).** The script cannot be imported by a test (it opens a client and calls `main()` at module load), so parsing inside it would ship the `--by`-is-required rule as a promise rather than a measurement — which is exactly the argument `src/lib/ops/resolve-args.ts`'s own header makes. Reusing `parseResolveArgs` unchanged was rejected: its refusal wording is `resolve needs an audit id.`, actively wrong on a grant verb. `BY_FLAG_HELP` IS still imported from that module so the two CLIs cannot drift on what the flag means.
+- [18-01]: **Operational gotchas that cost time this run, for the next executor in this phase.** `npx tsx <file>` resolves modules from the FILE's location, not cwd, so a throwaway probe script must live inside the repo or `postgres` is MODULE_NOT_FOUND; and it cannot take top-level `await` under the CJS output format (wrap in `async function main()`). Capturing a URL from `node -e` in this shell picks up dotenv's tip banner on stdout — pipe through `tail -1` or use `process.stdout.write`.
 
 - [17.1-01]: **`[A6]` is settled POSITIVELY on `/listings/[id]`, by measurement rather than inference.** The production probe read **404 / 404 / 200** (draft / nonexistent / published control) under `npm run build` + `node ./node_modules/next/dist/bin/next start -p 3100` at Next.js 16.2.7, identical on a second pass, no 5xx on either. The shipped layout-assert survives a production build, `89fb451` is not regressed, and **no repair is licensed on this route** — item 2 closes with zero boundaries restructured. Full transcript in `17.1-EVIDENCE.md` § P1.
 - [17.1-01]: **Task 3's checkpoint was NOT REACHED, and that is a result rather than a skip.** Its entry condition was a 200 on the draft listing; the draft read 404, so no repair shape was chosen and D-06's constraint on `(app)/bookings/[id]` was never engaged. This plan hoisted nothing, so the OWNER GATE (T-04-CONFIRMIDOR) still serves the document it has always served.

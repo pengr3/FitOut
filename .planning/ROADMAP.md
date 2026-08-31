@@ -165,11 +165,20 @@ own words: *asserted, not authenticated*. Phase 18 is what finally gives that co
 actor. Staff access control is therefore the **first** plan, not a later one: an ops console over live
 bookings and money, built before staff auth, is a bigger hole than the one being closed.
 
+**✅ CLOSED BY 18-01 (2026-08-31).** `user.role` is no longer dead: `src/lib/ops/staff.ts` reads it off
+the session through one `cache()`'d expression, `requireStaff()` is the per-page/per-action security
+boundary and returns the **authenticated** staff id every later ops audit row is written with, and
+`npm run ops:grant -- <email> --by "<name>"` is the only path to staff standing. The Better Auth admin
+plugin was rejected on measurement (15 privileged routes the existing catch-all would publish
+instantly). ⚠ One invariant now rides on the auth config: `requireStaff()` is correct only while
+`session.cookieCache` stays unconfigured — enabling it would keep a REVOKED grant alive for the cache
+TTL, and no test would go red. It is written into that module's header.
+
 **Plans:** 14 plans in 8 waves. Worktrees are OFF (`workflow.use_worktrees: false`), so plans run
 SEQUENTIALLY on `dev`, one executor at a time — waves express dependency order, not concurrency.
 
 Plans:
-- [ ] 18-01-PLAN.md — Staff identity: `requireStaff`/`assertStaff` + the CLI grant (wave 1)
+- [x] 18-01-PLAN.md — Staff identity: `requireStaff`/`assertStaff` + the CLI grant (wave 1)
 - [ ] 18-02-PLAN.md — Schema, migrations & the grandfather backfill · **[BLOCKING] `npm run db:migrate`** (wave 2)
 - [ ] 18-03-PLAN.md — The sell-gate: seven sites + the fixture/seed sweep, ONE commit (wave 3)
 - [ ] 18-04-PLAN.md — Hidden until approved: the three leak surfaces (wave 4)
@@ -200,7 +209,7 @@ Plans:
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-28 |
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
-| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 0/14 | Planned (14 plans, 8 waves) | — |
+| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 1/14 | In Progress (8 waves; 18-01 staff identity landed) | — |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
