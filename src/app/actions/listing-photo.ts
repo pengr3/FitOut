@@ -40,6 +40,9 @@ import { db } from "@/lib/db";
 import { listing, listingPhoto } from "@/lib/db/schema";
 import { destroyListingPhoto } from "@/lib/cloudinary";
 import { isOwnCloudinaryAsset } from "@/lib/listing/cloudinary-provenance";
+// LVER-03 / D-242 — the SECOND material-edit detection site. Photos are one of D-231's five material
+// fields and this file is the only place they change; see the call sites in persistPhoto/removePhoto.
+import { markForReReview } from "@/lib/listing/re-review";
 import {
   LISTING_MAX_PHOTOS,
   LISTING_UPLOAD_FAILED_MESSAGE,
@@ -281,9 +284,39 @@ export async function persistPhoto(
   // client's `void addPhoto(...)` has no `.catch`, so the host is shown NO toast at all and the
   // photo simply never appears. Serialising the client would narrow this window; it would not close
   // it, because two tabs still collide. The server has to answer.
+  //
+  // ⚠ THE INSERT IS NOW PAIRED WITH THE RE-REVIEW FLIP IN ONE TRANSACTION (LVER-03, T-18-0602), and
+  // everything the paragraph above says about answering rather than throwing is unchanged and now
+  // covers both statements. See the block inside for why the pairing is atomic rather than sequential.
   const id = randomUUID();
   try {
-    await db.insert(listingPhoto).values({ id, listingId, publicId, url, position });
+    await db.transaction(async (tx) => {
+      await tx.insert(listingPhoto).values({ id, listingId, publicId, url, position });
+
+      // ── LVER-03 / D-231 / D-242: MATERIAL-EDIT DETECTION — SITE TWO OF TWO. ────────────────────────
+      // Material-edit detection lives in TWO places by necessity: `draftSchema` carries no photos
+      // field, so `saveListingStep` (`src/app/actions/listing.ts`, the other site, which watches
+      // address / space type / capacity / price) structurally cannot see a photo change at all — and
+      // swapping the photos on an approved listing is the single highest-signal fake-listing edit
+      // there is. `reorderPhotos` is DELIBERATELY excluded from both sites: reordering changes which
+      // photo is the cover, not what the space is, so it is not a material edit. That is a stated
+      // choice, not an omission — `tests/listing/material-edit.test.ts` asserts it as a case.
+      //
+      // ⚠ WHERE THIS SITS IS BEHAVIOUR, NOT TIDINESS — the same rule the ⚠⚠ block above states for
+      // the destroy, for a related reason. It is BELOW the provenance gate and BELOW the insert, so a
+      // photo our pipeline could not have produced is REJECTED and trips nothing: a refusal changed
+      // no photo, and pulling an approved listing back into a human review queue because somebody
+      // sent us a url we declined would hand any signed-in host a way to knock their own — or, if the
+      // ownership guard ever regressed, anyone's — listing off the market with a request that writes
+      // no row at all. Nothing above the provenance gate may call this.
+      //
+      // ATOMIC, NOT SEQUENTIAL. The flip shares this transaction rather than following it, so the
+      // photo row and the review state commit or roll back together. An approved listing carrying a
+      // photo the review state does not know about is a sellable fake — the same sentence
+      // `saveListingStep` writes over its own in-transaction call — and a flip that ran after a
+      // committed insert would produce exactly that every time the process died between the two.
+      await markForReReview(tx, listingId, "listing_photos");
+    });
   } catch (err) {
     console.warn(`[listing-photo] insert failed for listing ${listingId}`, err);
 
@@ -465,6 +498,19 @@ export async function removePhoto(
             gt(listingPhoto.position, photo.position),
           ),
         );
+
+      // ── LVER-03 / D-231 / D-242: MATERIAL-EDIT DETECTION — SITE TWO OF TWO, second call. ──────────
+      // The same two sentences as `persistPhoto`'s call: material-edit detection lives in TWO places
+      // by necessity, because `draftSchema` has no photos field and `saveListingStep`
+      // (`src/app/actions/listing.ts`) therefore cannot see a photo change; and `reorderPhotos` is
+      // DELIBERATELY excluded because reordering does not change what the space is. Removing a photo
+      // does — a listing whose evidence a host deletes after approval has changed what ops checked,
+      // and "delete the photo that gave the lie away" is the reachable half of the swap.
+      //
+      // INSIDE THE EXISTING TRANSACTION, so the delete, the re-pack and the flip commit or roll back
+      // together, and the `catch` below still answers rather than throwing (WR-04). The destroy after
+      // this block is unmoved and still reached only after a COMMITTED delete.
+      await markForReReview(tx, listingId, "listing_photos");
     });
   } catch (err) {
     // THE SAME OMISSION `reorderPhotos` DOCUMENTS AS FIXED, WHICH LIVED ON HERE (WR-04). Its own
