@@ -64,7 +64,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 - [ ] **LVER-02** — A submitted-but-unapproved listing is **hidden**: absent from search, and its
       public page returns the shipped soft-404. The host still sees its own listing, its review
       status, and any rejection reason. *(D-208, D-228, D-229, D-230)*
-- [ ] **LVER-03** — A **material edit** (address, space type, capacity, photos, price) to an
+- [x] **LVER-03** — A **material edit** (address, space type, capacity, photos, price) to an
       `approved`, `grandfathered` **or `rejected`** listing returns it to review and stops it being
       sellable until re-approved. Approval is not a permanent grant, and a rejection is not a death
       sentence — a resubmission enters the queue at resubmission time, never at the original time.
@@ -105,7 +105,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | HVER-05 | Phase 18 | Pending |
 | LVER-01 | Phase 18 | Complete |
 | LVER-02 | Phase 18 · 18-04 (hidden-from-bookers half) | Pending |
-| LVER-03 | Phase 18 | Pending |
+| LVER-03 | Phase 18 · 18-06 | Complete |
 | LVER-04 | Phase 18 · 18-02 | Complete |
 | ENF-01 | Phase 18 · 18-05 (default lever) | Partial (18-05 — `suspendHost` writes `status='suspended'`, which fails the sell-gate's host term through the same read as verification. The payout freeze is 18-07; the cancel-and-refund escalation is 18-08) |
 | ENF-02 | Phase 18 | Pending |

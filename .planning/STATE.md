@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 18-05-PLAN.md (Wave 4 — the ops console's SERVER side; no route, no component, `src/app/(ops)` and `src/components/ops` still do not exist). Five self-gating server actions (`approveHost`/`rejectHost`/`suspendHost`/`approveListing`/`rejectListing`) end `audit.resolved_by`'s "asserted, not authenticated" FOR THE CONSOLE — `scripts/ops-alerts.ts`'s handle stays asserted, deliberately and out of scope. Order is gate -> parse -> rate-limit(30/60s per verb, keyed on the authenticated id) -> flip-with-guards-in-the-WHERE -> history row -> trail row on BOTH branches; `grep -c "requireStaff()"` is 5 against 5 exported actions and `grep -c "throw "` is 0. Also: the D-206 verification port (ONE branch point, fails CLOSED including the prototype-shaped names a bare `Record` answers truthily; the ops-manual provider is the REAL write path and the provider NAME is read from `FITOUT_VERIFICATION_PROVIDER`, so the fail-closed branch is live rather than dead code) and `loadReviewQueue` (ONE interleaved oldest-first array, domain tables only, D-249 clock = latest `listing_review.submitted_at`). Commits `a1533f5` + `2f6d331` + `43c2349`. Suite after: tsc 0; `npm test` 199 files / **2340** passed / 5 skipped (baseline 2291 — the +49 is exactly this plan's four files); `npm run test:design` 72 / **1304** / 3 (byte-identical to baseline — this plan moves no design gate, correctly, because it ships no UI); `npm run build` exit 0. Three mutation REDs watched and reverted (fail-open port 9F/6P; D-249 clock 2F/7P; gate removed 1F/13P — thirteen green including `approveHost`'s own allow AND deny branches). Next — 18-06. ⚠ CARRY FORWARD: **18-06 owns CREATING the `pending` rows this queue reads** — nothing in 18-05 opens a submission, the host decisions guard on `status IN ('pending','unverified')` so a host with NO `host_verification` row cannot be decided at all, and the material-edit flip MUST append a `listing_review` row with `submitted_at = now()` or D-249's no-line-jumping guarantee has nothing to stand on. **18-12 must add `revalidatePath('/ops')`** after each action — deliberately absent because the route does not exist yet. THREE acceptance greps in this plan were falsely RED against CORRECT files because the prose explaining a prohibition spelled the forbidden string (`import "server-only"`, `audit`, the raw-HTML escape hatch); that is now four phases running and worth assuming on every future grep criterion. And two driver boundaries were measured the hard way: a raw `db.execute` RETURNS `timestamptz` as a string and CANNOT BIND a JS `Date`.
-last_updated: "2026-08-31T22:35:31.000Z"
+stopped_at: Completed 18-06-PLAN.md (Wave 4 — LVER-03, material edit -> re-review). ONE guarded flip in `src/lib/listing/re-review.ts`: `review_state = pending` WHERE the current state is `approved` | `grandfathered` | `rejected`, so the two deliberate exclusions (already-pending, and the taken-off-the-market state) are 0-row no-ops rather than branches. The `listing_review` row is appended ONLY when the UPDATE moved something, with `submitted_at` left to the column default — which is what makes D-249 true in BOTH directions (a resubmission goes to the BACK of the oldest-first queue; a listing already waiting keeps its ORIGINAL submitted_at however many times its host saves). No statement in the module assigns to the rejection explanation column, so it survives the flip and stays readable to the host. DETECTION LIVES IN TWO SITES BY NECESSITY (D-242): `saveListingStep` for address / space type / capacity / price, and `listing-photo.ts` `persistPhoto` + `removePhoto` for PHOTOS, because `draftSchema` has no photos field and D-231's own sentence is unachievable at the site it names for one of its own five fields. `reorderPhotos` is deliberately NOT hooked. The flip is inside a transaction with its edit at BOTH sites — `persistPhoto`'s bare insert was paired into one (deviation, Rule 2), below the D-165 provenance gate, which is untouched and whose suites are green. Commits `5dc0247` + `5e91ffc` + `c8d132c` + `2df485d`. Suite after: tsc 0; `npm test` 200 files / **2368** passed / 5 skipped (baseline 2340 — the +28 is exactly this plan's one file); `npm run test:design` 72 / **1304** / 3 (byte-identical — ships no UI); `npm run build` exit 0. Two mutation REDs watched and reverted (persistPhoto hook removed: 2F/26P, and `removePhoto`'s own case stayed GREEN; `rejected` dropped from the WHERE: 7F/21P, every approved and grandfathered case stayed green). Next — 18-07. ⚠ CARRY FORWARD: **a host still cannot OPEN a `host_verification` submission** — this plan closed only the LISTING half of 18-05's carry-forward; the host half belongs to whoever owns host onboarding's submit action. **18-12 still owes `revalidatePath('/ops')`**, so a re-review flip will not add a row to a cached queue until the route lands. **18-13 must read the LATEST `listing_review` row with a NON-NULL reason**, not the latest row — the resubmission row's reason is NULL by design. And TITLE/DESCRIPTION ARE STILL NOT MATERIAL (D-231): a host can rewrite an approved listing's entire words and it stays approved and sellable — a live deferred item now restated in three places in the code, and worth its own PM decision. Acceptance-grep collision struck again, a fifth phase running: `grep -c "markForReReview" listing-photo.ts == 2` is off by one by construction because the file must also IMPORT the helper.
+last_updated: "2026-08-31T23:47:00.000Z"
 last_activity: 2026-09-01 — 18-05 executed (3 tasks, 3 commits): the ops console's server side — a fail-closed verification port, one interleaved oldest-first queue over the domain tables, and five self-gating decision actions whose authenticated trail row is read back out of the table rather than inferred from an ok return
 progress:
   total_phases: 14
   completed_phases: 11
   total_plans: 163
-  completed_plans: 154
+  completed_plans: 155
   percent: 79
 ---
 
@@ -44,15 +44,15 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 18 — Host Verification, Listing Review & FitOut Ops (EXECUTING)
-Plan: 5 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
-Status: Executing — next is 18-06
-Last activity: 2026-09-01 — 18-05 executed: the ops console's SERVER half. `requireStaff()` appears exactly 5 times against 5 exported actions, each as the function's FIRST statement — measured by consequence rather than by ordering, since five refused calls from a signed-in non-staff account leave `rateLimitCalls` at length 0. Every OPS-03 claim is a `SELECT` back out of the table (recordAudit swallows its own insert failure by design), on both the allow and the deny branch of all five. `audit.meta` carries the taxonomy SENTENCE and a `hasNote` flag and never the operator's free text (D-72), proved by serialising the whole row against a note shaped like the PII the rule exists for. Deviations: the queue excludes `draft` listings (D-240 left 32 dev drafts at `pending`, every field NULL — 18-UI-SPEC's evidence `<dl>` would render blanks), and the listing decision UPDATES the open `listing_review` row instead of appending, because appending would silently reset the D-249 wait clock.
+Plan: 6 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
+Status: Executing — next is 18-07
+Last activity: 2026-09-01 — 18-06 executed: approval became something a host can LOSE and rejection something a host can RECOVER from. One guarded flip, two detection sites that each state why there are two, and 28 integration cases including four negatives (a words-only edit, an autosave re-sending the SAME persisted values, a `reorderPhotos`, and a provenance-REJECTED add) — the negatives are what make the positives diagnostic, since a flip that fired unconditionally would pass every positive in the file. Deviations: `persistPhoto`'s bare insert was paired into a transaction with the flip (the plan asked for atomicity only at the fields site, but its own "a listing whose address committed while its review state did not is a sellable fake" is exactly as true of a photo); and the `markForReReview` acceptance count was corrected to measure CALL SITES, since the file must also import the helper. Reverting a mutation with `git checkout --` on an uncommitted file destroyed the task-3 edit and it had to be re-applied and diff-verified — mutation-prove AFTER the commit.
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 82
+- Total plans completed: 83
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -72,7 +72,7 @@ Last activity: 2026-09-01 — 18-05 executed: the ops console's SERVER half. `re
 | 15 | 14 | - | - |
 | 16.1 | 7 | - | - |
 | 17.1 | 7 | - | - |
-| 18 | 4 | ~154 min | ~39 min |
+| 18 | 6 | ~217 min | ~36 min |
 
 *18-01: ~21 min wall-clock, 2 tasks (both auto), 6 files created + 1 modified (package.json), 2 commits + 1 metadata.
 The plan that everything else in Phase 18 consumes. `src/lib/ops/staff.ts` is ONE `cache()`'d expression with three
@@ -368,6 +368,46 @@ deferred walk is inconsistent rather than honest.*
 | Phase 17.1 P07 | 55min | 3 tasks | 5 files |
 
 ## Accumulated Context
+
+### Material-edit re-review decisions taken during execution (18-06)
+
+- **DETECTION LIVES IN TWO SITES AND ONE OF THEM CANNOT BE ELIMINATED (D-242).** `draftSchema` has no
+  photos field and `saveListingStep` never touches `listing_photo`, so D-231's own sentence — "detected
+  in `saveListingStep`" — is unachievable for one of its own five fields. `src/app/actions/listing.ts`
+  watches address / space type / capacity / price; `src/app/actions/listing-photo.ts` watches photos, in
+  `persistPhoto` and `removePhoto` only. Both sites say why there are two and name the other. Do not
+  "consolidate" them: neither can see what the other sees.
+- **THE HISTORY-ROW INSERT IS GUARDED ON THE FLIP HAVING MOVED A ROW, and that is what makes D-249 true
+  in BOTH directions.** A resubmission gets a fresh `submitted_at` and lands at the back of the
+  oldest-first queue; a listing that is ALREADY waiting keeps its original `submitted_at` however many
+  times its host saves the wizard. An unguarded insert would have re-stamped the second case to the back
+  of the queue on every autosave — a fairness bug that looks exactly like correct behaviour from the
+  listing row alone. Pinned by two cases.
+- **THE FIFTH REVIEW STATE'S QUOTED LITERAL APPEARS NOWHERE IN `re-review.ts`, INCLUDING IN THE COMMENT
+  EXPLAINING THE EXCLUSION.** The plan's own acceptance gate counts that string in that file. This is
+  the fifth phase running that a grep criterion collided with the prose explaining the prohibition; the
+  absence is explained at the site so nobody "restores clarity" and re-breaks it.
+- **`persistPhoto`'s BARE INSERT WAS PAIRED INTO A TRANSACTION WITH THE FLIP (deviation, Rule 2).** The
+  plan asked for atomicity only at the fields site, but its own sentence — *a listing whose address
+  committed while its review state did not is a sellable fake* — is exactly as true of a photo, and
+  photos are the field a fake listing lies with most. Both photo sites now pass a `tx`. Nothing at or
+  above the D-165 provenance gate was touched; `photos.test.ts` (all six D-187 destroy-placement cases)
+  and `cloudinary-provenance.test.ts` are green and both files unchanged.
+- **THE PHOTO HOOK SITS BELOW THE PROVENANCE GATE, AND THAT PLACEMENT IS SECURITY, NOT TIDINESS.** Above
+  it, a provenance-REJECTED add would trip re-review — handing any signed-in caller a way to knock a
+  listing off the market with a request that writes no row at all. Pinned by a case.
+- **TITLE AND DESCRIPTION ARE STILL NOT MATERIAL (D-231), AND IT IS A LIVE PM DECISION.** A host can
+  rewrite an approved listing's entire words and it stays approved, sellable and badged. The description
+  is where a space claims equipment it does not have. Restated in three places in the code so it cannot
+  be lost by reading only one: `MATERIAL_FIELDS`'s comment, the detection site, and the negative case —
+  which is written so promoting the fields means UPDATING it, not deleting it.
+- **`reorderPhotos` IS DELIBERATELY NOT HOOKED.** Reordering changes which photo is the cover, not what
+  the space is, and every photo in the set has already been reviewed. Stated at both photo call sites
+  and pinned by a case that asserts a full reversal leaves an `approved` listing approved.
+- **PROCESS: mutation-prove AFTER the task commit, and revert with a targeted patch.** Reverting
+  mutation 1 with `git checkout -- <file>` while the file still carried uncommitted work restored it to
+  HEAD and silently discarded the entire task-3 edit. Caught by the call-site grep answering 0; the
+  edits were re-applied and verified byte-equivalent by comparing `git diff -U0` hunk headers.
 
 ### Hidden-until-approved decisions taken during execution (18-04)
 

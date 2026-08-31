@@ -174,7 +174,7 @@ instantly). ⚠ One invariant now rides on the auth config: `requireStaff()` is 
 `session.cookieCache` stays unconfigured — enabling it would keep a REVOKED grant alive for the cache
 TTL, and no test would go red. It is written into that module's header.
 
-**Plans:** 4/14 plans executed
+**Plans:** 6/14 plans executed
 SEQUENTIALLY on `dev`, one executor at a time — waves express dependency order, not concurrency.
 
 Plans:
@@ -182,8 +182,8 @@ Plans:
 - [x] 18-02-PLAN.md — Schema, migrations & the grandfather backfill · **[BLOCKING] `npm run db:migrate`** (wave 2)
 - [x] 18-03-PLAN.md — The sell-gate: seven sites + the fixture/seed sweep, ONE commit (wave 3)
 - [x] 18-04-PLAN.md — Hidden until approved: the three leak surfaces (wave 4)
-- [ ] 18-05-PLAN.md — Verification port, ops decision actions & the review queue (wave 4)
-- [ ] 18-06-PLAN.md — Material edit returns a listing to review (wave 4)
+- [x] 18-05-PLAN.md — Verification port, ops decision actions & the review queue (wave 4)
+- [x] 18-06-PLAN.md — Material edit returns a listing to review (wave 4)
 - [ ] 18-07-PLAN.md — Payout freeze under suspension (wave 4)
 - [ ] 18-08-PLAN.md — Ops cancel-and-refund, behind the D-236 constant (wave 5)
 - [ ] 18-09-PLAN.md — Telling the host: the OPS-05 notification · **[BLOCKING] `npm run db:migrate`** (wave 6)
@@ -209,7 +209,7 @@ Plans:
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-28 |
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
-| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 5/14 | In Progress|  |
+| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 6/14 | In Progress|  |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
