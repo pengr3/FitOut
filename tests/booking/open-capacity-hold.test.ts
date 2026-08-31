@@ -45,6 +45,14 @@
 //
 // ⚠️ BOTH "adversarial fixture" notes in the seed below are what make A and C measure the REAL failure
 // rather than an incidental crash. Read them before simplifying the fixtures.
+//
+// THIS FILE OWNS `placeOpenHold`'s OWN REFUSAL ANCHORS (D-227), never `placeHold`'s:
+//   `L_OPEN_NOHOURS`         — case (6b), the FOURTH term (v1.0 audit finding #4).
+//   `L_OPEN_PENDING_REVIEW`  — case (6c), the FIFTH and SIXTH terms (phase 18, LVER-01 / D-224).
+// The two mutations live in `src/`, not here: `placeOpenHold` is a deliberate RE-STATEMENT of
+// `placeHold`'s gate rather than a call into a shared helper, so a defect in THIS copy is invisible to
+// every anchor in tests/booking/state-machine.test.ts and to the SQL parity test. Neither anchor may
+// ever be merged with its exclusive-path sibling, and neither identifier appears in the other's file.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // CONFIRM-THEN-FIX, BRANCH A (quick task 260810-sti, Task 1) — the OPEN-CAPACITY half of audit finding
 // #4 (case 6b, fixture L_OPEN_NOHOURS). Written FIRST against byte-unchanged `src/` and it FAILED:
@@ -142,6 +150,12 @@ const EXCL_MAX_OCCUPANCY = 8;
 const L_OPEN = "L_oc_open"; // the drop-in listing under test (hours every weekday)
 const L_CLOSED = "L_oc_closed"; // a drop-in listing open on ONE weekday only
 const L_OPEN_NOHOURS = "L_oc_open_nohours"; // drop-in, fully payable, ZERO hours (the 260810-sti anchor)
+// Drop-in, fully payable, a full week of hours — and AWAITING OPS REVIEW. `placeOpenHold`'s OWN anchor
+// for the fifth and sixth terms (phase 18, D-227): a SEPARATE fixture from the exclusive path's, which
+// lives in tests/booking/state-machine.test.ts, because the two gates are separately-maintained
+// re-statements and neither may be inferred from the other's greenness. The two anchor ids are
+// deliberately disjoint and neither identifier appears in the other's file.
+const L_OPEN_PENDING_REVIEW = "L_oc_open_pending_review";
 const L_EXCL_MODE = "L_oc_excl_mode"; // exclusive; must stay row-free (the T-09-23 proof)
 const L_EXCL_PAX = "L_oc_excl_pax"; // exclusive + per-head surcharge (the untouched D-108 path)
 
@@ -188,6 +202,7 @@ const D_AUTH = daysOut(34);
 const D_PAST = daysOut(-7); // genuinely past — same weekday as D_HAPPY, so hours exist and the CLAIM refuses
 const D_CLOSED = daysOut(31); // a different weekday from L_CLOSED's single open day (+31d ⇒ +3 weekdays)
 const D_NOHOURS = daysOut(35); // a perfectly ordinary future date — the LISTING is what is wrong, not the day
+const D_PENDING_REVIEW = daysOut(36); // likewise ordinary: the listing is open that day and still refuses
 
 // next/navigation.redirect throws by design, so a SUCCESSFUL placeOpenHold is observed as a thrown target.
 class RedirectError extends Error {
@@ -363,6 +378,10 @@ beforeAll(async () => {
     // would fail closed inside the claim and pass case (6b) for the wrong reason; this one would
     // genuinely mint a priced hold if the bookability gate were absent. Its ONLY defect is hours.
     openListing(L_OPEN_NOHOURS),
+    // Built by the SAME `openListing` factory, so it is byte-identical to L_OPEN in every respect that
+    // could refuse a sale — real cap, real per-head price, hours seeded below — and then flipped on the
+    // one field under test. It would genuinely mint a priced drop-in hold if the fifth term were missing.
+    { ...openListing(L_OPEN_PENDING_REVIEW), reviewState: "pending" as const },
     {
       id: L_EXCL_MODE,
       hostId,
@@ -414,6 +433,16 @@ beforeAll(async () => {
     ...Array.from({ length: 7 }, (_, dow) => ({
       id: `oh_open_${dow}`,
       listingId: L_OPEN,
+      dayOfWeek: dow,
+      openTime: "06:00:00",
+      closeTime: "22:00:00",
+    })),
+    // L_OPEN_PENDING_REVIEW gets a FULL WEEK, deliberately: this fixture must fail on its review state
+    // and on nothing else. Withhold hours and it would refuse for the FOURTH term's reason instead, and
+    // the case would pass while proving nothing about ops review.
+    ...Array.from({ length: 7 }, (_, dow) => ({
+      id: `oh_pending_review_${dow}`,
+      listingId: L_OPEN_PENDING_REVIEW,
       dayOfWeek: dow,
       openTime: "06:00:00",
       closeTime: "22:00:00",
@@ -612,6 +641,36 @@ describe("placeOpenHold — the drop-in booking mutation (OPEN-02 / OC-02 / OC-0
     // refusal ran AFTER the claim had already granted and priced heads.
     expect(await rowsOn(L_OPEN_NOHOURS, D_NOHOURS)).toBe(0);
     expect(await rowsFor(L_OPEN_NOHOURS)).toBe(0);
+  });
+
+  it("(6c) refuses a drop-in listing AWAITING OPS REVIEW server-side, and mints NO row (L_OPEN_PENDING_REVIEW)", async () => {
+    // `placeOpenHold`'s OWN anchor for the FIFTH and SIXTH terms (phase 18, LVER-01 / D-227), and it is
+    // deliberately a SEPARATE fixture from the exclusive path's, which lives in its own file
+    // (tests/booking/state-machine.test.ts) under its own id.
+    //
+    // WHY NOT SHARE ONE ANCHOR. The two gates are RE-STATEMENTS, not two calls into one helper
+    // (booking.ts:351-354 says why), so they can drift apart in ways nothing else in the suite can see:
+    // a wrong table alias, a wrong field name, or a missing `?? "unverified"` in THIS copy would compile,
+    // pass `tsc`, pass the SQL twin's parity test, pass the exclusive path's anchor and pass the suite —
+    // while leaving an unreviewed listing sellable by the drop-in pass. An untested duplicate of a
+    // security check is worse than no duplicate, because it reads as covered.
+    //
+    // WHICH GATE ANSWERS IS THE ASSERTION, same as (6b): bookability is step 5, ahead of the
+    // occupancy-mode refusal (6) and the window derivation (7), and both of those return `invalid`. A
+    // `not-bookable` is therefore what proves the new term landed in gate 5 rather than the listing
+    // being turned away later for some unrelated reason.
+    await login(BOOKER_EMAIL);
+    const res = await placeOpenHold({
+      listingId: L_OPEN_PENDING_REVIEW,
+      date: ymd(D_PENDING_REVIEW),
+      requestedPasses: 1,
+    });
+
+    expect(res).toEqual({ ok: false, reason: "not-bookable", error: NOT_BOOKABLE });
+    // THE ASSERTION THAT MATTERS: no row. A returned sentence alone would pass even if the refusal ran
+    // AFTER the admissions claim had already granted and priced heads on an unreviewed listing.
+    expect(await rowsOn(L_OPEN_PENDING_REVIEW, D_PENDING_REVIEW)).toBe(0);
+    expect(await rowsFor(L_OPEN_PENDING_REVIEW)).toBe(0);
   });
 
   it("(7) refuses a PAST date server-side — the calendar is a courtesy, never the gate (Security V4)", async () => {

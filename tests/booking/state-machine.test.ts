@@ -12,6 +12,17 @@
 // Plus the placeHold gates: sign-in (D-41), !canBook activate-booking, and the deriveBookable server
 // re-check (the route group is not the gate — Security V4).
 //
+// THIS FILE OWNS `placeHold`'s REFUSAL ANCHORS, one per term that has one (D-227). `placeHold` is a
+// deliberate RE-STATEMENT of the sell-gate rather than a call into a shared helper, so each term has to
+// be measured HERE and not inferred from the predicate's unit test or from `placeOpenHold`'s copy:
+//   `L_draft`            — the status term.
+//   `L_nohours`          — the FOURTH term (v1.0 audit finding #4).
+//   `L_pending_review`   — the FIFTH term (phase 18, LVER-01): ops has not reviewed the listing.
+//   `L_suspended_host`   — the SIXTH term (phase 18, ENF-01 / D-222): ops has suspended the host.
+// Every one of them is seeded IDENTICALLY to a bookable listing but for the single field under test, and
+// every one asserts ROWS IN THE DATABASE rather than the action's return value — see the L_nohours
+// record below for why that distinction is the whole point.
+//
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // MUTATION, EXECUTED 2026-08-06 (quick task 260806-gwt, TIER1-02). The pinned window this file used to
 // carry ("2026-09-01T02:00Z") became derived; the mutation proves the conversion did NOT hollow the
@@ -117,6 +128,9 @@ const START = W.startUtc;
 const END = W.endUtc;
 
 const HOST = "sm_host";
+// A SECOND host, identical to HOST in every respect except that ops has SUSPENDED them (phase 18,
+// ENF-01 / D-222). Needed as its own user because a host carries exactly one verification status.
+const HOST_SUSPENDED = "sm_host_suspended";
 const PASSWORD = "averylongpassword";
 const BOOKER_EMAIL = "sm_booker@example.com";
 const BOOKER2_EMAIL = "sm_booker2@example.com";
@@ -243,6 +257,48 @@ beforeAll(async () => {
     hourlyRateCents: 5000,
     dayRateCents: 30000,
   });
+
+  // L_pending_review — THE FIFTH TERM'S ANCHOR for placeHold (phase 18, LVER-01 / D-227). Seeded through
+  // `seedBookableListing`, so it is byte-identical to `L_happy` — same verified, payout-activated,
+  // ops-approved HOST, same rate, same unit count, a full week of hours — and then flipped on the ONE
+  // field under test. Sharing the host with L_happy is what makes the pair diagnostic: the two listings
+  // differ in exactly one input, so a refusal here can only be the review term.
+  await seedBookableListing("L_pending_review");
+  await testDb.db
+    .update(listing)
+    .set({ reviewState: "pending" })
+    .where(eq(listing.id, "L_pending_review"));
+
+  // L_suspended_host — THE SIXTH TERM'S ANCHOR (ENF-01 / D-222). The listing itself is flawless: published,
+  // ops-approved, priced, one unit, a full week of hours. Its HOST is suspended, and that is the only
+  // thing wrong. This is what proves suspension is enforced by the SAME gate read as verification: there
+  // is no second suspension check in `placeHold` for this case to be passing because of.
+  await makeVerifiedHost(testDb.db, HOST_SUSPENDED, {
+    name: "SM Suspended Host",
+    email: "sm_host_suspended@example.com",
+    firstName: "Host",
+    verificationStatus: "suspended",
+  });
+  await testDb.db.insert(listing).values({
+    id: "L_suspended_host",
+    hostId: HOST_SUSPENDED,
+    title: "Fine listing, suspended host",
+    status: "published",
+    reviewState: "approved",
+    unitCount: 1,
+    timezone: "Asia/Manila",
+    hourlyRateCents: 5000,
+    dayRateCents: 30000,
+  });
+  await testDb.db.insert(operatingHours).values(
+    Array.from({ length: 7 }, (_, dow) => ({
+      id: `oh_sm_L_suspended_host_${dow}`,
+      listingId: "L_suspended_host",
+      dayOfWeek: dow,
+      openTime: "06:00:00",
+      closeTime: "22:00:00",
+    })),
+  );
 });
 
 afterAll(async () => {
@@ -285,6 +341,38 @@ describe("placeHold — capability + bookability gate (D-41, Security V4)", () =
     expect(res).toMatchObject({ ok: false, reason: "not-bookable" });
     const [{ n }] = await testDb.client`SELECT count(*)::int AS n FROM booking WHERE listing_id = 'L_nohours'`;
     expect(n).toBe(0); // the refusal ran BEFORE the hold, not after it
+  });
+
+  it("a published listing AWAITING OPS REVIEW is refused server-side, and no hold row is minted (L_pending_review)", async () => {
+    // THE FIFTH TERM'S RED ANCHOR for `placeHold` (LVER-01 / D-227). `placeHold` is a deliberate
+    // RE-STATEMENT of the gate rather than a call into a shared helper, so it must be measured on its
+    // own: a wrong alias or a dropped field here would compile, pass `tsc`, pass the SQL twin's parity
+    // test in tests/search/bookable-gate.test.ts and pass every other case in this file, while leaving
+    // an unreviewed listing sellable to anyone who hand-types the reserve URL.
+    //
+    // AND THE ASSERTION THAT MATTERS IS THE ROW COUNT, not the returned sentence — the same shape as
+    // `L_nohours` above, for the same reason recorded in this file's header: when that anchor was first
+    // written against unfixed `src/`, the action did not return a wrong string, it REDIRECTED, i.e. it
+    // MINTED A REAL HOLD and marched the booker on toward a hosted checkout. A gate that returns the
+    // right words after writing the row has not held.
+    await login(BOOKER_EMAIL);
+    const res = await placeHold({ listingId: "L_pending_review", startUtc: START, endUtc: END, fullDay: false });
+    expect(res).toMatchObject({ ok: false, reason: "not-bookable" });
+    const [{ n }] = await testDb.client`SELECT count(*)::int AS n FROM booking WHERE listing_id = 'L_pending_review'`;
+    expect(n).toBe(0);
+  });
+
+  it("an ops-SUSPENDED host cannot sell a flawless listing, and no hold row is minted (L_suspended_host)", async () => {
+    // THE SIXTH TERM'S RED ANCHOR, and ENF-01's block-new lever measured at the money path (D-222).
+    // Nothing about this LISTING is wrong — published, ops-approved, priced, full week of hours. Only the
+    // host is suspended, and because suspension is a value of the same enum the verification term reads,
+    // one gate read refuses it. If this case ever needs a second, suspension-specific check to pass, the
+    // design has regressed to the thing D-222 exists to prevent.
+    await login(BOOKER_EMAIL);
+    const res = await placeHold({ listingId: "L_suspended_host", startUtc: START, endUtc: END, fullDay: false });
+    expect(res).toMatchObject({ ok: false, reason: "not-bookable" });
+    const [{ n }] = await testDb.client`SELECT count(*)::int AS n FROM booking WHERE listing_id = 'L_suspended_host'`;
+    expect(n).toBe(0);
   });
 });
 
