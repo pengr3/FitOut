@@ -126,11 +126,21 @@ export const SENDER_FIXTURES = {
     ],
   },
   sendBookingConfirmed: {
-    why: "Fires after a successful confirm (webhook payment.paid), instant and pay-on-approval alike.",
+    why:
+      "Fires after a successful confirm (webhook payment.paid), instant and pay-on-approval alike. " +
+      "The sixth argument is TRUST-03's policy sentence — a FIXTURE literal, not product copy: the " +
+      "real one arrives finished from composePolicyEmailLine, so nothing here is a second source.",
     calls: [
       {
         label: "booking confirmed",
-        args: [TO, SPACE, WHEN, "FIT-8QK2M4RA", `${APP}/bookings/bk_fixture_1`],
+        args: [
+          TO,
+          SPACE,
+          WHEN,
+          "FIT-8QK2M4RA",
+          `${APP}/bookings/bk_fixture_1`,
+          "Free cancellation until Fri 11 Sep, 6:00 PM (Manila time)",
+        ],
         recipient: "0",
         urls: ["4"],
         variants: [],

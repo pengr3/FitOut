@@ -116,7 +116,7 @@ describe("the fixture provably exercises a DATED rung (the concreteness guard)",
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 describe("TRUST-02 — the confirmation email's SUBJECT carries the FIT- reference", () => {
   it("puts the reference in the subject line, where an inbox search can reach it", async () => {
-    await sendBookingConfirmed(TO, SPACE, WHEN, REFERENCE, URL);
+    await sendBookingConfirmed(TO, SPACE, WHEN, REFERENCE, URL, EXPECTED_POLICY);
 
     const email = mockResend.last();
     expect(email).toBeDefined();
@@ -131,7 +131,7 @@ describe("TRUST-02 — the confirmation email's SUBJECT carries the FIT- referen
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 describe("TRUST-03 — the confirmation email BODY discloses the cancellation policy, with a date", () => {
   it("states the policy sentence in the plain-text part, verbatim as the screen states it", async () => {
-    await sendBookingConfirmed(TO, SPACE, WHEN, REFERENCE, URL);
+    await sendBookingConfirmed(TO, SPACE, WHEN, REFERENCE, URL, EXPECTED_POLICY);
 
     const email = mockResend.last();
     expect(email).toBeDefined();
@@ -139,7 +139,7 @@ describe("TRUST-03 — the confirmation email BODY discloses the cancellation po
   });
 
   it("states the same sentence in the html part, escaped by the one shell escaper", async () => {
-    await sendBookingConfirmed(TO, SPACE, WHEN, REFERENCE, URL);
+    await sendBookingConfirmed(TO, SPACE, WHEN, REFERENCE, URL, EXPECTED_POLICY);
 
     const email = mockResend.last();
     expect(email).toBeDefined();

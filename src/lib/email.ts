@@ -123,6 +123,33 @@ const APP_URL = process.env.BETTER_AUTH_URL ?? "";
  * Booking confirmed (booker) — fires after a successful confirm (webhook payment.paid), covering both
  * instant and pay-on-approval. `whenLabel` already names the venue tz; `bookingUrl` is the caller's
  * absolute /bookings/{id} link; `reference` is the FIT-XXXXXXXX booking reference.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * TRUST-02 AND TRUST-03 CLOSE HERE — the D-78 handoff the v1.1 audit found open
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * D-78 drew Phase 13's email boundary at the SHELL and handed these two CONTENT clauses to Phase 15,
+ * which shipped the shell, the injection probe and the inbox walk and never executed the handoff.
+ *
+ *  · TRUST-02 — the reference rides the SUBJECT, not only the body. A booker hunting for a booking
+ *    searches their inbox, and a mail client searches subjects first and collapses threads to them.
+ *  · TRUST-03 — the cancellation policy is stated on the surface the booker KEEPS. A disclosure seen
+ *    once at checkout is not one they can consult weeks later when deciding whether to cancel.
+ *
+ * ⚠ NOT ONE PERCENTAGE AND NOT ONE HOUR FIGURE IS TYPED IN THIS MODULE. `policyLabel` arrives FINISHED
+ *   from `composePolicyEmailLine`, whose owner is `LADDER` — the same constant `quoteRefund` evaluates.
+ *   Writing the sentence here instead would have made the emailed promise drift from the money math the
+ *   first time a rung moved, and an email cannot be re-rendered after it is read.
+ *
+ * `policyLabel` is REQUIRED-AND-NULLABLE rather than optional, deliberately: there is exactly one call
+ * site, so requiring it costs one line and buys a compiler census. The argument `DeadlineAnchorInput`
+ * makes for `openCapacity` applies verbatim — an optional flag lets one surface silently keep rendering
+ * the wrong thing and still typecheck. `null` means there is nothing to disclose (a null D-67 snapshot)
+ * and the clause is OMITTED; an empty clause rendered as a clause is CR-01's disease.
+ *
+ * `renderEmail` and the shell are UNTOUCHED, and no send trigger is added, moved or removed — EMAIL-01,
+ * EMAIL-02 and EMAIL-03 stay closed. The clause reaches both projections because the renderer projects
+ * ONE `EmailContent` into html and text; there is no second body here to keep in sync.
  */
 export const sendBookingConfirmed = (
   to: string,
@@ -130,15 +157,21 @@ export const sendBookingConfirmed = (
   whenLabel: string,
   reference: string,
   bookingUrl: string,
+  policyLabel: string | null,
 ) => {
+  // Two STATEMENTS, not one sentence: the booking fact, then the money terms. Concatenating the policy
+  // onto the first line would bury the terms inside the confirmation a booker skims past.
+  const paragraphs = [`You're booked at ${spaceTitle} on ${whenLabel}. Booking reference ${reference}.`];
+  if (policyLabel !== null) paragraphs.push(policyLabel);
+
   const { html, text } = renderEmail({
     heading: "Booking confirmed",
-    paragraphs: [
-      `You're booked at ${spaceTitle} on ${whenLabel}. Booking reference ${reference}.`,
-    ],
+    paragraphs,
     cta: { label: "View your booking", href: bookingUrl },
   });
-  return send(to, `Your FitOut booking is confirmed — ${spaceTitle}`, html, text);
+  // The reference goes in RAW. The shell escapes every sink on the way into the HTML part, and a local
+  // escape here would double-encode (WR-01 — one escaper, never a second copy).
+  return send(to, `Your FitOut booking is confirmed — ${spaceTitle} (${reference})`, html, text);
 };
 
 /**

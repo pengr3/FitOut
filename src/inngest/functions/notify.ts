@@ -83,6 +83,10 @@ export async function sendForType(event: NotifyEvent): Promise<SendForTypeResult
         payload.whenLabel,
         payload.referenceLabel,
         payload.href,
+        // TRUST-03's inbox half — the D-86 pre-composed sentence, ABSENT when the booking's D-67
+        // snapshot is null. The fan-out never re-derives it (the CR-02 rule the payByLabel comment
+        // two cases below states); dropping it here is exactly how that defect looked.
+        payload.policyLabel ?? null,
       );
       return { sent: true };
 
