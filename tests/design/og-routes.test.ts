@@ -149,6 +149,7 @@ import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import ts from "typescript";
+import { stripComments } from "../helpers/source-text";
 
 /**
  * The tree this gate is about. A `const` rather than an inline literal so probe (d) — repointing it
@@ -753,5 +754,249 @@ describe("AC#12 / AC#13 / AC#14 — the OG routes, the invite card, and the two 
     expect([...relativeDbImport.keys()].filter((s) => !INVITE_OG_ALLOWED_IMPORTS.includes(s))).toEqual([
       "../../../lib/db",
     ]);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// D-247 — THE THIRD LEAK SURFACE. THE ONE THAT SURVIVES THE OTHER TWO FIXES AND IS INVISIBLE IN A
+// BROWSER.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// D-208 hides a submitted-but-unapproved listing: it drops out of search, and its public page 404s.
+// Two surfaces, both closed in phase 18 — and a listing's title, space type, city and hourly rate
+// stayed readable anyway, by anyone who asked `/listings/<id>/opengraph-image` for a picture.
+//
+// The reason is worth stating plainly, because it is a class of defect and not an oversight:
+// `src/lib/listing/og-facts.ts` did not CALL the page's viewability rule, it RESTATED it — one
+// hand-written line asserting the status was published. Two copies of a rule are equal only until
+// someone edits one. Phase 18 edited one. `tsc` could not help, because a copy is not a call site: the
+// required-third-parameter census that reddened the page and the layout was structurally blind to the
+// one file that had written the condition out longhand.
+//
+// So this group pins the SHAPE that makes the recurrence impossible rather than the behaviour of any
+// one state:
+//
+//   1. `og-facts.ts` imports and CALLS `isPubliclyViewable`, with every term.
+//   2. `og-facts.ts` holds no independent published-status literal of its own — no second copy to
+//      drift. Counted over COMMENT-STRIPPED code and over parsed string literals, never over the raw
+//      file: this module's header necessarily discusses the very rule it must not restate, and a bare
+//      substring count would be falsely red against the correct file (`tests/helpers/source-text.ts`
+//      documents that trap and is the repo's sanctioned answer to it).
+//   3. the OG route calls `listingCardFacts` and falls back to the generic card when it yields null,
+//      so "renders nothing identifying" is reachable at all.
+//
+// ⚠ WHAT THIS CANNOT SEE, STATED SO IT IS NOT SILENTLY CLAIMED. Nothing here renders an image or
+// reads an HTTP response. `tests/design/soft-404-status.test.ts:31-39` puts the same limit in its own
+// words for the page — the e2e spec is the ONLY instrument in this repo that can see a status line —
+// and it binds here at least as hard, since no e2e spec drives an OG route at all. The BEHAVIOURAL
+// half of D-208 lives in `tests/listing/status-gate.test.ts`; the production-build `curl` reading is
+// a one-time audit belonging to plan 18-14. What this group proves is that the guard is CALLED and
+// that it resolves through the one shared expression — which is precisely the property whose absence
+// caused the leak.
+
+/** The projection every listing share surface reads through — the third call site of the rule. */
+const OG_FACTS = "src/lib/listing/og-facts.ts";
+
+/** The route that paints the card from it. */
+const LISTING_OG = "src/app/listings/[id]/opengraph-image.tsx";
+
+/** The one shared viewability expression, and the module that owns it. */
+const VIEWABLE_GUARD = "isPubliclyViewable";
+const PUBLIC_LISTING_MODULE = "@/lib/listing/public-listing";
+
+/** status, deletedAt, reviewState (D-208). Same count `soft-404-status.test.ts` pins on the page. */
+const VIEWABLE_GUARD_ARITY = 3;
+
+/** The projection function, and the card the route must fall back to when it returns null. */
+const FACTS_FN = "listingCardFacts";
+const FALLBACK_CARD = "GenericCard";
+
+/**
+ * The status literal that must appear in this module's CODE exactly zero times. A restated rule is
+ * spelled with it; a called rule never mentions it.
+ */
+const RESTATED_STATUS_LITERAL = "published";
+
+/** Every CallExpression of `name` in a parsed file, with how many arguments it was passed. */
+function callArgCounts(path: string, text: string, name: string): number[] {
+  const sf = parse(path, text);
+  const counts: number[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === name) {
+      counts.push(node.arguments.length);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return counts;
+}
+
+/** The text of every StringLiteral in a parsed file. Comments hold none, by construction. */
+function stringLiterals(path: string, text: string): string[] {
+  const sf = parse(path, text);
+  const out: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) out.push(node.text);
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return out;
+}
+
+/** The source text of the `whenFalse` branch of every ternary in a parsed file. */
+function ternaryFallbacks(path: string, text: string): string[] {
+  const sf = parse(path, text);
+  const out: string[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isConditionalExpression(node)) out.push(node.whenFalse.getText(sf));
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return out;
+}
+
+const ogFactsPath = resolve(process.cwd(), OG_FACTS);
+const ogFactsText = existsSync(ogFactsPath) ? readFileSync(ogFactsPath, "utf8") : "";
+const ogFactsCode = stripComments(ogFactsText);
+const listingOgText = textByFile.get(LISTING_OG) ?? "";
+
+describe("D-247 — an unreviewed listing renders NO Open Graph card", () => {
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // GUARD THE GUARD. `og-facts.ts` lives in `src/lib`, OUTSIDE the `src/app` scan every other group
+  // in this file quantifies over, so it is read separately — and a separate read is a separate way to
+  // silently open nothing. Every zero-count assertion below is satisfied perfectly by an empty string.
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  it("the scanner really opened both files, and stripping left real code behind", () => {
+    expect(
+      ogFactsText.length,
+      `${OG_FACTS} read as ${ogFactsText.length} characters — the scan did not open it, and every ` +
+        "prohibition below is then a statement about the empty string.",
+    ).toBeGreaterThan(2_000);
+
+    expect(
+      ogFactsCode.length,
+      `comment-stripping ${OG_FACTS} left ${ogFactsCode.length} characters. This module is mostly ` +
+        "prose, so the stripped remainder is small — but an empty one means the stripper ate the " +
+        "code, which would make the banned-literal count below pass vacuously forever.",
+    ).toBeGreaterThan(500);
+
+    expect(listingOgText.length, `the src/app scan never opened ${LISTING_OG}`).toBeGreaterThan(2_000);
+    expect(appFiles, `the src/app scan never opened ${LISTING_OG}`).toContain(LISTING_OG);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // 1 + 2 — ONE RULE, CALLED. NOT A SECOND COPY OF IT.
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+
+  it(`${OG_FACTS} imports ${VIEWABLE_GUARD} from the module that owns it`, () => {
+    const bindings = collectImports(OG_FACTS, ogFactsText).get(PUBLIC_LISTING_MODULE);
+    expect(
+      [...(bindings ?? [])],
+      `${OG_FACTS} does not import { ${VIEWABLE_GUARD} } from "${PUBLIC_LISTING_MODULE}". A ` +
+        "locally-defined helper of the same name would satisfy the call-expression assertion below " +
+        "while being a second copy of the rule wearing the shared one's name — which is the exact " +
+        "defect D-247 is about, reintroduced under a better disguise.",
+    ).toContain(VIEWABLE_GUARD);
+  });
+
+  it(`${OG_FACTS} CALLS ${VIEWABLE_GUARD} with all ${VIEWABLE_GUARD_ARITY} terms`, () => {
+    const counts = callArgCounts(OG_FACTS, ogFactsText, VIEWABLE_GUARD);
+    expect(
+      counts.length,
+      `${OG_FACTS} contains no parsed call to ${VIEWABLE_GUARD}. Importing it is not using it: the ` +
+        "share card would go on being drawn from whatever this module decided on its own.",
+    ).toBeGreaterThanOrEqual(1);
+
+    expect(
+      counts.filter((n) => n !== VIEWABLE_GUARD_ARITY),
+      `${OG_FACTS} calls ${VIEWABLE_GUARD} with ${counts.join(", ")} argument(s); expected ` +
+        `${VIEWABLE_GUARD_ARITY} — status, deletedAt and the ops review state (D-208). A short call ` +
+        "compiles only against a defaulted parameter, and a defaulted review term is a card painted " +
+        "for a listing nobody has approved.",
+    ).toEqual([]);
+  });
+
+  it(`${OG_FACTS} holds NO independent status literal of its own`, () => {
+    // Two readings of the same prohibition, because they fail differently. The AST reading cannot be
+    // fooled by prose at all; the stripped-text reading catches a comparison spelled against some
+    // other constant that the literal scan would miss.
+    expect(
+      stringLiterals(OG_FACTS, ogFactsCode).filter((s) => s === RESTATED_STATUS_LITERAL),
+      `${OG_FACTS} names the status literal "${RESTATED_STATUS_LITERAL}" in CODE. That is how the ` +
+        "restated rule was spelled before D-247: one line asserting the status, drifting away from " +
+        "the page's rule the moment the page's rule grew a term — and the drift was invisible, " +
+        "because an OG route is never rendered in a browser. There is one expression now; call it.",
+    ).toEqual([]);
+
+    expect(
+      ogFactsCode.match(/status\s*[!=]==?\s*["'`]/g) ?? [],
+      `${OG_FACTS} compares a status field directly in CODE (comments are stripped before this ` +
+        "count, so the module's header is free to explain the prohibition it is under). Route the " +
+        `decision through ${VIEWABLE_GUARD} instead — see D-247.`,
+    ).toEqual([]);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // 3 — AND THE ROUTE ACTUALLY HAS SOMEWHERE TO FALL BACK TO.
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+
+  it(`${LISTING_OG} draws from ${FACTS_FN} and falls back to ${FALLBACK_CARD} on null`, () => {
+    expect(
+      callArgCounts(LISTING_OG, listingOgText, FACTS_FN).length,
+      `${LISTING_OG} never calls ${FACTS_FN} — so whatever guard that projection carries is not what ` +
+        "decides this card's contents.",
+    ).toBeGreaterThanOrEqual(1);
+
+    const fallbacks = ternaryFallbacks(LISTING_OG, listingOgText);
+    expect(
+      fallbacks.filter((t) => t.includes(FALLBACK_CARD)),
+      `no ternary in ${LISTING_OG} falls back to <${FALLBACK_CARD} />. A null from ${FACTS_FN} is ` +
+        "the ONLY thing standing between an unreviewed listing and a share card with its title, " +
+        "space type, city and rate on it; if nothing consumes the null, the guard upstream is " +
+        `decoration. The fallback must also stay INDISTINGUISHABLE from the one a nonexistent id ` +
+        "gets, or the card becomes a route-existence oracle — see that function's own docblock.",
+    ).not.toEqual([]);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+  // BOTH-DIRECTIONS SELF-TESTS on fixtures never written to disk, through the SAME functions above.
+  // ───────────────────────────────────────────────────────────────────────────────────────────────
+
+  it("the D-247 scanners flag the restated rule and spare the called one", () => {
+    // THE PRE-D-247 SHAPE — the line this whole group exists to make impossible. Both readings must
+    // see it, or the group is decoration.
+    const restated = 'const row = rows[0];\nif (!row || row.status !== "published") return null;';
+    expect(stringLiterals("fixture-restated.ts", restated)).toContain(RESTATED_STATUS_LITERAL);
+    expect(restated.match(/status\s*[!=]==?\s*["'`]/g) ?? []).not.toEqual([]);
+
+    // THE SHIPPED SHAPE — no literal, no comparison, three arguments.
+    const called =
+      "const row = rows[0];\n" +
+      "if (!row || !isPubliclyViewable(row.status, row.deletedAt, row.reviewState)) return null;";
+    expect(stringLiterals("fixture-called.ts", called)).not.toContain(RESTATED_STATUS_LITERAL);
+    expect(called.match(/status\s*[!=]==?\s*["'`]/g) ?? []).toEqual([]);
+    expect(callArgCounts("fixture-called.ts", called, VIEWABLE_GUARD)).toEqual([VIEWABLE_GUARD_ARITY]);
+
+    // THE DEFAULTED-PARAMETER REGRESSION — compiles, reads plausibly, tests nothing about review.
+    const short = "if (!isPubliclyViewable(row.status, row.deletedAt)) return null;";
+    expect(callArgCounts("fixture-short.ts", short, VIEWABLE_GUARD)).toEqual([2]);
+
+    // A COMMENT, which is why the prohibitions run over stripped text and parsed literals. The real
+    // module's header quotes the banned shape at length; that must never be a violation.
+    const commented = stripComments(
+      '// the old line was: if (row.status !== "published") return null;\nexport const A = 1;',
+    );
+    expect(stringLiterals("fixture-commented.ts", commented)).not.toContain(RESTATED_STATUS_LITERAL);
+    expect(commented.match(/status\s*[!=]==?\s*["'`]/g) ?? []).toEqual([]);
+
+    // And the fallback reader, both directions.
+    expect(
+      ternaryFallbacks("fixture-fallback.tsx", "const x = facts ? <Card /> : <GenericCard />;"),
+    ).toEqual(["<GenericCard />"]);
+    expect(
+      ternaryFallbacks("fixture-nofallback.tsx", "const x = facts ? <Card /> : null;").filter((t) =>
+        t.includes(FALLBACK_CARD),
+      ),
+    ).toEqual([]);
   });
 });

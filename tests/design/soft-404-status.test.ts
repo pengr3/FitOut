@@ -156,6 +156,32 @@
 //       accident.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// PHASE 18 (D-208 / D-247) — WHAT THE GUARD NOW HAS TO BE, AND WHY AN ARGUMENT COUNT JOINED THE PINS
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// D-13's "draft/unlisted/missing → 404" grew a fourth member: a listing awaiting ops review is hidden
+// from bookers too, and it is hidden by REUSING this exact soft-404 rather than by inventing a
+// "pending review" surface (D-229). So `isPubliclyViewable` took a THIRD REQUIRED positional
+// parameter, and this file now pins the ARITY of the page's call as well as its name.
+//
+// The arity is not a restatement of what `tsc` already enforces. It is enforced only while the
+// parameter stays required — and the one edit that quietly undoes the whole phase is giving it a
+// default, after which every call site still compiles, the guard still mentions the rule, and an
+// unreviewed listing is public again with nothing red anywhere. `PUBLICLY_VIEWABLE_ARITY`'s docblock
+// carries the argument in full.
+//
+// ⚠ THE SAME LIMIT APPLIES TO THE NEW PIN AS TO EVERY OTHER ONE IN THIS FILE: it proves the guard is
+// CALLED, with all its terms, and resolves through the one shared expression. It does NOT prove a
+// `404` reaches the wire — see NOT COVERED, first bullet, which has been true since this file was
+// written and did not become less true by the gate getting stricter. The production-build `curl`
+// reading of the pending case is a one-time audit and belongs to plan 18-14.
+//
+// The THIRD leak surface D-247 names — `src/lib/listing/og-facts.ts`, which used to hold its own copy
+// of the rule and so kept painting an Open Graph card for a listing this route 404s — is pinned in
+// `tests/design/og-routes.test.ts`, not here. It is a different route tree and a different file, and
+// splitting them keeps each gate's failure message about one thing.
+//
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // NOT COVERED
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //   • THE HTTP STATUS LINE, AT ALL. Nothing here boots a server. `e2e/public-listing.spec.ts:385` is
@@ -181,6 +207,25 @@ const PAGE_PATH = "src/app/listings/[id]/(detail)/page.tsx";
 
 /** The expression the non-public branch's condition must mention — D-13's rule, as one function. */
 const PUBLICLY_VIEWABLE_CHECK = "isPubliclyViewable";
+
+/**
+ * How many arguments that call must take. THREE since phase 18 (D-208): status, deletedAt, and the
+ * ops review state.
+ *
+ * ── WHY AN ARGUMENT COUNT IS A REAL GATE AND NOT A TAUTOLOGY ──────────────────────────────────────
+ *
+ * A two-argument call does not compile today, so at first glance `tsc` already owns this and pinning
+ * it here buys nothing. It owns it only for as long as the third parameter stays REQUIRED. The one
+ * edit that quietly re-opens the leak is giving that parameter a default — `reviewState = "approved"`
+ * — at which point every existing call keeps compiling, the page's guard silently stops testing the
+ * review term, and an unreviewed listing is public again with a green `tsc` and a green suite.
+ *
+ * That default is also the tempting edit, because a required third parameter is exactly what makes
+ * adding a fourth call site briefly painful. `src/lib/listing/public-listing.ts`'s docblock says why
+ * the pain is the feature — grep missed the OG surface, the compiler did not — and this assertion is
+ * what makes removing the pain show up as a failure rather than as a convenience.
+ */
+const PUBLICLY_VIEWABLE_ARITY = 3;
 
 /** The scanner must see at least this many files under `LISTINGS_ID_DIR`, or it is not scanning (7
  *  today: `(detail)/{layout,loading,page}.tsx`, `book/{layout,loading,page}.tsx`,
@@ -301,6 +346,29 @@ function findNotFoundCalls(sf: ts.SourceFile): GuardedCall[] {
   return out;
 }
 
+/**
+ * Every CallExpression of `name`, with how many arguments each one was passed.
+ *
+ * A CALL, parsed — not a regex over the text — for the same reason `findNotFoundCalls` is: this
+ * file's own header names `isPubliclyViewable` repeatedly, and a comment that describes the rule must
+ * never be counted as an instance of it. Argument counts come off `node.arguments.length`, so
+ * whitespace, line breaks and a multi-line condition are all irrelevant to the reading.
+ */
+function findCallsNamed(sf: ts.SourceFile, name: string): { line: number; argCount: number }[] {
+  const out: { line: number; argCount: number }[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === name) {
+      out.push({
+        line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1,
+        argCount: node.arguments.length,
+      });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return out;
+}
+
 /** Whether `moduleSpecifier` is imported into the file with `bindingName` among its named imports. */
 function importsNamedFrom(sf: ts.SourceFile, moduleSpecifier: string, bindingName: string): boolean {
   for (const stmt of sf.statements) {
@@ -328,6 +396,7 @@ const pageSourceText = existsSync(pageAbsPath) ? readFileSync(pageAbsPath, "utf8
 const pageSourceFile = parse(PAGE_PATH, pageSourceText);
 const pageNotFoundCalls = findNotFoundCalls(pageSourceFile);
 const pageImportsNotFound = importsNamedFrom(pageSourceFile, "next/navigation", "notFound");
+const pageViewableCalls = findCallsNamed(pageSourceFile, PUBLICLY_VIEWABLE_CHECK);
 
 describe("17-D1 / 17-D2 item 2 — the structure behind the measured soft-404 on /listings/[id]", () => {
   // ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -386,6 +455,27 @@ describe("17-D1 / 17-D2 item 2 — the structure behind the measured soft-404 on
     ).not.toEqual([]);
   });
 
+  it(`the guard's ${PUBLICLY_VIEWABLE_CHECK} call passes all ${PUBLICLY_VIEWABLE_ARITY} terms (D-208)`, () => {
+    expect(
+      pageViewableCalls.length,
+      `${PAGE_PATH} contains no parsed call to ${PUBLICLY_VIEWABLE_CHECK} at all. The assertion above ` +
+        "reads the guard as TEXT, so a mention inside a condition satisfies it; this one reads a " +
+        "CallExpression, and the two disagreeing means the guard names the rule without invoking it.",
+    ).toBeGreaterThanOrEqual(1);
+
+    const wrongArity = pageViewableCalls.filter((c) => c.argCount !== PUBLICLY_VIEWABLE_ARITY);
+    expect(
+      wrongArity,
+      `${PAGE_PATH} calls ${PUBLICLY_VIEWABLE_CHECK} with the wrong number of arguments at line(s) ` +
+        `${wrongArity.map((c) => `${c.line} (${c.argCount})`).join(", ")}. Expected ` +
+        `${PUBLICLY_VIEWABLE_ARITY}: status, deletedAt and the ops REVIEW STATE (D-208). A ` +
+        "two-argument call compiles only if someone gave the third parameter a default — which leaves " +
+        "every call site green while the page silently stops testing the review term, and an " +
+        "unreviewed listing becomes publicly readable again. That is the exact defect this pin " +
+        "exists to catch; read src/lib/listing/public-listing.ts's docblock before changing it.",
+    ).toEqual([]);
+  });
+
   // ───────────────────────────────────────────────────────────────────────────────────────────────
   // THE loading.tsx INVENTORY — declared, checked in both directions. COUNT AND SET ARE SEPARATE
   // `it`s: written as one block, a sixth file would fail the count first and never name itself
@@ -424,11 +514,46 @@ describe("17-D1 / 17-D2 item 2 — the structure behind the measured soft-404 on
   // assertions above run.
   // ───────────────────────────────────────────────────────────────────────────────────────────────
 
+  it("counts a three-term guard as three, and a defaulted two-term one as two", () => {
+    // BOTH DIRECTIONS on the arity reader, because it is the assertion whose failure mode is silence:
+    // a counter that always returned PUBLICLY_VIEWABLE_ARITY would pass the real assertion above
+    // forever, including on the very edit — a defaulted third parameter — it exists to catch.
+    const three = parse(
+      "fixture-three.tsx",
+      "if (!row || !isPubliclyViewable(a.status, a.deletedAt, a.reviewState)) { notFound(); }",
+    );
+    expect(findCallsNamed(three, PUBLICLY_VIEWABLE_CHECK).map((c) => c.argCount)).toEqual([
+      PUBLICLY_VIEWABLE_ARITY,
+    ]);
+
+    // The regression shape itself: still compiles against a defaulted parameter, still mentions the
+    // rule, still guards a notFound() — and no longer tests the review term.
+    const two = parse(
+      "fixture-two.tsx",
+      "if (!row || !isPubliclyViewable(a.status, a.deletedAt)) { notFound(); }",
+    );
+    expect(findCallsNamed(two, PUBLICLY_VIEWABLE_CHECK).map((c) => c.argCount)).toEqual([2]);
+
+    // A MENTION in a comment is not a call — the reason this is an AST walk and not a regex, and the
+    // reason this very file may go on describing `isPubliclyViewable` in prose as much as it likes.
+    const commented = parse(
+      "fixture-viewable-comment.tsx",
+      "// isPubliclyViewable(a, b) used to be called here\nexport const A = 1;",
+    );
+    expect(findCallsNamed(commented, PUBLICLY_VIEWABLE_CHECK)).toEqual([]);
+  });
+
   it("flags a guarded call, spares a comment, and reports an unguarded call honestly", () => {
     const guarded = parse(
       "fixture-guarded.tsx",
       [
-        "if (!row || !isPubliclyViewable(row.listing.status, row.listing.deletedAt)) {",
+        // The page's guard, quoted at its CURRENT three-argument shape (D-208). Kept in step with the
+        // real line on purpose: a fixture frozen at the old two-argument form would still pass, while
+        // quietly documenting a rule the codebase no longer has.
+        "if (",
+        "  !row ||",
+        "  !isPubliclyViewable(row.listing.status, row.listing.deletedAt, row.listing.reviewState)",
+        ") {",
         "  notFound();",
         "}",
       ].join("\n"),
@@ -436,6 +561,11 @@ describe("17-D1 / 17-D2 item 2 — the structure behind the measured soft-404 on
     const guardedCalls = findNotFoundCalls(guarded);
     expect(guardedCalls).toHaveLength(1);
     expect(guardedCalls[0]?.guard).toContain("isPubliclyViewable");
+    // …and the same fixture read through the arity walk, so the two readers are known to agree on the
+    // shape the real page carries rather than each being right about a different file.
+    expect(findCallsNamed(guarded, PUBLICLY_VIEWABLE_CHECK).map((c) => c.argCount)).toEqual([
+      PUBLICLY_VIEWABLE_ARITY,
+    ]);
 
     // A CALL with no enclosing `if` at all — the scanner must say so rather than inventing a guard.
     const unguarded = parse("fixture-unguarded.tsx", "notFound();");

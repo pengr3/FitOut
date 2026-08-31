@@ -12,7 +12,13 @@ import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockCloudinary } from "../helpers/mocks";
 import { stripComments } from "../helpers/source-text";
 import type { DraftListingInput } from "@/lib/validation/listing";
-import { listing, listingPhoto, user } from "@/lib/db/schema";
+import {
+  listing,
+  listingPhoto,
+  listingReviewState,
+  user,
+  type ListingReviewState,
+} from "@/lib/db/schema";
 
 let testDb: TestDb;
 let testAuth: TestAuth;
@@ -22,6 +28,9 @@ let saveListingStep: ListingActions["saveListingStep"];
 let publishListing: ListingActions["publishListing"];
 let unlistListing: ListingActions["unlistListing"];
 let softDeleteListing: ListingActions["softDeleteListing"];
+type PublicListingModule = typeof import("@/lib/listing/public-listing");
+let isPubliclyViewable: PublicListingModule["isPubliclyViewable"];
+let assertPublicListing: PublicListingModule["assertPublicListing"];
 /**
  * D-188. The SAME mocked `uploader.destroy` the action's `@/lib/cloudinary` resolved after
  * `resetModules()` — a per-case override has to land on the function that actually runs
@@ -34,12 +43,30 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
 }));
 
+/**
+ * `notFound()` mocked to throw a NAMED error — the shipped idiom
+ * (`tests/booking/checkout-session-expire.test.ts:192`, `tests/ops/staff-guard.test.ts:101`). The real
+ * one throws a Next-internal digest only the framework can interpret.
+ *
+ * ⚠ `@/app/actions/listing` does not import `next/navigation`, so this mock reaches only
+ * `assertPublicListing` and changes nothing about the publish-gate cases above it. Checked rather than
+ * assumed, because a doMock installed for one module silently reshapes every module imported after it.
+ */
+const NOT_FOUND = "NEXT_NOT_FOUND";
+let notFoundCalls = 0;
+
 beforeAll(async () => {
   testDb = await setupTestDb();
   testAuth = makeTestAuth(testDb);
   vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
+  vi.doMock("next/navigation", () => ({
+    notFound: () => {
+      notFoundCalls++;
+      throw new Error(NOT_FOUND);
+    },
+  }));
   vi.resetModules();
   ({
     createDraftListing,
@@ -48,6 +75,9 @@ beforeAll(async () => {
     unlistListing,
     softDeleteListing,
   } = await import("@/app/actions/listing"));
+  // Imported AFTER the doMocks + resetModules so it closes over the isolated test schema's `db` and
+  // the throwing `notFound` above — a static top-of-file import would bind the real singleton.
+  ({ isPubliclyViewable, assertPublicListing } = await import("@/lib/listing/public-listing"));
   const cloudinary = await import("cloudinary");
   destroySpy = cloudinary.v2.uploader.destroy as unknown as Mock;
 });
@@ -56,6 +86,7 @@ afterAll(async () => {
   vi.doUnmock("@/lib/auth");
   vi.doUnmock("@/lib/db");
   vi.doUnmock("next/cache");
+  vi.doUnmock("next/navigation");
   await teardownTestDb(testDb);
 });
 
@@ -356,5 +387,153 @@ describe("D-188 — the read/write ordering inside softDeleteListing (source)", 
     const write = BODY.indexOf("update(listing)");
     const destroy = BODY.indexOf("destroyListingPhoto(");
     expect(destroy).toBeGreaterThan(write);
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// LVER-02 / D-208 — THE REVIEW STATE IS A TERM OF PUBLIC VIEWABILITY, NOT A SEPARATE CHECK
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// A submitted-but-unapproved listing is HIDDEN: absent from search, and its public page 404s. There
+// are THREE surfaces through which it could otherwise escape (D-247), and this file owns the
+// BEHAVIOURAL half of two of them:
+//
+//   1. search Stage-1 ......... closed by construction when the sell-gate landed in 18-03. Asserted
+//                               there, by `tests/search/bookable-gate.test.ts`'s `gate_lr_pending`
+//                               fixture — NOT re-implemented here (D-228).
+//   2. `/listings/[id]` ....... `isPubliclyViewable` + `assertPublicListing`, below.
+//   3. the OG image route ..... `listingCardFacts`. It held its OWN copy of the rule and so leaked
+//                               past both other fixes, invisibly, in a surface no browser renders.
+//                               Pinned STRUCTURALLY in `tests/design/og-routes.test.ts`, because the
+//                               property that matters there is "resolves through the one expression",
+//                               which is a fact about the source rather than about a return value.
+//
+// ⚠ WHAT NEITHER HALF PINS IS THE HTTP STATUS LINE. `tests/design/soft-404-status.test.ts:31-39` says
+// it plainly in its own words — the e2e spec is the ONLY instrument in this repo that can see one, and
+// nothing here boots a server. `notFound()` being REACHED is what these cases observe; that reaching
+// it produces a real `404` under a production build is 17.1-01's measured finding, re-audited by
+// `curl` in plan 18-14. Stated so it is not silently claimed.
+
+describe("LVER-02 — the review-state term of isPubliclyViewable (D-208)", () => {
+  /** The two states a booker may read. POSITIVE literals — see the function's own docblock. */
+  const VIEWABLE: readonly ListingReviewState[] = ["approved", "grandfathered"];
+  /** Everything else the enum can hold. `withdrawn` is why the rule is not spelled `!== "pending"`. */
+  const HIDDEN: readonly ListingReviewState[] = ["pending", "rejected", "withdrawn"];
+
+  it("the dimension table covers every value of the listing_review_state enum", () => {
+    // Derived from the pgEnum, so a SEVENTH review state added tomorrow reddens this line rather than
+    // slipping through untested on whichever side of the gate it happens to land (the 18-03 idiom).
+    expect([...VIEWABLE, ...HIDDEN].sort()).toEqual([...listingReviewState.enumValues].sort());
+  });
+
+  it.each(HIDDEN)(
+    "a published, non-deleted listing in review state '%s' is NOT publicly viewable",
+    (state) => {
+      expect(isPubliclyViewable("published", null, state)).toBe(false);
+    },
+  );
+
+  it.each(VIEWABLE)(
+    "a published, non-deleted listing in review state '%s' IS publicly viewable",
+    (state) => {
+      // `grandfathered` passes deliberately (D-207/D-210/D-211): the gate binds only listings created
+      // or materially edited after phase 18, so the pre-existing catalogue keeps being readable.
+      expect(isPubliclyViewable("published", null, state)).toBe(true);
+    },
+  );
+
+  it("FAILS CLOSED on a missing review state — null and undefined are both hidden", () => {
+    // The column is `notNull` with a default today, so neither value can come from the database. They
+    // can very much come from a caller that forgot to select the column, which is the realistic way
+    // this gate would be defeated — and a `!== "pending"` spelling would let both through.
+    expect(isPubliclyViewable("published", null, null)).toBe(false);
+    expect(isPubliclyViewable("published", null, undefined)).toBe(false);
+  });
+
+  it("the three pre-phase-18 terms still hold, with the review term satisfied", () => {
+    // A control: without these, a rule that returned `reviewState === "approved"` and nothing else
+    // would pass every case above while serving drafts and deleted listings to the public.
+    expect(isPubliclyViewable("draft", null, "approved")).toBe(false);
+    expect(isPubliclyViewable("unlisted", null, "approved")).toBe(false);
+    expect(isPubliclyViewable("published", new Date(), "approved")).toBe(false);
+    expect(isPubliclyViewable("published", null, "approved")).toBe(true);
+  });
+});
+
+describe("LVER-02 — assertPublicListing 404s an unreviewed listing (D-208 / D-229)", () => {
+  /** The listing every case below re-states; its `review_state` is what moves. */
+  let liveId: string;
+  /** A never-published listing — the shape a pending listing must be indistinguishable from. */
+  let draftId: string;
+  const MISSING_ID = "listing_that_never_existed";
+
+  beforeAll(async () => {
+    await signInHost("gate.review.public@example.com", { verified: true });
+    liveId = await newDraftId();
+    await saveListingStep(liveId, VALID_FIELDS);
+    await addPhotos(liveId, 3);
+    expect((await publishListing(liveId)).ok).toBe(true);
+    draftId = await newDraftId();
+  });
+
+  async function setReviewState(id: string, state: ListingReviewState): Promise<void> {
+    await testDb.db.update(listing).set({ reviewState: state }).where(eq(listing.id, id));
+  }
+
+  /**
+   * Everything a caller can observe from one `assertPublicListing` call, as one value.
+   *
+   * Returned as a RECORD rather than asserted per-case because the indistinguishability case at the
+   * bottom compares three of these: a per-case `toThrow()` is satisfied by two DIFFERENT refusals just
+   * as happily as by two identical ones, and "a pending listing reads exactly as a draft does" is the
+   * whole of D-229.
+   */
+  async function observe(id: string): Promise<{ outcome: string; notFoundCalls: number }> {
+    notFoundCalls = 0;
+    let outcome = "returned";
+    try {
+      await assertPublicListing(id);
+    } catch (err) {
+      outcome = (err as Error).message;
+    }
+    return { outcome, notFoundCalls };
+  }
+
+  it("a listing AWAITING REVIEW reaches notFound() — the exact soft-404 a draft gets", async () => {
+    await setReviewState(liveId, "pending");
+    expect(await observe(liveId)).toEqual({ outcome: NOT_FOUND, notFoundCalls: 1 });
+  });
+
+  it.each(["rejected", "withdrawn"] as const)(
+    "a '%s' listing reaches notFound() too",
+    async (state) => {
+      await setReviewState(liveId, state);
+      expect(await observe(liveId)).toEqual({ outcome: NOT_FOUND, notFoundCalls: 1 });
+    },
+  );
+
+  it.each(["approved", "grandfathered"] as const)(
+    "an '%s' listing is served — notFound() is never reached",
+    async (state) => {
+      // THE POSITIVE CONTROL, and it is not optional. Without it every case in this describe is
+      // satisfied by an assert that 404s unconditionally — including on the listings that pay for the
+      // product.
+      await setReviewState(liveId, state);
+      expect(await observe(liveId)).toEqual({ outcome: "returned", notFoundCalls: 0 });
+    },
+  );
+
+  it("a pending listing, a draft and a nonexistent id are INDISTINGUISHABLE (D-229)", async () => {
+    await setReviewState(liveId, "pending");
+    const pending = await observe(liveId);
+    const draft = await observe(draftId);
+    const missing = await observe(MISSING_ID);
+
+    // No new error surface, and no route-existence oracle: a prober cannot tell "this space exists and
+    // FitOut has not approved it yet" from "there is nothing here", which is the whole reason D-229
+    // reuses the shipped shape instead of inventing a "pending review" response.
+    expect(pending).toEqual(draft);
+    expect(pending).toEqual(missing);
+    expect(pending.outcome).toBe(NOT_FOUND);
   });
 });
