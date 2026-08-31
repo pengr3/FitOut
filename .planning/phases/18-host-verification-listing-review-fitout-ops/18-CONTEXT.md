@@ -301,6 +301,49 @@ item as `STATE-05` / `TRUST-01`, which one line closes. Carried as `blocking_inp
 touch host-facing enforcement copy, and raised in the phase summary as a one-line unblock — **not** a
 reason to hold the phase.
 
+### D-251 — GATE-06 re-scoped from a migration FREEZE to shipped-migration IMMUTABILITY
+
+**Ruled during execution of 18-02**, when the executor correctly refused to absorb a red build and
+raised it instead. Recorded here because it is a milestone-wide change, not a plan-local one.
+
+`tests/design/infra.test.ts` and `tests/design/money-path-invariants.test.ts` pinned
+`LAST_MIGRATION == "0025_audit_resolved_by.sql"`, `MIGRATION_COUNT == 26`, and a sha256 over the
+bytes of **every** migration — GATE-06, the declared v1.1 invariant that *"v1.1 phases ship on the
+v1.0 schema."* The gate's own failure text forbids both available shortcuts: *"do not bump the pinned
+number to make this green, and do not delete the migration to make it green either. Take it to the
+phase owner."*
+
+**The invariant was not violated — it FINISHED.** v1.1 closed 2026-08-31 with it intact, which
+`PROJECT.md:107` records as a kept promise. Phase 18 is v1.2 and its own locked context mandates
+migrations (D-220, D-221, D-240).
+
+**Rejected — plain re-baselining** (re-cut the all-migrations digest to the new HEAD). It taxes every
+future v1.2 migration: 18-09 adds one, so it would need re-cutting mid-phase and again for every
+migration in the milestone. A gate that must be bumped on a schedule stops being read and starts
+being bumped reflexively, which is how a real alarm dies.
+
+**Rejected — "every migration must be named in some PLAN's `files_modified`."** It does not survive
+this repo: `/gsd-new-milestone` DELETES prior phase directories, so migrations 0000–0025 have no
+surviving plan naming them and would all redden. Making it work needs a pinned historical exemption
+list — the very thing it was meant to avoid.
+
+**Adopted — split the pin by what it is actually worth:**
+  1. The byte-frozen sha256 is scoped to the **historical set 0000–0025** (the v1.0 + v1.1 shipped
+     migrations) and **never needs re-cutting again**. It preserves the property a digest is genuinely
+     good at: nobody silently rewrites or reorders a migration that has already run against
+     production data.
+  2. The equality pins retire, replaced by a **monotonic floor** — all 26 historical filenames must
+     still exist. History cannot be deleted or renamed; new migrations may appear.
+  3. Both headers rewritten to say GATE-06 was a v1.1 invariant, that v1.1 closed with it intact, and
+     that this was **re-scoped by a ruling, not bumped to make a build green** — the distinction is
+     the entire point.
+
+**Why this is stronger than it looks:** `drizzle/` held exactly those 26 files when the digest was
+cut, so narrowing the input set left the hash input **byte-identical** — `652178ae…` verifies
+unchanged. The same constant that was independently watched red under the old shape now enforces the
+new one. Both REDs were re-watched under the new shape with a control proving the new migrations move
+nothing.
+
 ### The badge (Success Criterion 6)
 
 - **D-237 — The badge states WHAT FITOUT CHECKED and nothing more.** It must never imply FitOut
