@@ -120,10 +120,17 @@ function ListingCard({ facts, withFont }: { facts: ListingCardFacts; withFont: b
 /**
  * What a listing that cannot be read unfurls with. A card that says FitOut and nothing false.
  *
- * Reached on TWO paths that are deliberately not told apart: the id names no published listing
- * (draft, unlisted, soft-deleted, never existed — the same set the page 404s on), and the read
- * failed. A "listing not found" card would be a worse answer to both: it states a fact about someone
- * else's link inside an image, on a surface with no way to explain itself.
+ * Reached on TWO paths that are deliberately not told apart: the public may not read the listing at
+ * that id (draft, unlisted, soft-deleted, awaiting ops review, rejected, withdrawn, never existed),
+ * and the read failed. A "listing not found" card would be a worse answer to both: it states a fact
+ * about someone else's link inside an image, on a surface with no way to explain itself.
+ *
+ * ⚠ "THE SAME SET THE PAGE 404s ON" IS NOW TRUE BY CONSTRUCTION, AND IT WAS NOT ALWAYS. This comment
+ * used to make that claim while `listingCardFacts` held its own hand-written copy of the rule — two
+ * conditions, written twice, that stayed equal only as long as nobody edited one of them. Phase 18
+ * edited one of them (D-208 hid unreviewed listings) and the card kept unfurling a pending listing's
+ * title, type, city and rate while the page 404'd. `listingCardFacts` now CALLS the page's own
+ * `isPubliclyViewable`, so the set really is one set. See `@/lib/listing/og-facts`' header (D-247).
  */
 function GenericCard({ withFont }: { withFont: boolean }) {
   return (

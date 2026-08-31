@@ -261,15 +261,26 @@ export default async function PublicListingPage({
     .where(and(eq(listing.id, id), isNull(listing.deletedAt)));
   const row = rows[0];
 
-  // Draft/unlisted/missing → 404 to the public (D-13). Only published listings are viewable by link.
+  // Draft/unlisted/missing → 404 to the public (D-13), and since phase 18 an UNREVIEWED listing too
+  // (D-208): a submitted-but-unapproved space is hidden from bookers until ops has looked at it, and
+  // it is hidden by reusing this exact soft-404 — the shipped shape 17.1-01 measured, not a new error
+  // surface (D-229). A pending listing is now indistinguishable from a draft, which is the point.
+  //
+  // ⚠ HIDDEN MEANS HIDDEN FROM BOOKERS, NEVER FROM THE OWNER. The host still sees its own listing, its
+  // review status and any rejection reason — on the HOST surfaces, which are session-aware. This route
+  // deliberately is not (see `assertPublicListing`'s header, and `src/app/not-found.tsx:29-45`).
   //
   // ⚠ THIS GUARD NO LONGER SETS THE HTTP STATUS, AND IT IS STILL REQUIRED. `loading.tsx` puts a
   // Suspense boundary around this page, so by the time this line runs the shell has been flushed and
   // the status line is spent — `(detail)/layout.tsx` is what wins the 404 now, by asserting the same
   // rule above the boundary. This call remains because it is what narrows `row` for everything below
   // and what keeps the BODY honest if the two ever disagree. Both go through `isPubliclyViewable` so
-  // they cannot: one rule, one expression, two call sites.
-  if (!row || !isPubliclyViewable(row.listing.status, row.listing.deletedAt)) {
+  // they cannot: one rule, one expression — and as of phase 18 THREE call sites, the third being
+  // `listingCardFacts`, which paints the Open Graph card (D-247).
+  if (
+    !row ||
+    !isPubliclyViewable(row.listing.status, row.listing.deletedAt, row.listing.reviewState)
+  ) {
     notFound();
   }
 

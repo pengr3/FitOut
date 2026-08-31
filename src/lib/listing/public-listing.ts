@@ -70,18 +70,57 @@ import { db } from "@/lib/db";
 import { listing } from "@/lib/db/schema";
 
 /**
- * D-13, as one expression. Both callers that decide "may the public see this listing?" go through
- * here so the rule cannot drift between the layout that sets the STATUS and the page that renders the
- * BODY — the failure mode being a route that 404s while the page renders, or the reverse.
+ * D-13 + D-208, as ONE expression. Every caller that decides "may the public see this listing?" goes
+ * through here so the rule cannot drift between them — the failure mode being a route that 404s while
+ * something else happily renders the same listing's contents.
+ *
+ * ── THE THREE CALL SITES, NAMED, BECAUSE THE THIRD IS THE ONE NOBODY LOOKS FOR ────────────────────
+ *
+ *   1. `assertPublicListing` (below), called from `(detail)/layout.tsx` — sets the HTTP STATUS.
+ *   2. `src/app/listings/[id]/(detail)/page.tsx` — renders the BODY, and keeps the status honest.
+ *   3. `src/lib/listing/og-facts.ts` (`listingCardFacts`) — renders the share CARD that
+ *      `/listings/[id]/opengraph-image` paints.
+ *
+ * Site 3 held its OWN copy of the published check until phase 18 (D-247). A copy is not a rule: with
+ * the review gate added to sites 1 and 2 only, an unreviewed listing's page would 404 while its Open
+ * Graph route kept serving that listing's title, space type, city and rate to every scraper, link
+ * scanner and preview proxy that fetched it — a public read of an unreviewed space, on a route that
+ * is never seen in a browser and therefore never noticed. Add a fourth reader of a listing and it
+ * calls THIS, or the same defect comes back.
+ *
+ * ── WHY THE THIRD PARAMETER IS REQUIRED AND POSITIONAL, NOT OPTIONAL ──────────────────────────────
+ *
+ * Because that is what turned every call site into a compile error the day it was added — the same
+ * census mechanism `deriveBookable` uses for its six terms (D-224). `tsc` enumerated the sites; grep
+ * would have missed the one in `og-facts.ts`, which spelled the rule out by hand instead of calling
+ * this. **Never give it a default and never make it optional** — that trades a compiler for a
+ * convention, and the convention is exactly what failed here once already.
+ *
+ * ── THE TERMS ─────────────────────────────────────────────────────────────────────────────────────
  *
  * `deletedAt` is part of the rule, not a separate concern: a soft-deleted row keeps its `published`
  * status, so a status-only test would serve deleted listings.
+ *
+ * `reviewState` is tested with POSITIVE literals — `approved` OR `grandfathered` — never as a
+ * negative. A negative spelling (`!== "pending"`) would let `withdrawn` and any future value through
+ * on the day it is added, which is the failure mode a hidden-until-approved gate cannot have.
+ *
+ * `grandfathered` is publicly viewable ON PURPOSE (D-207 / D-210 / D-211): the gate binds only
+ * listings created or materially edited after phase 18, so the pre-existing catalogue keeps selling
+ * and keeps being readable. It stays a DISTINCT state rather than being written as `approved`,
+ * because nothing was ever checked on those rows and one `UPDATE` must be able to burn the backlog
+ * down later.
  */
 export function isPubliclyViewable(
   status: string | null | undefined,
   deletedAt: Date | null | undefined,
+  reviewState: string | null | undefined,
 ): boolean {
-  return !deletedAt && status === "published";
+  return (
+    !deletedAt &&
+    status === "published" &&
+    (reviewState === "approved" || reviewState === "grandfathered")
+  );
 }
 
 /**
@@ -93,13 +132,35 @@ export function isPubliclyViewable(
  *
  * `cache()` is not an optimisation here so much as the thing that makes calling it twice free — it is
  * request-scoped, so the layout's lookup and any later caller's are one query.
+ *
+ * ⚠ THIS FUNCTION IS SESSION-FREE, AND THAT IS LOAD-BEARING RATHER THAN INCIDENTAL. It runs from a
+ * layout on a not-found-adjacent path, and `src/app/not-found.tsx:29-45` records what happened the one
+ * time such a path was taught about sessions: a dynamic root not-found is part of EVERY route's tree,
+ * so the request-header read that a session lookup forces took the whole build's prerendering with it
+ * — the route table came back with ZERO static routes. So: no session lookup, no request-header read,
+ * no other request-scoped input may be added here, and D-230's "the host sees its own listing and its
+ * own review status" is NOT to be satisfied at this layer. The host sees it on the HOST surfaces,
+ * which are already session-aware and cost nothing to make so; this layer answers one question —
+ * "may an anonymous stranger read this?" — and must stay able to answer it without knowing who is
+ * asking.
+ *
+ * (The two forbidden call expressions are described rather than named, deliberately: this plan's
+ * acceptance check is a bare `grep` over the file, and a prohibition that spells its own token out is
+ * falsely red against the correct file — the trap `tests/helpers/source-text.ts` was written for.)
  */
 export const assertPublicListing = cache(async (id: string): Promise<void> => {
   const rows = await db
-    .select({ status: listing.status, deletedAt: listing.deletedAt })
+    .select({
+      status: listing.status,
+      deletedAt: listing.deletedAt,
+      // D-208 / D-247: the review gate is a TERM OF VIEWABILITY, so it has to be read here too. A
+      // pending listing 404s at this layer exactly as a draft does — the same soft-404 shape 17.1-01
+      // measured, not a new error surface (D-229).
+      reviewState: listing.reviewState,
+    })
     .from(listing)
     .where(and(eq(listing.id, id), isNull(listing.deletedAt)));
 
   const row = rows[0];
-  if (!row || !isPubliclyViewable(row.status, row.deletedAt)) notFound();
+  if (!row || !isPubliclyViewable(row.status, row.deletedAt, row.reviewState)) notFound();
 });

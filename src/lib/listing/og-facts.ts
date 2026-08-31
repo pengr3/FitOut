@@ -25,17 +25,31 @@ import "server-only";
 // causes to be fetched. `city` is the coarse field the listing page already renders publicly to
 // anonymous visitors (`coarseLocation`), so it is in scope; the street never is.
 //
-// ── THE `published` PREDICATE IS THE SAME GATE THE PAGE ENFORCES (T-05-NONPUB) ────────────────────
-// A draft or unlisted listing 404s on the page (D-13). If this read were looser, a card would unfurl
-// the title of a listing whose page refuses to render — an unauthenticated read-around, and one
-// nobody would think to look for. Returning `null` here is what makes the OG route serve its generic
-// fallback card, which is the same answer a missing listing gets.
+// ── THE VIEWABILITY PREDICATE IS THE PAGE'S OWN, CALLED — NOT RESTATED (T-05-NONPUB / D-247) ──────
+// A draft or unlisted listing 404s on the page (D-13), and since phase 18 so does an unreviewed one
+// (D-208). If this read were looser, a card would unfurl the title of a listing whose page refuses to
+// render — an unauthenticated read-around, and one nobody would think to look for. Returning `null`
+// here is what makes the OG route serve its generic fallback card, which is the same answer a missing
+// listing gets.
+//
+// ⚠ THIS FUNCTION USED TO SPELL THAT RULE OUT BY HAND, AND THAT IS THE DEFECT PHASE 18 CLOSED. The
+// hand-written copy said only "the status is published". When the review gate was added to the page
+// and the layout, the two of them started 404ing a pending listing while THIS read kept returning its
+// title, space type, city and rate — so `/listings/<id>/opengraph-image` went on painting a real card
+// for an unreviewed space, to every scraper, link scanner and chat-preview proxy that fetched it. The
+// page and the card disagreed, and nobody could see it: an OG route is never rendered in a browser.
+//
+// The copy is gone. This is now the THIRD CALL SITE of `isPubliclyViewable` (`@/lib/listing/
+// public-listing` — read its header for the other two and for why its third parameter is required and
+// positional). The card and the page agree BY CONSTRUCTION rather than by two people independently
+// writing the same condition and one of them later being updated.
 
 import { and, eq, isNull } from "drizzle-orm";
 import { cache } from "react";
 
 import { db } from "@/lib/db";
 import { listing } from "@/lib/db/schema";
+import { isPubliclyViewable } from "@/lib/listing/public-listing";
 import { allInRateParts } from "@/lib/booking/all-in-rate";
 import { SPACE_TYPE_LABELS } from "@/lib/listing-vocab";
 
@@ -61,7 +75,7 @@ export type ListingCardFacts = {
 };
 
 /**
- * The public facts for one listing, or `null` when there is no published listing at that id.
+ * The public facts for one listing, or `null` when the public may not read that listing at all.
  *
  * `cache()`d so that a request which asks twice pays once. Note what that does and does not buy: the
  * page render and its `generateMetadata` share a request and therefore share this read, while the
@@ -78,12 +92,22 @@ export const listingCardFacts = cache(async (id: string): Promise<ListingCardFac
       perHeadPriceCents: listing.perHeadPriceCents,
       occupancyMode: listing.occupancyMode,
       status: listing.status,
+      deletedAt: listing.deletedAt,
+      // The two columns the shared predicate needs beyond `status`. `deletedAt` is redundant with the
+      // WHERE below and is selected anyway, so this call site hands the expression the real row rather
+      // than a hardcoded `null` that would quietly stop tracking the rule.
+      reviewState: listing.reviewState,
     })
     .from(listing)
     .where(and(eq(listing.id, id), isNull(listing.deletedAt)));
 
   const row = rows[0];
-  if (!row || row.status !== "published") return null;
+  // THE THIRD CALL SITE OF THE ONE EXPRESSION — see this module's header for what the hand-written
+  // copy that used to live on this line cost. A listing awaiting ops review must render NO Open Graph
+  // card: not a redacted one, not a partial one. `null` here routes the OG route to the generic
+  // FitOut card, which is the identical answer a nonexistent id gets, so the card leaks no
+  // route-existence signal either.
+  if (!row || !isPubliclyViewable(row.status, row.deletedAt, row.reviewState)) return null;
 
   const title = row.title?.trim();
   if (!title) return null;
