@@ -1,0 +1,66 @@
+{
+  "ranAt": "2026-08-31T06:19:56.915Z",
+  "budget": {
+    "PAGE_BUDGET_MS": 50,
+    "LADDER_RUNS": 5,
+    "PER_SCAN_BUDGET_MS": 10
+  },
+  "rows": [
+    {
+      "n": 500,
+      "published": 392,
+      "base": 1.212,
+      "withQ": 1.431,
+      "delta": 0.187,
+      "page": 0.9
+    },
+    {
+      "n": 2500,
+      "published": 1988,
+      "base": 6.769,
+      "withQ": 7.157,
+      "delta": 0.001,
+      "page": 0
+    },
+    {
+      "n": 5000,
+      "published": 3970,
+      "base": 13.363,
+      "withQ": 13.431,
+      "delta": -0.114,
+      "page": -0.6
+    },
+    {
+      "n": 10000,
+      "published": 7948,
+      "base": 27.751,
+      "withQ": 27.017,
+      "delta": -0.826,
+      "page": -4.1
+    },
+    {
+      "n": 15000,
+      "published": 11928,
+      "base": 43.253,
+      "withQ": 41.097,
+      "delta": -2.044,
+      "page": -10.2
+    },
+    {
+      "n": 25000,
+      "published": 19891,
+      "base": 17.267,
+      "withQ": 84.244,
+      "delta": 66.384,
+      "page": 331.9
+    },
+    {
+      "n": 50000,
+      "published": 39781,
+      "base": 29.143,
+      "withQ": 163.407,
+      "delta": 134.284,
+      "page": 671.4
+    }
+  ]
+}

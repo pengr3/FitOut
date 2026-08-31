@@ -1,0 +1,86 @@
+{
+  "ranAt": "2026-08-31T06:20:43.386Z",
+  "published": 3970,
+  "results": [
+    {
+      "query": "pickleball court",
+      "expect": "should find 'Poblacion Pickleball Court'",
+      "counts": {
+        "A1 ILIKE phrase": 184,
+        "A2 ILIKE per-word": 184,
+        "B  FTS no index": 184,
+        "C  FTS + GIN": 184
+      }
+    },
+    {
+      "query": "court pickleball",
+      "expect": "SAME INTENT, words reversed",
+      "counts": {
+        "A1 ILIKE phrase": 0,
+        "A2 ILIKE per-word": 184,
+        "B  FTS no index": 184,
+        "C  FTS + GIN": 184
+      }
+    },
+    {
+      "query": "pickleball in ortigas",
+      "expect": "with a stop-word between the two content words",
+      "counts": {
+        "A1 ILIKE phrase": 0,
+        "A2 ILIKE per-word": 11,
+        "B  FTS no index": 11,
+        "C  FTS + GIN": 11
+      }
+    },
+    {
+      "query": "climbing",
+      "expect": "stem test — no listing says 'climbing'; some say 'climb'",
+      "counts": {
+        "A1 ILIKE phrase": 0,
+        "A2 ILIKE per-word": 0,
+        "B  FTS no index": 0,
+        "C  FTS + GIN": 0
+      }
+    },
+    {
+      "query": "studios",
+      "expect": "plural — catalogue says 'Studio'",
+      "counts": {
+        "A1 ILIKE phrase": 0,
+        "A2 ILIKE per-word": 0,
+        "B  FTS no index": 1342,
+        "C  FTS + GIN": 1342
+      }
+    },
+    {
+      "query": "showers lockers",
+      "expect": "two amenity words from different sentences",
+      "counts": {
+        "A1 ILIKE phrase": 0,
+        "A2 ILIKE per-word": 720,
+        "B  FTS no index": 720,
+        "C  FTS + GIN": 720
+      }
+    },
+    {
+      "query": "sunlit",
+      "expect": "brand adjective — free text is the ONLY way to reach it",
+      "counts": {
+        "A1 ILIKE phrase": 149,
+        "A2 ILIKE per-word": 149,
+        "B  FTS no index": 149,
+        "C  FTS + GIN": 149
+      }
+    },
+    {
+      "query": "yog",
+      "expect": "PREFIX of 'yoga' — substring matching finds it, word matching does not",
+      "counts": {
+        "A1 ILIKE phrase": 157,
+        "A2 ILIKE per-word": 157,
+        "B  FTS no index": 0,
+        "C  FTS + GIN": 0
+      }
+    }
+  ]
+}

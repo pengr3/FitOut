@@ -33,7 +33,13 @@ Design decisions that emerged during spiking. Non-negotiable for the real build.
   place with published listings. *Measured in 001: Photon answers `Ortigas` with a residential
   subdivision; the catalog answers with `Ortigas Center, Pasig`, which has a listing.*
 - **R4 — Free-text `q` is length-capped** before it reaches any SQL predicate. *001 passed a
-  5,000-character input straight through.*
+  5,000-character input straight through, and 002 makes every word a separate ILIKE term.*
+- **R6 — Free text is per-word AND ILIKE with naive suffix stripping, never a phrase `%q%`.**
+  *Measured in 002: the phrase form returns ZERO on reversed word order, on a stop-word between
+  terms, and on words in different sentences — four of eight probes.*
+- **R7 — GATE-06 is not threatened by search, and the trigger is recorded.** A GIN index becomes
+  mandatory between **~12,000 and ~20,000 published listings**; FitOut has 18. The threshold ships
+  as a comment beside the query so the next person inherits it instead of rediscovering it.
 - **R5 — Phase 18 is renamed `Search & Discovery`** and carries new `SEARCH-xx` requirement IDs
   alongside `MAP-01..04`. *PM decision, 2026-08-31.*
 
@@ -42,7 +48,7 @@ Design decisions that emerged during spiking. Non-negotiable for the real build.
 | # | Name | Type | Validates | Verdict | Tags |
 |---|------|------|-----------|---------|------|
 | 001 | one-box-intent-routing | standard | One box → server params via a closed-set-first staged router, no migration | ✓ **VALIDATED** — 30/30 corpus, geocoder reached 0/30, 0.01–0.05 ms/query | search, phase-18, query-model, geocoding |
-| 002a | freetext-ilike | comparison | `ILIKE` over title/description/city/neighborhood at 50 / 500 / 5,000 listings | ○ pending | search, postgres, GATE-06 |
-| 002b | freetext-fts-no-migration | comparison | Query-time `to_tsvector()` with no stored column and no GIN index, same scale ladder | ○ pending | search, postgres, GATE-06 |
+| 002a | freetext-ilike (per-word) | comparison | `ILIKE` inside the real stage-1 gate, 500–50,000 published listings | ✓ **WINNER** — added cost indistinguishable from zero below ~12k listings; matches FTS on 7/8 quality probes | search, postgres, GATE-06 |
+| 002b | freetext-fts-no-migration | comparison | Query-time `to_tsvector()`, no stored column, no GIN | ✗ **INVALIDATED** — strictly dominated: FTS quality without the index, at 8x ILIKE's cost (564 ms vs 68 ms at 25k) | search, postgres, GATE-06 |
 | 003 | bbox-vs-radius | standard | Which "where" is authoritative when the map moves and the bar still holds an address + radius | ○ pending | map, phase-18, MAP-02, D-53 |
 | 004 | front-door-head-to-head | standard | Today's 7-control bar vs the one box + map, same three intents, 375px and desktop | ○ pending | ux, responsive, phase-18 |
