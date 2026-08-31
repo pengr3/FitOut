@@ -132,6 +132,22 @@ const eslintConfig = defineConfig([
     // full of generated Turbopack JS would otherwise flood lint with thousands of errors.
     ".claude/worktrees/**",
     "**/.next/**",
+    // Planning artifacts are not application source and are never shipped.
+    //
+    // This tree held only Markdown until 2026-08-31, so its absence here cost nothing and nobody
+    // noticed it was missing. Then the Phase-18 search spikes committed runnable JavaScript under
+    // `.planning/spikes/` — deliberately plain classic scripts with no build step, because they run
+    // in both Node and a `file://` browser — and ESLint began linting them as if they were app
+    // code. That is **36 errors and a red `npm run build`**, from files that are instruments rather
+    // than product: `no-undef` on browser globals in a Node harness, `no-unused-vars` on a probe's
+    // deliberate controls, and 147 KB of vendored `leaflet.js`.
+    //
+    // The rule is the general one, not a patch for that tree: `.planning/**` is the planning
+    // system's own storage. Nothing in it is imported by `src/`, nothing in it is bundled, and its
+    // conventions are set by `.planning/spikes/CONVENTIONS.md` rather than by this repo's app
+    // lint config. Scoping the ignore to `.planning/spikes/**` would leave the same trap armed for
+    // the next directory under `.planning/` that holds a script.
+    ".planning/**",
   ]),
   // DS-13 / D-15 / D-16 — the raw-design-value rule, scoped to the two trees the gate polices.
   //
