@@ -209,7 +209,7 @@ Plans:
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-28 |
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
-| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 4/14 | In Progress|  |
+| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 5/14 | In Progress|  |
 
 ## Carried Forward (not v1.2 scope until promoted)
 

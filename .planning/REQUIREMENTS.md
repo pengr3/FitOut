@@ -38,7 +38,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 
 ### HVER — Host identity verification
 
-- [ ] **HVER-01** — Identity checking runs through a **provider-agnostic verification port**.
+- [x] **HVER-01** — Identity checking runs through a **provider-agnostic verification port**.
       Registering a different provider is a registration + configuration change, not a
       re-architecture. Ships with the ops-manual provider. *(SC7 · D-206)*
 - [x] **HVER-02** — FitOut stores only `{ result, vendorRef, checkedAt, provider }`. **No government
@@ -95,10 +95,10 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 |-------------|-------|--------|
 | OPS-01 | Phase 18 | Partial (18-01 — staff standing reads server-side from `user.role`; `/api/auth/update-user` provably cannot write it. The "signs in to FitOut Ops" half needs the console, 18-12) |
 | OPS-02 | Phase 18 | Partial (18-01 — `requireStaff()` is the boundary and refuses non-staff / NULL-role / signed-out with `notFound()`. The route half lands in 18-12; the HTTP status-line audit in 18-14) |
-| OPS-03 | Phase 18 | Pending |
-| OPS-04 | Phase 18 | Pending |
-| OPS-05 | Phase 18 | Pending |
-| HVER-01 | Phase 18 | Pending |
+| OPS-03 | Phase 18 · 18-05 (all five console actions) | Partial (18-05 — every console action records the authenticated staff id, read BACK OUT of the table on both the allow and the deny branch. 18-08 adds a sixth ops action; "every ops action" closes there) |
+| OPS-04 | Phase 18 · 18-05 (data half) | Partial (18-05 — `loadReviewQueue` is ONE interleaved oldest-first array over both kinds, carrying every field a reviewer needs so the page runs no second query. "On the same screen" needs 18-10's row and 18-12's page) |
+| OPS-05 | Phase 18 · 18-05 (write half) | Partial (18-05 — a taxonomy-constrained, `.max(280)`-bounded reason stored as the SENTENCE the host reads. **Told** needs the notification (D-245, 18-09) and the host surface (D-230, 18-13)) |
+| HVER-01 | Phase 18 · 18-05 | Complete |
 | HVER-02 | Phase 18 · 18-02 | Complete |
 | HVER-03 | Phase 18 | Complete |
 | HVER-04 | Phase 18 | Pending |
@@ -107,11 +107,11 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | LVER-02 | Phase 18 · 18-04 (hidden-from-bookers half) | Pending |
 | LVER-03 | Phase 18 | Pending |
 | LVER-04 | Phase 18 · 18-02 | Complete |
-| ENF-01 | Phase 18 | Pending |
+| ENF-01 | Phase 18 · 18-05 (default lever) | Partial (18-05 — `suspendHost` writes `status='suspended'`, which fails the sell-gate's host term through the same read as verification. The payout freeze is 18-07; the cancel-and-refund escalation is 18-08) |
 | ENF-02 | Phase 18 | Pending |
 | ENF-03 | Phase 18 | Pending |
 
-**17 requirements · Phase 18 · 0 complete**
+**17 requirements · Phase 18 · 5 complete**
 
 ---
 
