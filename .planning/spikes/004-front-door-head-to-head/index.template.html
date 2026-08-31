@@ -1,0 +1,319 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Spike 004 — front door, head to head</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg:#fbf9f7;--card:#fff;--ink:#22201e;--muted:#736b64;--line:#e6e0da;
+    --brand:#e8604c;--brand-soft:#fdeeeb;--ok:#2f7d5d;--ok-soft:#eaf5ef;
+    --warn:#9a6b1e;--warn-soft:#fdf3e2;--dim:#f3efec;
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.5}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 16px 60px}
+  h1{font-size:21px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px}
+  .label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 8px;font-weight:600}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;flex-wrap:wrap}
+  .seg button{font:inherit;font-size:13px;padding:8px 12px;border:0;background:#fff;color:var(--ink);cursor:pointer;border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:0}
+  .seg button[aria-pressed=true]{background:var(--brand);color:#fff;font-weight:600}
+  .arena{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
+  @media(max-width:900px){.arena{grid-template-columns:1fr}}
+  .side{border:1px solid var(--line);border-radius:12px;background:var(--card);padding:14px}
+  .side h2{font-size:14px;margin:0 0 2px}
+  .side .who{font-size:12px;color:var(--muted);margin:0 0 12px}
+  .stage{margin:0 auto;transition:max-width .2s}
+  .stage[data-vp="mobile"]{max-width:375px;border:1px dashed var(--line);border-radius:14px;padding:10px}
+  .ctl{border:1px solid var(--line);border-radius:9px;padding:9px 11px;font-size:13.5px;background:#fff;cursor:pointer;
+       display:flex;justify-content:space-between;gap:8px;align-items:center;width:100%;text-align:left;font-family:inherit;color:var(--ink)}
+  .ctl:hover{border-color:#cfc6bd}
+  .ctl.set{background:var(--ok-soft);border-color:#cbe5d9;color:#1d5741;font-weight:600}
+  .ctl .cap{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+  .ctl.set .cap{color:#2f7d5d}
+  .stack{display:grid;gap:8px}
+  .pop{border:1px solid var(--line);border-radius:9px;background:#fff;padding:8px;margin-top:-2px;box-shadow:0 6px 20px rgba(0,0,0,.07)}
+  .pop button{display:block;width:100%;text-align:left;font:inherit;font-size:13px;padding:7px 9px;border:0;background:none;border-radius:6px;cursor:pointer;color:var(--ink)}
+  .pop button:hover{background:var(--dim)}
+  .pop .grp{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:6px 9px 2px;font-weight:600}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+  .cal button{text-align:center;padding:6px 0;font-size:12.5px}
+  input.box{width:100%;font:inherit;font-size:16px;padding:12px 13px;border:1px solid var(--line);border-radius:10px;color:var(--ink)}
+  input.box:focus{outline:2px solid var(--brand);outline-offset:1px;border-color:transparent}
+  .submit{font:inherit;font-weight:600;padding:11px 18px;border:0;border-radius:10px;background:var(--brand);color:#fff;cursor:pointer;width:100%}
+  .tally{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+  .tally div{font-size:12px;color:var(--muted)}
+  .tally b{display:block;color:var(--ink);font-size:22px;font-weight:700}
+  .tally b.bad{color:var(--brand)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;min-height:26px}
+  .chip{padding:4px 10px;border-radius:999px;font-size:12.5px;background:var(--ok-soft);color:#1d5741;border:1px solid #cbe5d9}
+  .url{display:block;background:#2b2724;color:#f4efe9;padding:9px 11px;border-radius:8px;font-family:ui-monospace,Menlo,monospace;font-size:11px;word-break:break-all;margin-top:10px}
+  .verdict{margin-top:14px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+  td.n{text-align:right;font-variant-numeric:tabular-nums}
+  .win{color:var(--ok);font-weight:600}
+  .lose{color:var(--brand);font-weight:600}
+  .note{font-size:13px;color:var(--muted);margin-top:10px}
+</style>
+
+<div class="wrap">
+  <h1>Front door, head to head</h1>
+  <p class="sub">
+    Spike 004. Pick an intent, then complete it on both sides. Every control opening and every
+    selection is counted — the same way a booker pays for it.
+  </p>
+
+  <div class="card">
+    <div class="row">
+      <span class="label" style="margin:0">Intent</span>
+      <span class="seg" id="intents"></span>
+      <span class="label" style="margin:0 0 0 10px">Viewport</span>
+      <span class="seg" id="vp">
+        <button data-v="desktop" aria-pressed="true">desktop</button>
+        <button data-v="mobile" aria-pressed="false">375 px</button>
+      </span>
+      <button class="ctl" style="width:auto" id="reset">Reset both</button>
+    </div>
+    <p class="note" id="goal"></p>
+  </div>
+
+  <div class="arena">
+    <!-- ── LEFT: today ─────────────────────────────────────────────────────────────────────── -->
+    <div class="side">
+      <h2>Today — the shipped bar</h2>
+      <p class="who">Replicated control-for-control from <code>src/components/search/search-bar.tsx</code>:
+        address combobox, one combined activity select, date popover, from, to, price, radius, submit.</p>
+      <div class="stage" id="stageA" data-vp="desktop">
+        <div class="stack" id="barA"></div>
+      </div>
+      <div class="tally">
+        <div><b id="aTaps">0</b>taps</div>
+        <div><b id="aNet">0</b>network calls</div>
+        <div><b id="aDone">—</b>intent met</div>
+      </div>
+      <span class="url" id="aUrl">/</span>
+    </div>
+
+    <!-- ── RIGHT: the one box ──────────────────────────────────────────────────────────────── -->
+    <div class="side">
+      <h2>Spiked — one box</h2>
+      <p class="who">Spike 001's router, unmodified. Type it the way you'd say it, then press Enter.</p>
+      <div class="stage" id="stageB" data-vp="desktop">
+        <input class="box" id="boxB" type="text" placeholder="Try it in your own words" autocomplete="off" />
+        <div class="chips" id="chipsB"></div>
+        <div style="margin-top:8px"><button class="submit" id="goB">Search</button></div>
+      </div>
+      <div class="tally">
+        <div><b id="bTaps">0</b>taps</div>
+        <div><b id="bNet">0</b>network calls</div>
+        <div><b id="bDone">—</b>intent met</div>
+      </div>
+      <span class="url" id="bUrl">/</span>
+    </div>
+  </div>
+
+  <div class="card verdict">
+    <p class="label">Tally</p>
+    <table id="score"><thead><tr><th>Intent</th><th class="n">bar taps</th><th class="n">box taps</th><th class="n">saved</th><th>network before submit</th></tr></thead><tbody></tbody></table>
+    <p class="note">
+      “Taps” counts control openings and selections — what a thumb pays for. Typing is not counted on
+      either side: the bar needs typing too (the address field), so counting keystrokes would flatter
+      the box for something both do.
+    </p>
+  </div>
+</div>
+
+<script src="../001-one-box-intent-routing/data.js"></script>
+<script src="../001-one-box-intent-routing/router.js"></script>
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const NOW = new Date("2026-08-31T09:00:00+08:00");
+
+  const INTENTS = [
+    { id: "i1", label: "pickleball in Makati tonight",
+      goal: "A pickleball court in Makati, playable this evening.",
+      need: ["category", "place", "date"], phrase: "pickleball in makati tonight" },
+    { id: "i2", label: "a gym near me on Saturday",
+      goal: "Any gym close to where I am, on Saturday.",
+      need: ["category", "where", "date"], phrase: "gym near me saturday" },
+    { id: "i3", label: "yoga in Ortigas, under ₱800",
+      goal: "A yoga space in Ortigas at no more than ₱800/hr.",
+      need: ["category", "place", "price"], phrase: "yoga in ortigas" },
+  ];
+  let intent = INTENTS[0], vp = "desktop";
+  const scores = {};
+
+  // ── state for the replicated bar ────────────────────────────────────────────────────────────
+  let A, aTaps, aNet, aPrompts, openPop;
+  function resetA() {
+    A = { place: null, category: null, date: null, start: null, end: null, price: null, radius: 10, submitted: false };
+    aTaps = 0; aNet = 0; aPrompts = 0; openPop = null;
+  }
+
+  const SPACE = SpikeData.SPACE_TYPES, TAGS = SpikeData.ACTIVITY_TAGS;
+  const PLACES = ["Makati", "Taguig", "Pasig", "Quezon City", "Mandaluyong", "Muntinlupa"];
+  const HOURS = ["06:00", "09:00", "12:00", "15:00", "18:00", "19:00", "21:00", "22:00"];
+  const DAYS = ["Mon 31 Aug", "Tue 1 Sep", "Wed 2 Sep", "Thu 3 Sep", "Fri 4 Sep", "Sat 5 Sep", "Sun 6 Sep"];
+
+  function ctl(id, cap, val) {
+    const set = val != null && val !== "";
+    return `<button class="ctl ${set ? "set" : ""}" data-pop="${id}">
+      <span><span class="cap">${cap}</span><br>${set ? val : "<span style='color:var(--muted)'>Any</span>"}</span>
+      <span style="color:var(--muted)">▾</span></button>`;
+  }
+
+  function renderA() {
+    const parts = [
+      ctl("place", "Where", A.place),
+      // The shipped bar renders a `Use my location` ghost button under the Where field
+      // (search-bar.tsx, `useMyLocation`). Omitting it would overcharge the incumbent on the
+      // "near me" intent, so it is modelled: one tap, plus the browser permission prompt, which is
+      // a real interruption and is counted as such.
+      `<button class="ctl ${A.place === "my location" ? "set" : ""}" data-geo="1" style="font-size:12.5px;padding:6px 11px">
+         <span><span class="cap">or</span><br>Use my location</span></button>`,
+      ctl("category", "Activity or type", A.category ? A.category.label : null),
+      ctl("date", "When", A.date),
+      ctl("start", "From", A.start),
+      ctl("end", "To", A.end),
+      ctl("price", "Price", A.price ? "≤ ₱" + A.price + "/hr" : null),
+      ctl("radius", "Within", A.radius + " km"),
+      `<button class="submit" data-submit="1">Search</button>`,
+    ];
+    let html = parts.join("");
+    if (openPop) {
+      let inner = "";
+      if (openPop === "place") {
+        // The shipped field is an OSM-backed combobox: opening it and typing costs a NETWORK call
+        // per query before anything can be picked. That call is the reason this control is counted
+        // at three taps and one request, not one tap.
+        inner = `<div class="grp">Photon geocoder · one request per keystroke burst</div>` +
+          PLACES.map((p) => `<button data-set="place" data-v="${p}">${p}</button>`).join("");
+      } else if (openPop === "category") {
+        inner = `<div class="grp">Space types</div>` +
+          SPACE.map((t) => `<button data-set="category" data-v="${t.value}" data-l="${t.label}">${t.label}</button>`).join("") +
+          `<div class="grp">Activities</div>` +
+          TAGS.map((t) => `<button data-set="category" data-v="${t.value}" data-l="${t.label}">${t.label}</button>`).join("");
+      } else if (openPop === "date") {
+        inner = `<div class="cal">` + DAYS.map((d) => `<button data-set="date" data-v="${d}">${d.split(" ")[1]}</button>`).join("") + `</div>`;
+      } else if (openPop === "start" || openPop === "end") {
+        inner = HOURS.map((h) => `<button data-set="${openPop}" data-v="${h}">${h}</button>`).join("");
+      } else if (openPop === "price") {
+        inner = [400, 600, 800, 1200, 2000].map((p) => `<button data-set="price" data-v="${p}">≤ ₱${p}/hr</button>`).join("");
+      } else if (openPop === "radius") {
+        inner = [2, 5, 10, 25].map((r) => `<button data-set="radius" data-v="${r}">${r} km</button>`).join("");
+      }
+      const idx = ["place", "category", "date", "start", "end", "price", "radius"].indexOf(openPop);
+      html = parts.slice(0, idx + 1).join("") + `<div class="pop">${inner}</div>` + parts.slice(idx + 1).join("");
+    }
+    $("barA").innerHTML = html;
+
+    $("aTaps").textContent = aTaps;
+    $("aTaps").className = aTaps > 6 ? "bad" : "";
+    $("aNet").textContent = aNet + (aPrompts ? " +" + aPrompts + " prompt" : "");
+    const met = intentMetA();
+    $("aDone").textContent = A.submitted ? (met ? "yes" : "no") : "—";
+    const qs = new URLSearchParams();
+    if (A.place) { qs.set("lat", "14.5572"); qs.set("lng", "121.0264"); }
+    if (A.category) qs.set("category", A.category.value);
+    if (A.date) qs.set("date", "2026-08-31");
+    if (A.start) qs.set("start", A.start);
+    if (A.end) qs.set("end", A.end);
+    if (A.price) qs.set("priceMax", A.price * 100);
+    if (A.radius !== 10) qs.set("radius", A.radius);
+    $("aUrl").textContent = "/" + (qs.toString() ? "?" + qs.toString() : "");
+    if (A.submitted) record();
+  }
+
+  function intentMetA() {
+    return intent.need.every((k) =>
+      k === "category" ? !!A.category : k === "place" || k === "where" ? !!A.place : k === "date" ? !!A.date : !!A.price);
+  }
+
+  $("barA").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.submit) { aTaps++; A.submitted = true; openPop = null; return renderA(); }
+    if (b.dataset.geo) { aTaps++; aPrompts++; A.place = "my location"; openPop = null; return renderA(); }
+    if (b.dataset.pop) { aTaps++; openPop = openPop === b.dataset.pop ? null : b.dataset.pop;
+      if (openPop === "place") aNet++; return renderA(); }
+    if (b.dataset.set) {
+      aTaps++;
+      const k = b.dataset.set;
+      A[k] = k === "category" ? { value: b.dataset.v, label: b.dataset.l } : k === "radius" || k === "price" ? Number(b.dataset.v) : b.dataset.v;
+      openPop = null; return renderA();
+    }
+  });
+
+  // ── the one box ─────────────────────────────────────────────────────────────────────────────
+  let bTaps = 0, bNet = 0, B = null;
+  async function renderB(submitted) {
+    const r = await SpikeRouter.route($("boxB").value, { now: NOW });
+    B = r;
+    $("chipsB").innerHTML = Object.entries(r.params)
+      .filter(([k]) => !["placeKind", "lat", "lng"].includes(k))
+      .map(([k, v]) => `<span class="chip">${k}: ${Array.isArray(v) ? v.join(" + ") : v}</span>`).join("")
+      || `<span style="color:var(--muted);font-size:13px">nothing yet</span>`;
+    const qs = new URLSearchParams();
+    Object.entries(r.params).forEach(([k, v]) => { if (k !== "placeKind") Array.isArray(v) ? v.forEach((x) => qs.append(k, x)) : qs.set(k, String(v)); });
+    $("bUrl").textContent = "/" + (qs.toString() ? "?" + qs.toString() : "");
+    $("bTaps").textContent = bTaps;
+    $("bNet").textContent = bNet;
+    if (submitted) {
+      const p = r.params;
+      const met = intent.need.every((k) =>
+        k === "category" ? !!p.category : k === "place" ? !!p.place : k === "where" ? !!(p.place || p.useMyLocation)
+        : k === "date" ? !!p.date : !!p.priceMax);
+      $("bDone").textContent = met ? "yes" : "partial";
+      record(met);
+    }
+  }
+  $("boxB").addEventListener("input", () => renderB(false));
+  $("goB").addEventListener("click", () => { bTaps++; renderB(true); });
+  $("boxB").addEventListener("keydown", (e) => { if (e.key === "Enter") { bTaps++; renderB(true); } });
+
+  // ── scoring ─────────────────────────────────────────────────────────────────────────────────
+  function record(bMet) {
+    const s = scores[intent.id] = scores[intent.id] || { label: intent.label };
+    if (A.submitted) { s.a = aTaps; s.aNet = aNet + (aPrompts ? ` +${aPrompts} permission prompt` : ""); }
+    if (bMet !== undefined) { s.b = bTaps; s.bNet = bNet; }
+    const tb = $("score").querySelector("tbody");
+    tb.innerHTML = INTENTS.map((i) => {
+      const x = scores[i.id];
+      if (!x || x.a == null || x.b == null) return `<tr><td>${i.label}</td><td class="n" colspan="4" style="color:var(--muted)">not run on both sides yet</td></tr>`;
+      return `<tr><td>${i.label}</td><td class="n lose">${x.a}</td><td class="n win">${x.b}</td>
+        <td class="n"><b>${x.a - x.b}</b></td><td>bar ${x.aNet} · box ${x.bNet}</td></tr>`;
+    }).join("");
+  }
+
+  // ── chrome ──────────────────────────────────────────────────────────────────────────────────
+  $("intents").innerHTML = INTENTS.map((i, n) =>
+    `<button data-i="${i.id}" aria-pressed="${n === 0}">${i.label}</button>`).join("");
+  $("intents").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    intent = INTENTS.find((i) => i.id === b.dataset.i);
+    [...$("intents").children].forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    reset();
+  });
+  $("vp").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    vp = b.dataset.v;
+    [...$("vp").children].forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+    $("stageA").dataset.vp = vp; $("stageB").dataset.vp = vp;
+  });
+  $("reset").addEventListener("click", reset);
+
+  function reset() {
+    resetA(); bTaps = 0; bNet = 0;
+    $("boxB").value = ""; $("bDone").textContent = "—"; $("aDone").textContent = "—";
+    $("goal").innerHTML = `<b>Goal:</b> ${intent.goal} &nbsp;·&nbsp; on the right, try: <code>${intent.phrase}</code>`;
+    renderA(); renderB(false); record();
+  }
+  reset();
+})();
+</script>

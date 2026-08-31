@@ -51,6 +51,15 @@ Design decisions that emerged during spiking. Non-negotiable for the real build.
   in 003: with a bbox governing, ladder rung 1 (widen the radius) moves the result set 0 → 0 while
   the band still announces "we widened your search to 25 km" — and the e2e spec compares the band
   against the control, not against the results, so it stays GREEN while the page lies.*
+- **R11 — The box goes IN FRONT of the existing controls, never instead of them.** What it resolves
+  populates the controls visibly so the booker can see and correct it. *Measured in 004: the box
+  saves 10 / 5 / 6 taps on three intents and removes the pre-submit geocoder call entirely, but
+  returns only PARTIAL on "yoga in ortigas under 800" — there is no price NLP and there must not be
+  (D-137: never surprise them with a number). Scoping consequence: this is additive, not a rewrite
+  of the search surface.*
+- **R12 — The 375px front door is already over budget and Phase 18 makes it worse.** *Measured in
+  004: the shipped bar stacks to 570px, 85% of a 667px phone screen, before a map is added. The
+  phase's UI spec owes small screens a collapsed box + Filters control (GATE-RESP).*
 - **R5 — Phase 18 is renamed `Search & Discovery`** and carries new `SEARCH-xx` requirement IDs
   alongside `MAP-01..04`. *PM decision, 2026-08-31.*
 
@@ -62,4 +71,4 @@ Design decisions that emerged during spiking. Non-negotiable for the real build.
 | 002a | freetext-ilike (per-word) | comparison | `ILIKE` inside the real stage-1 gate, 500–50,000 published listings | ✓ **WINNER** — added cost indistinguishable from zero below ~12k listings; matches FTS on 7/8 quality probes | search, postgres, GATE-06 |
 | 002b | freetext-fts-no-migration | comparison | Query-time `to_tsvector()`, no stored column, no GIN | ✗ **INVALIDATED** — strictly dominated: FTS quality without the index, at 8x ILIKE's cost (564 ms vs 68 ms at 25k) | search, postgres, GATE-06 |
 | 003 | bbox-vs-radius | standard | Which "where" is authoritative when the map moves and the bar still holds an address + radius | ✓ **VALIDATED** — policy A (bbox wins, radius dropped) + explicit "Search this area"; no migration; the D-53 radius rung breaks under a bbox | map, phase-18, MAP-01, MAP-02, D-53, D-32 |
-| 004 | front-door-head-to-head | standard | Today's 7-control bar vs the one box + map, same three intents, 375px and desktop | ○ pending | ux, responsive, phase-18 |
+| 004 | front-door-head-to-head | standard | Today's bar vs the one box, three intents, desktop and 375px | ✓ **VALIDATED with a limit** — box saves 5–10 taps and every pre-submit network call, but does NOT subsume the controls (no price NLP, by design) | ux, responsive, phase-18, D-137 |
