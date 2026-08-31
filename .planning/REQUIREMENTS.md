@@ -104,7 +104,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | HVER-04 | Phase 18 | Pending |
 | HVER-05 | Phase 18 | Pending |
 | LVER-01 | Phase 18 | Complete |
-| LVER-02 | Phase 18 | Pending |
+| LVER-02 | Phase 18 · 18-04 (hidden-from-bookers half) | Pending |
 | LVER-03 | Phase 18 | Pending |
 | LVER-04 | Phase 18 · 18-02 | Complete |
 | ENF-01 | Phase 18 | Pending |

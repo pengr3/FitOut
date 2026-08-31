@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 18-03-PLAN.md (Wave 3 — THE SELL-GATE, the ROADMAP's named trap). `deriveBookable` now has SIX terms: `listing.reviewState` and `host.verificationStatus` are NEW REQUIRED fields on the existing parameter objects (D-224), compared against POSITIVE literals (`approved | grandfathered`) — never `!== 'suspended'`. All SEVEN sites moved in ONE commit with the whole fixture/seed blast radius (D-248, `5e233a9`, 40 files): the predicate, the inlined SQL twin (LEFT JOIN host_verification + `COALESCE(hv.status::text,'unverified')`), BOTH deliberate re-statements in `placeHold`/`placeOpenHold` (still NO shared helper — D-227), both RSC call sites, a new `makeVerifiedHost()` in tests/helpers/seed.ts that 19 Vitest files converge on, and the 14 non-Vitest seed sites. Then `f4c4eda` made the instruments strong again: 29 truth-table assertions (16+5+6+2), the parity table 5→14 fixtures / 3→8 hosts / **1→3 passing members**, and TWO new refusal anchors (`L_pending_review` + a suspended-host sibling; `L_OPEN_PENDING_REVIEW`) that count DB ROWS, not return values. Suite after: tsc 0; npm test 195 files / **2277** passed / 5 skipped (baseline 2256 — the +21 is exactly this plan's own); test:design 72 / 1296 / 3 unchanged; `npm run db:seed` then `/` renders 13 listings (Pitfall 7 closed). Next — 18-04. ⚠ CARRY FORWARD, STILL LIVE: `requireStaff()` is correct only while `session.cookieCache` stays unconfigured; the KYC vendor is still NOT settled and must not be (D-206 port + ops-manual provider; HVER-04 is the PM's fork, plan 18-14); D-236 (ops refund retains the service fee) is the PM's to settle. GATE-06 is now shipped-migration IMMUTABILITY, so ADDING a migration is fine and editing `0000`–`0025` is red. `deriveDisplayStatus`/`deriveBookingStatusView` take `cancelledBy` as a WIDENED `string`, so tsc will NOT flag the display forks when 18-08 first writes `'ops'`. `tests/design/*` REQUIRES `--config vitest.design.config.ts`. ⚠ NEW CARRY-FORWARD FROM 18-03: (a) **ENF-01 is NOT complete** — 18-03 shipped only its block-new half (`suspended` fails the host term at all seven sites); the ops suspend action (18-05) and cancel-and-refund (18-08) still owe the rest, so the checkbox stays open. LVER-01 and HVER-03 ARE complete. (b) Every future fixture that needs a sellable host must go through `makeVerifiedHost()` — `listing.review_state` DEFAULTS to `'pending'` and a host with NO `host_verification` row reads as `'unverified'`, so a hand-built fixture is now UNSELLABLE BY DEFAULT and fails with `not-bookable` rather than with anything that names the cause. (c) THREE PRE-EXISTING e2e REDS were proved and deferred, not fixed — see `.planning/phases/18-.../deferred-items.md`: `cancel.spec.ts:232` (reproduced identically against pre-plan `src/`), `calendar-hit-area.spec.ts` × 4 (a `now()`-relative 6-week-month assertion that September 2026 broke), and a `price-parity.spec.ts` flake from the `(public)/loading.tsx` SearchBar fallback racing the streamed page.
-last_updated: "2026-08-31T22:10:00.000Z"
-last_activity: 2026-09-01 — 18-03 executed (2 tasks, 2 commits): ops approval became a term of the sell-gate at all seven sites, with the 40-file fixture/seed sweep in the same atomic commit, then the truth table, the parity set-equality and the two re-statements' refusal anchors were rebuilt to measure it
+stopped_at: Completed 18-04-PLAN.md (Wave 4 — hidden-until-approved, LVER-02's booker-facing half). `isPubliclyViewable` took a THIRD REQUIRED positional parameter (`reviewState`, positive literals `approved | grandfathered` only) and now has THREE call sites: `assertPublicListing` (the layout's STATUS line), `(detail)/page.tsx` (the BODY) and — new — `src/lib/listing/og-facts.ts` (the OG CARD). ⚠ THE CENSUS FOUND ONLY TWO OF THE THREE: `tsc` reddened `page.tsx:272` and `public-listing.ts:143` and was STRUCTURALLY BLIND to `og-facts.ts`, which held a hand-written COPY of the rule rather than a call — so the compiler-census mechanism D-224 relies on cannot see a restated gate, only a called one. That is the transferable lesson of D-247 and it is worth re-asking on every future surface that reads a listing. Commits `2c1b19a` (feat) + `2394c41` (test). Suite after: tsc 0; npm test 195 files / **2291** passed / 5 skipped (baseline 2277 — the +14 is exactly this plan's); test:design 72 / **1304** / 3 (baseline 1296, +8); `e2e/public-listing.spec.ts` 8/8 by hand (all three seed paths already write `review_state='approved'`, so no seeded listing 404s). Both mutation REDs watched and restored. Next — 18-05. ⚠ CARRY FORWARD: **LVER-02 is NOT fully complete** — its third clause (D-230, the host sees its own listing, review status and rejection reason) is **18-13's**, so the checkbox stays open; 18-04 shipped only the hidden-from-bookers half. `assertPublicListing` MUST STAY SESSION-FREE (adding a session read to a not-found-adjacent path once cost every static route its prerender — `src/app/not-found.tsx:29-45`), so 18-13 must satisfy D-230 on the HOST surfaces and never by teaching this layout about sessions. The STATUS-LINE half of D-208 is asserted by NOTHING per-commit — Vitest cannot read an HTTP status line and no e2e spec drives an OG route at all; the production-build `curl` audit is plan **18-14**'s and is labelled as deferred in both design-gate headers rather than silently claimed. Everything from 18-03 still stands: `requireStaff()` is correct only while `session.cookieCache` stays unconfigured; the KYC vendor is the PM's fork (18-14); D-236 is the PM's to settle; GATE-06 is now shipped-migration IMMUTABILITY; `tests/design/*` REQUIRES `--config vitest.design.config.ts`; ENF-01 has only its block-new half; every new fixture needing a sellable host must go through `makeVerifiedHost()`; the THREE pre-existing e2e REDS remain deferred in `deferred-items.md` (not touched, not re-run).
+last_updated: "2026-08-31T22:35:31.000Z"
+last_activity: 2026-09-01 — 18-04 executed (2 tasks, 2 commits): the hidden-until-approved gate closed on all THREE leak surfaces, including the Open Graph card route that neither D-228 nor D-229 had named and that the compiler census could not see
 progress:
   total_phases: 14
   completed_phases: 11
   total_plans: 163
-  completed_plans: 152
+  completed_plans: 153
   percent: 79
 ---
 
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 18 — Host Verification, Listing Review & FitOut Ops (EXECUTING)
-Plan: 3 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
-Status: Executing — next is 18-04
-Last activity: 2026-09-01 — 18-03 executed: `deriveBookable` gained a FIFTH and SIXTH required term and all seven gate sites moved with it in ONE commit (`5e233a9`, 40 files) alongside `makeVerifiedHost()` and every fixture and seed in the repository; `f4c4eda` then rebuilt the instruments (29 truth-table assertions, 14 parity fixtures over 8 hosts with 3 passing members, two new DB-row-counting refusal anchors). LVER-01 and HVER-03 complete; ENF-01 has only its block-new half.
+Plan: 4 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
+Status: Executing — next is 18-05
+Last activity: 2026-09-01 — 18-04 executed: `isPubliclyViewable` gained a REQUIRED third positional term and a THIRD call site. The two surfaces D-208 names (search, the public page) were already answerable; the one D-247 found — `src/lib/listing/og-facts.ts`, which held its OWN copy of the published check and so kept painting a real Open Graph card (title, space type, city, rate) for an unreviewed listing while the page 404'd, invisibly, on a route no browser renders — was NOT visible to the `tsc` census, because a copy is not a call site. LVER-02's booker-facing half is complete; its host-visibility clause (D-230) is 18-13's.
 
 ## Performance Metrics
 
@@ -72,7 +72,7 @@ Last activity: 2026-09-01 — 18-03 executed: `deriveBookable` gained a FIFTH an
 | 15 | 14 | - | - |
 | 16.1 | 7 | - | - |
 | 17.1 | 7 | - | - |
-| 18 | 3 | ~131 min | ~44 min |
+| 18 | 4 | ~154 min | ~39 min |
 
 *18-01: ~21 min wall-clock, 2 tasks (both auto), 6 files created + 1 modified (package.json), 2 commits + 1 metadata.
 The plan that everything else in Phase 18 consumes. `src/lib/ops/staff.ts` is ONE `cache()`'d expression with three
@@ -368,6 +368,43 @@ deferred walk is inconsistent rather than honest.*
 | Phase 17.1 P07 | 55min | 3 tasks | 5 files |
 
 ## Accumulated Context
+
+### Hidden-until-approved decisions taken during execution (18-04)
+
+- **⚠ THE COMPILER CENSUS FOUND TWO OF THE THREE SURFACES, AND THE ONE IT MISSED IS THE ONE THAT
+  LEAKED.** D-224's mechanism — make a new term a REQUIRED field/parameter so `tsc` enumerates every
+  call site — is the strongest tool this phase has, and it was watched failing at exactly the job it
+  was chosen for. Adding the required third parameter reddened `page.tsx:272` and
+  `public-listing.ts:143`. It said nothing about `src/lib/listing/og-facts.ts`, because that module
+  did not CALL the rule, it RESTATED it in one hand-written line. **A census counts callers; a copy is
+  not a caller.** The OG surface was found by research (D-247), not by the compiler, and had it not
+  been, this plan would have shipped a green `tsc`, a green suite, a 404ing listing page and a live
+  Open Graph card carrying an unreviewed listing's title, space type, city and rate. Ask on every
+  future gate: *who RESTATES this rule rather than calling it?* — grep for the rule's spelling, not
+  just for its name.
+- **The leak was invisible in a browser, which is why it survived two people fixing the same bug.**
+  `/listings/[id]/opengraph-image` is fetched by scrapers, link scanners and chat-preview proxies and
+  is never rendered in a page. `opengraph-image.tsx` even carried a comment asserting its fallback set
+  was *"the same set the page 404s on"* — true when written, false the moment the page's set grew a
+  term, and nothing anywhere could observe the divergence. That comment is now true by construction
+  and says so.
+- **`assertPublicListing` STAYS SESSION-FREE, and D-230 is 18-13's to satisfy elsewhere.** The
+  tempting shape — "404 unless viewable OR the caller owns it" — puts a session read on a
+  not-found-adjacent path, and `src/app/not-found.tsx:29-45` records the measured cost of doing that
+  once: a dynamic root not-found is in every route's tree, so the route table came back with **zero**
+  static routes. The header now forbids it in prose and names the host surfaces as the answer.
+- **The prohibition-in-a-documented-file trap bit again, and the repo's own answer was applied.** The
+  plan's acceptance grep `grep -c "getSession\|headers()" public-listing.ts == 0` went RED against the
+  CORRECT file, because the sentence explaining why those reads are forbidden necessarily named them.
+  `tests/helpers/source-text.ts` documents this exact failure (*"falsely red for prohibitions"*). The
+  warning was reworded to DESCRIBE the two call expressions rather than spell them, and both design
+  gates count over comment-stripped text or parsed AST nodes, never over raw source.
+- **A mutation proof that showed the pin is narrower than its description, recorded honestly.**
+  Defaulting `isPubliclyViewable`'s third parameter and changing nothing else leaves
+  `tests/design/soft-404-status.test.ts` **GREEN** — the arity pin cannot see the default in
+  isolation. It reddens on the default's CONSEQUENCE: a two-argument call at a real site, which `tsc`
+  still exits 0 on. That is the regression worth catching, but the gate's name oversells what it
+  watches, so its docblock says which half it owns.
 
 ### Sell-gate decisions taken during execution (18-03)
 
