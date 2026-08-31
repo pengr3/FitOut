@@ -1,0 +1,245 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Spike 001 — one-box intent routing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #fbf9f7; --card: #ffffff; --ink: #22201e; --muted: #736b64; --line: #e6e0da;
+    --brand: #e8604c; --brand-soft: #fdeeeb; --ok: #2f7d5d; --ok-soft: #eaf5ef;
+    --warn: #9a6b1e; --warn-soft: #fdf3e2; --dim: #f3efec; --r: 12px;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); line-height: 1.5; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 28px 18px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; margin-bottom: 16px; }
+  .boxrow { display: flex; gap: 8px; }
+  input[type=text] {
+    flex: 1; font: inherit; font-size: 17px; padding: 13px 14px; border: 1px solid var(--line);
+    border-radius: 10px; background: #fff; color: var(--ink); min-width: 0;
+  }
+  input[type=text]:focus { outline: 2px solid var(--brand); outline-offset: 1px; border-color: transparent; }
+  button {
+    font: inherit; font-weight: 600; padding: 13px 18px; border: 0; border-radius: 10px;
+    background: var(--brand); color: #fff; cursor: pointer;
+  }
+  button.ghost { background: var(--dim); color: var(--ink); font-weight: 500; padding: 7px 11px; font-size: 13px; border-radius: 999px; }
+  button.ghost:hover { background: #eae4df; }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; min-height: 30px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-size: 13px; border: 1px solid transparent; }
+  .chip b { font-weight: 600; }
+  .chip .k { opacity: .6; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  .c-cat { background: var(--brand-soft); color: #8f2f20; border-color: #f6cec6; }
+  .c-place { background: var(--ok-soft); color: #1d5741; border-color: #cbe5d9; }
+  .c-when { background: #eef2fb; color: #2b4272; border-color: #d3ddf1; }
+  .c-am { background: var(--dim); color: #4b443e; border-color: var(--line); }
+  .c-q { background: var(--warn-soft); color: var(--warn); border-color: #f0dcb8; }
+  .c-none { color: var(--muted); font-size: 13px; padding: 5px 0; }
+  .sugg { background: #fff; border: 1px dashed var(--brand); color: #8f2f20; }
+  code, .url { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+  .url { display: block; background: #2b2724; color: #f4efe9; padding: 11px 13px; border-radius: 9px; word-break: break-all; }
+  .url .p { color: #ffb3a3; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  .stat { font-size: 13px; color: var(--muted); }
+  .stat b { color: var(--ink); font-size: 20px; display: block; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  td, th { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  .stage { font-family: ui-monospace, monospace; font-size: 11px; background: var(--dim); padding: 1px 6px; border-radius: 4px; }
+  .log { max-height: 210px; overflow: auto; font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--muted); }
+  .log div { padding: 2px 0; border-bottom: 1px solid #f2eeea; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .warnbox { background: var(--warn-soft); border: 1px solid #f0dcb8; color: #6d4a12; padding: 10px 12px; border-radius: 9px; font-size: 13px; }
+</style>
+
+<div class="wrap">
+  <h1>One box, four stages</h1>
+  <p class="sub">
+    Spike 001. Type the way a booker actually types. Everything below is emitted as
+    <b>server</b> params — no price and no availability is computed here (D-130).
+  </p>
+
+  <div class="card">
+    <div class="boxrow">
+      <input id="q" type="text" placeholder="Try: pickleball in makati tonight" autocomplete="off" autofocus />
+      <button id="go">Search</button>
+    </div>
+    <div class="chips" style="margin-top:12px">
+      <button class="ghost" data-ex="pickleball">pickleball</button>
+      <button class="ghost" data-ex="yoga tonight">yoga tonight</button>
+      <button class="ghost" data-ex="basketball court in ortigas">basketball court in ortigas</button>
+      <button class="ghost" data-ex="quezon city gym saturday">quezon city gym saturday</button>
+      <button class="ghost" data-ex="hoops near me">hoops near me</button>
+      <button class="ghost" data-ex="pickelball">pickelball (typo)</button>
+      <button class="ghost" data-ex="bgc">bgc</button>
+      <button class="ghost" data-ex="dennis">dennis</button>
+      <button class="ghost" data-ex="ayala avenue makati">ayala avenue makati</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="label">What it understood</p>
+    <div class="chips" id="chips"><span class="c-none">Nothing yet — the empty box is the default browse view (D-30).</span></div>
+    <div id="suggwrap" style="display:none;margin-top:12px">
+      <p class="label" style="margin-bottom:6px">Offered, never applied</p>
+      <div class="chips" id="sugg"></div>
+      <p class="note" id="suggwhy"></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="label">The request the server receives</p>
+    <span class="url" id="url">/search</span>
+    <div class="grid" style="margin-top:14px">
+      <div class="stat"><b id="ms">0.00 ms</b>router time</div>
+      <div class="stat"><b id="net">0</b>third-party calls</div>
+    </div>
+    <div id="geowarn" class="warnbox" style="display:none;margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <p class="label">Stage trace — where the intent was resolved</p>
+    <table id="trace"><tbody></tbody></table>
+    <p class="note">
+      S1 temporal · S2 vocabulary (44 closed terms) · S3 our own catalog · S4 free text · S5 the world.
+      Today's search bar starts at S5. Across the 30-query corpus this router reaches it <b>zero</b> times.
+    </p>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <p class="label" style="margin:0">Forensic log</p>
+      <div>
+        <button class="ghost" id="export">Export JSON</button>
+        <button class="ghost" id="clear">Clear</button>
+      </div>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="router.js"></script>
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const events = [];
+  let netCalls = 0;
+
+  function logEvent(cat, msg, data) {
+    const e = { t: new Date().toISOString(), cat, msg, data };
+    events.push(e);
+    const d = document.createElement("div");
+    d.textContent = `${e.t.slice(11, 23)}  [${cat}]  ${msg}`;
+    $("log").prepend(d);
+  }
+
+  // file:// pages send Origin: null, which some public APIs reject. Stage 5 degrades to "not
+  // attempted" rather than pretending — the spike must never report a geocode it did not make.
+  const countingFetch = (url) => { netCalls++; logEvent("net", "GET " + url); return fetch(url); };
+  const geocode = SpikeRouter.photonGeocoder(countingFetch);
+
+  const chip = (cls, k, v) => `<span class="chip ${cls}"><span class="k">${k}</span><b>${v}</b></span>`;
+
+  async function render(raw) {
+    netCalls = 0;
+    const t0 = performance.now();
+    let r;
+    try {
+      r = await SpikeRouter.route(raw, { now: new Date(), geocode });
+    } catch (err) {
+      logEvent("error", err.message);
+      return;
+    }
+    const ms = performance.now() - t0;
+
+    // chips
+    const p = r.params;
+    const out = [];
+    if (p.category) out.push(chip("c-cat", "type", p.category));
+    if (p.place) out.push(chip("c-place", p.placeKind || "place", p.place));
+    if (p.origin) out.push(chip("c-place", "address", p.origin));
+    if (p.useMyLocation) out.push(chip("c-place", "where", "my location"));
+    if (p.date) out.push(chip("c-when", "date", p.date));
+    if (p.start) out.push(chip("c-when", "time", p.start + "–" + p.end));
+    (p.amenity || []).forEach((a) => out.push(chip("c-am", "amenity", a)));
+    if (p.q) out.push(chip("c-q", "free text", p.q));
+    $("chips").innerHTML = out.length ? out.join("") :
+      '<span class="c-none">Nothing claimed — the default browse view (D-30).</span>';
+
+    // suggestions
+    if (r.suggestions && r.suggestions.length) {
+      $("suggwrap").style.display = "";
+      $("sugg").innerHTML = r.suggestions
+        .map((s) => `<span class="chip sugg">Did you mean <b>&nbsp;${s.label}</b>?</span>`).join("");
+      $("suggwhy").textContent =
+        "These are inferences (fuzzy or a short form of a district). They are shown, never applied — " +
+        "a wrong category does not fail to help, it silently deletes the listings you wanted.";
+    } else {
+      $("suggwrap").style.display = "none";
+    }
+
+    // url
+    const qs = new URLSearchParams();
+    Object.entries(p).forEach(([k, v]) => {
+      if (Array.isArray(v)) v.forEach((x) => qs.append(k, x));
+      else if (k !== "placeKind") qs.set(k, String(v));
+    });
+    const s = qs.toString();
+    $("url").innerHTML = "/search" + (s ? "?" + s.replace(/([^&=]+)=/g, '<span class="p">$1</span>=') : "");
+
+    $("ms").textContent = ms.toFixed(2) + " ms";
+    $("net").textContent = String(netCalls);
+    $("geowarn").style.display = netCalls ? "" : "none";
+    if (netCalls) {
+      $("geowarn").innerHTML =
+        "<b>Stage 5 fired.</b> This input reached the OpenStreetMap geocoder — the only stage that " +
+        "leaves the machine. Today's search bar reaches it on <i>every</i> search.";
+    }
+
+    // trace
+    const tb = $("trace").querySelector("tbody");
+    const rows = [];
+    r.matches.forEach((m) =>
+      rows.push(`<tr><td><span class="stage">${m.stage}</span></td><td>${m.kind}</td>
+                 <td><b>${m.value}</b></td><td>${m.via || "exact"}</td></tr>`));
+    (r.suggestions || []).forEach((m) =>
+      rows.push(`<tr style="opacity:.65"><td><span class="stage">${m.stage}</span></td><td>${m.kind}</td>
+                 <td>${m.value} <em>(suggested)</em></td><td>${m.via || ""}</td></tr>`));
+    if (r.residue) rows.push(`<tr><td><span class="stage">S4</span></td><td>residue</td>
+                 <td><b>${r.residue}</b></td><td>→ free-text q (spike 002 decides the cost)</td></tr>`);
+    tb.innerHTML = rows.length ? rows.join("")
+      : '<tr><td colspan="4" style="color:var(--muted)">no stage claimed anything</td></tr>';
+
+    logEvent("route", JSON.stringify(raw), { params: p, ms: +ms.toFixed(3), suggestions: (r.suggestions || []).length });
+  }
+
+  let timer;
+  $("q").addEventListener("input", (e) => {
+    clearTimeout(timer);
+    const v = e.target.value;
+    // Debounced, and stages 1-4 are local — only address-shaped residue can reach the network.
+    timer = setTimeout(() => render(v), 180);
+  });
+  $("go").addEventListener("click", () => render($("q").value));
+  document.querySelectorAll("[data-ex]").forEach((b) =>
+    b.addEventListener("click", () => { $("q").value = b.dataset.ex; render(b.dataset.ex); }));
+
+  $("export").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), events }, null, 2)],
+      { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "spike-001-session-log.json";
+    a.click();
+  });
+  $("clear").addEventListener("click", () => { events.length = 0; $("log").innerHTML = ""; });
+
+  logEvent("boot", `index built: ${SpikeRouter.INDEX.length} terms (44 vocab + synonyms + ${SpikeData.CATALOG.length} catalog places)`);
+})();
+</script>

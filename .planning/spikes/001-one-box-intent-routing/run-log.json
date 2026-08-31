@@ -1,0 +1,990 @@
+{
+  "ranAt": "2026-08-31T06:08:54.315Z",
+  "clock": "2026-08-31T01:00:00.000Z",
+  "mode": "live",
+  "score": {
+    "pass": 30,
+    "of": 30
+  },
+  "totalMs": 3,
+  "stageHits": {
+    "S2": 27,
+    "S3": 9,
+    "S1": 7,
+    "S1b": 1
+  },
+  "rows": [
+    {
+      "input": "pickleball",
+      "note": "the query Photon answers with a court in Florida",
+      "params": {
+        "category": "pickleball"
+      },
+      "matches": [
+        "S2:activityTag=pickleball (label)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "pickleball in makati",
+      "note": null,
+      "params": {
+        "category": "pickleball",
+        "place": "Makati",
+        "placeKind": "city",
+        "lat": 14.55718,
+        "lng": 121.02638
+      },
+      "matches": [
+        "S2:activityTag=pickleball (label)",
+        "S3:city=Makati (catalog)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 1,
+          "note": "2 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 1,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "yoga tonight",
+      "note": null,
+      "params": {
+        "category": "yoga",
+        "date": "2026-08-31",
+        "start": "18:00",
+        "end": "22:00"
+      },
+      "matches": [
+        "S2:activityTag=yoga (label)",
+        "S1:date=2026-08-31",
+        "S1:window=[object Object]"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "3 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "basketball court in ortigas",
+      "note": "short form of a district — offered, never applied",
+      "params": {
+        "category": "basketball_court",
+        "q": "ortigas"
+      },
+      "matches": [
+        "S2:spaceType=basketball_court (label)"
+      ],
+      "suggestions": [
+        "S3b:neighborhood=Ortigas Center (prefix:ortigas)"
+      ],
+      "residue": "ortigas",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 1,
+          "note": "1 match(es) from the closed set + catalog; residue=\"ortigas\""
+        },
+        {
+          "stage": "S4",
+          "note": "residue → free-text q (needs spike 002 verdict)"
+        }
+      ],
+      "ms": 1,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": [
+          "Ortigas Center"
+        ]
+      }
+    },
+    {
+      "input": "gym",
+      "note": "synonym: no label contains the bare word 'gym'",
+      "params": {
+        "category": "gym_fitness_floor"
+      },
+      "matches": [
+        "S2:spaceType=gym_fitness_floor (synonym)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "poblacion",
+      "note": null,
+      "params": {
+        "place": "Poblacion",
+        "placeKind": "neighborhood",
+        "lat": 14.55718,
+        "lng": 121.02638
+      },
+      "matches": [
+        "S3:neighborhood=Poblacion (catalog)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "makati yoga studio",
+      "note": null,
+      "params": {
+        "category": "yoga_studio",
+        "place": "Makati",
+        "placeKind": "city",
+        "lat": 14.55718,
+        "lng": 121.02638
+      },
+      "matches": [
+        "S2:spaceType=yoga_studio (label)",
+        "S3:city=Makati (catalog)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "2 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "pickelball",
+      "note": "typo — offered as 'did you mean', never applied silently",
+      "params": {
+        "q": "pickelball"
+      },
+      "matches": [],
+      "suggestions": [
+        "S2b:activityTag=pickleball (fuzzy:pickelball)"
+      ],
+      "residue": "pickelball",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "0 match(es) from the closed set + catalog; residue=\"pickelball\""
+        },
+        {
+          "stage": "S4",
+          "note": "residue → free-text q (needs spike 002 verdict)"
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": [
+          "pickleball"
+        ]
+      }
+    },
+    {
+      "input": "boxing",
+      "note": null,
+      "params": {
+        "category": "boxing_mma"
+      },
+      "matches": [
+        "S2:activityTag=boxing_mma (synonym)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "muay thai",
+      "note": "two-word synonym",
+      "params": {
+        "category": "boxing_mma"
+      },
+      "matches": [
+        "S2:activityTag=boxing_mma (synonym)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "alabang multi-sport court",
+      "note": null,
+      "params": {
+        "category": "multi_sport_court",
+        "place": "Alabang",
+        "placeKind": "neighborhood",
+        "lat": 14.418,
+        "lng": 121.04
+      },
+      "matches": [
+        "S2:spaceType=multi_sport_court (label)",
+        "S3:neighborhood=Alabang (catalog)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "2 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "quezon city gym saturday",
+      "note": "3 intents, one box; 'quezon city' must not split",
+      "params": {
+        "category": "gym_fitness_floor",
+        "place": "Quezon City",
+        "placeKind": "city",
+        "lat": 14.628,
+        "lng": 121.03,
+        "date": "2026-09-05"
+      },
+      "matches": [
+        "S3:city=Quezon City (catalog)",
+        "S2:spaceType=gym_fitness_floor (synonym)",
+        "S1:date=2026-09-05"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "3 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "tennis",
+      "note": "resolves cleanly and returns ZERO listings — the relaxation ladder's job, not the router's",
+      "params": {
+        "category": "tennis"
+      },
+      "matches": [
+        "S2:activityTag=tennis (label)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "bgc",
+      "note": "THE HONEST FAILURE — no catalog listing carries 'BGC', so it falls to free text",
+      "params": {
+        "q": "bgc"
+      },
+      "matches": [],
+      "suggestions": [],
+      "residue": "bgc",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "0 match(es) from the closed set + catalog; residue=\"bgc\""
+        },
+        {
+          "stage": "S4",
+          "note": "residue → free-text q (needs spike 002 verdict)"
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "court with showers",
+      "note": "amenity is a NET-NEW server param; 'court' alone is not a label",
+      "params": {
+        "amenity": [
+          "showers"
+        ],
+        "q": "court"
+      },
+      "matches": [
+        "S2:amenity=showers (label)"
+      ],
+      "suggestions": [],
+      "residue": "court",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"court\""
+        },
+        {
+          "stage": "S4",
+          "note": "residue → free-text q (needs spike 002 verdict)"
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "Sunlit Yoga Studio",
+      "note": "a listing NAME — the half the router cannot do without spike 002",
+      "params": {
+        "category": "yoga_studio",
+        "q": "sunlit"
+      },
+      "matches": [
+        "S2:spaceType=yoga_studio (label)"
+      ],
+      "suggestions": [],
+      "residue": "sunlit",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"sunlit\""
+        },
+        {
+          "stage": "S4",
+          "note": "residue → free-text q (needs spike 002 verdict)"
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "",
+      "note": "empty box = the D-30 default browse view, unchanged",
+      "params": {},
+      "matches": [],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S0",
+          "note": "empty input — default browse view (D-30)"
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "cheap pickleball",
+      "note": "HONEST: no price NLP. 'cheap' must not silently become a ceiling",
+      "params": {
+        "category": "pickleball",
+        "q": "cheap"
+      },
+      "matches": [
+        "S2:activityTag=pickleball (label)"
+      ],
+      "suggestions": [],
+      "residue": "cheap",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 1,
+          "note": "1 match(es) from the closed set + catalog; residue=\"cheap\""
+        },
+        {
+          "stage": "S4",
+          "note": "residue → free-text q (needs spike 002 verdict)"
+        }
+      ],
+      "ms": 1,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "pilates mandaluyong tomorrow",
+      "note": null,
+      "params": {
+        "category": "pilates",
+        "place": "Mandaluyong",
+        "placeKind": "city",
+        "lat": 14.5734,
+        "lng": 121.04452,
+        "date": "2026-09-01"
+      },
+      "matches": [
+        "S2:activityTag=pilates (label)",
+        "S3:city=Mandaluyong (catalog)",
+        "S1:date=2026-09-01"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "3 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "hoops near me",
+      "note": "absorbs the separate 'Use my location' button",
+      "params": {
+        "category": "basketball",
+        "useMyLocation": true
+      },
+      "matches": [
+        "S1b:useMyLocation=true",
+        "S2:activityTag=basketball (synonym)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "2 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "weightlifting kamias",
+      "note": null,
+      "params": {
+        "category": "weightlifting",
+        "place": "Kamias",
+        "placeKind": "neighborhood",
+        "lat": 14.628,
+        "lng": 121.03
+      },
+      "matches": [
+        "S2:activityTag=weightlifting (label)",
+        "S3:neighborhood=Kamias (catalog)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "2 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "dance studio",
+      "note": "longest-phrase-first: must beat the bare 'dance' tag",
+      "params": {
+        "category": "dance_studio"
+      },
+      "matches": [
+        "S2:spaceType=dance_studio (value)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "badminton this weekend",
+      "note": null,
+      "params": {
+        "category": "badminton",
+        "date": "2026-09-05"
+      },
+      "matches": [
+        "S1:date=2026-09-05",
+        "S2:activityTag=badminton (label)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "2 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "climbing",
+      "note": null,
+      "params": {
+        "category": "climbing"
+      },
+      "matches": [
+        "S2:activityTag=climbing (label)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "yoga in poblacion friday",
+      "note": null,
+      "params": {
+        "category": "yoga",
+        "place": "Poblacion",
+        "placeKind": "neighborhood",
+        "lat": 14.55718,
+        "lng": 121.02638,
+        "date": "2026-09-04"
+      },
+      "matches": [
+        "S2:activityTag=yoga (label)",
+        "S3:neighborhood=Poblacion (catalog)",
+        "S1:date=2026-09-04"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "3 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "multi purpose event space",
+      "note": null,
+      "params": {
+        "category": "multi_purpose_event"
+      },
+      "matches": [
+        "S2:spaceType=multi_purpose_event (label)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "crossfit",
+      "note": null,
+      "params": {
+        "category": "hiit_cross_training"
+      },
+      "matches": [
+        "S2:activityTag=hiit_cross_training (synonym)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "parking",
+      "note": "genuinely ambiguous — amenity or a place. Records which way the router leans",
+      "params": {
+        "amenity": [
+          "parking"
+        ]
+      },
+      "matches": [
+        "S2:amenity=parking (label)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "caloocan",
+      "note": null,
+      "params": {
+        "place": "Caloocan",
+        "placeKind": "city",
+        "lat": 14.64743,
+        "lng": 120.97108
+      },
+      "matches": [
+        "S3:city=Caloocan (catalog)"
+      ],
+      "suggestions": [],
+      "residue": "",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "1 match(es) from the closed set + catalog; residue=\"\""
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    },
+    {
+      "input": "yoga studio with showers and parking tomorrow",
+      "note": "the compound stress case",
+      "params": {
+        "category": "yoga_studio",
+        "amenity": [
+          "showers",
+          "parking"
+        ],
+        "date": "2026-09-01",
+        "q": "and"
+      },
+      "matches": [
+        "S2:spaceType=yoga_studio (label)",
+        "S2:amenity=showers (label)",
+        "S2:amenity=parking (label)",
+        "S1:date=2026-09-01"
+      ],
+      "suggestions": [],
+      "residue": "and",
+      "trace": [
+        {
+          "stage": "S1-S3",
+          "ms": 0,
+          "note": "4 match(es) from the closed set + catalog; residue=\"and\""
+        },
+        {
+          "stage": "S4",
+          "note": "residue → free-text q (needs spike 002 verdict)"
+        }
+      ],
+      "ms": 0,
+      "grade": {
+        "pass": true,
+        "missing": [],
+        "wrong": [],
+        "present": [],
+        "extra": [
+          "q"
+        ],
+        "sugMissing": null,
+        "sugGot": []
+      }
+    }
+  ]
+}

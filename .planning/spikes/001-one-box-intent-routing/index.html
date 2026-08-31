@@ -1,0 +1,759 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Spike 001 — one-box intent routing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #fbf9f7; --card: #ffffff; --ink: #22201e; --muted: #736b64; --line: #e6e0da;
+    --brand: #e8604c; --brand-soft: #fdeeeb; --ok: #2f7d5d; --ok-soft: #eaf5ef;
+    --warn: #9a6b1e; --warn-soft: #fdf3e2; --dim: #f3efec; --r: 12px;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); line-height: 1.5; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 28px 18px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; margin-bottom: 16px; }
+  .boxrow { display: flex; gap: 8px; }
+  input[type=text] {
+    flex: 1; font: inherit; font-size: 17px; padding: 13px 14px; border: 1px solid var(--line);
+    border-radius: 10px; background: #fff; color: var(--ink); min-width: 0;
+  }
+  input[type=text]:focus { outline: 2px solid var(--brand); outline-offset: 1px; border-color: transparent; }
+  button {
+    font: inherit; font-weight: 600; padding: 13px 18px; border: 0; border-radius: 10px;
+    background: var(--brand); color: #fff; cursor: pointer;
+  }
+  button.ghost { background: var(--dim); color: var(--ink); font-weight: 500; padding: 7px 11px; font-size: 13px; border-radius: 999px; }
+  button.ghost:hover { background: #eae4df; }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; min-height: 30px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-size: 13px; border: 1px solid transparent; }
+  .chip b { font-weight: 600; }
+  .chip .k { opacity: .6; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  .c-cat { background: var(--brand-soft); color: #8f2f20; border-color: #f6cec6; }
+  .c-place { background: var(--ok-soft); color: #1d5741; border-color: #cbe5d9; }
+  .c-when { background: #eef2fb; color: #2b4272; border-color: #d3ddf1; }
+  .c-am { background: var(--dim); color: #4b443e; border-color: var(--line); }
+  .c-q { background: var(--warn-soft); color: var(--warn); border-color: #f0dcb8; }
+  .c-none { color: var(--muted); font-size: 13px; padding: 5px 0; }
+  .sugg { background: #fff; border: 1px dashed var(--brand); color: #8f2f20; }
+  code, .url { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; }
+  .url { display: block; background: #2b2724; color: #f4efe9; padding: 11px 13px; border-radius: 9px; word-break: break-all; }
+  .url .p { color: #ffb3a3; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 620px) { .grid { grid-template-columns: 1fr; } }
+  .stat { font-size: 13px; color: var(--muted); }
+  .stat b { color: var(--ink); font-size: 20px; display: block; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  td, th { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; }
+  .stage { font-family: ui-monospace, monospace; font-size: 11px; background: var(--dim); padding: 1px 6px; border-radius: 4px; }
+  .log { max-height: 210px; overflow: auto; font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--muted); }
+  .log div { padding: 2px 0; border-bottom: 1px solid #f2eeea; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .warnbox { background: var(--warn-soft); border: 1px solid #f0dcb8; color: #6d4a12; padding: 10px 12px; border-radius: 9px; font-size: 13px; }
+</style>
+
+<div class="wrap">
+  <h1>One box, four stages</h1>
+  <p class="sub">
+    Spike 001. Type the way a booker actually types. Everything below is emitted as
+    <b>server</b> params — no price and no availability is computed here (D-130).
+  </p>
+
+  <div class="card">
+    <div class="boxrow">
+      <input id="q" type="text" placeholder="Try: pickleball in makati tonight" autocomplete="off" autofocus />
+      <button id="go">Search</button>
+    </div>
+    <div class="chips" style="margin-top:12px">
+      <button class="ghost" data-ex="pickleball">pickleball</button>
+      <button class="ghost" data-ex="yoga tonight">yoga tonight</button>
+      <button class="ghost" data-ex="basketball court in ortigas">basketball court in ortigas</button>
+      <button class="ghost" data-ex="quezon city gym saturday">quezon city gym saturday</button>
+      <button class="ghost" data-ex="hoops near me">hoops near me</button>
+      <button class="ghost" data-ex="pickelball">pickelball (typo)</button>
+      <button class="ghost" data-ex="bgc">bgc</button>
+      <button class="ghost" data-ex="dennis">dennis</button>
+      <button class="ghost" data-ex="ayala avenue makati">ayala avenue makati</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="label">What it understood</p>
+    <div class="chips" id="chips"><span class="c-none">Nothing yet — the empty box is the default browse view (D-30).</span></div>
+    <div id="suggwrap" style="display:none;margin-top:12px">
+      <p class="label" style="margin-bottom:6px">Offered, never applied</p>
+      <div class="chips" id="sugg"></div>
+      <p class="note" id="suggwhy"></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="label">The request the server receives</p>
+    <span class="url" id="url">/search</span>
+    <div class="grid" style="margin-top:14px">
+      <div class="stat"><b id="ms">0.00 ms</b>router time</div>
+      <div class="stat"><b id="net">0</b>third-party calls</div>
+    </div>
+    <div id="geowarn" class="warnbox" style="display:none;margin-top:12px"></div>
+  </div>
+
+  <div class="card">
+    <p class="label">Stage trace — where the intent was resolved</p>
+    <table id="trace"><tbody></tbody></table>
+    <p class="note">
+      S1 temporal · S2 vocabulary (44 closed terms) · S3 our own catalog · S4 free text · S5 the world.
+      Today's search bar starts at S5. Across the 30-query corpus this router reaches it <b>zero</b> times.
+    </p>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <p class="label" style="margin:0">Forensic log</p>
+      <div>
+        <button class="ghost" id="export">Export JSON</button>
+        <button class="ghost" id="clear">Clear</button>
+      </div>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script>
+/* Spike 001 — data layer.
+ *
+ * TWO vocabularies, and the whole point of this spike is that they are DIFFERENT KINDS of thing:
+ *
+ *   VOCAB    — transcribed verbatim from `src/lib/listing-vocab.ts` (D-08). 11 space types +
+ *              20 activity tags + 13 amenities = 44 terms. This is a CLOSED set the product owns.
+ *              It never changes without a code change, so matching against it is exact and free.
+ *
+ *   CATALOG  — the DISTINCT (city, neighborhood) of PUBLISHED listings, with a centroid, produced by
+ *              one GROUP BY against the live DB at migration 0025. Dumped 2026-08-31 from
+ *              `fitout-db-1`. This is an OPEN set derived from data, and it is the spike's central
+ *              claim: the catalog knows the places a Manila booker actually types, and the OSM
+ *              geocoder does not.
+ *
+ * Neither needs a migration. That is the GATE-06 argument in two constants.
+ *
+ * Loaded as a CLASSIC script (no ESM) so the same file works in the browser over file:// and in
+ * Node via require(). Do not add `import`/`export` here.
+ */
+(function (root) {
+  "use strict";
+
+  // ── The closed product vocabulary (src/lib/listing-vocab.ts) ──────────────────────────────────
+  const SPACE_TYPES = [
+    { value: "pickleball_court", label: "Pickleball court" },
+    { value: "tennis_court", label: "Tennis court" },
+    { value: "basketball_court", label: "Basketball court" },
+    { value: "multi_sport_court", label: "Multi-sport court" },
+    { value: "gym_fitness_floor", label: "Gym / fitness floor" },
+    { value: "yoga_studio", label: "Yoga studio" },
+    { value: "dance_studio", label: "Dance / movement studio" },
+    { value: "pilates_barre_studio", label: "Pilates / barre studio" },
+    { value: "martial_arts_boxing", label: "Martial arts / boxing gym" },
+    { value: "home_private_gym", label: "Home / private gym" },
+    { value: "multi_purpose_event", label: "Multi-purpose / event space" },
+  ];
+
+  const ACTIVITY_TAGS = [
+    { value: "pickleball", label: "Pickleball" },
+    { value: "tennis", label: "Tennis" },
+    { value: "basketball", label: "Basketball" },
+    { value: "volleyball", label: "Volleyball" },
+    { value: "badminton", label: "Badminton" },
+    { value: "futsal_soccer", label: "Futsal / soccer" },
+    { value: "yoga", label: "Yoga" },
+    { value: "pilates", label: "Pilates" },
+    { value: "barre", label: "Barre" },
+    { value: "dance", label: "Dance" },
+    { value: "hiit_cross_training", label: "HIIT / cross-training" },
+    { value: "weightlifting", label: "Weightlifting" },
+    { value: "boxing_mma", label: "Boxing / MMA" },
+    { value: "climbing", label: "Climbing" },
+    { value: "general_fitness", label: "General fitness" },
+  ];
+
+  const AMENITIES = [
+    { value: "showers", label: "Showers" },
+    { value: "lockers_changing", label: "Lockers / changing room" },
+    { value: "restrooms", label: "Restrooms" },
+    { value: "parking", label: "Parking" },
+    { value: "equipment_provided", label: "Equipment provided" },
+    { value: "climate_control", label: "Air conditioning / heating" },
+    { value: "wifi", label: "Wi-Fi" },
+    { value: "drinking_water", label: "Drinking water" },
+    { value: "sound_system", label: "Sound system" },
+    { value: "mirrors", label: "Mirrors" },
+    { value: "accessible_step_free", label: "Accessible (step-free)" },
+    { value: "towels", label: "Towels" },
+    { value: "first_aid_aed", label: "First-aid / AED" },
+  ];
+
+  /* Colloquial forms a booker types that are NOT in the vocabulary's labels.
+   *
+   * Deliberately SMALL and deliberately hand-written. A synonym list is a maintenance liability and
+   * this spike is measuring how far a short one gets, not proposing an unbounded one. Every entry
+   * here is a word a Manila booker plausibly types that no label contains. `search-bar.tsx` today
+   * offers NONE of this — the Select forces the booker to recognise the label instead of recalling
+   * their own word, which is the whole ergonomic difference the one box is testing. */
+  const SYNONYMS = {
+    gym: "gym_fitness_floor",
+    weights: "weightlifting",
+    lifting: "weightlifting",
+    hoops: "basketball",
+    bball: "basketball",
+    football: "futsal_soccer",
+    soccer: "futsal_soccer",
+    futsal: "futsal_soccer",
+    muaythai: "boxing_mma",
+    "muay thai": "boxing_mma",
+    mma: "boxing_mma",
+    boxing: "boxing_mma",
+    jiujitsu: "boxing_mma",
+    "jiu jitsu": "boxing_mma",
+    bjj: "boxing_mma",
+    karate: "martial_arts_boxing",
+    taekwondo: "martial_arts_boxing",
+    crossfit: "hiit_cross_training",
+    hiit: "hiit_cross_training",
+    zumba: "dance",
+    ballet: "dance",
+    bouldering: "climbing",
+    "rock climbing": "climbing",
+    aircon: "climate_control",
+    "air con": "climate_control",
+    ac: "climate_control",
+    shower: "showers",
+    park: "parking",
+  };
+
+  /* ── The catalog gazetteer ──────────────────────────────────────────────────────────────────────
+   * Dumped 2026-08-31 with, verbatim:
+   *
+   *   SELECT city, neighborhood, region, count(*) AS n,
+   *          ST_X(ST_Centroid(ST_Collect(location))) AS lng,
+   *          ST_Y(ST_Centroid(ST_Collect(location))) AS lat
+   *   FROM listing
+   *   WHERE status='published' AND deleted_at IS NULL AND city IS NOT NULL
+   *   GROUP BY city, neighborhood, region;
+   *
+   * Runs against migration 0025 with no new column and no new index. `n` is the honest promise
+   * attached to a suggestion: offering "Ortigas Center · 1 space" is a claim we can keep, and it is
+   * the property a geocoder can never have — Photon will happily send a booker to a district where
+   * FitOut has nothing. */
+  const CATALOG = [
+    { city: "Caloocan", neighborhood: "Kaunlaran", region: "Metro Manila", n: 1, lat: 14.64743, lng: 120.97108 },
+    { city: "Makati", neighborhood: "Poblacion", region: "Metro Manila", n: 12, lat: 14.55718, lng: 121.02638 },
+    { city: "Mandaluyong", neighborhood: "Highway Hills", region: "Metro Manila", n: 1, lat: 14.576, lng: 121.0437 },
+    { city: "Mandaluyong", neighborhood: "Pinatubo Street", region: "Metro Manila", n: 1, lat: 14.5708, lng: 121.04534 },
+    { city: "Muntinlupa", neighborhood: "Alabang", region: "Metro Manila", n: 1, lat: 14.418, lng: 121.04 },
+    { city: "Pasig", neighborhood: "Ortigas Center", region: "Metro Manila", n: 1, lat: 14.5866, lng: 121.0614 },
+    { city: "Quezon City", neighborhood: "Kamias", region: "Metro Manila", n: 1, lat: 14.628, lng: 121.03 },
+  ];
+
+  /* Words that join two intents rather than being one. Consumed silently. */
+  const CONNECTIVES = new Set(["in", "at", "near", "around", "by", "on", "the", "a", "an", "with", "for", "to"]);
+
+  /* "near me" / "nearby" / "here". The one box absorbs the `Use my location` BUTTON that
+   * search-bar.tsx renders as a separate control — the booker says it instead of finding it. */
+  const GEO_SELF = new Set(["me", "my location", "nearby", "near me", "here", "close to me"]);
+
+  /* Temporal words the one box can absorb so the booker never opens the date popover for the
+   * common cases. Resolved against an injected `now` — never `new Date()` inside the router, so the
+   * harness is deterministic. */
+  const TEMPORAL = {
+    today: 0,
+    tonight: 0,
+    tomorrow: 1,
+    "this weekend": "weekend",
+    weekend: "weekend",
+    monday: "dow:1", tuesday: "dow:2", wednesday: "dow:3", thursday: "dow:4",
+    friday: "dow:5", saturday: "dow:6", sunday: "dow:0",
+  };
+
+  /* "tonight" also implies an hour window; "today" does not. The distinction is the point —
+   * inventing a window the booker did not ask for is exactly the D-137 "never surprise them"
+   * failure, so only the word that genuinely means an hour range sets one. */
+  const TEMPORAL_WINDOW = { tonight: { start: "18:00", end: "22:00" } };
+
+  root.SpikeData = { SPACE_TYPES, ACTIVITY_TAGS, AMENITIES, SYNONYMS, CATALOG, CONNECTIVES, GEO_SELF, TEMPORAL, TEMPORAL_WINDOW };
+  if (typeof module !== "undefined" && module.exports) module.exports = root.SpikeData;
+})(typeof globalThis !== "undefined" ? globalThis : this);
+
+</script>
+<script>
+/* Spike 001 — the intent router.
+ *
+ * ONE text box in, SERVER search params out. Never a fetch of its own: the geocoder is an INJECTED
+ * function, which is what lets the Node harness run 30 cases deterministically off a fixture file
+ * while the browser demo calls Photon live through the same code path.
+ *
+ * ── THE ORDER IS THE FINDING ───────────────────────────────────────────────────────────────────
+ * Stages run closed-set-first, open-set-last, and the research measurement that forced it is in the
+ * README: typing `pickleball` into Photon returns a building in Quezon City and two pitches in the
+ * United States. Any design that geocodes the raw string is broken for the single most likely query
+ * on a pickleball marketplace. So:
+ *
+ *   S1 temporal   — closed set (14 words)
+ *   S2 vocabulary — closed set (44 terms + 27 synonyms), the product's own nouns
+ *   S3 catalog    — open set, but OURS: places that have published listings
+ *   S4 residue    — free text (`q`) → spike 002 decides if this is affordable at 0025
+ *   S5 geocode    — the world. Reached ONLY by residue that survived S1-S4, and clamped to the
+ *                   launch bbox. Today's search bar starts here; this router ends here.
+ *
+ * D-130 holds throughout: this emits PARAMS ONLY. No price, no availability, no distance is
+ * computed here — the server query remains the sole authority, exactly as `query.ts` has it.
+ */
+(function (root) {
+  "use strict";
+
+  const D = root.SpikeData || require("./data.js");
+
+  // ── normalisation ─────────────────────────────────────────────────────────────────────────────
+  /** Lowercase, strip accents and punctuation, collapse whitespace. */
+  function norm(s) {
+    return String(s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // strip combining diacritics
+      // ITERATION 2 — the hyphen was in this keep-list and `labelKey` below turns it into a space,
+      // so "multi-sport court" normalised to a token no label could ever equal. An asymmetry
+      // between how the INPUT and the VOCABULARY are normalised is invisible until a hyphenated
+      // label is typed the way it is printed. Both sides now split on it.
+      .replace(/[^a-z0-9\s.,]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  /** Label → matchable key: "Gym / fitness floor" → "gym fitness floor". */
+  const labelKey = (l) => norm(l).replace(/[/,-]/g, " ").replace(/\s+/g, " ").trim();
+
+  /** Within one DAMERAU edit — substitution, insertion, deletion, or ADJACENT TRANSPOSITION.
+   *
+   * ITERATION 2. This was plain Levenshtein and the corpus caught it immediately: `pickelball`
+   * scored FAIL. A swapped adjacent pair is TWO Levenshtein edits but ONE Damerau edit, and
+   * transposition is the typo people actually make on a keyboard — on the single most likely query
+   * this product will ever receive. Plain Levenshtein would have shipped a search box that does not
+   * forgive `pickelball`. */
+  function within1(a, b) {
+    if (a === b) return true;
+    const la = a.length, lb = b.length;
+    if (Math.abs(la - lb) > 1) return false;
+    let i = 0, j = 0, edits = 0;
+    while (i < la && j < lb) {
+      if (a[i] === b[j]) { i++; j++; continue; }
+      if (++edits > 1) return false;
+      if (la === lb && a[i] === b[j + 1] && a[i + 1] === b[j]) { i += 2; j += 2; continue; } // transposition
+      if (la > lb) i++;
+      else if (lb > la) j++;
+      else { i++; j++; }
+    }
+    if (i < la || j < lb) edits++;
+    return edits <= 1;
+  }
+
+  // ── the searchable index, built once ──────────────────────────────────────────────────────────
+  function buildIndex() {
+    const entries = [];
+    const push = (key, kind, value, label, source) =>
+      entries.push({ key, kind, value, label, source, words: key.split(" ").length });
+
+    D.SPACE_TYPES.forEach((t) => push(labelKey(t.label), "spaceType", t.value, t.label, "label"));
+    D.ACTIVITY_TAGS.forEach((t) => push(labelKey(t.label), "activityTag", t.value, t.label, "label"));
+    D.AMENITIES.forEach((t) => push(labelKey(t.label), "amenity", t.value, t.label, "label"));
+
+    // The machine values too ("gym_fitness_floor" → "gym fitness floor"), so a shared URL that
+    // carries a raw value still resolves if a booker pastes it into the box.
+    D.SPACE_TYPES.forEach((t) => push(t.value.replace(/_/g, " "), "spaceType", t.value, t.label, "value"));
+    D.ACTIVITY_TAGS.forEach((t) => push(t.value.replace(/_/g, " "), "activityTag", t.value, t.label, "value"));
+
+    Object.entries(D.SYNONYMS).forEach(([word, target]) => {
+      const st = D.SPACE_TYPES.find((t) => t.value === target);
+      const at = D.ACTIVITY_TAGS.find((t) => t.value === target);
+      const am = D.AMENITIES.find((t) => t.value === target);
+      const hit = st || at || am;
+      if (hit) push(norm(word), st ? "spaceType" : at ? "activityTag" : "amenity", hit.value, hit.label, "synonym");
+    });
+
+    // Catalog places: the neighborhood and the city are each independently typeable.
+    const seen = new Set();
+    D.CATALOG.forEach((p) => {
+      if (p.neighborhood) {
+        push(norm(p.neighborhood), "neighborhood", p.neighborhood, `${p.neighborhood}, ${p.city}`, "catalog");
+      }
+      if (!seen.has(p.city)) {
+        seen.add(p.city);
+        const inCity = D.CATALOG.filter((q) => q.city === p.city);
+        push(norm(p.city), "city", p.city, p.city, "catalog");
+        // centroid of the city's places, for the map's initial viewport
+        const lat = inCity.reduce((s, q) => s + q.lat * q.n, 0) / inCity.reduce((s, q) => s + q.n, 0);
+        const lng = inCity.reduce((s, q) => s + q.lng * q.n, 0) / inCity.reduce((s, q) => s + q.n, 0);
+        entries[entries.length - 1].centroid = { lat, lng };
+        entries[entries.length - 1].count = inCity.reduce((s, q) => s + q.n, 0);
+      }
+    });
+    // attach centroid/count to neighborhood entries
+    entries.forEach((e) => {
+      if (e.kind !== "neighborhood") return;
+      const p = D.CATALOG.find((q) => q.neighborhood === e.value);
+      if (p) { e.centroid = { lat: p.lat, lng: p.lng }; e.count = p.n; }
+    });
+
+    // Longest phrases first so "multi sport court" beats "court", "ortigas center" beats "ortigas".
+    entries.sort((a, b) => b.words - a.words || b.key.length - a.key.length);
+    return entries;
+  }
+
+  const INDEX = buildIndex();
+  const MAX_PHRASE = Math.max(...INDEX.map((e) => e.words), 3);
+
+  // ── temporal ──────────────────────────────────────────────────────────────────────────────────
+  function resolveTemporal(phrase, now) {
+    const rule = D.TEMPORAL[phrase];
+    if (rule === undefined) return null;
+    const base = new Date(now.getTime());
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (typeof rule === "number") { base.setDate(base.getDate() + rule); return { date: iso(base), how: phrase }; }
+    if (rule === "weekend") {
+      const delta = (6 - base.getDay() + 7) % 7; // next Saturday (today if Saturday)
+      base.setDate(base.getDate() + delta);
+      return { date: iso(base), how: phrase };
+    }
+    if (rule.startsWith("dow:")) {
+      const want = Number(rule.slice(4));
+      const delta = (want - base.getDay() + 7) % 7 || 7; // always FORWARD; "monday" on a Monday means next Monday
+      base.setDate(base.getDate() + delta);
+      return { date: iso(base), how: phrase };
+    }
+    return null;
+  }
+
+  // ── the router ────────────────────────────────────────────────────────────────────────────────
+  /**
+   * @param {string} input        raw text from the one box
+   * @param {object} opts
+   * @param {Date}   opts.now     injected clock (deterministic tests)
+   * @param {Function} opts.geocode  async (residue) => {lat,lng,label} | null — stage 5 only
+   * @returns {{params, matches, residue, trace}}
+   */
+  async function route(input, opts) {
+    opts = opts || {};
+    const now = opts.now || new Date();
+    const trace = [];
+    const t0 = Date.now();
+
+    const text = norm(input);
+    if (!text) {
+      trace.push({ stage: "S0", note: "empty input — default browse view (D-30)" });
+      return { params: {}, matches: [], suggestions: [], residue: "", trace, ms: Date.now() - t0 };
+    }
+
+    let tokens = text.split(" ");
+    const taken = new Array(tokens.length).fill(false);
+    let matches = [];
+
+    // S1 + S2 + S3 share ONE longest-phrase-first sweep, so a phrase can never be split across two
+    // stages ("ortigas center" is one place, not "ortigas" + a stray "center").
+    for (let len = Math.min(MAX_PHRASE, tokens.length); len >= 1; len--) {
+      for (let i = 0; i + len <= tokens.length; i++) {
+        if (taken.slice(i, i + len).some(Boolean)) continue;
+        const phrase = tokens.slice(i, i + len).join(" ");
+
+        // S1 — temporal
+        const when = resolveTemporal(phrase, now);
+        if (when) {
+          matches.push({ stage: "S1", kind: "date", value: when.date, label: phrase, confidence: 1, span: [i, i + len] });
+          const w = D.TEMPORAL_WINDOW[phrase];
+          if (w) matches.push({ stage: "S1", kind: "window", value: w, label: phrase, confidence: 1, span: [i, i + len] });
+          for (let k = i; k < i + len; k++) taken[k] = true;
+          continue;
+        }
+
+        // S1b — "near me" / "nearby": absorbs the separate `Use my location` button
+        if (D.GEO_SELF.has(phrase)) {
+          matches.push({ stage: "S1b", kind: "useMyLocation", value: true, label: phrase, confidence: 1, span: [i, i + len] });
+          for (let k = i; k < i + len; k++) taken[k] = true;
+          continue;
+        }
+
+        // S2/S3 — exact against the closed vocabulary, then the catalog
+        const exact = INDEX.find((e) => e.words === len && e.key === phrase);
+        if (exact) {
+          matches.push({
+            stage: exact.kind === "city" || exact.kind === "neighborhood" ? "S3" : "S2",
+            kind: exact.kind, value: exact.value, label: exact.label, confidence: 1,
+            via: exact.source, centroid: exact.centroid, count: exact.count, span: [i, i + len],
+          });
+          for (let k = i; k < i + len; k++) taken[k] = true;
+        }
+      }
+    }
+
+    // S3b — CATALOG PREFIX. ITERATION 2, and the most product-relevant of the three corrections.
+    //
+    // `basketball court in ortigas` scored FAIL because the catalog stores the neighborhood as
+    // "Ortigas Center" and nobody types the "Center". A booker types the SHORT form of a district
+    // — Ortigas, Alabang, Poblacion — and the long form is an artifact of how a host filled in an
+    // address field. Requiring the full stored string would have made the catalog stage look far
+    // weaker than it is, and would have pushed the exact queries this spike exists to serve down
+    // into the geocoder that research already proved answers them wrongly.
+    //
+    // Guarded on UNIQUENESS: a prefix matching two catalog entries is genuinely ambiguous and is
+    // left for the residue rather than guessed. Confidence is 0.9, never 1 — it is an inference.
+    for (let i = 0; i < tokens.length; i++) {
+      if (taken[i]) continue;
+      const tok = tokens[i];
+      if (tok.length < 4) continue;
+      const hits = INDEX.filter(
+        (e) => (e.kind === "city" || e.kind === "neighborhood") &&
+               e.key !== tok && e.key.split(" ")[0] === tok,
+      );
+      if (hits.length !== 1) continue;
+      const e = hits[0];
+      matches.push({
+        stage: "S3b", kind: e.kind, value: e.value, label: e.label, confidence: 0.9,
+        via: `prefix:${tok}`, centroid: e.centroid, count: e.count, span: [i, i + 1],
+      });
+      // ITERATION 4 — deliberately does NOT consume the token. A low-confidence match is an OFFER,
+      // and an offer that swallows the word leaves the booker with an empty result set and a hint.
+      // The token still falls through to the free-text residue, so a booker who typed a short
+      // district name gets whatever `q` finds AND the precise place chip to confirm.
+    }
+
+    // S2b — fuzzy, single tokens only, and only for words long enough that an edit is a typo rather
+    // than a different word. "tennis"/"dennis" is a real risk at length 5; at 6+ it is not.
+    tokens.forEach((tok, i) => {
+      if (taken[i] || tok.length < 6) return;
+      const near = INDEX.find((e) => e.words === 1 && within1(e.key, tok));
+      if (!near) return;
+      matches.push({
+        stage: "S2b",
+        kind: near.kind, value: near.value, label: near.label, confidence: 0.8,
+        via: "fuzzy:" + tok, centroid: near.centroid, count: near.count, span: [i, i + 1],
+      });
+      // ITERATION 4 — see S3b. `pickelball` scored FAIL because the fuzzy rule consumed the token
+      // and the search ran with NO parameters at all: the booker got the default browse view plus a
+      // "did you mean", which is worse than the typo. The word stays in the residue.
+    });
+
+    // Connectives are consumed silently — they carried meaning by joining, not by being.
+    tokens.forEach((tok, i) => { if (!taken[i] && D.CONNECTIVES.has(tok)) taken[i] = true; });
+
+    const residue = tokens.filter((_, i) => !taken[i]).join(" ").trim();
+
+    // ── assemble params ─────────────────────────────────────────────────────────────────────────
+    //
+    // ITERATION 3 — THE CONFIDENCE SPLIT, and it is the spike's most important correction.
+    //
+    // `edge-cases.js` P1 measured a 4-of-9 FALSE-POSITIVE rate on words that must claim nothing:
+    // `dennis` became category=tennis and `dancer` became category=dance, both through the fuzzy
+    // rule. A wrong category is strictly worse than no category — it does not merely fail to help,
+    // it SILENTLY DELETES every listing the booker wanted, and the results page has no way to say
+    // so. P2 then found the same shape in the prefix rule at catalog scale: `ayala` resolved
+    // uniquely, and therefore confidently, to "Ayala Alabang" — a different city twenty kilometres
+    // from the Ayala a Manila booker means.
+    //
+    // So the rule is now: ONLY confidence-1.0 matches (an exact hit in the closed vocabulary, or an
+    // exact hit in our own catalog) become PARAMS. Everything inferred — fuzzy, prefix — becomes a
+    // visible SUGGESTION the booker confirms. Uniqueness is not correctness, and the router is not
+    // entitled to act on a guess it cannot show.
+    //
+    // This is D-137 ("never surprise them") applied to search, and it is why the corpus expectation
+    // for `pickelball` was rewritten mid-spike rather than the measurement being explained away.
+    const CONFIDENT = 1;
+    const suggestions = matches.filter((m) => m.confidence < CONFIDENT);
+    matches = matches.filter((m) => m.confidence >= CONFIDENT);
+
+    const params = {};
+    const cat = matches.find((m) => m.kind === "spaceType" || m.kind === "activityTag");
+    if (cat) params.category = cat.value; // ONE combined param — D-35, unchanged
+    const amenities = matches.filter((m) => m.kind === "amenity").map((m) => m.value);
+    if (amenities.length) params.amenity = amenities; // ⚠ NET-NEW param — no server support today
+    const place = matches.find((m) => m.kind === "neighborhood") || matches.find((m) => m.kind === "city");
+    if (place) {
+      params.place = place.value;
+      params.placeKind = place.kind;
+      if (place.centroid) { params.lat = place.centroid.lat; params.lng = place.centroid.lng; }
+    }
+    if (matches.some((m) => m.kind === "useMyLocation")) params.useMyLocation = true;
+    const date = matches.find((m) => m.kind === "date");
+    if (date) params.date = date.value;
+    const win = matches.find((m) => m.kind === "window");
+    if (win) { params.start = win.value.start; params.end = win.value.end; }
+
+    trace.push({
+      stage: "S1-S3", ms: Date.now() - t0,
+      note: `${matches.length} match(es) from the closed set + catalog; residue=${JSON.stringify(residue)}`,
+    });
+
+    // S4/S5 — only the residue reaches the open world.
+    if (residue) {
+      const looksLikeAddress = /\d/.test(residue) || /\b(street|st|ave|avenue|road|rd|drive|blvd|boulevard|corner|cor)\b/.test(residue);
+      if (looksLikeAddress && opts.geocode) {
+        const g = await opts.geocode(residue);
+        trace.push({ stage: "S5", note: `geocoded ${JSON.stringify(residue)} → ${g ? g.label : "no result"}` });
+        if (g) { params.lat = g.lat; params.lng = g.lng; params.origin = g.label; delete params.place; delete params.placeKind; }
+        else params.q = residue;
+      } else {
+        params.q = residue; // ⚠ NET-NEW param — spike 002 decides whether this is affordable at 0025
+        trace.push({ stage: "S4", note: `residue → free-text q (needs spike 002 verdict)` });
+      }
+    }
+
+    return { params, matches, suggestions, residue, trace, ms: Date.now() - t0 };
+  }
+
+  /** The Photon call, as stage 5 would really make it — bbox-clamped to the launch region.
+   *  The bbox is NOT decoration: without it, research measured US results for a PH query. */
+  const LAUNCH_BBOX = "120.90,14.35,121.15,14.78"; // Metro Manila (minLon,minLat,maxLon,maxLat)
+  function photonGeocoder(fetchImpl) {
+    return async function (residue) {
+      const url = `https://photon.komoot.io/api?q=${encodeURIComponent(residue)}&limit=1&bbox=${LAUNCH_BBOX}`;
+      try {
+        const res = await fetchImpl(url);
+        const json = await res.json();
+        const f = json.features && json.features[0];
+        if (!f) return null;
+        const p = f.properties || {};
+        return {
+          lat: f.geometry.coordinates[1],
+          lng: f.geometry.coordinates[0],
+          label: [p.name, p.district, p.city].filter(Boolean).join(", "),
+          type: p.type,
+          extent: p.extent || null, // a free bbox when OSM has one — MAP-02 material
+        };
+      } catch (e) {
+        return null;
+      }
+    };
+  }
+
+  root.SpikeRouter = { route, norm, within1, INDEX, photonGeocoder, LAUNCH_BBOX };
+  if (typeof module !== "undefined" && module.exports) module.exports = root.SpikeRouter;
+})(typeof globalThis !== "undefined" ? globalThis : this);
+
+</script>
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const events = [];
+  let netCalls = 0;
+
+  function logEvent(cat, msg, data) {
+    const e = { t: new Date().toISOString(), cat, msg, data };
+    events.push(e);
+    const d = document.createElement("div");
+    d.textContent = `${e.t.slice(11, 23)}  [${cat}]  ${msg}`;
+    $("log").prepend(d);
+  }
+
+  // file:// pages send Origin: null, which some public APIs reject. Stage 5 degrades to "not
+  // attempted" rather than pretending — the spike must never report a geocode it did not make.
+  const countingFetch = (url) => { netCalls++; logEvent("net", "GET " + url); return fetch(url); };
+  const geocode = SpikeRouter.photonGeocoder(countingFetch);
+
+  const chip = (cls, k, v) => `<span class="chip ${cls}"><span class="k">${k}</span><b>${v}</b></span>`;
+
+  async function render(raw) {
+    netCalls = 0;
+    const t0 = performance.now();
+    let r;
+    try {
+      r = await SpikeRouter.route(raw, { now: new Date(), geocode });
+    } catch (err) {
+      logEvent("error", err.message);
+      return;
+    }
+    const ms = performance.now() - t0;
+
+    // chips
+    const p = r.params;
+    const out = [];
+    if (p.category) out.push(chip("c-cat", "type", p.category));
+    if (p.place) out.push(chip("c-place", p.placeKind || "place", p.place));
+    if (p.origin) out.push(chip("c-place", "address", p.origin));
+    if (p.useMyLocation) out.push(chip("c-place", "where", "my location"));
+    if (p.date) out.push(chip("c-when", "date", p.date));
+    if (p.start) out.push(chip("c-when", "time", p.start + "–" + p.end));
+    (p.amenity || []).forEach((a) => out.push(chip("c-am", "amenity", a)));
+    if (p.q) out.push(chip("c-q", "free text", p.q));
+    $("chips").innerHTML = out.length ? out.join("") :
+      '<span class="c-none">Nothing claimed — the default browse view (D-30).</span>';
+
+    // suggestions
+    if (r.suggestions && r.suggestions.length) {
+      $("suggwrap").style.display = "";
+      $("sugg").innerHTML = r.suggestions
+        .map((s) => `<span class="chip sugg">Did you mean <b>&nbsp;${s.label}</b>?</span>`).join("");
+      $("suggwhy").textContent =
+        "These are inferences (fuzzy or a short form of a district). They are shown, never applied — " +
+        "a wrong category does not fail to help, it silently deletes the listings you wanted.";
+    } else {
+      $("suggwrap").style.display = "none";
+    }
+
+    // url
+    const qs = new URLSearchParams();
+    Object.entries(p).forEach(([k, v]) => {
+      if (Array.isArray(v)) v.forEach((x) => qs.append(k, x));
+      else if (k !== "placeKind") qs.set(k, String(v));
+    });
+    const s = qs.toString();
+    $("url").innerHTML = "/search" + (s ? "?" + s.replace(/([^&=]+)=/g, '<span class="p">$1</span>=') : "");
+
+    $("ms").textContent = ms.toFixed(2) + " ms";
+    $("net").textContent = String(netCalls);
+    $("geowarn").style.display = netCalls ? "" : "none";
+    if (netCalls) {
+      $("geowarn").innerHTML =
+        "<b>Stage 5 fired.</b> This input reached the OpenStreetMap geocoder — the only stage that " +
+        "leaves the machine. Today's search bar reaches it on <i>every</i> search.";
+    }
+
+    // trace
+    const tb = $("trace").querySelector("tbody");
+    const rows = [];
+    r.matches.forEach((m) =>
+      rows.push(`<tr><td><span class="stage">${m.stage}</span></td><td>${m.kind}</td>
+                 <td><b>${m.value}</b></td><td>${m.via || "exact"}</td></tr>`));
+    (r.suggestions || []).forEach((m) =>
+      rows.push(`<tr style="opacity:.65"><td><span class="stage">${m.stage}</span></td><td>${m.kind}</td>
+                 <td>${m.value} <em>(suggested)</em></td><td>${m.via || ""}</td></tr>`));
+    if (r.residue) rows.push(`<tr><td><span class="stage">S4</span></td><td>residue</td>
+                 <td><b>${r.residue}</b></td><td>→ free-text q (spike 002 decides the cost)</td></tr>`);
+    tb.innerHTML = rows.length ? rows.join("")
+      : '<tr><td colspan="4" style="color:var(--muted)">no stage claimed anything</td></tr>';
+
+    logEvent("route", JSON.stringify(raw), { params: p, ms: +ms.toFixed(3), suggestions: (r.suggestions || []).length });
+  }
+
+  let timer;
+  $("q").addEventListener("input", (e) => {
+    clearTimeout(timer);
+    const v = e.target.value;
+    // Debounced, and stages 1-4 are local — only address-shaped residue can reach the network.
+    timer = setTimeout(() => render(v), 180);
+  });
+  $("go").addEventListener("click", () => render($("q").value));
+  document.querySelectorAll("[data-ex]").forEach((b) =>
+    b.addEventListener("click", () => { $("q").value = b.dataset.ex; render(b.dataset.ex); }));
+
+  $("export").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), events }, null, 2)],
+      { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "spike-001-session-log.json";
+    a.click();
+  });
+  $("clear").addEventListener("click", () => { events.length = 0; $("log").innerHTML = ""; });
+
+  logEvent("boot", `index built: ${SpikeRouter.INDEX.length} terms (44 vocab + synonyms + ${SpikeData.CATALOG.length} catalog places)`);
+})();
+</script>

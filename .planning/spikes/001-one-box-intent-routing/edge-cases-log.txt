@@ -1,0 +1,50 @@
+
+P1 · PRECISION — must NOT claim a category
+------------------------------------------------------------------------------
+  dennis                   (no claim)     a person's name, 1 edit from 'tennis'
+  denise                   (no claim)     ditto, 2 edits
+  yogi                     (no claim)     1 edit from 'yoga'? (len<6, fuzzy must not fire)
+  dancer                   (no claim)     1 edit from 'dance'
+  parkinson                (no claim)     starts with 'parking'
+  makatizen                (no claim)     starts with the city name
+  climb                    (no claim)     shorter form of a tag
+  boxing day sale          CLAIMED ["boxing_mma"]  via synonym   the word in a non-fitness sense
+  poblacion street food    CLAIMED ["Poblacion"]  via catalog   a real place + irrelevant words
+  → 2/9 claimed something
+
+P2 · SCALE — grow the catalog and re-ask the same questions
+------------------------------------------------------------------------------
+  catalog 7 → 37 places
+
+  prefix-rule behaviour once short forms collide:
+    ortigas        → no place; residue="ortigas"
+    poblacion      → Poblacion (catalog)
+    san            → no place; residue="san"
+    kami           → no place; residue="kami"
+    ayala          → no place; residue="ayala"
+    bonifacio      → no place; residue="bonifacio"
+    greenhills     → Greenhills (catalog)
+
+  fuzzy false-positive surface across the grown index:
+    none — no two index terms are within one edit
+
+P3 · HOSTILE INPUT
+------------------------------------------------------------------------------
+  yoga                       ...   category=yoga place=Makati                                     0ms   200 spaces
+  aaaaaaaaaaaaaaaaaaaaaaaaaaa...   q=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 0ms   5k chars
+  yoga'; DROP TABLE listing; --    category=yoga q=drop table listing                             0ms   SQL-shaped (params are bound server-side; router must not choke)
+  <script>alert(1)</script> yoga   category=yoga q=script alert 1 script                          0ms   HTML
+  YOGA IN MAKATI                   category=yoga place=Makati                                     0ms   shouting
+    yoga   in    makati            category=yoga place=Makati                                     0ms   ragged whitespace
+  yoga 🧘 makati                   category=yoga place=Makati                                     0ms   emoji
+  Parañaque                        q=paranaque                                                    0ms   diacritic (n-tilde)
+  yoga in makati in poblacion...   category=yoga place=Poblacion q=ortigas                        0ms   three places at once
+  pickleball pickleball pickl...   category=pickleball                                            0ms   repetition
+  !!!???                           (nothing)                                                      0ms   punctuation only
+
+P4 · COST at the grown index
+------------------------------------------------------------------------------
+  pickleball                                     0.0050 ms/query  (index=137 terms)
+  quezon city gym saturday                       0.0165 ms/query  (index=137 terms)
+  yoga studio with showers and parking tomorrow  0.0520 ms/query  (index=137 terms)
+
