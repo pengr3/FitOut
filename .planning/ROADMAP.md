@@ -850,8 +850,8 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 10. Design-System Foundation & Theme Runtime | v1.1 | 17/17 | Complete    | 2026-08-12 |
 | 11. Quality Gates, Pattern Layer & App Shell | v1.1 | 22/22 | Complete   | 2026-08-17 |
 | 12. Booker Path — Search → Listing → Checkout | v1.1 | 15/15 | Complete    | 2026-08-19 |
-| 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | Awaiting verification |  |
-| 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | All plans EXECUTED — awaiting phase verification (the D-113 guarantee ships in 13.1-04's sweep; 13.1-05 wires the same policy inline as an accelerant) | - |
+| 13. Confirmation, Bookings & Trust | v1.1 | 16/16 | **Verified — `human_needed`** (`13-VERIFICATION.md`: 9/9 requirement IDs accurately characterised, 2 COMPLETE + 7 code-complete PARTIAL, 0 over-marked, 0 FAILED). Five items need a human or a business decision, not code | - |
+| 13.1 Payment Reconciliation (INSERTED) | v1.1 | 5/5 | **Verified — `human_needed`** (`13.1-VERIFICATION.md`: 6/6 must-haves, 0 blockers, `gaps_remaining: []`). One residual item, open since Phase 13 and explicitly not among the three the PM approved for closure in 13.1-06 | - |
 | 14. Host Tooling | v1.1 | 16/16 | Complete   | 2026-08-23 |
 | 15. Auth, Profile & Transactional Email | v1.1 | 14/14 | Complete (re-verified · EMAIL-03 walked 2026-08-25, Outlook gap accepted by the PM) | 2026-08-25 |
 | 16. Image Crop & Framing | v1.1 | 16/16 | Complete (verified 2026-08-26 — 4/4 CROP requirements, no gaps; M1 settled by measurement). `dev` pushed at `025c1ad`; ci run 32939455683 GREEN on all four jobs incl. gate-visual — W-2 discharged | 2026-08-26 |
@@ -859,7 +859,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 14/14 | Complete (verified 2026-08-30 — 4/4 must-haves after one gap closed; GATE-01 evidence ci 33300952565 GREEN on a2f6973). 25 escalate-class findings filed in deferred-items.md for PM review; RESP-03/RESP-04/GATE-02/GATE-06 remain Pending by design | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-30 |
 | ~~18. Search & Discovery~~ | v1.1 | — | **Deferred to backlog 999.3** (2026-08-31, D-141) — spiked first, never planned | - |
-| 19. Availability Copy-to-All | v1.1 | 1/1 | **Shipped as quick task `260831-ndc`, never run as a phase (D-142)** — HOURS-01/02 satisfied, zero server changes, zero migrations; awaiting verification | 2026-08-31 |
+| 19. Availability Copy-to-All | v1.1 | 1/1 | **Shipped as quick task `260831-ndc`, never run as a phase (D-142)** — HOURS-01/02 satisfied, zero server changes, zero migrations. **Verified 2026-08-31** — whole-array replace and exact undo confirmed against the code, server byte-unchanged, gates re-run independently (availability 23 files/266 tests · 8 keyed design tests 130 · whole suite 2213 · build exit 0), and the 320px keyboard walk driven against the running app | 2026-08-31 |
 
 ## Carried Forward from v1.0 (not v1.1 work)
 
