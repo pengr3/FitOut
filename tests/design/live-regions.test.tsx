@@ -1137,8 +1137,18 @@ const PHASE_14_OWNED_TREES: readonly string[] = [
  * (`photo-uploader.tsx`'s own `status#1` row does not move either: `at` is a 1-based ordinal among
  * regions of the same kind in the same file — `live-regions.ts:227-229` — never a line number, so
  * inserting markup ABOVE that region re-keys nothing.)
+ *
+ * ⚠ 19 → 20 ON 31 AUGUST 2026 (quick task 260831-ndc, HOURS-01 / HOURS-02). THE NEW FILE IS
+ * `src/components/availability/copy-hours-dialog.tsx`, the copy-to-all day picker, which
+ * `weekly-hours-editor.tsx` now mounts beside its day rows. It authors NO live region of any kind —
+ * it is an overlay holding six checkbox rows, a calm one-line overwrite warning and two buttons, and
+ * the copy's outcome is announced by MOVED FOCUS onto the editor's undo control rather than by a
+ * region. So the inventory itself is unchanged and `src/lib/design/live-regions.ts` is not edited by
+ * that task; what moved is only the REACH, which is exactly the change this constant exists to make
+ * visible. Watched red at 19 with the import already in place, before the number moved:
+ * *"the walk reached 20 files inside the owned trees, not 19"* — 1 failed / 25 passed.
  */
-const PHASE_14_SURFACE_FILE_COUNT = 19;
+const PHASE_14_SURFACE_FILE_COUNT = 20;
 
 /** `from "@/x/y"` — the only import spelling this repository uses for its own modules. */
 const ALIAS_IMPORT = /from\s+["']@\/([^"']+)["']/g;

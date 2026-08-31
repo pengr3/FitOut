@@ -73,11 +73,37 @@
 // what the schema refuses; a client that greys the button has quietly appointed itself a second
 // authority on what can be stored. `tests/availability/week-strip.test.tsx` case (12) fails on it.
 
-import { useState } from "react";
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// QUICK 260831-ndc (HOURS-01 · HOURS-02 · D-142) — COPY ONE DAY'S HOURS ONTO OTHER DAYS
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// A HOST STOPS RE-ENTERING THE SAME HOURS SEVEN TIMES. Each day row gained a copy control; it opens
+// `copy-hours-dialog.tsx`, which picks the target days and names the ones that already have hours
+// BEFORE the copy applies; confirming replaces those days' whole window arrays; and until Save the
+// host can put the schedule back exactly as it was, multi-window and closed days included.
+//
+// THE COPY ADDS NO SECOND ROUTE TO THE SERVER. `deriveCopyPlan` (`lib/availability/copy-hours.ts`) is
+// a pure derivation over form state; its result goes into the SAME field array the selects write
+// into, and reaches the database through the submit handler below, re-parsed by the same
+// `weeklyHoursSchema`. `src/app/actions/operating-hours.ts` is byte-unchanged by this work and
+// `drizzle/` gained no migration.
+//
+// WHAT MOVED IN THE SAVE PATH, stated because the 14-12 block above says it did not: the success
+// branch now also drops the undo record. That is the whole of it — no rule, no validation, no gate,
+// no change to what is sent. HOURS-02's undo is a BEFORE-SAVE affordance, and an affordance offering
+// to reverse a committed save would be exactly the surprise D-137 forbids. Everything else the 14-12
+// and F-1 blocks call untouched is still untouched: the client-side overlap math, the validation
+// message, the resolver, the selects, and Save's "pressable unless a save is in flight" rule.
+//
+// THE HOURS LOCK IS NOT PRE-EMPTED HERE (T-19-04). No weekday is filtered out of the picker and no
+// client-side lock check exists — see the note beside the copy state below for why that is a
+// correctness requirement rather than an omission.
+
+import { useEffect, useId, useRef, useState } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { PlusIcon, XIcon } from "lucide-react";
+import { CopyIcon, PlusIcon, Undo2Icon, XIcon } from "lucide-react";
 
 import { weeklyHoursSchema, type WeeklyHoursInput } from "@/lib/validation/availability";
 import { saveOperatingHours } from "@/app/actions/operating-hours";
@@ -98,6 +124,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { PanelCard } from "@/components/patterns/panel-card";
 import { WeekStrip } from "@/components/availability/week-strip";
+import { CopyHoursDialog } from "@/components/availability/copy-hours-dialog";
+import type { CopyHoursPlan } from "@/lib/availability/copy-hours";
 // The three values this file used to declare for itself, from their one owner. The weekday names keep
 // their local name through an alias so the seven-row render below is textually unchanged — a container
 // swap that also renamed an identifier in the body would make "nothing else moved" unverifiable by diff.
@@ -134,7 +162,7 @@ export function WeeklyHoursEditor({
     defaultValues: { windows: initialWindows },
     mode: "onChange", // validate live so overlap / close≤open surface as you pick — not only on Save
   });
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "windows",
   });
@@ -180,6 +208,90 @@ export function WeeklyHoursEditor({
     return { dayOfWeek: day, openTime: hhmm(start), closeTime: hhmm(start + 1) };
   };
 
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // COPY-TO-ALL (HOURS-01 · HOURS-02) — A CLIENT FORM-STATE EDIT, AND NOTHING MORE
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  //
+  // The copy constructs no server call. `deriveCopyPlan` returns the next windows array, the picker
+  // hands it here, and it goes into the SAME field array the selects write into — so the copied
+  // windows reach the database through the unchanged submit handler below, re-parsed by the same
+  // `weeklyHoursSchema` as a hand-entered row. `src/app/actions/operating-hours.ts` is not edited by
+  // this feature and stays the one authority on what may be saved (D-130).
+  //
+  // ⚠ LOCKED WEEKDAYS ARE NOT FILTERED OUT OF THE PICKER, AND NO CLIENT-SIDE LOCK CHECK IS ADDED.
+  // The hours lock is the server action's rule, evaluated against the PERSISTED occupancy mode and
+  // the real bookings; the route already renders its own advisory naming the frozen weekdays, and a
+  // refusal already reaches this form through the shipped toast and the field error pinned onto the
+  // windows path. A pre-check here would be a second authority on the same question and the first
+  // place the two could disagree.
+  const [copySourceDay, setCopySourceDay] = useState<number | null>(null);
+  const [copyUndo, setCopyUndo] = useState<{
+    sourceDay: number;
+    sentence: string;
+    windows: WeeklyHoursWindow[];
+  } | null>(null);
+  const appliedSentenceId = useId();
+
+  // FOCUS STEERING, AND THE MEASURED DEFECT IT EXISTS FOR (GATE-A11Y · D-168's mitigation shape).
+  // This overlay has no trigger element of the dialog primitive's own, so Radix suppresses the
+  // browser's own focus restore and then aims at a reference nothing ever populated — dismissal would
+  // drop focus onto the document body, from where the next tab press restarts the page. The pattern's
+  // close-time focus hook is the only mechanism for that, and the destination is decided by what the
+  // host just did: the undo control after a copy applied, the copy control they opened it from after a
+  // dismissal. The destination is recorded when the intent is formed and read when the overlay closes.
+  //
+  // THE FOCUS CALL IS DEFERRED TO AN EFFECT rather than made inside the close handler, because the
+  // undo control has not mounted at the moment that handler runs. The request itself is held in a ref
+  // and the effect is woken by a counter, so the effect places focus and sets no state — a request
+  // stored as state would have to be cleared from inside the effect, which is a cascading-render
+  // shape the lint rules reject on sight.
+  type FocusTarget = { to: "undo" } | { to: "copy"; day: number };
+  const copyTriggers = useRef<Record<number, HTMLButtonElement | null>>({});
+  const undoControl = useRef<HTMLButtonElement | null>(null);
+  const closeIntent = useRef<FocusTarget | null>(null);
+  const pendingFocus = useRef<FocusTarget | null>(null);
+  const [focusRequests, setFocusRequests] = useState(0);
+
+  useEffect(() => {
+    const wanted = pendingFocus.current;
+    if (wanted === null) return;
+    pendingFocus.current = null;
+    const target = wanted.to === "undo" ? undoControl.current : copyTriggers.current[wanted.day];
+    target?.focus();
+  }, [focusRequests]);
+
+  /** Ask for focus to land somewhere once the render that mounts it has happened. */
+  const requestFocus = (target: FocusTarget | null) => {
+    pendingFocus.current = target;
+    setFocusRequests((count) => count + 1);
+  };
+
+  const openCopyFor = (day: number) => {
+    closeIntent.current = { to: "copy", day };
+    setCopySourceDay(day);
+  };
+
+  const applyCopy = (plan: CopyHoursPlan) => {
+    if (copySourceDay === null) return;
+    // A SNAPSHOT THAT ALIASES THE LIVE ROWS IS NOT A SNAPSHOT — clone every row, or the undo would
+    // restore objects the field array has since edited in place.
+    setCopyUndo({
+      sourceDay: copySourceDay,
+      sentence: plan.appliedSentence,
+      windows: form.getValues("windows").map((window) => ({ ...window })),
+    });
+    replace(plan.nextWindows);
+    closeIntent.current = { to: "undo" };
+    setCopySourceDay(null);
+  };
+
+  const undoCopy = () => {
+    if (copyUndo === null) return;
+    replace(copyUndo.windows);
+    requestFocus({ to: "copy", day: copyUndo.sourceDay });
+    setCopyUndo(null);
+  };
+
   const onSubmit = form.handleSubmit(async (values) => {
     setSaving(true);
     const res = await saveOperatingHours(listingId, values);
@@ -194,6 +306,11 @@ export function WeeklyHoursEditor({
     }
     toast.success("Hours saved");
     form.reset(values); // clear dirty state; keep the just-saved windows
+    // The copy is committed, so there is no longer an unsaved copy to take back. Leaving the undo
+    // affordance up after a successful save would offer to reverse something it cannot reverse: it
+    // restores FORM state, and the database now holds the copied schedule. HOURS-02's undo is a
+    // before-Save affordance, and this is where "before Save" ends.
+    setCopyUndo(null);
   });
 
   const windowsErr = form.formState.errors.windows as WindowsRootError;
@@ -334,15 +451,30 @@ export function WeeklyHoursEditor({
                           </Button>
                         </div>
                       ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="min-h-11"
-                        onClick={() => append(nextDefaultWindow(day))}
-                      >
-                        <PlusIcon className="size-4" /> Add hours
-                      </Button>
+                      {/* The row's two actions wrap rather than overflow at the narrow floor. */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="min-h-11"
+                          onClick={() => append(nextDefaultWindow(day))}
+                        >
+                          <PlusIcon className="size-4" /> Add hours
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="min-h-11"
+                          ref={(node) => {
+                            copyTriggers.current[day] = node;
+                          }}
+                          onClick={() => openCopyFor(day)}
+                        >
+                          <CopyIcon className="size-4" /> Copy {label}&apos;s hours
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -356,6 +488,32 @@ export function WeeklyHoursEditor({
             </p>
           )}
 
+          {copyUndo && (
+            // NOT A NEW BOX (D-155). This file left the raw-box allow-list in plan 14-12, so a card,
+            // a panel or a bordered container invented here would be a failure rather than an
+            // exemption. It is a line of muted text and a control, inside the stack that already
+            // exists between the day editor and the save row.
+            //
+            // The control's accessible description is wired to that sentence, which is how the
+            // outcome reaches a screen-reader host when focus lands here — no live region is added
+            // to this surface or to the picker.
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p id={appliedSentenceId} className="text-sm text-muted-foreground">
+                {copyUndo.sentence}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11"
+                ref={undoControl}
+                aria-describedby={appliedSentenceId}
+                onClick={undoCopy}
+              >
+                <Undo2Icon className="size-4" /> Undo copy
+              </Button>
+            </div>
+          )}
+
           <div className="flex justify-end">
             <Button type="submit" className="min-h-11" disabled={saving}>
               {saving ? "Saving…" : "Save hours"}
@@ -363,6 +521,22 @@ export function WeeklyHoursEditor({
           </div>
         </form>
       </Form>
+
+      {/* Mounted OUTSIDE the form and kept mounted while closed: the pattern's close-time focus hook
+          only fires for an overlay that is still in the tree when it goes away. */}
+      <CopyHoursDialog
+        sourceDay={copySourceDay}
+        windows={liveWindows}
+        onOpenChange={(next) => {
+          if (!next) setCopySourceDay(null);
+        }}
+        onApply={applyCopy}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          requestFocus(closeIntent.current);
+          closeIntent.current = null;
+        }}
+      />
     </div>
   );
 }
