@@ -174,13 +174,13 @@ instantly). ⚠ One invariant now rides on the auth config: `requireStaff()` is 
 `session.cookieCache` stays unconfigured — enabling it would keep a REVOKED grant alive for the cache
 TTL, and no test would go red. It is written into that module's header.
 
-**Plans:** 14 plans in 8 waves. Worktrees are OFF (`workflow.use_worktrees: false`), so plans run
+**Plans:** 3/14 plans executed
 SEQUENTIALLY on `dev`, one executor at a time — waves express dependency order, not concurrency.
 
 Plans:
 - [x] 18-01-PLAN.md — Staff identity: `requireStaff`/`assertStaff` + the CLI grant (wave 1)
 - [x] 18-02-PLAN.md — Schema, migrations & the grandfather backfill · **[BLOCKING] `npm run db:migrate`** (wave 2)
-- [ ] 18-03-PLAN.md — The sell-gate: seven sites + the fixture/seed sweep, ONE commit (wave 3)
+- [x] 18-03-PLAN.md — The sell-gate: seven sites + the fixture/seed sweep, ONE commit (wave 3)
 - [ ] 18-04-PLAN.md — Hidden until approved: the three leak surfaces (wave 4)
 - [ ] 18-05-PLAN.md — Verification port, ops decision actions & the review queue (wave 4)
 - [ ] 18-06-PLAN.md — Material edit returns a listing to review (wave 4)
@@ -209,7 +209,7 @@ Plans:
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-28 |
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
-| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 2/14 | In Progress (8 waves; 18-02 schema + grandfather migration APPLIED) | — |
+| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 3/14 | In Progress|  |
 
 ## Carried Forward (not v1.2 scope until promoted)
 

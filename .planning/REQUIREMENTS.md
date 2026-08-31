@@ -44,7 +44,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 - [x] **HVER-02** — FitOut stores only `{ result, vendorRef, checkedAt, provider }`. **No government
       ID, no document, no image** is stored — and there is no column that could hold one. Enforced by
       a test asserting the table's column set, not by convention. *(SC7 · D-206, D-220)*
-- [ ] **HVER-03** — A host's verification status is a **term of the sell-gate itself**, and is
+- [x] **HVER-03** — A host's verification status is a **term of the sell-gate itself**, and is
       **independent of `payoutsEnabled`** — never expressed in terms of it, and never replacing it.
       *(SC2 · D-224, D-225)*
 - [ ] **HVER-04** — A written **PayMongo Linked Accounts vs standalone PH KYC vendor** comparison is
@@ -56,7 +56,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 
 ### LVER — Listing review
 
-- [ ] **LVER-01** — A listing **created after this phase** cannot be sold until ops has approved both
+- [x] **LVER-01** — A listing **created after this phase** cannot be sold until ops has approved both
       it and its host, and that approval is a **term of `deriveBookable` itself** — never a separate
       check a code path can forget. The term is held equal across all of: the predicate, its inlined
       SQL twin in search Stage-1, and both server-side re-derivations in `placeHold` /
@@ -100,10 +100,10 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | OPS-05 | Phase 18 | Pending |
 | HVER-01 | Phase 18 | Pending |
 | HVER-02 | Phase 18 · 18-02 | Complete |
-| HVER-03 | Phase 18 | Pending |
+| HVER-03 | Phase 18 | Complete |
 | HVER-04 | Phase 18 | Pending |
 | HVER-05 | Phase 18 | Pending |
-| LVER-01 | Phase 18 | Pending |
+| LVER-01 | Phase 18 | Complete |
 | LVER-02 | Phase 18 | Pending |
 | LVER-03 | Phase 18 | Pending |
 | LVER-04 | Phase 18 · 18-02 | Complete |

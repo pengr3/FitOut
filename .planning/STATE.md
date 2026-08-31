@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 18-02-PLAN.md (Wave 2 — the data model + the grandfather migration). The sell-gate now has columns to read. `host_verification` (1:1 to `user`) and `listing_review` (history) exist, `listing.review_state` defaults `'pending'`, both OPS-04 queue indexes are ASC to byte-match the console's ORDER BY, and `'ops'` is on `cancelled_by` — added by drizzle/0027 alone (PG 55P04) and WRITTEN BY NOTHING until 18-08. `npm run db:migrate` RUN and idempotent: 19 published listings and 13 hosts grandfathered, 32 drafts left `pending`. Suite after: tsc 0; npm test 195 files / 2256 passed / 5 skipped (baseline 193 / 2248 — the delta is exactly this plan's 2 files and 8 tests); test:design 72 / 1296 (baseline 71 / 1291 — this plan's tripwire). Next — 18-03. ⚠ CARRY FORWARD FROM 18-01, STILL LIVE: `requireStaff()` is correct only while `session.cookieCache` stays unconfigured. The KYC vendor is still NOT settled and must not be (D-206 port + ops-manual provider; HVER-04 is the PM's fork, plan 18-14), and D-236 (ops refund retains the service fee) is the PM's to settle and leads the phase summary. ⚠ NEW CARRY-FORWARD: (a) GATE-06 was RE-SCOPED BY RULING from a migration freeze to shipped-migration IMMUTABILITY — `drizzle/0000`–`0025` are now pinned byte-for-byte and by name, while ADDING a migration is permitted, so 18-09's migration needs no gate change; editing a shipped one is red. (b) `deriveDisplayStatus`/`deriveBookingStatusView` take `cancelledBy` as a WIDENED `string`, so `tsc` will NOT flag the display forks when 18-08 first writes `'ops'` — they need a hand review. (c) `tests/design/enum-first-use-tripwire.test.ts` REQUIRES `--config vitest.design.config.ts`; the bare form exits 1 with "No test files found".
-last_updated: "2026-08-31T21:05:53.000Z"
-last_activity: 2026-08-31 — 18-02 executed (3 tasks + 1 ruled scope change, 4 commits): the verification/review data model, the applied grandfather migration, and the GATE-06 re-scoping
+stopped_at: Completed 18-03-PLAN.md (Wave 3 — THE SELL-GATE, the ROADMAP's named trap). `deriveBookable` now has SIX terms: `listing.reviewState` and `host.verificationStatus` are NEW REQUIRED fields on the existing parameter objects (D-224), compared against POSITIVE literals (`approved | grandfathered`) — never `!== 'suspended'`. All SEVEN sites moved in ONE commit with the whole fixture/seed blast radius (D-248, `5e233a9`, 40 files): the predicate, the inlined SQL twin (LEFT JOIN host_verification + `COALESCE(hv.status::text,'unverified')`), BOTH deliberate re-statements in `placeHold`/`placeOpenHold` (still NO shared helper — D-227), both RSC call sites, a new `makeVerifiedHost()` in tests/helpers/seed.ts that 19 Vitest files converge on, and the 14 non-Vitest seed sites. Then `f4c4eda` made the instruments strong again: 29 truth-table assertions (16+5+6+2), the parity table 5→14 fixtures / 3→8 hosts / **1→3 passing members**, and TWO new refusal anchors (`L_pending_review` + a suspended-host sibling; `L_OPEN_PENDING_REVIEW`) that count DB ROWS, not return values. Suite after: tsc 0; npm test 195 files / **2277** passed / 5 skipped (baseline 2256 — the +21 is exactly this plan's own); test:design 72 / 1296 / 3 unchanged; `npm run db:seed` then `/` renders 13 listings (Pitfall 7 closed). Next — 18-04. ⚠ CARRY FORWARD, STILL LIVE: `requireStaff()` is correct only while `session.cookieCache` stays unconfigured; the KYC vendor is still NOT settled and must not be (D-206 port + ops-manual provider; HVER-04 is the PM's fork, plan 18-14); D-236 (ops refund retains the service fee) is the PM's to settle. GATE-06 is now shipped-migration IMMUTABILITY, so ADDING a migration is fine and editing `0000`–`0025` is red. `deriveDisplayStatus`/`deriveBookingStatusView` take `cancelledBy` as a WIDENED `string`, so tsc will NOT flag the display forks when 18-08 first writes `'ops'`. `tests/design/*` REQUIRES `--config vitest.design.config.ts`. ⚠ NEW CARRY-FORWARD FROM 18-03: (a) **ENF-01 is NOT complete** — 18-03 shipped only its block-new half (`suspended` fails the host term at all seven sites); the ops suspend action (18-05) and cancel-and-refund (18-08) still owe the rest, so the checkbox stays open. LVER-01 and HVER-03 ARE complete. (b) Every future fixture that needs a sellable host must go through `makeVerifiedHost()` — `listing.review_state` DEFAULTS to `'pending'` and a host with NO `host_verification` row reads as `'unverified'`, so a hand-built fixture is now UNSELLABLE BY DEFAULT and fails with `not-bookable` rather than with anything that names the cause. (c) THREE PRE-EXISTING e2e REDS were proved and deferred, not fixed — see `.planning/phases/18-.../deferred-items.md`: `cancel.spec.ts:232` (reproduced identically against pre-plan `src/`), `calendar-hit-area.spec.ts` × 4 (a `now()`-relative 6-week-month assertion that September 2026 broke), and a `price-parity.spec.ts` flake from the `(public)/loading.tsx` SearchBar fallback racing the streamed page.
+last_updated: "2026-08-31T22:10:00.000Z"
+last_activity: 2026-09-01 — 18-03 executed (2 tasks, 2 commits): ops approval became a term of the sell-gate at all seven sites, with the 40-file fixture/seed sweep in the same atomic commit, then the truth table, the parity set-equality and the two re-statements' refusal anchors were rebuilt to measure it
 progress:
   total_phases: 14
   completed_phases: 11
   total_plans: 163
-  completed_plans: 151
+  completed_plans: 152
   percent: 79
 ---
 
@@ -44,15 +44,15 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 18 — Host Verification, Listing Review & FitOut Ops (EXECUTING)
-Plan: 2 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
-Status: Executing — next is 18-03
-Last activity: 2026-08-31 — 18-02 executed: `src/lib/db/schema.ts` (2 enums, 2 tables, `listing.review_state`, 2 queue indexes, `'ops'` on `cancelled_by`), `drizzle/0026` + `drizzle/0027` **applied to the dev DB**, three test files (13 cases), and a ruled GATE-06 re-scoping. Live catalogue grandfathered: 19 listings / 13 hosts.
+Plan: 3 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
+Status: Executing — next is 18-04
+Last activity: 2026-09-01 — 18-03 executed: `deriveBookable` gained a FIFTH and SIXTH required term and all seven gate sites moved with it in ONE commit (`5e233a9`, 40 files) alongside `makeVerifiedHost()` and every fixture and seed in the repository; `f4c4eda` then rebuilt the instruments (29 truth-table assertions, 14 parity fixtures over 8 hosts with 3 passing members, two new DB-row-counting refusal anchors). LVER-01 and HVER-03 complete; ENF-01 has only its block-new half.
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 81
+- Total plans completed: 82
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -72,7 +72,7 @@ Last activity: 2026-08-31 — 18-02 executed: `src/lib/db/schema.ts` (2 enums, 2
 | 15 | 14 | - | - |
 | 16.1 | 7 | - | - |
 | 17.1 | 7 | - | - |
-| 18 | 2 | ~53 min | ~27 min |
+| 18 | 3 | ~131 min | ~44 min |
 
 *18-01: ~21 min wall-clock, 2 tasks (both auto), 6 files created + 1 modified (package.json), 2 commits + 1 metadata.
 The plan that everything else in Phase 18 consumes. `src/lib/ops/staff.ts` is ONE `cache()`'d expression with three
@@ -368,6 +368,26 @@ deferred walk is inconsistent rather than honest.*
 | Phase 17.1 P07 | 55min | 3 tasks | 5 files |
 
 ## Accumulated Context
+
+### Sell-gate decisions taken during execution (18-03)
+
+- **The two new terms are compared against POSITIVE literals, never `!== 'suspended'`, and mutation M4
+  is why that sentence is in the code rather than in a review comment.** Replacing the host term with
+  `host.verificationStatus !== "suspended"` — the spelling that reads correct and passes review — kept
+  `gate_hv_suspended` GREEN and was caught only by `gate_hv_unverified`, `gate_hv_pending` and
+  `gate_hv_rejected`. A fixture set covering just the headline case (suspension) would have watched the
+  single most likely real spelling error go by while reporting green.
+- **A hand-built test fixture is now UNSELLABLE BY DEFAULT, and that is deliberate.**
+  `listing.review_state` defaults to `'pending'` and a host with no `host_verification` row reads as
+  `'unverified'`, so any future fixture that skips `makeVerifiedHost()` (`tests/helpers/seed.ts`) fails
+  with `not-bookable` — a refusal that names the gate but not the missing row. Route new fixtures
+  through the helper.
+- **`tsc` is the census for FOUR of the seven gate sites and cannot see the other three.** The inlined
+  SQL twin is held by `tests/search/bookable-gate.test.ts`'s set-equality; the two `placeHold` /
+  `placeOpenHold` re-statements are held by four refusal anchors (`L_nohours`, `L_pending_review` +
+  its suspended-host sibling, `L_OPEN_NOHOURS`, `L_OPEN_PENDING_REVIEW`) that count DB ROWS rather than
+  return values. Do not fold the two re-statements into a shared helper (D-227); the fixture helper
+  above is a TEST helper and is not a precedent for it.
 
 ### Roadmap Evolution
 
