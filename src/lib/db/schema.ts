@@ -168,6 +168,34 @@ export const occupancyMode = pgEnum("occupancy_mode", ["exclusive", "open_capaci
 // the enum idioms above.
 export const rsvpStatus = pgEnum("rsvp_status", ["yes", "no"]);
 
+// Phase-18 listing review (D-221). The DENORMALISED current review state that lives on `listing` itself —
+// the sell-gate (`deriveBookable`, D-224) and the search Stage-1 twin (D-226) both need a CHEAP read, and a
+// `MAX(decided_at)` over the `listing_review` history table on every bookability check is not that. The
+// history rows live in `listing_review` below; this column is the answer, that table is the trail.
+//
+// `grandfathered` IS A FIRST-CLASS, DISTINCT VALUE AND MUST NEVER BE COLLAPSED INTO `approved` (D-211).
+// A grandfathered row is one nobody at FitOut ever looked at — it was already selling when the gate landed
+// (D-207) — so it is bookable but it MUST NOT show the verification badge (D-212), and a future PM must be
+// able to burn the whole backlog down with ONE statement:
+//     UPDATE listing SET review_state = 'pending' WHERE review_state = 'grandfathered';
+// Folding it into `approved` at the data layer would make that statement unwritable and the badge a lie.
+//
+// `withdrawn` is the host's own retraction (a listing pulled out of the queue before ops decided).
+//
+// Declared before `listing` (const TDZ), mirroring the enum idioms above. BRAND-NEW type, so its
+// CREATE TYPE and its first use share ONE migration transaction — the 0010/0012/0020 55P04 split applies
+// ONLY to `ALTER TYPE ... ADD VALUE` on an already-committed type (drizzle/0017's rule (a)).
+export const listingReviewState = pgEnum("listing_review_state", [
+  "pending",
+  "approved",
+  "rejected",
+  "grandfathered",
+  "withdrawn",
+]);
+
+/** The `listing.review_state` value set, derived from the pgEnum so no string union is ever re-declared. */
+export type ListingReviewState = (typeof listingReviewState.enumValues)[number];
+
 export const listing = pgTable(
   "listing",
   {
@@ -220,6 +248,16 @@ export const listing = pgTable(
     // publish-required pair only for 'exclusive'.
     perHeadPriceCents: integer("per_head_price_cents"),
     status: listingStatus("status").default("draft").notNull(), // D-02/LIST-05
+    // Phase-18 sell-gate (D-221/D-224). ORTHOGONAL to `status` above and never a substitute for it:
+    // `status` is what the HOST decided (draft | published | unlisted); `review_state` is what OPS decided.
+    // A listing sells only when BOTH say yes, which is why `deriveBookable` gains a term rather than
+    // widening `listingStatus`.
+    //
+    // DEFAULT 'pending' is the fail-CLOSED half: a listing created after this phase is unreviewed until
+    // somebody reviews it. The grandfather backfill (D-240, drizzle/0026) is the OTHER half and ships in
+    // the SAME migration file — the default alone would make the entire live catalogue unsellable for the
+    // length of the deploy window (T-18-0203).
+    reviewState: listingReviewState("review_state").default("pending").notNull(),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     deletedAt: timestamp("deleted_at", { withTimezone: true }), // soft-delete (Claude's discretion)
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -231,7 +269,20 @@ export const listing = pgTable(
   (t) => [
     index("listing_host_idx").on(t.hostId),
     index("listing_status_idx").on(t.status),
+    index("listing_review_state_idx").on(t.reviewState),
     index("listing_location_gist").using("gist", t.location), // Phase-4 radius search ready
+    // OPS-04 — HALF THE REVIEW QUEUE, as an index. The `/ops` page (D-246) is one screen listing
+    // everything awaiting a decision, OLDEST FIRST, and this partial index IS that query: it covers only
+    // the pending rows, so the queue stays O(pending) however large the catalogue grows — the same
+    // reasoning as `audit_needs_attention_idx` (drizzle/0024) and the same growth argument.
+    //
+    // ORDERED ASC DELIBERATELY, and the console's ORDER BY must byte-match it. `src/lib/ops/alerts.ts:12-24`
+    // recorded the measurement: an ORDER BY that does not match the index's DECLARED ordering forces a Sort
+    // node on top of the scan and the partial index stops being usable. `.on(t.createdAt)` is ASC NULLS LAST
+    // in Postgres, and `created_at` is NOT NULL here, so the console writes `ORDER BY created_at ASC`.
+    index("listing_review_queue_idx")
+      .on(t.createdAt)
+      .where(sql`review_state = 'pending'`),
   ],
 );
 
@@ -295,6 +346,134 @@ export const hostPayout = pgTable("host_payout", {
     .$onUpdate(() => /* @__PURE__ */ new Date())
     .notNull(),
 });
+
+// ---------------------------------------------------------------------------
+// Phase-18 host verification & listing review (HVER-02 / LVER-04, D-206/D-211/D-220/D-221/D-222/D-223).
+// ---------------------------------------------------------------------------
+
+// D-220 / D-222. The host side of the sell-gate, and the SUSPENSION lever, on ONE enum — deliberately.
+// Suspension rides this same value set so that suspending a host is enforced by the SAME read
+// `deriveBookable` already does for verification: one gate, one read, no second check a code path can
+// forget to make. A separate `suspended` boolean would be a second gate, and the day someone adds a third
+// call site they would wire the first and miss the second.
+//
+// The bookable set is EXACTLY { approved, grandfathered } (D-224). `unverified`, `pending`, `rejected` and
+// `suspended` all fail — and `unverified` is the value a MISSING ROW reads as, which is the fail-closed
+// property the gate depends on (a host with no `host_verification` row has never been checked).
+//
+// `grandfathered` is FIRST-CLASS AND DISTINCT (D-211), never written as if a human approved it: a
+// grandfathered host is one whose listing was already selling when this phase landed (D-207), and the
+// badge (D-212) renders for `approved` only. Declared immediately before the table it backs (const TDZ),
+// matching the `payoutLedgerState` / `ledgerKind` idiom. BRAND-NEW type, so its CREATE TYPE and its first
+// use may share one migration transaction (drizzle/0017 rule (a); the 55P04 split is ADD VALUE only).
+export const hostVerificationStatus = pgEnum("host_verification_status", [
+  "unverified",
+  "pending",
+  "approved",
+  "rejected",
+  "grandfathered",
+  "suspended",
+]);
+
+/** The `host_verification.status` value set, derived from the pgEnum so no string union is re-declared. */
+export type HostVerificationStatus = (typeof hostVerificationStatus.enumValues)[number];
+
+// Host identity-verification state — a SEPARATE table keyed 1:1 to user, cloning the `host_payout` shape
+// above (PK IS the FK; NOT Better Auth additionalFields, to keep the auth schema CLI-clean).
+//
+// ⚠ THE STORAGE CONTRACT (HVER-02 / D-206 / D-220). FitOut is a PORT to a verification provider, never a
+// custodian of identity documents. NO COLUMN EXISTS, OR MAY EVER EXIST, FOR A DOCUMENT, AN ID NUMBER, OR
+// AN IMAGE. What is persisted is the OUTCOME and its provenance only: {status, provider, vendorRef,
+// result, checkedAt}. If a vendor is wired later (D-206 defers it — PayMongo Linked Accounts is
+// sales-gated), the document stays on the vendor and `vendorRef` is the handle FitOut keeps.
+//
+// AND THAT CONTRACT IS ENFORCED STRUCTURALLY, NOT BY THIS COMMENT. `tests/ops/verification-schema.test.ts`
+// asserts the table's EXACT COLUMN SET against `information_schema.columns` in the replayed schema — an
+// ALLOW-LIST, so a new column named anything at all (`attachment_url`, `selfie`, `poi_scan`) reddens it.
+// A deny-list naming `document`/`id_number`/`image` would pass the day someone picks a fourth word, and
+// the `publicProfile` allow-list (src/lib/profile.ts:44-52) is the shipped precedent for the choice.
+// It is measured against the DATABASE and never against `tsc`: the row type comes from THIS file, so a
+// column declared here but never migrated leaves the type checker and `next build` perfectly green.
+//
+// WHO WRITES THESE COLUMNS: the ops console's verify/reject/suspend actions (plan 18-05) under
+// `requireStaff()`, the manual verification provider (plan 18-04), and the drizzle/0026 grandfather
+// backfill. NEVER a client body, and there is no host-facing writer at all.
+export const hostVerification = pgTable(
+  "host_verification",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // Fail-CLOSED default. A row that exists but was never decided is `unverified`, which is the same
+    // answer the gate gives for NO ROW AT ALL — so the two indistinguishable "nobody checked" states
+    // cannot diverge.
+    status: hostVerificationStatus("status").default("unverified").notNull(),
+    // D-206: WHICH port answered. 'manual' is the provider that ships in this phase; 'migration' is what
+    // the drizzle/0026 grandfather rows carry, because nothing was checked and no provider was involved.
+    provider: text("provider").notNull(),
+    // The vendor's own handle for the check. NULLABLE — the manual provider has no vendor reference, and
+    // a row still in `pending` has not been given one yet. This is the ONLY thing FitOut keeps that points
+    // at the vendor's copy of the document; the document itself never crosses this boundary.
+    vendorRef: text("vendor_ref"),
+    // The vendor's verdict as an opaque provider-scoped token (NOT a document, NOT a payload). NULLABLE:
+    // a `pending` row has no result yet.
+    result: text("result"),
+    // WHEN the check happened. NULLABLE and it MUST stay NULL on a grandfathered row — writing a timestamp
+    // for a check that never happened would fabricate an audit record (T-18-0202, the drizzle/0025
+    // `resolved_by` principle applied to a second column).
+    checkedAt: timestamp("checked_at", { withTimezone: true }),
+    // WHICH staff member decided (D-218 — AUTHENTICATED here, unlike audit.resolved_by, because the ops
+    // console's writes carry the id `requireStaff()` returned). NO .references(), following `audit.actorId`:
+    // a decision record must never cascade-delete with the decider, nor block their deletion (23503).
+    decidedByStaffId: text("decided_by_staff_id"),
+    // The host-readable reason for a rejection or a suspension (D-243). No PII beyond what the host wrote.
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+  },
+  (t) => [
+    // OPS-04 — the OTHER half of the review queue (see `listing_review_queue_idx`). Partial over the
+    // pending rows only, ordered ASC to byte-match the console's `ORDER BY created_at ASC`; an ordering
+    // mismatch puts a Sort node on top of the scan and wastes the index (src/lib/ops/alerts.ts:12-24).
+    index("host_verification_queue_idx")
+      .on(t.createdAt)
+      .where(sql`status = 'pending'`),
+  ],
+);
+
+// D-221 — the listing-review HISTORY table. `listing.review_state` is the cheap current answer the gate
+// reads; THIS is the trail, and re-review on material edit (D-213/D-232/D-249) needs both: a resubmitted
+// listing appends a new row rather than overwriting the decision that sent it back.
+//
+// Shape follows `audit` (a history table with an app-generated text id) rather than `host_payout`.
+export const listingReview = pgTable(
+  "listing_review",
+  {
+    id: text("id").primaryKey(), // randomUUID() — the shipped app-generated-id idiom
+    // onDelete: "restrict" — a review decision is an audit record and must never cascade-delete with the
+    // thing it decided about (the `host_payout_ledger` rule: "a financial record must never
+    // cascade-delete", applied to a compliance record for the same reason). Listings soft-delete anyway
+    // (`listing.deleted_at`), so this restricts nothing the app actually does.
+    listingId: text("listing_id")
+      .notNull()
+      .references(() => listing.id, { onDelete: "restrict" }),
+    state: listingReviewState("state").notNull(),
+    reason: text("reason"), // host-readable rejection reason (D-243); NULL on an approval
+    // NO .references() — the `audit.actorId` precedent, same reason as host_verification above.
+    decidedByStaffId: text("decided_by_staff_id"),
+    // ⚠ LOAD-BEARING FOR D-249, and it is the reason this is a column rather than a join to
+    // `listing.created_at`. A RESUBMISSION ENTERS THE QUEUE AT ITS OWN SUBMISSION TIME, never at the
+    // listing's original one. The queue is oldest-first (OPS-04), so keying it on the listing's creation
+    // date would let a host who resubmits repeatedly jump the line ahead of every first-time submitter.
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
+    decidedAt: timestamp("decided_at", { withTimezone: true }), // NULL = still awaiting a decision
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("listing_review_listing_idx").on(t.listingId)],
+);
 
 // PayMongo webhook idempotency ledger (PAY-04 / T-06-REPLAY). One row per PROCESSED event id; the
 // webhook route checks this BEFORE applying an event so a double-delivered / retried PayMongo webhook
@@ -695,7 +874,24 @@ export const bookingStatus = pgEnum("booking_status", [
 
 // D-70/D-79 who initiated a cancellation. Display/audit metadata only — the non-repudiable record is the
 // `recordAudit` row written by the cancel actions. Declared before `booking` (const TDZ).
-export const cancelledBy = pgEnum("cancelled_by", ["booker", "host", "system"]);
+//
+// D-244 — 'ops' is the Phase-18 value, and it exists rather than reusing 'system' because the two mean
+// opposite things: 'system' means NO PERSON DECIDED THIS (a hold expiry, a timeout), while an ops
+// cancel-and-refund is a NAMED HUMAN's decision. Blurring them would defeat OPS-03, whose whole content is
+// that an ops action is attributable.
+//
+// ⚠ ADDED HERE AND IN drizzle/0027 — AND WRITTEN BY NOTHING UNTIL PLAN 18-08. That separation is what makes
+// the migration safe: `ALTER TYPE ... ADD VALUE` on an ALREADY-COMMITTED type cannot be USED in the same
+// transaction (Postgres 55P04), and both migrators wrap ALL pending migrations in ONE transaction — so
+// 0027 adds the value and does nothing else, exactly like drizzle/0020 did for 'open_capacity'. The first
+// write of 'ops' is a RUNTIME UPDATE from the ops cancel action, long after commit. Postgres appends
+// ADD VALUE at the enum TAIL, so 'ops' is declared LAST here to match the migrated type (Pitfall 2).
+//
+// ⚠ AND `tsc` WILL NOT FLAG THE DISPLAY FORKS, so they were reviewed BY HAND rather than by the compiler:
+// `deriveDisplayStatus` / `deriveBookingStatusView` take `cancelledBy` as a WIDENED `string`, not as this
+// union, so widening the enum is not a compile error at any of their call sites. A census by `tsc` is not
+// available here the way D-224 gets one on `deriveBookable`.
+export const cancelledBy = pgEnum("cancelled_by", ["booker", "host", "system", "ops"]);
 
 // Recurring weekly operating hours (AVAIL-01, D-25). Multiple windows/day = multiple rows with the
 // same (listingId, dayOfWeek). Hours are listing-wide (all units share). Times are venue-local wall
