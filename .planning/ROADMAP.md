@@ -13,7 +13,9 @@ component sweep.
 
 - ✅ **v1.0 MVP** — Phases 1–9 (shipped 2026-08-11) — 49/49 requirements
 - ✅ **v1.1 Front-End Polish & Placeholder Design System** — Phases 10–17.1 (shipped 2026-08-31) — 69/71 requirements
-- 📋 **v1.2** — not yet defined. Start with `/gsd-new-milestone`.
+- 📋 **v1.2** — not yet defined. **Phase 18 (Host Verification, Listing Review & FitOut Ops) was added
+  ahead of the milestone cycle** on 2026-09-01 by PM decision. Run `/gsd-new-milestone` when v1.2's
+  full scope is defined.
 
 ## Phases
 
@@ -70,13 +72,99 @@ handoff neither Phase 13 nor Phase 15 executed — found by the milestone audit.
 
 </details>
 
-### 📋 v1.2 — not yet defined
+### 📋 v1.2 — not yet defined · one phase added ahead of the cycle
 
-No phases planned. Run `/gsd-new-milestone` to start the questioning → research → requirements →
-roadmap cycle.
+**v1.2 has not been through the milestone cycle** — no requirements doc, no research, no roadmap
+pass. **Phase 18 was added ahead of it on 2026-09-01 by PM decision**, because the hole it closes is
+live in production: *FitOut cannot tell a real host from a fraudulent one, and has no ops function to
+find out.* Run `/gsd-new-milestone` when v1.2's full scope is defined; Phase 18 folds into it.
 
 **Two requirements carry forward unsatisfied from v1.1**, both closed by one monitored support
-address at `src/lib/site.ts:70`: `STATE-05` and `TRUST-01`.
+address at `src/lib/site.ts:70`: `STATE-05` and `TRUST-01`. `TRUST-01` is now **Phase 18's
+neighbour** — a monitored support address is where a report of a fake listing would land, and 999.4
+below is the queue it would feed.
+
+### Phase 18: Host Verification, Listing Review & FitOut Ops
+
+**Goal**: A space cannot be sold on FitOut until a person at FitOut has checked who the host is and
+that the listing is real — and FitOut has the ops function, the authenticated staff identity, and the
+enforcement levers to do that checking and to undo it.
+
+**Depends on**: Phase 17 (net-new capability; sequenced after the v1.1 polish work)
+**Requirements**: TBD — `.planning/REQUIREMENTS.md` does not exist between milestones, so these are
+created at plan time. Proposed families: `OPS-01..05` (staff identity + ops console + audit),
+`HVER-01..04` (host verification incl. third-party KYC), `LVER-01..04` (listing review + re-review on
+material edit), `ENF-01..03` (suspension, payout freeze, cancel-and-refund).
+**UI hint**: yes — two distinct surfaces (an internal ops console, and the booker-facing badge).
+
+**Success Criteria** (what must be TRUE):
+
+  1. A staff member signs in to FitOut Ops **as themselves**, and every ops action records who did it
+     — *authenticated*, not asserted. No ops power is reachable by a non-staff account, and none is
+     reachable by knowing a URL.
+  2. A host cannot sell until a FitOut ops person has approved **both the host and the listing**, and
+     that approval is a **term of the sell-gate itself** — never a separate check a code path can
+     forget to run.
+  3. Ops works one queue: hosts awaiting verification and listings awaiting review, oldest first,
+     with everything needed to decide on the same screen — and approve/reject carries a reason the
+     host is actually told.
+  4. A **material edit** to an approved listing (address, space type, capacity, photos, price)
+     returns it to review and stops it being sellable until re-approved. Approval is not a permanent
+     grant.
+  5. Ops can suspend a host or pull a listing and choose **per case** (PM decision, 2026-09-01):
+     block new bookings only, or additionally cancel-and-refund what is already sold. Either way the
+     host's pending payouts **freeze**, and no payout leaves for a host under suspension.
+  6. A booker sees what verification actually means — a badge that states **what FitOut checked**,
+     and never implies we inspected the space when we checked a document.
+  7. Identity checking runs through a **third-party KYC vendor**: FitOut stores a pass/fail and a
+     reference, **never a government ID**.
+
+**PM decisions taken 2026-09-01, before planning** (record them as D-numbers at discuss time):
+
+  - **Strictness: ops approves every host AND every listing.** Not host-only, not first-listing-only,
+    not automated-with-flags. This throttles supply growth to ops throughput — accepted, because the
+    core value promise is that the booking is *real*.
+  - **Identity: third-party KYC vendor, not documents held by FitOut.** FitOut does not become a
+    custodian of government IDs. **The vendor is NOT chosen** — see the open decision below.
+  - **Enforcement: both levers, ops chooses per case.** Default is block-new + freeze payouts; ops can
+    escalate to cancel-and-refund when the space is confirmed fake.
+  - **Scope: this phase only; the rest goes to backlog.** Booker-side reporting (999.4), reviews and
+    ratings (999.5) and host appeals (999.6) are explicitly OUT.
+  - **Suspension is IN, despite being adjacent to 999.4** (SWE call, stated to the PM): an
+    approve-only console is unsafe, because ops must be able to pull a listing it already approved.
+
+**OPEN DECISION — the KYC vendor is not chosen, and must not be chosen silently.** The PM asked
+directly whether PayMongo's own KYC can serve this. It is a real candidate *and* a real risk: PayMongo
+Platforms / Linked Accounts is the mechanism already wired to `host_payout.activationStatus` and the
+`merchant.activated` webhook, but it is **sales-gated and has never been walked** (see § Carried
+Forward), so betting host verification on it bets the phase on a third party we currently cannot
+reach. This phase owes a **written comparison** — PayMongo Linked Accounts vs. a standalone PH KYC
+vendor — brought back to the PM as a fork, not settled by the planner.
+
+**⚠ THE SELL-GATE IS THE TRAP, and it is bigger than it looks.** Criterion 2 means adding a term to
+`deriveBookable` (`src/lib/bookability.ts`), and that function is deliberately built so this is not a
+one-line change:
+
+  - It is **pure and parameterised** specifically so adding a required field makes **every call site a
+    compile error** — the census is done by `tsc`, not grep. There are four.
+  - It has an **inlined SQL twin** in `src/lib/search/query.ts` Stage-1, held equal by
+    `tests/search/bookable-gate.test.ts` over shared fixtures. Drift in either direction fails there.
+  - It has **two server-side re-derivation sites** — `placeHold` and `placeOpenHold` in
+    `src/app/actions/booking.ts` — written by deliberate RE-STATEMENT, each with its own refusal
+    anchor. **Do not fold them into a shared helper.**
+  - The new term must be **independent of `payoutsEnabled`**. That term was meant to be the identity
+    gate and cannot be relied on: PayMongo Linked Accounts is sales-gated, so in production it never
+    turns true on its own merits. Today's effective gate is *"the host clicked a link in an email."*
+
+**⚠ STAFF IDENTITY DOES NOT EXIST YET, and the existing ops workflow proves it.** `user.role` is a
+declared-but-dead slot (`src/lib/auth.ts:112`, `input: false`, no admin plugin, no route guard, zero
+reads). The one operator workflow that ships today is `scripts/ops-alerts.ts`, which connects with
+`DATABASE_URL` and **has no login of any kind** — the schema says so about `audit.resolved_by` in its
+own words: *asserted, not authenticated*. Phase 18 is what finally gives that column an authenticated
+actor. Staff access control is therefore the **first** plan, not a later one: an ops console over live
+bookings and money, built before staff auth, is a bigger hole than the one being closed.
+
+**Plans**: none yet — run `/gsd-plan-phase 18`.
 
 ## Progress
 
@@ -94,6 +182,7 @@ address at `src/lib/site.ts:70`: `STATE-05` and `TRUST-01`.
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-28 |
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
+| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 0/0 | Not planned | — |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
@@ -223,5 +312,57 @@ reported "got in" when no login had occurred. That is the sharper half of the tw
 > passing, promoting it is a small roadmap amendment rather than a new milestone.
 
 Plans:
+
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.4: Booker-side reporting & dispute resolution (BACKLOG)
+
+**Goal**: A booker who finds a space that does not exist, is not as described, or whose host never
+showed up has somewhere to say so — and ops has an inbound queue rather than only an onboarding check.
+**Requirements**: TBD
+**Captured**: 2026-09-01, splitting Phase 18's scope by PM decision.
+
+Deliberately out of Phase 18 so that phase stays shippable. The gap it leaves is real and should be
+stated plainly: **Phase 18 catches fraud at onboarding and never again.** Nothing in the product today
+carries a report — there is no report table, no flag surface, and no path from "this listing is fake"
+to an ops queue. The money angle is what makes this its own phase rather than a form: a report can
+arrive **after** the booker has paid and **before** the host has been paid out, so it lands squarely on
+the hold-until-session payout window and the `host_payout_ledger` state machine. Phase 18's payout
+**freeze** lever is the hook this phase plugs into.
+
+**Plans:**
+
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.5: Reviews & ratings (BACKLOG)
+
+**Goal**: A booker can see what other bookers experienced, and a host's record follows them.
+**Requirements**: TBD
+**Captured**: 2026-09-01, splitting Phase 18's scope by PM decision.
+
+**FitOut has no reputation signal of any kind** — there is no review or rating table in
+`src/lib/db/schema.ts`, and no rating anywhere in the UI. This is net-new capability, not polish, and
+it is two things at once: the largest remaining booker-trust gap, and the cheapest **continuous**
+fraud detector we could own. Phase 18 buys a one-time check at the door; this is the signal that keeps
+paying afterwards. Sequenced after 999.4 — a review system without a report path gives ops a
+complaints channel it cannot act on.
+
+**Plans:**
+
+- [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.6: Host appeals (BACKLOG)
+
+**Goal**: A host who is rejected or suspended has a defined route back, rather than a support ticket
+that never closes.
+**Requirements**: TBD
+**Captured**: 2026-09-01, splitting Phase 18's scope by PM decision.
+
+Directly downstream of Phase 18: the moment ops can reject and suspend, someone will be rejected
+wrongly. Small in code, real in support load. **Phase 18 must not paint this into a corner** — its
+reject/suspend actions carry a reason and an authenticated actor precisely so an appeal has something
+to review.
+
+**Plans:**
 
 - [ ] TBD (promote with /gsd:review-backlog when ready)

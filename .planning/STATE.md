@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-status: Awaiting next milestone
-stopped_at: Completed quick task 260831-99f (WR-04 clearance merge-order gate) — design suite 68 files / 1270 passed
-last_updated: "2026-08-31T14:46:43.670Z"
-last_activity: 2026-08-31 — Milestone v1.1 completed and archived
+status: Phase 18 added — awaiting /gsd-plan-phase 18
+stopped_at: Added Phase 18 (Host Verification, Listing Review & FitOut Ops) + backlog 999.4/999.5/999.6 to ROADMAP.md. No plans written. Next — /gsd-plan-phase 18. KYC vendor is a DELIBERATELY OPEN decision; do not settle it in planning.
+last_updated: "2026-09-01T02:20:00.000Z"
+last_activity: 2026-09-01 — Phase 18 added ahead of the v1.2 milestone cycle by PM decision
 progress:
   total_phases: 14
   completed_phases: 11
   total_plans: 149
-  completed_plans: 154
+  completed_plans: 149
   percent: 79
 ---
 
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 999.1 — auth flow tells the user nothing thin emails and silent post
+**Current focus:** **Phase 18 — Host Verification, Listing Review & FitOut Ops.** Added 2026-09-01 ahead of the v1.2 milestone cycle by PM decision; not planned yet — next step is `/gsd-plan-phase 18`. No milestone is formally open, so `.planning/REQUIREMENTS.md` is still absent and Phase 18's requirement families (`OPS-`, `HVER-`, `LVER-`, `ENF-`) are created at plan time. Two things the planner must NOT do on its own: **settle the KYC vendor** (PM wants a written PayMongo-vs-standalone comparison as a fork), and **treat the sell-gate as a one-line change** — `deriveBookable` has an inlined SQL twin in `src/lib/search/query.ts` Stage-1 and two deliberate re-statements in `src/app/actions/booking.ts`. Worktrees remain OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -43,10 +43,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: Milestone v1.1 complete
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-09-01 — Moved @neon/config + @neon/env to devDependencies (fast-260901b); next build verified green
+Phase: 18 — Host Verification, Listing Review & FitOut Ops (added, NOT planned)
+Plan: — (0 plans; run `/gsd-plan-phase 18`)
+Status: Awaiting planning
+Last activity: 2026-09-01 — Phase 18 added ahead of the v1.2 cycle; backlog 999.4/999.5/999.6 captured from the same split
 
 ## Performance Metrics
 
@@ -355,6 +355,10 @@ deferred walk is inconsistent rather than honest.*
 
 - Phase 9 added (2026-07-27): **Open-Capacity Bookings** — the second host-set occupancy mode (drop-in / common-use, capacity-counter availability), split out of the Phase-8 group-booking discussion as its own phase because it stresses AVAILABILITY (a concurrent seat-claim), not payment. Each visitor books single-payer on the existing rail; the new work is a capacity-counter that replaces the GiST exclusion constraint for these listings, race-proven. Adds OPEN-01..04; depends on Phase 8's `occupancy_mode` seam (default `exclusive`). Organizer-driven open play / cost-split (GPAY-01) remains deferred.
 - Phase 16.1 inserted after Phase 16: Upload Hardening & Storage Economy — the PM's upload-safety and file-size asks, split out of Phase 16 so 16 stays verifiable as framing (D-164/165/166) (URGENT)
+
+- **Phase 18 added (2026-09-01): Host Verification, Listing Review & FitOut Ops** — added AHEAD of the v1.2 milestone cycle by PM decision, because the hole is live in production: today's sell-gate makes *"the host clicked a link in an email"* the only check that can actually pass (`payoutsEnabled`, the term meant to carry identity, depends on sales-gated PayMongo Linked Accounts and never turns true on its own merits). Four PM decisions were taken before planning: **ops approves every host AND every listing**; **identity via a third-party KYC vendor, never government IDs held by FitOut**; **enforcement carries both levers with ops choosing per case** (default block-new + payout freeze, escalating to cancel-and-refund); and **this phase only — the rest to backlog**. One decision is deliberately LEFT OPEN and must not be settled by the planner: **which KYC vendor**, including whether PayMongo's own Linked-Accounts KYC can serve — the PM asked for it as a written comparison brought back as a fork. SWE scope call recorded with the PM: **suspension is IN** despite being adjacent to 999.4, because an approve-only console is unsafe when ops cannot pull a listing it already approved.
+
+- **Backlog 999.4 / 999.5 / 999.6 captured (2026-09-01)** as the deliberate remainder of that split: **999.4 booker-side reporting & dispute resolution** (without it Phase 18 catches fraud at onboarding and never again; it lands on the hold-until-session payout window, so it plugs into Phase 18's freeze lever), **999.5 reviews & ratings** (FitOut has NO reputation signal of any kind — no review or rating table exists; the cheapest continuous fraud detector and the largest booker-trust gap), and **999.6 host appeals** (Phase 18 must not paint it into a corner — reject/suspend carry a reason and an authenticated actor precisely so an appeal has something to review).
 
 ### Decisions
 
