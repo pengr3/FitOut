@@ -1,5 +1,20 @@
 # Spike Manifest
 
+> ## ⏸ Status: the phase these spikes served is DEFERRED
+>
+> **Phase 18 (Search & Discovery) was deferred out of v1.1 to backlog 999.3 on 2026-08-31
+> (PM decision, D-141)** — after these four spikes ran, and before any plan was written.
+>
+> **The spikes stand.** All four are complete, with runnable demos and forensic logs. When this work
+> resumes it starts from measured answers, not a blank page. **D-139 and D-140 remain adopted** —
+> D-140 ("only certainty becomes a filter") binds whenever search work resumes, and the GATE-06
+> crossover (~12,000–20,000 published listings, against 18 today) is a live threshold regardless of
+> when the work happens. The Requirements below are likewise recorded, not retracted.
+>
+> **Two findings did NOT leave with the phase**, because they are defects in shipped code:
+> see [`deferred-items.md`](deferred-items.md) — the relaxation spec that cannot detect a lying
+> band (S-1), and the 570px mobile search bar (S-2).
+
 ## Idea
 
 **How should FitOut's search front door actually work?**

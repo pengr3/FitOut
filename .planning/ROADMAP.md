@@ -55,7 +55,7 @@ FitOut delivers a two-sided fitness-space marketplace where the core transaction
 - [x] **Phase 16.1: Upload Hardening & Storage Economy (INSERTED)** - What a host uploads is bounded, is what it claims to be, and costs what it should to serve (all 7 plans executed 2026-08-28) (completed 2026-08-28)
 - [x] **Phase 17: Cross-Cutting Audit — Themes, Responsive, A11y & Baselines** - The gates stop being per-phase promises and become the milestone's closing proof (completed 2026-08-30)
 - [x] **Phase 17.1: Close Phase 17 Escalations (INSERTED)** - The four audit findings the PM promoted to in-scope stop being recorded and start being fixed (completed 2026-08-30)
-- [ ] **Phase 18: Search & Discovery** - A booker can say what they want and see where it is (net-new capability, D-136; scope widened from the map alone by the PM on 2026-08-31 after spikes 001-004)
+- ~~**Phase 18: Search & Discovery**~~ - **DEFERRED to the backlog as 999.3 on 2026-08-31 (D-141)**, before any plan was written. Spikes 001-004 are complete and keep their findings; see `.planning/spikes/` and Backlog 999.3
 - [ ] **Phase 19: Availability Copy-to-All** - A host copies one day's hours across days instead of re-entering them (net-new capability, D-136)
 
 ## Phase Details
@@ -776,39 +776,6 @@ Plans:
 - [x] 17.1-06-PLAN.md — item 3: the `instrumentation.ts` seam + its inertness test with a positive control; both rows kept, zero outbound requests
 - [x] 17.1-07-PLAN.md — item 1a: the `baselines.yml` dispatch, the five-point diff read against §7a's corrected prediction, and the forced comparison run — **FINAL wave, alone; nothing lands after it**
 
-### Phase 18: Search & Discovery
-
-**Goal**: A booker can say what they want, and see *where* it is.
-**Depends on**: Phase 17 (net-new capability, sequenced after the polish work — D-136)
-**Requirements**: SEARCH-06, SEARCH-07, SEARCH-08, SEARCH-09, MAP-01, MAP-02, MAP-03, MAP-04
-**Success Criteria** (what must be TRUE):
-
-  1. A booker can express a search in one box — an activity, a place, a date, or a listing's name — and the page shows what it understood; anything it *inferred* rather than recognised is offered for confirmation instead of applied silently.
-  2. A booker can find a listing by its name or by words in its description, and every place the search offers is a place that has bookable listings.
-  3. A booker sees search results on a map alongside the result list, and the two stay in sync — hovering or selecting a result highlights its marker, and selecting a marker highlights its card.
-  4. A booker can move or zoom the map and re-search the visible area from an explicit control, with the result list following.
-  5. Every map-only interaction has a keyboard-operable equivalent, and the whole surface holds all five gates including its own designed loading, empty and error states.
-
-**Plans**: TBD
-**UI hint**: yes
-
-**Scope discipline (D-136):** this is net-new capability, not polish — it changes what the product can *do*, and it carries its own REQ IDs (`SEARCH-06..09` continuing v1.0's numbering, plus `MAP-01..04`). It may never be folded into a surface-polish phase.
-
-**Grounded by spikes 001–004** (`.planning/spikes/`), which measured the following. Treat each as a
-finding with a number behind it, not a preference:
-
-- **The query model is closed-set-first.** Vocabulary and our own catalog are matched *before* the geocoder, which is reached last and clamped to the launch bbox. Unclamped, `pickleball` returns two courts in the **United States**; the staged router reached the geocoder **0 of 30** times on realistic queries. Photon's `layer` must be a **repeated** param — comma-joined returns a shaped error object, not a 400.
-- **Only certainty becomes a filter.** Fuzzy and prefix matches are shown as suggestions, never applied: measured false positives were `dennis` → `category=tennis` and a *uniquely, therefore confidently* wrong `ayala` → "Ayala Alabang". A wrong category does not fail to help — it silently deletes the listings the booker wanted.
-- **GATE-06 is not threatened, and the trigger is recorded.** Free text ships as **per-word AND `ILIKE` with naive suffix stripping** — added cost indistinguishable from zero below ~12,000 published listings (FitOut has 18). A GIN index becomes mandatory between **~12,000 and ~20,000**; that threshold ships as a comment beside the query. The phrase form `%whole query%` is a trap — zero results on reversed word order, on a stop-word between terms, and on words in different sentences. Query-time FTS without an index is strictly dominated and must not be used.
-- **The map needs no migration either.** `location && ST_MakeEnvelope(...)` is served by the existing `listing_location_gist` and is ~6× cheaper than the radius predicate.
-- **When a bbox is present it is the ONLY geo predicate** — `lat/lng/radius` are dropped and the `Within … km` control is hidden while the map governs. Letting the radius win puts 1,131 results in the list that are off-screen and draws 152 pins that are not in it, which cannot satisfy MAP-01.
-- **⚠ `relaxation.ts` and `e2e/zero-result-relax.spec.ts` are IN SCOPE.** Ladder rung 1 widens the radius; under a governing bbox that moves the result set **0 → 0** while the band still announces "we widened your search to 25 km" — and the spec compares the band against the *control*, not the results, **so it stays green while the page lies**.
-- **Re-search on an explicit "Search this area", never on pan** — D-32 makes the URL the search's identity, so pan-to-search turns Back into a history trap. It is also the only form MAP-04's keyboard equivalent can take.
-- **The box goes in front of the existing controls, not instead of them.** It saved 10 / 5 / 6 taps on three intents and removes the pre-submit geocoder call entirely, but returns only partial on "yoga in ortigas under 800": **there is no price NLP and there must not be** (D-137 — never surprise them with a number). This keeps the phase additive rather than a rewrite of the search surface.
-- **⚠ GATE-RESP is already failing here.** The shipped bar stacks to **570px at 375px wide — 85% of a 667px phone screen** — before a map is added. The UI spec owes small screens a collapsed box plus a Filters control.
-
-Known latent trap to plan for: Leaflet's `z-index: 1000` against shadcn's `z-50` overlay — the DS-03 z-index scale from Phase 10 is the arbiter. **Clustering is unsolved** and deliberately out of the spikes: 400 pins is already busy at city zoom. D-130 still binds: the bbox and the query go into the **server** query; no availability or price is computed on the client.
-
 ### Phase 19: Availability Copy-to-All
 
 **Goal**: A host stops re-entering the same operating hours seven times.
@@ -857,13 +824,13 @@ D-131 declares four; D-134 adds the fifth. A phase is not done until all five ho
 2. **THEME-02/03 (the second theme) ship in the SAME phase as the first.** — 4 of 4 researchers; the strongest convergence in the set. It is D-128's enforcement test, not a feature. **It HELD, and it is now SPENT.** Grove shipped in Phase 10, which is what made the contract checkable at all; under **D-138** no later phase owes grove a baseline, an axe pass or a surface. The invariant and its provenance stay on the record because they are why the enforcement test exists — a future milestone adding a theme inherits the finding, not the exemption.
 3. **GATE-01 (the VR fail-open fix) and GATE-04/05 (GATE-NOREG prerequisites) exist before the first surface-polish phase.** Every later phase inherits whatever config exists when it starts.
 4. **DS-06/DS-05 (the AA-failing token corrections) land in the foundation phase**, before fifty surfaces are built on values that fail the gate.
-5. **SEARCH, MAP and HOURS never fold into a surface-polish phase** (D-136) — a polish phase that absorbs net-new capability stops being verifiable as polish. SEARCH joined this list on 2026-08-31 (**D-139**): it ships *with* the map in Phase 18, as capability with its own REQ IDs, which is what D-136 requires rather than a breach of it.
+5. **SEARCH, MAP and HOURS never fold into a surface-polish phase** (D-136) — a polish phase that absorbs net-new capability stops being verifiable as polish. SEARCH joined this list on 2026-08-31 (**D-139**) as capability with its own REQ IDs. **SEARCH and MAP were then deferred wholesale to backlog 999.3 (D-141)** — the invariant is what makes that deferral clean: because they were never folded into a polish phase, removing them costs nothing and breaks no gate.
 
 ## Progress
 
 **Execution Order:**
 v1.0 phases executed in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 → 9
-v1.1: 10 → 11 → **{12, 13, 14, 15}** → 16 → 16.1 → 17 → 18 → 19
+v1.1: 10 → 11 → **{12, 13, 14, 15}** → 16 → 16.1 → 17 → 19  (18 deferred to the backlog on 2026-08-31 — D-141; nothing depended on it, Phase 19 depends on 17)
 16.1 is sequenced immediately after 16 rather than in parallel: both touch `photo-uploader.tsx` and the Cloudinary helpers, so they collide rather than run alongside each other.
 Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `patterns/` and the tokens), but 12 is sequenced first among them. Worktrees are OFF (`use_worktrees: false`), so plans execute sequentially on `dev` regardless.
 
@@ -889,7 +856,7 @@ Phases 12–15 are order-independent (disjoint file trees, sharing only `ui/`, `
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-28 |
 | 17. Cross-Cutting Audit — Themes, Responsive, A11y & Baselines | v1.1 | 14/14 | Complete (verified 2026-08-30 — 4/4 must-haves after one gap closed; GATE-01 evidence ci 33300952565 GREEN on a2f6973). 25 escalate-class findings filed in deferred-items.md for PM review; RESP-03/RESP-04/GATE-02/GATE-06 remain Pending by design | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete    | 2026-08-30 |
-| 18. Search & Discovery | v1.1 | 0/? | Not started (spiked 2026-08-31 — 4 spikes, see `.planning/spikes/`) | - |
+| ~~18. Search & Discovery~~ | v1.1 | — | **Deferred to backlog 999.3** (2026-08-31, D-141) — spiked first, never planned | - |
 | 19. Availability Copy-to-All | v1.1 | 0/? | Not started | - |
 
 ## Carried Forward from v1.0 (not v1.1 work)
@@ -911,6 +878,50 @@ Unsequenced ideas parked outside the active phase sequence (999.x). Promote with
 > backlog. It is now **Phase 16: Image Crop & Framing**, carrying requirements **CROP-01..04** in
 > `.planning/REQUIREMENTS.md`. Its already-written spec stays where it is:
 > `.planning/phases/999.2-profile-picture-and-listing-photo-crop-ui/999.2-UI-SPEC.md`.
+
+> **999.3 (Search & Discovery) was DEFERRED OUT of v1.1 on 2026-08-31** by PM decision (**D-141**),
+> after its spikes ran and before any plan was written. Its four spikes are complete and their
+> findings stand — `.planning/spikes/` (001 one-box routing · 002 free text at 0025 · 003 bbox vs
+> radius · 004 head-to-head), with three runnable demos. **D-139 and D-140 remain adopted**: D-140
+> ("only certainty becomes a filter") is a general search principle that binds whenever this work
+> resumes, and the GATE-06 crossover it measured (~12,000–20,000 published listings) is a live
+> threshold regardless of when that happens. Requirements `SEARCH-06..09` and `MAP-01..04` move to
+> Deferred in `.planning/REQUIREMENTS.md` rather than being deleted. Promote with
+> `/gsd:review-backlog`.
+
+### Phase 999.3: Search & Discovery — one-box query model + results map (BACKLOG)
+
+**Goal**: A booker can say what they want, and see *where* it is.
+**Was**: Phase 18 of v1.1, deferred 2026-08-31 (D-141) before any plan was written
+**Depends on**: Phase 17 (net-new capability, sequenced after the polish work — D-136)
+**Requirements**: SEARCH-06, SEARCH-07, SEARCH-08, SEARCH-09, MAP-01, MAP-02, MAP-03, MAP-04
+**Success Criteria** (what must be TRUE):
+
+  1. A booker can express a search in one box — an activity, a place, a date, or a listing's name — and the page shows what it understood; anything it *inferred* rather than recognised is offered for confirmation instead of applied silently.
+  2. A booker can find a listing by its name or by words in its description, and every place the search offers is a place that has bookable listings.
+  3. A booker sees search results on a map alongside the result list, and the two stay in sync — hovering or selecting a result highlights its marker, and selecting a marker highlights its card.
+  4. A booker can move or zoom the map and re-search the visible area from an explicit control, with the result list following.
+  5. Every map-only interaction has a keyboard-operable equivalent, and the whole surface holds all five gates including its own designed loading, empty and error states.
+
+**Plans**: none — deferred before planning
+**UI hint**: yes
+
+**Scope discipline (D-136):** this is net-new capability, not polish — it changes what the product can *do*, and it carries its own REQ IDs (`SEARCH-06..09` continuing v1.0's numbering, plus `MAP-01..04`). It may never be folded into a surface-polish phase.
+
+**Grounded by spikes 001–004** (`.planning/spikes/`), which measured the following. Treat each as a
+finding with a number behind it, not a preference:
+
+- **The query model is closed-set-first.** Vocabulary and our own catalog are matched *before* the geocoder, which is reached last and clamped to the launch bbox. Unclamped, `pickleball` returns two courts in the **United States**; the staged router reached the geocoder **0 of 30** times on realistic queries. Photon's `layer` must be a **repeated** param — comma-joined returns a shaped error object, not a 400.
+- **Only certainty becomes a filter.** Fuzzy and prefix matches are shown as suggestions, never applied: measured false positives were `dennis` → `category=tennis` and a *uniquely, therefore confidently* wrong `ayala` → "Ayala Alabang". A wrong category does not fail to help — it silently deletes the listings the booker wanted.
+- **GATE-06 is not threatened, and the trigger is recorded.** Free text ships as **per-word AND `ILIKE` with naive suffix stripping** — added cost indistinguishable from zero below ~12,000 published listings (FitOut has 18). A GIN index becomes mandatory between **~12,000 and ~20,000**; that threshold ships as a comment beside the query. The phrase form `%whole query%` is a trap — zero results on reversed word order, on a stop-word between terms, and on words in different sentences. Query-time FTS without an index is strictly dominated and must not be used.
+- **The map needs no migration either.** `location && ST_MakeEnvelope(...)` is served by the existing `listing_location_gist` and is ~6× cheaper than the radius predicate.
+- **When a bbox is present it is the ONLY geo predicate** — `lat/lng/radius` are dropped and the `Within … km` control is hidden while the map governs. Letting the radius win puts 1,131 results in the list that are off-screen and draws 152 pins that are not in it, which cannot satisfy MAP-01.
+- **⚠ `relaxation.ts` and `e2e/zero-result-relax.spec.ts` are IN SCOPE.** Ladder rung 1 widens the radius; under a governing bbox that moves the result set **0 → 0** while the band still announces "we widened your search to 25 km" — and the spec compares the band against the *control*, not the results, **so it stays green while the page lies**.
+- **Re-search on an explicit "Search this area", never on pan** — D-32 makes the URL the search's identity, so pan-to-search turns Back into a history trap. It is also the only form MAP-04's keyboard equivalent can take.
+- **The box goes in front of the existing controls, not instead of them.** It saved 10 / 5 / 6 taps on three intents and removes the pre-submit geocoder call entirely, but returns only partial on "yoga in ortigas under 800": **there is no price NLP and there must not be** (D-137 — never surprise them with a number). This keeps the phase additive rather than a rewrite of the search surface.
+- **⚠ GATE-RESP is already failing here.** The shipped bar stacks to **570px at 375px wide — 85% of a 667px phone screen** — before a map is added. The UI spec owes small screens a collapsed box plus a Filters control.
+
+Known latent trap to plan for: Leaflet's `z-index: 1000` against shadcn's `z-50` overlay — the DS-03 z-index scale from Phase 10 is the arbiter. **Clustering is unsolved** and deliberately out of the spikes: 400 pins is already busy at city zoom. D-130 still binds: the bbox and the query go into the **server** query; no availability or price is computed on the client.
 
 ### Phase 999.1: Auth flow tells the user nothing — thin emails + silent post-reset landing (BACKLOG)
 
