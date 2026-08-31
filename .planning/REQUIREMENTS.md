@@ -116,6 +116,16 @@
 - [x] **GATE-05**: **GATE-NOREG** — an automated check fails the build if a money or availability computation crosses into a client component, and an end-to-end check asserts the price rendered in the DOM equals the price the database holds
 - [ ] **GATE-06**: The milestone ships zero schema migrations; a migration proposed in any phase plan is raised explicitly rather than absorbed
 
+### Search query model (SEARCH) — net-new capability, own phase (D-136)
+
+> Numbering continues from v1.0's `SEARCH-01..05` (archived in `.planning/milestones/v1.0-REQUIREMENTS.md`)
+> so the milestone-audit trail stays unambiguous. Added 2026-08-31 from spikes 001–004.
+
+- [ ] **SEARCH-06**: A booker can type what they want in one box — an activity, a place, a date, or a listing's name — instead of filling separate controls
+- [ ] **SEARCH-07**: The search shows what it understood, and anything it inferred rather than recognised is offered for confirmation instead of applied silently
+- [ ] **SEARCH-08**: A booker can find a listing by its name or by words in its description
+- [ ] **SEARCH-09**: Every place the search offers is a place that has bookable listings
+
 ### Search map (MAP) — net-new capability, own phase (D-136)
 
 - [ ] **MAP-01**: A booker can see search results on a map alongside the result list
@@ -242,6 +252,10 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | GATE-04 | Phase 11 | Complete |
 | GATE-05 | Phase 11 | Complete |
 | GATE-06 | Phase 17 | Pending |
+| SEARCH-06 | Phase 18 | Pending |
+| SEARCH-07 | Phase 18 | Pending |
+| SEARCH-08 | Phase 18 | Pending |
+| SEARCH-09 | Phase 18 | Pending |
 | MAP-01 | Phase 18 | Pending |
 | MAP-02 | Phase 18 | Pending |
 | MAP-03 | Phase 18 | Pending |
@@ -261,12 +275,12 @@ Mapped by the v1.1 roadmap on 2026-08-11. Phase numbering continues from v1.0 (w
 | 15 | Auth, Profile & Transactional Email | AUTHUI-01..03, EMAIL-01..03 | 6 |
 | 16 | Image Crop & Framing | CROP-01..04 | 4 |
 | 17 | Cross-Cutting Audit | RESP-03/04, GATE-02, GATE-06 | 4 |
-| 18 | Search-Results Map | MAP-01..04 | 4 |
+| 18 | Search & Discovery | SEARCH-06..09, MAP-01..04 | 8 |
 | 19 | Availability Copy-to-All | HOURS-01..02 | 2 |
 
 **Coverage:**
-- v1.1 requirements: 75 total (DS 14 · THEME 5 · STATE 8 · SHELL 4 · BFLOW 8 · TRUST 5 · HFLOW 5 · AUTHUI 3 · EMAIL 3 · CROP 4 · RESP 4 · GATE 6 · MAP 4 · HOURS 2)
-- Mapped to phases: **75 / 75 ✓**
+- v1.1 requirements: 79 total (DS 14 · THEME 5 · STATE 8 · SHELL 4 · BFLOW 8 · TRUST 5 · HFLOW 5 · AUTHUI 3 · EMAIL 3 · CROP 4 · RESP 4 · GATE 6 · SEARCH 4 · MAP 4 · HOURS 2)
+- Mapped to phases: **79 / 79 ✓**
 - Unmapped: **0**
 - Duplicated across phases: **0** (every requirement maps to exactly one phase)
 
