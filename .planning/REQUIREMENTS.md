@@ -41,7 +41,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 - [ ] **HVER-01** — Identity checking runs through a **provider-agnostic verification port**.
       Registering a different provider is a registration + configuration change, not a
       re-architecture. Ships with the ops-manual provider. *(SC7 · D-206)*
-- [ ] **HVER-02** — FitOut stores only `{ result, vendorRef, checkedAt, provider }`. **No government
+- [x] **HVER-02** — FitOut stores only `{ result, vendorRef, checkedAt, provider }`. **No government
       ID, no document, no image** is stored — and there is no column that could hold one. Enforced by
       a test asserting the table's column set, not by convention. *(SC7 · D-206, D-220)*
 - [ ] **HVER-03** — A host's verification status is a **term of the sell-gate itself**, and is
@@ -70,7 +70,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
       sentence — a resubmission enters the queue at resubmission time, never at the original time.
       Photo changes are detected in `listing-photo.ts`, not `saveListingStep`, which structurally
       cannot see them. *(SC4 · D-231, D-232, D-242, D-249)*
-- [ ] **LVER-04** — Listings published before this phase, and their hosts, are **grandfathered** by
+- [x] **LVER-04** — Listings published before this phase, and their hosts, are **grandfathered** by
       the migration into a **first-class, distinct state** — never written as if a human approved
       them — so a future backfill is one statement. *(D-207, D-211, D-213)*
 
@@ -99,14 +99,14 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | OPS-04 | Phase 18 | Pending |
 | OPS-05 | Phase 18 | Pending |
 | HVER-01 | Phase 18 | Pending |
-| HVER-02 | Phase 18 | Pending |
+| HVER-02 | Phase 18 · 18-02 | Complete |
 | HVER-03 | Phase 18 | Pending |
 | HVER-04 | Phase 18 | Pending |
 | HVER-05 | Phase 18 | Pending |
 | LVER-01 | Phase 18 | Pending |
 | LVER-02 | Phase 18 | Pending |
 | LVER-03 | Phase 18 | Pending |
-| LVER-04 | Phase 18 | Pending |
+| LVER-04 | Phase 18 · 18-02 | Complete |
 | ENF-01 | Phase 18 | Pending |
 | ENF-02 | Phase 18 | Pending |
 | ENF-03 | Phase 18 | Pending |
