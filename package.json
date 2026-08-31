@@ -35,6 +35,8 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.4.0",
+    "@neon/config": "^1.1.0",
+    "@neon/env": "^1.1.6",
     "@types/leaflet": "^1.9.21",
     "better-auth": "^1.6.14",
     "class-variance-authority": "^0.7.1",
