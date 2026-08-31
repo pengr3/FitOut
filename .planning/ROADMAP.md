@@ -165,7 +165,24 @@ own words: *asserted, not authenticated*. Phase 18 is what finally gives that co
 actor. Staff access control is therefore the **first** plan, not a later one: an ops console over live
 bookings and money, built before staff auth, is a bigger hole than the one being closed.
 
-**Plans**: none yet — run `/gsd-plan-phase 18`.
+**Plans:** 14 plans in 8 waves. Worktrees are OFF (`workflow.use_worktrees: false`), so plans run
+SEQUENTIALLY on `dev`, one executor at a time — waves express dependency order, not concurrency.
+
+Plans:
+- [ ] 18-01-PLAN.md — Staff identity: `requireStaff`/`assertStaff` + the CLI grant (wave 1)
+- [ ] 18-02-PLAN.md — Schema, migrations & the grandfather backfill · **[BLOCKING] `npm run db:migrate`** (wave 2)
+- [ ] 18-03-PLAN.md — The sell-gate: seven sites + the fixture/seed sweep, ONE commit (wave 3)
+- [ ] 18-04-PLAN.md — Hidden until approved: the three leak surfaces (wave 4)
+- [ ] 18-05-PLAN.md — Verification port, ops decision actions & the review queue (wave 4)
+- [ ] 18-06-PLAN.md — Material edit returns a listing to review (wave 4)
+- [ ] 18-07-PLAN.md — Payout freeze under suspension (wave 4)
+- [ ] 18-08-PLAN.md — Ops cancel-and-refund, behind the D-236 constant (wave 5)
+- [ ] 18-09-PLAN.md — Telling the host: the OPS-05 notification · **[BLOCKING] `npm run db:migrate`** (wave 6)
+- [ ] 18-10-PLAN.md — The ops queue row & decision controls (wave 6)
+- [ ] 18-11-PLAN.md — The booker-facing check badge (wave 6)
+- [ ] 18-12-PLAN.md — The `/ops` route, its three guard layers & the design-gate ledger (wave 7)
+- [ ] 18-13-PLAN.md — Host-facing review & suspension signals (wave 7)
+- [ ] 18-14-PLAN.md — HVER-04 vendor comparison & the OPS-02 status-line audit (wave 8, has checkpoint)
 
 ## Progress
 
@@ -183,7 +200,7 @@ bookings and money, built before staff auth, is a bigger hole than the one being
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-28 |
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
-| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 0/0 | Not planned | — |
+| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 0/14 | Planned (14 plans, 8 waves) | — |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
