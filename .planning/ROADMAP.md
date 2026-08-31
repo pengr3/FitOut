@@ -91,10 +91,11 @@ that the listing is real — and FitOut has the ops function, the authenticated 
 enforcement levers to do that checking and to undo it.
 
 **Depends on**: Phase 17 (net-new capability; sequenced after the v1.1 polish work)
-**Requirements**: TBD — `.planning/REQUIREMENTS.md` does not exist between milestones, so these are
-created at plan time. Proposed families: `OPS-01..05` (staff identity + ops console + audit),
-`HVER-01..04` (host verification incl. third-party KYC), `LVER-01..04` (listing review + re-review on
-material edit), `ENF-01..03` (suspension, payout freeze, cancel-and-refund).
+**Requirements**: OPS-01, OPS-02, OPS-03, OPS-04, OPS-05, HVER-01, HVER-02, HVER-03, HVER-04,
+HVER-05, LVER-01, LVER-02, LVER-03, LVER-04, ENF-01, ENF-02, ENF-03 — **17 requirements**, written
+at plan time into `.planning/REQUIREMENTS.md`, which was opened ahead of the v1.2 milestone cycle and
+holds Phase 18 only (D-239). `HVER-05` (the booker-facing badge, SC#6) was added beyond the four
+proposed families, which had no home for it.
 **UI hint**: yes — two distinct surfaces (an internal ops console, and the booker-facing badge).
 
 **Success Criteria** (what must be TRUE):
