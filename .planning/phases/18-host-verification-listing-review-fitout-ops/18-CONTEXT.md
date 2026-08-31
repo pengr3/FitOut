@@ -266,6 +266,41 @@ sixth term lands, and 14 non-Vitest seed sites need the same treatment. A red su
 discovered a wave later, is indistinguishable from a real regression — this project has lost hours to
 exactly that failure mode before. Gate change + fixture sweep + seed sweep are **one atomic commit**.
 
+### D-249 — A material edit also flips `rejected` → `pending` (added after 18-UI-SPEC.md)
+
+The UI spec found a real hole: D-232 flips `approved` and `grandfathered` to `pending` on a material
+edit and **says nothing about `rejected`**. As written, a rejected listing is dead forever, and the
+host-facing surface would be offering an "Edit this listing" route that does not go anywhere.
+
+**Extend the flip: `approved | grandfathered | rejected` → `pending` on a material edit.**
+
+This does **not** import backlog 999.6. An *appeal* is contesting a decision without changing
+anything, and that stays out of scope. This is **resubmission after fixing the thing that was
+wrong** — the normal marketplace loop, and the only reading under which the surface copy is true.
+Without it a single rejection permanently kills a listing and generates support load into an inbox
+that does not exist (D-250).
+
+Two guards that come with it:
+- **A resubmission enters the queue at its resubmission time**, not at the listing's original
+  submission time. Oldest-first must not let a repeat-resubmitter jump the line.
+- The rejection reason stays readable to the host until they resubmit, so they can see what they are
+  fixing. Clearing it on the flip would delete the only thing that makes the edit purposeful.
+
+### D-250 — `SUPPORT_EMAIL` is null; do NOT invent one
+
+`src/lib/site.ts:70` has `SUPPORT_EMAIL = null`, and `site-contacts.test.ts` asserts **zero** support
+affordances anywhere in `src/` while it is. D-243 says a suspended host is told "and name the support
+address" — **there is no support address to name.**
+
+**Every surface's copy must stand without it**, which is how 18-UI-SPEC.md already wrote them. Do not
+fabricate an address, do not route to a placeholder, and do not weaken `site-contacts.test.ts`.
+
+This is a **business fact, not an engineering choice** — whether a monitored inbox exists is the PM's
+to answer, and shipping an address would quietly answer it for them. It is the same carried-forward
+item as `STATE-05` / `TRUST-01`, which one line closes. Carried as `blocking_input` on the plans that
+touch host-facing enforcement copy, and raised in the phase summary as a one-line unblock — **not** a
+reason to hold the phase.
+
 ### The badge (Success Criterion 6)
 
 - **D-237 — The badge states WHAT FITOUT CHECKED and nothing more.** It must never imply FitOut
