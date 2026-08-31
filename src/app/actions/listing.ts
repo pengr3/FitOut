@@ -47,6 +47,9 @@ import {
   type DraftListingInput,
 } from "@/lib/validation/listing";
 import { getModeLockState } from "@/lib/listing/mode-lock";
+// LVER-03 — the guarded re-review flip. A shared WRITE helper, deliberately (its header records why
+// D-227's no-shared-helper rule governs booking.ts's sell-gate re-statements and not this).
+import { markForReReview } from "@/lib/listing/re-review";
 // D-188 — softDeleteListing destroys the listing's Cloudinary assets. A new CALLER of the existing
 // helper, never a new helper: `src/lib/cloudinary.ts` counts its own destroy call sites and this
 // module is server-only, so importing it into a `"use server"` module is the move
@@ -212,9 +215,85 @@ export async function saveListingStep(
     }
   }
 
+  // ── LVER-03 / D-231 / D-232 / D-249: MATERIAL-EDIT DETECTION — SITE ONE OF TWO. ────────────────────
+  // Approval is not a permanent grant. A host who is approved and then changes what the space IS —
+  // where it is, what kind of space it is, how many people it holds, what it costs — has changed the
+  // thing ops checked, so the listing goes back in the queue (D-232), and the SAME edit is the burn-down
+  // path out of `grandfathered` (D-213) and the resubmission path out of a rejection (D-249). The flip
+  // itself, its three source states and its history row live in `src/lib/listing/re-review.ts`; this
+  // block's only job is to answer "did a MATERIAL field genuinely change?".
+  //
+  // ⚠ DETECTION LIVES IN TWO PLACES BY NECESSITY, AND THE OTHER ONE IS
+  // `src/app/actions/listing-photo.ts` (`persistPhoto` / `removePhoto`). D-231 names five material
+  // fields — address, space type, capacity, PHOTOS, price — and says they are detected here. For four of
+  // them that is true and this block is it. For photos it is structurally impossible: `draftSchema`
+  // (`src/lib/validation/listing.ts`) carries no photos field, and this action never touches
+  // `listing_photo` — photos are written by three separate actions in that other file. So D-231's own
+  // sentence is unachievable at the site it names for one of its own five fields (D-242), and the answer
+  // is NOT to quietly drop photos from the set: swapping every photo on an approved listing is the
+  // single highest-signal fake-listing edit there is. Do not "consolidate" the two sites; neither can
+  // see what the other sees. Each has its own anchor in `tests/listing/material-edit.test.ts`.
+  //
+  // ⚠ ONLY A GENUINE CHANGE COUNTS — the same guard the occupancy-mode lock states at :202-213, and it
+  // is what separates a re-review trigger from a wizard that freezes on every keystroke. The wizard's
+  // `saveAndContinue` re-sends the whole form on EVERY step, so an unrelated step's autosave carries the
+  // same stored address and the same stored price; treating those as edits would pull every published
+  // listing on the platform back into review the moment its host opened the editor. Compared with the
+  // EFFECTIVE-VALUE idiom this file already uses twice above (incoming ?? persisted), so a SPARSE save
+  // carrying exactly one field is still caught.
+  //
+  // ⚠ `unitCount` is part of "capacity" in the data but is NOT checked here, and that is not an
+  // omission: it has no form field at all (D-21, and the drop-in gate above says so at `effUnitCount`),
+  // it is absent from `draftSchema`, and this action therefore cannot change it. A field this action
+  // cannot write cannot be edited through this action, materially or otherwise. If a form control for it
+  // is ever added, it must be added to `draftSchema`, to `patch`, AND to the capacity line below.
+  const changed = <T>(incoming: T | undefined, persisted: T | null): boolean =>
+    (incoming ?? persisted) !== persisted;
+
+  const addressChanged =
+    changed(d.addressLine1, owned.addressLine1) ||
+    changed(d.addressLine2, owned.addressLine2) ||
+    changed(d.city, owned.city) ||
+    changed(d.region, owned.region) ||
+    changed(d.postalCode, owned.postalCode) ||
+    changed(d.country, owned.country) ||
+    changed(d.neighborhood, owned.neighborhood) ||
+    // The coordinates, under the SAME both-or-neither condition the patch below writes them (a save
+    // carrying only one of the pair writes nothing, so it changes nothing). AXIS ORDER, Pitfall 1:
+    // x = longitude, y = latitude — read in that order here so this comparison and that write cannot
+    // disagree. A listing that had no point and now has one is a change, which `?.` gives for free.
+    (typeof d.lat === "number" &&
+      typeof d.lng === "number" &&
+      (d.lng !== owned.location?.x || d.lat !== owned.location?.y));
+
+  const spaceTypeChanged = changed(d.primarySpaceType, owned.primarySpaceType);
+
+  const capacityChanged = changed(d.maxOccupancy, owned.maxOccupancy);
+
+  // The pax terms are in the price set because they change what a BOOKER PAYS: `extraHeadFee` is
+  // charged per head above `included`, so moving either moves the quote for the same group size just as
+  // surely as moving the hourly rate does. `quoteGroup`/`paxSurcharge` read all four.
+  const priceChanged =
+    changed(d.hourlyRateCents, owned.hourlyRateCents) ||
+    changed(d.dayRateCents, owned.dayRateCents) ||
+    changed(d.perHeadPriceCents, owned.perHeadPriceCents) ||
+    changed(d.extraHeadFee, owned.extraHeadFee) ||
+    changed(d.included, owned.included);
+
+  // Title and description are NOT here. D-231 holds the ROADMAP's stated five and excludes them
+  // deliberately; it is a recorded gap, not an oversight, and it is carried as a live deferred item in
+  // `.planning/REQUIREMENTS.md` § Deferred — a fake listing lies in its words as much as its fields.
+  // `MATERIAL_FIELDS` in `re-review.ts` restates the same list beside the same note.
+  const materialEdit = addressChanged || spaceTypeChanged || capacityChanged || priceChanged;
+
   // Build the editable-field patch. status / hostId / publishedAt are NOT here — they can never be
   // set via autosave (they aren't in draftSchema, and Zod strips any smuggled keys). updatedAt is
   // always set so the SET clause is never empty on a sparse save.
+  //
+  // The review state is NOT here either, and must never be: it is not a `draftSchema` field, so Zod
+  // strips any smuggled key, and it is written ONLY server-side through `markForReReview` below. Adding
+  // it to this object would put the one column that decides whether a listing is sellable on the same
+  // footing as its title.
   const patch: Partial<InferInsertModel<typeof listing>> = {
     title: d.title,
     description: d.description,
@@ -262,6 +341,16 @@ export async function saveListingStep(
       .update(listing)
       .set(patch)
       .where(and(eq(listing.id, listingId), eq(listing.hostId, userId)));
+
+    // ⚠ INSIDE THE TRANSACTION, NOT AFTER IT (LVER-03, T-18-0604). `tx` is passed, not `db`, so the
+    // field write and the re-review flip commit or roll back TOGETHER. A listing whose address
+    // committed but whose review state did not is a sellable fake — an approved-looking row describing
+    // a different space — and that is exactly what a flip placed after this block would produce every
+    // time the process died between the two. The helper is guarded in its own WHERE, so a listing in
+    // any other state is a 0-row no-op here rather than a branch this call site has to know about.
+    if (materialEdit) {
+      await markForReReview(tx, listingId, "listing_fields");
+    }
 
     // Amenities / activity tags: when the array is provided, REPLACE the set atomically (no stale
     // rows leak across saves). An empty array clears them; undefined leaves them untouched.
