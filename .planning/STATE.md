@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-status: Phase 18 added — awaiting /gsd-plan-phase 18
-stopped_at: Added Phase 18 (Host Verification, Listing Review & FitOut Ops) + backlog 999.4/999.5/999.6 to ROADMAP.md. No plans written. Next — /gsd-plan-phase 18. KYC vendor is a DELIBERATELY OPEN decision; do not settle it in planning.
-last_updated: "2026-09-01T02:20:00.000Z"
-last_activity: 2026-09-01 — Phase 18 added ahead of the v1.2 milestone cycle by PM decision
+status: executing
+stopped_at: Phase 18 PLANNED — 14 plans, 8 waves, checker passed after a one-line fix (18-08 Task 1 was missing --config vitest.design.config.ts). Baseline before execution: tsc exit 0; npm test 190 passed / 2 skipped (192 files), 2223 passed / 5 skipped, exit 0. Next — /gsd-execute-phase 18, SEQUENTIALLY (use_worktrees:false). The KYC vendor is NOT settled and must not be: D-206 ships a provider port + ops-manual provider; the PayMongo-vs-standalone comparison is a PM-facing deliverable (HVER-04, plan 18-14). D-236 (ops refund retains the service fee, against the host-cancel precedent) is the PM's to settle and leads the phase summary.
+last_updated: "2026-09-01T06:40:00.000Z"
+last_activity: 2026-09-01 — Phase 18 discussed, researched, pattern-mapped, UI-specced and planned (14 plans / 8 waves); execution starting
 progress:
   total_phases: 14
   completed_phases: 11
-  total_plans: 149
+  total_plans: 163
   completed_plans: 149
   percent: 79
 ---
@@ -43,10 +43,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 18 — Host Verification, Listing Review & FitOut Ops (added, NOT planned)
-Plan: — (0 plans; run `/gsd-plan-phase 18`)
-Status: Awaiting planning
-Last activity: 2026-09-01 — Phase 18 added ahead of the v1.2 cycle; backlog 999.4/999.5/999.6 captured from the same split
+Phase: 18 — Host Verification, Listing Review & FitOut Ops (PLANNED — executing)
+Plan: 0 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
+Status: Ready to execute
+Last activity: 2026-09-01 — discussed → researched → pattern-mapped → UI-specced → planned (14 plans / 8 waves); plan-checker passed after one one-line fix
 
 ## Performance Metrics
 
