@@ -183,6 +183,20 @@
       "when": 1786420360707,
       "tag": "0025_audit_resolved_by",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1788208556408,
+      "tag": "0026_host_verification_listing_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1788208557408,
+      "tag": "0027_cancelled_by_ops",
+      "breakpoints": true
     }
   ]
 }

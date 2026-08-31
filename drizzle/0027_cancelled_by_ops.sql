@@ -1,0 +1,33 @@
+-- Custom SQL migration (Phase 18, D-244, 18-RESEARCH § F3 / 55P04) — add the Phase-18 value to the
+-- EXISTING cancelled_by enum. THIS FILE DOES NOTHING ELSE, and the emptiness is the whole point.
+--
+-- WHY THE SPLIT, in the drizzle/0020 words because the hazard is identical: an `ALTER TYPE ... ADD VALUE`
+-- and the FIRST USE of the new value CANNOT share a transaction (Postgres 55P04, "unsafe use of new value"),
+-- and BOTH migrators — drizzle-kit migrate and the drizzle-orm programmatic migrator — wrap ALL pending
+-- migrations in ONE transaction. PROBED on this project's own PostgreSQL 18.4 (18-RESEARCH § F3), not
+-- inferred from documentation. `drizzle-kit generate` emitted this statement into 0026 alongside the new
+-- tables; it was MOVED HERE by hand for exactly this reason.
+--
+-- ⚠ THE DEFECT THIS PREVENTS IS ONE A GREEN SUITE CANNOT RULE OUT. tests/helpers/db.ts replays each
+-- statement in its OWN call, and a fresh database CREATEs cancelled_by in-transaction (where the new value
+-- IS usable) — so neither the 193-file suite nor a clean `npm run db:migrate` can reproduce the failure.
+-- It surfaces only against a database where the type is already committed: PRODUCTION. The discipline is
+-- the control, and tests/design/enum-first-use-tripwire.test.ts mechanises it.
+--
+-- ADDING THE VALUE IS SAFE PRECISELY BECAUSE NOTHING WRITES IT AT MIGRATION TIME. No migration in this
+-- directory uses it — no backfill, no DEFAULT, no CHECK, no partial-index predicate. The FIRST write of
+-- the value happens at RUNTIME, in the ops cancel-and-refund action landing in plan 18-08, long after this
+-- transaction has committed. Same shape as 0020's 'open_capacity' and 0018's notification types.
+--
+-- NO MIGRATION AT OR AFTER THIS ONE MAY NAME THE LITERAL — not in a statement and not in a comment, so the
+-- grep tripwire drizzle/0021's header describes stays a real, usable check rather than one that always
+-- trips on prose. That is why this header refers to "the value" throughout instead of spelling it.
+--
+-- WHY A NEW VALUE RATHER THAN REUSING 'system': 'system' means NO PERSON DECIDED THIS (a hold expiry, a
+-- timeout). An ops cancellation is a NAMED HUMAN's decision, and blurring the two would defeat OPS-03,
+-- whose entire content is that an ops action is attributable to the staff member who took it.
+--
+-- IF NOT EXISTS + the unqualified type name keep the integration harness (tests/helpers/db.ts) replaying
+-- this idempotently into every isolated schema (the type resolves via the schema-first search_path).
+-- Postgres appends the value at the enum TAIL — matching the declaration order in src/lib/db/schema.ts.
+ALTER TYPE "cancelled_by" ADD VALUE IF NOT EXISTS 'ops';
