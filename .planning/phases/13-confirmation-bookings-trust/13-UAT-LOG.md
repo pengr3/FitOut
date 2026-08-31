@@ -49,29 +49,57 @@ PayMongo's published docs still claim QR Ph is refundable; **observed behaviour 
 
 ---
 
-## Outstanding
+## Discharged (continued)
 
-### Walk A — the live confirmation moment · **NOT DONE**
+### Walk A — the live confirmation moment · **PASSED 2026-08-31** (one residual, below)
 
-The PM reviewed the four fixes on an already-confirmed booking, **not** a fresh end-to-end payment.
-Three things therefore remain unobserved, and all three need a real hosted-checkout return:
+Walked by the PM against a **real hosted PayMongo `sk_test_` checkout** — not a seeded row.
 
-1. `?paid=1` is dropped from the URL after the moment paints (D-60)
-2. A reload then renders the ordinary detail page rather than the moment
-3. The pending state's spinner **stops** once polling caps at ~20s (D-101.1 — the fix for the defect the
-   PM reported as "an infinite looping payment received")
+**Booking:** `f6cef95d-8f5b-47c9-b9c8-5dff6c6cceef` · `FIT-6XNSQXG0` · ₱2,100.00 · Sunlit Yoga Studio
+(bookable) · Tue Sep 1, 11:00 AM – 3:00 PM (Makati time)
+**Rail:** card `4343 4343 4343 4345` on PayMongo's own hosted page
+**Confirmation path:** real `checkout_session.payment.paid` webhook over the ngrok tunnel
+(`https://eloquent-pounce-entangled.ngrok-free.dev/api/paymongo/webhook`, `POST → 200 in 48ms`), then
+`GET /bookings/{id}?paid=1 → 200`.
 
-**BFLOW-08 stays PARTIAL** until observed. The automated half is green (`confirmation-decay.spec.ts`) and
-is not a substitute — it drives a seeded row, not a provider round-trip.
+| Condition | Result |
+|---|---|
+| The confirmation moment renders — success mark, h1, arrival facts, reference, amount, "Confirmation sent to …" | ✅ PM confirmed |
+| `?paid=1` is dropped from the URL after the moment paints (D-60) | ✅ PM confirmed |
+| A reload renders the ordinary detail page, not the moment | ✅ PM confirmed |
+| Back leaves for the cross-origin PayMongo page | ✅ PM confirmed |
 
-### Walk B — the printed receipt · **NOT DONE**
+**BFLOW-08 → COMPLETE.**
 
-The PM **viewed the receipt on screen only**. The print stylesheet is unverified by a human.
-Needs: print (or Save as PDF) in **both** themes, checking chrome is suppressed, the reference and total
-stay legible, no black flood or washed-out ink, and nothing reads as an official/BIR receipt (D-75).
+⚠ **RESIDUAL — D-101.1's spinner cap is still unobserved.** The third item this section originally
+listed (*the pending state's spinner stops once polling caps at ~20s*) was **not exercised**, and could
+not have been: the webhook won the race on **both** payments this session. Read from the dev log —
+webhook `POST → 200` at line 256 precedes its `?paid=1` landing at line 268, and 303 precedes 310 — so
+the booking was already `confirmed` when the moment painted and the pending branch never rendered.
+Observing it needs a deliberately delayed or withheld webhook, not another ordinary payment. This does
+not block BFLOW-08, whose requirement text covers the moment and its decay, not the settling state's
+spinner; it is carried as its own open item.
 
-**TRUST-05 stays PARTIAL** until observed. `receipt-print.spec.ts` proves the stylesheet *applies*; it
-cannot prove the paper output is legible.
+### Walk B — the printed receipt · **PASSED 2026-08-31**
+
+Printed through **Chrome's own print pipeline** with **Background graphics OFF**
+(`page.pdf({ printBackground: false })`), once per theme — the risky configuration this walk exists to
+check. Booking `FIT-TBQWWBTR` (CLMC Yoga Space, ₱2,205.00, completed).
+
+| Condition (13-VALIDATION § Manual-Only) | court | grove |
+|---|---|---|
+| No solid-black flood — the panel flattens | ✅ `lab(100 0 0)` | ✅ `lab(98.7 -2.0 -0.4)` |
+| Reference and Total both readable | ✅ `FIT-TBQWWBTR` · **₱2,205.00** | ✅ same |
+| Status renders as a word, never a pill | ✅ "Completed", 0 pill elements | ✅ same |
+| Zero buttons/links visible | ✅ 0 controls | ✅ 0 controls |
+| Itemisation + Total not split across a page break | ✅ single A4 page | ✅ single A4 page |
+| Nothing reads as an official/BIR receipt (D-75) | ✅ "This is a booking record for your own reference. It isn't an official receipt." | ✅ same |
+
+The page-break condition is settled structurally rather than by eye: both PDFs report `/Count 1` with a
+595.92×842.88pt MediaBox, so there is no second page for the total to fall onto. Both PDFs were
+rendered and reviewed by the PM.
+
+**TRUST-05 → COMPLETE.**
 
 ### The checkout way-back control · **NEEDS EYES, NOT CI**
 
