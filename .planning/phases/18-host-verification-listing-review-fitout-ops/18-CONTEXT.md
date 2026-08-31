@@ -197,6 +197,75 @@ omission was in how the question was framed, not in their answer.**
 that site. Flipping it must be a one-line change. **Do not resolve this inside a plan by picking the
 other behaviour.** It is the PM's to settle, and it leads the phase summary.
 
+### D-241..D-246 — the six questions research left open, settled (added after 18-RESEARCH.md)
+
+Settled by the SWE under the PM's standing "act on my behalf" grant (2026-09-01). Four of the six
+were flagged as PM calls; each is recorded with its reasoning so the PM can overturn any of them in
+the morning at the cost of one plan, not a re-architecture.
+
+- **D-241 — Ops cancel REACHES a session that has already started.** `cancelBookingAsHost` guards
+  `starts_at > now()` (D-94), which structurally eliminates payout clawback for the host-cancel case.
+  An ops cancel cannot inherit that guard: a space confirmed fake is fake whether or not the clock
+  has started, and the guard would silently protect exactly the bookings most worth undoing.
+  **Replace the guard rather than dropping it** — ops cancel reaches any `confirmed` booking whose
+  **payout has not yet left** (no `host_payout_ledger` row in `processing`/`paid` for that booking).
+  That preserves the no-clawback property D-94 was protecting while removing the fraud blind spot.
+  A booking whose payout has already left is an operator case, not a self-serve one — surface it in
+  the console as *not cancellable here*, with the reason, never a silent no-op.
+- **D-242 — Photos stay in the material set; the trigger moves to where photos actually change.**
+  Research is right that `draftSchema` has no photos field, so `saveListingStep` structurally cannot
+  detect a photo change — D-231's own sentence is unachievable at the site it names. The answer is
+  **not** to drop photos from the material set: photos are the primary way a fake listing lies, and
+  the ROADMAP named them explicitly. **Hook the photo mutation actions in
+  `src/app/actions/listing-photo.ts`** (add / remove / reorder / re-crop) with the same
+  `approved|grandfathered → pending` flip. Material-edit detection therefore lives in **two** places
+  by necessity; state that at both sites, and give each its own test anchor, exactly as the sell-gate
+  re-statements do.
+- **D-243 — A suspended host IS told, with the reason.** OPS-05 already requires a rejection to carry
+  a reason the host can read; suspension is the strictly heavier action, so telling them is the same
+  principle applied consistently. ⚠ Host appeals are backlog 999.6 and OUT — so the message must
+  **not** promise an appeal route or a reply. Say what happened, say why, name the support address
+  (`src/lib/site.ts:70`), and stop.
+- **D-244 — Add `'ops'` to the `cancelled_by` pgEnum** (`src/lib/db/schema.ts:698`), rather than
+  reusing `'system'`. `'system'` means *no person decided this* (expiry, timeout); an ops
+  cancellation is a named human's decision and the record must not blur the two — which is the whole
+  point of OPS-03. ⚠ **Migration hazard, from research finding 3:** `ALTER TYPE … ADD VALUE` on an
+  ALREADY-COMMITTED type cannot be *used* in the same transaction (PG `55P04`), and both migrators
+  wrap all pending migrations in one transaction. Adding the value is safe **because nothing writes
+  `'ops'` at migration time**; the first write happens at runtime, long after commit. Do not add a
+  backfill that uses the new value in the same migration.
+- **D-245 — OPS-05 needs the NOTIFICATION, not just a host-surface signal.** A status a host has to
+  go and look for is not being *told* — and the thing being communicated blocks their income. Reuse
+  the shipped Phase-7 model (D-86/D-91/D-92): one `notification` row written by the same Inngest
+  function that sends the email, so the two channels cannot drift. Host-surface status (D-230) is in
+  ADDITION to this, not instead of it.
+- **D-246 — ONE `/ops` page.** Confirms what `<specifics>` already says: one queue, hosts and
+  listings together, oldest first, everything needed to decide on the same screen. Research notes
+  each extra page costs a `loading.tsx` plus three pinned design-gate constants — so the product
+  answer and the cheap answer agree, which is the easiest kind of decision to take.
+
+### D-247 — Three leak surfaces for LVER-02, not two (research finding 4d)
+
+A pending listing must not escape through **any** of:
+  1. search Stage-1 (`src/lib/search/query.ts`) — closes by construction once D-226 lands,
+  2. the public listing page (`src/app/listings/[id]/(detail)/page.tsx`) — soft-404 per D-229,
+  3. **`src/lib/listing/og-facts.ts:86`**, which runs its OWN `status !== "published"` check and would
+     otherwise render a real Open Graph card for an unreviewed listing — a leak that survives both of
+     the above and is invisible in the browser.
+Plus the guard layering research found for D-219: **every `/ops` page needs a `loading.tsx`**, whose
+Suspense boundary commits HTTP 200 *before* a page-level `notFound()` runs, so a prober separates
+"exists but forbidden" from "does not exist" with one `curl`. Assert in the **layout, above the
+boundary** — the shipped `/listings/[id]` fix is the analog. This does not retire D-216's per-page
+guard; it is a third layer, and the layout layer is explicitly not the security boundary.
+
+### D-248 — The sell-gate change and its fixture sweep ship in ONE commit
+
+Research measured the blast radius: `tests/search/bookable-gate.test.ts` must grow 5→14 fixtures /
+3→8 hosts / 1→3 passing set members, **19 test files** hand-build a bookable host and go dark when the
+sixth term lands, and 14 non-Vitest seed sites need the same treatment. A red suite spanning 19 files,
+discovered a wave later, is indistinguishable from a real regression — this project has lost hours to
+exactly that failure mode before. Gate change + fixture sweep + seed sweep are **one atomic commit**.
+
 ### The badge (Success Criterion 6)
 
 - **D-237 — The badge states WHAT FITOUT CHECKED and nothing more.** It must never imply FitOut
