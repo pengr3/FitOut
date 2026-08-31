@@ -80,7 +80,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
-import { user, hostPayout, listing, operatingHours } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { user, listing, operatingHours } from "@/lib/db/schema";
 import { getAvailability, getOpenMonthAvailability } from "@/lib/availability/read-model";
 import { createOpenCapacityHold, type OpenHoldResult } from "@/lib/availability/units";
 import { loadOpenDayWindow, SOLD_OUT_MESSAGE } from "@/lib/availability/open-capacity";
@@ -250,6 +251,7 @@ function openListing(id: string) {
     hostId: HOST,
     title: id,
     status: "published" as const,
+    reviewState: "approved" as const,
     publishedAt: new Date(),
     primarySpaceType: "gym_fitness_floor" as const,
     city: "Makati",
@@ -293,14 +295,10 @@ beforeAll(async () => {
       canBook: true,
     })),
   ]);
-  // Search's bookability gate (the PayMongo payouts_enabled equivalent) — without it Stage-1 drops both
-  // listings and case 5 would pass for the wrong reason.
-  await testDb.db.insert(hostPayout).values({
-    userId: HOST,
-    activationStatus: "activated",
-    payoutsEnabled: true,
-    onboardingComplete: true,
-  });
+  // Search's bookability gate — the PayMongo payouts_enabled flag AND, since phase 18 (D-224), an
+  // ops-APPROVED host_verification row. Without BOTH, Stage-1 drops both listings and case 5 would pass
+  // for the wrong reason.
+  await makeVerifiedHost(testDb.db, HOST, { insertUser: false });
 
   await testDb.db.insert(listing).values([openListing(LISTING), openListing(CONTROL)]);
 

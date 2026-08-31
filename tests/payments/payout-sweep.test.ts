@@ -15,7 +15,8 @@ import { drizzle } from "drizzle-orm/postgres-js";
 import { and, eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../helpers/db";
 import { mockPayMongo } from "../helpers/mocks";
-import { user, listing, hostPayout, hostPayoutLedger, booking } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { user, listing, hostPayoutLedger, booking } from "@/lib/db/schema";
 import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
 
@@ -32,22 +33,19 @@ const uid = (p: string) => `${p}_${seq++}`;
 /** A due timestamp: comfortably past ends_at + PAYOUT_DELAY_HOURS (payOne itself ignores time). */
 const dueMs = () => Date.now() - (PAYOUT_DELAY_HOURS + 1) * 3_600_000;
 
-/** Insert a host user + an ACTIVATED host_payout with a unique Linked-Account id. */
+/**
+ * Insert a host user + an ACTIVATED host_payout with a unique Linked-Account id + the ops-APPROVED
+ * host_verification row deriveBookable's sixth term reads (phase 18, D-224) — through the one shared
+ * fixture expression, so "a host who can sell" means the same three rows across the whole suite.
+ */
 async function makeHost(): Promise<{ hostId: string; accountId: string }> {
   const hostId = uid("host");
   const accountId = uid("acct");
-  await testDb.db.insert(user).values({
-    id: hostId,
+  await makeVerifiedHost(testDb.db, hostId, {
     name: "Host",
     email: `${hostId}@example.com`,
     firstName: "Host",
-    canHost: true,
-  });
-  await testDb.db.insert(hostPayout).values({
-    userId: hostId,
     paymongoAccountId: accountId,
-    activationStatus: "activated",
-    payoutsEnabled: true,
   });
   return { hostId, accountId };
 }
@@ -59,6 +57,7 @@ async function makeListing(hostId: string): Promise<string> {
     hostId,
     title: "Sweep Listing",
     status: "published",
+    reviewState: "approved",
     unitCount: 1,
     timezone: "Asia/Manila",
     hourlyRateCents: 150000,

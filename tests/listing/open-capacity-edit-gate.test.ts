@@ -186,7 +186,8 @@ import { sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
-import { user, listing, hostPayout, operatingHours } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { user, listing, operatingHours } from "@/lib/db/schema";
 import {
   PER_HEAD_PRICE_REQUIRED_MESSAGE,
   DROP_IN_INSTANT_ONLY_MESSAGE,
@@ -354,13 +355,9 @@ beforeAll(async () => {
   // deriveBookable needs a VERIFIED host with ACTIVATED payouts, or case 5 would refuse with `not-bookable`
   // and prove nothing at all about the money path.
   await testDb.db.execute(sql`UPDATE "user" SET email_verified = true WHERE id = ${HOST_ID}`);
-  await testDb.db.insert(hostPayout).values({
-    userId: HOST_ID,
-    paymongoAccountId: "wal_ocedit_1",
-    activationStatus: "activated",
-    payoutsEnabled: true,
-    onboardingComplete: true,
-  });
+  // Payout wallet + the ops-APPROVED host_verification row (phase 18, D-224) — deriveBookable's sixth
+  // term, so the fixtures below stay sellable and the edit gate is what refuses, never bookability.
+  await makeVerifiedHost(testDb.db, HOST_ID, { insertUser: false, paymongoAccountId: "wal_ocedit_1" });
 
   await testDb.db.insert(listing).values([
     {
@@ -370,6 +367,7 @@ beforeAll(async () => {
       hostId: HOST_ID,
       title: "Whole gym floor",
       status: "published",
+      reviewState: "approved",
       publishedAt: new Date(),
       primarySpaceType: "gym_fitness_floor",
       city: "Makati",
@@ -391,6 +389,7 @@ beforeAll(async () => {
       hostId: HOST_ID,
       title: "Whole gym floor, convertible",
       status: "published",
+      reviewState: "approved",
       publishedAt: new Date(),
       primarySpaceType: "gym_fitness_floor",
       city: "Makati",
@@ -411,6 +410,7 @@ beforeAll(async () => {
       hostId: HOST_ID,
       title: "Approval-only studio",
       status: "published",
+      reviewState: "approved",
       publishedAt: new Date(),
       primarySpaceType: "yoga_studio",
       city: "Makati",
@@ -432,6 +432,7 @@ beforeAll(async () => {
       hostId: HOST_ID,
       title: "Three courts",
       status: "published",
+      reviewState: "approved",
       publishedAt: new Date(),
       primarySpaceType: "multi_sport_court",
       city: "Makati",
@@ -467,6 +468,7 @@ beforeAll(async () => {
       hostId: HOST_ID,
       title: "Drop-in floor, unpriced",
       status: "published",
+      reviewState: "approved",
       publishedAt: new Date(),
       primarySpaceType: "gym_fitness_floor",
       city: "Makati",
@@ -492,6 +494,7 @@ beforeAll(async () => {
       hostId: HOST_ID,
       title: "Stadium open session",
       status: "published",
+      reviewState: "approved",
       publishedAt: new Date(),
       primarySpaceType: "multi_purpose_event",
       city: "Makati",

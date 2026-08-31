@@ -64,6 +64,7 @@ async function makePublishedListing(hostId: string): Promise<string> {
     id,
     hostId,
     status: "published",
+    reviewState: "approved",
     bookingMode: "request",
   });
   return id;
@@ -122,15 +123,18 @@ describe("merchant.activated / merchant.declined gate (PAY-04/D-14)", () => {
 
     // Before activation: published + email-verified but payouts pending → NOT bookable.
     //
-    // `hasOperatingHours: true` throughout this file (deriveBookable's fourth term, added 260810-sti) is
-    // deliberate: these cases measure the PAYOUT flip, so every other term is held true to keep the
-    // observed change attributable to payouts alone. Hours are exercised in tests/listing/bookability.
+    // `hasOperatingHours: true` throughout this file (deriveBookable's fourth term, added 260810-sti) and
+    // `verificationStatus: "approved"` (its sixth, added in phase 18) are deliberate: these cases measure
+    // the PAYOUT flip, so every other term is held at a PASSING value to keep the observed change
+    // attributable to payouts alone. D-225 is exactly this property read from the other side — the ops
+    // terms and `payoutsEnabled` are independent, so pinning one can never mask a change in the other.
+    // Hours, review state and verification status are each exercised in tests/listing/bookability.
     let payout = await readPayout(userId);
     let listingRow = await readListing(listingId);
     expect(
       deriveBookable(
-        { status: listingRow!.status, hasOperatingHours: true },
-        { emailVerified: true, payoutsEnabled: payout!.payoutsEnabled },
+        { status: listingRow!.status, hasOperatingHours: true, reviewState: listingRow!.reviewState },
+        { emailVerified: true, payoutsEnabled: payout!.payoutsEnabled, verificationStatus: "approved" },
       ),
     ).toBe(false);
 
@@ -141,8 +145,8 @@ describe("merchant.activated / merchant.declined gate (PAY-04/D-14)", () => {
     listingRow = await readListing(listingId);
     expect(
       deriveBookable(
-        { status: listingRow!.status, hasOperatingHours: true },
-        { emailVerified: true, payoutsEnabled: payout!.payoutsEnabled },
+        { status: listingRow!.status, hasOperatingHours: true, reviewState: listingRow!.reviewState },
+        { emailVerified: true, payoutsEnabled: payout!.payoutsEnabled, verificationStatus: "approved" },
       ),
     ).toBe(true);
   });
@@ -181,8 +185,8 @@ describe("merchant.activated / merchant.declined gate (PAY-04/D-14)", () => {
     const payout = await readPayout(userId);
     expect(
       deriveBookable(
-        { status: after!.status, hasOperatingHours: true },
-        { emailVerified: true, payoutsEnabled: payout!.payoutsEnabled },
+        { status: after!.status, hasOperatingHours: true, reviewState: after!.reviewState },
+        { emailVerified: true, payoutsEnabled: payout!.payoutsEnabled, verificationStatus: "approved" },
       ),
     ).toBe(false);
   });

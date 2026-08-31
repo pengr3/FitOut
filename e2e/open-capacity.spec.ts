@@ -218,7 +218,7 @@ async function seedListing({
       address_line1, city, region, postal_code, country, neighborhood,
       location, show_exact_address, max_occupancy, unit_count, timezone,
       hourly_rate_cents, day_rate_cents, per_head_price_cents, occupancy_mode,
-      currency, booking_mode, cancellation_policy, status, published_at, created_at, updated_at
+      currency, booking_mode, cancellation_policy, status, review_state, published_at, created_at, updated_at
     ) VALUES (
       ${id}, ${hostId}, ${title},
       ${"A warm reformer studio with props, mats and a sprung floor."}, ${spaceType}::space_type,
@@ -226,7 +226,7 @@ async function seedListing({
       ST_SetSRID(ST_MakePoint(${121.0345}, ${14.5679}), 4326), ${false}, ${maxOccupancy}, ${1}, ${VENUE_TZ},
       ${HOURLY_RATE_CENTS}, ${DAY_RATE_CENTS}, ${perHeadPriceCents}, ${occupancyMode}::occupancy_mode,
       ${"php"}, ${"instant"}::booking_mode, ${"standard"}::cancellation_policy,
-      ${"published"}::listing_status, now(), now(), now()
+      ${"published"}::listing_status, ${"approved"}::listing_review_state, now(), now(), now()
     )
   `;
   await sql`
@@ -282,6 +282,14 @@ test.beforeAll(async ({ browser }) => {
   await sql`
     INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
     VALUES (${hostId}, ${`acct_${randomUUID()}`}, ${"activated"}, ${true}, ${true}, now(), now())
+  `;
+  // …and an ops-APPROVED host_verification row — deriveBookable's SIXTH term (phase 18,
+  // D-224). A host with NO row reads as 'unverified' and cannot sell, so without this the
+  // listing seeded below is not bookable and this spec fails on a page that never renders.
+  // ⚠ e2e does NOT run in CI (D-24) — only a hand run can catch a miss here.
+  await sql`
+    INSERT INTO "host_verification" (user_id, status, provider, created_at, updated_at)
+    VALUES (${hostId}, ${"approved"}::host_verification_status, ${"manual"}, now(), now())
   `;
 
   await seedListing({

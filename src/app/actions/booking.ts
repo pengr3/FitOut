@@ -32,7 +32,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { booking, listing, user, hostPayout } from "@/lib/db/schema";
+import { booking, listing, user, hostPayout, hostVerification } from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
 import { bookingCreateSchema, openHoldSchema } from "@/lib/validation/booking";
 import { createPendingHold, createOpenCapacityHold } from "@/lib/availability/units";
@@ -154,12 +154,19 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
 
   // (4) Re-derive bookability SERVER-SIDE (Security V4 — the reserve route group is NOT the gate). Mirrors
   // the listing page's deriveBookable call: published + THE LISTING HAS AT LEAST ONE operating_hours ROW
-  // + host emailVerified + host payoutsEnabled. Keep this join in sync with bookability.ts (Pitfall 5).
+  // + THE LISTING IS OPS-APPROVED + host emailVerified + host payoutsEnabled + THE HOST IS OPS-APPROVED.
+  // Keep this join in sync with bookability.ts (Pitfall 5).
   //
   // The fourth condition (v1.0 audit finding #4) is a correlated EXISTS folded into the SELECT this
   // action was already issuing — zero extra round trips, and it short-circuits on operating_hours_listing_idx.
   // Anchored by `L_nohours` in tests/booking/state-machine.test.ts, which proved that WITHOUT it this
   // action minted a real hold on a listing whose every date renders Closed.
+  //
+  // The FIFTH and SIXTH conditions (phase 18, D-224) ride the same SELECT the same way: `review_state` is
+  // a column on the listing row already being read, and the host's verification status comes from ONE
+  // added leftJoin — still zero extra round trips. `leftJoin`, not `innerJoin`: a host with no
+  // host_verification row must be refused as UNVERIFIED, never dropped from the result and refused as
+  // "listing does not exist". Anchored by `L_pending_review` in tests/booking/state-machine.test.ts.
   const [lr] = await db
     .select({
       status: listing.status,
@@ -181,19 +188,30 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
       hostEmail: user.email, // the join reaches the host via listing.hostId = user.id — reuse it for the alert
       emailVerified: user.emailVerified,
       payoutsEnabled: hostPayout.payoutsEnabled,
+      // The FIFTH deriveBookable term (LVER-01) — free, it is a column on the row already being read.
+      reviewState: listing.reviewState,
+      // The SIXTH (HVER-03 / ENF-01). Nullable because the leftJoin may match nothing.
+      verificationStatus: hostVerification.status,
       hasOperatingHours: sql<boolean>`EXISTS (SELECT 1 FROM operating_hours oh WHERE oh.listing_id = ${listing.id})`,
     })
     .from(listing)
     .innerJoin(user, eq(listing.hostId, user.id))
     .leftJoin(hostPayout, eq(hostPayout.userId, user.id))
+    .leftJoin(hostVerification, eq(hostVerification.userId, user.id))
     .where(and(eq(listing.id, listingId), isNull(listing.deletedAt)));
   const bookable =
     !!lr &&
     deriveBookable(
       // The explicit `=== true` is not tidying: it keeps a driver-shape surprise (a `"t"` string, a `1`)
       // from reading as truthy and silently re-opening the hole this term closes.
-      { status: lr.status, hasOperatingHours: lr.hasOperatingHours === true },
-      { emailVerified: lr.emailVerified, payoutsEnabled: lr.payoutsEnabled ?? false },
+      { status: lr.status, hasOperatingHours: lr.hasOperatingHours === true, reviewState: lr.reviewState },
+      {
+        emailVerified: lr.emailVerified,
+        payoutsEnabled: lr.payoutsEnabled ?? false,
+        // Fail CLOSED on the nullable side of the leftJoin, exactly as `payoutsEnabled ?? false` does:
+        // no host_verification row means nobody checked, which is 'unverified', not verified.
+        verificationStatus: lr.verificationStatus ?? "unverified",
+      },
     );
   if (!lr || !bookable) {
     return { ok: false, reason: "not-bookable", error: "This space isn't accepting bookings right now." };
@@ -378,6 +396,11 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
  *                                      told: refusing here returns `not-bookable`, whereas letting an
  *                                      hours-less listing fall through to step (7) returned "pick
  *                                      another date" — a lie on a listing that has no dates at all.
+ *                                      Its FIFTH and SIXTH terms (phase 18, D-224) ride the same join
+ *                                      too — `listing.review_state` off the row, `host_verification`
+ *                                      off ONE added leftJoin — and carry their own separate anchor,
+ *                                      `L_OPEN_PENDING_REVIEW` in the same file. Two re-stated gates,
+ *                                      four independent anchors; never one anchor doing double duty.
  *   6. OCCUPANCY MODE (T-09-23)      — the mirror of placeHold's refusal: this mutation admits ONLY
  *                                      `open_capacity`, so neither payload shape can cross into the other
  *                                      listing's arbitration.
@@ -423,32 +446,46 @@ export async function placeOpenHold(input: unknown): Promise<PlaceHoldResult> {
   }
 
   // (5) Re-derive bookability SERVER-SIDE (Security V4 — the reserve route group is NOT the gate): the same
-  // published + hasOperatingHours + host emailVerified + host payoutsEnabled join placeHold uses, plus the
-  // occupancy mode.
+  // published + hasOperatingHours + listing reviewState + host emailVerified + host payoutsEnabled + host
+  // verificationStatus join placeHold uses, plus the occupancy mode.
   //
   // ⚠️ A DELIBERATE RE-STATEMENT of placeHold's gate, not a call into a shared helper — see this
   // function's docblock above for why. That makes it independently duplicated security code on the money
-  // path, so it carries its own RED anchor (`L_OPEN_NOHOURS`): a typo, a wrong alias, a wrong field name
-  // or a missing `=== true` here would compile, pass tsc, pass the exclusive anchor and pass the whole
-  // suite while leaving a real drop-in booking hole open. If you edit one gate, edit both.
+  // path, so it carries its own RED anchors (`L_OPEN_NOHOURS` for the fourth term, `L_OPEN_PENDING_REVIEW`
+  // for the fifth and sixth): a typo, a wrong alias, a wrong field name, a missing `=== true` or a missing
+  // `?? "unverified"` here would compile, pass tsc, pass BOTH of placeHold's anchors and pass the whole
+  // suite while leaving a real drop-in booking hole open — an unreviewed listing sold by the pass. If you
+  // edit one gate, edit both.
   const [lr] = await db
     .select({
       status: listing.status,
       occupancyMode: listing.occupancyMode,
+      // The FIFTH deriveBookable term (LVER-01), re-stated here rather than shared — a column on the row.
+      reviewState: listing.reviewState,
       emailVerified: user.emailVerified,
       payoutsEnabled: hostPayout.payoutsEnabled,
+      // The SIXTH (HVER-03 / ENF-01), re-stated. Nullable — the leftJoin may match nothing.
+      verificationStatus: hostVerification.status,
       hasOperatingHours: sql<boolean>`EXISTS (SELECT 1 FROM operating_hours oh WHERE oh.listing_id = ${listing.id})`,
     })
     .from(listing)
     .innerJoin(user, eq(listing.hostId, user.id))
     .leftJoin(hostPayout, eq(hostPayout.userId, user.id))
+    // leftJoin for the same reason placeHold uses one: an un-checked host must be REFUSED as unverified,
+    // never made to disappear from the join and refused as a listing that does not exist.
+    .leftJoin(hostVerification, eq(hostVerification.userId, user.id))
     .where(and(eq(listing.id, listingId), isNull(listing.deletedAt)));
   const bookable =
     !!lr &&
     deriveBookable(
       // `=== true` for the same reason as placeHold's: never let a driver shape read as truthy.
-      { status: lr.status, hasOperatingHours: lr.hasOperatingHours === true },
-      { emailVerified: lr.emailVerified, payoutsEnabled: lr.payoutsEnabled ?? false },
+      { status: lr.status, hasOperatingHours: lr.hasOperatingHours === true, reviewState: lr.reviewState },
+      {
+        emailVerified: lr.emailVerified,
+        payoutsEnabled: lr.payoutsEnabled ?? false,
+        // Fail CLOSED, re-stated: no host_verification row means nobody checked — 'unverified'.
+        verificationStatus: lr.verificationStatus ?? "unverified",
+      },
     );
   if (!lr || !bookable) {
     return { ok: false, reason: "not-bookable", error: "This space isn't accepting bookings right now." };

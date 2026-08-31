@@ -18,7 +18,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { TZDate } from "@date-fns/tz";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
-import { user, hostPayout, listing, operatingHours, booking } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { user, listing, operatingHours, booking } from "@/lib/db/schema";
 import { searchParamsSchema } from "@/lib/validation/booking";
 import { searchListings, type SearchResultRow } from "@/lib/search/query";
 import { allInRateParts, hasAllInRate } from "@/lib/booking/all-in-rate";
@@ -118,12 +119,10 @@ function localHourUtc(hour: number, tz: string): Date {
 beforeAll(async () => {
   testDb = await setupTestDb();
 
-  await testDb.db.insert(user).values({
-    id: HOST, name: "OC Host", email: "oc_search_host@fitout.seed", firstName: "OC",
-    emailVerified: true, canHost: true,
-  });
-  await testDb.db.insert(hostPayout).values({
-    userId: HOST, activationStatus: "activated", payoutsEnabled: true, onboardingComplete: true,
+  // The search sell-gate host: verified email + activated payouts + an ops-APPROVED host_verification
+  // row (phase 18, D-224). Without the third, Stage-1 drops every fixture and this file measures nothing.
+  await makeVerifiedHost(testDb.db, HOST, {
+    name: "OC Host", email: "oc_search_host@fitout.seed", firstName: "OC",
   });
   await testDb.db.insert(user).values({
     id: BOOKER, name: "OC Booker", email: "oc_search_booker@fitout.seed", firstName: "Booker",
@@ -149,6 +148,7 @@ beforeAll(async () => {
     unitCount: 1,
     timezone: MANILA,
     status: "published",
+    reviewState: "approved",
     publishedAt: new Date(),
   });
   await testDb.db.insert(operatingHours).values({
@@ -169,6 +169,7 @@ beforeAll(async () => {
     unitCount: 1,
     timezone: MANILA,
     status: "published",
+    reviewState: "approved",
     publishedAt: new Date(),
   });
   await testDb.db.insert(operatingHours).values({

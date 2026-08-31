@@ -7,12 +7,110 @@
 //
 // `seedSearchListings(db)` inserts the set into a caller-provided isolated test-schema Drizzle db
 // (mirrors tests/listing/geo-roundtrip.test.ts — location persisted as { x: lng, y: lat }, Pitfall 1).
-// The host is fully bookable (email-verified + an activated host_payout with payouts_enabled) so
-// `deriveBookable` is true and every seeded listing is search-eligible (D-16).
+// The host is fully bookable (email-verified + an activated host_payout with payouts_enabled + an
+// ops-APPROVED host_verification row) and every listing is `review_state = 'approved'`, so
+// `deriveBookable` is true and every seeded listing is search-eligible (D-16 + phase 18 D-224).
+//
+// This file also exports `makeVerifiedHost()` — the one expression the whole suite's bookability
+// fixtures converge on. See its docblock for why, and for why it is NOT a precedent for extracting the
+// two deliberate gate re-statements in src/app/actions/booking.ts.
 
-import { user, hostPayout, listing, listingPhoto, listingActivityTag, operatingHours } from "@/lib/db/schema";
+import {
+  user,
+  hostPayout,
+  hostVerification,
+  listing,
+  listingPhoto,
+  listingActivityTag,
+  operatingHours,
+} from "@/lib/db/schema";
+import type { HostVerificationStatus } from "@/lib/db/schema";
 import type { SpaceTypeValue } from "@/lib/listing-vocab";
 import type { TestDb } from "./db";
+
+/**
+ * makeVerifiedHost — THE ONE EXPRESSION every bookability fixture in the suite converges on.
+ *
+ * WHY THIS EXISTS (phase 18, D-224). `deriveBookable` gained a fifth and sixth term — the listing's ops
+ * review state and the HOST's ops verification status — so "a host who can sell" is now THREE rows, not
+ * two: `user` (emailVerified), `host_payout` (payoutsEnabled) and `host_verification` (status). Nineteen
+ * test files hand-built the first two and went dark the moment the sixth term landed, because a host
+ * with NO `host_verification` row reads as `'unverified'` and refuses every sale. This helper is what
+ * they converge on so the next term costs one edit here instead of nineteen.
+ *
+ * ⚠️ THIS IS A TEST FIXTURE HELPER, AND D-227's NO-SHARED-HELPER RULE DOES NOT REACH IT. That rule
+ * governs the SECURITY code in `src/` — `placeHold` and `placeOpenHold` are deliberate RE-STATEMENTS of
+ * one gate and must stay two independently measured copies. Do NOT read this helper as a precedent for
+ * "consistently" extracting those two. Seeding is not enforcement: a fixture bug makes a test fail
+ * loudly, whereas a gate bug sells an unreviewed space quietly. Opposite failure modes, opposite rules.
+ *
+ * Defaults describe a host who can sell TODAY: email verified, payouts activated, ops-approved. Every
+ * dimension is overridable so a fixture can fail for its OWN single reason — including
+ * `verificationStatus: null`, which inserts NO verification row at all and is the only way to fixture
+ * the fail-closed "nobody ever checked this host" state that `COALESCE`/`?? "unverified"` answers.
+ */
+export async function makeVerifiedHost(
+  db: TestDb["db"],
+  id: string,
+  opts: {
+    name?: string;
+    email?: string;
+    firstName?: string;
+    emailVerified?: boolean;
+    canHost?: boolean;
+    canBook?: boolean;
+    /** false ⇒ the `user` row already exists (a real signUp, another fixture) — insert only the host rows. */
+    insertUser?: boolean;
+    payoutsEnabled?: boolean;
+    /** false ⇒ no `host_payout` row at all (the payouts-never-onboarded fixture). */
+    insertPayout?: boolean;
+    paymongoAccountId?: string;
+    /** `null` ⇒ NO `host_verification` row at all. Any enum value ⇒ a row carrying exactly that status. */
+    verificationStatus?: HostVerificationStatus | null;
+  } = {},
+): Promise<string> {
+  const {
+    insertUser = true,
+    emailVerified = true,
+    canHost = true,
+    canBook = false,
+    payoutsEnabled = true,
+    insertPayout = true,
+    verificationStatus = "approved",
+  } = opts;
+
+  if (insertUser) {
+    await db.insert(user).values({
+      id,
+      name: opts.name ?? id,
+      email: opts.email ?? `${id}@fitout.seed`,
+      firstName: opts.firstName ?? "Seed",
+      emailVerified,
+      canHost,
+      canBook,
+    });
+  }
+  if (insertPayout) {
+    await db.insert(hostPayout).values({
+      userId: id,
+      paymongoAccountId: opts.paymongoAccountId,
+      activationStatus: payoutsEnabled ? "activated" : "pending",
+      payoutsEnabled,
+      onboardingComplete: payoutsEnabled,
+    });
+  }
+  if (verificationStatus !== null) {
+    await db.insert(hostVerification).values({
+      userId: id,
+      status: verificationStatus,
+      // 'manual' is the provider that ships in this phase (D-206); a fixture is never a vendor check, so
+      // `checkedAt`, `vendorRef` and `result` stay NULL — the same shape drizzle/0026's grandfather rows
+      // carry, and for the same reason (T-18-0202: never fabricate a timestamp for a check that never ran).
+      provider: "manual",
+    });
+  }
+  return id;
+}
 
 /** Launch-city center (Makati CBD). AXIS ORDER for PostGIS is x=lng / y=lat — see `location` below. */
 export const SEARCH_ORIGIN = { lat: 14.5547, lng: 121.0244 } as const;
@@ -83,21 +181,10 @@ export const DISTANCES_KM: Record<string, number> = Object.fromEntries(
 export async function seedSearchListings(
   db: TestDb["db"],
 ): Promise<{ hostId: string; listingIds: string[] }> {
-  await db.insert(user).values({
-    id: SEED_HOST_ID,
+  await makeVerifiedHost(db, SEED_HOST_ID, {
     name: "Seed Host",
-    email: `${SEED_HOST_ID}@fitout.seed`,
     firstName: "Seed",
-    emailVerified: true,
-    canHost: true,
-    canBook: false,
-  });
-  await db.insert(hostPayout).values({
-    userId: SEED_HOST_ID,
     paymongoAccountId: "acct_seed_1",
-    activationStatus: "activated",
-    payoutsEnabled: true,
-    onboardingComplete: true,
   });
 
   for (const l of SEED_LISTINGS) {
@@ -124,6 +211,10 @@ export async function seedSearchListings(
       currency: "php",
       bookingMode: "request",
       status: "published",
+      // The FIFTH deriveBookable term (phase 18, D-224). `listing.review_state` DEFAULTS to 'pending', so
+      // a seeded listing is NOT sellable unless it says otherwise — spelled here rather than left to the
+      // column so this set stays search-eligible for the reason D-16 always intended.
+      reviewState: "approved",
       publishedAt: new Date(),
     });
     await db.insert(listingPhoto).values({

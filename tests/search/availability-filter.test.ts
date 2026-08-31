@@ -12,7 +12,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { TZDate } from "@date-fns/tz";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
-import { user, hostPayout, listing, operatingHours, availabilityBlock, booking } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { user, listing, operatingHours, availabilityBlock, booking } from "@/lib/db/schema";
 import { searchParamsSchema } from "@/lib/validation/booking";
 import { searchListings } from "@/lib/search/query";
 
@@ -45,6 +46,7 @@ async function seedListing(id: string, tz: string, unitCount: number, open: stri
     unitCount,
     timezone: tz,
     status: "published",
+    reviewState: "approved",
     publishedAt: new Date(),
   });
   await testDb.db.insert(operatingHours).values({
@@ -71,12 +73,10 @@ async function addBooking(id: string, unit: number, startHour: number, endHour: 
 beforeAll(async () => {
   testDb = await setupTestDb();
 
-  await testDb.db.insert(user).values({
-    id: HOST, name: "Avail Host", email: "avail_host@fitout.seed", firstName: "Avail",
-    emailVerified: true, canHost: true,
-  });
-  await testDb.db.insert(hostPayout).values({
-    userId: HOST, activationStatus: "activated", payoutsEnabled: true, onboardingComplete: true,
+  // The search sell-gate host: verified email + activated payouts + an ops-APPROVED host_verification
+  // row (phase 18, D-224). Without the third, Stage-1 drops every fixture and this file measures nothing.
+  await makeVerifiedHost(testDb.db, HOST, {
+    name: "Avail Host", email: "avail_host@fitout.seed", firstName: "Avail",
   });
   await testDb.db.insert(user).values({
     id: BOOKER, name: "Avail Booker", email: "avail_booker@fitout.seed", firstName: "Booker",

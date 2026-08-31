@@ -56,7 +56,8 @@ import { venueWindow, assertBookableWindow } from "../helpers/dates";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
 import { isPgError } from "@/lib/pg";
-import { user, listing, hostPayout, operatingHours, booking } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { user, listing, operatingHours, booking } from "@/lib/db/schema";
 import { createPendingHold, HOLD_TTL_MINUTES } from "@/lib/availability/units";
 import { APPROVAL_PAYMENT_WINDOW_HOURS } from "@/lib/payments/config";
 import { getAvailability } from "@/lib/availability/read-model";
@@ -174,6 +175,7 @@ async function makeListing(id: string, unitCount = 1): Promise<void> {
     hostId: HOST,
     title: `Listing ${id}`,
     status: "published",
+    reviewState: "approved",
     unitCount,
     timezone: "Asia/Manila",
     hourlyRateCents: HOURLY,
@@ -484,6 +486,7 @@ describe("placeHold forks on bookingMode + mode-flip independence + pay-on-appro
       hostId: HOST,
       title: `Listing ${id}`,
       status: "published",
+      reviewState: "approved",
       bookingMode: mode,
       unitCount: 1,
       timezone: "Asia/Manila",
@@ -519,13 +522,11 @@ describe("placeHold forks on bookingMode + mode-flip independence + pay-on-appro
   beforeAll(async () => {
     testAuth = makeTestAuth(testDb);
     // deriveBookable needs the host verified (already, top-level) + an ACTIVATED payout row — else placeHold
-    // refuses. HOST has no hostPayout yet (the earlier DB-level tests never hit deriveBookable), so add one.
-    await testDb.db.insert(hostPayout).values({
-      userId: HOST,
-      payoutsEnabled: true,
-      activationStatus: "activated",
-      onboardingComplete: true,
-    });
+    // refuses. HOST has no host_payout and no host_verification row yet (the earlier DB-level tests never
+    // hit deriveBookable), so add both through the one shared fixture expression.
+    // Payouts + the ops-APPROVED host_verification row deriveBookable's sixth term reads (phase 18,
+    // D-224). Without it every placeHold in this file refuses `not-bookable`.
+    await makeVerifiedHost(testDb.db, HOST, { insertUser: false });
     // A real signed-up booker (intent 'book' → canBook) whose session drives the actions.
     await signUp(testAuth, {
       email: ACTION_BOOKER_EMAIL,
@@ -703,6 +704,7 @@ describe("host approve/decline server actions — owner-gate, SLA guard, idempot
       hostId,
       title: `Listing ${id}`,
       status: "published",
+      reviewState: "approved",
       bookingMode: "request",
       unitCount: 1,
       timezone: "Asia/Manila",

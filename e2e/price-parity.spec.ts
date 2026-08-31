@@ -117,6 +117,14 @@ async function seedHost(): Promise<void> {
     INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
     VALUES (${hostId}, ${`acct_${randomUUID()}`}, ${"activated"}, ${true}, ${true}, now(), now())
   `;
+  // …and an ops-APPROVED host_verification row — deriveBookable's SIXTH term (phase 18,
+  // D-224). A host with NO row reads as 'unverified' and cannot sell, so without this the
+  // listing seeded below is not bookable and this spec fails on a page that never renders.
+  // ⚠ e2e does NOT run in CI (D-24) — only a hand run can catch a miss here.
+  await sql`
+    INSERT INTO "host_verification" (user_id, status, provider, created_at, updated_at)
+    VALUES (${hostId}, ${"approved"}::host_verification_status, ${"manual"}, now(), now())
+  `;
 }
 
 async function seedListing(): Promise<void> {
@@ -125,13 +133,13 @@ async function seedListing(): Promise<void> {
       id, host_id, title, description, primary_space_type,
       address_line1, city, region, postal_code, country, neighborhood,
       location, show_exact_address, max_occupancy, unit_count, timezone,
-      hourly_rate_cents, day_rate_cents, currency, booking_mode, status, published_at, created_at, updated_at
+      hourly_rate_cents, day_rate_cents, currency, booking_mode, status, review_state, published_at, created_at, updated_at
     ) VALUES (
       ${listingId}, ${hostId}, ${LISTING_TITLE},
       ${"A matted boxing gym with heavy bags, a ring and wraps."}, ${SPACE_TYPE}::space_type,
       ${"2 Real Street"}, ${LISTING_CITY}, ${"Metro Manila"}, ${"1210"}, ${"Philippines"}, ${"Poblacion"},
       ST_SetSRID(ST_MakePoint(${LISTING_LNG}, ${LISTING_LAT}), 4326), ${false}, ${8}, ${1}, ${VENUE_TZ},
-      ${HOURLY_RATE_CENTS}, ${DAY_RATE_CENTS}, ${"php"}, ${"instant"}::booking_mode, ${"published"}::listing_status,
+      ${HOURLY_RATE_CENTS}, ${DAY_RATE_CENTS}, ${"php"}, ${"instant"}::booking_mode, ${"published"}::listing_status, ${"approved"}::listing_review_state,
       now(), now(), now()
     )
   `;

@@ -39,6 +39,7 @@ import {
   listing,
   user,
   hostPayout,
+  hostVerification,
   listingPhoto,
   listingAmenity,
   listingActivityTag,
@@ -244,13 +245,19 @@ export default async function PublicListingPage({
   });
   const searched = searchedParsed.success ? searchedParsed.data : NO_SEARCHED_WINDOW;
 
-  // Fetch the listing + host + cached payout flag in one query (LEFT JOIN so a host with no payout row
-  // still resolves — payoutsEnabled just defaults false). deletedAt IS NULL excludes soft-deleted rows.
+  // Fetch the listing + host + cached payout flag + ops verification row in one query (LEFT JOIN so a
+  // host with no payout row and no verification row still resolves — payoutsEnabled just defaults false
+  // and verificationStatus defaults "unverified"). deletedAt IS NULL excludes soft-deleted rows.
+  //
+  // The phase-18 verification read JOINS THIS EXISTING QUERY rather than becoming a fifth element of the
+  // Promise.all below: this select was already reaching the host row, so the sixth deriveBookable term
+  // costs one more LEFT JOIN and zero extra round trips.
   const rows = await db
     .select()
     .from(listing)
     .innerJoin(user, eq(listing.hostId, user.id))
     .leftJoin(hostPayout, eq(hostPayout.userId, user.id))
+    .leftJoin(hostVerification, eq(hostVerification.userId, user.id))
     .where(and(eq(listing.id, id), isNull(listing.deletedAt)));
   const row = rows[0];
 
@@ -284,10 +291,13 @@ export default async function PublicListingPage({
   // Moved BELOW the batch above so it can read `hasOperatingHours`; safe because `bookable` is not read
   // until far further down the render, well after this point.
   const bookable = deriveBookable(
-    { status: row.listing.status, hasOperatingHours },
+    { status: row.listing.status, hasOperatingHours, reviewState: row.listing.reviewState },
     {
       emailVerified: row.user.emailVerified,
       payoutsEnabled: row.host_payout?.payoutsEnabled ?? false,
+      // Fail closed on the LEFT JOIN's nullable side, the same shape as payoutsEnabled one line up: a
+      // host with no host_verification row is UNVERIFIED, never verified (phase 18, D-224).
+      verificationStatus: row.host_verification?.status ?? "unverified",
     },
   );
 

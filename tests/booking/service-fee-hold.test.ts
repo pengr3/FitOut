@@ -30,7 +30,8 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { and, eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { mockPayMongo } from "../helpers/mocks";
-import { user, listing, booking, hostPayout, hostPayoutLedger } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { user, listing, booking, hostPayoutLedger } from "@/lib/db/schema";
 import { createPendingHold } from "@/lib/availability/units";
 import { quoteWindow } from "@/lib/booking/pricing";
 import { computeServiceFee } from "@/lib/payments/service-fee";
@@ -67,6 +68,7 @@ async function makeListing(opts: ListingOpts = {}): Promise<string> {
     hostId: HOST,
     title: `Listing ${id}`,
     status: "published",
+    reviewState: "approved",
     unitCount: 1,
     timezone: "Asia/Manila",
     city: "Makati",
@@ -119,12 +121,9 @@ beforeAll(async () => {
     { id: HOST, name: "SF Host", email: "sf_host@example.com", firstName: "Host", canHost: true },
     { id: BOOKER, name: "SF Booker", email: "sf_booker@example.com", firstName: "Booker" },
   ]);
-  await testDb.db.insert(hostPayout).values({
-    userId: HOST,
-    paymongoAccountId: "acct_sf_host",
-    activationStatus: "activated",
-    payoutsEnabled: true,
-  });
+  // Payout wallet + the ops-APPROVED host_verification row (phase 18, D-224) — the sixth deriveBookable
+  // term, without which placeHold refuses before any fee is ever quoted.
+  await makeVerifiedHost(testDb.db, HOST, { insertUser: false, paymongoAccountId: "acct_sf_host" });
 
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({

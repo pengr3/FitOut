@@ -77,8 +77,18 @@
 
 import { describe, it, expect } from "vitest";
 import { deriveBookable } from "@/lib/bookability";
+import type { HostVerificationStatus, ListingReviewState } from "@/lib/db/schema";
 
 type Status = "draft" | "published" | "unlisted";
+
+// The FIFTH and SIXTH terms, PINNED AT A PASSING VALUE for every assertion that predates them (phase 18,
+// D-224). This is the whole reason the 16-row table below still measures exactly what it always did: with
+// both new terms held true, each of those rows is the same four-boolean experiment it was written as, and
+// the two new dimensions are measured by their OWN tables further down rather than by multiplying this one
+// into 480 rows. Naming them as constants — rather than typing "approved" 16 times — is what makes that
+// intent legible and what makes flipping one to check the pinning a one-line experiment.
+const PASSING_REVIEW: ListingReviewState = "approved";
+const PASSING_VERIFICATION: HostVerificationStatus = "approved";
 
 describe("deriveBookable — the pure bookability gate (D-15 + audit finding #4)", () => {
   // 16-row truth table over (published?, emailVerified, payoutsEnabled, hasOperatingHours). The
@@ -118,8 +128,12 @@ describe("deriveBookable — the pure bookability gate (D-15 + audit finding #4)
     it(`status=${r.status} emailVerified=${r.emailVerified} payoutsEnabled=${r.payoutsEnabled} hasOperatingHours=${r.hasOperatingHours} → ${r.expected}`, () => {
       expect(
         deriveBookable(
-          { status: r.status, hasOperatingHours: r.hasOperatingHours },
-          { emailVerified: r.emailVerified, payoutsEnabled: r.payoutsEnabled },
+          { status: r.status, hasOperatingHours: r.hasOperatingHours, reviewState: PASSING_REVIEW },
+          {
+            emailVerified: r.emailVerified,
+            payoutsEnabled: r.payoutsEnabled,
+            verificationStatus: PASSING_VERIFICATION,
+          },
         ),
       ).toBe(r.expected);
     });
@@ -136,19 +150,19 @@ describe("deriveBookable — the pure bookability gate (D-15 + audit finding #4)
     });
   });
 
-  it("unlisted is never bookable even with verified email + payouts + hours (D-15)", () => {
+  it("unlisted is never bookable even with verified email + payouts + hours + both ops approvals (D-15)", () => {
     expect(
       deriveBookable(
-        { status: "unlisted", hasOperatingHours: true },
-        { emailVerified: true, payoutsEnabled: true },
+        { status: "unlisted", hasOperatingHours: true, reviewState: PASSING_REVIEW },
+        { emailVerified: true, payoutsEnabled: true, verificationStatus: PASSING_VERIFICATION },
       ),
     ).toBe(false);
   });
 
   it("auto-reverts when payoutsEnabled flips to false with nothing else changed (D-14)", () => {
     // Hours stay TRUE on both calls on purpose: this case measures PAYOUTS, not hours.
-    const listing = { status: "published" as const, hasOperatingHours: true };
-    const host = { emailVerified: true, payoutsEnabled: true };
+    const listing = { status: "published" as const, hasOperatingHours: true, reviewState: PASSING_REVIEW };
+    const host = { emailVerified: true, payoutsEnabled: true, verificationStatus: PASSING_VERIFICATION };
     expect(deriveBookable(listing, host)).toBe(true);
     // Webhook flips payouts off (merchant.declined) — no listing write; bookability drops instantly.
     expect(deriveBookable(listing, { ...host, payoutsEnabled: false })).toBe(false);
@@ -159,8 +173,8 @@ describe("deriveBookable — the pure bookability gate (D-15 + audit finding #4)
     // a webhook. Deleting the last operating_hours row costs no listing write and no publish-state change:
     // the listing stays `published`, and simply stops being sellable. The iu7 host signal
     // (loadPublishedListingsMissingHours) fires on exactly this state, so it is never silent.
-    const host = { emailVerified: true, payoutsEnabled: true };
-    const listing = { status: "published" as const, hasOperatingHours: true };
+    const host = { emailVerified: true, payoutsEnabled: true, verificationStatus: PASSING_VERIFICATION };
+    const listing = { status: "published" as const, hasOperatingHours: true, reviewState: PASSING_REVIEW };
     expect(deriveBookable(listing, host)).toBe(true);
     expect(deriveBookable({ ...listing, hasOperatingHours: false }, host)).toBe(false);
   });

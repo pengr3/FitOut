@@ -183,6 +183,7 @@ async function reset(): Promise<void> {
   await sql`DELETE FROM booking WHERE listing_id LIKE 'vrt_%' OR booker_id LIKE 'vrt_%'`;
   await sql`DELETE FROM listing WHERE id LIKE 'vrt_%'`;
   await sql`DELETE FROM host_payout WHERE user_id LIKE 'vrt_%'`;
+  await sql`DELETE FROM host_verification WHERE user_id LIKE 'vrt_%'`;
   await sql`DELETE FROM "user" WHERE id LIKE 'vrt_%'`;
 }
 
@@ -198,6 +199,13 @@ async function seedUsers(): Promise<void> {
     INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
     VALUES (${VRT_HOST_ID}, ${"acct_vrt_1"}, ${"activated"}, ${true}, ${true}, now(), now())
   `;
+  // AND SO IS AN OPS-APPROVED host_verification ROW, for exactly the same reason (phase 18, D-224 — the
+  // SIXTH deriveBookable term). A host with no row reads as 'unverified', the listing stops being
+  // bookable, and every checkout baseline would silently re-capture a redirect instead of the page.
+  await sql`
+    INSERT INTO "host_verification" (user_id, status, provider, created_at, updated_at)
+    VALUES (${VRT_HOST_ID}, ${"approved"}::host_verification_status, ${"manual"}, now(), now())
+  `;
   // The rival who already holds the collision window. `can_book` so the row is a legitimate booker.
   await sql`
     INSERT INTO "user" (id, name, email, email_verified, first_name, can_host, can_book, created_at, updated_at)
@@ -212,7 +220,7 @@ async function seedListing(l: VrtListing): Promise<void> {
       address_line1, city, region, postal_code, country, neighborhood,
       location, show_exact_address, max_occupancy, unit_count, timezone,
       hourly_rate_cents, day_rate_cents, per_head_price_cents, occupancy_mode,
-      currency, booking_mode, status, published_at, created_at, updated_at
+      currency, booking_mode, status, review_state, published_at, created_at, updated_at
     ) VALUES (
       ${l.id}, ${VRT_HOST_ID}, ${l.title},
       ${`${l.title} — a bookable space in ${l.city}. Seeded for visual-regression baselines.`},
@@ -221,6 +229,8 @@ async function seedListing(l: VrtListing): Promise<void> {
       ST_SetSRID(ST_MakePoint(${l.lng}, ${l.lat}), 4326), ${false}, ${12}, ${l.unitCount}, ${"Asia/Manila"},
       ${l.hourlyRateCents}, ${l.dayRateCents}, ${l.perHeadPriceCents}, ${l.occupancyMode}::occupancy_mode,
       ${"php"}, ${"instant"}::booking_mode, ${"published"}::listing_status,
+      -- The FIFTH deriveBookable term (phase 18, D-224); the column DEFAULTS to 'pending'.
+      ${"approved"}::listing_review_state,
       now(), now(), now()
     )
   `;

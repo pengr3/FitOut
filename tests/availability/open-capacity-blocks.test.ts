@@ -158,7 +158,8 @@ import { sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
-import { user, listing, operatingHours, availabilityBlock, hostPayout } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { user, listing, operatingHours, availabilityBlock } from "@/lib/db/schema";
 import { getAvailability, getOpenMonthAvailability } from "@/lib/availability/read-model";
 import { BLOCKED_DATE_MESSAGE, loadOpenDayWindow } from "@/lib/availability/open-capacity";
 import { createOpenCapacityHold } from "@/lib/availability/units";
@@ -364,13 +365,12 @@ beforeAll(async () => {
     })),
   );
 
-  // The host's payout wallet — the D-71 host-cancel fee debit in case 5 nets against it.
-  await testDb.db.insert(hostPayout).values({
-    userId: HOST_ID,
+  // The host's payout wallet — the D-71 host-cancel fee debit in case 5 nets against it — plus the
+  // ops-APPROVED host_verification row deriveBookable's SIXTH term needs (phase 18, D-224). Both through
+  // the one shared fixture expression; the `user` row above is left alone.
+  await makeVerifiedHost(testDb.db, HOST_ID, {
+    insertUser: false,
     paymongoAccountId: "wal_ocb_1",
-    activationStatus: "activated",
-    payoutsEnabled: true,
-    onboardingComplete: true,
   });
 
   await testDb.db.insert(listing).values([
@@ -379,6 +379,7 @@ beforeAll(async () => {
       hostId: HOST_ID,
       title: "Drop-in floor",
       status: "published",
+      reviewState: "approved",
       publishedAt: new Date(),
       primarySpaceType: "gym_fitness_floor",
       city: "Makati",
@@ -403,6 +404,7 @@ beforeAll(async () => {
       hostId: HOST_ID,
       title: "Whole court",
       status: "published",
+      reviewState: "approved",
       publishedAt: new Date(),
       primarySpaceType: "gym_fitness_floor",
       city: "Makati",

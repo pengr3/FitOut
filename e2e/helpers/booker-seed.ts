@@ -259,6 +259,13 @@ export async function seedBookableListing(options: SeedOptions = {}): Promise<Se
     INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
     VALUES (${hostId}, ${`acct_${randomUUID()}`}, ${"activated"}, ${true}, ${true}, now(), now())
   `;
+  // …and so is an ops-APPROVED host_verification row (phase 18, D-224 — deriveBookable's SIXTH term). A
+  // host with NO row reads as 'unverified' and every spec below would land on a listing that refuses to
+  // sell. ⚠ These specs do NOT run in CI (D-24), so nothing but a hand run can catch this.
+  await sql`
+    INSERT INTO "host_verification" (user_id, status, provider, created_at, updated_at)
+    VALUES (${hostId}, ${"approved"}::host_verification_status, ${"manual"}, now(), now())
+  `;
 
   await sql`
     INSERT INTO "listing" (
@@ -266,7 +273,7 @@ export async function seedBookableListing(options: SeedOptions = {}): Promise<Se
       address_line1, city, region, postal_code, country, neighborhood,
       location, show_exact_address, max_occupancy, unit_count, timezone,
       hourly_rate_cents, day_rate_cents, per_head_price_cents, occupancy_mode,
-      currency, booking_mode, status, published_at, created_at, updated_at
+      currency, booking_mode, status, review_state, published_at, created_at, updated_at
     ) VALUES (
       ${listingId}, ${hostId}, ${title},
       ${"A matted boxing gym with heavy bags, a ring and wraps."}, ${SPACE_TYPE}::space_type,
@@ -276,6 +283,8 @@ export async function seedBookableListing(options: SeedOptions = {}): Promise<Se
       ${occupancy === "open_capacity" ? PER_HEAD_PRICE_CENTS : null},
       ${occupancy}::occupancy_mode,
       ${"php"}, ${"instant"}::booking_mode, ${"published"}::listing_status,
+      -- The FIFTH deriveBookable term (phase 18, D-224); the column DEFAULTS to 'pending'.
+      ${"approved"}::listing_review_state,
       now(), now(), now()
     )
   `;

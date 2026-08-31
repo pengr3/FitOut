@@ -8,7 +8,8 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { mockPayMongo } from "../helpers/mocks";
-import { user, listing, hostPayout, hostPayoutLedger, booking } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { user, listing, hostPayoutLedger, booking } from "@/lib/db/schema";
 import { computeCommission } from "@/lib/payments/commission";
 import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
@@ -25,18 +26,13 @@ const dueMs = () => Date.now() - (PAYOUT_DELAY_HOURS + 1) * 3_600_000;
 async function makeHost(): Promise<{ hostId: string; accountId: string }> {
   const hostId = uid("host");
   const accountId = uid("acct");
-  await testDb.db.insert(user).values({
-    id: hostId,
+  // user + an ACTIVATED host_payout + the ops-APPROVED host_verification row (phase 18, D-224), through
+  // the one shared fixture expression, so "a host who can sell" means the same three rows suite-wide.
+  await makeVerifiedHost(testDb.db, hostId, {
     name: "Host",
     email: `${hostId}@example.com`,
     firstName: "Host",
-    canHost: true,
-  });
-  await testDb.db.insert(hostPayout).values({
-    userId: hostId,
     paymongoAccountId: accountId,
-    activationStatus: "activated",
-    payoutsEnabled: true,
   });
   return { hostId, accountId };
 }
@@ -48,6 +44,7 @@ async function makeListing(hostId: string): Promise<string> {
     hostId,
     title: "Freeze Listing",
     status: "published",
+    reviewState: "approved",
     unitCount: 1,
     timezone: "Asia/Manila",
     hourlyRateCents: 150000,

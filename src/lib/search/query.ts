@@ -201,8 +201,15 @@ export async function searchListings(
     FROM listing l
     JOIN "user" u ON u.id = l.host_id
     LEFT JOIN host_payout hp ON hp.user_id = u.id
-    -- Inlined deriveBookable (src/lib/bookability.ts) — KEEP IN SYNC (Pitfall 5). All FOUR terms:
-    --   status==='published' && listing.hasOperatingHours && host.emailVerified && host.payoutsEnabled
+    -- LEFT, not INNER, and for the same reason as host_payout above: host_verification is 1:1 to user but
+    -- is NOT created with the user, so a host with NO ROW is the common case. An INNER JOIN here would
+    -- silently delete every un-checked host's listings from search for a reason nothing names.
+    LEFT JOIN host_verification hv ON hv.user_id = u.id
+    -- Inlined deriveBookable (src/lib/bookability.ts) — KEEP IN SYNC (Pitfall 5). All SIX terms:
+    --   status==='published' && listing.hasOperatingHours
+    --   && listing.reviewState in (approved, grandfathered)          -- LVER-01, phase 18
+    --   && host.emailVerified && host.payoutsEnabled
+    --   && host.verificationStatus in (approved, grandfathered)      -- HVER-03 / ENF-01, phase 18
     --   (+ non-deleted, which is a SQL-only term deriveBookable deliberately does not model)
     -- NOTE: no backticks or dollar-braces in comments inside this template literal — they would end the
     -- template / open an interpolation. The byte-unchanged git-diff gate that used to protect this
@@ -212,6 +219,17 @@ export async function searchListings(
       AND l.deleted_at IS NULL
       AND u.email_verified = true
       AND COALESCE(hp.payouts_enabled, false) = true
+      -- OPS APPROVAL IS A TERM OF THE SELL GATE ITSELF (phase 18, D-224/D-226). These two lines are the
+      -- reason a pending listing needs no separate hiding rule anywhere in search: the row never leaves
+      -- Postgres (D-228). Both are enumerated as POSITIVE literals, never as a not-equals, so a value
+      -- added to either enum later fails by default instead of passing by accident.
+      AND l.review_state IN ('approved', 'grandfathered')
+      -- COALESCE for the same fail-closed reason as COALESCE(hp.payouts_enabled, false) one line up: a
+      -- host with NO host_verification row is UNVERIFIED, never verified. Note that 'suspended' fails
+      -- here too, which is why suspension is enforced by this one read and needs no second check
+      -- anywhere (D-222). The ::text cast matches the shipped l.primary_space_type::text idiom; this is
+      -- a RUNTIME query, so naming enum values here carries no 55P04 migration hazard.
+      AND COALESCE(hv.status::text, 'unverified') IN ('approved', 'grandfathered')
       -- THE SELL GATE: does this listing have a calendar AT ALL (v1.0 audit finding #4). UNCONDITIONAL,
       -- and that is the entire point — see the per-day EXISTS below, with which it deliberately coexists.
       AND EXISTS (SELECT 1 FROM operating_hours oh_any WHERE oh_any.listing_id = l.id)

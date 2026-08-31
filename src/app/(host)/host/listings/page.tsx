@@ -16,7 +16,7 @@ import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { Building2Icon } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { listing, listingPhoto, hostPayout } from "@/lib/db/schema";
+import { listing, listingPhoto, hostPayout, hostVerification } from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
 import { loadPublishedListingsMissingHours } from "@/lib/listing/hours-signal";
 // D-130 / GATE-05: the tile's price line is composed HERE, in the RSC, and handed to the client card as
@@ -70,6 +70,18 @@ export default async function HostListingsPage() {
     .where(eq(hostPayout.userId, session.user.id));
   const payoutsEnabled = payoutRows[0]?.payoutsEnabled ?? false;
   const emailVerified = Boolean(u.emailVerified ?? session.user.emailVerified);
+
+  // One host_verification row per host (phase 18, D-224) — the SIXTH deriveBookable term, read ONCE for
+  // the whole grid beside `payoutsEnabled` above and never per card. Every listing on this page belongs
+  // to the same host, so a per-card read would be the same answer fetched N times (T-IU7-04).
+  //
+  // NO ROW ⇒ "unverified", never verified: the row is not created with the user, so absence is the
+  // ordinary state of a host nobody has checked yet, and it must fail the gate rather than pass it.
+  const verificationRows = await db
+    .select({ status: hostVerification.status })
+    .from(hostVerification)
+    .where(eq(hostVerification.userId, session.user.id));
+  const verificationStatus = verificationRows[0]?.status ?? "unverified";
 
   // v1.0 audit finding #4 — which published listings have no weekly hours, in ONE owner-scoped query,
   // collapsed to a Set the render reads from. Same idiom as coverByListing above; deliberately NOT
@@ -152,9 +164,11 @@ export default async function HostListingsPage() {
             // truth table pins this: `draft × emailVerified × payoutsEnabled × hasOperatingHours=true`
             // must derive false (tests/listing/bookability.test.ts), so nobody can later "simplify" the
             // AND and silently make this grid claim a hours-less draft is sellable.
+            // The FIFTH and SIXTH terms (phase 18, D-224): `r.reviewState` comes free from the `select()`
+            // above (r is a full listing row), and `verificationStatus` was read ONCE for the whole grid.
             const bookable = deriveBookable(
-              { status: r.status, hasOperatingHours: !missingHours.has(r.id) },
-              { emailVerified, payoutsEnabled },
+              { status: r.status, hasOperatingHours: !missingHours.has(r.id), reviewState: r.reviewState },
+              { emailVerified, payoutsEnabled, verificationStatus },
             );
             return (
               <ListingCard

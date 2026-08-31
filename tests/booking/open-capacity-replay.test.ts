@@ -137,7 +137,8 @@ import { eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
-import { user, listing, booking, hostPayout, operatingHours } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { user, listing, booking, operatingHours } from "@/lib/db/schema";
 import { createPendingHold } from "@/lib/availability/units";
 import type { RateLimitResult } from "@/lib/rate-limit";
 
@@ -320,15 +321,11 @@ beforeAll(async () => {
   aliceId = ids.find((u) => u.email === ALICE_EMAIL)!.id;
   malloryId = ids.find((u) => u.email === MALLORY_EMAIL)!.id;
 
-  // deriveBookable needs a VERIFIED host with ACTIVATED payouts, or every case would refuse with
+  // deriveBookable needs a host with a VERIFIED email, ACTIVATED payouts and an ops-APPROVED
+  // host_verification row (phase 18, D-224), on an ops-APPROVED listing, or every case would refuse with
   // `not-bookable` and prove nothing about the replay predicate.
   await testDb.db.update(user).set({ emailVerified: true }).where(eq(user.id, hostId));
-  await testDb.db.insert(hostPayout).values({
-    userId: hostId,
-    payoutsEnabled: true,
-    activationStatus: "activated",
-    onboardingComplete: true,
-  });
+  await makeVerifiedHost(testDb.db, hostId, { insertUser: false });
 
   // Shaped exactly like a listing the 09-06 publish gate would accept.
   await testDb.db.insert(listing).values([
@@ -337,6 +334,7 @@ beforeAll(async () => {
       hostId,
       title: "Drop-in replay floor",
       status: "published" as const,
+      reviewState: "approved" as const,
       occupancyMode: "open_capacity" as const,
       bookingMode: "instant" as const, // OC-10 — open capacity is instant-only
       cancellationPolicy: "standard" as const,
@@ -353,6 +351,7 @@ beforeAll(async () => {
       hostId,
       title: "Whole court",
       status: "published" as const,
+      reviewState: "approved" as const,
       occupancyMode: "exclusive" as const,
       bookingMode: "instant" as const,
       cancellationPolicy: "standard" as const,

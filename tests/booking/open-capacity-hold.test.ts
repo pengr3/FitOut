@@ -109,7 +109,8 @@ import { eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
-import { user, listing, booking, hostPayout, operatingHours } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { user, listing, booking, operatingHours } from "@/lib/db/schema";
 import { createPendingHold } from "@/lib/availability/units";
 import { computeServiceFee } from "@/lib/payments/service-fee";
 import { SOLD_OUT_MESSAGE, PAST_DATE_MESSAGE } from "@/lib/availability/open-capacity";
@@ -308,15 +309,11 @@ beforeAll(async () => {
   hostId = ids.find((u) => u.email === HOST_EMAIL)!.id;
   bookerId = ids.find((u) => u.email === BOOKER_EMAIL)!.id;
 
-  // deriveBookable needs a VERIFIED host with ACTIVATED payouts, or every case below would refuse with
-  // `not-bookable` and prove nothing about occupancy modes.
+  // deriveBookable needs a VERIFIED host with ACTIVATED payouts and an ops-APPROVED host_verification row
+  // (phase 18, D-224 — the SIXTH term), on an ops-APPROVED listing (the FIFTH), or every case below would
+  // refuse with `not-bookable` and prove nothing about occupancy modes.
   await testDb.db.update(user).set({ emailVerified: true }).where(eq(user.id, hostId));
-  await testDb.db.insert(hostPayout).values({
-    userId: hostId,
-    payoutsEnabled: true,
-    activationStatus: "activated",
-    onboardingComplete: true,
-  });
+  await makeVerifiedHost(testDb.db, hostId, { insertUser: false });
   // A plain occupant row for the partial/sold-out fixtures. Never signs in.
   await testDb.db.insert(user).values({
     id: RIVAL,
@@ -333,6 +330,9 @@ beforeAll(async () => {
     hostId,
     title: "Drop-in floor",
     status: "published" as const,
+    // The FIFTH deriveBookable term (phase 18, D-224). `review_state` DEFAULTS to 'pending', so without
+    // this every case here refuses `not-bookable` — which is what L_OPEN_PENDING_REVIEW proves on purpose.
+    reviewState: "approved" as const,
     occupancyMode: "open_capacity" as const,
     bookingMode: "instant" as const, // OC-10 — open capacity is instant-only
     cancellationPolicy: "standard" as const,
@@ -368,6 +368,7 @@ beforeAll(async () => {
       hostId,
       title: "Whole court",
       status: "published" as const,
+      reviewState: "approved" as const,
       // The pre-Phase-9 shape, spelled out rather than left to the column default: this fixture's whole
       // job is to prove a date-shaped payload cannot mint a row on an hourly listing.
       occupancyMode: "exclusive" as const,
@@ -390,6 +391,7 @@ beforeAll(async () => {
       hostId,
       title: "Whole studio",
       status: "published" as const,
+      reviewState: "approved" as const,
       occupancyMode: "exclusive" as const,
       bookingMode: "instant" as const,
       unitCount: 1,

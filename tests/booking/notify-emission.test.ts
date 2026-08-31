@@ -49,7 +49,8 @@ import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../
 import { venueWindow, assertBookableWindow } from "../helpers/dates";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockResend } from "../helpers/mocks";
-import { user, listing, booking, hostPayout, operatingHours } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { user, listing, booking, operatingHours } from "@/lib/db/schema";
 import type { NotifyEvent } from "@/lib/notifications";
 
 const MIN = 60 * 1000;
@@ -151,6 +152,7 @@ async function seedListing(id: string): Promise<void> {
     hostId,
     title: `Listing ${id}`,
     status: "published",
+    reviewState: "approved",
     bookingMode: "request",
     unitCount: 1,
     timezone: "Asia/Manila",
@@ -285,12 +287,9 @@ beforeAll(async () => {
     .where(eq(user.email, ACTION_BOOKER_EMAIL));
   actionBookerId = ab.id;
   await testDb.db.update(user).set({ emailVerified: true }).where(eq(user.id, hostId));
-  await testDb.db.insert(hostPayout).values({
-    userId: hostId,
-    payoutsEnabled: true,
-    activationStatus: "activated",
-    onboardingComplete: true,
-  });
+  // The payout row AND (phase 18, D-224) the ops-APPROVED host_verification row deriveBookable's sixth
+  // term reads — without it every placeHold case below refuses `not-bookable` and emits no notification.
+  await makeVerifiedHost(testDb.db, hostId, { insertUser: false });
 
   vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));

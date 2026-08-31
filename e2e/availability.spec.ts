@@ -79,13 +79,13 @@ async function seedListing(id: string, hostId: string, title: string) {
       id, host_id, title, description, primary_space_type,
       address_line1, city, region, postal_code, country, neighborhood,
       location, show_exact_address, max_occupancy, unit_count, timezone,
-      hourly_rate_cents, day_rate_cents, currency, booking_mode, status, published_at, created_at, updated_at
+      hourly_rate_cents, day_rate_cents, currency, booking_mode, status, review_state, published_at, created_at, updated_at
     ) VALUES (
       ${id}, ${hostId}, ${title},
       ${"A calm, mirrored studio with mats, props, and a sound system."}, ${"yoga_studio"}::space_type,
       ${"123 Real Street"}, ${"Makati"}, ${"Metro Manila"}, ${"1210"}, ${"Philippines"}, ${"Poblacion"},
       ST_SetSRID(ST_MakePoint(${121.0345}, ${14.5679}), 4326), ${false}, ${12}, ${1}, ${VENUE_TZ},
-      ${50000}, ${300000}, ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status,
+      ${50000}, ${300000}, ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status, ${"approved"}::listing_review_state,
       now(), now(), now()
     )
   `;
@@ -114,6 +114,14 @@ test.beforeAll(async () => {
   await sql`
     INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
     VALUES (${hostBookableId}, ${`acct_${randomUUID()}`}, ${"activated"}, ${true}, ${true}, now(), now())
+  `;
+  // …and an ops-APPROVED host_verification row — deriveBookable's SIXTH term (phase 18,
+  // D-224). A host with NO row reads as 'unverified' and cannot sell, so without this the
+  // listing seeded below is not bookable and this spec fails on a page that never renders.
+  // ⚠ e2e does NOT run in CI (D-24) — only a hand run can catch a miss here.
+  await sql`
+    INSERT INTO "host_verification" (user_id, status, provider, created_at, updated_at)
+    VALUES (${hostBookableId}, ${"approved"}::host_verification_status, ${"manual"}, now(), now())
   `;
 
   await seedListing(bookableListingId, hostBookableId, "Sunlit Yoga Studio (bookable)");

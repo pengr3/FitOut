@@ -61,7 +61,8 @@ import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { venueWindow, assertBookableWindow } from "../helpers/dates";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
-import { user, listing, hostPayout, booking, operatingHours } from "@/lib/db/schema";
+import { makeVerifiedHost } from "../helpers/seed";
+import { listing, booking, operatingHours } from "@/lib/db/schema";
 
 // --- Redirect capture -------------------------------------------------------
 // next/navigation redirect() throws NEXT_REDIRECT in Next; the mock throws a typed RedirectError carrying
@@ -127,6 +128,10 @@ async function seedBookableListing(id: string): Promise<void> {
     hostId: HOST,
     title: `Listing ${id}`,
     status: "published",
+    // The FIFTH deriveBookable term (phase 18, D-224). `review_state` DEFAULTS to 'pending', so withhold
+    // this and every placeHold case in the file returns `not-bookable` — which is precisely what
+    // `L_pending_review` below proves on purpose.
+    reviewState: "approved",
     unitCount: 1,
     timezone: "Asia/Manila",
     hourlyRateCents: 5000,
@@ -171,19 +176,13 @@ beforeAll(async () => {
   testDb = await setupTestDb();
   testAuth = makeTestAuth(testDb);
 
-  // The listing host is a verified user + an ACTIVATED payout row so deriveBookable is TRUE.
-  await testDb.db.insert(user).values({
-    id: HOST,
+  // The listing host is a verified user + an ACTIVATED payout row + an ops-APPROVED host_verification row
+  // (phase 18, D-224 — the SIXTH deriveBookable term) so deriveBookable is TRUE. All three through the one
+  // shared fixture expression; `canHost` and the name/email are this file's own.
+  await makeVerifiedHost(testDb.db, HOST, {
     name: "SM Host",
     email: "sm_host@example.com",
     firstName: "Host",
-    emailVerified: true,
-  });
-  await testDb.db.insert(hostPayout).values({
-    userId: HOST,
-    payoutsEnabled: true,
-    activationStatus: "activated",
-    onboardingComplete: true,
   });
 
   // Bookers via real signup (intent 'book' → canBook) + a host-only user (intent 'host' → !canBook).
@@ -238,6 +237,7 @@ beforeAll(async () => {
     hostId: HOST,
     title: "Live but with an empty calendar",
     status: "published",
+    reviewState: "approved", // ops-approved: this fixture fails on HOURS and nothing else
     unitCount: 1,
     timezone: "Asia/Manila",
     hourlyRateCents: 5000,

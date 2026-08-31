@@ -78,14 +78,23 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
-import { user, hostPayout, listing, operatingHours } from "@/lib/db/schema";
+import { user, hostPayout, hostVerification, listing, operatingHours } from "@/lib/db/schema";
+import type { HostVerificationStatus, ListingReviewState } from "@/lib/db/schema";
 import { searchParamsSchema } from "@/lib/validation/booking";
 import { searchListings } from "@/lib/search/query";
 import { deriveBookable } from "@/lib/bookability";
 
 let testDb: TestDb;
 
-async function makeHost(id: string, opts: { emailVerified: boolean; payoutsEnabled: boolean }): Promise<void> {
+async function makeHost(
+  id: string,
+  opts: {
+    emailVerified: boolean;
+    payoutsEnabled: boolean;
+    /** `null` ⇒ NO host_verification row at all — the fail-closed COALESCE fixture (phase 18). */
+    verificationStatus: HostVerificationStatus | null;
+  },
+): Promise<void> {
   await testDb.db.insert(user).values({
     id,
     name: id,
@@ -100,6 +109,16 @@ async function makeHost(id: string, opts: { emailVerified: boolean; payoutsEnabl
     payoutsEnabled: opts.payoutsEnabled,
     onboardingComplete: opts.payoutsEnabled,
   });
+  // The SIXTH term's row. `null` means the row is DELIBERATELY absent — that is a distinct fixture from
+  // a row carrying `'unverified'`, and it is the only one that can prove the SQL COALESCE and the TS
+  // `?? "unverified"` agree about a host nobody has ever checked.
+  if (opts.verificationStatus !== null) {
+    await testDb.db.insert(hostVerification).values({
+      userId: id,
+      status: opts.verificationStatus,
+      provider: "manual",
+    });
+  }
 }
 
 /**
@@ -112,6 +131,7 @@ async function makeListing(
   hostId: string,
   status: "draft" | "published" | "unlisted",
   hours: boolean,
+  reviewState: ListingReviewState,
 ): Promise<void> {
   await testDb.db.insert(listing).values({
     id,
@@ -124,6 +144,9 @@ async function makeListing(
     dayRateCents: 250000,
     currency: "php",
     status,
+    // The FIFTH term. Spelled by EVERY caller, never defaulted — the column's own default is 'pending',
+    // and a fixture that silently inherited it would fail for a reason its name does not claim.
+    reviewState,
     publishedAt: status === "published" ? new Date() : null,
   });
   if (hours) {
@@ -154,40 +177,43 @@ const FIXTURES: Array<{
   emailVerified: boolean;
   payoutsEnabled: boolean;
   hasOperatingHours: boolean;
+  reviewState: ListingReviewState;
+  verificationStatus: HostVerificationStatus;
 }> = [
-  { id: "gate_pub", status: "published", emailVerified: true, payoutsEnabled: true, hasOperatingHours: true },
-  { id: "gate_draft", status: "draft", emailVerified: true, payoutsEnabled: true, hasOperatingHours: true },
-  { id: "gate_unverified", status: "published", emailVerified: false, payoutsEnabled: true, hasOperatingHours: true },
-  { id: "gate_nopayout", status: "published", emailVerified: true, payoutsEnabled: false, hasOperatingHours: true },
-  { id: "gate_nohours", status: "published", emailVerified: true, payoutsEnabled: true, hasOperatingHours: false },
+  { id: "gate_pub", status: "published", emailVerified: true, payoutsEnabled: true, hasOperatingHours: true, reviewState: "approved", verificationStatus: "approved" },
+  { id: "gate_draft", status: "draft", emailVerified: true, payoutsEnabled: true, hasOperatingHours: true, reviewState: "approved", verificationStatus: "approved" },
+  { id: "gate_unverified", status: "published", emailVerified: false, payoutsEnabled: true, hasOperatingHours: true, reviewState: "approved", verificationStatus: "approved" },
+  { id: "gate_nopayout", status: "published", emailVerified: true, payoutsEnabled: false, hasOperatingHours: true, reviewState: "approved", verificationStatus: "approved" },
+  { id: "gate_nohours", status: "published", emailVerified: true, payoutsEnabled: true, hasOperatingHours: false, reviewState: "approved", verificationStatus: "approved" },
 ];
 
 beforeAll(async () => {
   testDb = await setupTestDb();
 
-  // Control: published + verified email + payouts enabled + hours → the ONLY listing that should surface.
-  await makeHost("gate_host_ok", { emailVerified: true, payoutsEnabled: true });
-  await makeListing("gate_pub", "gate_host_ok", "published", true);
+  // Control: published + verified email + payouts enabled + hours + BOTH ops terms approved → a listing
+  // that should surface.
+  await makeHost("gate_host_ok", { emailVerified: true, payoutsEnabled: true, verificationStatus: "approved" });
+  await makeListing("gate_pub", "gate_host_ok", "published", true, "approved");
 
   // Reason 1: draft status (same fully-bookable host, hours present) → excluded.
-  await makeListing("gate_draft", "gate_host_ok", "draft", true);
+  await makeListing("gate_draft", "gate_host_ok", "draft", true, "approved");
 
   // Reason 2: host email unverified (published listing, payouts on, hours present) → excluded.
-  await makeHost("gate_host_unverified", { emailVerified: false, payoutsEnabled: true });
-  await makeListing("gate_unverified", "gate_host_unverified", "published", true);
+  await makeHost("gate_host_unverified", { emailVerified: false, payoutsEnabled: true, verificationStatus: "approved" });
+  await makeListing("gate_unverified", "gate_host_unverified", "published", true, "approved");
 
   // Reason 3: host payouts disabled (published listing, verified email, hours present) → excluded.
-  await makeHost("gate_host_nopayout", { emailVerified: true, payoutsEnabled: false });
-  await makeListing("gate_nopayout", "gate_host_nopayout", "published", true);
+  await makeHost("gate_host_nopayout", { emailVerified: true, payoutsEnabled: false, verificationStatus: "approved" });
+  await makeListing("gate_nopayout", "gate_host_nopayout", "published", true, "approved");
 
   // Reason 4 (bonus — the `deleted_at IS NULL` clause): soft-deleted published listing → excluded.
-  await makeListing("gate_deleted", "gate_host_ok", "published", true);
+  await makeListing("gate_deleted", "gate_host_ok", "published", true, "approved");
   await testDb.db.update(listing).set({ deletedAt: new Date() }).where(eq(listing.id, "gate_deleted"));
 
   // Reason 5 (v1.0 audit finding #4): published, SAME fully-bookable host as the control — verified email,
   // payouts activated — and failing on HOURS AND NOTHING ELSE. Sharing `gate_host_ok` with `gate_pub` is
   // what makes the pair diagnostic: the two rows differ in exactly one input.
-  await makeListing("gate_nohours", "gate_host_ok", "published", false);
+  await makeListing("gate_nohours", "gate_host_ok", "published", false, "approved");
 });
 
 afterAll(async () => {
@@ -226,8 +252,12 @@ describe("searchListings — bookable gate (D-16, deriveBookable parity, Pitfall
       new Set(
         FIXTURES.filter((f) =>
           deriveBookable(
-            { status: f.status, hasOperatingHours: f.hasOperatingHours },
-            { emailVerified: f.emailVerified, payoutsEnabled: f.payoutsEnabled },
+            { status: f.status, hasOperatingHours: f.hasOperatingHours, reviewState: f.reviewState },
+            {
+              emailVerified: f.emailVerified,
+              payoutsEnabled: f.payoutsEnabled,
+              verificationStatus: f.verificationStatus,
+            },
           ),
         ).map((f) => f.id),
       ),

@@ -67,20 +67,28 @@ async function seedHostAndListing(): Promise<void> {
     INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
     VALUES (${hostId}, ${`acct_${randomUUID()}`}, ${"activated"}, ${true}, ${true}, now(), now())
   `;
+  // …and an ops-APPROVED host_verification row — deriveBookable's SIXTH term (phase 18,
+  // D-224). A host with NO row reads as 'unverified' and cannot sell, so without this the
+  // listing seeded below is not bookable and this spec fails on a page that never renders.
+  // ⚠ e2e does NOT run in CI (D-24) — only a hand run can catch a miss here.
+  await sql`
+    INSERT INTO "host_verification" (user_id, status, provider, created_at, updated_at)
+    VALUES (${hostId}, ${"approved"}::host_verification_status, ${"manual"}, now(), now())
+  `;
   await sql`
     INSERT INTO "listing" (
       id, host_id, title, description, primary_space_type,
       address_line1, city, region, postal_code, country,
       show_exact_address, max_occupancy, unit_count, timezone,
       hourly_rate_cents, day_rate_cents, currency, booking_mode, cancellation_policy,
-      status, published_at, created_at, updated_at
+      status, review_state, published_at, created_at, updated_at
     ) VALUES (
       ${listingId}, ${hostId}, ${LISTING_TITLE},
       ${"A calm mirrored studio with mats and props."}, ${"yoga_studio"}::space_type,
       ${"2 Real Street"}, ${"Makati"}, ${"Metro Manila"}, ${"1210"}, ${"Philippines"},
       ${false}, ${12}, ${1}, ${VENUE_TZ},
       ${SPACE_PRICE_CENTS}, ${300000}, ${"php"}, ${"instant"}::booking_mode, ${"standard"}::cancellation_policy,
-      ${"published"}::listing_status, now(), now(), now()
+      ${"published"}::listing_status, ${"approved"}::listing_review_state, now(), now(), now()
     )
   `;
 }

@@ -213,6 +213,14 @@ async function seedHostWithListing(hostEmail: string): Promise<Seeded> {
     INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
     VALUES (${hostId}, ${`acct_${randomUUID()}`}, ${"activated"}, ${true}, ${true}, now(), now())
   `;
+  // …and an ops-APPROVED host_verification row — deriveBookable's SIXTH term (phase 18,
+  // D-224). A host with NO row reads as 'unverified' and cannot sell, so without this the
+  // listing seeded below is not bookable and this spec fails on a page that never renders.
+  // ⚠ e2e does NOT run in CI (D-24) — only a hand run can catch a miss here.
+  await sql`
+    INSERT INTO "host_verification" (user_id, status, provider, created_at, updated_at)
+    VALUES (${hostId}, ${"approved"}::host_verification_status, ${"manual"}, now(), now())
+  `;
 
   await sql`
     INSERT INTO "listing" (
@@ -220,14 +228,14 @@ async function seedHostWithListing(hostEmail: string): Promise<Seeded> {
       address_line1, city, region, postal_code, country, neighborhood,
       location, show_exact_address, max_occupancy, unit_count, timezone,
       hourly_rate_cents, day_rate_cents, occupancy_mode,
-      currency, booking_mode, status, published_at, created_at, updated_at
+      currency, booking_mode, status, review_state, published_at, created_at, updated_at
     ) VALUES (
       ${listingId}, ${hostId}, ${listingTitle},
       ${"A covered court with two hoops and a scoreboard."}, ${"multi_sport_court"}::space_type,
       ${"3 Real Street"}, ${VENUE_CITY}, ${"Metro Manila"}, ${"1210"}, ${"Philippines"}, ${"Poblacion"},
       ST_SetSRID(ST_MakePoint(${121.0244}, ${14.5547}), 4326), ${false}, ${10}, ${1}, ${VENUE_TZ},
       ${47333}, ${288888}, ${"exclusive"}::occupancy_mode,
-      ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status,
+      ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status, ${"approved"}::listing_review_state,
       now(), now(), now()
     )
   `;
@@ -354,14 +362,14 @@ async function addSecondZoneListing(seed: Seeded): Promise<string> {
       address_line1, city, region, postal_code, country, neighborhood,
       location, show_exact_address, max_occupancy, unit_count, timezone,
       hourly_rate_cents, day_rate_cents, occupancy_mode,
-      currency, booking_mode, status, published_at, created_at, updated_at
+      currency, booking_mode, status, review_state, published_at, created_at, updated_at
     ) VALUES (
       ${listingId}, ${seed.hostId}, ${"Venice Beach Yoga Studio"},
       ${"A studio two blocks from the boardwalk."}, ${"yoga_studio"}::space_type,
       ${"11 Ocean Front Walk"}, ${SECOND_VENUE_CITY}, ${"California"}, ${"90291"}, ${"United States"}, ${"Venice"},
       ST_SetSRID(ST_MakePoint(${-118.4695}, ${33.985}), 4326), ${false}, ${10}, ${1}, ${SECOND_VENUE_TZ},
       ${47333}, ${288888}, ${"exclusive"}::occupancy_mode,
-      ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status,
+      ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status, ${"approved"}::listing_review_state,
       now(), now(), now()
     )
   `;

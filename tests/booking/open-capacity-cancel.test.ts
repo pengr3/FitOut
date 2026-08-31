@@ -39,12 +39,12 @@ import { and, eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
+import { makeVerifiedHost } from "../helpers/seed";
 import {
   user,
   listing,
   booking,
   availabilityBlock,
-  hostPayout,
   hostPayoutLedger,
   operatingHours,
 } from "@/lib/db/schema";
@@ -429,13 +429,9 @@ beforeAll(async () => {
   bookerId = ids.find((r) => r.email === BOOKER_EMAIL)!.id;
   otherBookerId = ids.find((r) => r.email === OTHER_BOOKER_EMAIL)!.id;
 
-  await testDb.db.insert(hostPayout).values({
-    userId: hostId,
-    paymongoAccountId: "wal_occ_1",
-    activationStatus: "activated",
-    payoutsEnabled: true,
-    onboardingComplete: true,
-  });
+  // Payout wallet + the ops-APPROVED host_verification row (phase 18, D-224) — deriveBookable's sixth
+  // term, without which every claim below would refuse `not-bookable`.
+  await makeVerifiedHost(testDb.db, hostId, { insertUser: false, paymongoAccountId: "wal_occ_1" });
 
   await testDb.db.insert(listing).values([
     {
@@ -443,6 +439,7 @@ beforeAll(async () => {
       hostId,
       title: "Drop-in floor",
       status: "published",
+      reviewState: "approved",
       occupancyMode: "open_capacity",
       bookingMode: "instant", // OC-10 — open capacity is instant-only
       cancellationPolicy: "standard", // the D-67 tier the seeded rows snapshot
@@ -464,6 +461,7 @@ beforeAll(async () => {
       hostId,
       title: "Whole court",
       status: "published",
+      reviewState: "approved",
       occupancyMode: "exclusive",
       bookingMode: "instant",
       cancellationPolicy: "standard",
@@ -480,6 +478,7 @@ beforeAll(async () => {
       hostId,
       title: "Drop-in floor (today)",
       status: "published",
+      reviewState: "approved",
       occupancyMode: "open_capacity",
       bookingMode: "instant",
       cancellationPolicy: "standard",
@@ -496,6 +495,7 @@ beforeAll(async () => {
       hostId,
       title: "Drop-in floor (closed day)",
       status: "published",
+      reviewState: "approved",
       occupancyMode: "open_capacity",
       bookingMode: "instant",
       cancellationPolicy: "standard",

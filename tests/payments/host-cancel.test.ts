@@ -38,12 +38,12 @@ import { and, eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockPayMongo } from "../helpers/mocks";
+import { makeVerifiedHost } from "../helpers/seed";
 import {
   user,
   listing,
   booking,
   availabilityBlock,
-  hostPayout,
   hostPayoutLedger,
 } from "@/lib/db/schema";
 import { readDbNow } from "@/lib/booking/bookings-query";
@@ -151,6 +151,7 @@ async function seedListing(
     hostId: opts.hostId ?? hostId,
     title: `Listing ${id}`,
     status: "published",
+    reviewState: "approved",
     bookingMode: "instant",
     unitCount: opts.unitCount ?? 1,
     timezone: "Asia/Manila",
@@ -291,21 +292,10 @@ beforeAll(async () => {
   bookerId = ids.find((r) => r.email === BOOKER_EMAIL)!.id;
 
   // ACTIVATED payout wallets. queryDuePayouts JOINs host_payout, so without these rows no booking of these
-  // hosts is ever payout-eligible.
-  await testDb.db.insert(hostPayout).values([
-    {
-      userId: hostId,
-      paymongoAccountId: WALLET_ID,
-      activationStatus: "activated",
-      payoutsEnabled: true,
-    },
-    {
-      userId: netHostId,
-      paymongoAccountId: NET_WALLET_ID,
-      activationStatus: "activated",
-      payoutsEnabled: true,
-    },
-  ]);
+  // hosts is ever payout-eligible — plus the ops-APPROVED host_verification row deriveBookable's sixth
+  // term reads (phase 18, D-224), so the booker-side placeHold cases still reach the money path.
+  await makeVerifiedHost(testDb.db, hostId, { insertUser: false, paymongoAccountId: WALLET_ID });
+  await makeVerifiedHost(testDb.db, netHostId, { insertUser: false, paymongoAccountId: NET_WALLET_ID });
 
   vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));

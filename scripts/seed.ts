@@ -9,7 +9,12 @@
 // FK-safe order), so re-running never duplicate-key crashes.
 //
 // The host is fully bookable — email-verified + an activated host_payout (payouts_enabled=true,
-// activation_status='activated') — so deriveBookable is true and every listing is search-eligible (D-16).
+// activation_status='activated') + an ops-APPROVED host_verification row — and every listing carries
+// review_state='approved', so deriveBookable is true and every listing is search-eligible (D-16 + D-224).
+//
+// ⚠ SEEDS ARE NOT TESTS. Nothing in `npm test` executes this file — it hits the DEV database — so a green
+// suite says NOTHING about it. After changing the sell-gate, run `npm run db:seed` and load `/`: a
+// catalogue that silently empties is this project's Pitfall 7.
 
 import postgres from "postgres";
 
@@ -58,6 +63,7 @@ async function reset(): Promise<void> {
   await sql`DELETE FROM booking WHERE listing_id LIKE 'seed_%' OR booker_id LIKE 'seed_%'`;
   await sql`DELETE FROM listing WHERE id LIKE 'seed_%'`;
   await sql`DELETE FROM host_payout WHERE user_id LIKE 'seed_%'`;
+  await sql`DELETE FROM host_verification WHERE user_id LIKE 'seed_%'`;
   await sql`DELETE FROM "user" WHERE id LIKE 'seed_%'`;
 }
 
@@ -71,6 +77,14 @@ async function seedHost(): Promise<void> {
     INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
     VALUES (${HOST_ID}, ${"acct_seed_1"}, ${"activated"}, ${true}, ${true}, now(), now())
   `;
+  // The SIXTH deriveBookable term (phase 18, D-224): an ops-APPROVED host_verification row. A host with no
+  // row reads as 'unverified' and cannot sell, so WITHOUT this the entire seeded catalogue disappears from
+  // `/` — a silently empty catalogue rather than an error (this project's Pitfall 7). `provider = 'manual'`
+  // is the port that ships in this phase; `checked_at` stays NULL because nothing was actually checked.
+  await sql`
+    INSERT INTO "host_verification" (user_id, status, provider, created_at, updated_at)
+    VALUES (${HOST_ID}, ${"approved"}::host_verification_status, ${"manual"}, now(), now())
+  `;
 }
 
 async function seedListing(l: SeedListing): Promise<void> {
@@ -79,13 +93,16 @@ async function seedListing(l: SeedListing): Promise<void> {
       id, host_id, title, description, primary_space_type,
       address_line1, city, region, postal_code, country, neighborhood,
       location, show_exact_address, max_occupancy, unit_count, timezone,
-      hourly_rate_cents, day_rate_cents, currency, booking_mode, status, published_at, created_at, updated_at
+      hourly_rate_cents, day_rate_cents, currency, booking_mode, status, review_state, published_at, created_at, updated_at
     ) VALUES (
       ${l.id}, ${HOST_ID}, ${l.title},
       ${`${l.title} — a bookable space in ${l.city}.`}, ${l.primarySpaceType}::space_type,
       ${"1 Seed Street"}, ${l.city}, ${"Metro Manila"}, ${"1200"}, ${"Philippines"}, ${l.neighborhood},
       ST_SetSRID(ST_MakePoint(${l.lng}, ${l.lat}), 4326), ${false}, ${12}, ${l.unitCount}, ${"Asia/Manila"},
       ${l.hourlyRateCents}, ${l.dayRateCents}, ${"php"}, ${"request"}::booking_mode, ${"published"}::listing_status,
+      -- The FIFTH deriveBookable term (phase 18, D-224). review_state DEFAULTS to 'pending', so a seeded
+      -- listing is NOT sellable and NOT searchable unless it says otherwise.
+      ${"approved"}::listing_review_state,
       now(), now(), now()
     )
   `;
