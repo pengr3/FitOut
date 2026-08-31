@@ -55,11 +55,15 @@ import { listing, listingReview, type ListingReviewState } from "@/lib/db/schema
 import type * as schema from "@/lib/db/schema";
 
 /**
- * A connection OR an open transaction. Both call sites pass their own: `saveListingStep` passes the
- * `tx` of its existing `db.transaction` (the flip and the field write must commit or roll back
- * together — a listing whose address committed but whose review state did not is a sellable fake),
- * and the photo actions pass `db` because their own writes have already committed by the time the
- * photo set has actually changed.
+ * A connection OR an open transaction. BOTH call sites pass a TRANSACTION, and that is the whole point
+ * of accepting one: `saveListingStep` passes the `tx` of its existing `db.transaction`, and the photo
+ * actions pass the `tx` of theirs (`removePhoto` already had one; `persistPhoto`'s bare insert was
+ * paired into one so the two writes could not separate). A listing whose address — or whose photo set —
+ * committed while its review state did not is a sellable fake, and a helper that only accepted a
+ * connection would have made that the default outcome at both sites.
+ *
+ * The parameter still admits a plain connection, so a future caller with nothing to be atomic WITH is
+ * not forced to open a transaction for one statement.
  *
  * Typed at the `PgDatabase` base both `db` and a postgres-js transaction extend, rather than as a
  * union — a union of the two would make every builder call an overload-resolution problem.
