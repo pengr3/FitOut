@@ -6,7 +6,7 @@
 **Also carrying requirements:** 2 quick tasks — `260831-ndc` (HOURS-01/02) and `260831-rpt` (TRUST-02/03)
 **Timeline:** 2026-08-11 → 2026-08-31 (20 days, 1,076 commits)
 **Code:** 353 TypeScript/TSX files under `src/` (~75.4k LOC), 301 test/spec files (~139.8k LOC)
-**Gate at close:** `npm run test:design` 71 files / 1291 passed · `tsc --noEmit` exit 0 · **69/71 in-scope requirements satisfied** · 11/11 phases carry a VERIFICATION.md · zero schema migrations (`drizzle/` still at `0025`)
+**Gate at close:** full `npx vitest run` exit 0 · `npm run test:design` 71 files / 1291 passed · `tsc --noEmit` exit 0 · **69/71 in-scope requirements satisfied** · 11/11 phases carry a VERIFICATION.md · zero schema migrations (`drizzle/` still at `0025`)
 
 **Delivered:** One token contract between what a component asks for and what colour and size it
 gets, across all nine v1.0 surfaces — so locking real branding later is a token edit rather than a
