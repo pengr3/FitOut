@@ -98,6 +98,35 @@ Full text and rationale: `.planning/phases/18-host-verification-listing-review-f
 - **D-223 — Follow the shipped enum idiom**: `pgEnum` declared before the table it backs (const TDZ),
   matching `listingStatus` / `bookingStatus` / `payoutLedgerState`.
 
+### D-240 — The grandfather backfill grandfathers `published` ONLY (added after pattern mapping)
+
+`18-PATTERNS.md` found two shipped migration precedents and correctly declined to choose between
+them, because the choice is a scope call rather than a mechanism call:
+
+- `drizzle/0017`'s `ADD COLUMN … DEFAULT 'x' NOT NULL` backfills **every row by construction** —
+  which would grandfather **drafts** as well, granting review-free status to listings that were never
+  live and have never been seen by anyone.
+- `drizzle/0014`'s shape — `DEFAULT 'pending'` plus a **scoped, idempotent** `UPDATE … WHERE …` —
+  backfills exactly the rows named.
+
+**Take the `drizzle/0014` shape.** D-207 grandfathers what is *already selling*, nothing else:
+
+```sql
+UPDATE listing SET review_state = 'grandfathered'
+WHERE status = 'published' AND deleted_at IS NULL;
+```
+
+Consequences, all intended:
+- **`draft` rows become `pending`.** A draft that publishes after this phase goes through review like
+  any new listing. It was never live, so nothing breaks and nobody is interrupted.
+- **`unlisted` rows become `pending`.** An unlisted listing is not selling today, so gating it costs
+  no live supply — and if a host brings it back, FitOut checks it. This is the stricter reading and it
+  burns down more of the permanently-grandfathered backlog for free.
+- Hosts are grandfathered on the same predicate: a host is grandfathered iff they own at least one
+  row that this `UPDATE` touched. A host with only drafts starts `unverified`, not `grandfathered`.
+- The `UPDATE` must be **idempotent and re-runnable**, and must never move a row that is already
+  `approved` or `rejected`.
+
 ### The sell-gate (the trap — read 18-PM-DECISIONS.md and the ROADMAP warning first)
 
 - **D-224 — Add a FIFTH and SIXTH term to `deriveBookable`** (`src/lib/bookability.ts`), one per side:
