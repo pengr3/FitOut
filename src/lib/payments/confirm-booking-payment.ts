@@ -65,6 +65,12 @@ import { recordAudit } from "@/lib/audit";
 import { emitNotify } from "@/lib/notifications";
 import { bookingReference } from "@/lib/booking/reference";
 import { composeWhenLabel } from "@/lib/booking/when-label";
+// TRUST-03 — the emailed cancellation-policy sentence, composed HERE (server-side, in the emitter's
+// read) because the payload may carry a finished display string and never the Date/cents/tz it needs
+// (D-86 / D-130 / GATE-05). `readDbNow` is the DB clock the whole ladder is contracted to
+// (cancellation.ts:78) — never `new Date()`.
+import { composePolicyEmailLine } from "@/lib/booking/policy-disclosure";
+import { readDbNow } from "@/lib/booking/bookings-query";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import type { DbConn } from "@/lib/availability/read-model";
 
@@ -230,6 +236,11 @@ async function emitBookingConfirmed(bookingId: string, dbConn: DbConn): Promise<
         // the app, so a drop-in pass must read as a pass here above all (09-08).
         openCapacity: booking.openCapacity,
         dayRateCents: listing.dayRateCents,
+        // The booking's OWN D-67 snapshot (never the listing's current tier — T-07-90) and the fee
+        // portion of the frozen quote, so the emailed policy sentence is composed against the same
+        // terms `quoteRefund` will apply at cancel time.
+        cancellationPolicy: booking.cancellationPolicy,
+        serviceFeeCents: booking.serviceFeeCents,
       })
       .from(booking)
       .innerJoin(user, eq(booking.bookerId, user.id))
@@ -254,6 +265,20 @@ async function emitBookingConfirmed(bookingId: string, dbConn: DbConn): Promise<
       quotedTotalCents: row.quotedTotalCents,
       dayRateCents: row.dayRateCents,
     });
+    // TRUST-03 — the policy sentence, composed ONCE here from the row's own snapshot and the DB clock.
+    // `null` when the row has no tier to disclose (D-67), which writes no key at all rather than an
+    // empty clause. The `??` fallbacks mirror the booking detail page's call site verbatim.
+    const now = await readDbNow(dbConn);
+    const policyLabel = composePolicyEmailLine({
+      tier: row.cancellationPolicy,
+      startsAt: row.startsAt,
+      now,
+      timezone: row.timezone,
+      city: row.city,
+      openCapacity: row.openCapacity,
+      spacePriceCents: row.spacePriceCents ?? row.quotedTotalCents ?? 0,
+      serviceFeeCents: row.serviceFeeCents ?? 0,
+    });
     const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
     await emitNotify({
       type: "booking_confirmed",
@@ -266,6 +291,8 @@ async function emitBookingConfirmed(bookingId: string, dbConn: DbConn): Promise<
         whenLabel,
         totalLabel: formatMoney(row.quotedTotalCents ?? 0, row.currency ?? DISPLAY_CURRENCY),
         referenceLabel: bookingReference(bookingId),
+        // ABSENT, not empty, when there is nothing to disclose (D-RPT-01 / the CR-01 rule).
+        ...(policyLabel === null ? {} : { policyLabel }),
         href: `${base}/bookings/${bookingId}`,
       },
     });

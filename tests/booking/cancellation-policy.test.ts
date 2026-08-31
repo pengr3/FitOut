@@ -30,11 +30,12 @@ import {
   type CancellationTier,
 } from "@/lib/payments/cancellation";
 import {
+  PASS_NON_REFUNDABLE_MESSAGE,
   policyDisclosureLines,
   policySummaryLine,
   type DeadlineAnchorInput,
 } from "@/components/booking/cancellation-policy-disclosure";
-import { composePolicyDisclosure } from "@/lib/booking/policy-disclosure";
+import { composePolicyDisclosure, composePolicyEmailLine } from "@/lib/booking/policy-disclosure";
 
 const HOUR = 60 * 60 * 1000;
 const TIERS: CancellationTier[] = ["flexible", "standard", "strict"];
@@ -558,5 +559,100 @@ describe("composePolicyDisclosure - the booking detail page's half of TRUST-03 (
     );
     // The anchor flag is passed through untouched - it is the component's fork, not this module's.
     expect(compose("standard", afterOpen, true).openCapacity).toBe(true);
+  });
+});
+
+
+// ===================================================================================================
+// THE INBOX HALF (quick 260831-rpt - TRUST-03) - `composePolicyEmailLine`
+// ===================================================================================================
+//
+// The block above proves the DETAIL PAGE's composer agrees with the ladder. This one proves the
+// CONFIRMATION EMAIL states the SAME sentence - which is the whole point of routing the email through
+// `policySummaryLine` instead of writing a second sentence in the email module. The assertion is
+// deliberately an EQUALITY against the screen's own line rather than a string literal: a literal here
+// would pin the email to a sentence the screen had stopped saying, and two surfaces quoting different
+// refund terms at the same booker is the dispute this apparatus exists to prevent.
+//
+// The three branches below are the same three the booking detail page's render forks on, in the same
+// order. That correspondence IS the design; it is why the function reads `composePolicyDisclosure`'s
+// output rather than re-deriving anything of its own.
+describe("composePolicyEmailLine - TRUST-03's inbox half states the screen's sentence (260831-rpt)", () => {
+  const startsAt = new Date("2026-09-12T10:00:00Z");
+  const VENUE = { timezone: "Asia/Manila", city: "Manila" };
+  const MONEY = { spacePriceCents: 100000, serviceFeeCents: 5000 };
+
+  const emailLine = (tier: CancellationTier | null, now: Date, openCapacity = false) =>
+    composePolicyEmailLine({ tier, startsAt, now, ...VENUE, openCapacity, ...MONEY });
+
+  const screenLine = (tier: CancellationTier, now: Date, openCapacity = false) => {
+    const d = composePolicyDisclosure({ tier, startsAt, now, ...VENUE, openCapacity, ...MONEY });
+    return policySummaryLine(tier, { openCapacity }, d.boundaryLabels, d.bestRungIndex);
+  };
+
+  it("(rpt a) states EXACTLY the sentence the screen states, at every rung, for every tier", () => {
+    for (const tier of TIERS) {
+      // One instant inside each rung's window, plus a far-out one - so the equality is asserted where
+      // the leading rung actually CHANGES, not only where it is the most generous one.
+      const probes = [
+        new Date(startsAt.getTime() - 100 * HOUR),
+        ...rungBoundaries(tier, startsAt).map(({ boundary }) => new Date(boundary.getTime() - 1)),
+      ];
+      for (const now of probes) {
+        expect(emailLine(tier, now), `${tier} @ ${now.toISOString()}`).toBe(screenLine(tier, now));
+      }
+      // And it is CONCRETE: the leading sentence names the venue-local boundary, not an hour count.
+      const early = new Date(startsAt.getTime() - 100 * HOUR);
+      const d = composePolicyDisclosure({
+        tier,
+        startsAt,
+        now: early,
+        ...VENUE,
+        openCapacity: false,
+        ...MONEY,
+      });
+      expect(emailLine(tier, early)).toContain(d.boundaryLabels![d.bestRungIndex!]);
+      expect(emailLine(tier, early)).toContain("(Manila time)");
+    }
+  });
+
+  it("(rpt b) a NULL D-67 snapshot returns null, so the email omits the clause entirely", () => {
+    // The same conservative failure the detail page takes: `tierOrDefault`'s Flexible is the ENGINE's
+    // safety net for legacy rows, and printing it as "this host's policy" would put a promise in a
+    // host's mouth they never made. An email cannot be un-sent, so the wrong sentence is worse here.
+    expect(emailLine(null, new Date(startsAt.getTime() - 100 * HOUR))).toBeNull();
+  });
+
+  it("(rpt c) a pass whose day has ALREADY opened discloses the non-refundable message (WR-05)", () => {
+    const afterOpen = new Date(startsAt.getTime() + HOUR);
+    expect(emailLine("standard", afterOpen, true)).toBe(PASS_NON_REFUNDABLE_MESSAGE);
+    // Never a refund window that closed before the pass was even bought - the T-09-88 failure.
+    expect(emailLine("standard", afterOpen, true)).not.toMatch(/free cancellation/i);
+    // An EXCLUSIVE booking at the same instant is NOT that case: it falls through to the ladder.
+    expect(emailLine("standard", afterOpen, false)).not.toBe(PASS_NON_REFUNDABLE_MESSAGE);
+  });
+
+  it("(rpt d) once every rung has lapsed it names the tier and promises NO date", () => {
+    for (const tier of TIERS) {
+      const boundaries = rungBoundaries(tier, startsAt);
+      const lapsed = new Date(boundaries[boundaries.length - 1].boundary.getTime() + HOUR);
+      const line = emailLine(tier, lapsed);
+
+      expect(line).toBe(screenLine(tier, lapsed));
+      expect(line).not.toMatch(/free cancellation/i);
+      // NO DATE. The email must never advertise a window `quoteRefund` will not honour, and it must
+      // not name a boundary at all once they have all passed.
+      const d = composePolicyDisclosure({
+        tier,
+        startsAt,
+        now: lapsed,
+        ...VENUE,
+        openCapacity: false,
+        ...MONEY,
+      });
+      expect(d.bestRungIndex).toBe(-1);
+      for (const label of d.boundaryLabels!) expect(line).not.toContain(label);
+      expect(line).not.toContain("(Manila time)");
+    }
   });
 });

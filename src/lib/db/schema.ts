@@ -516,6 +516,17 @@ export type NotificationPayload =
       totalLabel: string;
       /** The FIT-XXXXXXXX booking reference, as displayed. Required by sendBookingConfirmed (D-91). */
       referenceLabel: string;
+      /**
+       * TRUST-03's cancellation-policy sentence, PRE-COMPOSED venue-local by the emitter through
+       * `composePolicyEmailLine` (D-86: a finished display string, never a Date, a tier or a percentage
+       * the reader has to reconstruct). D-RPT-01: it belongs HERE because the payload is the sole input
+       * to both channels — the email cannot compose it itself without the raw instants and cents this
+       * payload is forbidden to carry.
+       *
+       * ABSENT means there is nothing to disclose (a null D-67 snapshot) — the CR-01 rule for
+       * `feeLabel` applied to a policy: an empty clause is never rendered as a clause.
+       */
+      policyLabel?: string;
       href: string;
     }
   | { type: "request_received"; listingTitle: string; whenLabel: string; totalLabel: string; href: string }

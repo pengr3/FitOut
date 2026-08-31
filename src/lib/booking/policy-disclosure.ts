@@ -58,6 +58,15 @@ import {
   type CancellationTier,
 } from "@/lib/payments/cancellation";
 import { composeDeadlineLabel } from "@/lib/booking/when-label";
+// D-RPT-02 — the email's sentence must be the SAME derivation the screen renders, so it is imported
+// rather than restated. Safe and checked: this component module carries no client directive,
+// `policySummaryLine` performs no JSX and no date math, and the component imports only
+// `@/lib/payments/cancellation` — so there is no cycle. (A later move of these two into lib, re-exported
+// from the component, is the tidier arrangement; it touches Phase-13 files and is recorded as follow-up.)
+import {
+  PASS_NON_REFUNDABLE_MESSAGE,
+  policySummaryLine,
+} from "@/components/booking/cancellation-policy-disclosure";
 
 /** Everything a surface needs to render the disclosure, plus today's figure. All of it finished. */
 export type PolicyDisclosure = {
@@ -158,4 +167,45 @@ export function composePolicyDisclosure(input: PolicyDisclosureInput): PolicyDis
       now: input.now,
     }).totalRefundCents,
   };
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// TRUST-03's INBOX HALF — the twin of the on-screen half above
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// The disclosure a booker is shown BEFORE they pay is only half of TRUST-03. The other half is the
+// surface they actually KEEP: the confirmation email sitting in their inbox weeks later, when they are
+// deciding whether cancelling costs them anything. D-78 drew the Phase-13 email boundary at the shell
+// and handed this clause forward; it is closed here.
+//
+// ⚠ NOT ONE PERCENTAGE AND NOT ONE HOUR FIGURE IS TYPED HERE OR ANYWHERE DOWNSTREAM OF IT. This
+//   function composes NOTHING of its own — it reads `composePolicyDisclosure`'s output and hands it to
+//   `policySummaryLine`, which is the ONE derivation of that sentence from `LADDER`. `src/lib/email.ts`
+//   receives a finished string and interpolates it. So a rung edit in `cancellation.ts` rewrites the
+//   confirmation email automatically, exactly as it rewrites the screen. A second sentence written in
+//   the email module would have been a promise that drifts from `quoteRefund` the first time a rung
+//   moves — and an email, unlike a page, cannot be re-rendered after the fact.
+//
+// THE THREE BRANCHES MIRROR THE BOOKING DETAIL PAGE'S RENDER FORK, in the same order, deliberately: a
+// null D-67 snapshot discloses NOTHING (never `tierOrDefault`'s Flexible — see this file's header), an
+// already-open pass states the non-refundable message (WR-05 / T-09-88), and everything else states the
+// ladder's best still-open rung with its concrete venue-local instant.
+//
+// `todayRefundCents` is DELIBERATELY NOT carried into the email. It is a figure that starts decaying the
+// moment the message is sent — accurate at compose time, stale at read time, and stale in the direction
+// that over-promises. The dated sentence stays true until its boundary, and the CTA already links to the
+// live surface where the current figure is computed against the DB clock.
+
+/**
+ * The ONE emailed cancellation-policy sentence, or `null` when there is nothing to disclose.
+ *
+ * PURE, like everything else in this module — `now` is an argument, and the emitter reads it from
+ * Postgres (`readDbNow`). Returning `null` rather than a default string is what lets the email OMIT the
+ * clause entirely: an empty clause rendered as a clause is the CR-01 disease.
+ */
+export function composePolicyEmailLine(input: PolicyDisclosureInput): string | null {
+  const d = composePolicyDisclosure(input);
+  if (d.tier === null) return null;
+  if (d.openCapacity && d.windowAlreadyOpen) return PASS_NON_REFUNDABLE_MESSAGE;
+  return policySummaryLine(d.tier, { openCapacity: d.openCapacity }, d.boundaryLabels, d.bestRungIndex);
 }

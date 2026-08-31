@@ -75,6 +75,10 @@ export const notificationPayloadSchema = z.discriminatedUnion("type", [
     whenLabel: label,
     totalLabel: label,
     referenceLabel: label,
+    // TRUST-03 (D-RPT-01): the pre-composed cancellation-policy sentence. Optional because ABSENT is a
+    // real state — a null D-67 snapshot has nothing to disclose — and `label`-bounded like every other
+    // display string, so a 200-char cap applies to the durable row.
+    policyLabel: label.optional(),
     href,
   }),
   z.object({
