@@ -40,6 +40,17 @@ Design decisions that emerged during spiking. Non-negotiable for the real build.
 - **R7 — GATE-06 is not threatened by search, and the trigger is recorded.** A GIN index becomes
   mandatory between **~12,000 and ~20,000 published listings**; FitOut has 18. The threshold ships
   as a comment beside the query so the next person inherits it instead of rediscovering it.
+- **R8 — When a bbox is present it is the ONLY geo predicate.** `lat/lng/radius` are dropped from
+  the request and the `Within … km` control is hidden while the map governs. *Measured in 003:
+  letting the radius win puts 1,131 results in the list that are off-screen and draws 152 pins that
+  are not in it — MAP-01 requires the two to stay in sync, and that policy cannot.*
+- **R9 — The map re-searches on an explicit "Search this area", never on pan.** *D-32 makes the URL
+  the search's identity; auto-search pushes a history state per map move and turns the Back button
+  into a trap. A button is also the only form MAP-04's keyboard equivalent can take.*
+- **R10 — `relaxation.ts` and `e2e/zero-result-relax.spec.ts` are in Phase 18's scope.** *Measured
+  in 003: with a bbox governing, ladder rung 1 (widen the radius) moves the result set 0 → 0 while
+  the band still announces "we widened your search to 25 km" — and the e2e spec compares the band
+  against the control, not against the results, so it stays GREEN while the page lies.*
 - **R5 — Phase 18 is renamed `Search & Discovery`** and carries new `SEARCH-xx` requirement IDs
   alongside `MAP-01..04`. *PM decision, 2026-08-31.*
 
@@ -50,5 +61,5 @@ Design decisions that emerged during spiking. Non-negotiable for the real build.
 | 001 | one-box-intent-routing | standard | One box → server params via a closed-set-first staged router, no migration | ✓ **VALIDATED** — 30/30 corpus, geocoder reached 0/30, 0.01–0.05 ms/query | search, phase-18, query-model, geocoding |
 | 002a | freetext-ilike (per-word) | comparison | `ILIKE` inside the real stage-1 gate, 500–50,000 published listings | ✓ **WINNER** — added cost indistinguishable from zero below ~12k listings; matches FTS on 7/8 quality probes | search, postgres, GATE-06 |
 | 002b | freetext-fts-no-migration | comparison | Query-time `to_tsvector()`, no stored column, no GIN | ✗ **INVALIDATED** — strictly dominated: FTS quality without the index, at 8x ILIKE's cost (564 ms vs 68 ms at 25k) | search, postgres, GATE-06 |
-| 003 | bbox-vs-radius | standard | Which "where" is authoritative when the map moves and the bar still holds an address + radius | ○ pending | map, phase-18, MAP-02, D-53 |
+| 003 | bbox-vs-radius | standard | Which "where" is authoritative when the map moves and the bar still holds an address + radius | ✓ **VALIDATED** — policy A (bbox wins, radius dropped) + explicit "Search this area"; no migration; the D-53 radius rung breaks under a bbox | map, phase-18, MAP-01, MAP-02, D-53, D-32 |
 | 004 | front-door-head-to-head | standard | Today's 7-control bar vs the one box + map, same three intents, 375px and desktop | ○ pending | ux, responsive, phase-18 |
