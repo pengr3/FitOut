@@ -272,8 +272,42 @@ describe("tests/design/helpers/compile-css.ts", () => {
 });
 
 // ---------------------------------------------------------------------------
-// GATE-06 — a v1.1 phase adds NO schema migration (plan 12-01)
+// GATE-06 — the migrations v1.0 and v1.1 shipped are IMMUTABLE (plan 12-01; RE-SCOPED 2026-08-31)
 // ---------------------------------------------------------------------------
+//
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// RE-SCOPED BY RULING ON 2026-08-31, DURING PHASE 18 PLAN 18-02. IT WAS NOT BUMPED.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════
+// The two look identical in a diff and only one of them is legitimate, so the distinction is
+// written down rather than left to be inferred.
+//
+// THE OLD INVARIANT, quoted so the history stays legible and nobody re-litigates it — this was the
+// `GATE_06_TELL` constant, shared by both assertions below:
+//
+//     "GATE-06: this is a v1.1 phase and v1.1 phases ship on the v1.0 schema. A migration appearing
+//      in `drizzle/` means the work has grown a database change that no v1.1 plan budgeted for. That
+//      is a SCOPE ALARM TO RAISE, never one to absorb: do not bump the pinned number to make this
+//      green, and do not delete the migration to make it green either. Take it to the phase owner."
+//
+// IT WAS TAKEN TO THE PHASE OWNER. Plan 18-02 added `0026_host_verification_listing_review.sql` and
+// `0027_cancelled_by_ops.sql`, hit this gate, STOPPED with nothing touched, and raised it. The ruling:
+//
+// THE INVARIANT IS FINISHED, NOT STALE AND NOT VIOLATED. "v1.1 ships zero schema migrations" was a
+// milestone-scoped promise and it was KEPT — v1.1 closed 2026-08-31 with `drizzle/` still ending at
+// `0025_audit_resolved_by.sql`, recorded as a kept promise at `.planning/PROJECT.md:107`. Phase 18 is
+// **v1.2** (`.planning/ROADMAP.md:75-80`, added ahead of the milestone cycle by PM decision on
+// 2026-09-01) and its LOCKED context mandates these migrations (D-220, D-221, D-240). The gate's own
+// premise sentence — "this is a v1.1 phase" — simply stopped being true.
+//
+// WHAT SURVIVES INTO v1.2: the migrations that have ALREADY RUN against production data cannot be
+// deleted or renamed. That never expires. WHAT DOES NOT: the freeze on new migrations. The equality
+// pins (`LAST_MIGRATION`, `MIGRATION_COUNT`) are replaced by a monotonic FLOOR, because a gate that
+// must be bumped once per migration stops being read and starts being bumped reflexively — which is
+// how a real alarm dies. 18-09 already adds another migration in this same phase.
+//
+// THE BYTE-LEVEL half of this gate lives in `tests/design/money-path-invariants.test.ts`
+// (`SHIPPED_MIGRATION_DIGEST`), which carries the full ruling and both red-watch records. This file
+// keeps the presence half.
 //
 // WHY IT LIVES IN THE DESIGN GATE AND NOT IN THE DB SUITE, which is the first question a reader has.
 // This assertion must run on a machine with no Docker and no Postgres, and it must run inside
@@ -283,57 +317,105 @@ describe("tests/design/helpers/compile-css.ts", () => {
 // here: it reads a DIRECTORY LISTING, which is the same kind of tree scan the leak-pattern gates
 // above perform.
 //
-// WHY IT IS AN ASSERTION AND NOT A SENTENCE IN A PLANNING DOCUMENT. GATE-06 is a scope boundary:
-// v1.1 phases ship on the v1.0 schema. A phase that quietly adds `0026_*.sql` has changed what
-// "v1.1" means, and it does so in the one file class nobody diffs carefully because migrations are
-// append-only and always look additive. The whole value of this file is that the boundary is checked
-// on every run of the build rather than remembered at review time.
+// WHY IT IS AN ASSERTION AND NOT A SENTENCE IN A PLANNING DOCUMENT. Migrations are the one file
+// class nobody diffs carefully, because they are append-only and always LOOK additive. A deleted or
+// renamed historical migration reads as tidy-up in a diff and is a production/dev schema split in
+// fact. The whole value of this file is that the boundary is checked on every run of the build
+// rather than remembered at review time.
 //
-// WATCHED RED — a zero-byte `drizzle/0026_probe.sql` created, run, removed (18 August 2026).
-// `npx vitest run --config vitest.design.config.ts tests/design/infra.test.ts` → 2 failed / 28
-// passed. BOTH real assertions fired — the lexically-last check and the count — while the
-// guard-the-guard stayed green, which is the correct shape: the guard says the listing was read, the
-// two clauses say what was in it. The count's failure, VERBATIM (truncated at the file list):
+// WATCHED RED, TWICE, UNDER THE OLD SHAPE — a zero-byte `drizzle/0026_probe.sql` created, run,
+// removed (18 August 2026). `npx vitest run --config vitest.design.config.ts tests/design/infra.test.ts`
+// → 2 failed / 28 passed; both equality clauses fired while the guard-the-guard stayed green.
+// ⚠ THAT RECORD IS NOW HISTORICAL: those two clauses were the "no new migration" freeze, and it is
+// exactly what the 2026-08-31 ruling retired. It is kept because it documents that the DIRECTORY
+// SCAN itself works — the mechanism the surviving clause still depends on.
 //
-//   AssertionError: GATE-06: this is a v1.1 phase and v1.1 phases ship on the v1.0 schema. … That is
-//   a SCOPE ALARM TO RAISE, never one to absorb: do not bump the pinned number to make this green,
-//   and do not delete the migration to make it green either. Take it to the phase owner. Found:
-//   0000_sturdy_nighthawk.sql, … 0025_audit_resolved_by.sql, 0026_probe.sql: expected 27 to be 26
+// RE-WATCHED RED UNDER THE NEW SHAPE (2026-08-31, plan 18-02), because a gate that has never failed
+// for the right reason under its current shape is not evidence:
+//   mutation : `git mv drizzle/0014_phase7_ledger_kind.sql drizzle/0014_renamed.sql`
+//   command  : npx vitest run --config vitest.design.config.ts \
+//                tests/design/money-path-invariants.test.ts tests/design/infra.test.ts
+//   observed : RED, 3 failed / 33 passed.
+//                × still holds every migration v1.0 and v1.1 shipped
+//                AssertionError: GATE-06: a migration that has ALREADY RUN against production data is
+//                missing from `drizzle/`. … Do NOT 'fix' this by trimming SHIPPED_MIGRATIONS. …
+//                (ADDING a new migration is fine and expected in v1.2 — this gate no longer freezes
+//                the directory.)
+//                1 shipped migration(s) are missing from drizzle/:
+//                  0014_phase7_ledger_kind.sql
+//                expected [ '0014_phase7_ledger_kind.sql' ] to deeply equal []
+//   ⚠ AND THE CONTROL THAT MATTERS: the two NEW v1.2 migrations (0026, 0027) were on disk for that
+//     run — they appear in the failure's own "Found:" list — and NOTHING reddened about them. A floor
+//     that reddened on additions would be the old gate wearing a new name. Under the old shape those
+//     same two files failed four assertions across these two files.
+//   restored : `git mv` back; `git status --short drizzle/` empty; re-run GREEN 36/36.
 //
-//     - Expected
-//     + Received
-//
-//     - 26
-//     + 27
-//
-// Probe removed (`git status drizzle/` clean) → 30 passed.
-//
-// NOT COVERED — a real blind spot: this reads FILENAMES. A migration whose SQL is edited in place,
-// or schema drift introduced through `drizzle-kit push` without a file, is invisible here. It
-// catches the common shape (a new numbered file), not every shape.
+// NOT COVERED — a real blind spot, unchanged by the re-scoping: this reads FILENAMES. A migration
+// whose SQL is edited in place, or schema drift introduced through `drizzle-kit push` without a
+// file, is invisible HERE. That half is covered by `SHIPPED_MIGRATION_DIGEST` in
+// `tests/design/money-path-invariants.test.ts`, which hashes the bytes.
 
 /** The migration directory, as one constant — the vacuity probe is a one-line edit here. */
 const DRIZZLE_DIR = resolve(process.cwd(), "drizzle");
 
-/** The last migration v1.0 shipped. GATE-06 says v1.1 does not add another. */
-const LAST_MIGRATION = "0025_audit_resolved_by.sql";
-
-/** How many `*.sql` files that directory holds today. MEASURED (18 August 2026), not guessed. */
-const MIGRATION_COUNT = 26;
+/**
+ * THE SHIPPED SET — every migration that ran against production data under v1.0 and v1.1. CLOSED and
+ * never growing: v1.1 closed 2026-08-31 at `0025_audit_resolved_by.sql`, and nothing already applied
+ * can be added to history retroactively.
+ *
+ * Named exhaustively rather than derived as "everything <= 0025", because a derived bound treats a
+ * DELETED file as merely out of range and stays green — and deletion is one of the two things this
+ * gate now exists to catch.
+ *
+ * ⚠ KEPT IN SYNC BY HAND with `SHIPPED_MIGRATIONS` in `tests/design/money-path-invariants.test.ts`.
+ * Two copies is deliberate and is the lesser evil: that file is the money-path gate and imports
+ * nothing from here, and a shared helper would give one `readdirSync` mistake the power to blind both
+ * gates at once. They are 26 frozen strings that will never change again.
+ */
+const SHIPPED_MIGRATIONS = [
+  "0000_sturdy_nighthawk.sql",
+  "0001_enable_postgis.sql",
+  "0002_listing_tables.sql",
+  "0003_paymongo_event.sql",
+  "0004_availability_tables.sql",
+  "0005_booking_exclusion.sql",
+  "0006_booking_hold.sql",
+  "0007_booking_location_geog.sql",
+  "0008_payout_ledger.sql",
+  "0009_booking_status_default_pending.sql",
+  "0010_booking_request_states.sql",
+  "0011_booking_request_columns.sql",
+  "0012_booking_exclusion_v2.sql",
+  "0013_phase7_columns.sql",
+  "0014_phase7_ledger_kind.sql",
+  "0015_booking_payment_method.sql",
+  "0016_booking_full_day.sql",
+  "0017_group_bookings.sql",
+  "0018_group_notification_types.sql",
+  "0019_booking_checkout_session.sql",
+  "0020_open_capacity_enum.sql",
+  "0021_open_capacity_columns.sql",
+  "0022_booking_exclusion_v3.sql",
+  "0023_booking_checkout_lease.sql",
+  "0024_audit_table.sql",
+  "0025_audit_resolved_by.sql",
+] as const;
 
 /**
- * The failure message both assertions share.
+ * The failure message.
  *
- * It says what to DO, because the correct response to this red is neither "bump the number" nor
- * "delete the file" — it is to stop and raise the scope question with a human.
+ * It says what to DO, because the correct response to this red is neither "trim the list" nor "delete
+ * the constant". The pre-2026-08-31 version of this string forbade ADDING a migration; that clause is
+ * retired (see the header). What it forbids now is losing one.
  */
 const GATE_06_TELL =
-  "GATE-06: this is a v1.1 phase and v1.1 phases ship on the v1.0 schema. A migration appearing in " +
-  "`drizzle/` means the work has grown a database change that no v1.1 plan budgeted for. That is a " +
-  "SCOPE ALARM TO RAISE, never one to absorb: do not bump the pinned number to make this green, and " +
-  "do not delete the migration to make it green either. Take it to the phase owner.";
+  "GATE-06: a migration that has ALREADY RUN against production data is missing from `drizzle/`. " +
+  "Drizzle's journal keys on these filenames, so renaming one desyncs every database that has " +
+  "applied it, and deleting one means a fresh clone builds a DIFFERENT schema than production runs. " +
+  "Do NOT 'fix' this by trimming SHIPPED_MIGRATIONS. Restore the file, or take it to the phase owner. " +
+  "(ADDING a new migration is fine and expected in v1.2 — this gate no longer freezes the directory.)";
 
-describe("GATE-06 — drizzle/ is frozen at the v1.0 schema", () => {
+describe("GATE-06 — the migrations v1.0 and v1.1 shipped are immutable", () => {
   const entries = (() => {
     try {
       return readdirSync(DRIZZLE_DIR);
@@ -359,18 +441,30 @@ describe("GATE-06 — drizzle/ is frozen at the v1.0 schema", () => {
     expect(migrations.length, "no `*.sql` files in the migration directory").toBeGreaterThan(0);
   });
 
-  it("still ends at the v1.0 migration", () => {
-    expect(migrations[migrations.length - 1], GATE_06_TELL).toBe(LAST_MIGRATION);
+  it("still holds every migration v1.0 and v1.1 shipped", () => {
+    const present = new Set(migrations);
+    const missing = SHIPPED_MIGRATIONS.filter((name) => !present.has(name));
+
+    expect(
+      missing,
+      `${GATE_06_TELL}\n\n${missing.length} shipped migration(s) are missing from drizzle/:\n  ` +
+        `${missing.join("\n  ")}\n\nFound: ${migrations.join(", ")}`,
+    ).toEqual([]);
   });
 
-  it("holds exactly the migration count v1.0 shipped", () => {
-    // An EQUALITY and not a floor, unlike most counts in this suite. A floor would notice a deletion
-    // and wave through an addition, and addition is the direction GATE-06 is about. It also catches
-    // the case the assertion above cannot: a migration numbered BELOW 0025 (a rebase artefact, a
-    // renumbered branch) leaves the lexically-last file unchanged.
+  it("never shrinks below the shipped count", () => {
+    // A FLOOR, and the inversion of what this clause used to be. It was an EQUALITY — deliberately, so
+    // that it would catch an ADDITION — and that is precisely the half the 2026-08-31 ruling retired,
+    // because v1.2 phases ship migrations by design.
+    //
+    // The floor still earns its place beside the presence check above, because the two fail on
+    // different inputs: presence catches a rename or deletion BY NAME, while this catches a directory
+    // that shrank in some way the name list cannot see (a truncated checkout, a partial clone, a
+    // `readdirSync` that returned a subset). Cheap, and it fails with a different sentence.
     expect(
       migrations.length,
-      `${GATE_06_TELL} Found: ${migrations.join(", ")}`,
-    ).toBe(MIGRATION_COUNT);
+      `drizzle/ holds ${migrations.length} .sql files, fewer than the ${SHIPPED_MIGRATIONS.length} ` +
+        `that v1.0 and v1.1 shipped. History cannot shrink.\n\n${GATE_06_TELL}`,
+    ).toBeGreaterThanOrEqual(SHIPPED_MIGRATIONS.length);
   });
 });

@@ -3,10 +3,9 @@
 // Both are things a plan could erode by accident while doing something reasonable, and both would look
 // like an improvement at the moment they happened. That is why they are assertions and not comments:
 //
-//   1. GATE-06 / D-80 — `drizzle/` still ends at `0025_audit_resolved_by.sql`. Phase 13 ships ZERO
-//      schema migrations, and Phase 17 SC#4 makes that a milestone-closing proof. Today the check only
-//      happens at the milestone's exit, which is the worst possible time to discover it failed. This
-//      makes it mechanical from this phase forward.
+//   1. GATE-06 / D-80 — the migrations v1.0 and v1.1 shipped are IMMUTABLE. See the re-scoping note
+//      immediately below: this clause used to read "`drizzle/` still ends at `0025_audit_resolved_by.sql`",
+//      and that invariant is finished rather than broken.
 //   2. D-81 — `REFUNDABLE_RAILS` still excludes `qrph`. PayMongo's PUBLISHED DOCS say QR Ph is
 //      refundable. This account's OBSERVED behaviour says it is not, twice, five weeks apart. A reader
 //      who finds the docs row and "fixes" the array is doing the most natural thing in the world, and
@@ -14,6 +13,56 @@
 //      booker's money in limbo with copy claiming it is on its way.
 //
 // This file lives under `tests/design/**` so it runs inside `npm run build` (D-16) with no database.
+//
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// GATE-06 WAS RE-SCOPED BY RULING ON 2026-08-31, DURING PHASE 18 PLAN 18-02. IT WAS NOT BUMPED.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// That distinction is the entire point of this note, and the next person to read this file needs it,
+// because the two look identical in a diff and only one of them is legitimate.
+//
+// THE OLD INVARIANT, quoted so the history stays legible and nobody re-litigates it:
+//
+//     "GATE-06: this is a v1.1 phase and v1.1 phases ship on the v1.0 schema. A migration appearing in
+//      `drizzle/` means the work has grown a database change that no v1.1 plan budgeted for. That is a
+//      SCOPE ALARM TO RAISE, never one to absorb: do not bump the pinned number to make this green, and
+//      do not delete the migration to make it green either. Take it to the phase owner."
+//
+// IT WAS TAKEN TO THE PHASE OWNER, WHICH IS WHY THIS PARAGRAPH EXISTS. Plan 18-02 added
+// `0026_host_verification_listing_review.sql` and `0027_cancelled_by_ops.sql`, hit this gate, and
+// STOPPED — no constant touched, no migration deleted — and raised it. The ruling follows.
+//
+// THE INVARIANT IS FINISHED, NOT STALE AND NOT VIOLATED. "v1.1 ships zero schema migrations" was a
+// milestone-scoped promise, and it was KEPT: v1.1 closed 2026-08-31 with `drizzle/` still ending at
+// `0025_audit_resolved_by.sql`, which `.planning/PROJECT.md:107` records as a kept promise. Phase 18 is
+// **v1.2** (`.planning/ROADMAP.md:75-80` — added ahead of the milestone cycle by PM decision on
+// 2026-09-01), and its LOCKED context mandates exactly these migrations: D-220 (`host_verification`),
+// D-221 (`listing.review_state` + `listing_review`), D-240 (the grandfather backfill). The gate's own
+// premise sentence — "this is a v1.1 phase" — simply stopped being true.
+//
+// WHAT SURVIVES INTO v1.2, and it is the half a digest is actually good at: THE MIGRATIONS THAT HAVE
+// ALREADY RUN AGAINST PRODUCTION DATA ARE IMMUTABLE. Nobody silently rewrites, reorders, renames or
+// deletes `0000`…`0025`. That property never expires and never needs re-cutting.
+//
+// WHAT DOES NOT SURVIVE: the freeze on NEW migrations. A frozen digest over the WHOLE directory was
+// considered and REJECTED in the ruling, for a reason worth recording — it taxes every future v1.2
+// migration (18-09 already adds one), so it would need re-cutting mid-phase and again per migration
+// thereafter. A gate that must be bumped on a schedule stops being read and starts being bumped
+// reflexively, which is precisely how a real alarm dies. The equality pins are therefore replaced by a
+// monotonic FLOOR: the 26 historical files must all still be present and unmodified; new files may
+// appear beside them.
+//
+// A "budgeted migration" gate keyed on PLAN.md `files_modified` was also considered and REJECTED:
+// `/gsd-new-milestone` DELETES prior phase directories, so `0000`…`0025` have no surviving plan naming
+// them and would all redden. Making it work needs a pinned historical exemption list — which is the
+// thing it was trying to avoid.
+//
+// ⚠ THE DIGEST CONSTANT BELOW WAS NOT REGENERATED. It is the same
+// `652178aef62a621c10b1492d21d85261905b9bd032e4061e6e27c53891d1afbe` computed on 2026-08-29 and watched
+// RED then — because at that moment `drizzle/` held exactly the 26 historical files, so narrowing the
+// input set from "every .sql" to "the 26 shipped ones" leaves the hash input byte-identical. That is
+// deliberately stronger evidence than pasting a fresh number: the independently-watched constant still
+// verifies, and only its documented domain narrowed. If a future reader wants to check that claim, it is
+// one `git log -S` away.
 
 import { describe, it, expect } from "vitest";
 import { createHash } from "node:crypto";
@@ -24,19 +73,56 @@ import { REFUNDABLE_RAILS } from "@/lib/payments/refund-rail";
 
 const DRIZZLE_DIR = resolve(process.cwd(), "drizzle");
 
-/** The migration D-80 pins the directory at. */
-const LAST_MIGRATION = "0025_audit_resolved_by.sql";
-
-/** How many `.sql` files `drizzle/` ships. Measured 2026-08-29; `0000`…`0025` with no gaps. */
-const MIGRATION_COUNT = 26;
+/**
+ * THE SHIPPED SET — every migration that ran against production data under v1.0 and v1.1, by name, in
+ * apply order. This list is CLOSED and will never grow again: v1.1 closed 2026-08-31 at
+ * `0025_audit_resolved_by.sql`, and nothing that has already run can be added to history after the fact.
+ *
+ * Named exhaustively rather than derived as "everything <= 0025" ON PURPOSE. A derived bound would treat
+ * a DELETED historical file as simply out of range and stay green — deletion is one of the exact things
+ * this gate exists to catch, and it is the one a lexical comparison is blindest to.
+ */
+const SHIPPED_MIGRATIONS = [
+  "0000_sturdy_nighthawk.sql",
+  "0001_enable_postgis.sql",
+  "0002_listing_tables.sql",
+  "0003_paymongo_event.sql",
+  "0004_availability_tables.sql",
+  "0005_booking_exclusion.sql",
+  "0006_booking_hold.sql",
+  "0007_booking_location_geog.sql",
+  "0008_payout_ledger.sql",
+  "0009_booking_status_default_pending.sql",
+  "0010_booking_request_states.sql",
+  "0011_booking_request_columns.sql",
+  "0012_booking_exclusion_v2.sql",
+  "0013_phase7_columns.sql",
+  "0014_phase7_ledger_kind.sql",
+  "0015_booking_payment_method.sql",
+  "0016_booking_full_day.sql",
+  "0017_group_bookings.sql",
+  "0018_group_notification_types.sql",
+  "0019_booking_checkout_session.sql",
+  "0020_open_capacity_enum.sql",
+  "0021_open_capacity_columns.sql",
+  "0022_booking_exclusion_v3.sql",
+  "0023_booking_checkout_lease.sql",
+  "0024_audit_table.sql",
+  "0025_audit_resolved_by.sql",
+] as const;
 
 /**
- * sha256 over the whole directory — `name + NUL + LF-normalised bytes` per file, in `migrations()`'
- * sorted order. Filled from a first run and then WATCHED RED (see the red-watch record below).
+ * sha256 over THE SHIPPED SET ONLY — `name + NUL + LF-normalised bytes` per file, in `SHIPPED_MIGRATIONS`
+ * order. Watched RED on 2026-08-29 (record below) and again on 2026-08-31 under this narrowed domain.
  *
- * Do not regenerate this by re-running and pasting. See `digestOfMigrations()`.
+ * ⚠ NOT REGENERATED WHEN THE DOMAIN NARROWED, and that is the evidence rather than a convenience: on
+ * 2026-08-29 `drizzle/` held exactly these 26 files and nothing else, so restricting the input from "every
+ * .sql in the directory" to "these 26" leaves the hash input byte-identical. The number is the same one
+ * that was independently watched red under the old shape.
+ *
+ * Do not regenerate this by re-running and pasting. See `digestOfShippedMigrations()`.
  */
-const MIGRATION_DIGEST = "652178aef62a621c10b1492d21d85261905b9bd032e4061e6e27c53891d1afbe";
+const SHIPPED_MIGRATION_DIGEST = "652178aef62a621c10b1492d21d85261905b9bd032e4061e6e27c53891d1afbe";
 
 /** Every generated migration on disk, in the order drizzle applies them (its filenames sort correctly). */
 function migrations(): string[] {
@@ -89,21 +175,24 @@ function committedBytes(file: string): Buffer {
  *
  * `node:crypto` rather than anything hand-rolled (ASVS V6).
  */
-function digestOfMigrations(): string {
+function digestOfShippedMigrations(): string {
   const h = createHash("sha256");
-  for (const name of migrations()) {
+  // Iterates the PINNED list, not the directory listing — so a new v1.2 migration landing beside the
+  // historical set cannot move this number, and a historical file going missing throws in
+  // `committedBytes` (ENOENT) rather than quietly shortening the input.
+  for (const name of SHIPPED_MIGRATIONS) {
     h.update(name).update("\0").update(committedBytes(resolve(DRIZZLE_DIR, name)));
   }
   return h.digest("hex");
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// 1. GATE-06 / D-80 — ZERO schema migrations in this milestone
+// 1. GATE-06 / D-80 — the migrations that already ran are IMMUTABLE (re-scoped 2026-08-31; see header)
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("GATE-06 / D-80 — drizzle/ ships no new migration", () => {
+describe("GATE-06 / D-80 — the shipped migrations are immutable", () => {
   // Guard-the-guard: a wrong path would make `migrations()` return [] and every assertion below would
-  // pass vacuously against an empty list. The floor is well under the real count (26) and well over any
+  // pass vacuously against an empty list. The floor is well under the real count and well over any
   // plausible partial read.
   it("actually found the migration directory", () => {
     expect(
@@ -112,27 +201,40 @@ describe("GATE-06 / D-80 — drizzle/ ships no new migration", () => {
     ).toBeGreaterThan(20);
   });
 
-  it(`ends at ${LAST_MIGRATION}`, () => {
-    const all = migrations();
-    const last = all[all.length - 1];
+  it("still holds every migration v1.0 and v1.1 shipped", () => {
+    const present = new Set(migrations());
+    const missing = SHIPPED_MIGRATIONS.filter((name) => !present.has(name));
+
+    // A FLOOR, NOT AN EQUALITY — that is the 2026-08-31 re-scoping in one line. History cannot be
+    // deleted or renamed; new v1.2 migrations are allowed to appear beside it. The old shape asserted
+    // `migrations().length === 26`, which reddened on every legitimate new migration and would have
+    // needed bumping per plan.
     expect(
-      last,
-      `drizzle/ now ends at "${last}", not "${LAST_MIGRATION}".\n\n` +
-        `D-80: the v1.1 milestone ships ZERO schema migrations, and Phase 17 SC#4 (GATE-06) makes that a\n` +
-        `milestone-closing proof. Every Phase 13 decision is deliverable without a column — so a migration\n` +
-        `proposed inside a v1.1 phase plan is a SCOPE ALARM to raise explicitly with the operator, never a\n` +
-        `thing to absorb quietly because the feature seemed to need it. If a column genuinely is required,\n` +
-        `that is a finding about the decision that asked for it, and it changes the milestone, not this line.\n\n` +
-        `Do NOT "fix" this by updating LAST_MIGRATION.`,
-    ).toBe(LAST_MIGRATION);
+      missing,
+      `${missing.length} migration(s) that have ALREADY RUN against production data are missing from\n` +
+        `drizzle/:\n  ${missing.join("\n  ")}\n\n` +
+        `A shipped migration cannot be deleted or renamed. Drizzle's journal keys on these filenames, so a\n` +
+        `rename desyncs every database that has already applied them, and a deletion means a fresh clone\n` +
+        `builds a DIFFERENT schema than production is running.\n\n` +
+        `This is NOT the old "no new migrations" freeze — adding a file is fine. Only losing one is not.`,
+    ).toEqual([]);
+
+    expect(
+      migrations().length,
+      `drizzle/ holds ${migrations().length} .sql files, fewer than the ${SHIPPED_MIGRATIONS.length} that\n` +
+        `v1.0 and v1.1 shipped. History cannot shrink.`,
+    ).toBeGreaterThanOrEqual(SHIPPED_MIGRATIONS.length);
   });
 
   // ─────────────────────────────────────────────────────────────────────────────────────────────────
-  // The assertion above pins the LAST FILENAME. SC#4's wording is strictly stronger: "`drizzle/` is
-  // UNCHANGED from its v1.0 state". An edit to an already-shipped `.sql` — a widened column, a
-  // changed default, a dropped index — changes no filename at all and sails past every line above it.
+  // The assertion above pins PRESENCE. An edit to an already-shipped `.sql` — a widened column, a
+  // changed default, a dropped index — changes no filename at all and sails past every line above it,
+  // which is why the byte digest exists as a separate clause.
   //
-  // RED-WATCH (2026-08-29, plan 17-02). The pin was watched fail before it was trusted:
+  // RED-WATCH (2026-08-29, plan 17-02). The pin was watched fail before it was trusted. Recorded under
+  // the gate's PRE-RE-SCOPING shape (equality pins, whole-directory digest) and kept verbatim, because
+  // the digest constant and its input bytes are unchanged by the 2026-08-31 re-scoping — only the
+  // sibling clauses around it changed. The "5 passed" count refers to the old file's case list:
   //   mutation : drizzle/0025_audit_resolved_by.sql:33, ONE character — `ADD COLUMN "resolved_by"
   //              text;` → `... texu;`
   //   command  : npx vitest run --config vitest.design.config.ts tests/design/money-path-invariants.test.ts
@@ -152,33 +254,55 @@ describe("GATE-06 / D-80 — drizzle/ ships no new migration", () => {
   // ubuntu-latest checks out. Both produced
   // 652178aef62a621c10b1492d21d85261905b9bd032e4061e6e27c53891d1afbe, byte-identically, so this
   // constant is the same number in `gate-db-free` as it is here.
+  //
+  // RE-WATCHED UNDER THE NARROWED DOMAIN (2026-08-31, plan 18-02), because a digest test that has never
+  // gone red for the right reason under its CURRENT shape is not evidence — and this shape is new:
+  //   mutation : drizzle/0014_phase7_ledger_kind.sql:26 — the Finding-2 backfill's `= 0` changed to
+  //              `= 1`, i.e. ONE character inside a statement that has already run against production
+  //   command  : npx vitest run --config vitest.design.config.ts \
+  //                tests/design/money-path-invariants.test.ts tests/design/infra.test.ts
+  //   observed : RED, 1 failed / 35 passed
+  //                × pins the shipped migrations byte-for-byte, not just by their filenames
+  //                Expected: "652178aef62a621c10b1492d21d85261905b9bd032e4061e6e27c53891d1afbe"
+  //                Received: "b801a5fd4d5d11081c92b35d501bdb35818afb4dac7a3b0bfe186714f71548ca"
+  //              ⚠ AND THE CONTROL THAT MATTERS, which is the whole property the re-scoping buys: the
+  //              two NEW v1.2 migrations (0026, 0027) were present on disk for this run and did NOT
+  //              move the number, and infra.test.ts stayed fully green about them. Under the OLD shape
+  //              their mere existence reddened four assertions.
+  //   restored : file restored from backup; `git diff --exit-code drizzle/…` clean; re-run GREEN 36/36.
+  //
+  // FLOOR RE-WATCHED SEPARATELY (2026-08-31), because presence and content are different claims:
+  //   mutation : `git mv drizzle/0014_phase7_ledger_kind.sql drizzle/0014_renamed.sql`
+  //   observed : RED, 3 failed / 33 passed — the presence clause in BOTH files, plus the digest:
+  //                × still holds every migration v1.0 and v1.1 shipped   (this file AND infra.test.ts)
+  //                  1 migration(s) that have ALREADY RUN against production data are missing from
+  //                    0014_phase7_ledger_kind.sql
+  //                  expected [ '0014_phase7_ledger_kind.sql' ] to deeply equal []
+  //                × pins the shipped migrations byte-for-byte …
+  //                  Error: ENOENT: no such file or directory, open '…\drizzle\0014_phase7_ledger_kind.sql'
+  //              THE ENOENT IS WHY `digestOfShippedMigrations()` ITERATES THE PINNED LIST rather than
+  //              the directory listing. A listing-driven digest would have cheerfully hashed 26 files —
+  //              including `0014_renamed.sql` — and reported a bare hash mismatch, hiding WHICH file
+  //              went missing. Failing loudly on the name is the better diagnostic.
+  //   restored : `git mv` back; `git status --short drizzle/` empty; re-run GREEN 36/36.
   // ─────────────────────────────────────────────────────────────────────────────────────────────────
-  it("pins drizzle/ byte-for-byte, not just by its last filename", () => {
+  it("pins the shipped migrations byte-for-byte, not just by their filenames", () => {
     expect(
-      migrations().length,
-      `drizzle/ holds ${migrations().length} .sql files, not ${MIGRATION_COUNT}:\n` +
-        `${migrations().join("\n")}\n\n` +
-        `A file was ADDED or REMOVED. Do NOT "fix" this by updating MIGRATION_COUNT — see the message\n` +
-        `on the digest assertion below, which applies to this line word for word.`,
-    ).toBe(MIGRATION_COUNT);
-
-    expect(
-      digestOfMigrations(),
-      `the BYTES of drizzle/ changed while the filenames may not have.\n\n` +
-        `GATE-06 / Phase 17 SC#4 is "\`drizzle/\` is UNCHANGED from its v1.0 state", which is a claim\n` +
-        `about CONTENT, not about the last filename. An edit to an already-shipped .sql — a widened\n` +
-        `column, a changed default, a dropped index — breaks it without renaming anything, so the\n` +
-        `\`ends at ${LAST_MIGRATION}\` assertion above stays green while the schema moves. This digest\n` +
-        `is over name + NUL + bytes for all ${MIGRATION_COUNT} files, so it also catches a pure rename.\n\n` +
-        `Do NOT "fix" this by updating the constant. A migration — or an edit to a shipped one —\n` +
-        `proposed inside a v1.1 phase is a SCOPE ALARM to raise explicitly with the operator (D-199\n` +
-        `exception (a)), never a thing to absorb quietly because the feature seemed to need it. If the\n` +
-        `schema genuinely must move, that is a finding about the decision that asked for it, and it\n` +
-        `changes the milestone, not this line.\n\n` +
+      digestOfShippedMigrations(),
+      `the BYTES of an ALREADY-SHIPPED migration changed while its filename did not.\n\n` +
+        `These ${SHIPPED_MIGRATIONS.length} files have already run against production data. Editing one\n` +
+        `does NOT change production — it changes what a fresh clone builds, so dev and prod silently\n` +
+        `diverge and drizzle's journal (which keys on the filename) never notices. A widened column, a\n` +
+        `changed default, a dropped index: none of them rename anything, so the presence assertion above\n` +
+        `stays green while the schema moves underneath it. The digest is over name + NUL + bytes, so it\n` +
+        `also catches a pure rename.\n\n` +
+        `Do NOT "fix" this by updating the constant. The correct repair for a needed schema change is a\n` +
+        `NEW migration — which this gate explicitly permits since the 2026-08-31 re-scoping (see the file\n` +
+        `header). There is no legitimate reason to edit one of these ${SHIPPED_MIGRATIONS.length} files.\n\n` +
         `⚠ If you are reading this after a fresh clone and NOTHING was edited: the digest is taken over\n` +
         `LF-normalised bytes precisely so a CRLF checkout cannot produce this failure — see\n` +
         `\`committedBytes()\`. A red here is a content change, not a line-ending one.`,
-    ).toBe(MIGRATION_DIGEST);
+    ).toBe(SHIPPED_MIGRATION_DIGEST);
   });
 });
 
