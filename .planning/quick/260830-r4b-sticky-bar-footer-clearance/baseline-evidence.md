@@ -449,6 +449,28 @@ recorded above.**
 ```
 Confirmation line (to be appended by the orchestrator after its docs-only commit):
   ci run <id> on <sha>, conclusion <...>, gate-visual <...>
+
+APPENDED 2026-08-31 by the execute-phase orchestrator. The slot above is left as
+written; this is the reading, not a substitution for it.
+
+  ci run 33346082522 on b5d8b55c89fdd7e71e050200002384777d9dffbe
+  conclusion success  ·  gate-visual (GATE-01 visual regression) success
+  gate-db success  ·  gate-db-free success  ·  gate-price-parity success
+
+  $ gh run view 33346082522 --json conclusion,headSha,status
+    ["completed","success","b5d8b55c89fdd7e71e050200002384777d9dffbe"]
+  $ git rev-parse origin/dev
+    b5d8b55c89fdd7e71e050200002384777d9dffbe
+
+⚠ THIS RUN IS NOT DOCS-ONLY, and the difference is worth stating rather than
+letting a later reader assume it. The slot anticipated a docs-only commit. By the
+time the push happened, dev also carried two quick tasks that landed AFTER phase
+17.1 closed — 260831-99f (a tailwind-merge ordering gate) and 260831-9qx (which
+set webServer.env RESEND_API_KEY:"" and reuseExistingServer:false). So this run
+confirms the baselines still compare green across a WIDER change than the slot
+predicted, which is a stronger reading than the one it asked for, not a weaker
+one. The narrow docs-only reading was never taken and now cannot be — d87ff54's
+own run (33336650152) remains the clean single-purpose evidence above.
 ```
 
 **Nothing else landed after this run.** No code change, no gate change, no threshold, and no row added
