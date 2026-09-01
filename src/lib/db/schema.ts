@@ -453,13 +453,29 @@ export const listingReview = pgTable(
   "listing_review",
   {
     id: text("id").primaryKey(), // randomUUID() — the shipped app-generated-id idiom
-    // onDelete: "restrict" — a review decision is an audit record and must never cascade-delete with the
-    // thing it decided about (the `host_payout_ledger` rule: "a financial record must never
-    // cascade-delete", applied to a compliance record for the same reason). Listings soft-delete anyway
-    // (`listing.deleted_at`), so this restricts nothing the app actually does.
+    // ⚠ `cascade`, and it CHANGED — D-254 (drizzle/0029) supersedes the `restrict` D-221 shipped here.
+    //
+    // THE DURABLE RECORD OF A REVIEW DECISION IS THE `audit` ROW, NOT THIS ONE. D-218 makes every ops
+    // decision write an `audit` row, and `audit.actorId` deliberately carries NO `.references()` (D4)
+    // exactly so the trail outlives what it describes. Cascading this operational history therefore
+    // loses nothing auditable — `listing_review` is the review STATE the ops queue reads, not the
+    // compliance record. The two families that legitimately take `restrict` in this schema are
+    // FINANCIAL (`host_payout_ledger`, `booking`) and IMMUTABLE HISTORY (`booking_group`, D-115); this
+    // is neither, and it was the ONLY `restrict` among the seven listing-child FKs (the other six —
+    // :295, :314, :325, :1019, :1037, :1076 — all cascade).
+    //
+    // AND ITS ENTIRE OBSERVABLE EFFECT WAS BREAKING TEST TEARDOWN. In production `softDeleteListing`
+    // means a listing row is never hard-deleted, so `restrict` never fired on a real path. It fired on
+    // exactly two: `e2e/host-headings.spec.ts:313` and `e2e/keyboard-composites.spec.ts:1352`, both of
+    // which PASSED their assertions and failed deleting their own fixture, because 18-06's
+    // `flipToPendingOnMaterialEdit` had appended a row. A constraint whose only measured effect is
+    // blocking fixture cleanup and future admin cleanup is not protecting anything.
+    //
+    // ⚠ Do NOT "fix" a future teardown of this kind by making the fixture soft-delete instead — that
+    // hides the constraint rather than correcting it, and the next hard delete meets the same wall.
     listingId: text("listing_id")
       .notNull()
-      .references(() => listing.id, { onDelete: "restrict" }),
+      .references(() => listing.id, { onDelete: "cascade" }),
     state: listingReviewState("state").notNull(),
     reason: text("reason"), // host-readable rejection reason (D-243); NULL on an approval
     // NO .references() — the `audit.actorId` precedent, same reason as host_verification above.
