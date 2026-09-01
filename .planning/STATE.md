@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: verifying
-stopped_at: "Completed 18-14-PLAN.md (Wave 8 — the phase's LAST plan). OPS-02's four production-build status-line readings are on the record at 18-EVIDENCE.md § P1 (200/404/404/404, second pass identical, nonexistent-route control included, zero 'Ops' in every 404 body, readings 2 and 3 byte-identical) — PLUS ONE FINDING recorded rather than tuned away: a header-level 404 oracle (x-nextjs-prerender on an unrouted path vs chunked on a matched notFound()) survives the status line, is app-wide, is identical on /listings/[id], and is NOT introduced by 18-12. HVER-04's 18-KYC-VENDOR-COMPARISON.md is written for the PM verdict-first with the D-225 re-coupling argument before any price; A1 was RE-PROBED (identical to 2026-07-23) and moves to [PROBED]. D-254 shipped as drizzle/0029 — listing_review.listing_id cascades, both e2e teardowns re-run BY HAND and green, deferred-items D6 CLOSED. Gates each run ALONE: tsc 0, npm test 207/2485/5, test:design 73/1331/3, build exit 0, git diff --exit-code src/ clean. ⚠ THE BLOCKING PM CHECKPOINT IS OPEN — all five items deferred 2026-09-01, D-236 leading. Next: the phase verifier."
-last_updated: "2026-09-01T15:36:30.249Z"
+stopped_at: Phase 18.1 context gathered — 17 decisions recorded (D-255..D-271), 5 accepted consequences, 4 research items
+last_updated: "2026-09-01T18:02:34.041Z"
 last_activity: "2026-09-01 — 18-14 executed (3 tasks + 1 ruled scope addition, 3 commits). OPS-02's last clause — *a non-staff caller cannot distinguish an ops route from one that does not exist* — is a claim about four numbers, and this repo has no instrument that can read one (`tests/design/soft-404-status.test.ts:31-39` says so in its own words). So it was read by hand under a PRODUCTION build of `8520721`, Next 16.2.7, `next start -p 3100`: **200 / 404 / 404 / 404**, second pass identical, with the nonexistent-`/ops/xyz` CONTROL that makes the equality mean anything. Bodies too: zero occurrences of `Ops` in all three 404s, and readings 2 and 3 **byte-identical** (same sha256) — a prober cannot even tell *not-staff* from *not-signed-in*. ⚠ **ONE FINDING recorded rather than tuned away:** an unrouted path is served from the prerendered static 404 (`x-nextjs-prerender: 1`, `x-nextjs-cache: HIT`, `Content-Length: 29644`) while a matched route that throws `notFound()` is served chunked with no `x-nextjs-*` headers (25970 bytes), so a header-level existence oracle survives the status line. Measured IDENTICALLY on `/listings/[id]` — app-wide, pre-existing, NOT introduced by 18-12, and invisible until now because 17.1 § P1 deliberately captured no bodies. Filed, not fixed. HVER-04's `18-KYC-VENDOR-COMPARISON.md` is written for the PM as a fork, leading with the D-225 re-coupling argument BEFORE any price (PayMongo's activation IS the payouts gate); **A1 was RE-PROBED**, 40 days on — `GET /v2/wallets?status=activated` still HTTP 200 with zero wallets, `GET /v2/transfers/receiving_institutions` still HTTP 404, Platforms doc page still 404 on both hosts — moving it from `[ASSUMED]` to `[PROBED]`. D-254 shipped as `drizzle/0029`: `listing_review.listing_id` cascades, both e2e teardowns re-run BY HAND and green, `deferred-items` D6 CLOSED. Gates each run ALONE: tsc **0**, `npm test` **207 files / 2485 / 5 skipped**, `test:design` **73 / 1331 / 3**, build exit **0**, `git diff --exit-code src/` clean after the readings."
 progress:
   total_phases: 16
@@ -1404,8 +1404,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-01T06:11:03.077Z
-Stopped at: Completed 18-14-PLAN.md (Wave 8 — the phase's LAST plan). OPS-02's four production-build status-line readings are on the record at 18-EVIDENCE.md § P1 (200/404/404/404, second pass identical, nonexistent-route control included, zero 'Ops' in every 404 body, readings 2 and 3 byte-identical) — PLUS ONE FINDING recorded rather than tuned away: a header-level 404 oracle (x-nextjs-prerender on an unrouted path vs chunked on a matched notFound()) survives the status line, is app-wide, is identical on /listings/[id], and is NOT introduced by 18-12. HVER-04's 18-KYC-VENDOR-COMPARISON.md is written for the PM verdict-first with the D-225 re-coupling argument before any price; A1 was RE-PROBED (identical to 2026-07-23) and moves to [PROBED]. D-254 shipped as drizzle/0029 — listing_review.listing_id cascades, both e2e teardowns re-run BY HAND and green, deferred-items D6 CLOSED. Gates each run ALONE: tsc 0, npm test 207/2485/5, test:design 73/1331/3, build exit 0, git diff --exit-code src/ clean. ⚠ THE BLOCKING PM CHECKPOINT IS OPEN — all five items deferred 2026-09-01, D-236 leading. Next: the phase verifier.
+Last session: 2026-09-01T18:02:34.016Z
+Stopped at: Phase 18.1 context gathered — 17 decisions recorded (D-255..D-271), 5 accepted consequences, 4 research items
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte
@@ -1548,7 +1548,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: None
+Resume file: .planning/phases/18.1-close-phase-18-verification-submission-didit-listing-gate/18.1-CONTEXT.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
