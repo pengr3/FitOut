@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: "Completed 18.1-02-PLAN.md (F11/D-260 — a suspended host's /host/earnings names the frozen session). Next: 18.1-03 (D-231 material fields) and 18.1-04 (Didit credentials, BLOCKING checkpoint)."
-last_updated: "2026-09-01T21:03:16.447Z"
+stopped_at: "Phase 18.1 wave 1-2: plans 01/02/03 complete; BLOCKED on 18.1-04 Task 1 human-action checkpoint (Didit Console account + 3 credentials in .env.local)"
+last_updated: "2026-09-01T21:04:10.056Z"
 last_activity: 2026-09-01
 progress:
   total_phases: 16
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** **Phase 18.1 — Close Phase 18: the verification path FitOut is legally required to have.** Executing: **2 of 14 plans done** (18.1-01 — the requirement ledger `HVER-06..08` / `LVER-05` / `OPS-06`, plus D-236: `OPS_CANCEL_REFUNDS_SERVICE_FEE = true`; 18.1-02 — F11/D-260, a suspended host's `/host/earnings` now names the frozen session through the new `src/lib/host/frozen-payouts.ts` inverted freeze query, with `payout-sweep.ts` and `tests/design/earnings-freeze.test.ts` both byte-unchanged). Next in wave 1: **18.1-03** (D-231 — `title` and `description` join the material-field set) and **18.1-04** (Didit credentials + the async port widening, which carries a **BLOCKING Didit Console checkpoint**). Two constraints carried from Phase 18 and still binding: **`deriveBookable` is OFF LIMITS** — it has an inlined SQL twin in `src/lib/search/query.ts` Stage-1 and two deliberate re-statements in `src/app/actions/booking.ts`, so it is never a one-line change — and **gates run ALONE** (`npx tsc --noEmit`, `npm test`, `npm run test:design`, `npm run build`, each its own invocation). Worktrees remain OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
+**Current focus:** **Phase 18.1 — Close Phase 18: the verification path FitOut is legally required to have.** Executing: **3 of 14 plans done** (18.1-01 — the requirement ledger `HVER-06..08` / `LVER-05` / `OPS-06`, plus D-236: `OPS_CANCEL_REFUNDS_SERVICE_FEE = true`, and an `ENF-03` amendment because that requirement asserted the opposite of the shipped refund; 18.1-02 — F11/D-260, a suspended host's `/host/earnings` names the frozen session via the new `src/lib/host/frozen-payouts.ts` inverted freeze query, with `payout-sweep.ts` and `tests/design/earnings-freeze.test.ts` both byte-unchanged; 18.1-03 — D-231, `title` + `description` join the material-field set, `MATERIAL_FIELDS` is now the seven, plus an `LVER-03` amendment for the same class of stale-requirement defect). **BLOCKED: 18.1-04 Task 1 is a `checkpoint:human-action` gate="blocking"** — the operator must create the Didit sandbox + live applications, compose the workflow as exactly ID Verification + Liveness + Face Match (NO AML Screening, NO KYC expiration policy), and place `DIDIT_API_KEY`, `DIDIT_WORKFLOW_ID`, `DIDIT_WEBHOOK_SECRET` in the git-ignored `.env.local`. **All ten remaining plans (05-14) depend on 18.1-04**, so nothing else in this phase is runnable until that gate clears. ⚠ `neon link` / `neon deploy` overwrite `.env.local` — always pass `--no-env-pull`. Two constraints carried from Phase 18 and still binding: **`deriveBookable` is OFF LIMITS** — it has an inlined SQL twin in `src/lib/search/query.ts` Stage-1 and two deliberate re-statements in `src/app/actions/booking.ts` — and **gates run ALONE** (`npx tsc --noEmit`, `npm test`, `npm run test:design`, `npm run build`, each its own invocation). Worktrees remain OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -1414,8 +1414,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-01T21:02:57.612Z
-Stopped at: Completed 18.1-02-PLAN.md (F11/D-260 — a suspended host's /host/earnings names the frozen session). Next: 18.1-03 (D-231 material fields) and 18.1-04 (Didit credentials, BLOCKING checkpoint).
+Last session: 2026-09-01T21:04:10.027Z
+Stopped at: Phase 18.1 wave 1-2: plans 01/02/03 complete; BLOCKED on 18.1-04 Task 1 human-action checkpoint (Didit Console account + 3 credentials in .env.local)
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte
@@ -1558,7 +1558,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: None
+Resume file: .planning/phases/18.1-close-phase-18-verification-submission-didit-listing-gate/18.1-04-PLAN.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
