@@ -33,7 +33,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
       authenticated staff user id — authenticated, not asserted. *(SC1 · D-218)*
 - [ ] **OPS-04** — Ops works **one queue**: hosts awaiting verification and listings awaiting review,
       oldest first, with everything needed to decide on the same screen. *(SC3)*
-- [ ] **OPS-05** — Approve and reject each carry a **reason the host is actually told**. A rejected
+- [x] **OPS-05** — Approve and reject each carry a **reason the host is actually told**. A rejected
       host or listing can read why. *(SC3 · D-230)*
 
 ### HVER — Host identity verification
@@ -97,7 +97,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | OPS-02 | Phase 18 | Partial (18-01 — `requireStaff()` is the boundary and refuses non-staff / NULL-role / signed-out with `notFound()`. The route half lands in 18-12; the HTTP status-line audit in 18-14) |
 | OPS-03 | Phase 18 · 18-05 (all five console actions) | Partial (18-05 — every console action records the authenticated staff id, read BACK OUT of the table on both the allow and the deny branch. 18-08 adds a sixth ops action; "every ops action" closes there) |
 | OPS-04 | Phase 18 · 18-05 (data half) | Partial (18-05 — `loadReviewQueue` is ONE interleaved oldest-first array over both kinds, carrying every field a reviewer needs so the page runs no second query. "On the same screen" needs 18-10's row and 18-12's page) |
-| OPS-05 | Phase 18 · 18-05 (write half) | Partial (18-05 — a taxonomy-constrained, `.max(280)`-bounded reason stored as the SENTENCE the host reads. **Told** needs the notification (D-245, 18-09) and the host surface (D-230, 18-13)) |
+| OPS-05 | Phase 18 · 18-05 (write half) + 18-09 (delivery) | **Satisfied for D-245** (18-05 stores the taxonomy-constrained, `.max(280)`-bounded SENTENCE the host reads; 18-09 delivers it — one durable `notification` row AND one email per decision, from ONE payload through the shipped fan-out, with the operator's sentence verbatim and exactly once, and no appeal/reply/timeline/address anywhere. D-230's host-surface status (18-13) is IN ADDITION to this, not instead of it) |
 | HVER-01 | Phase 18 · 18-05 | Complete |
 | HVER-02 | Phase 18 · 18-02 | Complete |
 | HVER-03 | Phase 18 | Complete |

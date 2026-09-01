@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 18-08-PLAN.md (Wave 5 — ENF-03, the ops cancel-and-refund escalation). **⚠ THIS ONE LEADS THE PHASE SUMMARY AND IT IS THE PM'S TO SETTLE — D-236.** The PM answered PM-4 as *"booker 100% refund, but not the service fee / platform fee"*, so an ops-forced cancellation refunds the SPACE PRICE and FitOut retains the D-74 service fee. That contradicts `cancel-booking.ts:1134-1137`, which already refunds the full charge INCLUDING that fee on host-cancel and argues it in its own words — *"the booker did nothing wrong, so the platform, not the booker, absorbs the gateway cost of the reversal"*. An ops cancel on a CONFIRMED-FAKE listing is a strictly stronger instance of that, so FitOut is currently less generous to a defrauded booker than to an inconvenienced one. NOT RESOLVED, deliberately: shipped as answered, isolated behind `OPS_CANCEL_REFUNDS_SERVICE_FEE = false` — a LITERAL at `src/lib/payments/fees.ts:82`, never `process.env`, absent from `.env.example` — read at exactly ONE site (`opsRefundBasisCents`, `src/lib/ops/cancel-impact.ts:95`) with the argument written out in full there and restated at the call site. **Flipping it is one line and the flip is MEASURED**: cases 1/2/3 run the action AND the console's impact read under both values (₱1,000.00 vs ₱1,050.00 refunded; ₱50.00 vs ₱0.00 retained). ⚠ DEVIATION: the plan named `cancel-booking.ts` as the read site — impossible, that module is `"use server"` so a shared PURE helper cannot be exported from it, and the alternative was two restatements of a money policy with no compiler census (exactly D-253's shape) letting the dialog promise a figure different from the one the server moves. One expression, two callers. `cancelBookingAsOps` is a SIBLING of `cancelBookingAsHost`, not a flag on it, because TWO of the five host-specific forks fail SILENTLY: the `starts_at`-vs-`now()` guard would quietly protect exactly the bookings most worth undoing (D-241 REPLACES it with `NOT EXISTS` a `host_payout_ledger` payout row in `processing`/`paid`, so an already-started session is reachable and a paid-out one is refused WITH its reason), and `cancelled_by='host'` would durably blame the host — `'ops'` is written here for the FIRST time, one wave after drizzle/0027 added it and wrote it nowhere, which is what made that migration safe under PG 55P04. Fork 5: no host-cancel notification fires (both its sentences are false here); the gap is dated to 18-09. D-235: the fee debit is an ABSENCE, not a zero — proved non-vacuously by asserting the consequences that BRACKET it ran (auto-block before, refund dispatch after) plus a host-path positive control. `retained_space_cents = 0` keeps the shipped sweep predicate excluding the booking (before/after control). Rule-2 addition: the D-233 escalation is re-asserted SERVER-SIDE — an omitted `lever` parses to the lighter option and cancels nothing, because 18-UI-SPEC's three-deliberate-acts arrangement is a CLIENT arrangement. Commits `cb7dc5a` + `eff3939` + `0d88eda` + metadata. Suite after: tsc 0; `npm test` **202 files / 2392 passed** / 5 skipped (baseline 201/2376 — the +16 is exactly this plan's one file); `npm run test:design` 72 / 1304 / 3 (byte-identical). Three mutation REDs watched and reverted: `cancelled_by='host'` on the ops path → 3F/13P (`expected 'host' to be 'ops'`); the `NOT EXISTS` payout predicate deleted → 2F/14P, exactly the `processing` and `paid` cases (`expected true to be false`); `booking_cancelled_by_host` emitted on the ops path → 1F/15P (`expected [ 'booking_cancelled_by_host' ] to not include 'booking_cancelled_by_host'`). The four `cancelledBy` display forks were reviewed BY HAND (tsc cannot flag them — the parameter is a widened `string`) and `'ops'` renders as a plain "Cancelled" everywhere; the three `=== null` predicates all read false, which is correct because an ops cancellation IS a decision. ⚠ This run was INTERRUPTED by a transport-level API error after `eff3939` and resumed by re-reading the committed source off disk rather than trusting memory. Next — 18-09.
-last_updated: "2026-09-01T01:35:00.000Z"
-last_activity: 2026-09-01 — 18-08 executed (3 tasks, 3 commits): the ops cancel-and-refund escalation. One literal policy constant with ONE read site and the D-236 counter-argument written beside it; one sibling action with five forks each documented at its own site (two of which would have failed silently); D-241 as a REPLACEMENT guard so a started session is reachable and a paid-out booking is refused with its reason; the D-71 fee debit suppressed as an absence and proved so by the consequences bracketing it. 16 cases, 3 mutation REDs. ⚠ D-236 leads the phase summary and is the PM's to settle — one line at fees.ts:82
+stopped_at: Completed 18-09-PLAN.md (Wave 6 — OPS-05, telling the host). The [BLOCKING] `npm run db:migrate` was RUN (exit 0, idempotent on a second run) and the six new `notification_type` values were read back off the LIVE enum — `tsc` and `next build` both pass WITHOUT it, so skipping it is a false-positive state. `drizzle/0028` does NOTHING but `ALTER TYPE … ADD VALUE`, the drizzle/0018 55P04 split applied a second time; the first runtime write of every value is task 3's emit. **SIX values, not the planned five** — task 3's ops-cancel copy had no kind among the five, so `booking_cancelled_by_ops` was added (one type, two audiences, on `booking_cancelled_by_host`'s own `side` idiom) and verified NOT to collide with 18-02's `'ops'` tripwire, which matches the literal WITH its quotes. The compile census went RED FIRST in FIVE places and every one was answered with real work, never a `default` (`grep -c "default:"` on `notification-item.tsx` still 0): the renderer's `never`, `sendForType`'s `never`, the `_PayloadUnionParity` weld, `notification-owner-scope.test.ts`'s bare `payload.listingTitle`, and — on the second pass — `email-fixtures.ts`, whose `SenderName` is DERIVED from the email module's own exported function type, so `sendOpsDecision` was a missing-key error until it got a fixture (which is what now drives the operator's free text through the shipped injection probe). ⚠ Rule-1 catch worth carrying: `label`'s `.max(200)` would have THROWN at the write boundary on a valid rejection — `composeReason` legitimately yields 338 chars (57-char taxonomy sentence + a 280-char note) — so a `sentence` bound of 400 was added with the arithmetic written at the declaration; nothing in the suite would have caught it because every existing test uses short reasons. The copy is stored IN the payload for these six kinds (a departure from every other kind, argued from D-91 and D-86: what a host is told about why FitOut blocked their income must be the same words in the panel and the inbox, and must not silently re-render after they have READ it); the body is three parts and `composeOpsDecisionBody` is the ONE join, CALLED by three sites from a dependency-free module — `notifications.ts` itself would drag Inngest + Drizzle into the browser bundle via `notification-bell`. **D-250: `src/lib/site.ts` and `tests/design/site-contacts.test.ts` are in NONE of this plan's commits** — `SUPPORT_EMAIL` is still `null`, the gate is unmodified and green, and every sentence stands without an address. The unblock is ONE PM LINE (set the constant; the gate inverts itself) and it also closes the carried-forward STATE-05 / TRUST-01. Two mutation REDs watched and reverted: paraphrasing the operator sentence → 3F/9P (cases 2, 6, 11 — the verbatim property is pinned at the row, the body and the byte-identical round-trip); adding "Reply to this message if you'd like to appeal" → 3F/9P (cases 8, 9, 10 — case 9 catches it in the SOURCE LITERAL via an AST scan, independent of any rendered surface). ⚠ `ops-cancel.test.ts` case 12's `toHaveLength(0)` was SUPERSEDED, not weakened: 18-08 asserted the ops path tells nobody and dated the gap to this plan, so it is now a strictly stronger pin — exactly TWO emissions, both `booking_cancelled_by_ops`, one per `side`, each routed to the right recipient id; the Pitfall-5 `not.toContain("booking_cancelled_by_host")` above it is untouched and that grep count is still 5 (my own Fork-5 prose moved it to 6 on the first draft — the acceptance-grep landmine, arriving in the plan warned about it). Commits `e2ab5e5` + `28357d9` + `560277d` + metadata. Suite after: tsc 0; `npm test` **203 files / 2425 passed** / 5 skipped (baseline 202/2392 — the +33 is 12 new cases plus 21 from the three new sender-fixture calls the injection probe walks); `npm run test:design` **72 / 1310 / 3** (baseline 1304 — the +6 is the enum tripwire's second owning migration). Deferred and logged: `appBaseUrl()` now has a THIRD definition (cancel-booking, group, notifications) — no compiler census over the three, D-253's shape in a new place, not fixed because it means editing two modules this plan does not own. Next — 18-10.
+last_updated: "2026-09-01T02:05:00.000Z"
+last_activity: 2026-09-01 — 18-09 executed (3 tasks, 3 commits): OPS-05's DELIVERY half. Six notification kinds added by an ALTER-TYPE-only migration that was actually RUN and verified against the live enum; the copy stored in the payload so the panel and the inbox say the same words; one guarded emit per decision inside the post-flip discipline; 18-08's dated Fork-5 gap closed. A five-site compile census, a Rule-1 catch on a bound that would have thrown in production only, and two mutation REDs. ⚠ D-250 remains ONE PM LINE — `SUPPORT_EMAIL` is untouched and every sentence was written to stand without an address
 progress:
   total_phases: 14
   completed_phases: 11
   total_plans: 163
-  completed_plans: 157
+  completed_plans: 158
   percent: 79
 ---
 
@@ -44,15 +44,15 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 18 — Host Verification, Listing Review & FitOut Ops (EXECUTING)
-Plan: 8 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
-Status: Executing — next is 18-09
-Last activity: 2026-09-01 — 18-08 executed: ops can now cancel the bookings on a confirmed-fake listing and put the bookers' money back. **D-236 LEADS THE PHASE SUMMARY and is NOT resolved** — the PM's answer ships (space price back, service fee retained) despite `cancel-booking.ts:1134-1137` arguing the opposite for host-cancel; it sits behind a LITERAL `false` at `src/lib/payments/fees.ts:82` with ONE read site, and the one-line flip is measured under both values. Five forks from the host path, each documented at its own site; `'ops'` written for the first time; the fee debit suppressed as an absence with the bracketing consequences asserted so it cannot pass vacuously; three mutation REDs observed and reverted. One deviation of substance (the read site moved to `cancel-impact.ts` — `"use server"` cannot export a shared pure helper) plus a Rule-2 server-side re-assertion of the D-233 escalation. Run interrupted by an API error after `eff3939` and resumed.
+Plan: 9 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
+Status: Executing — next is 18-10
+Last activity: 2026-09-01 — 18-09 executed: a host is now actually TOLD what FitOut decided — one durable notification row AND one email per decision, from ONE payload, through the shipped Phase-7 fan-out, with the operator's own sentence carried verbatim and rendered exactly once. Six enum values (one more than planned — the ops-cancel copy had no kind), added by a migration that does nothing but ADD VALUE and that was RUN. Nothing promises an appeal, a reply, a timeline or an address (D-243 / D-250), asserted over every rendered surface AND over the source literals by an AST scan, and mutation-proved RED. **D-250 is the one carried blocking input and it did NOT hold this plan**: `src/lib/site.ts:70` is still `null`, appears in none of the three commits, and `site-contacts.test.ts` is unmodified and green.
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 83
+- Total plans completed: 85
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -72,7 +72,7 @@ Last activity: 2026-09-01 — 18-08 executed: ops can now cancel the bookings on
 | 15 | 14 | - | - |
 | 16.1 | 7 | - | - |
 | 17.1 | 7 | - | - |
-| 18 | 7 | ~237 min | ~34 min |
+| 18 | 9 | ~289 min | ~32 min |
 
 *18-01: ~21 min wall-clock, 2 tasks (both auto), 6 files created + 1 modified (package.json), 2 commits + 1 metadata.
 The plan that everything else in Phase 18 consumes. `src/lib/ops/staff.ts` is ONE `cache()`'d expression with three
@@ -366,8 +366,31 @@ deferred walk is inconsistent rather than honest.*
 | Phase 17.1 P05 | 48min | 3 tasks | 4 files |
 | Phase 17.1 P06 | 52min | 3 tasks | 4 files |
 | Phase 17.1 P07 | 55min | 3 tasks | 5 files |
+| Phase 18 P09 | 26min | 3 tasks | 16 files |
 
 ## Accumulated Context
+
+### OPS-05 delivery decisions taken during execution (18-09)
+
+- **The copy is stored IN the payload for the six ops-decision kinds** — a deliberate departure from every
+  other notification kind, which stores DATA and lets each channel compose its own sentence. Argued from
+  D-91 (what a host is told about why FitOut blocked their income must be the SAME words in the panel and
+  in their inbox) and D-86 (the host has READ it; a later re-wording must not retroactively change the
+  durable record of what they were told). `composeOpsDecisionBody` is the ONE join and all three readers
+  CALL it — the compiler counts callers, not restatements.
+- **`src/lib/notification-copy.ts` exists because of the CLIENT GRAPH.** `notification-item.tsx` is pulled
+  into the browser bundle by `notification-bell.tsx`, so a value-import of `src/lib/notifications.ts` from
+  there would drag the Inngest SDK and the Drizzle table objects with it. The new module imports nothing.
+- **A rejected LISTING is offered no way back, deliberately.** D-232 flips `approved`/`grandfathered` →
+  `pending` on a material edit and says nothing about `rejected`; 18-UI-SPEC flags the gap and asks the
+  plan to pick. This plan picked the honest option: state the consequence, promise nothing. Offering the
+  edit route before D-232 covers it would be an appeal promise by another name. **If 18-13 or a later plan
+  extends D-232 to `rejected`, this copy can and should gain the route.**
+- **`sentence` = 400, `label` = 200, and the difference is arithmetic not taste.** `composeReason` yields
+  up to 338 characters (a 57-char taxonomy sentence + a 280-char note). Any future payload field holding
+  operator prose needs the wider bound; a `label` would throw at the write boundary on valid input, and no
+  existing test would catch it because they all use short reasons.
+
 
 ### Payout-freeze decisions taken during execution (18-07)
 
