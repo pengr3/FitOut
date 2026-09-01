@@ -252,9 +252,43 @@ const APP_DIR = resolve(process.cwd(), "src/app");
 // legitimate is not that a plan asked for it — it is that the routes are enumerated, the classifier's
 // verdict on each is stated, and the count that WOULD have signalled a missing loading state was
 // asserted to be unchanged. A bump without those three is the thing the sentence forbids.
+//
+// ── RE-MEASURED 1 SEPTEMBER 2026 (plan 18-12): 33 → 34 PAGES, 21 → 22 QUALIFYING, 12 UNCHANGED ────
+//
+// ONE ROUTE WAS ADDED, and here is the decision the sentence above asks for:
+//
+//   src/app/(ops)/ops/page.tsx    → the FitOut Ops review queue (OPS-02 / OPS-04 / D-246)
+//
+// THE VERDICT: its default export is **async** — it awaits `loadReviewQueue`, the database clock and
+// one `loadOpsCancelImpact` per listing row — so it QUALIFIES, and `src/app/(ops)/ops/loading.tsx`
+// ships in the SAME COMMIT as the route (the D-88.3 note at the top of this file). It is the first
+// STAFF-ONLY route in this inventory, and it is inside the audited set rather than beside it: there
+// is no "it's only for staff" exemption anywhere under `tests/design/**`.
+//
+// **`EXPECTED_NON_QUALIFYING` DOES NOT MOVE, AND THAT IS THE CONTENT OF THE DECISION RATHER THAN A
+// SIDE EFFECT OF IT.** D-246 holds `/ops` at exactly one page — every additional ops page would cost
+// another `loading.tsx` and move all three of these numbers again — so the only page this phase adds
+// is one that needs a fallback. If a later edit makes that export sync, this file goes red on the
+// qualifying count and the remedy is to restore the await, not a fourth number.
+//
+// AND THE THREE WERE MEASURED ONE AT A TIME, not written down from the plan. Verbatim, in order,
+// each against the previous constant:
+//
+//   AssertionError: the number of page.tsx files under src/app changed. … expected 34 to be 33
+//   AssertionError: the routes that qualify changed. … expected 22 to be 21
+//   Tests  15 passed (15)
+//
+// The third line is the measurement of `EXPECTED_NON_QUALIFYING` at 12: the suite went green with
+// that constant untouched, which is the only way to establish that a count did NOT move.
+//
+// ⚠ THE SECOND JOB `(ops)/ops/loading.tsx` DOES, recorded here because this gate is what REQUIRES the
+// file and a reader who deletes it will come here first. Its `<Suspense>` boundary is what puts
+// `(ops)/ops/layout.tsx`'s `assertStaff()` above the boundary, and above the boundary is the only
+// place a refusal can still set the HTTP status line (D-247). Removing this fallback would not merely
+// fail this gate — it would re-open the route-existence oracle D-219 exists to close.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-const EXPECTED_PAGES = 33;
-const EXPECTED_QUALIFYING = 21;
+const EXPECTED_PAGES = 34;
+const EXPECTED_QUALIFYING = 22;
 const EXPECTED_NON_QUALIFYING = 12;
 
 /** The three declared skeleton shapes, by module and by export name. */

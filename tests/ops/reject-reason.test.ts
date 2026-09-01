@@ -146,6 +146,11 @@ beforeAll(async () => {
     },
   }));
   vi.doMock("@/lib/rate-limit", () => ({ rateLimit: fakeRateLimit }));
+  // ⚠ ADDED WITH PLAN 18-12's `revalidatePath("/ops")`. The five actions now invalidate the console
+  // route they feed; outside a Next request there is no cache store to invalidate, so the real
+  // function throws and every case in this file would fail on the CACHE rather than on the audit
+  // trail it is measuring. The shipped idiom (tests/payments/ops-cancel.test.ts:331) is a no-op stub.
+  vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
   vi.resetModules();
   ({ rejectHost, suspendHost, rejectListing } = await import("@/app/actions/ops-review"));
 }, 120_000);
@@ -155,6 +160,7 @@ afterAll(async () => {
   vi.doUnmock("@/lib/db");
   vi.doUnmock("next/navigation");
   vi.doUnmock("@/lib/rate-limit");
+  vi.doUnmock("next/cache");
   await teardownTestDb(testDb);
 });
 

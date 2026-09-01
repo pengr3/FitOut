@@ -21,11 +21,18 @@
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // A gate that walks `src/app/**` and asserts "every error.tsx it finds is well formed" is green on a
-// tree with ZERO boundaries — which was this repository's state until plan 11-18. So the five paths
-// and their five route-out targets are written down below, and the walk is compared AGAINST them in
-// both directions: a missing boundary fails, a SIXTH boundary fails, and a group that moves fails.
-// The route out is product copy, so each row carries the argument for its destination; a row whose
-// reason nobody can state is a row that should not be there.
+// tree with ZERO boundaries — which was this repository's state until plan 11-18. So the SIX paths
+// and their six route-out targets are written down below, and the walk is compared AGAINST them in
+// both directions: a missing boundary fails, an UNDECLARED boundary fails, and a group that moves
+// fails. The route out is product copy, so each row carries the argument for its destination; a row
+// whose reason nobody can state is a row that should not be there.
+//
+// ⚠ FIVE → SIX ON 1 SEPTEMBER 2026 (plan 18-12): `src/app/(ops)/ops/error.tsx`, the FitOut Ops
+// console's boundary. Probe (c) below created a hypothetical sixth boundary and watched this file
+// refuse it; this is the same event with a real row behind it, and the two reds it produced were the
+// two probe (c) predicted, verbatim and in the same order. It is also the first row to override the
+// shared copy sentences — see `TITLE`'s docblock for the rule that permits it and the argument that
+// keeps it from being a relaxation.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // WHY THE ERROR-OBJECT CHECK IS AN AST WALK AND NOT A GREP
@@ -148,7 +155,25 @@ import ts from "typescript";
 /** The scanned tree, as ONE constant — probe (d) above is a one-line edit here. */
 const APP_DIR = resolve(process.cwd(), "src/app");
 
-/** The copy contract's two sentences (11-UI-SPEC § Copywriting Contract), identical on all five. */
+/**
+ * The copy contract's two sentences (11-UI-SPEC § Copywriting Contract) — the DEFAULT every boundary
+ * carries unless its own row overrides them with an argument.
+ *
+ * ⚠ THEY WERE "IDENTICAL ON ALL FIVE" UNTIL PLAN 18-12, AND THE OLD SENTENCE IS AMENDED RATHER THAN
+ * LEFT STANDING. The rule these two strings encode was never "every boundary says the same words" —
+ * it is that a boundary says WHAT FAILED and WHAT TO DO, in the product's calm register, and never a
+ * stack trace or an apology. Five boundaries whose subject is "this page" say it identically because
+ * "this page" is genuinely all any of them can name. `(ops)/ops/error.tsx` covers a route group with
+ * exactly ONE page in it (D-246), so it can name the actual thing that failed — "The queue didn't
+ * load" — and a boundary that CAN be specific and chooses the generic sentence is worse copy, not
+ * safer copy.
+ *
+ * THE OVERRIDE IS PER-ROW AND CARRIES ITS OWN REASON, so this is a declared exception with an
+ * argument rather than a relaxation: a sixth boundary that quietly reworded the shared sentence for
+ * no reason still fails, because it would have to add a `copyWhy` saying why and somebody would read
+ * it. `ErrorState`'s two-action shape, the `digest`-only rule and the route-out clause are untouched
+ * — the copy is the only thing a row may vary, and only in words it can actually be more precise in.
+ */
 const TITLE = "Something didn't load";
 const BODY = "We hit a problem loading this page. Trying again usually fixes it.";
 
@@ -164,10 +189,15 @@ type BoundaryRow = {
   readonly href: string;
   readonly label: string;
   readonly why: string;
+  /** Overrides the shared contract sentence. Requires `copyWhy` — see `TITLE`'s docblock. */
+  readonly title?: string;
+  readonly body?: string;
+  /** Why this boundary may be more specific than "this page". Required whenever `title` is set. */
+  readonly copyWhy?: string;
 };
 
 /**
- * THE DECLARED INVENTORY. Five rows, each with the destination its group's route out points at and
+ * THE DECLARED INVENTORY. Six rows, each with the destination its group's route out points at and
  * the argument for that destination. Derived from nothing — compared against disk in both directions.
  */
 const BOUNDARIES: readonly BoundaryRow[] = [
@@ -215,6 +245,29 @@ const BOUNDARIES: readonly BoundaryRow[] = [
       "The boundary that should never fire: `/terms` and `/privacy` are static and reach nothing. It " +
       "exists so the group that has none today is not the group that has none the day a legal page " +
       "grows a read. Not 'Back to search' — someone reading the terms was not mid-search.",
+  },
+  {
+    path: "src/app/(ops)/ops/error.tsx",
+    href: "/",
+    label: "Back to FitOut",
+    why:
+      "On `ops/`, NOT on `(ops)/`, and here that placement is a SECURITY fact rather than a " +
+      "cosmetic one. `(ops)/ops/layout.tsx` awaits `assertStaff()` above the Suspense boundary — the " +
+      "layer that wins the 404 status line (D-219 / D-247) — so a boundary at `(ops)/error.tsx` " +
+      "would render both with no ops chrome AND on the far side of that layer, which is the " +
+      "route-existence oracle wearing an error message. The route out is `/` and NOT `/ops`: D-246 " +
+      "holds the console at exactly one page, so pointing the persistent recourse at the page the " +
+      "operator is already on is the dead end `empty-state-adoption.test.ts` records refusing — and " +
+      "an ops staffer is also a user, so `/` is a real destination for them.",
+    title: "The queue didn't load",
+    body: "We hit a problem loading the review queue. Trying again usually fixes it.",
+    copyWhy:
+      "THE ONLY BOUNDARY IN THIS INVENTORY THAT CAN NAME WHAT FAILED. The other five each cover a " +
+      "route group with several pages in it, so \"this page\" is genuinely the most they can say. " +
+      "D-246 gives `(ops)` exactly ONE page, and it is the review queue — so this boundary knows " +
+      "precisely which surface the reader was on, and \"The queue didn't load\" is a true, more " +
+      "useful sentence than the generic one. The register, the two actions and the digest-only rule " +
+      "are unchanged; only the noun is narrower.",
   },
 ];
 
@@ -438,7 +491,7 @@ const SCANNED = new Map<string, BoundaryScan>(
   }),
 );
 
-describe("AC#19 — five boundaries, two actions each, and no error text in any of them", () => {
+describe("AC#19 — six boundaries, two actions each, and no error text in any of them", () => {
   // ───────────────────────────────────────────────────────────────────────────────────────────────
   // GUARD THE GUARD, ASSERTED FIRST. Probe (d) in the header measured four list assertions passing
   // perfectly over an empty walk.
@@ -446,15 +499,17 @@ describe("AC#19 — five boundaries, two actions each, and no error text in any 
 
   // THE COUNT AND THE SET ARE SEPARATE `it` BLOCKS, and that is not tidiness. Written as two
   // `expect`s in one block, the count fails FIRST and the set-equality never runs — so a sixth
-  // boundary reported "expected 6 to be 5" and never named which file it was. That is the same trap
+  // boundary reported "expected 6 to be 5" and never named which file it was. ⚠ THAT SPLIT PAID FOR
+  // ITSELF IN PLAN 18-12, when the sixth boundary really landed: the run reported BOTH the count AND
+  // the named set in one pass, so the remedy was legible without a second invocation. That is the same trap
   // `loading-coverage.test.ts` records for its own pinned count, measured here in probe (c) before
   // the split.
 
-  it("finds exactly five error.tsx files on disk", () => {
+  it("finds exactly six error.tsx files on disk", () => {
     expect(ON_DISK.length, `scanned: ${ON_DISK.join(", ") || "(nothing)"}`).toBe(BOUNDARIES.length);
   });
 
-  it("finds exactly the five DECLARED boundaries, by name", () => {
+  it("finds exactly the six DECLARED boundaries, by name", () => {
     expect(
       ON_DISK,
       "the set of error.tsx files on disk is not the declared inventory. A NEW boundary needs a row " +
@@ -527,9 +582,20 @@ describe("AC#19 — five boundaries, two actions each, and no error text in any 
       expect(call.routeOutHrefs, `${path}'s route out: ${row.why}`).toEqual([row.href]);
       expect(call.routeOutText, `${path}'s route-out label`).toBe(row.label);
 
-      // The copy contract's two sentences, identical on all five.
-      expect(call.literals.title, `${path} title`).toBe(TITLE);
-      expect(call.literals.body, `${path} body`).toBe(BODY);
+      // The copy contract's two sentences — the shared default, or the row's own declared override.
+      // A row may only override BOTH TOGETHER and only with a `copyWhy`, which is what keeps this an
+      // argued exception rather than a hole: see `TITLE`'s docblock.
+      expect(
+        [row.title === undefined, row.body === undefined, row.copyWhy === undefined],
+        `${path} declares a partial copy override. A boundary either carries the shared contract ` +
+          "sentences or declares BOTH its own title and its own body WITH the argument for being " +
+          "more specific than \"this page\". Half an override is a reworded boundary nobody argued for.",
+      ).toEqual([row.title === undefined, row.title === undefined, row.title === undefined]);
+      if (row.copyWhy !== undefined) {
+        expect(row.copyWhy.trim().length, `${path}'s copyWhy is not an argument`).toBeGreaterThan(40);
+      }
+      expect(call.literals.title, `${path} title`).toBe(row.title ?? TITLE);
+      expect(call.literals.body, `${path} body`).toBe(row.body ?? BODY);
 
       // `digest` crosses, and it is the only thing that does — asserted from the other side below.
       expect(call.props, `${path} does not pass digest`).toContain("digest");

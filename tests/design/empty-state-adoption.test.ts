@@ -441,6 +441,16 @@ const ADOPTERS: readonly Adopter[] = [
     why: "The blocked-dates list at zero, on `/host/listings/{id}/availability` (HFLOW-04 · D-155). A GENUINE EMPTY LIST, and that is the distinction the editor beside it does NOT satisfy: `weekly-hours-editor.tsx`'s guidance box stayed a muted panel because its seven day rows always render, so it is an advisory about a form that is fully present rather than an absence — `card-pattern-coverage.test.ts` carries that argument from the other side. Copy is the shipped sentence word for word; `titleAs=\"h3\"` under the page's own `<h2>Blocked dates</h2>`; `tone` neutral, because an unblocked calendar is the normal state of a working listing and dressing it as an achievement would be as wrong as dressing it as a failure. `actions={null}` on purpose — the `Add block` control is already adjacent and above, and a second copy inside the panel is one affordance rendered twice.",
   },
 
+  // ─── NOT PLAN 11-16'S EITHER. Landed by plan 18-12, and the FIRST STAFF-ONLY ROW IN THIS
+  //     INVENTORY. It is declared on the same terms as every other row rather than exempted: the
+  //     UI-SPEC states plainly that there is no "it's only for staff" carve-out anywhere under
+  //     `tests/design/**`, so the ops surface is INSIDE the audited set, not beside it. ─────────────
+  {
+    file: "src/app/(ops)/ops/page.tsx",
+    sites: 1,
+    why: "The FitOut Ops review queue at zero (OPS-04 · D-246). THE SECOND SURFACE IN THIS INVENTORY TO EARN `tone=\"positive\"`, and it earns it by the same test the host inbox passes rather than by resemblance: an ops reviewer who has cleared the queue has FINISHED something, and every row that left did so because a person decided. Copy is 18-UI-SPEC § Empty verbatim — \"The queue is clear\" over \"Nothing is waiting on FitOut right now. New hosts and new listings land here the moment they're submitted, oldest first.\" — with the word `new` load-bearing in the page's lede for D-210's reason and deliberately not repeated in this body, which describes what ARRIVES rather than what the gate covers. `titleAs=\"h2\"` under the `PageHeader`'s `<h1>`. `actions={null}` on purpose and it is a decision the pattern forces: an ops reviewer cannot make a host submit a listing, and D-246 holds the console at one page, so there is no second ops destination a CTA could point at — a button here would be a control that does not act on this state.",
+  },
+
   // ─── NOT A PRODUCT SURFACE. The design-review preview, landed by plan 11-21. ──────────────────────
   {
     file: "src/app/dev/theme/page.tsx",
@@ -501,9 +511,23 @@ const ADOPTERS: readonly Adopter[] = [
  * `.planning/phases/17.1-close-phase-17-escalations-sticky-bar-clearance-soft-404-pro/17.1-EVIDENCE.md`
  * § W1. The fourth pin (`ADOPTERS.length`, below) stays green in that state and reds in the opposite
  * one — constants moved, row left — which is why both move together or neither moves.
+ *
+ * ── 14 → 15 files and 17 → 18 sites in plan 18-12's own commit. THE FIRST STAFF-ONLY ADOPTER ───────
+ * `src/app/(ops)/ops/page.tsx`, and it is a GROWTH of the ordinary kind: a surface adopted the shell
+ * in the commit that created it. The count was observed moving FIRST and the row was added to answer
+ * it — verbatim, `AssertionError: the tree's total <EmptyState> call-site count moved. Expected 17
+ * across 14 surfaces.: expected 18 to be 17`.
+ *
+ * ⚠ THE PLAN AND THE UI-SPEC BOTH NAMED THE WRONG CONSTANTS FOR THIS MOVE, and the correction is
+ * recorded here rather than silently applied. Both said `EXPECTED_DECLARED_FILES` 5 → 6,
+ * `EXPECTED_DECLARED_SITES` 10 → 11 and `EXPECTED_DASHED_TOTAL` 11 → 12. Those three pin the
+ * NON-`EmptyState` dashed-border exclusions — surfaces that draw a dashed panel WITHOUT adopting the
+ * shell — and an adopter moves none of them: the ops page composes `EmptyState`, whose own
+ * `border-dashed` is the ONE shell already counted in `EXPECTED_DASHED_TOTAL`. All three were
+ * asserted UNCHANGED across this commit, and the run says so by staying green on them.
  */
-const EXPECTED_ADOPTER_FILES = 14;
-const EXPECTED_EMPTY_STATE_SITES = 17;
+const EXPECTED_ADOPTER_FILES = 15;
+const EXPECTED_EMPTY_STATE_SITES = 18;
 
 /**
  * THE ONE LEGAL `bg-success` IN THE TREE, pinned by name.
@@ -864,8 +888,36 @@ describe("AC#23 forward — the twelve surfaces composing the shell still compos
   });
 });
 
-describe("AC#24 — host inbox-zero is a POSITIVE state, and green stays on the glyph", () => {
+describe("AC#24 — an emptied WORK QUEUE is a POSITIVE state, and green stays on the glyph", () => {
   const REQUESTS = "src/app/(host)/host/requests/page.tsx";
+
+  /**
+   * ⚠ THE SECOND PRODUCT SURFACE, ADDED BY PLAN 18-12, AND THE TITLE ABOVE MOVED WITH IT.
+   *
+   * This describe used to be named "host inbox-zero" and the clause below used to assert the product
+   * count was exactly ONE. Both were true when they were written and both are now false, so both are
+   * amended rather than left standing beside a carve-out — `venue-clock-scope.ts`'s rule, applied to
+   * a gate's own name: a rule that has been superseded must not stay on the books as if it were still
+   * true.
+   *
+   * WHAT DID NOT CHANGE IS THE RULE ITSELF, and that is the point. AC#24 was never "one surface"; it
+   * was **an emptied WORK QUEUE is an achievement, an absence anywhere else is not**. `/ops` is a work
+   * queue by the same test the host inbox passes — an ops reviewer who has cleared it has finished
+   * something, and every row that leaves it left because somebody decided. `host-agenda.tsx`'s row in
+   * `ADOPTERS` states the boundary from the other side and is UNCHANGED: a host who has not been
+   * booked yet has achieved nothing, so that panel stays neutral, and so does the bell.
+   *
+   * THERE IS NO STAFF-SURFACE CARVE-OUT HERE. `/ops` is inside the audited set on exactly the same
+   * terms as every booker and host surface — the same tone vocabulary, the same one-pixel-of-green
+   * rule, the same `bg-success` zero-count. It is declared, not exempted.
+   */
+  const OPS_QUEUE = "src/app/(ops)/ops/page.tsx";
+
+  /**
+   * The PRODUCT surfaces allowed a positive empty state — a SET, so a failure names the offending
+   * file rather than reporting a number that moved.
+   */
+  const PRODUCT_POSITIVE_SURFACES = [OPS_QUEUE, REQUESTS].sort();
 
   it("renders `/host/requests`' empty state with tone=\"positive\"", () => {
     const sites = TREE.parsedByFile.get(REQUESTS)?.emptyStateSites ?? [];
@@ -882,20 +934,25 @@ describe("AC#24 — host inbox-zero is a POSITIVE state, and green stays on the 
   });
 
   /**
-   * EVERY FILE ALLOWED A `tone="positive"` EMPTY STATE, with the reason. ONE product surface and ONE
+   * EVERY FILE ALLOWED A `tone="positive"` EMPTY STATE, with the reason. TWO product surfaces and ONE
    * preview — a SET rather than a count, so a failure names the offending file instead of a number.
    *
    * `/dev/theme` was added by plan 11-21 and is not a weakening of AC#24. It renders BOTH tones side
    * by side so the green-retreats-to-the-glyph rule is comparable across the two themes, which is a
    * DESIGN-REVIEW surface rather than a product state: the route 404s in production, discloses
    * nothing, and its panel is one of a pair whose whole point is the contrast. The product claim is
-   * unchanged and is asserted separately below — exactly one PRODUCT surface, and it is the host
-   * request inbox.
+   * asserted separately below — the two WORK QUEUES, and nothing else.
    */
   const POSITIVE_SITES: Readonly<Record<string, string>> = {
     [REQUESTS]:
       "STATE-04's inbox-zero clause. An emptied work queue is an ACHIEVEMENT, not an absence — the " +
-      "one product surface in the app where 'there is nothing here' is good news.",
+      "first product surface in the app where 'there is nothing here' is good news.",
+    [OPS_QUEUE]:
+      "The FitOut Ops review queue at zero (plan 18-12 / 18-UI-SPEC § Empty). The SAME clause as the " +
+      "host inbox above and the second surface to satisfy it: an ops reviewer who has cleared the " +
+      "queue has finished something, and every row that left it left because a person decided. " +
+      "`actions={null}` for a reason this file already recognises — an ops reviewer cannot make a " +
+      "host submit a listing, and D-246 means there is no second ops destination to point at.",
     "src/app/dev/theme/page.tsx":
       "Plan 11-21's section 11: the two tones rendered side by side in both themes, so D-14 (green " +
       "retreats to the icon) is COMPARABLE rather than asserted. Authored with inline JSX attributes " +
@@ -922,21 +979,32 @@ describe("AC#24 — host inbox-zero is a POSITIVE state, and green stays on the 
     );
   });
 
-  it("keeps the PRODUCT claim at exactly one surface, the host request inbox", () => {
+  it("keeps the PRODUCT claim at exactly the two work queues", () => {
     // The half AC#24 is actually about. `/dev/theme` is excluded BY PATH rather than by trust: it is
     // the route both other dev-surface gates already treat as non-product (it 404s in production),
     // and naming the exclusion here means a positive empty state appearing on any real surface is red
     // even though the declared set above has grown.
+    //
+    // ⚠ ASSERTED AS A SET AND NOT AS A COUNT, which is the shape this clause should always have had.
+    // It read `toBe(1)` plus a `startsWith` on the first element until plan 18-12; a bare count is
+    // satisfied by a tree where the positive panel MOVED to some other surface, which is the one
+    // failure this clause exists to catch. With two members that hole is no longer theoretical.
     const productPositives = [...TREE.parsedByFile.entries()]
       .filter(([file]) => !file.startsWith("src/app/dev/"))
       .flatMap(([file, p]) =>
         p.emptyStateSites.filter((s) => s.tone === "positive").map((s) => `${file}:${s.line}`),
       );
     expect(
-      productPositives.length,
-      `a PRODUCT surface other than the host request inbox renders a positive empty state: ${productPositives.join(", ")}`,
-    ).toBe(1);
-    expect(productPositives[0]?.startsWith(REQUESTS)).toBe(true);
+      [...new Set(productPositives.map((s) => s.slice(0, s.lastIndexOf(":"))))].sort(),
+      "the PRODUCT surfaces rendering a positive empty state are not the two declared work queues " +
+        `(the host request inbox and the ops review queue): ${productPositives.join(", ")}. An ` +
+        "emptied WORK QUEUE is an achievement; an absence anywhere else is not, and dressing one as " +
+        "good news is the T-11-FALSEALARM rule running backwards.",
+    ).toEqual(PRODUCT_POSITIVE_SURFACES);
+    // One per surface, so a SECOND positive panel inside an already-declared file is still red.
+    expect(productPositives.length, `sites: ${productPositives.join(", ")}`).toBe(
+      PRODUCT_POSITIVE_SURFACES.length,
+    );
   });
 
   it("gives every declared positive site a non-empty reason, and names no file the walk missed", () => {

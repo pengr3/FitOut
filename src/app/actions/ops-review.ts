@@ -59,6 +59,7 @@
 // escalation is a thing a later reader can mistake for a wiring bug and "fix".
 
 import { randomUUID } from "node:crypto";
+import { revalidatePath } from "next/cache";
 import { sql } from "drizzle-orm";
 
 import { recordAudit } from "@/lib/audit";
@@ -428,6 +429,14 @@ export async function approveHost(input: ApproveHostInput): Promise<OpsActionRes
 
   // OPS-05 / D-245 — post-flip, post-audit, individually guarded. See the block above `guardedNotify`.
   await notifyHost(staff.id, "ops_approve_host", parsed.data.userId, hostApprovedPayload());
+  // THE QUEUE THIS DECISION JUST LEFT (plan 18-12). `/ops` renders `loadReviewQueue`, and this write
+  // is what removes a row from it — so without this line the operator approves or rejects, the row
+  // stays exactly where it was, and the only feedback is a toast. Pressing it again is refused calmly
+  // by the guards in the WHERE above, which is correct and is also indistinguishable from a control
+  // that did nothing. 18-05 and 18-10 both DATED this line to the plan that built the route rather
+  // than adding a client-side `router.refresh()` to paper over it: a refresh in the island would be a
+  // component taking a decision that belongs to the route.
+  revalidatePath("/ops");
   return OK;
 }
 
@@ -527,6 +536,14 @@ export async function rejectHost(input: RejectHostInput): Promise<OpsActionResul
     parsed.data.userId,
     hostRejectedPayload(storedReason),
   );
+  // THE QUEUE THIS DECISION JUST LEFT (plan 18-12). `/ops` renders `loadReviewQueue`, and this write
+  // is what removes a row from it — so without this line the operator approves or rejects, the row
+  // stays exactly where it was, and the only feedback is a toast. Pressing it again is refused calmly
+  // by the guards in the WHERE above, which is correct and is also indistinguishable from a control
+  // that did nothing. 18-05 and 18-10 both DATED this line to the plan that built the route rather
+  // than adding a client-side `router.refresh()` to paper over it: a refresh in the island would be a
+  // component taking a decision that belongs to the route.
+  revalidatePath("/ops");
   return OK;
 }
 
@@ -623,6 +640,14 @@ export async function suspendHost(input: SuspendHostInput): Promise<OpsActionRes
     parsed.data.userId,
     hostSuspendedPayload(storedReason),
   );
+  // THE QUEUE THIS DECISION JUST LEFT (plan 18-12). `/ops` renders `loadReviewQueue`, and this write
+  // is what removes a row from it — so without this line the operator approves or rejects, the row
+  // stays exactly where it was, and the only feedback is a toast. Pressing it again is refused calmly
+  // by the guards in the WHERE above, which is correct and is also indistinguishable from a control
+  // that did nothing. 18-05 and 18-10 both DATED this line to the plan that built the route rather
+  // than adding a client-side `router.refresh()` to paper over it: a refresh in the island would be a
+  // component taking a decision that belongs to the route.
+  revalidatePath("/ops");
   return OK;
 }
 
@@ -707,6 +732,14 @@ export async function approveListing(input: ApproveListingInput): Promise<OpsAct
     parsed.data.listingId,
     listingApprovedPayload,
   );
+  // THE QUEUE THIS DECISION JUST LEFT (plan 18-12). `/ops` renders `loadReviewQueue`, and this write
+  // is what removes a row from it — so without this line the operator approves or rejects, the row
+  // stays exactly where it was, and the only feedback is a toast. Pressing it again is refused calmly
+  // by the guards in the WHERE above, which is correct and is also indistinguishable from a control
+  // that did nothing. 18-05 and 18-10 both DATED this line to the plan that built the route rather
+  // than adding a client-side `router.refresh()` to paper over it: a refresh in the island would be a
+  // component taking a decision that belongs to the route.
+  revalidatePath("/ops");
   return OK;
 }
 
@@ -792,6 +825,14 @@ export async function rejectListing(input: RejectListingInput): Promise<OpsActio
   await notifyListingHost(staff.id, "ops_reject_listing", parsed.data.listingId, (title) =>
     listingRejectedPayload(title, storedReason),
   );
+  // THE QUEUE THIS DECISION JUST LEFT (plan 18-12). `/ops` renders `loadReviewQueue`, and this write
+  // is what removes a row from it — so without this line the operator approves or rejects, the row
+  // stays exactly where it was, and the only feedback is a toast. Pressing it again is refused calmly
+  // by the guards in the WHERE above, which is correct and is also indistinguishable from a control
+  // that did nothing. 18-05 and 18-10 both DATED this line to the plan that built the route rather
+  // than adding a client-side `router.refresh()` to paper over it: a refresh in the island would be a
+  // component taking a decision that belongs to the route.
+  revalidatePath("/ops");
   return OK;
 }
 

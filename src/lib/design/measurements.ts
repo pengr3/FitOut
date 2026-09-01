@@ -70,7 +70,7 @@ export const ROW_CARD_HEIGHT = "h-20";
  * exists to prevent. Typing the prop as the declared set makes an undeclared value a COMPILE error
  * at the call site, which is the cheapest possible place to catch it.
  *
- * FOUR MEMBERS NOW, AND THE WIDENING HAPPENED EXACTLY WHERE IT WAS SUPPOSED TO. When plan 14-01
+ * FIVE MEMBERS NOW, AND EVERY WIDENING HAS HAPPENED EXACTLY WHERE IT WAS SUPPOSED TO. When plan 14-01
  * declared this type it had one member and said so, and said that widening it would be an edit IN
  * THIS FILE — add the constant with its derivation, add it to this union — because the set of legal
  * row heights is decided where the heights are derived, not at whichever `loading.tsx` needed a
@@ -85,12 +85,18 @@ export const ROW_CARD_HEIGHT = "h-20";
  * gates rather than by the type — `tests/design/skeleton-measurements.test.ts` inside the pattern
  * files, and `tests/design/loading-coverage.test.ts` at every route's loading plate. The type stops
  * the wrong number; the gates stop the right number written the wrong way.
+ *
+ * THE FIFTH MEMBER ARRIVED THE SAME WAY THE THIRD AND FOURTH DID (plan 18-12). `/ops` is the first
+ * INTERNAL surface to compose `RowListSkeleton`, and its row is the tallest thing in the product
+ * because it carries a photo mosaic. The widening is an edit IN THIS FILE — the constant with its
+ * derivation, then the union — measured off the rendered route before either was written down.
  */
 export type RowSkeletonHeight =
   | typeof ROW_CARD_HEIGHT
   | typeof HOST_AGENDA_ROW_HEIGHT
   | typeof HOST_REQUEST_ROW_HEIGHT
-  | typeof HOST_BOOKING_ROW_HEIGHT;
+  | typeof HOST_BOOKING_ROW_HEIGHT
+  | typeof OPS_QUEUE_ROW_HEIGHT;
 
 /** The 48px thumbnail inside a row card — the term that makes `ROW_CARD_HEIGHT` 80px and not 64px. */
 export const ROW_CARD_THUMB = "size-12";
@@ -923,3 +929,112 @@ export const HOST_REQUEST_ROW_HEIGHT = "h-64 md:h-21";
  * clipped control cannot.
  */
 export const HOST_BOOKING_ROW_HEIGHT = "h-44 md:h-9";
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// PHASE 18 — THE FITOUT OPS CONSOLE (plan 18-12). TWO CONSTANTS, ONE ROUTE.
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * The `/ops` review queue's page container: centred, the WIDE list measure, 16px of horizontal
+ * padding, 40px of vertical.
+ *
+ * `max-w-5xl` (1024px) RATHER THAN `HOST_LIST_SHELL`'s `max-w-4xl` (896px), AND THAT DIFFERENCE IS
+ * THE WHOLE DERIVATION. Every other list surface in this product puts text and a 48px thumbnail in a
+ * row; this one puts a PHOTO MOSAIC in one, because OPS-04's question is "is this a real space" and
+ * the only honest evidence for it is the photographs. At 896px the row's content box is 864px, and
+ * `PhotoGallery`'s five-cell template spends roughly two thirds of it on the hero with the remaining
+ * four cells sharing a ~280px column — small enough that a reviewer is judging thumbnails rather
+ * than a space, which defeats the point of putting them on the row at all. `max-w-5xl` is the next
+ * step on the declared container ladder and buys 128px, all of it to the mosaic.
+ *
+ * NOT WIDER THAN THAT. `max-w-6xl` is the HEADER's cap (`site-chrome.tsx`), and a page container
+ * equal to the header's would put the queue's own edges exactly under the wordmark's — the one width
+ * at which "the content is inside the shell" stops being visible. The evidence `<dl>` is also
+ * label-left / value-right, and a description list wider than about 1000px reads as two disconnected
+ * columns.
+ *
+ * IT IS A CONTAINER, NOT A LANDMARK — `HOST_LIST_SHELL`'s rule, unchanged. `(ops)/ops/layout.tsx`
+ * owns the one `<main>` per document (D-88.1).
+ */
+export const OPS_QUEUE_SHELL = "mx-auto w-full max-w-5xl px-4 py-10";
+
+/**
+ * The `/ops` review queue's row: 528px below the large breakpoint, 844px at and above it.
+ *
+ * THE SLOT CONFIGURATION IT DESCRIBES: a title, a meta line, a status column holding the lead-scale
+ * wait figure, a `PhotoGallery` mosaic, a six-term description list and a full-width actions row of
+ * touch-height Approve/Reject buttons. **It is now the tallest row shape in the product**, and it is
+ * the only one whose height is set by a PICTURE rather than by text.
+ *
+ * MEASURED, NOT DERIVED, on the rendered route at `/ops` against the dev catalogue with two pending
+ * listings and one pending host, in BOTH themes — and the two themes agree to the hundredth of a
+ * pixel at every width, which is worth stating because grove's heading step is materially wider than
+ * court's and this row's lead is at the heading role:
+ *
+ *     viewport   320      375      414      639      640      768      1024     1056     1280     1440
+ *     listing    526.13   517.05   538.98   625.53   626.09   698.09   842.09   842.09   842.09   842.09
+ *     host       258.06   238.06   238.06   238.06   238.06   238.06   238.06   238.06   238.06   238.06
+ *
+ * The declared values are the two nearest steps on the ladder to the LISTING row at the two widths
+ * this project declares at: **528** at the 320px floor (a 1.87px over-claim against 526.13) and
+ * **844** at the desktop width (a 1.91px over-claim against 842.09). Both are inside the 4px that
+ * 14-UI-SPEC makes falsifiable, and both are over-claims, which is the direction every sibling
+ * constant in this file already chose.
+ *
+ * ⚠ THE BREAKPOINT IS `lg:` BECAUSE THAT IS WHERE `OPS_QUEUE_SHELL` STOPS GROWING, AND THAT IS
+ * MEASURED RATHER THAN INFERRED. `max-w-5xl` is 1024px, so at a 1024px viewport the container has
+ * already reached its cap — which is exactly why 1024, 1056, 1280 and 1440 all read 842.09. Above
+ * `lg:` this constant is EXACT for every wider screen; below it, it is the floor's number.
+ *
+ * ⚠⚠ THE BAND IN BETWEEN, RECORDED RATHER THAN STEPPED — `HOST_BOOKING_ROW_HEIGHT`'s discipline, and
+ * for a structurally harder version of the same problem. This row's height is a CONTINUOUS function
+ * of the container width between roughly 375 and 1024, because `PhotoGallery`'s mosaic is
+ * aspect-ratio-driven: every pixel the container gains, the hero gains 9/16 of. The plate therefore
+ * under-draws through the middle of the range — 528 against 626.09 at 640 and against 698.09 at 768,
+ * a 98px and a 170px under-claim — and NO ladder of declared steps can track a continuous curve. A
+ * third step at `sm:` was considered and rejected: it would be exact at exactly one width inside the
+ * band and wrong at every other, while adding a number this file has to keep true.
+ *
+ * ⚠⚠⚠ AND THE ONE THING THIS CONSTANT CANNOT SAY: THE QUEUE HAS TWO ROW SHAPES, NOT ONE. A host row
+ * carries no photographs, so it measures 238.06px at every width above the floor — less than half
+ * this bar at 320 and barely a quarter of it at 1280. The queue interleaves both kinds oldest-first
+ * (D-246), so which shape the first two rows take is a property of the catalogue on the day, not of
+ * the route. The plate declares the LISTING shape deliberately: listings are the higher-volume kind
+ * (one host submits many), the photo-bearing row is the one whose arrival actually moves the page,
+ * and a plate that promised the host row would under-draw the common case by 288px. `rows={2}`
+ * rather than the pattern's default 4 is the other half of that decision — see
+ * `(ops)/ops/loading.tsx`.
+ *
+ * ── THE 320px STATUS-COLUMN READING, AND WHY NO `OPS_QUEUE_STATUS_CAP` IS DECLARED ────────────────
+ *
+ * 18-UI-SPEC named this as a hazard to MEASURE rather than assume, so it was measured. At the 320px
+ * floor the row's 244px header line splits **137.08px status / 106.92px title** — and **145.77 /
+ * 98.23** on the row whose wait figure is longer. `RowCard` renders `status` `shrink-0`, so the title
+ * column absorbs the whole squeeze: the status takes the LARGER share, which is the opposite of the
+ * split `REQUEST_STATUS_CAP` encodes.
+ *
+ * A CAP WAS PROBED RATHER THAN ARGUED, and the probe is what settles it. With `max-w-28` (112px, the
+ * shipped value) on the status content, re-measured at three widths in court:
+ *
+ *     with the cap    320: title 132px, rows 506.13 / 258.06 / 526.13
+ *                     375: title 187px, host row 250.06  (+12 against the uncapped 238.06)
+ *                    1280: title 836px, rows 854.09 / 250.06  (+12 at both, against 842.09 / 238.06)
+ *
+ * The cap buys the title column 25–34px at the floor and costs **+12px at every width, including
+ * every desktop width**, because it wraps `Waiting {N} days` onto two lines — at 1280, where the
+ * title column already has 810px and there is no squeeze to relieve at all. That is precisely the
+ * trade `REQUEST_STATUS_CAP`'s own docblock forbids: *"the countdown itself must therefore always
+ * fit"*. And no cap value can avoid it, which is the decisive part: the uncapped status is 137–146px
+ * wide, so any cap narrow enough to change the split is narrow enough to wrap the lead. The cap is
+ * structurally the wrong instrument on this surface, and declaring `OPS_QUEUE_STATUS_CAP` at a value
+ * that changes nothing would be a constant bought to look thorough.
+ *
+ * WHAT IS LEFT IS A REAL, RECORDED OBSERVATION AND NOT A FIX: at 320px a long listing title
+ * truncates to ~98px. It is materially milder than the 8.66px that `REQUEST_STATUS_CAP` was measured
+ * into existence for, and this row identifies its subject three other ways the host inbox's row does
+ * not — the meta line, the full `Address` term in the `<dl>`, and the photographs themselves. The
+ * honest fixes are a shorter lead string or a deliberately two-line lead, both of which are changes
+ * to `src/components/ops/ops-queue-row.tsx`'s copy and a product decision rather than a measurement.
+ * Logged in the phase's `deferred-items.md`.
+ */
+export const OPS_QUEUE_ROW_HEIGHT = "h-132 lg:h-211";

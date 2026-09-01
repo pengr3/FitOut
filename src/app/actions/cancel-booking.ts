@@ -1880,5 +1880,12 @@ export async function cancelBookingAsOps(input: OpsCancelInput): Promise<CancelA
   await voidGroupAndNotifyAttendees(row, parsed.data.bookingId);
 
   revalidateCancelSurfaces(parsed.data.bookingId, row.listingId);
+  // …AND `/ops`, WHICH ONLY THIS PATH OWES (plan 18-12). It is deliberately NOT folded into
+  // `revalidateCancelSurfaces` above: that helper is shared with the booker and host paths, and a
+  // booker cancelling their own booking has no business invalidating a staff-only console. The ops
+  // console renders `loadOpsCancelImpact` per listing row, so every cancellation in the escalation's
+  // fan-out changes a figure the next operator reads — and the fan-out's LAST call is what leaves the
+  // queue showing the truth. (`rejectListing` revalidates too, but it runs BEFORE the fan-out.)
+  revalidatePath("/ops");
   return { ok: true, refundCents };
 }
