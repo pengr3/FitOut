@@ -107,6 +107,25 @@ export function opsRefundBasisCents(row: RefundBasisRow): number {
 export type OpsCancelImpact = {
   /** "Bookings already made" — confirmed bookings this console CAN cancel (the D-241 predicate). */
   cancellableCount: number;
+  /**
+   * THE IDS `cancellableCount` COUNTS, FROM THE SAME PREDICATE IN THE SAME STATEMENT.
+   *
+   * ⚠ ADDED BY PLAN 18-10, AND IT IS THE ONLY THING THAT MAKES THE ESCALATION MOVE MONEY.
+   * `cancelBookingAsOps` cancels ONE booking; one operator decision therefore fans out over every
+   * booking on the listing — which is exactly why 18-08 gave that action the 30/60s ops budget
+   * rather than this file's 5/60s money budget. The console had no way to name those bookings: this
+   * read returned counts and finished strings only, so a confirm button labelled with a count had
+   * nothing to call. Without these ids the escalation radio would collect a choice and discard it,
+   * which is the "control that appears to work" 18-UI-SPEC forbids by name.
+   *
+   * THEY COME OUT OF THE SAME AGGREGATE, under the same `NOT payout_left` filter, so the number the
+   * operator reads and the set the console acts on cannot be two different answers. A second query
+   * for the ids would be the restatement 18-04's finding warns about, one query later.
+   *
+   * The server is still the authority: every id is re-parsed, re-scoped to `listingId` in the
+   * action's own `WHERE`, and re-checked against the payout guard. This list is a SNAPSHOT.
+   */
+  cancellableBookingIds: readonly string[];
   /** "Money that would go back" — a finished string, the sum of the per-booking refund basis. */
   refundTotal: string;
   /** "FitOut keeps" — the service-fee portion of the same bookings. `₱0.00` when the constant is flipped. */
@@ -130,6 +149,7 @@ export const PAYOUT_ALREADY_LEFT_REASON = "their payout has already left FitOut"
 
 type ImpactAggregate = {
   cancellableCount: number;
+  cancellableBookingIds: string[] | null;
   notCancellableCount: number;
   spaceCents: number;
   totalCents: number;
@@ -162,6 +182,7 @@ export async function loadOpsCancelImpact(
   const [agg] = (await dbConn.execute(sql`
     WITH scoped AS (
       SELECT
+        b.id AS booking_id,
         -- The FROZEN split, with the same per-row fallbacks the action's basis expression applies, so
         -- the aggregate below cannot drift from what a single cancellation would refund.
         COALESCE(b.space_price_cents, b.quoted_total_cents, 0) AS space_cents,
@@ -179,6 +200,15 @@ export async function loadOpsCancelImpact(
     )
     SELECT
       COUNT(*) FILTER (WHERE NOT payout_left)::int AS "cancellableCount",
+      -- The SAME filter as the count beside it, one line apart, so the two cannot answer differently.
+      -- A JSON aggregate over an empty filtered set is NULL rather than an empty array, hence the
+      -- COALESCE; the ORDER BY makes the list deterministic, so a test can assert it and an
+      -- operator's fan-out runs in the same order twice. (No backticks in this template — one
+      -- terminates it, which is the TS1005 plan 18-08 already paid for four times.)
+      COALESCE(
+        json_agg(booking_id ORDER BY booking_id) FILTER (WHERE NOT payout_left),
+        '[]'::json
+      ) AS "cancellableBookingIds",
       COUNT(*) FILTER (WHERE payout_left)::int AS "notCancellableCount",
       COALESCE(SUM(space_cents) FILTER (WHERE NOT payout_left), 0)::int AS "spaceCents",
       COALESCE(SUM(total_cents) FILTER (WHERE NOT payout_left), 0)::int AS "totalCents",
@@ -200,6 +230,7 @@ export async function loadOpsCancelImpact(
 
   return {
     cancellableCount,
+    cancellableBookingIds: agg?.cancellableBookingIds ?? [],
     refundTotal: formatMoney(refundCents, currency),
     // What FitOut keeps is the REMAINDER of what the bookers actually paid — never a re-derived
     // percentage. Under the flipped constant the remainder is zero and the row honestly reads ₱0.00.
