@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 18-12-PLAN.md (Wave 7 — the `/ops` route: OPS-02's route half and OPS-04's surface half). ONE page, hosts and listings interleaved oldest-first, behind THREE guard layers with three different jobs — `assertStaff()` in `(ops)/ops/layout.tsx` ABOVE the Suspense boundary (the only place a refusal can still set the status line), `requireStaff()` in the page, and `requireStaff()` as the FIRST statement of all SIX ops actions. NO `(ops)` `not-found.tsx`; refusal is `notFound()` everywhere. ⚠ **`OPS_QUEUE_ROW_HEIGHT` = `h-132 lg:h-211` (528 / 844), MEASURED at ten widths in both themes** — court and grove agree to the hundredth of a pixel at every one — with 1.87px and 1.91px over-claims, and the `lg:` breakpoint chosen because `max-w-5xl` is where the container stops growing (1024, 1056, 1280 and 1440 all read 842.09). ⚠⚠ **NO `OPS_QUEUE_STATUS_CAP`, and the refusal is a PROBE rather than an argument:** the 320px split really is 137.08/106.92 — the status takes the LARGER share, the opposite of the rule `REQUEST_STATUS_CAP` encodes — but applying `max-w-28` costs **+12px at every width including 1280** because it wraps the lead, and no cap value both narrows the column and leaves `Waiting {N} days` on one line, since the uncapped status is 137–146px. Logged as deferred D3 with the honest fixes named (copy on 18-10's component, not a constant). Pinned counts moved IN THE SAME COMMIT AS THE ROUTE: loading-coverage **33→34 / 21→22 / 12 UNCHANGED** (each red watched one constant at a time; the third measured by the suite going green untouched), error-boundaries **5→6**. ⚠ **THE PLAN AND THE UI-SPEC NAMED THE WRONG EMPTY-STATE CONSTANTS** — the ADOPTER pins moved (`EXPECTED_ADOPTER_FILES` 14→15, `EXPECTED_EMPTY_STATE_SITES` 17→18) and the three dashed-EXCLUSION pins they named were asserted UNCHANGED, with the correction written into the file's own docblock. AC#24's product claim widened from ONE work queue to TWO **in words** (title and docblock rewritten, not carved out) and its count assertion became a SET, so a MOVED positive panel is still red. The boundary copy contract gained a per-row override requiring its own >40-character argument, because `(ops)` covers exactly one page and can name what failed. Five DOES-NOT-MOVE inventories plus `ALLOWED_RAW_CARD` asserted clean by `git diff --exit-code`; **`visual-baselines.ts` stays at 78 as a recorded DECISION** (PROJECT D-138). `tests/design/ops-guard-coverage.test.ts` — 15 cases, AST over CALL EXPRESSIONS, three mutation REDs watched and reverted (the page guard removed / an empty `(ops)` not-found created / the assert moved below the first JSX) — and its header says plainly that it **cannot see an HTTP status line**. Rule 2: `revalidatePath` on `/ops` added to all six ops actions (18-05 and 18-10 both dated it here); its consequence was a `next/cache` stub in THREE harnesses, the third of which surfaced only when `npm test` ran ALONE. E2E run BY HAND (D-24 — a one-time AUDIT, never a gate): skeleton-geometry **17 passed**, overflow-320 **102 passed / 7 skipped**, axe-sweep **60 passed / 38 skipped**, and BOTH route-inventory instruments re-run green. Ninth acceptance-grep collision recorded: `grep -c` for the page's own guard returns 2 against a correct file because the doctrine header names it; comment-stripped it is 1. Commits `04c523f` + `39477ca` + `5da8d73` + `82cd427`. Suite after: tsc 0; `npm run build` exit 0 with the /ops row in the route table; `npm test` **206 files / 2465 passed** / 5 skipped (identical to baseline); `npm run test:design` **73 / 1329 / 3** (baseline 72/1313 — +1 file, +16 cases). ⚠ **OPS-02's STATUS-LINE HALF IS STILL OWED and is 18-14's first task** — the production-build curl sweep. Next — 18-13.
-last_updated: "2026-09-01T04:50:00.000Z"
-last_activity: 2026-09-01 — 18-12 executed (3 tasks, 4 commits): the ops console is a route a prober cannot tell exists. Three guard layers with three jobs — a layout assert that ONLY wins the 404 status line and says so in the middleware's own words, a page that re-gates because Next says a layout does not control whether the rest of the route renders, and six actions that gate as their first statement. The skeleton height was MEASURED at ten widths in two themes rather than predicted, and the status-column cap the spec flagged was PROBED and refused with its transcript: it costs 12px at every width because no cap narrow enough to change the split leaves the lead on one line. Three design inventories moved in the same commit as the route; the plan's and the UI-SPEC's empty-state constants were wrong and the correction is written into the file. The status-line proof is explicitly still owed to 18-14.
+stopped_at: Completed 18-13-PLAN.md (Wave 7 — the host-facing review and suspension signals; **LVER-02's third clause closed**, which 18-04 deliberately left open). `src/lib/listing/review-signal.ts` is the copy: `pending` -> **In review** with NO way out (a decision, not an omission — there is nothing the host can do), `rejected` -> **Not approved** + the operator's sentence verbatim + **Edit this listing**, which is TRUE ONLY because D-249/18-06 flips `rejected -> pending` on a material edit and the dependency is recorded at the site. `SILENT_REVIEW_STATES` declares `approved`/`grandfathered`/`withdrawn` as saying NOTHING, each with its reason, and its total `Record<Exclude<ListingReviewState, keyof typeof REVIEW_SIGNAL>, string>` is a **COMPILER CENSUS** — a sixth enum value fails `tsc` until somebody decides in writing whether the host is told. The review state joined `statusBadge()` (ONE CHIP PER CARD) as a REQUIRED third parameter and a REQUIRED field on `ListingCardData`; `tsc` went red at both construction sites and each was answered. ⚠ `status === "published"` gates the chip because `review_state` DEFAULTS to `pending`, so **every draft carries it** — a draft badged In review would claim FitOut is checking something never submitted. **D-252 ruled in after the plan was written and is DONE**: a suspended host is told on `/host`, `/host/listings` AND `/host/earnings`, through ONE component (`HostingPausedNotice`, `PanelCard tone=muted` — the declared advisory surface, never the alerting one) and ONE owner-scoped read (`loadHostVerification`, which REPLACED the listings page's inline copy — one fewer duplication, not one more). ⚠ **D-156's earnings freeze was NOT weakened and NOT edited**: `earnings-freeze.test.ts` pins every string a host reads there and this change adds NONE. ⚠ **D-253 honoured in the same commit** — `payout-suspension-freeze.test.ts` +2 cases pinning that `loadHostVerification().suspended` agrees with `queryDuePayouts` across every value of the enum, because the notice's *payouts are on hold* clause is true only while the freeze holds and there is no compiler census over that column. `site.ts` and `site-contacts.test.ts` **byte-unchanged** (D-250); `public-listing.ts` **byte-unchanged** — `assertPublicListing` is still SESSION-FREE, which was 18-04's closing instruction to this plan. Pinned inventories moved IN THE SAME COMMIT: host-tone-census gained a SECOND declared set (files carrying a new host-facing state sentence, measured at ZERO alarm occurrences — strictly stronger, and `listing-card.tsx` is deliberately NOT in it because its one occurrence is the DELETE action), and live-regions' `PHASE_14_SURFACE_FILE_COUNT` **20 -> 21**, watched red first. MUTATION PROOF: the grandfathered branch made to emit a chip -> `expected [ 'Grandfathered' ] to deeply equal [ 'Live' ]`; reverted, 15/15. MANUAL CHECK transcribed (dev server + a suspended seeded host): all three surfaces render *Hosting paused* + the operator's sentence once, no way-out control, zero banned phrases; the grid renders *Not approved* + the reason + an **Edit this listing** anchor to the wizard and *In review* with no anchor — and React escaped the operator's apostrophes to `&#x27;`, which is the text-node proof. TENTH acceptance-grep collision recorded (the component's own prohibition comment spelled a banned word; reworded). Commits `49a349f` + `ceabf9d` + `9e2b570`. Suite after: tsc **0**; `npm run build` exit **0**; `npm test` **207 files / 2485 passed** / 5 skipped (baseline 2465; +20 is exactly this plan's 13+5+2); `npm run test:design` **73 / 1331 / 3** (baseline 1329; +2 is exactly this plan's). E2E re-run BY HAND (D-24): host-dashboard/host-headings/mode-switch/one-tree **42 passed**, overflow-320+axe-sweep+shell+skeleton-geometry **203 passed / 46 skipped**, keyboard-composites **6 passed**. ⚠ TWO e2e TEARDOWNS fail with a `listing_review` RESTRICT FK — **both assertions PASS**, the cause is 18-06's material-edit write meeting D-221's restrict, it is NOT this plan's and it is logged as deferred **D6** with both transcripts. ⚠ **The D-250 blocking input is still OPEN and is the PM's one line**: `SUPPORT_EMAIL` is null, every sentence shipped here stands without it, and setting it also closes the carried-forward `STATE-05` / `TRUST-01`. Next — 18-14 (the LAST plan: HVER-04's vendor comparison and OPS-02's still-owed status-line curl audit).
+last_updated: "2026-09-01T05:35:00.000Z"
+last_activity: 2026-09-01 — 18-13 executed (3 tasks, 3 commits): the host is finally told what happened, on the surfaces they already visit. A rejection the host cannot read is not a decision, it is a disappearance — and this plan's harder half is the two states with NO way out, where saying so plainly beats inventing a control that acts on nothing. The silence for `grandfathered` is DECLARED with its reason and mutation-proved, not defaulted. D-252 was ruled in mid-phase and is done: a suspended host now learns it on `/host/earnings`, where the pre-claim payout freeze means a delivered session produces no ledger line at all. Two frozen gates were respected rather than edited — D-156's earnings string freeze stayed green because the change adds no host-readable literal to it, and D-250's null support address stands with every sentence written to need none. Two pinned inventories moved in the same commit as the surface that moved them, one of them watched red first.
 progress:
   total_phases: 14
   completed_phases: 11
   total_plans: 163
-  completed_plans: 161
+  completed_plans: 162
   percent: 79
 ---
 
@@ -44,11 +44,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 18 — Host Verification, Listing Review & FitOut Ops (EXECUTING)
-Plan: 12 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
-Status: Executing — next is 18-13
+Plan: 13 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
+Status: Executing — next is 18-14
 Last activity: 2026-09-01 — 18-12 executed: the `/ops` route. ONE page, hosts and listings interleaved oldest-first, everything needed to decide on the same screen — behind `assertStaff()` in the layout ABOVE the Suspense boundary (the only layer that can still set the 404 status line), `requireStaff()` in the page, and `requireStaff()` first in all six ops actions. **No `(ops)` `not-found.tsx`**; refusal is `notFound()` everywhere. `OPS_QUEUE_ROW_HEIGHT` = `h-132 lg:h-211`, measured at ten widths in both themes (526.13px at 320, 842.09px at 1024 and above, the two themes identical to the hundredth of a pixel). **The status-column cap was PROBED and refused**: `max-w-28` costs +12px at every width including 1280 because it wraps the lead, and no cap value avoids that — logged as deferred D3, where the honest fix is copy rather than a constant. Three pinned inventories moved in the SAME commit as the route (loading-coverage 34/22/12, the third measured by staying green; error-boundaries 5→6; empty-state adopters 14/17→15/18 — the plan and the UI-SPEC both named the WRONG three constants, and the three they named were asserted unchanged). AC#24 widened from one work queue to two in words, and its count became a set. `ops-guard-coverage.test.ts` pins the three layers with three watched REDs and says out loud that it cannot see a status line. ⚠ **OPS-02's status-line audit is still OWED — 18-14's first task.**
 
-<details><summary>Previous activity (18-10, superseded)</summary>
+<details><summary>Previous activity (18-12, superseded)</summary>
 
 2026-09-01 — 18-10 executed: the two ops components. The queue row is TERMINAL (zero anchors, zero link-role elements, asserted on BOTH kinds), renders ONE tree at every width, reuses `PhotoGallery` verbatim so an operator can judge whether a space is real without clicking through, and shows a host row with NO document, NO image and NO disabled control suggesting one is coming. The decision controls put the wait figure at the row's lead and nothing else at that role; Approve is a neutral solid one press with no reason field; Reject always opens the one overlay primitive; and there is NO control on the row that can cancel-and-refund anything. **ENF-01 closed**: the lever is chosen per case, the lighter one is checked on every mount, the impact block is rendered unconditionally so choosing reveals nothing, and the confirm's label names the count in alarm INK rather than a solid fill. **OPS-04 stays open** — its screen half is 18-12's route. ⚠ Two things 18-12 now owes as COMPILE errors rather than notes: `loadOpsCancelImpact` per listing row, and the four server-formatted labels the row requires.
 
@@ -58,7 +58,7 @@ Last activity: 2026-09-01 — 18-12 executed: the `/ops` route. ONE page, hosts 
 
 **Velocity:**
 
-- Total plans completed: 87
+- Total plans completed: 89
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -78,7 +78,7 @@ Last activity: 2026-09-01 — 18-12 executed: the `/ops` route. ONE page, hosts 
 | 15 | 14 | - | - |
 | 16.1 | 7 | - | - |
 | 17.1 | 7 | - | - |
-| 18 | 11 | ~374 min | ~34 min |
+| 18 | 13 | ~440 min | ~34 min |
 
 *18-01: ~21 min wall-clock, 2 tasks (both auto), 6 files created + 1 modified (package.json), 2 commits + 1 metadata.
 The plan that everything else in Phase 18 consumes. `src/lib/ops/staff.ts` is ONE `cache()`'d expression with three
@@ -375,6 +375,36 @@ deferred walk is inconsistent rather than honest.*
 | Phase 18 P09 | 26min | 3 tasks | 16 files |
 
 ## Accumulated Context
+
+### Host-facing review & suspension signals — decisions taken during execution (18-13)
+
+- **The way out is a LABEL, not an href, and the page supplies the route.** `/host/listings` already
+  builds `/host/listings/{id}/edit` for its per-card Edit control, so a second spelling in the copy
+  module would have been two places for the wizard route to be wrong. The signal owns the words; the
+  surface owns the route.
+- **`SILENT_REVIEW_STATES` is a compiler census, and it is the shape worth copying.** A total
+  `Record<Exclude<ListingReviewState, keyof typeof REVIEW_SIGNAL>, string>` means a sixth review state
+  fails `tsc` until somebody writes down whether the host is told about it. The alternative — a lookup
+  that returns nothing for anything it does not recognise — makes a new decision state silent BY
+  ACCIDENT, which is the exact class of defect this whole plan closes one instance of.
+- **`status === "published"` gates the review chip, and it is load-bearing rather than tidy.**
+  `listing.review_state` DEFAULTS to `pending`, so EVERY DRAFT carries it. Without that term a draft
+  would be badged *In review* — telling a host FitOut is checking something they never submitted.
+- **The reason line renders INSIDE the card, not beneath it.** The plan said "beneath each affected
+  card"; the grid is a CSS grid, so a sibling `<p>` after `<ListingCard>` becomes its own grid item.
+  Inside the card, beside the shipped hours notice, is the same fact rendered correctly.
+- **`loadHostVerification` REPLACED the listings page's inline read rather than joining it.** D-243 and
+  D-252 gave that read two more consumers; three surfaces spelling `status === "suspended"` themselves
+  is three chances to spell it as a negation, which would raise the paused notice for `rejected` and
+  `pending` too. Net duplication: one fewer, not one more.
+- **D-156's earnings freeze was respected by ADDING NO LITERAL, and that is stated rather than assumed.**
+  `earnings-freeze.test.ts` pins every string a host can read on `/host/earnings`. The suspension
+  sentence has one owner (`review-signal.ts`) and one presenter (`HostingPausedNotice`); the page
+  decides only WHERE it goes, so the gate stayed green and unmodified. The gate's own blind-spot list
+  names copy-relocated-to-a-third-directory, so this is recorded here rather than left to look clever.
+- **The suspension signal offers NO way out, and D-252's "the way out is a FitOut ops review" was read
+  as a REASON, not as copy.** No sentence was added beyond the locked UI-SPEC and 18-09's payload: a
+  line naming a forthcoming review is a promise of a reply in all but wording, and 999.6 is out.
 
 ### OPS-05 delivery decisions taken during execution (18-09)
 

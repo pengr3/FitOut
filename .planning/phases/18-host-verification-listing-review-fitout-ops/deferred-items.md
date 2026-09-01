@@ -141,3 +141,71 @@ The row's height is a CONTINUOUS function of container width between ~375 and 10
 wrong at every other). Same class as `HOST_BOOKING_ROW_HEIGHT`'s recorded 768–928px band; recorded
 the same way, and the fix — if one is ever wanted — is a container-query height rather than a
 breakpoint ladder.
+
+---
+
+## From 18-13 — the host-side review signals
+
+### D6 — two e2e teardowns cannot delete a host whose listing was materially edited
+
+**Found during:** 18-13's by-hand e2e re-run of the host surfaces (D-24: `e2e/` does not run in CI).
+**Not caused by 18-13**, which adds no write of any kind — the three commits are reads, copy and tests.
+
+**The failure, verbatim:**
+
+```
+1) [chromium] › e2e\host-headings.spec.ts:974:7 › AC#35 — one first-level heading per document…
+   PostgresError: update or delete on table "listing" violates RESTRICT setting of foreign key
+   constraint "listing_review_listing_id_listing_id_fk" on table "listing_review"
+     at Object.teardown (e2e/host-headings.spec.ts:313:16)   ← `DELETE FROM "user" WHERE email = …`
+1 failed · 2 skipped · 42 passed
+```
+
+**The assertion itself PASSED.** This is a fixture teardown, and the 42 other cases in the run are
+green. The spec's own comment already names the shape of the problem — *"ORDER IS LOAD-BEARING …
+deleting a user first fails with a foreign-key error that says nothing about ordering"* — it simply
+predates the row that now blocks it.
+
+**The cause, measured rather than inferred.** The spec walks the edit wizard at
+`/host/listings/[id]/edit` and saves a step. Plan 18-06's `flipToPendingOnMaterialEdit` therefore
+appends a `listing_review` row, and `listing_review.listing_id` is `onDelete: "restrict"` by design
+(D-221: a review decision is a compliance record and must never cascade-delete with the thing it
+decided about). The teardown deletes the HOST, which cascades to the listing, which the restrict
+blocks. Confirmed in the dev database immediately after the failure — exactly one leaked row,
+`state='pending'`, `decided_at IS NULL`, which is the material-edit flip's signature and nothing else's:
+
+```
+ id        | listing_id                   | state   | decided_at | title
+ f2cd12d6… | e2e_head_listing_a658f1c8…   | pending | (null)     | Heading Court a658f1
+```
+
+**⚠ IT IS A PATTERN, AND THAT WAS MEASURED, NOT PREDICTED.** The same failure landed in a SECOND spec
+in the same by-hand sweep, at a different teardown, with an identical FK error and an identically
+passing assertion:
+
+```
+1) [chromium] › e2e\keyboard-composites.spec.ts:1502:7 › GATE-02 keyboard — the listing wizard and its
+   drawer › /host/listings/[id]/edit · the host nav drawer at 320 — trapped, escapable, focus returned
+   PostgresError: … violates RESTRICT setting of foreign key constraint
+   "listing_review_listing_id_listing_id_fk" on table "listing_review"
+     at e2e/keyboard-composites.spec.ts:1352:22   ← `DELETE FROM "user" WHERE email = …`
+1 failed · 6 passed
+```
+
+Its leaked row has the same signature (`e2e_kbc_listing_…`, `pending`, `decided_at IS NULL`). Two of
+the two specs that both (a) drive the edit wizard and (b) tear down by deleting the host are affected;
+no spec that does one without the other is.
+
+**Why it is deferred rather than fixed here.** The fix is one line per teardown — delete the listing's
+`listing_review` rows before the user — but the count is already two and the shape is generic: EVERY
+e2e fixture that drives a material edit and then deletes its host has it, and `e2e/helpers/*`'s
+seed/teardown contract is the right place to answer it ONCE. Patching the two specs that happened to
+be re-run would hide the pattern behind a green run and leave the third one to be discovered the same
+way. It belongs to whoever owns the re-review write's fixture contract (18-06's line), not to a plan
+that only reads the column.
+
+**Not one of the three already-diagnosed reds** (`cancel.spec.ts:232`, `calendar-hit-area.spec.ts` ×4,
+`price-parity.spec.ts:287`). This is a fourth, with a known cause and a known fix.
+
+**Cleanup performed:** the leaked fixture rows from both runs were removed from the dev database by
+hand, so the next local run starts clean.
