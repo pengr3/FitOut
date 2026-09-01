@@ -12,6 +12,69 @@ claim below carries a label saying how I know it.
 
 ---
 
+# ✅ DECIDED — 2026-09-01, by the PM
+
+**Answer: Didit.** Not "later" — now, subject to one gate. Recorded here so this document reads as
+settled rather than pending. Record as D-numbers at discuss time.
+
+| | Ruling |
+|---|---|
+| **PM-F — the vendor** | **Didit.** Option A (PayMongo) rejected on the D-225 re-coupling argument and on two negative probes two months apart. Option C (stay manual) rejected as an END STATE — see the reversal below. |
+| **PM-G — the manual provider** | **Stays registered behind the port as an ops override.** Ops may still decide a host by hand — an edge-case document, a vendor outage, an appeal. Those rows already record `provider='manual'` plus an authenticated `actorId`, so the audit trail shows exactly which decisions bypassed the machine. Not retired, not tiered (D-215 stands: one staff role). |
+| **PM-H — the counsel gate** | **Counsel reviews the BSP assumption BEFORE the Didit plan opens.** The PM chose "get counsel first, then wire" over proceeding in parallel. This is now a real blocker on the vendor work, and it is a PM action, not an engineering one. |
+
+## ⚠ Why "stay manual now" was reversed on the day it was written
+
+This document's Option-C case rested on a premise it never stated: **that nothing could be submitted.**
+That was true when it was written — no code path anywhere creates a `host_verification` row, so the
+ops host queue is permanently empty and the manual provider never actually runs.
+
+The PM then ruled (PM-C, same day) that the **submission path gets built and listing creation is gated
+on verification**. That inverts Option C:
+
+- With the manual provider, a host requests verification and an operator sees **name, verified email,
+  and an optional self-entered phone** — the entire evidence set, because `host_verification` has no
+  column for anything else and a schema allow-list test keeps it that way.
+- Approving on that basis is a **rubber stamp**. It verifies nothing.
+- And it now costs real friction: the host **cannot create a listing** until the rubber stamp lands.
+- Manual cannot credibly ask for ID out-of-band either. Documents arriving in an operator's inbox is
+  worse than the vendor path, not better — uncontrolled PII, no retention policy, and it breaks the
+  D-206 storage contract in spirit while satisfying it on paper.
+
+**Before PM-C, manual was harmless. After PM-C, it is friction without substance.** That is the whole
+of the reversal, and it is a consequence of a decision made after this document was drafted rather than
+an error in it.
+
+## ⚠ The sequencing this forces — SWE ruling, overrule if wrong
+
+PM-F says wire Didit. PM-H says counsel first. PM-C gates listing creation on verification. Those three
+cannot all land at once, so the order is:
+
+1. **Build the submission path NOW, provider-agnostic.** It fixes a live production defect — today no
+   new host can ever become sellable and the ops host queue can never fill — and it does not depend on
+   which provider answers.
+2. **Do NOT flip the listing-creation gate on yet.** Landing PM-C's gate while the only provider is a
+   rubber stamp ships friction that checks nothing.
+3. **Counsel review** (PM-H) — the only item on the critical path that engineering cannot advance.
+4. **Wire Didit** — one plan: one provider module against the existing contract, one credential, one
+   webhook route if it answers asynchronously. **No schema change** (`vendorRef` already exists and the
+   manual provider simply leaves it null); **no sell-gate change** (the gate reads status, not
+   provider).
+5. **Then flip PM-C's gate on**, with the host-facing copy describing the check that actually runs.
+
+If counsel comes back fast, steps 3–5 collapse into the same phase and this ordering costs nothing.
+
+## Two caveats that survive the decision
+
+1. **Option B was never probed.** Every Didit figure in this document is a published list price read
+   off their own page on 2026-09-01 — free to 500 checks/month, then $0.33. **PH-specific rates are
+   quote-only at every vendor found.** Verify pricing and PH document support (PhilSys in particular —
+   Didit does not name the Philippines, and Innov8tif was the only vendor found that publishes
+   PhilSys front-and-back) before the plan opens.
+2. **Every figure in this document expires 2026-09-15.** Re-read the pricing page after that date.
+
+---
+
 ## The verdict
 
 **Stay manual for now. Do not wire PayMongo Linked Accounts. When volume forces the issue, take

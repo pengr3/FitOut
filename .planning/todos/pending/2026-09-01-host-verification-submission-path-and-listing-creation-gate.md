@@ -98,8 +98,9 @@ allow-list against `information_schema.columns`, so a column named anything at a
 provider, never a custodian of identity documents.
 
 So with the **manual** provider that ships today, a submission can only use what already lives on
-`user`: name, verified email, phone. That is thin — which is exactly why this todo escalates the
-already-open KYC vendor decision (below).
+`user`: name, verified email, phone. That is thin to the point of being a rubber stamp — which is why
+this todo escalated the KYC vendor decision, and why that decision was settled the same day (PM-F
+below: **Didit**).
 
 Shape to build:
 
@@ -117,32 +118,70 @@ Shape to build:
   contact channel. Requiring it at submission is the lowest-friction place that actually works, and it
   pairs directly with the ops contact-reveal todo. Overrule at discuss if the PM disagrees.
 
-### ⚠ ESCALATED — this raises the priority of an already-open PM decision
+### PM-F/G/H — the KYC vendor decision is SETTLED (2026-09-01). Didit, manual stays as override, counsel first.
 
-The **KYC vendor fork is still open on the PM's desk** (one of the four decisions blocking Phase 18's
-close; see `.planning/phases/18-.../18-KYC-VENDOR-COMPARISON.md`, which recommends **stay-manual now,
-Didit later, NOT PayMongo**). It was a "decide when convenient" item. It is now **on the critical
-path**: the submission path's content depends on whether a human eyeballs thin profile data or a
-vendor runs a real check. Build the port-shaped submission either way — swapping a vendor in is a
-provider registration plus config, by construction (D-206) — but the PM should settle the vendor
-before the host-facing copy is written, because the copy promises what the check actually is.
+Escalated and settled the same day. Full reasoning and the reversal argument are in
+`.planning/phases/18-host-verification-listing-review-fitout-ops/18-KYC-VENDOR-COMPARISON.md`
+(§ ✅ DECIDED). Summary:
+
+- **PM-F — Didit.** PayMongo Linked Accounts rejected: its activation *is* its payouts gate, so it
+  re-couples the fifth and sixth sell-gate terms back into the third, undoing D-225 — and it is
+  sales-gated, probed negative twice two months apart, with its own docs page 404ing on both hosts.
+- **PM-G — the manual provider stays**, registered behind the port as an **ops override** for an
+  edge-case document, a vendor outage, or an appeal. Those rows already carry `provider='manual'` and
+  an authenticated `actorId`, so the trail shows which decisions bypassed the machine. Not retired,
+  and not tiered — D-215 stands.
+- **PM-H — counsel reviews the BSP assumption BEFORE the Didit plan opens.** The PM chose
+  "counsel first" over "proceed in parallel". ⚠ **This is a live blocker on the vendor work and it is
+  a PM action, not an engineering one.** The question: BSP Circular 1170 binds BSP-supervised
+  institutions (PayMongo), not a marketplace — FitOut's obligation is the Data Privacy Act instead.
+  If that is wrong, a PH-licensed vendor moves closer to mandatory, which would strengthen Innov8tif
+  and weaken Didit.
+
+### ⚠ The sequencing those three force (SWE ruling — overrule if wrong)
+
+PM-F says wire Didit, PM-H says counsel first, PM-C gates listing creation on verification. All three
+cannot land together, so:
+
+1. **Submission path NOW**, provider-agnostic. It fixes a live production defect and does not depend
+   on which provider answers.
+2. **Do NOT flip PM-C's listing-creation gate on yet.** Landing it while the only provider is a rubber
+   stamp ships friction that checks nothing.
+3. **Counsel review** (PM-H) — the only critical-path item engineering cannot advance.
+4. **Wire Didit** — one plan. No schema change (`vendorRef` exists; manual leaves it null), no
+   sell-gate change (the gate reads status, not provider).
+5. **Then flip the gate on**, with host-facing copy describing the check that actually runs.
+
+If counsel returns quickly, steps 3–5 collapse into one phase and this ordering costs nothing.
+
+⚠ **Before the Didit plan opens:** verify pricing and PH document support first-hand. Every Didit
+figure on record is a published list price (free to 500 checks/month, then $0.33), **PH rates are
+quote-only at every vendor found**, Didit does not name the Philippines in its coverage, and the
+comparison doc's figures **expire 2026-09-15**.
 
 ## Solution
 
 TBD at plan time. Rough shape, in dependency order:
 
-1. **Submission path first** (it is the unblocker): host action creating `host_verification` at
-   `pending`, plus the `/host` surface that offers it and reports state. Verify the ops host queue
-   actually fills — today it provably cannot.
-2. **Then the creation gate**: server-side refusal in the listing-creation path keyed on
-   `loadHostVerification()`, with the host-readable explanation and a route to the check.
-3. **Then the copy**, once the vendor decision lands.
-4. Do **not** touch `deriveBookable`'s six terms — the sell-gate is already correct and already fails
+1. **Submission path first** (it is the unblocker, and it is provider-agnostic): host action creating
+   `host_verification` at `pending`, plus the `/host` surface that offers it and reports state. Verify
+   the ops host queue actually fills — today it provably cannot.
+2. **Counsel review** (PM-H) — PM action, the only critical-path item engineering cannot advance.
+3. **Wire Didit** (PM-F) — one plan: one provider module against the existing contract, one
+   credential, one webhook route if it answers asynchronously. No schema change, no sell-gate change.
+   Keep the manual provider registered as the ops override (PM-G).
+4. **Then the creation gate** (PM-C): server-side refusal in the listing-creation path keyed on
+   `loadHostVerification()`, with the host-readable explanation and a route to the check. ⚠ Do NOT
+   land this before step 3 — a gate whose only provider is a rubber stamp is friction that checks
+   nothing.
+5. **The copy last**, describing the check that actually runs.
+6. Do **not** touch `deriveBookable`'s six terms — the sell-gate is already correct and already fails
    closed. This work adds a way IN, not a new way to refuse. Note D-227: the sell-gate's re-statements
    in `booking.ts` are deliberately duplicated and must not be "consistently" refactored.
 
 ## Related
 
-- Blocked-by (soft): the open KYC vendor decision — escalated above.
+- **Blocked-by (hard, on the vendor half only): counsel review of the BSP assumption (PM-H).** The
+  submission path itself is NOT blocked and should proceed — see the sequencing ruling above.
 - Siblings: `2026-09-01-ops-staff-management-surface-and-invite-flow.md`,
   `2026-09-01-reveal-host-contact-details-in-ops-queue.md`.

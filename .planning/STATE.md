@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: verified_awaiting_pm_checkpoint
-stopped_at: "PHASE 18 COMPLETE AND VERIFIED — 14/14 plans, 17/17 requirements, verifier `passed_with_concerns` with 0 code-level blockers (18-VERIFICATION.md). Gates re-run BY THE VERIFIER, each alone: tsc 0, npm test 207 files/2485 passed/5 skipped, test:design 73/1331/3, build exit 0. The ROADMAP phase checkbox is deliberately NOT ticked and completed_phases is deliberately NOT bumped: GSD Complete requires VERIFICATION status `passed`, and 18-14 Task 3 is a BLOCKING PM checkpoint that is still OPEN. FOUR DECISIONS ARE OWED BY THE PM, D-236 leading (ops-cancel retains the service fee, against cancelBookingAsHost s shipped precedent; flip is one line at src/lib/payments/fees.ts:82 and both values are already exercised by tests). Then: D-250 SUPPORT_EMAIL (also closes STATE-05/TRUST-01), the D-231 photo-reorder reading, and the KYC vendor choice (18-KYC-VENDOR-COMPARISON.md recommends stay-manual now, Didit later, NOT PayMongo). After those land: tick the phase, then /gsd-new-milestone for v1.2."
+stopped_at: "PHASE 18 COMPLETE AND VERIFIED — 14/14 plans, 17/17 requirements, verifier `passed_with_concerns` with 0 code-level blockers (18-VERIFICATION.md). Gates re-run BY THE VERIFIER, each alone: tsc 0, npm test 207 files/2485 passed/5 skipped, test:design 73/1331/3, build exit 0. The ROADMAP phase checkbox is deliberately NOT ticked and completed_phases is deliberately NOT bumped: GSD Complete requires VERIFICATION status `passed`, and 18-14 Task 3 is a BLOCKING PM checkpoint that is still OPEN. FOUR DECISIONS ARE OWED BY THE PM, D-236 leading (ops-cancel retains the service fee, against cancelBookingAsHost s shipped precedent; flip is one line at src/lib/payments/fees.ts:82 and both values are already exercised by tests). Then: D-250 SUPPORT_EMAIL (also closes STATE-05/TRUST-01) and the D-231 photo-reorder reading. ✅ THE KYC VENDOR CHOICE IS SETTLED (2026-09-01): **Didit**, manual stays as an ops override, and counsel reviews the BSP assumption BEFORE the vendor plan opens (PM-F/G/H, recorded in 18-KYC-VENDOR-COMPARISON.md § DECIDED). The doc's own 'stay manual now' recommendation was REVERSED the day it was written, because the PM's PM-C ruling (gate listing creation on verification) turns manual from harmless into friction-that-checks-nothing. THREE decisions remain, D-236 still leading. After those land: tick the phase, then /gsd-new-milestone for v1.2."
 last_updated: "2026-09-01T08:05:00.000Z"
 last_activity: 2026-09-01 — Phase 18 executed end to end (14 plans, 8 waves, 51 commits) and VERIFIED. 17/17 requirements. Four PM decisions open.
 progress:
@@ -1246,7 +1246,11 @@ at discuss time; do not re-ask them.**
   `e2e/helpers/booker-seed.ts:600` plus the `drizzle/0026` grandfather backfill), so the ops host
   queue can never fill, no new host can ever be approved, and no new host can ever sell. Phase 18
   shipped the console that decides but not the thing that submits to it. PM ruled the gate sits at
-  **listing creation**. **This puts the open KYC vendor decision on the critical path.**
+  **listing creation** (PM-C). ✅ The KYC vendor fork it escalated is **settled the same day** — PM-F
+  **Didit**, PM-G manual stays as an ops override, PM-H **counsel reviews the BSP assumption before
+  the vendor plan opens**. ⚠ Sequencing (SWE ruling): submission path NOW → counsel → Didit → THEN
+  flip the listing-creation gate on. Landing the gate while the only provider is a rubber stamp ships
+  friction that checks nothing.
 - **`2026-09-01-reveal-host-contact-details-in-ops-queue.md`** (area `ops`) — `/ops` shows no host
   email and no phone, so ops cannot reach a host about their listing. PM ruled **reveal-on-click with
   an audit row per reveal** (ids only in `audit.meta`, never the address itself — D-72).
@@ -1736,4 +1740,15 @@ Resume file: None
 
 ## Operator Next Steps
 
+- ⚠ **PM ACTION, ON THE CRITICAL PATH — counsel review (PM-H, 2026-09-01).** One line of legal review:
+  BSP Circular No. 1170 (electronic KYC) binds BSP-supervised institutions such as PayMongo, **not** a
+  marketplace — FitOut's obligation is the Data Privacy Act of 2012 (RA 10173) instead. If that
+  assumption is wrong, a PH-licensed vendor moves closer to mandatory, which strengthens Innov8tif and
+  weakens Didit. The PM chose "counsel first, then wire", so **the Didit plan does not open until this
+  returns.** Nothing else is blocked by it — the provider-agnostic submission path proceeds regardless.
+- ⚠ **Before the Didit plan opens:** verify pricing and PH document support first-hand. Every figure on
+  record is a published list price (free to 500 checks/month, then $0.33); **PH rates are quote-only at
+  every vendor found**; Didit does not name the Philippines in its coverage; and
+  `18-KYC-VENDOR-COMPARISON.md`'s figures **expire 2026-09-15**.
+- Three Phase-18 PM decisions still open (**D-236 leading**), then tick the phase checkbox.
 - Start the next milestone with /gsd-new-milestone
