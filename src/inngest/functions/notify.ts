@@ -42,6 +42,7 @@ import {
   sendGroupRsvpReceived,
   sendHostCancellationRecord,
   sendNewRequestToHost,
+  sendOpsDecision,
   sendRefundIssued,
   sendReminderPreExpiry,
   sendReminderPreSession,
@@ -215,6 +216,23 @@ export async function sendForType(event: NotifyEvent): Promise<SendForTypeResult
 
     case "group_cancelled":
       await sendGroupCancelled(to, payload.listingTitle, payload.whenLabel, payload.href);
+      return { sent: true };
+
+    // ── Phase-18 OPS-05 kinds (D-245). ONE dispatch for six kinds, and grouping them costs nothing
+    //    the `never` weld below was buying: a SEVENTH kind still has no case, still leaves `payload`
+    //    non-never at the assignment, and still fails the build. What the grouping buys is that the
+    //    six cannot be delivered differently from one another — they are one message shape.
+    //
+    //    The payload IS the email (heading, body parts, CTA label), so nothing is re-derived here and
+    //    there is no second copy to keep in step with the durable row step (1) just wrote. That is
+    //    D-91's parity made structural rather than remembered.
+    case "listing_review_approved":
+    case "listing_review_rejected":
+    case "host_verification_approved":
+    case "host_verification_rejected":
+    case "host_suspended":
+    case "booking_cancelled_by_ops":
+      await sendOpsDecision(to, payload);
       return { sent: true };
   }
 

@@ -65,6 +65,30 @@ const OWNING_MIGRATION = "0027_cancelled_by_ops.sql";
 const VALUE = "ops";
 const QUOTED = `'${VALUE}'`;
 
+/**
+ * The SECOND owning migration, added by 18-09 (OPS-05 / D-245): six values on `notification_type`, the
+ * other already-committed enum this phase widens. Same rule, same file, one owner per value.
+ *
+ * Every literal is assembled from its parts for the reason stated above — this file is source text, and
+ * a gate that greps the tree for a token must not trip on the gate enforcing the rule about it.
+ *
+ * ⚠ `booking_cancelled_by_ops` ENDS IN THE 0027 TOKEN AND IS DELIBERATELY NOT A COLLISION. The 0027
+ * assertions match `'ops'` WITH ITS QUOTES, and `'booking_cancelled_by_ops'` opens with a different
+ * quote position — so 0028 does not "name" 0027's literal and the two owners stay independent. Verified
+ * by the guard-the-guard case below, so a future rename that broke the property fails loudly instead of
+ * silently making the 0027 prohibition trip on this file.
+ */
+const OWNING_MIGRATION_NOTIFY = "0028_ops_notification_types.sql";
+const NOTIFY_VALUES = [
+  "listing_review_approved",
+  "listing_review_rejected",
+  "host_verification_approved",
+  "host_verification_rejected",
+  "host_suspended",
+  "booking_cancelled_by_ops",
+] as const;
+const NOTIFY_QUOTED = NOTIFY_VALUES.map((v) => `'${v}'`);
+
 /** Strip SQL line comments (`-- …`). SQL has no block-comment form in any file in this directory. */
 function stripSqlComments(source: string): string {
   return source
@@ -137,5 +161,83 @@ describe("55P04 tripwire — the new cancelled_by value is added once and used n
       "utf8",
     );
     expect(raw).not.toContain(QUOTED);
+  });
+});
+
+describe("55P04 tripwire — the six OPS-05 notification kinds are added once and used nowhere (D-245)", () => {
+  it("the owning migration exists and the value list is non-empty (the mirror guard)", () => {
+    // Without this, every prohibition below passes vacuously — against an empty list, or against a
+    // directory read that returned nothing.
+    expect(migrationFiles()).toContain(OWNING_MIGRATION_NOTIFY);
+    expect(NOTIFY_QUOTED).toHaveLength(6);
+    for (const q of NOTIFY_QUOTED) expect(q.length).toBeGreaterThan(2);
+  });
+
+  it("does NOT collide with the 0027 literal, which is why the two owners can coexist", () => {
+    // The one property that lets `'booking_cancelled_by_ops'` live in 0028 while `'ops'` is owned by
+    // 0027: quoting. If a rename ever made one a substring of the other, the 0027 prohibition above
+    // would start tripping on 0028 and report it as a 55P04 violation that is not one.
+    expect(`'booking_cancelled_by_ops'`).not.toContain(QUOTED);
+    const owning = readFileSync(resolve(MIGRATIONS_DIR, OWNING_MIGRATION_NOTIFY), "utf8");
+    expect(owning).not.toContain(QUOTED);
+  });
+
+  it("exactly ONE migration names each literal, and it is the ALTER TYPE file", () => {
+    const files = migrationFiles();
+    for (const quoted of NOTIFY_QUOTED) {
+      const naming = files.filter((f) =>
+        stripSqlComments(readFileSync(resolve(MIGRATIONS_DIR, f), "utf8")).includes(quoted),
+      );
+      // Set equality, not membership: a second file naming it is the defect, whichever file that is.
+      expect(naming, `${quoted} is named by ${naming.join(", ") || "no migration"}`).toEqual([
+        OWNING_MIGRATION_NOTIFY,
+      ]);
+    }
+  });
+
+  it("the owning migration ADDS the six values and does nothing else", () => {
+    const code = stripSqlComments(
+      readFileSync(resolve(MIGRATIONS_DIR, OWNING_MIGRATION_NOTIFY), "utf8"),
+    ).trim();
+
+    expect(code).toContain("ALTER TYPE");
+    expect(code).toContain("notification_type");
+    expect(code).toContain("ADD VALUE");
+    expect(code).toContain("IF NOT EXISTS"); // keeps the isolated-schema replay idempotent
+
+    // EXACTLY SIX STATEMENTS, ALL OF THEM ADD VALUE. drizzle/0020's rule made mechanical: a file that
+    // adds enum values may contain nothing else, because anything else shares the migrator's single
+    // transaction with the ADD — which is the 55P04 defect itself.
+    const statements = code.split(";").filter((s) => s.trim().length > 0);
+    expect(statements).toHaveLength(6);
+    for (const s of statements) {
+      expect(s).toContain("ALTER TYPE");
+      expect(s).toContain("ADD VALUE");
+    }
+  });
+
+  it("no migration AT OR AFTER the owning one names any of the six", () => {
+    const after = migrationFiles().filter(
+      (f) => f >= OWNING_MIGRATION_NOTIFY && f !== OWNING_MIGRATION_NOTIFY,
+    );
+
+    for (const f of after) {
+      const code = stripSqlComments(readFileSync(resolve(MIGRATIONS_DIR, f), "utf8"));
+      for (const quoted of NOTIFY_QUOTED) {
+        expect(code, `${f} names ${quoted} — see D-245 / PG 55P04`).not.toContain(quoted);
+      }
+    }
+  });
+
+  it("the Phase-18 schema migration does not name any of them either, in code OR in prose", () => {
+    // Same guard as 0026 above, one migration later: 0026 created the review tables and 0027 widened
+    // `cancelled_by`. Neither may name a notification kind — including in a header paragraph, which is
+    // why this reads the RAW file.
+    for (const tag of ["0026_host_verification_listing_review.sql", OWNING_MIGRATION]) {
+      const raw = readFileSync(resolve(MIGRATIONS_DIR, tag), "utf8");
+      for (const quoted of NOTIFY_QUOTED) {
+        expect(raw, `${tag} names ${quoted}`).not.toContain(quoted);
+      }
+    }
   });
 });

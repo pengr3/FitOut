@@ -402,6 +402,67 @@ export const SENDER_FIXTURES = {
       },
     ],
   },
+  sendOpsDecision: {
+    why:
+      "OPS-05 / D-245 — the inbox half of an ops decision about a host's standing. `reasonText` is an " +
+      "OPERATOR'S FREE TEXT (bounded at 280 by src/lib/validation/ops.ts, never sanitised at rest) " +
+      "landing in an outbound email, which makes it the highest-risk interpolation in the phase and " +
+      "exactly what this probe must reach. Three calls, because the body has three shapes: an " +
+      "approval (lead only), a rejection (lead + the operator's sentence + tail) and a suspension " +
+      "(the operator's sentence FIRST, with no lead at all).",
+    calls: [
+      {
+        label: "ops decision — listing approved",
+        args: [
+          TO,
+          {
+            heading: `${SPACE} is live`,
+            lead: "Your listing passed FitOut's check and can now be booked.",
+            ctaLabel: "View your listings",
+            href: `${APP}/host/listings`,
+          },
+        ],
+        recipient: "0",
+        urls: ["1.href"],
+        variants: [],
+      },
+      {
+        label: "ops decision — listing rejected, with the operator's sentence",
+        args: [
+          TO,
+          {
+            heading: `${SPACE} wasn't approved`,
+            lead: "FitOut checked this listing and didn't approve it.",
+            reasonText:
+              "The photos don't show the space being listed. The third photo is a stock image of a different gym.",
+            tail: "It won't take bookings.",
+            ctaLabel: "View your listings",
+            href: `${APP}/host/listings`,
+          },
+        ],
+        recipient: "0",
+        urls: ["1.href"],
+        variants: [],
+      },
+      {
+        label: "ops decision — hosting paused, the operator's sentence opening the body",
+        args: [
+          TO,
+          {
+            heading: "FitOut has paused your hosting",
+            reasonText:
+              "This account breaks FitOut's terms. Several bookers reported being asked to pay outside FitOut.",
+            tail: "Your spaces can't be booked, and payouts are on hold.",
+            ctaLabel: "Go to your hosting page",
+            href: `${APP}/host`,
+          },
+        ],
+        recipient: "0",
+        urls: ["1.href"],
+        variants: [],
+      },
+    ],
+  },
   sendOpsAlertDigest: {
     why:
       "The daily 08:50 operator digest. Its body is a data TABLE entering the shell's one PRE-ESCAPED " +
@@ -440,11 +501,11 @@ export const SENDER_FIXTURES = {
   },
 } as const satisfies Record<SenderName, SenderFixture>;
 
-/** The nineteen names, in declaration order. */
+/** The twenty names, in declaration order. */
 export const SENDER_NAMES = Object.keys(SENDER_FIXTURES) as SenderName[];
 
 /** How many senders this repository has. Asserted by the probe so a silent shrink is a red. */
-export const SENDER_COUNT = 19;
+export const SENDER_COUNT = 20;
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // PATH HELPERS. A dotted path addresses one value inside an argument list: `"1"` is `args[1]`,

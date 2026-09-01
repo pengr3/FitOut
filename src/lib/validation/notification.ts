@@ -20,7 +20,7 @@ import { z } from "zod";
 
 import type { NotificationPayload } from "@/lib/db/schema";
 
-/** The 14 `notification_type` enum values, as a literal tuple (mirrors schema.ts `notificationType`). */
+/** The 20 `notification_type` enum values, as a literal tuple (mirrors schema.ts `notificationType`). */
 export const notificationTypeValues = [
   "booking_confirmed",
   "request_received",
@@ -37,6 +37,15 @@ export const notificationTypeValues = [
   "group_rsvp_received",
   "group_rsvp_confirmed",
   "group_cancelled",
+  // Phase-18 OPS-05 kinds (D-245) — the host's STANDING rather than a booking. Added to the live enum
+  // by drizzle/0028, which does nothing but ADD VALUE (PG 55P04).
+  "listing_review_approved",
+  "listing_review_rejected",
+  "host_verification_approved",
+  "host_verification_rejected",
+  "host_suspended",
+  // ENF-03's ops-cancellation copy — one type, two audiences, on the `side` discriminant.
+  "booking_cancelled_by_ops",
 ] as const;
 
 export type NotificationTypeValue = (typeof notificationTypeValues)[number];
@@ -48,6 +57,22 @@ export type NotificationTypeValue = (typeof notificationTypeValues)[number];
  * as a blank line is indistinguishable from a broken one.
  */
 const label = z.string().min(1).max(200);
+
+/**
+ * A COMPOSED SENTENCE, not a label — the Phase-18 OPS-05 bound (D-245).
+ *
+ * ⚠ `label`'s 200 IS TOO SMALL FOR THESE, AND THE ARITHMETIC IS THE REASON RATHER THAN A PREFERENCE.
+ * `reasonText` is what `composeReason` (src/lib/validation/ops.ts) built: a taxonomy sentence — the
+ * longest is 57 characters — plus a space plus an operator note bounded at `REJECT_NOTE_MAX` = 280.
+ * That is 338 characters of a value an operator legitimately typed, so a 200-character bound would
+ * make `insertNotification` THROW on a perfectly valid rejection, burn four Inngest retries, and land
+ * a `needs_attention` row — for the one notification whose whole purpose is to be delivered.
+ *
+ * 400 leaves headroom over that 338 without becoming a document. The REAL bound on the operator's text
+ * is enforced upstream at the write boundary, where it belongs; this is the storage/abuse ceiling the
+ * `label` comment above describes, sized for the field it actually holds.
+ */
+const sentence = z.string().min(1).max(400);
 
 /**
  * The CTA target. Bounded like a label, but additionally required to be a same-origin absolute path or an
@@ -66,7 +91,7 @@ const href = z
 
 /**
  * The runtime mirror of `NotificationPayload`, keyed on the same `type` discriminant as the TS union and
- * the `notification_type` pgEnum. One member per enum value — all 11, exhaustively.
+ * the `notification_type` pgEnum. One member per enum value — all 20, exhaustively.
  */
 export const notificationPayloadSchema = z.discriminatedUnion("type", [
   z.object({
@@ -186,6 +211,64 @@ export const notificationPayloadSchema = z.discriminatedUnion("type", [
     whenLabel: label,
     href,
   }),
+  // ── Phase-18 OPS-05 kinds (D-245). THE COPY IS THE PAYLOAD — see the long note on schema.ts's
+  //    `NotificationPayload` for why these store composed sentences where every other kind stores data.
+  //    Bounded by `sentence` (400) rather than `label` (200) because `reasonText` legitimately reaches
+  //    338 characters; see the `sentence` declaration above for the arithmetic.
+  z.object({
+    type: z.literal("listing_review_approved"),
+    heading: sentence,
+    lead: sentence,
+    ctaLabel: label,
+    href,
+  }),
+  z.object({
+    type: z.literal("listing_review_rejected"),
+    heading: sentence,
+    lead: sentence,
+    reasonText: sentence,
+    tail: sentence,
+    ctaLabel: label,
+    href,
+  }),
+  z.object({
+    type: z.literal("host_verification_approved"),
+    heading: sentence,
+    lead: sentence,
+    ctaLabel: label,
+    href,
+  }),
+  z.object({
+    type: z.literal("host_verification_rejected"),
+    heading: sentence,
+    lead: sentence,
+    reasonText: sentence,
+    tail: sentence,
+    ctaLabel: label,
+    href,
+  }),
+  z.object({
+    type: z.literal("host_suspended"),
+    heading: sentence,
+    // OPTIONAL, and ABSENT on every write: 18-UI-SPEC § Telling the host opens this body with the
+    // operator's own sentence. Declared so the shared body composer has one total shape to join.
+    lead: sentence.optional(),
+    reasonText: sentence,
+    tail: sentence,
+    ctaLabel: label,
+    href,
+  }),
+  z.object({
+    type: z.literal("booking_cancelled_by_ops"),
+    heading: sentence,
+    lead: sentence,
+    // WR-04's audience discriminant, on a new type. Required at the write boundary — there are no
+    // durable pre-existing rows of this kind, so unlike `booking_cancelled_by_host` there is no
+    // backward-compatible missing-`side` case to tolerate.
+    side: z.enum(["booker", "host"]),
+    ctaLabel: label,
+    href,
+  }),
 ]);
 
 /**
@@ -199,7 +282,7 @@ export const notificationPayloadSchema = z.discriminatedUnion("type", [
  * The object-level refine is the load-bearing bit: `type` is stored in the indexed `notification.type`
  * COLUMN while `payload.type` is the jsonb discriminant the renderer switches on. If those two disagree,
  * a row filters as one kind and renders as another — a silent, permanent inconsistency in durable history.
- * They are checked equal once, here, rather than trusted to stay in sync at eleven future call sites.
+ * They are checked equal once, here, rather than trusted to stay in sync at twenty future call sites.
  */
 export const notifyEventSchema = z
   .object({

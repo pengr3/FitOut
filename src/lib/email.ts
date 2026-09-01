@@ -31,6 +31,13 @@ import { ALL_RAILS_REFUND_WINDOW } from "@/lib/booking/refund-window";
 // handing a value to `renderEmail` — it would double-encode.
 import { renderEmail, escapeHtml } from "@/lib/email-shell";
 
+// D-245 — the SHARED body join for the Phase-18 ops-decision kinds. Imported and CALLED so this
+// channel and the in-app panel cannot render the parts differently; see its module header.
+import {
+  composeOpsDecisionBody,
+  type OpsDecisionBodyParts,
+} from "@/lib/notification-copy";
+
 const key = process.env.RESEND_API_KEY;
 const resend = key ? new Resend(key) : null;
 const FROM = process.env.EMAIL_FROM ?? "FitOut <onboarding@resend.dev>";
@@ -604,6 +611,58 @@ export const sendGuestRsvpEmail = async (d: GuestRsvpEmail): Promise<{ sent: tru
     await send(d.to, `Group booking cancelled — ${d.listingTitle}`, html, text);
   }
   return { sent: true };
+};
+
+// ---------------------------------------------------------------------------
+// Phase-18 OPS-05 — telling the host what FitOut decided (D-245 / D-243 / D-250).
+// ---------------------------------------------------------------------------
+// The inbox half of the six ops-decision kinds. Dispatched ONLY from `sendForType`
+// (src/inngest/functions/notify.ts), like every other lifecycle send — the SAME Inngest invocation
+// that writes the durable `notification` row, which is what makes D-91's two-channel parity hold.
+//
+// ⚠ THIS SENDER CONTAINS NO COPY, AND THAT IS THE DESIGN RATHER THAN AN OVERSIGHT. Every string it
+// renders — heading, body parts, CTA label — arrives ON THE PAYLOAD, composed once at emit time in
+// `src/lib/notifications.ts`. Two reasons, both load-bearing:
+//
+//   · D-91 SUFFICIENCY, taken to its conclusion. The panel row and this email must state the SAME
+//     sentences. If the copy lived here, the two channels would be two hand-maintained texts that
+//     look synchronised — the drift D-91 exists to prevent, and far more damaging in a rejection
+//     than in a reminder.
+//   · D-86 DURABILITY. A host has READ this message. Composing it here would mean a later re-wording
+//     silently changed what the durable row says they were told.
+//
+// So do NOT add a sentence to this function. A copy change for these kinds is a change to the
+// payload factories, where the whole set can be read at once and where the banned-language gate
+// (D-243) and the no-support-address rule (D-250) are asserted.
+//
+// EVERY FIELD GOES IN RAW. The shell escapes each sink on the way into the HTML part (WR-01) and the
+// plain-text twin keeps the raw string; `reasonText` is an OPERATOR'S FREE TEXT and is the highest-risk
+// field in the phase, so it rides exactly that shipped path — `tests/auth/email-escaping.test.ts` and
+// `tests/auth/email-injection.test.ts` are its anchors. A local escape here would double-encode.
+
+/**
+ * The whole input to an ops-decision send — structurally the payload itself, so `sendForType` hands
+ * the value straight through with no re-assembly step that could drop a field.
+ */
+export type OpsDecisionEmail = OpsDecisionBodyParts & {
+  heading: string;
+  ctaLabel: string;
+  href: string;
+};
+
+/**
+ * One decision, one message. The heading IS the subject (18-UI-SPEC § Telling the host gives them one
+ * column, deliberately: a host scanning their inbox and a host opening the mail must read the same
+ * words), and the body is ONE paragraph joined by the shared composer — which is what guarantees the
+ * operator's sentence appears exactly once and is never summarised into the subject line.
+ */
+export const sendOpsDecision = (to: string, d: OpsDecisionEmail) => {
+  const { html, text } = renderEmail({
+    heading: d.heading,
+    paragraphs: [composeOpsDecisionBody(d)],
+    cta: { label: d.ctaLabel, href: d.href },
+  });
+  return send(to, d.heading, html, text);
 };
 
 // ---------------------------------------------------------------------------

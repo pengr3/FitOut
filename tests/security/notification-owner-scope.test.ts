@@ -40,6 +40,16 @@ const PASSWORD = "averylongpassword";
 const A_EMAIL = "nos_alice@example.com";
 const B_EMAIL = "nos_bob@example.com";
 
+/**
+ * The payload's listing title, or `null` for a kind that has none.
+ *
+ * `in` narrowing rather than a cast: a cast would tell the compiler the field is there and hand back
+ * `undefined` at runtime, which would make the leak assertions below pass against rows that carry no
+ * title at all. This returns a value the expectation can actually fail on.
+ */
+const titleOf = (p: NotificationPayload): string | null =>
+  "listingTitle" in p ? p.listingTitle : null;
+
 const sessionHeaders: { cookie: string } = { cookie: "" };
 vi.mock("next/headers", () => ({
   headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
@@ -169,8 +179,15 @@ describe("T-07-82 — notification reads are owner-scoped in the query", () => {
     expect(forAlice.some((r) => bobIds.includes(r.id))).toBe(false);
     expect(forBob.some((r) => aliceIds.includes(r.id))).toBe(false);
     // The payload is where the leak would actually hurt — assert no foreign display strings crossed.
-    expect(forAlice.every((r) => r.payload.listingTitle === "Alice's Court")).toBe(true);
-    expect(forBob.every((r) => r.payload.listingTitle === "Bob's Court")).toBe(true);
+    //
+    // ⚠ READ THROUGH `titleOf`, NOT `r.payload.listingTitle`, SINCE 18-09. The Phase-18 OPS-05 kinds
+    // (D-245) are about the HOST'S STANDING rather than a booking, so they carry no `listingTitle` and
+    // the bare property access stopped compiling over the whole union. The assertion is UNCHANGED in
+    // strength: every row this file seeds is a booking kind and still has to carry its own title, and a
+    // titleless kind now FAILS this expectation rather than failing to compile — which is the direction
+    // that keeps the leak assertion live.
+    expect(forAlice.every((r) => titleOf(r.payload) === "Alice's Court")).toBe(true);
+    expect(forBob.every((r) => titleOf(r.payload) === "Bob's Court")).toBe(true);
   });
 
   it("a user with no notifications at all sees nothing", async () => {

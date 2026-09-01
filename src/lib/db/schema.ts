@@ -671,6 +671,32 @@ export const notificationType = pgEnum("notification_type", [
   "group_rsvp_received",
   "group_rsvp_confirmed",
   "group_cancelled",
+  // ── Phase-18 OPS-05 kinds (D-245). THE ONLY NOTIFICATIONS IN THIS TABLE THAT ARE NOT ABOUT A
+  //    BOOKING — they are about the HOST'S STANDING, which is why every one of them carries a null
+  //    `booking_id` and an `href` to a host surface rather than to a booking.
+  //
+  //    D-245 settles what OPS-05's "a reason the host is actually told" means: a status a host has to
+  //    go and LOOK FOR is not being told, and the thing being communicated blocks their income. So the
+  //    decision reaches them on both channels, from ONE payload, through the same fan-out every other
+  //    kind uses (D-86/D-91/D-92). The host-surface status (D-230) is IN ADDITION to this, never
+  //    instead of it.
+  //
+  //    ⚠ Added to the live enum by the SAME 55P04-safe split drizzle/0018 used, for the same reason:
+  //    `drizzle/0028_ops_notification_types.sql` does NOTHING but ADD VALUE, and the first runtime
+  //    INSERT of any of these is an `emitNotify` from `src/app/actions/ops-review.ts`, long after that
+  //    migration committed — never a migration. `tests/design/enum-first-use-tripwire.test.ts`
+  //    mechanises that rule over these six literals.
+  "listing_review_approved",
+  "listing_review_rejected",
+  "host_verification_approved",
+  "host_verification_rejected",
+  "host_suspended",
+  // ENF-03's missing half. `cancelBookingAsOps` (18-08) deliberately sent NOTHING because both of
+  // `booking_cancelled_by_host`'s sentences are FALSE on that path — the booker copy tells a defrauded
+  // person their host cancelled on them, and the host copy quotes a fee D-235 suppresses. This is the
+  // kind that says what actually happened. One type, two audiences, on the `side` discriminant that
+  // `booking_cancelled_by_host` already established.
+  "booking_cancelled_by_ops",
 ]);
 
 // D-86 durable notification payload. STORE DISPLAY STRINGS, NEVER IDS TO JOIN AT READ TIME: a notification
@@ -793,7 +819,95 @@ export type NotificationPayload =
       href: string;
     }
   | { type: "group_rsvp_confirmed"; listingTitle: string; whenLabel: string; href: string }
-  | { type: "group_cancelled"; listingTitle: string; whenLabel: string; href: string };
+  | { type: "group_cancelled"; listingTitle: string; whenLabel: string; href: string }
+  // ── Phase-18 OPS-05 kinds (D-245). THE COPY ITSELF IS THE PAYLOAD, and that is a stronger reading of
+  //    the three rules above rather than a departure from them.
+  //
+  //    Every other kind stores its DATA (a title, a time label) and lets each channel compose its own
+  //    sentence. These store the composed SENTENCES, for two reasons that only apply here:
+  //
+  //      · D-91 SUFFICIENCY, taken literally. What a host is told about why FitOut blocked their income
+  //        must be the SAME on both channels, word for word — a panel row and an email that paraphrase
+  //        each other differently is exactly the drift D-91 exists to prevent, and it is far more
+  //        damaging in a rejection than in a reminder.
+  //      · D-86 STORE DISPLAY STRINGS, with extra force. A host has READ this. If a later re-wording of
+  //        the copy silently re-rendered the notification they were shown, the durable record of what
+  //        they were told would be retroactively false — `src/lib/validation/ops.ts` states this same
+  //        argument about the taxonomy sentence, and it applies to the sentences AROUND it too.
+  //
+  //    THE BODY IS THREE PARTS, NEVER ONE PRE-JOINED STRING, and the split is load-bearing:
+  //    `reasonText` is the OPERATOR'S OWN SENTENCE, stored on its own so it can be asserted verbatim,
+  //    rendered exactly once, and never paraphrased into a heading. `composeOpsDecisionBody`
+  //    (src/lib/notification-copy.ts) is the ONE expression that joins them, and BOTH channels CALL it
+  //    — a second join written out somewhere else would be a restatement, which is how a "green compile,
+  //    green suite, live drift" defect gets in (18-04's og-facts finding).
+  //
+  //    NO PII (the rule above, unchanged): `reasonText` is a taxonomy sentence plus an operator note
+  //    bounded at 280 by `src/lib/validation/ops.ts`. It is prose about a decision, never an address, an
+  //    id or a document. It is ALSO the reason these fields are bounded wider than `label`'s 200 — see
+  //    `sentence` in src/lib/validation/notification.ts.
+  //
+  //    `bookingId` is NULL on all five: a host's standing is not booking-scoped.
+  | {
+      type: "listing_review_approved";
+      /** "{Listing title} is live" — the panel title AND the email subject, composed once. */
+      heading: string;
+      lead: string;
+      /** The CTA label the email renders. It belongs HERE by the D-91 sufficiency rule. */
+      ctaLabel: string;
+      href: string;
+    }
+  | {
+      type: "listing_review_rejected";
+      heading: string;
+      lead: string;
+      /** The operator's stored sentence, VERBATIM. Rendered as text on both channels; never escaped,
+       *  stripped or paraphrased at rest (src/lib/validation/ops.ts header point 4). */
+      reasonText: string;
+      tail: string;
+      ctaLabel: string;
+      href: string;
+    }
+  | {
+      type: "host_verification_approved";
+      heading: string;
+      lead: string;
+      ctaLabel: string;
+      href: string;
+    }
+  | {
+      type: "host_verification_rejected";
+      heading: string;
+      lead: string;
+      reasonText: string;
+      tail: string;
+      ctaLabel: string;
+      href: string;
+    }
+  | {
+      type: "host_suspended";
+      heading: string;
+      /** ABSENT, deliberately: 18-UI-SPEC § Telling the host opens this body with the operator's own
+       *  sentence. An empty lead rendered as a lead would be CR-01's disease in a new place. */
+      lead?: string;
+      reasonText: string;
+      tail: string;
+      ctaLabel: string;
+      href: string;
+    }
+  // ENF-03's ops-cancellation copy — one type, two audiences, on `booking_cancelled_by_host`'s own
+  // `side` idiom. Booking-scoped, so this one DOES carry a `bookingId`.
+  | {
+      type: "booking_cancelled_by_ops";
+      heading: string;
+      lead: string;
+      /** WR-04's rule applied to a new type: every write declares WHO its copy addresses. The booker is
+       *  told what is coming back; the host is told they are charged NO cancellation fee (D-235 made
+       *  visible, so a suspended host never believes a fee applied). */
+      side: "booker" | "host";
+      ctaLabel: string;
+      href: string;
+    };
 
 export const notification = pgTable(
   "notification",

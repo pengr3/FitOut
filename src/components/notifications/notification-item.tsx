@@ -33,6 +33,7 @@ import {
   CircleCheckIcon,
   HourglassIcon,
   InboxIcon,
+  OctagonPauseIcon,
   UserRoundCheckIcon,
   UserRoundXIcon,
   XCircleIcon,
@@ -41,6 +42,10 @@ import {
 
 import { cn } from "@/lib/utils";
 import type { NotificationPayload } from "@/lib/db/schema";
+// The SHARED body join (D-245). Imported as a VALUE and CALLED — restating the join here would be the
+// exact drift D-91 exists to prevent, and it would be invisible to the compiler. The module it lives in
+// is pure by design so this client-graph file can hold it; see its header.
+import { composeOpsDecisionBody } from "@/lib/notification-copy";
 import type { NotificationRow } from "@/lib/notifications";
 
 /** The serialisable shape the server hands the client bell. No Dates cross the boundary — see below. */
@@ -233,6 +238,63 @@ export function describeNotification(payload: NotificationPayload): Notification
         Icon: CalendarX2Icon,
         title: "Group booking cancelled",
         body: `${payload.listingTitle} · ${payload.whenLabel}`,
+      };
+
+    // ── Phase-18 OPS-05 kinds (D-245). SIX REAL BRANCHES, and the absence of a `default` clause is
+    //    what made adding these six enum values a COMPILE ERROR here — the census the schema header
+    //    describes. Answering it with a fallback would have traded a build failure for six blank rows.
+    //
+    //    These six read their copy STRAIGHT OFF THE PAYLOAD instead of composing it, and that is the
+    //    point rather than laziness: what a host is told about why FitOut blocked their income has to
+    //    be identical in the panel and in the inbox, so the sentences are composed ONCE at emit time
+    //    (src/lib/notifications.ts) and both channels render the same bytes. Everything below is a
+    //    React TEXT CHILD, so the operator's free text is escaped by construction (rule 1 at the top of
+    //    this file) — there is no raw-HTML sink on this path and there never may be.
+    //
+    //    ⚠ NOTHING HERE PROMISES A WAY BACK. Host appeals are backlog 999.6 and OUT (D-243): no reply
+    //    promise, no timeline, no address. The copy is complete and honest without one (D-250).
+    case "listing_review_approved":
+      return {
+        Icon: CircleCheckIcon,
+        title: payload.heading,
+        body: composeOpsDecisionBody(payload),
+      };
+    case "listing_review_rejected":
+      return {
+        // NOT a destructive/red treatment: DS-10 says an unapproved listing is a normal lifecycle
+        // state, and the icon renders in `text-muted-foreground` like every other row's.
+        Icon: XCircleIcon,
+        title: payload.heading,
+        body: composeOpsDecisionBody(payload),
+      };
+    case "host_verification_approved":
+      return {
+        Icon: UserRoundCheckIcon,
+        title: payload.heading,
+        body: composeOpsDecisionBody(payload),
+      };
+    case "host_verification_rejected":
+      return {
+        Icon: UserRoundXIcon,
+        title: payload.heading,
+        body: composeOpsDecisionBody(payload),
+      };
+    case "host_suspended":
+      return {
+        // A PAUSE, not an alarm — the copy's own word ("FitOut has paused your hosting"), and the one
+        // icon in the set that carries the state rather than a verdict about a person.
+        Icon: OctagonPauseIcon,
+        title: payload.heading,
+        body: composeOpsDecisionBody(payload),
+      };
+    case "booking_cancelled_by_ops":
+      return {
+        // One type, two audiences (WR-04's idiom on a new type). The heading and body were composed
+        // per side at emit, so there is nothing to branch on here — reading `side` to re-derive copy
+        // would be the restatement this design removes.
+        Icon: CalendarX2Icon,
+        title: payload.heading,
+        body: composeOpsDecisionBody(payload),
       };
   }
   // Exhaustiveness weld (07-07 convention). No fallback clause: a new notification kind must break the
