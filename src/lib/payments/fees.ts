@@ -55,9 +55,10 @@ export const SERVICE_FEE_BPS = Number(process.env.SERVICE_FEE_BPS ?? 500);
 export const HOST_CANCEL_FEE_CENTS = Number(process.env.HOST_CANCEL_FEE_CENTS ?? 30000);
 
 /**
- * D-209 / D-236 — WHAT AN OPS-FORCED CANCELLATION REFUNDS. `false` is the PM's answer, verbatim:
- * *"booker 100% refund, but not the service fee / platform fee"* — the booker gets the full BOOKING
- * amount (the space price) back, FitOut RETAINS the D-74 service fee, and the host is paid nothing.
+ * D-209 / D-236 — WHAT AN OPS-FORCED CANCELLATION REFUNDS. `true` is the SETTLED answer: the booker
+ * gets back the WHOLE amount they were charged (`quotedTotalCents` — space price AND the D-74 service
+ * fee), FitOut RETAINS NOTHING and absorbs the gateway cost of the reversal, the host is paid nothing,
+ * and no host-cancel fee is charged. On the ₱1,050 booking the tests use: ₱1,050 back, ₱0 retained.
  *
  * ⚠ A LITERAL, NOT `process.env`. Every neighbour above reads the environment with a documented
  * default; this one deliberately does not, and the difference IS the constant's job. D-236 requires
@@ -66,17 +67,33 @@ export const HOST_CANCEL_FEE_CENTS = Number(process.env.HOST_CANCEL_FEE_CENTS ??
  * an environment nobody reads. It is also, correspondingly, absent from `.env.example`: documenting it
  * there would advertise exactly the tunability this constant exists to refuse.
  *
- * ⚠ THE CONFLICT IS NOT SETTLED HERE, AND IT IS NOT MINE TO SETTLE. `cancelBookingAsHost` already
- * refunds the booker the FULL charge including this same service fee, and states the principle in its
- * own words at src/app/actions/cancel-booking.ts:1134-1137. An ops-forced cancellation on a
- * confirmed-fake listing is a strictly stronger instance of that principle, so `false` currently makes
- * FitOut LESS generous to a defrauded booker than to one whose host merely flaked. The argument is
- * written out IN FULL, with the precedent quoted verbatim, at the single site that reads this value:
- * `opsRefundBasisCents` in src/lib/ops/cancel-impact.ts, which is the one expression both
+ * ⚠ THE CONFLICT WAS SETTLED BY THE PM ON 2026-09-01, IN FAVOUR OF `true`. It was not settled here and
+ * it was never mine to settle — it was raised, the phase summary led with it, and the PM re-decided
+ * with the full picture in view (18-14-SUMMARY.md § The five checkpoint decisions, row **a**; carried
+ * into 18.1-CONTEXT.md § Implementation Decisions and landed by plan 18.1-01).
+ *
+ * THE ARGUMENT IS KEPT WORD FOR WORD RATHER THAN DELETED, because it is now the REASON THE FLIP
+ * HAPPENED rather than a live objection to it: `cancelBookingAsHost` already refunds the booker the
+ * FULL charge including this same service fee, and states the principle in its own words at
+ * src/app/actions/cancel-booking.ts:1134-1137. An ops-forced cancellation on a confirmed-fake listing
+ * is a strictly stronger instance of that principle — the booker was not let down, they were defrauded
+ * — so `false` made FitOut LESS generous to a defrauded booker than to one whose host merely flaked.
+ * The PM accepted exactly that precedent argument. The argument is written out IN FULL, with the
+ * precedent quoted verbatim and the same 2026-09-01 settlement recorded, at the single site that reads
+ * this value: `opsRefundBasisCents` in src/lib/ops/cancel-impact.ts, which is the one expression both
  * `cancelBookingAsOps` (the money that actually moves) and `loadOpsCancelImpact` (the figures the
  * console shows the operator BEFORE they commit) call. Read that comment before changing this line.
  *
- * Flipping it to `true` refunds `quotedTotalCents` instead of `spacePriceCents` everywhere at once.
- * `tests/payments/ops-cancel.test.ts` exercises BOTH values, so "one line flips it" is measured.
+ * ⚠ THE SUPERSEDED ANSWER IS RECORDED, NOT ERASED. D-209 (PM-4) read the other way, verbatim:
+ * *"booker 100% refund, but not the service fee / platform fee"* — the space price back, the D-74 fee
+ * retained. That is what shipped as `false` from phase 18 plan 18-08 until 2026-09-01. **D-236
+ * supersedes it**, so a reader who finds D-209 quoted elsewhere in the repo does not conclude this line
+ * is a mistake. The question put to the PM for D-209 did not mention the `cancelBookingAsHost`
+ * precedent; that omission was in the framing, not in their answer, which is why it was re-asked.
+ *
+ * Flipping it back to `false` would refund `spacePriceCents` instead of `quotedTotalCents` everywhere
+ * at once. `tests/payments/ops-cancel.test.ts` exercises BOTH values, so "one line flips it" is
+ * measured — case 1 is this shipped `true` basis, case 2 drives the `false` branch through
+ * `withFlippedConstant`, and case 3 checks the console's preview agrees with the money under both.
  */
-export const OPS_CANCEL_REFUNDS_SERVICE_FEE = false;
+export const OPS_CANCEL_REFUNDS_SERVICE_FEE = true;

@@ -55,15 +55,15 @@ export type RefundBasisRow = {
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════════════════════════════
- * THE SINGLE READ SITE OF `OPS_CANCEL_REFUNDS_SERVICE_FEE`, AND THE D-236 CONFLICT IN FULL.
+ * THE SINGLE READ SITE OF `OPS_CANCEL_REFUNDS_SERVICE_FEE`, AND THE D-236 SETTLEMENT IN FULL.
  * ═══════════════════════════════════════════════════════════════════════════════════════════════════
  *
- * WHAT THE PM DECIDED (D-209, PM-4, answered 2026-09-01, in their own words):
- *   *"booker 100% refund, but not the service fee / platform fee"*
- * — the booker is refunded the full booking amount, FitOut RETAINS its service/platform fee, and the
- * host is paid nothing. That is what `false` implements, and it is what ships.
+ * WHAT THE PM SETTLED (D-236, 2026-09-01): an ops-forced cancellation refunds the booker THE FULL
+ * BOOKING AMOUNT — the space price AND the D-74 service fee. FitOut RETAINS NOTHING and absorbs the
+ * gateway cost of the reversal itself, the host is paid nothing, and no host-cancel fee is charged.
+ * That is what `true` implements, and it is what ships.
  *
- * WHAT THE SHIPPED CODE ALREADY SAYS, AND WHY IT IS IN TENSION WITH THAT. `cancelBookingAsHost`
+ * WHY — THE SHIPPED CODE ALREADY SAID SO, FOUR HUNDRED LINES AWAY. `cancelBookingAsHost`
  * (src/app/actions/cancel-booking.ts:1134-1137) refunds the FULL charge — space price AND the D-74
  * service fee — and argues the point itself, verbatim:
  *
@@ -74,20 +74,26 @@ export type RefundBasisRow = {
  * An ops-forced cancellation happens because FitOut has CONFIRMED THE LISTING IS FAKE. That is a
  * strictly STRONGER instance of "the booker did nothing wrong" than a host who merely flaked — the
  * booker was not let down, they were defrauded, on a marketplace that took their money and its own cut.
- * Under `false`, FitOut is therefore LESS generous to the defrauded booker than to the inconvenienced
- * one. The two paths state opposite principles about the same fee, four hundred lines apart.
+ * Under `false`, FitOut was therefore LESS generous to the defrauded booker than to the inconvenienced
+ * one, and the two paths stated opposite principles about the same fee, four hundred lines apart. THE
+ * PM ACCEPTED EXACTLY THAT ARGUMENT. The two paths now agree.
  *
- * WHY IT IS STILL `false`. The PM was asked and answered. The conflict was found AFTERWARDS, while
- * scouting — the question put to them did not mention this precedent, which is an omission in how the
- * question was framed, not in their answer. A money call is theirs, and it is not resolved by an
- * engineer noticing a better argument after the fact. So: implement it exactly as stated, isolate it
- * behind one constant, write the argument down beside the line that flips it, and LEAD the phase
- * summary with it so the PM re-decides with the full picture in view (18-PM-DECISIONS.md § CONFLICT).
+ * WHAT IT USED TO BE, AND WHY — RECORDED, NOT DELETED. D-209 (PM-4, answered 2026-09-01, in their own
+ * words) read the other way: *"booker 100% refund, but not the service fee / platform fee"* — the space
+ * price back, the D-74 fee retained — and `false` shipped from plan 18-08 on that answer. The conflict
+ * above was found AFTERWARDS, while scouting: the question put to them did not mention this precedent,
+ * which was an omission in how the question was framed, not in their answer. A money call is theirs,
+ * and it is not resolved by an engineer noticing a better argument after the fact. So it was
+ * implemented exactly as stated, isolated behind ONE constant, with the argument written down beside
+ * the line that flips it, and the phase summary LED with it (18-PM-DECISIONS.md § CONFLICT). The PM
+ * re-decided the same day with the full picture in view (18-14-SUMMARY.md § The five checkpoint
+ * decisions, row **a**), and plan 18.1-01 flipped the line. **D-236 supersedes D-209.**
  *
- * ⚠ DO NOT "FIX" THIS TO MATCH THE PRECEDENT. Flipping
- * `OPS_CANCEL_REFUNDS_SERVICE_FEE` to `true` in src/lib/payments/fees.ts is a genuine one-line change
+ * ⚠ DO NOT "UN-FIX" THIS BACK TO D-209'S WORDING. Flipping
+ * `OPS_CANCEL_REFUNDS_SERVICE_FEE` to `false` in src/lib/payments/fees.ts is a genuine one-line change
  * and changes both callers at once — `tests/payments/ops-cancel.test.ts` runs this expression under
- * BOTH values so that claim is measured rather than promised. But the decision to make it is the PM's.
+ * BOTH values so that claim stays measured rather than promised. But the decision to make it is the
+ * PM's, and as of 2026-09-01 they have made it the other way.
  *
  * The figures are read off the FROZEN row and never recomputed — integer centavos throughout, and a
  * historical amount is never rewritten.
@@ -128,7 +134,11 @@ export type OpsCancelImpact = {
   cancellableBookingIds: readonly string[];
   /** "Money that would go back" — a finished string, the sum of the per-booking refund basis. */
   refundTotal: string;
-  /** "FitOut keeps" — the service-fee portion of the same bookings. `₱0.00` when the constant is flipped. */
+  /**
+   * "FitOut keeps" — the remainder of what the bookers actually paid. Under the SHIPPED D-236 basis
+   * (`OPS_CANCEL_REFUNDS_SERVICE_FEE = true`, settled 2026-09-01) that remainder is always `₱0.00`;
+   * it becomes the service-fee portion of the same bookings only if the constant is flipped back.
+   */
   retainedTotal: string;
   /**
    * "The host is paid" — a FIXED SENTENCE, never a computed figure.
@@ -233,7 +243,7 @@ export async function loadOpsCancelImpact(
     cancellableBookingIds: agg?.cancellableBookingIds ?? [],
     refundTotal: formatMoney(refundCents, currency),
     // What FitOut keeps is the REMAINDER of what the bookers actually paid — never a re-derived
-    // percentage. Under the flipped constant the remainder is zero and the row honestly reads ₱0.00.
+    // percentage. Under the shipped D-236 basis the remainder is zero and the row honestly reads ₱0.00.
     retainedTotal: formatMoney(Math.max(0, totalCents - refundCents), currency),
     hostPaid: "Nothing",
     notCancellableCount,
