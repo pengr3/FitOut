@@ -20,10 +20,11 @@
 // "consistently" inline this because those are inlined.
 //
 // ── THE TWO DETECTION SITES, AND WHY THERE ARE TWO (D-242) ───────────────────────────────────────────
-//   1. `src/app/actions/listing.ts` `saveListingStep` — address, space type, capacity, price.
+//   1. `src/app/actions/listing.ts` `saveListingStep` — address, space type, capacity, price, and (since
+//      D-231's 2026-09-01 promotion) title and description. Six of the seven.
 //   2. `src/app/actions/listing-photo.ts` `persistPhoto` / `removePhoto` — photos.
-// D-231's own sentence says detection happens in `saveListingStep`, and for one of its own five fields
-// that sentence is not achievable: `draftSchema` (`src/lib/validation/listing.ts`) has no photos field
+// D-231's own sentence says detection happens in `saveListingStep`, and for one of its own fields that
+// sentence is not achievable: `draftSchema` (`src/lib/validation/listing.ts`) has no photos field
 // and `saveListingStep` never touches `listing_photo`, so a host could swap every photo on an approved
 // listing — the single highest-signal fake-listing edit there is — and the wizard's save action would
 // never run. Detection therefore lives in two places BY NECESSITY. Both sites say so, and each has its
@@ -78,16 +79,35 @@ export type ReReviewConn = PgDatabase<PostgresJsQueryResultHKT, typeof schema>;
 export type ReReviewTrigger = "listing_fields" | "listing_photos";
 
 /**
- * D-231's material field set: exactly the ROADMAP's five, no more and no fewer.
+ * D-231's material field set: the ROADMAP's original five, PLUS the two the PM promoted on 2026-09-01.
  *
- * ⚠ `title` and `description` are DELIBERATELY EXCLUDED, and that is a recorded gap rather than an
- * oversight: a fake listing lies in its words as much as in its fields. The exclusion holds the
- * ROADMAP's stated five as written; widening the set is a product decision, and it is carried as a
- * live deferred item in `.planning/REQUIREMENTS.md` § Deferred ("Title/description as material-edit
- * fields") and in 18-CONTEXT § Deferred Ideas. Anyone adding a sixth member here must add its
- * detection at the site that can see it AND a case in `tests/listing/material-edit.test.ts`; the
- * negative case in that file (a title/description-only edit does NOT flip) is what will go red first,
- * and it should be UPDATED rather than deleted, so the change is visible in a diff.
+ * ⚠ `title` and `description` WERE deliberately excluded, and that exclusion is OVER. It was a recorded
+ * gap rather than an oversight — held only to keep the ROADMAP's stated five as written — and it was
+ * carried as a live deferred item in `.planning/REQUIREMENTS.md` § Deferred and in 18-CONTEXT
+ * § Deferred Ideas until the PM closed it. **D-231 promoted both on 2026-09-01** (Phase 18.1, plan
+ * `18.1-03`), for the reason the deferred entry itself gave: a fake listing lies in its words as much
+ * as in its fields, and an approved listing whose prose is rewritten into a different space is exactly
+ * the approve-then-swap this module exists to catch. The two deferred entries were retired in the same
+ * plan; if you find one still standing, it is the stale copy, not this.
+ *
+ * ⚠ THE ACCEPTED COST — STATED PLAINLY SO NOBODY "FIXES" IT. A material edit flips `review_state` to
+ * `pending`, and `deriveBookable` requires `approved | grandfathered`, so A TYPO FIX IN A DESCRIPTION
+ * TAKES THE LISTING OFF THE MARKET until ops re-approves it. The PM ruled that acceptable on
+ * 2026-09-01, in preference to a "material but still sellable" variant that would need a state the
+ * sell-gate does not have. Do not soften it here, and do not soften it at either detection site: the
+ * softer path is a product decision that has already been made the other way.
+ *
+ * ⚠ PHOTO REORDER STAYS OUT, and that is not an omission: `reorderPhotos` changes which photo is the
+ * cover, not what the space IS — position is not content. `tests/listing/material-edit.test.ts` pins
+ * the no-op, and the same file's `persistPhoto` / `removePhoto` cases are what keep the `photos`
+ * member honest.
+ *
+ * Anyone adding an EIGHTH member here must add its detection at the site that can see it AND a case in
+ * `tests/listing/material-edit.test.ts`; the negative case in that file covering the new member is what
+ * will go red first, and it should be UPDATED rather than deleted, so the change is visible in a diff.
+ * That is exactly how these two landed — the file's own "a title + description edit does NOT flip" case
+ * was INVERTED in place on 2026-09-01, not removed, so a reader sees a decision rather than a
+ * regression.
  *
  * This tuple is documentation with a type, not a dispatch table — the two detection sites compare
  * concrete columns, because "address" is eight columns plus a PostGIS point and no string key could
@@ -99,6 +119,8 @@ export const MATERIAL_FIELDS = [
   "capacity",
   "photos",
   "price",
+  "title",
+  "description",
 ] as const;
 
 export type MaterialField = (typeof MATERIAL_FIELDS)[number];

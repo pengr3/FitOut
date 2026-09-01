@@ -217,19 +217,21 @@ export async function saveListingStep(
 
   // ── LVER-03 / D-231 / D-232 / D-249: MATERIAL-EDIT DETECTION — SITE ONE OF TWO. ────────────────────
   // Approval is not a permanent grant. A host who is approved and then changes what the space IS —
-  // where it is, what kind of space it is, how many people it holds, what it costs — has changed the
+  // where it is, what kind of space it is, how many people it holds, what it costs, and (since D-231's
+  // 2026-09-01 promotion) what it CALLS itself and how it DESCRIBES itself — has changed the
   // thing ops checked, so the listing goes back in the queue (D-232), and the SAME edit is the burn-down
   // path out of `grandfathered` (D-213) and the resubmission path out of a rejection (D-249). The flip
   // itself, its three source states and its history row live in `src/lib/listing/re-review.ts`; this
   // block's only job is to answer "did a MATERIAL field genuinely change?".
   //
   // ⚠ DETECTION LIVES IN TWO PLACES BY NECESSITY, AND THE OTHER ONE IS
-  // `src/app/actions/listing-photo.ts` (`persistPhoto` / `removePhoto`). D-231 names five material
-  // fields — address, space type, capacity, PHOTOS, price — and says they are detected here. For four of
-  // them that is true and this block is it. For photos it is structurally impossible: `draftSchema`
+  // `src/app/actions/listing-photo.ts` (`persistPhoto` / `removePhoto`). D-231 names seven material
+  // fields — address, space type, capacity, PHOTOS, price, title, description — and says they are
+  // detected here. For six of them that is true and this block is it. For photos it is structurally
+  // impossible: `draftSchema`
   // (`src/lib/validation/listing.ts`) carries no photos field, and this action never touches
   // `listing_photo` — photos are written by three separate actions in that other file. So D-231's own
-  // sentence is unachievable at the site it names for one of its own five fields (D-242), and the answer
+  // sentence is unachievable at the site it names for one of its own fields (D-242), and the answer
   // is NOT to quietly drop photos from the set: swapping every photo on an approved listing is the
   // single highest-signal fake-listing edit there is. Do not "consolidate" the two sites; neither can
   // see what the other sees. Each has its own anchor in `tests/listing/material-edit.test.ts`.
@@ -280,11 +282,33 @@ export async function saveListingStep(
     changed(d.extraHeadFee, owned.extraHeadFee) ||
     changed(d.included, owned.included);
 
-  // Title and description are NOT here. D-231 holds the ROADMAP's stated five and excludes them
-  // deliberately; it is a recorded gap, not an oversight, and it is carried as a live deferred item in
-  // `.planning/REQUIREMENTS.md` § Deferred — a fake listing lies in its words as much as its fields.
-  // `MATERIAL_FIELDS` in `re-review.ts` restates the same list beside the same note.
-  const materialEdit = addressChanged || spaceTypeChanged || capacityChanged || priceChanged;
+  // THE WORDS. Title and description ARE here, as of D-231's promotion on 2026-09-01 (Phase 18.1, plan
+  // `18.1-03`). They were deliberately outside the set until then — a recorded gap, not an oversight,
+  // carried as a live deferred item — and the PM closed it for the reason the deferred entry itself
+  // gave: a fake listing lies in its words as much as in its fields, and rewriting an approved
+  // listing's prose into a different space is the approve-then-swap this block exists to catch.
+  //
+  // ⚠ THE ACCEPTED COST, STATED SO NOBODY SOFTENS IT: the flip below sets `review_state = 'pending'`
+  // and `deriveBookable` requires `approved | grandfathered`, so A TYPO FIX IN A DESCRIPTION TAKES THE
+  // LISTING OFF THE MARKET until ops re-approves it. That was ruled acceptable over a "material but
+  // still sellable" variant, which would need a state the sell-gate does not have. Do not add a
+  // length threshold, a diff-size heuristic or a "trivial edit" escape here — each is that rejected
+  // variant wearing a smaller hat, and none of them is a decision this code path gets to make.
+  //
+  // Unlike photos, this site CAN see both fields: they are in `draftSchema` and they are written to
+  // `patch` below, so there is no second detection site for them. `MATERIAL_FIELDS` in `re-review.ts`
+  // restates the same seven beside the same note.
+  const titleChanged = changed(d.title, owned.title);
+
+  const descriptionChanged = changed(d.description, owned.description);
+
+  const materialEdit =
+    addressChanged ||
+    spaceTypeChanged ||
+    capacityChanged ||
+    priceChanged ||
+    titleChanged ||
+    descriptionChanged;
 
   // Build the editable-field patch. status / hostId / publishedAt are NOT here — they can never be
   // set via autosave (they aren't in draftSchema, and Zod strips any smuggled keys). updatedAt is
