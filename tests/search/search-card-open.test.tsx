@@ -223,6 +223,10 @@ function makeOpenRow(overrides: Partial<SearchResultRow> = {}): SearchResultRow 
     occupancyMode: "open_capacity",
     perHeadPriceCents: PER_HEAD_CENTS,
     spots: null,
+    // HVER-05 default OFF: this file pins the drop-in card's own copy and price line, so the check
+    // chip stays absent unless a case asks for it. A default of true would put a second chip on the
+    // type line of every assertion here for a reason none of them is about.
+    fitoutChecked: false,
     ...overrides,
   };
 }
@@ -242,6 +246,8 @@ function makeExclusiveRow(overrides: Partial<SearchResultRow> = {}): SearchResul
     occupancyMode: "exclusive",
     perHeadPriceCents: null,
     spots: null,
+    // Same default, same reason as `makeOpenRow` above.
+    fitoutChecked: false,
     ...overrides,
   };
 }

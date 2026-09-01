@@ -438,6 +438,36 @@ describe("searchListings — bookable gate (D-16, deriveBookable parity, Pitfall
     ]);
   });
 
+  it("badges ONLY the row a person checked — the grandfathered catalogue is sellable and UNBADGED (HVER-05 / D-212)", async () => {
+    // THE WHOLE OF D-212 ON THE SEARCH SURFACE, over the fixtures that already exist rather than a
+    // second fixture set: three rows that are all BOOKABLE, of which exactly one was ever looked at
+    // by a person. "May be sold" and "was checked" are different questions, and this is the case that
+    // holds them apart end-to-end — through the real SQL, the real `toRow`, and the real predicate.
+    //
+    // `gate_lr_grandfathered` is the sharp one: its HOST is `approved` and only the LISTING is
+    // grandfathered, so a host-only badge rule would badge a listing nobody has ever checked. It is
+    // also the shape most of the day-one catalogue arrives in (D-207).
+    const { results } = await searchListings(testDb.db, searchParamsSchema.parse({}));
+    const byId = new Map(results.map((r) => [r.id, r]));
+
+    // Asserted first, and this is the half a "fix" would delete: all three still APPEAR. The chip is
+    // not a filter, and a search grid that quietly dropped the unbadged rows would take the majority
+    // of the catalogue off sale.
+    for (const id of ["gate_pub", "gate_lr_grandfathered", "gate_hv_grandfathered"]) {
+      expect(byId.has(id), `${id} left the result set — the badge is not a filter`).toBe(true);
+    }
+
+    expect(byId.get("gate_pub")!.fitoutChecked).toBe(true);
+    expect(
+      byId.get("gate_lr_grandfathered")!.fitoutChecked,
+      "a grandfathered LISTING under an approved HOST was badged — nobody checked that listing",
+    ).toBe(false);
+    expect(
+      byId.get("gate_hv_grandfathered")!.fitoutChecked,
+      "an approved listing under a grandfathered HOST was badged — nobody checked that account",
+    ).toBe(false);
+  });
+
   it("every listing_review_state and every host_verification_status value is some fixture's own single reason", () => {
     // Derived from the pgEnums, never from a hand-kept list: adding a value to either enum reddens this
     // and forces a fixture (and therefore a decision) for it. D-226's warning is exactly this — extend

@@ -18,6 +18,7 @@ import { sql } from "drizzle-orm";
 import { TZDate } from "@date-fns/tz";
 import { getAvailability, type DbConn } from "@/lib/availability/read-model";
 import { allInRateParts } from "@/lib/booking/all-in-rate";
+import { isFitoutChecked } from "@/lib/listing/fitout-check";
 import type { SearchParams } from "@/lib/validation/booking";
 import { parsePickedDate, parseWindowHour } from "./window-params";
 
@@ -53,6 +54,15 @@ export type SearchResultRow = {
    * card (OC-11 / 09-UI-SPEC "The state must be SERVER-DERIVED").
    */
   spots: { remaining: number; cap: number; state: "open" | "low" | "full" } | null;
+  /**
+   * HVER-05 / D-212 — has a person at FitOut checked BOTH this host's account and this listing?
+   *
+   * A finished BOOLEAN, reduced by `isFitoutChecked` in `toRow` below and never in the card. The card
+   * is rendered from a `"use client"` shell, so shipping the two statuses to it would put the D-212
+   * distinction in the browser — where a component that has been told which rows are grandfathered is
+   * a component that can badge them. It is never told.
+   */
+  fitoutChecked: boolean;
 };
 
 export type SearchResult = { results: SearchResultRow[]; hasMore: boolean };
@@ -82,6 +92,10 @@ type RawRow = {
   distance_m: number | null;
   occupancy_mode: string | null;
   per_head_price_cents: number | null;
+  // HVER-05 / D-212. Both terms of the check rule, and NEITHER is a filter — see the SELECT's own
+  // comment, which is where the reason for reading them at all is written down.
+  review_state: string | null;
+  host_verification_status: string | null;
 };
 
 function toRow(r: RawRow): SearchResultRow {
@@ -110,6 +124,11 @@ function toRow(r: RawRow): SearchResultRow {
     perHeadPriceCents: r.per_head_price_cents,
     // Stage-2 fills this for an open listing on a picked date; it stays null everywhere else (OC-12).
     spots: null,
+    // HVER-05 / D-212 — reduced HERE, server-side, for `allInRateParts`'s reason three fields up:
+    // composing on the server is what guarantees two surfaces cannot disagree. The listing page runs
+    // the SAME `isFitoutChecked` over the same two columns, so a card and the page it links to can
+    // never differ about whether FitOut checked the listing. The card receives the answer only.
+    fitoutChecked: isFitoutChecked(r.host_verification_status, r.review_state),
   };
 }
 
@@ -195,6 +214,17 @@ export async function searchListings(
     SELECT
       l.id, l.title, l.primary_space_type, l.hourly_rate_cents, l.day_rate_cents, l.timezone, l.city,
       l.occupancy_mode, l.per_head_price_cents,
+      -- HVER-05 / D-212 — SELECTED PURELY TO TELL 'approved' FROM 'grandfathered'. THESE TWO COLUMNS
+      -- ARE NOT A FILTER AND CAN NEVER BECOME ONE HERE. The WHERE clause below already admits exactly
+      -- the two values on each of them, so every row this query returns is 'approved' or
+      -- 'grandfathered' on both — reading them changes nothing about WHICH rows come back. They are
+      -- read for one purpose: deciding whether the card may say a person at FitOut checked this
+      -- listing (isFitoutChecked, in toRow).
+      -- ⚠ DELETING EITHER AS "REDUNDANT WITH THE WHERE CLAUSE" SILENTLY BADGES THE ENTIRE
+      -- GRANDFATHERED CATALOGUE — rows marked by a migration (D-207) that nobody has ever checked, and
+      -- the majority of the catalogue on day one. That is the whole reason this comment is here rather
+      -- than nowhere.
+      l.review_state, hv.status AS host_verification_status,
       (SELECT lp.url FROM listing_photo lp
          WHERE lp.listing_id = l.id ORDER BY lp.position ASC LIMIT 1) AS cover_photo_url,
       ${distanceSelect} AS distance_m

@@ -40,6 +40,7 @@ import { format } from "date-fns";
 
 import { ResultCard } from "@/components/patterns/result-card";
 import { DropInBadge } from "@/components/listing/drop-in-badge";
+import { FitoutCheckBadge } from "@/components/listing/fitout-check-badge";
 import { SpotsLeftChip } from "@/components/availability/spots-left-chip";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
 import type { SearchResultRow } from "@/lib/search/query";
@@ -260,11 +261,31 @@ export function SearchResultCard({
       }
       title={title}
       meta={meta}
-      /* `Gym · [Drop-in]` — the badge sits INLINE on the space-type line, deliberately NOT as an overlay
-         on the cover photo: contrast over arbitrary host photography is unreliable in both themes, and
-         this card is a text-forward layout (09-UI-SPEC § 4). The pattern enforces the placement; this
-         call site only decides whether there is a badge at all. */
-      badges={isDropIn ? <DropInBadge /> : undefined}
+      /* `Gym · [Drop-in] [Checked by FitOut]` — the badges sit INLINE on the space-type line,
+         deliberately NOT as an overlay on the cover photo: contrast over arbitrary host photography is
+         unreliable in both themes, and this card is a text-forward layout (09-UI-SPEC § 4). The pattern
+         enforces the placement; this call site only decides whether there is a badge at all.
+
+         TWO CHIPS NOW, AND NO LAYOUT CHANGE: the pattern renders this slot inside a
+         `flex flex-wrap items-center gap-2` type line, so a second chip wraps rather than crowds
+         (`result-card.tsx:157-162`).
+
+         HVER-05 / D-212 — `fitoutChecked` arrives as a FINISHED BOOLEAN from `toRow` (server-side).
+         This file never sees a review state or a host status, so it cannot badge a grandfathered
+         listing: it is not told which rows are grandfathered. The condition below is only about
+         whether the slot is empty.
+
+         `undefined` when there is neither chip, not an empty fragment: the pattern renders the type
+         line when `meta.length > 0 || badges`, so a truthy-but-empty node would paint a blank row on a
+         tile with no meta. */
+      badges={
+        isDropIn || listing.fitoutChecked ? (
+          <>
+            {isDropIn ? <DropInBadge /> : null}
+            <FitoutCheckBadge checked={listing.fitoutChecked} />
+          </>
+        ) : undefined
+      }
       /* THE PRICE AND ITS QUALIFIER ARE ONE NODE. D-ELM-01 requires them contiguous ("the single unit
          they are"), and `ResultCard` renders `price` last with `tabular-nums`. Passing the qualifier as
          a block span INSIDE that node makes the contiguity structural rather than positional — nothing

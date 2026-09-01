@@ -90,6 +90,9 @@ function makeRow(id: string, title: string): SearchResultRow {
     occupancyMode: "exclusive",
     perHeadPriceCents: null,
     spots: null,
+    // HVER-05: this file is about the relaxation band and the empty/loading states, not about the
+    // chip, so the row is unbadged — the same shape the grandfathered catalogue arrives in.
+    fitoutChecked: false,
   };
 }
 

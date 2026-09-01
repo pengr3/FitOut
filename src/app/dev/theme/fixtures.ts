@@ -288,6 +288,11 @@ export const RESULT_CARD: ComponentProps<typeof SearchResultCard>["listing"] = {
   occupancyMode: "open_capacity",
   perHeadPriceCents: 35000,
   spots: { remaining: 3, cap: 24, state: "low" },
+  // TRUE on purpose (HVER-05): this fixture is a drop-in listing, so the type line carries BOTH chips
+  // — which is the arrangement worth having on a design surface. The pattern wraps them on one
+  // `flex flex-wrap` row, and at the 320px floor that wrap is the thing a reviewer needs to be able to
+  // look at. A false here would render the same single-chip line the drop-in fixture already shows.
+  fitoutChecked: true,
 };
 
 /** The searched day the card was reached from — the same frozen calendar day the slot grid uses. */
