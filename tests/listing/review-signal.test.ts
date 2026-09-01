@@ -33,6 +33,7 @@ import {
   REVIEW_SIGNAL,
   SILENT_REVIEW_STATES,
   SUSPENDED_HOST_SIGNAL,
+  composeFrozenSessionSentence,
   composeReviewSentence,
   composeSuspendedSentence,
   reviewSignalFor,
@@ -41,6 +42,16 @@ import {
 /** A stored operator sentence, in the shape `ops-review.ts` actually writes: a taxonomy line plus a note. */
 const OPERATOR_SENTENCE =
   "The photos don't match the address on this listing. Re-shoot the space and resubmit.";
+
+/**
+ * A frozen session's two facts, as `loadFrozenPayoutSummary` resolves them (D-260).
+ *
+ * The date is already FORMATTED here because that is how the composer receives it in production —
+ * `src/lib/host/frozen-payouts.ts` owns the `Intl.DateTimeFormat` call, and this file's job is to scan
+ * the sentence a host actually reads, not the template it came from.
+ */
+const FROZEN_SPACE = "Kalayaan Court B";
+const FROZEN_DATE = "Aug 26, 2026";
 
 describe("REVIEW_SIGNAL — the four review states a host can be in (18-UI-SPEC § Every state that is NOT the badge)", () => {
   it("(1) `pending`: the chip, the reason, and NO way out — the absence is the decision", () => {
@@ -176,6 +187,11 @@ describe("the banned language — what no host surface may say (D-243 / D-250 / 
     SUSPENDED_HOST_SIGNAL.reason,
     composeReviewSentence(REVIEW_SIGNAL.rejected, OPERATOR_SENTENCE),
     composeSuspendedSentence(OPERATOR_SENTENCE),
+    // D-260's frozen-session sentence, BOTH forms, COMPOSED rather than quoted. The scan reads what
+    // the host reads: a template that was safe with a placeholder in it and unsafe once a real count
+    // and a real date landed is exactly the drift a corpus of templates would miss.
+    composeFrozenSessionSentence(1, FROZEN_SPACE, FROZEN_DATE),
+    composeFrozenSessionSentence(3, FROZEN_SPACE, FROZEN_DATE),
   ].filter((s) => s.length > 0);
 
   /**
@@ -226,7 +242,9 @@ describe("the banned language — what no host surface may say (D-243 / D-250 / 
     // A scan of nothing agrees with an empty violation list perfectly — this repository's most-recorded
     // failure mode. Both halves: the corpus is non-empty, and each pattern is proved live against a
     // fixture that SHOULD trip it.
-    expect(HOST_VISIBLE.length).toBeGreaterThanOrEqual(7);
+    // The floor MOVES WITH THE CORPUS — 7 → 9 when D-260's two composed forms joined it. A floor left
+    // behind is a floor that stops noticing a whole family of strings dropping out of the scan.
+    expect(HOST_VISIBLE.length).toBeGreaterThanOrEqual(9);
 
     const tripwires = [
       "Contact us to appeal this decision.",
@@ -247,5 +265,37 @@ describe("the banned language — what no host surface may say (D-243 / D-250 / 
       expect(text).not.toMatch(/<[a-z/]/i);
       expect(text).not.toContain("&#");
     }
+  });
+
+  it("(14) the frozen-session sentence dates the session ABSOLUTELY and trips no duration pattern", () => {
+    // D-260's sentence is the one host-facing string in this module that carries a DATE, which puts it
+    // one word away from family 3 — "3 days ago" is the natural phrasing and it is banned twice over:
+    // as a timeline nothing agrees to keep, and as a figure that changes every time the host reloads a
+    // page about their own money. Case (11) already scans both forms; this case says WHY they are safe
+    // rather than leaving it to a pattern that happens not to fire.
+    const one = composeFrozenSessionSentence(1, FROZEN_SPACE, FROZEN_DATE);
+    const many = composeFrozenSessionSentence(3, FROZEN_SPACE, FROZEN_DATE);
+    const DURATION_FAMILY = BANNED[2];
+
+    for (const sentence of [one, many]) {
+      expect(sentence).toContain(FROZEN_SPACE);
+      // An absolute calendar date — a month name, a day and a FOUR-DIGIT YEAR. A relative phrase
+      // cannot satisfy this, and neither can a bare "Aug 26" that would read differently in January.
+      expect(sentence).toMatch(/\b[A-Z][a-z]{2} \d{1,2}, \d{4}\b/);
+      expect(
+        DURATION_FAMILY.pattern.test(sentence),
+        `the frozen-session sentence matched ${DURATION_FAMILY.pattern}: "${sentence}"\n` +
+          `banned because: ${DURATION_FAMILY.why}`,
+      ).toBe(false);
+    }
+
+    // The two forms are genuinely different sentences, not one with a pluralised noun: the singular
+    // names the only session there is, the plural names the TOTAL and then singles out the earliest.
+    expect(one).not.toContain("earliest");
+    expect(many).toContain("3 sessions");
+    expect(many).toContain("earliest");
+
+    // And neither of them, nor the sentence above them, names what unfreezes it (D-260 / D-263).
+    expect(SUSPENDED_HOST_SIGNAL.wayOut).toBeNull();
   });
 });
