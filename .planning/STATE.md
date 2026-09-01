@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 18-13-PLAN.md (Wave 7 — the host-facing review and suspension signals; **LVER-02's third clause closed**, which 18-04 deliberately left open). `src/lib/listing/review-signal.ts` is the copy: `pending` -> **In review** with NO way out (a decision, not an omission — there is nothing the host can do), `rejected` -> **Not approved** + the operator's sentence verbatim + **Edit this listing**, which is TRUE ONLY because D-249/18-06 flips `rejected -> pending` on a material edit and the dependency is recorded at the site. `SILENT_REVIEW_STATES` declares `approved`/`grandfathered`/`withdrawn` as saying NOTHING, each with its reason, and its total `Record<Exclude<ListingReviewState, keyof typeof REVIEW_SIGNAL>, string>` is a **COMPILER CENSUS** — a sixth enum value fails `tsc` until somebody decides in writing whether the host is told. The review state joined `statusBadge()` (ONE CHIP PER CARD) as a REQUIRED third parameter and a REQUIRED field on `ListingCardData`; `tsc` went red at both construction sites and each was answered. ⚠ `status === "published"` gates the chip because `review_state` DEFAULTS to `pending`, so **every draft carries it** — a draft badged In review would claim FitOut is checking something never submitted. **D-252 ruled in after the plan was written and is DONE**: a suspended host is told on `/host`, `/host/listings` AND `/host/earnings`, through ONE component (`HostingPausedNotice`, `PanelCard tone=muted` — the declared advisory surface, never the alerting one) and ONE owner-scoped read (`loadHostVerification`, which REPLACED the listings page's inline copy — one fewer duplication, not one more). ⚠ **D-156's earnings freeze was NOT weakened and NOT edited**: `earnings-freeze.test.ts` pins every string a host reads there and this change adds NONE. ⚠ **D-253 honoured in the same commit** — `payout-suspension-freeze.test.ts` +2 cases pinning that `loadHostVerification().suspended` agrees with `queryDuePayouts` across every value of the enum, because the notice's *payouts are on hold* clause is true only while the freeze holds and there is no compiler census over that column. `site.ts` and `site-contacts.test.ts` **byte-unchanged** (D-250); `public-listing.ts` **byte-unchanged** — `assertPublicListing` is still SESSION-FREE, which was 18-04's closing instruction to this plan. Pinned inventories moved IN THE SAME COMMIT: host-tone-census gained a SECOND declared set (files carrying a new host-facing state sentence, measured at ZERO alarm occurrences — strictly stronger, and `listing-card.tsx` is deliberately NOT in it because its one occurrence is the DELETE action), and live-regions' `PHASE_14_SURFACE_FILE_COUNT` **20 -> 21**, watched red first. MUTATION PROOF: the grandfathered branch made to emit a chip -> `expected [ 'Grandfathered' ] to deeply equal [ 'Live' ]`; reverted, 15/15. MANUAL CHECK transcribed (dev server + a suspended seeded host): all three surfaces render *Hosting paused* + the operator's sentence once, no way-out control, zero banned phrases; the grid renders *Not approved* + the reason + an **Edit this listing** anchor to the wizard and *In review* with no anchor — and React escaped the operator's apostrophes to `&#x27;`, which is the text-node proof. TENTH acceptance-grep collision recorded (the component's own prohibition comment spelled a banned word; reworded). Commits `49a349f` + `ceabf9d` + `9e2b570`. Suite after: tsc **0**; `npm run build` exit **0**; `npm test` **207 files / 2485 passed** / 5 skipped (baseline 2465; +20 is exactly this plan's 13+5+2); `npm run test:design` **73 / 1331 / 3** (baseline 1329; +2 is exactly this plan's). E2E re-run BY HAND (D-24): host-dashboard/host-headings/mode-switch/one-tree **42 passed**, overflow-320+axe-sweep+shell+skeleton-geometry **203 passed / 46 skipped**, keyboard-composites **6 passed**. ⚠ TWO e2e TEARDOWNS fail with a `listing_review` RESTRICT FK — **both assertions PASS**, the cause is 18-06's material-edit write meeting D-221's restrict, it is NOT this plan's and it is logged as deferred **D6** with both transcripts. ⚠ **The D-250 blocking input is still OPEN and is the PM's one line**: `SUPPORT_EMAIL` is null, every sentence shipped here stands without it, and setting it also closes the carried-forward `STATE-05` / `TRUST-01`. Next — 18-14 (the LAST plan: HVER-04's vendor comparison and OPS-02's still-owed status-line curl audit).
-last_updated: "2026-09-01T05:35:00.000Z"
-last_activity: 2026-09-01 — 18-13 executed (3 tasks, 3 commits): the host is finally told what happened, on the surfaces they already visit. A rejection the host cannot read is not a decision, it is a disappearance — and this plan's harder half is the two states with NO way out, where saying so plainly beats inventing a control that acts on nothing. The silence for `grandfathered` is DECLARED with its reason and mutation-proved, not defaulted. D-252 was ruled in mid-phase and is done: a suspended host now learns it on `/host/earnings`, where the pre-claim payout freeze means a delivered session produces no ledger line at all. Two frozen gates were respected rather than edited — D-156's earnings string freeze stayed green because the change adds no host-readable literal to it, and D-250's null support address stands with every sentence written to need none. Two pinned inventories moved in the same commit as the surface that moved them, one of them watched red first.
+stopped_at: "Completed 18-14-PLAN.md (Wave 8 — the phase's LAST plan). OPS-02's four production-build status-line readings are on the record at 18-EVIDENCE.md § P1 (200/404/404/404, second pass identical, nonexistent-route control included, zero 'Ops' in every 404 body, readings 2 and 3 byte-identical) — PLUS ONE FINDING recorded rather than tuned away: a header-level 404 oracle (x-nextjs-prerender on an unrouted path vs chunked on a matched notFound()) survives the status line, is app-wide, is identical on /listings/[id], and is NOT introduced by 18-12. HVER-04's 18-KYC-VENDOR-COMPARISON.md is written for the PM verdict-first with the D-225 re-coupling argument before any price; A1 was RE-PROBED (identical to 2026-07-23) and moves to [PROBED]. D-254 shipped as drizzle/0029 — listing_review.listing_id cascades, both e2e teardowns re-run BY HAND and green, deferred-items D6 CLOSED. Gates each run ALONE: tsc 0, npm test 207/2485/5, test:design 73/1331/3, build exit 0, git diff --exit-code src/ clean. ⚠ THE BLOCKING PM CHECKPOINT IS OPEN — all five items deferred 2026-09-01, D-236 leading. Next: the phase verifier."
+last_updated: "2026-09-01T06:11:22.079Z"
+last_activity: 2026-09-01 — 18-14 executed (3 commits), the phase's LAST plan. OPS-02's status line is finally a NUMBER rather than an argument — 200 staff / 404 non-staff / 404 signed-out / 404 on the nonexistent `/ops/xyz` control, taken under a production build because a dev reading cannot settle it. HVER-04's vendor fork is written for the PM, verdict-first, with A1 re-probed rather than assumed. D-254 shipped. ⚠ The blocking PM checkpoint is OPEN — five items, D-236 leading — and the phase VERIFIER has not run.
 progress:
   total_phases: 14
   completed_phases: 11
   total_plans: 163
-  completed_plans: 162
+  completed_plans: 163
   percent: 79
 ---
 
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 18 — Host Verification, Listing Review & FitOut Ops (EXECUTING)
-Plan: 13 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
-Status: Executing — next is 18-14
-Last activity: 2026-09-01 — 18-12 executed: the `/ops` route. ONE page, hosts and listings interleaved oldest-first, everything needed to decide on the same screen — behind `assertStaff()` in the layout ABOVE the Suspense boundary (the only layer that can still set the 404 status line), `requireStaff()` in the page, and `requireStaff()` first in all six ops actions. **No `(ops)` `not-found.tsx`**; refusal is `notFound()` everywhere. `OPS_QUEUE_ROW_HEIGHT` = `h-132 lg:h-211`, measured at ten widths in both themes (526.13px at 320, 842.09px at 1024 and above, the two themes identical to the hundredth of a pixel). **The status-column cap was PROBED and refused**: `max-w-28` costs +12px at every width including 1280 because it wraps the lead, and no cap value avoids that — logged as deferred D3, where the honest fix is copy rather than a constant. Three pinned inventories moved in the SAME commit as the route (loading-coverage 34/22/12, the third measured by staying green; error-boundaries 5→6; empty-state adopters 14/17→15/18 — the plan and the UI-SPEC both named the WRONG three constants, and the three they named were asserted unchanged). AC#24 widened from one work queue to two in words, and its count became a set. `ops-guard-coverage.test.ts` pins the three layers with three watched REDs and says out loud that it cannot see a status line. ⚠ **OPS-02's status-line audit is still OWED — 18-14's first task.**
+Plan: 14 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
+Status: **All 14 plans executed. NOT complete** — the phase verifier has not run, and 18-14's blocking PM checkpoint is OPEN (five items, D-236 leading; see Deferred Items).
+Last activity: 2026-09-01 — 18-14 executed (3 tasks + 1 ruled scope addition, 3 commits). OPS-02's last clause — *a non-staff caller cannot distinguish an ops route from one that does not exist* — is a claim about four numbers, and this repo has no instrument that can read one (`tests/design/soft-404-status.test.ts:31-39` says so in its own words). So it was read by hand under a PRODUCTION build of `8520721`, Next 16.2.7, `next start -p 3100`: **200 / 404 / 404 / 404**, second pass identical, with the nonexistent-`/ops/xyz` CONTROL that makes the equality mean anything. Bodies too: zero occurrences of `Ops` in all three 404s, and readings 2 and 3 **byte-identical** (same sha256) — a prober cannot even tell *not-staff* from *not-signed-in*. ⚠ **ONE FINDING recorded rather than tuned away:** an unrouted path is served from the prerendered static 404 (`x-nextjs-prerender: 1`, `x-nextjs-cache: HIT`, `Content-Length: 29644`) while a matched route that throws `notFound()` is served chunked with no `x-nextjs-*` headers (25970 bytes), so a header-level existence oracle survives the status line. Measured IDENTICALLY on `/listings/[id]` — app-wide, pre-existing, NOT introduced by 18-12, and invisible until now because 17.1 § P1 deliberately captured no bodies. Filed, not fixed. HVER-04's `18-KYC-VENDOR-COMPARISON.md` is written for the PM as a fork, leading with the D-225 re-coupling argument BEFORE any price (PayMongo's activation IS the payouts gate); **A1 was RE-PROBED**, 40 days on — `GET /v2/wallets?status=activated` still HTTP 200 with zero wallets, `GET /v2/transfers/receiving_institutions` still HTTP 404, Platforms doc page still 404 on both hosts — moving it from `[ASSUMED]` to `[PROBED]`. D-254 shipped as `drizzle/0029`: `listing_review.listing_id` cascades, both e2e teardowns re-run BY HAND and green, `deferred-items` D6 CLOSED. Gates each run ALONE: tsc **0**, `npm test` **207 files / 2485 / 5 skipped**, `test:design` **73 / 1331 / 3**, build exit **0**, `git diff --exit-code src/` clean after the readings.
 
 <details><summary>Previous activity (18-12, superseded)</summary>
 
@@ -373,8 +373,77 @@ deferred walk is inconsistent rather than honest.*
 | Phase 17.1 P06 | 52min | 3 tasks | 4 files |
 | Phase 17.1 P07 | 55min | 3 tasks | 5 files |
 | Phase 18 P09 | 26min | 3 tasks | 16 files |
+| Phase 18 P14 | ~110 min | 3 tasks | 5 files |
 
 ## Accumulated Context
+
+### The status-line audit, the vendor fork & D-254 — decisions taken during execution (18-14)
+
+- **A claim about an HTTP status line got an HTTP status line, and the CONTROL is the load-bearing
+  reading.** `/ops` answers **200** to staff and **404** to a non-staff session, a signed-out caller
+  **and** to `/ops/xyz`, which is not a route at all. Any one of those three 404s proves nothing on its
+  own — an app 404ing wholesale reads identically. **It is the equality of the three, against a reading
+  1 that differs, that is OPS-02's last clause.** Taken under `next start`, never `next dev`, because
+  `page.tsx`'s required `loading.tsx` is a Suspense boundary that commits 200 before a page-level
+  `notFound()` can run. Full transcript at `18-EVIDENCE.md § P1`, which says in its own closing that it
+  is a **one-time audit and not a gate**, and names `tests/design/ops-guard-coverage.test.ts` as the
+  ongoing per-commit pin (Pitfall 9).
+
+- **⚠ A HEADER-LEVEL EXISTENCE ORACLE SURVIVES THE STATUS LINE — recorded, filed, NOT fixed and NOT
+  explained away.** An **unrouted** path is served from the prerendered static 404
+  (`x-nextjs-prerender: 1`, `x-nextjs-cache: HIT`, `Content-Length: 29644`); a **matched** route that
+  throws `notFound()` is served dynamically (`Transfer-Encoding: chunked`, no `x-nextjs-*` headers,
+  25970 bytes). Stable over three repetitions. **It is app-wide and pre-existing** — measured
+  identically on `/listings/[id]`, the very route 17.1 § P1 blessed — so 18-12 did not introduce it,
+  and no ops-side change can close it (a `(ops)/not-found.tsx` changes which body renders, not whether
+  the response is prerendered). It was invisible until now only because **17.1 § P1 deliberately
+  captured no bodies** (`curl -o /dev/null`, T-17.1-01's own mitigation). New information, not a new
+  defect. OPS-02 as this project operationalises it — a claim about the status line — is **met**.
+
+- **A research ASSUMPTION was re-probed rather than carried into a decision document.** Assumption A1
+  ("PayMongo Platforms is *still* sales-gated") cost two read-only GETs to settle, and the Assumptions
+  Log itself recommended it. 40 days after the original: `GET /v2/wallets?status=activated` → HTTP 200
+  with zero wallets, `GET /v2/transfers/receiving_institutions?provider=instapay` → HTTP 404, and
+  `docs.paymongo.com/docs/paymongo-platforms` → 404 on both hosts. Identical to 2026-07-23. That is
+  what lets `18-KYC-VENDOR-COMPARISON.md` argue against PayMongo from **observed behaviour** rather
+  than from a citation — which was the whole point of naming `refund-rail.ts` as the tonal model. **No
+  POST was issued; nothing was created on the PayMongo account.**
+
+- **The vendor doc leads with the structure and the price comes after, because the price argues the
+  other way.** PayMongo's marginal cost is ≈₱0 and its storage story is the best of the three (hosted
+  redirect — the ID never touches FitOut). It is still the wrong answer, because **PayMongo's
+  activation IS the payouts gate**: choosing it collapses the fifth and sixth sell-gate terms back into
+  the third, which is exactly the coupling **D-225** exists to break, and back to a gate that in
+  production never turns true on its own merits. A cheaper option that undoes the phase is not cheaper.
+
+- **D-254: a constraint whose entire observable effect was breaking test teardown is not protecting
+  anything.** `listing_review.listing_id` was `restrict` under D-221 on the reasoning that a review
+  decision is an audit record. That property is **already guaranteed, and better**, by the D-218
+  `audit` row whose `actor_id` deliberately carries no FK (D4) so the trail outlives its subject. It
+  was also the ONLY `restrict` among seven listing-child FKs, and `softDeleteListing` means production
+  never hard-deletes a listing — so the rule only ever fired on two e2e fixtures that **passed their
+  assertions and failed their teardown**. Now `cascade`, via `drizzle/0029`, hand-authored as a **NEW**
+  file (D-251's frozen digest covers `0000–0025` only, and both gates assert `>=`). ⚠ The rejected fix
+  is written into the schema site: **do not make the fixtures soft-delete** — that hides the constraint
+  and the next hard delete meets the same wall.
+
+- **The first red after the FK change was a flake, and it is recorded rather than quietly re-run.**
+  `keyboard-composites.spec.ts` failed twice on its first pass — both at `seedWizardHost`'s
+  `getByRole("radio", { name: "Host a space" })` timing out on a cold dev-server compile, an entirely
+  different error from the FK one. Re-run alone: **7 passed**, including `:1502`. This is the project's
+  own "never trust the first red" rule being obeyed in public.
+
+- **⚠ gsd-sdk v1.42.3 over-reached again, exactly as the project memory predicts, and was repaired by
+  hand.** `state.advance-plan` set `total_phases` 14 → **15**, `completed_phases` 11 → **12** (Phase 18
+  is NOT complete — the verifier has not run), `completed_plans` 162 → **168** (a fabricated +6 over a
+  `total_plans` of 163), `percent` 79 → 80, flattened `last_activity` to a bare date, and set `Status`
+  to "Ready to execute". `roadmap.update-plan-progress 18` additionally stamped the phase row
+  **Complete · 2026-09-01**. All reverted by hand and the diff read line by line; the ROADMAP row now
+  reads *"All plans executed — verifier not yet run; 18-14's PM checkpoint OPEN"* and the phase
+  checkbox was never ticked. `state.update-progress` returned *"Progress field not found in STATE.md"*
+  and no-op'd. `state.record-metric` and `state.add-decision` both refuse positional args and need
+  named flags; `add-decision` stamps `[Phase ?]:`. **Phase completion is the verifier's call, not a
+  plan's.**
 
 ### Host-facing review & suspension signals — decisions taken during execution (18-13)
 
@@ -382,26 +451,32 @@ deferred walk is inconsistent rather than honest.*
   builds `/host/listings/{id}/edit` for its per-card Edit control, so a second spelling in the copy
   module would have been two places for the wizard route to be wrong. The signal owns the words; the
   surface owns the route.
+
 - **`SILENT_REVIEW_STATES` is a compiler census, and it is the shape worth copying.** A total
   `Record<Exclude<ListingReviewState, keyof typeof REVIEW_SIGNAL>, string>` means a sixth review state
   fails `tsc` until somebody writes down whether the host is told about it. The alternative — a lookup
   that returns nothing for anything it does not recognise — makes a new decision state silent BY
   ACCIDENT, which is the exact class of defect this whole plan closes one instance of.
+
 - **`status === "published"` gates the review chip, and it is load-bearing rather than tidy.**
   `listing.review_state` DEFAULTS to `pending`, so EVERY DRAFT carries it. Without that term a draft
   would be badged *In review* — telling a host FitOut is checking something they never submitted.
+
 - **The reason line renders INSIDE the card, not beneath it.** The plan said "beneath each affected
   card"; the grid is a CSS grid, so a sibling `<p>` after `<ListingCard>` becomes its own grid item.
   Inside the card, beside the shipped hours notice, is the same fact rendered correctly.
+
 - **`loadHostVerification` REPLACED the listings page's inline read rather than joining it.** D-243 and
   D-252 gave that read two more consumers; three surfaces spelling `status === "suspended"` themselves
   is three chances to spell it as a negation, which would raise the paused notice for `rejected` and
   `pending` too. Net duplication: one fewer, not one more.
+
 - **D-156's earnings freeze was respected by ADDING NO LITERAL, and that is stated rather than assumed.**
   `earnings-freeze.test.ts` pins every string a host can read on `/host/earnings`. The suspension
   sentence has one owner (`review-signal.ts`) and one presenter (`HostingPausedNotice`); the page
   decides only WHERE it goes, so the gate stayed green and unmodified. The gate's own blind-spot list
   names copy-relocated-to-a-third-directory, so this is recorded here rather than left to look clever.
+
 - **The suspension signal offers NO way out, and D-252's "the way out is a FitOut ops review" was read
   as a REASON, not as copy.** No sentence was added beyond the locked UI-SPEC and 18-09's payload: a
   line naming a forthcoming review is a promise of a reply in all but wording, and 999.6 is out.
@@ -414,19 +489,21 @@ deferred walk is inconsistent rather than honest.*
   in their inbox) and D-86 (the host has READ it; a later re-wording must not retroactively change the
   durable record of what they were told). `composeOpsDecisionBody` is the ONE join and all three readers
   CALL it — the compiler counts callers, not restatements.
+
 - **`src/lib/notification-copy.ts` exists because of the CLIENT GRAPH.** `notification-item.tsx` is pulled
   into the browser bundle by `notification-bell.tsx`, so a value-import of `src/lib/notifications.ts` from
   there would drag the Inngest SDK and the Drizzle table objects with it. The new module imports nothing.
+
 - **A rejected LISTING is offered no way back, deliberately.** D-232 flips `approved`/`grandfathered` →
   `pending` on a material edit and says nothing about `rejected`; 18-UI-SPEC flags the gap and asks the
   plan to pick. This plan picked the honest option: state the consequence, promise nothing. Offering the
   edit route before D-232 covers it would be an appeal promise by another name. **If 18-13 or a later plan
   extends D-232 to `rejected`, this copy can and should gain the route.**
+
 - **`sentence` = 400, `label` = 200, and the difference is arithmetic not taste.** `composeReason` yields
   up to 338 characters (a 57-char taxonomy sentence + a 280-char note). Any future payload field holding
   operator prose needs the wider bound; a `label` would throw at the write boundary on valid input, and no
   existing test would catch it because they all use short reasons.
-
 
 ### Payout-freeze decisions taken during execution (18-07)
 
@@ -436,6 +513,7 @@ deferred walk is inconsistent rather than honest.*
   clause is true *by construction* rather than by a second check. The test that distinguishes this from a
   post-claim refusal is a `COUNT(*)` of 0 against the ledger, not an empty `queryDuePayouts` result: a
   post-claim `if` passes the second assertion and fails the first. Mutation-proved (5F/3P).
+
 - **`processing` IS NOT FROZEN, AND THE NEGATIVE IS PINNED SO A LATER "COMPLETION" FAILS LOUDLY.**
   `reconcileOne` polls transfers that have ALREADY fired; the money has already left the platform wallet.
   A stuck `processing` row on a suspended host is a real stranded transfer and must still page. Extending
@@ -443,12 +521,14 @@ deferred walk is inconsistent rather than honest.*
   and nothing else — which is why the case asserts the QUERY still returns the row, not merely that a
   hand-built `reconcileOne` call still alerts. `queryProcessingLedger`'s docblock now says this in the
   imperative, naming the test file that holds it.
+
 - **THE MIRROR IN `alertStuckHeld` WAS GENUINELY NEW SQL, EXACTLY AS 18-PATTERNS PREDICTED.** That query
   read `host_payout_ledger` with **no host join at all**, unlike `queryDuePayouts` which already reaches
   `listing` → `host_payout`. The ledger carries `host_id` directly so no `listing` hop is needed — but the
   table had to be **aliased** (`host_payout_ledger p`), because `host_verification` also has a
   `created_at` and the bare `SELECT created_at` becomes ambiguous the moment the join lands. Two sites, two
   different edits; do not assume a mirror is a copy.
+
 - **THE TWO `COALESCE(hv.status…)` PREDICATES LOOK ALIKE AND MEAN OPPOSITE THINGS.** The sell-gate
   (`bookability.ts`, `search/query.ts`) asks *"is this host APPROVED?"*, enumerates POSITIVE values, and
   fails CLOSED on a missing row. This asks *"is this host SUSPENDED?"*, so a missing row means NOT
@@ -456,15 +536,18 @@ deferred walk is inconsistent rather than honest.*
   every host nobody has checked yet — most of them. Pinned by two cases: a host with **no**
   `host_verification` row, and a **`rejected`** host, both still swept. Rejection stops a host SELLING; it
   does not cancel money already earned. Only D-222's `suspended` freezes.
+
 - **UN-SUSPENSION IS A PREDICATE FLIP, NOT A STATE TRANSITION — ASSERTED, NOT ASSUMED.** The un-freeze case
   performs exactly one write (the status flip) and then asserts the booking row is **byte-identical**
   (`JSON.stringify` before/after) and the ledger count is still 0. That is what makes "no repair, no
   re-queue, no backfill" a measurement rather than a claim — the D-14 auto-revert property.
+
 - **ANTI-VACUITY WAS DESIGNED IN, BECAUSE EVERY ASSERTION HERE IS AN ABSENCE.** Six of the eight cases
   assert that something did NOT happen, and a fail-closed guard returning nothing for the wrong reason
   would pass all of them. Each is therefore paired with a CONTROL in the SAME call: a second host still
   selected by the same `queryDuePayouts`, still paid by the same sweep pass, still alerted on by the same
   `alertStuckHeld`. Reuse this shape for any freeze/suppression predicate.
+
 - **⚠ NO COMPILER CENSUS EXISTS FOR THIS RULE.** Both predicates are raw SQL restatements in two files;
   there is no shared expression for a new reader to CALL, and `tsc` sees nothing (the 18-04 `og-facts.ts`
   lesson, in a form where the fix is not available). `tests/payments/payout-suspension-freeze.test.ts` is
@@ -479,33 +562,40 @@ deferred walk is inconsistent rather than honest.*
   watches address / space type / capacity / price; `src/app/actions/listing-photo.ts` watches photos, in
   `persistPhoto` and `removePhoto` only. Both sites say why there are two and name the other. Do not
   "consolidate" them: neither can see what the other sees.
+
 - **THE HISTORY-ROW INSERT IS GUARDED ON THE FLIP HAVING MOVED A ROW, and that is what makes D-249 true
   in BOTH directions.** A resubmission gets a fresh `submitted_at` and lands at the back of the
   oldest-first queue; a listing that is ALREADY waiting keeps its original `submitted_at` however many
   times its host saves the wizard. An unguarded insert would have re-stamped the second case to the back
   of the queue on every autosave — a fairness bug that looks exactly like correct behaviour from the
   listing row alone. Pinned by two cases.
+
 - **THE FIFTH REVIEW STATE'S QUOTED LITERAL APPEARS NOWHERE IN `re-review.ts`, INCLUDING IN THE COMMENT
   EXPLAINING THE EXCLUSION.** The plan's own acceptance gate counts that string in that file. This is
   the fifth phase running that a grep criterion collided with the prose explaining the prohibition; the
   absence is explained at the site so nobody "restores clarity" and re-breaks it.
+
 - **`persistPhoto`'s BARE INSERT WAS PAIRED INTO A TRANSACTION WITH THE FLIP (deviation, Rule 2).** The
   plan asked for atomicity only at the fields site, but its own sentence — *a listing whose address
   committed while its review state did not is a sellable fake* — is exactly as true of a photo, and
   photos are the field a fake listing lies with most. Both photo sites now pass a `tx`. Nothing at or
   above the D-165 provenance gate was touched; `photos.test.ts` (all six D-187 destroy-placement cases)
   and `cloudinary-provenance.test.ts` are green and both files unchanged.
+
 - **THE PHOTO HOOK SITS BELOW THE PROVENANCE GATE, AND THAT PLACEMENT IS SECURITY, NOT TIDINESS.** Above
   it, a provenance-REJECTED add would trip re-review — handing any signed-in caller a way to knock a
   listing off the market with a request that writes no row at all. Pinned by a case.
+
 - **TITLE AND DESCRIPTION ARE STILL NOT MATERIAL (D-231), AND IT IS A LIVE PM DECISION.** A host can
   rewrite an approved listing's entire words and it stays approved, sellable and badged. The description
   is where a space claims equipment it does not have. Restated in three places in the code so it cannot
   be lost by reading only one: `MATERIAL_FIELDS`'s comment, the detection site, and the negative case —
   which is written so promoting the fields means UPDATING it, not deleting it.
+
 - **`reorderPhotos` IS DELIBERATELY NOT HOOKED.** Reordering changes which photo is the cover, not what
   the space is, and every photo in the set has already been reviewed. Stated at both photo call sites
   and pinned by a case that asserts a full reversal leaves an `approved` listing approved.
+
 - **PROCESS: mutation-prove AFTER the task commit, and revert with a targeted patch.** Reverting
   mutation 1 with `git checkout -- <file>` while the file still carried uncommitted work restored it to
   HEAD and silently discarded the entire task-3 edit. Caught by the call-site grep answering 0; the
@@ -524,23 +614,27 @@ deferred walk is inconsistent rather than honest.*
   Open Graph card carrying an unreviewed listing's title, space type, city and rate. Ask on every
   future gate: *who RESTATES this rule rather than calling it?* — grep for the rule's spelling, not
   just for its name.
+
 - **The leak was invisible in a browser, which is why it survived two people fixing the same bug.**
   `/listings/[id]/opengraph-image` is fetched by scrapers, link scanners and chat-preview proxies and
   is never rendered in a page. `opengraph-image.tsx` even carried a comment asserting its fallback set
   was *"the same set the page 404s on"* — true when written, false the moment the page's set grew a
   term, and nothing anywhere could observe the divergence. That comment is now true by construction
   and says so.
+
 - **`assertPublicListing` STAYS SESSION-FREE, and D-230 is 18-13's to satisfy elsewhere.** The
   tempting shape — "404 unless viewable OR the caller owns it" — puts a session read on a
   not-found-adjacent path, and `src/app/not-found.tsx:29-45` records the measured cost of doing that
   once: a dynamic root not-found is in every route's tree, so the route table came back with **zero**
   static routes. The header now forbids it in prose and names the host surfaces as the answer.
+
 - **The prohibition-in-a-documented-file trap bit again, and the repo's own answer was applied.** The
   plan's acceptance grep `grep -c "getSession\|headers()" public-listing.ts == 0` went RED against the
   CORRECT file, because the sentence explaining why those reads are forbidden necessarily named them.
   `tests/helpers/source-text.ts` documents this exact failure (*"falsely red for prohibitions"*). The
   warning was reworded to DESCRIBE the two call expressions rather than spell them, and both design
   gates count over comment-stripped text or parsed AST nodes, never over raw source.
+
 - **A mutation proof that showed the pin is narrower than its description, recorded honestly.**
   Defaulting `isPubliclyViewable`'s third parameter and changing nothing else leaves
   `tests/design/soft-404-status.test.ts` **GREEN** — the arity pin cannot see the default in
@@ -556,11 +650,13 @@ deferred walk is inconsistent rather than honest.*
   `gate_hv_suspended` GREEN and was caught only by `gate_hv_unverified`, `gate_hv_pending` and
   `gate_hv_rejected`. A fixture set covering just the headline case (suspension) would have watched the
   single most likely real spelling error go by while reporting green.
+
 - **A hand-built test fixture is now UNSELLABLE BY DEFAULT, and that is deliberate.**
   `listing.review_state` defaults to `'pending'` and a host with no `host_verification` row reads as
   `'unverified'`, so any future fixture that skips `makeVerifiedHost()` (`tests/helpers/seed.ts`) fails
   with `not-bookable` — a refusal that names the gate but not the missing row. Route new fixtures
   through the helper.
+
 - **`tsc` is the census for FOUR of the seven gate sites and cannot see the other three.** The inlined
   SQL twin is held by `tests/search/bookable-gate.test.ts`'s set-equality; the two `placeHold` /
   `placeOpenHold` re-statements are held by four refusal anchors (`L_nohours`, `L_pending_review` +
@@ -1125,6 +1221,10 @@ Recent decisions affecting current work:
 - [Phase ?]: 17.1-07: the held baselines.yml dispatch was executed and read against D1 — a per-PNG prediction over all 36 baselines committed at its own SHA (9507989) BEFORE the dispatch. Result: 2 changed, 0 added, 0 deleted, disk 36, exact to the pixel.
 - [Phase ?]: 17.1-07: the generation run (33336290052) is recorded as NOT the evidence — a GITHUB_TOKEN push triggers no workflow, so writing is not comparing. The deliverable is the forced comparison run 33336650152 (workflow name 'ci', conclusion success, gate-visual 43 passed / 0 failed / 0 flaky) whose headSha equals git rev-parse HEAD (d87ff54).
 - [Phase ?]: 17.1-07: dev-theme-1280 was named by the generation log but its md5 did not move. Written up as a near-miss with the mechanism left explicitly unestablished; no threshold touched and no re-dispatch. Standing watch item — 2nd signal in 4 runs, and by far the tallest baseline at 1280x8026.
+- [Phase ?]: D-254 SHIPPED (18-14): listing_review.listing_id is now ON DELETE cascade (drizzle/0029, hand-authored, a NEW file — D-251's frozen digest covers 0000-0025 only). The durable record of a review decision is the D-218 audit row whose actor_id deliberately has no FK; restrict was the only one of seven listing-child FKs, and its entire observable effect was breaking fixture teardown because softDeleteListing means production never hard-deletes a listing. Both e2e teardowns re-run BY HAND and green; deferred-items D6 CLOSED.
+- [Phase ?]: 18-14: OPS-02's last clause is MEASURED — 200 (staff) / 404 (non-staff) / 404 (signed-out) / 404 (/ops/xyz control) under a PRODUCTION build of 8520721, Next 16.2.7, next start -p 3100. Second pass identical. Bodies: zero occurrences of 'Ops' in all three 404s and readings 2 and 3 are byte-identical (same sha256). Recorded verbatim at 18-EVIDENCE.md § P1, which states in its own closing that it is a ONE-TIME AUDIT and names tests/design/ops-guard-coverage.test.ts as the ongoing per-commit pin (Pitfall 9).
+- [Phase ?]: 18-14 FINDING (filed, NOT fixed, app-wide): a 404 header-level existence oracle survives the status line. An UNROUTED path is served from the prerendered static 404 (x-nextjs-prerender: 1, x-nextjs-cache: HIT, Content-Length: 29644); a MATCHED route that throws notFound() is served chunked with no x-nextjs headers (25970 bytes). Stable over three repetitions. Measured IDENTICALLY on /listings/[id], the route 17.1 § P1 blessed — so it is pre-existing and NOT introduced by 18-12, and it was invisible before because 17.1 § P1 deliberately captured no bodies. No ops-side change can close it.
+- [Phase ?]: 18-14 / HVER-04: 18-KYC-VENDOR-COMPARISON.md delivered. RECOMMENDATION (the PM has NOT yet answered): stay manual now, Didit when the operator's time becomes the constraint, NOT PayMongo Linked Accounts — because PayMongo's activation IS the payouts gate, so choosing it collapses the fifth and sixth sell-gate terms back into the third, undoing D-225. A1 RE-PROBED 2026-09-01, 40 days after the original: GET /v2/wallets?status=activated still HTTP 200 {data:[]}, GET /v2/transfers/receiving_institutions still HTTP 404, and docs.paymongo.com/docs/paymongo-platforms still 404 on both hosts. A1 moves from [ASSUMED] to [PROBED].
 
 ### Pending Todos
 
@@ -1169,6 +1269,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - ⚠️ **ORDERING DEPENDENCY (Phase 7, opened by 07-01)** — 07-01 widened the ledger unique constraint to `(booking_id, kind)` and applied only the minimal `ON CONFLICT` repair in `payout-sweep.ts`. `AND kind = 'payout'` scoping is still absent from `queryDuePayouts`, `queryProcessingLedger`, the reconcile stuck-`held` query, `/host/earnings` and `summarizePayouts`. **Plan 07-04 (Wave 2) must land this scoping before 07-11 (Wave 4) ships the host-cancel action** — the first `host_cancel_fee` debit row written without it trips the reconcile operator alert. Wave order already satisfies this; do not reorder.
 - Follow-up (out-of-scope, task chip spawned 2026-07-10): Radix Tooltip SSR hydration mismatch at src/app/listings/[id]/page.tsx:267 (the "Not bookable yet" affordance) — client-recovered, not a 500; worth a cleanup. Also low-pri from 02-UAT: currency defaults to `usd` (should be PHP for the PH launch); no landing page at `/` (deferred to Phase 4).
 - [12-02, PRE-EXISTING] notFound() on /listings/[id] answers HTTP 200 in dev — status-only, no content leak (body is the not-found boundary). e2e/public-listing.spec.ts's two 404 cases are red at 6272c8f, before plan 12-02. See deferred-items.md; discriminator is npm run build && npm start.
+- ⚠ PM CHECKPOINT OPEN (18-14 Task 3, blocking, deferred 2026-09-01) — FIVE items, D-236 FIRST. (a) D-236: OPS_CANCEL_REFUNDS_SERVICE_FEE=false ships PM-4 as answered, but cancelBookingAsHost already refunds 100% INCLUDING the fee on the stated principle 'the booker did nothing wrong' (cancel-booking.ts:1134-1137). An ops cancel on a CONFIRMED-FAKE listing is a stronger instance of that, so FitOut is currently LESS generous to a defrauded booker than to one whose host merely flaked. One line at src/lib/payments/fees.ts:82; both branches already covered by tests/payments/ops-cancel.test.ts. (b) D-250: SUPPORT_EMAIL is null at src/lib/site.ts:70 — one line also closes carried-forward STATE-05 and TRUST-01; ⚠ supplying one INVERTS tests/design/site-contacts.test.ts, a follow-on task not a same-commit edit. (c) F11: should a suspended host be told on /host/earnings that a due session will never produce a payout row? (d) A4/D-231: 'photos' read as the photo SET with reorderPhotos excluded as non-material — confirm or overturn. (e) The KYC vendor — PayMongo / a standalone vendor / stay manual; to be recorded as a D-number so a future phase inherits it.
 
 ### Quick Tasks Completed
 
@@ -1269,8 +1370,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-08-30T22:59:18.929Z
-Stopped at: Completed quick task 260831-99f (WR-04 clearance merge-order gate) — design suite 68 files / 1270 passed
+Last session: 2026-09-01T06:11:03.077Z
+Stopped at: Completed 18-14-PLAN.md (Wave 8 — the phase's LAST plan). OPS-02's four production-build status-line readings are on the record at 18-EVIDENCE.md § P1 (200/404/404/404, second pass identical, nonexistent-route control included, zero 'Ops' in every 404 body, readings 2 and 3 byte-identical) — PLUS ONE FINDING recorded rather than tuned away: a header-level 404 oracle (x-nextjs-prerender on an unrouted path vs chunked on a matched notFound()) survives the status line, is app-wide, is identical on /listings/[id], and is NOT introduced by 18-12. HVER-04's 18-KYC-VENDOR-COMPARISON.md is written for the PM verdict-first with the D-225 re-coupling argument before any price; A1 was RE-PROBED (identical to 2026-07-23) and moves to [PROBED]. D-254 shipped as drizzle/0029 — listing_review.listing_id cascades, both e2e teardowns re-run BY HAND and green, deferred-items D6 CLOSED. Gates each run ALONE: tsc 0, npm test 207/2485/5, test:design 73/1331/3, build exit 0, git diff --exit-code src/ clean. ⚠ THE BLOCKING PM CHECKPOINT IS OPEN — all five items deferred 2026-09-01, D-236 leading. Next: the phase verifier.
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte

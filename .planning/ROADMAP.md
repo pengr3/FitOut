@@ -174,7 +174,7 @@ instantly). ⚠ One invariant now rides on the auth config: `requireStaff()` is 
 `session.cookieCache` stays unconfigured — enabling it would keep a REVOKED grant alive for the cache
 TTL, and no test would go red. It is written into that module's header.
 
-**Plans:** 13/14 plans executed
+**Plans:** 14/14 plans complete
 SEQUENTIALLY on `dev`, one executor at a time — waves express dependency order, not concurrency.
 
 Plans:
@@ -191,7 +191,7 @@ Plans:
 - [x] 18-11-PLAN.md — The booker-facing check badge (wave 6)
 - [x] 18-12-PLAN.md — The `/ops` route, its three guard layers & the design-gate ledger (wave 7)
 - [x] 18-13-PLAN.md — Host-facing review & suspension signals (wave 7)
-- [ ] 18-14-PLAN.md — HVER-04 vendor comparison & the OPS-02 status-line audit (wave 8, has checkpoint)
+- [x] 18-14-PLAN.md — HVER-04 vendor comparison & the OPS-02 status-line audit (wave 8, has checkpoint)
 
 ## Progress
 
@@ -209,7 +209,7 @@ Plans:
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-28 |
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
-| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 13/14 | In Progress|  |
+| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | All plans executed — **verifier not yet run; 18-14's PM checkpoint OPEN** |  |
 
 ## Carried Forward (not v1.2 scope until promoted)
 

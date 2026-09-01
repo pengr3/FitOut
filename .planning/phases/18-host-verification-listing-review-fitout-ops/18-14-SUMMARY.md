@@ -361,3 +361,30 @@ call and the verifier has not run. `18-14`'s own row is ticked; the phase row is
 
 **The blocking checkpoint is OPEN.** All five PM items are recorded above as explicit dated deferrals,
 not as answers. `.planning/STATE.md` carries them too.
+
+---
+
+## Self-Check: PASSED
+
+Files claimed created, verified on disk:
+
+```
+FOUND: .planning/phases/18-host-verification-listing-review-fitout-ops/18-EVIDENCE.md
+FOUND: .planning/phases/18-host-verification-listing-review-fitout-ops/18-KYC-VENDOR-COMPARISON.md
+FOUND: .planning/phases/18-host-verification-listing-review-fitout-ops/18-14-SUMMARY.md
+FOUND: drizzle/0029_listing_review_cascade.sql
+```
+
+Commits claimed, verified in `git log`:
+
+```
+FOUND: 8520721   FOUND: 3b22a56   FOUND: a601a56   FOUND: 589dc2b
+```
+
+No stubs. Nothing in this plan renders, so there is no placeholder surface to scan; the two deliverables
+are documents and both are complete, with their own gaps named inside them rather than left implicit.
+
+**No threat flags.** This plan opened no network endpoint, no auth path and no schema surface at a trust
+boundary. D-254 changes a foreign key's delete rule on an existing table and adds no column, no reader
+and no writer; the threat register's T-18-1401 through T-18-1405 are all accounted for in
+`18-EVIDENCE.md` and `18-KYC-VENDOR-COMPARISON.md`. T-18-SC holds: **no package was installed.**

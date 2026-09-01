@@ -209,3 +209,37 @@ that only reads the column.
 
 **Cleanup performed:** the leaked fixture rows from both runs were removed from the dev database by
 hand, so the next local run starts clean.
+
+---
+
+### ✅ D6 is CLOSED — resolved in 18-14 as D-254, 2026-09-01
+
+**Not by patching the two teardowns, which is what this entry argued against.** D6's own reasoning —
+*"the count is already two and the shape is generic … patching the two specs that happened to be re-run
+would hide the pattern behind a green run"* — was accepted, and the CONSTRAINT was corrected instead.
+
+`listing_review.listing_id` is now `ON DELETE cascade` (`drizzle/0029_listing_review_cascade.sql`,
+hand-authored, a new file; reasoning restated at `src/lib/db/schema.ts:456`). The property D-221's
+comment protected is already guaranteed by the D-218 `audit` row, whose `actor_id` deliberately carries
+no FK (D4) so the trail outlives its subject; `restrict` was the only one of seven listing-child FKs,
+and because `softDeleteListing` means production never hard-deletes a listing, its entire observable
+effect was breaking fixture teardown.
+
+**Verified after `npm run db:migrate`:**
+
+```
+                 conname                 | confdeltype
+-----------------------------------------+-------------
+ listing_review_listing_id_listing_id_fk | c
+
+e2e/host-headings.spec.ts        14 passed (54.2s)
+e2e/keyboard-composites.spec.ts   7 passed (50.8s)   ← including :1502, previously failing
+leaked listing_review rows for e2e_% listings:  0
+```
+
+⚠ `keyboard-composites` was red on its FIRST pass with two failures, both at `seedWizardHost`'s
+`getByRole("radio", { name: "Host a space" })` timing out on a cold dev-server compile — a different
+error entirely from the FK one. Re-run alone: 7 passed. Recorded rather than quietly re-run.
+
+**D1, D2 and D3 remain OPEN and unchanged.** They are the three pre-existing reds; none is
+`listing_review`-related.
