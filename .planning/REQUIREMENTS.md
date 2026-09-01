@@ -1,9 +1,10 @@
 # FitOut — Requirements
 
-> **Scope note (2026-09-01).** This file was opened **ahead of the v1.2 milestone cycle** and holds
-> **Phase 18 only**. `/gsd-new-milestone` has not been run for v1.2, so there is no milestone-wide
-> requirements pass yet; Phase 18 was added ahead of the cycle by PM decision because the hole it
-> closes is live in production. When v1.2 is properly opened, these requirements fold into it.
+> **Scope note (2026-09-01, extended 2026-09-02).** This file was opened **ahead of the v1.2 milestone
+> cycle** and holds **Phase 18 and the inserted Phase 18.1 only**. `/gsd-new-milestone` has not been
+> run for v1.2, so there is no milestone-wide requirements pass yet; Phase 18 was added ahead of the
+> cycle by PM decision because the hole it closes is live in production, and Phase 18.1 was inserted
+> the next day to close it. When v1.2 is properly opened, these requirements fold into it.
 >
 > Prior milestones' requirements are archived and are NOT restated here:
 > - `.planning/milestones/v1.0-REQUIREMENTS.md` (49/49)
@@ -89,6 +90,54 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 
 ---
 
+## Phase 18.1 — Close Phase 18: the verification path FitOut is legally required to have
+
+These five IDs were **written at plan time**, following the **D-239 convention** Phase 18 used — a
+`- [ ] **ID** — sentence *(SC-n · D-nnn)*` bullet plus one Traceability row — rather than at milestone
+time, so the fourteen plans of this phase cite real IDs instead of inventing them. Every bullet is
+`- [ ]` because the phase has not shipped: the executor of the plan that satisfies an ID ticks it and
+moves its Traceability row from `Planned` to `Complete`.
+
+`SC-n` points at the eight success criteria in `.planning/ROADMAP.md` § Phase 18.1. Decisions cited
+below (`D-2xx`) live in
+`.planning/phases/18.1-close-phase-18-verification-submission-didit-listing-gate/18.1-CONTEXT.md`
+for **D-255..D-271**; any number **at or below D-254** lives in the Phase 18
+`18-CONTEXT.md` named above.
+
+The three carried PM decisions this phase also discharges — **D-236** (an ops-forced cancellation
+refunds the full charge), **D-231** (title and description become material fields) and the **F11**
+earnings gap — are decisions, not new requirements. They land against the existing `ENF-03`,
+`LVER-03` and `ENF-02` and are recorded on those rows.
+
+### HVER — Host identity verification
+
+- [ ] **HVER-06** — A host can **ask to be verified** from a surface under `/host`, and doing so
+      creates a real `host_verification` row at `pending` that appears in the `/ops` queue. Phone and
+      a confirmed email are **required at submission** — not optional profile fields.
+      *(SC1, SC4 · D-256, D-268, D-269)*
+- [ ] **HVER-07** — Identity is checked by **Didit** behind the existing verification port. The
+      vendor's verdict enters through **one** code path, the port stays the only branch point, and
+      FitOut stores only `{ result, vendorRef, checkedAt, provider }`. The **manual** provider stays
+      registered as the ops override with `provider = 'manual'`.
+      *(SC2, SC3 · D-258, D-259, D-261, D-262)*
+- [ ] **HVER-08** — A **rejected** host may re-submit after a 24-hour cooldown derived from
+      `host_verification.updated_at`; a **suspended** host cannot re-submit at all. The rejection
+      `reason` the host reads is bounded, escaped, and never empty. *(SC1 · D-264, D-265, D-266)*
+
+### LVER — Listing review
+
+- [ ] **LVER-05** — A host **cannot create a listing** until they are verified. The refusal is
+      server-side in `createDraftListing`, names the state and the way out, and cannot be bypassed by
+      knowing a URL. Existing drafts stay editable. *(SC5 · D-255, D-270)*
+
+### OPS — Staff identity, ops console & audit
+
+- [ ] **OPS-06** — **Ops can reach a host**: email and phone revealed on demand from either queue
+      row, each reveal writing an audit row carrying ids and enum-shaped values only — never the
+      contact values themselves. *(SC6 · D-257, D-271, D-72)*
+
+---
+
 ## Traceability
 
 | Requirement | Phase | Status |
@@ -110,8 +159,16 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | ENF-01 | Phase 18 · 18-05 (default lever) + 18-07 (freeze) + 18-08 (escalation) + 18-10 (the per-case choice) | **Satisfied** (18-10 ships the console half: the reject dialog's `RadioGroup`, rendered only when there is something to cancel, defaulting to the lighter lever on EVERY mount and remembering nothing; the always-rendered impact block, so choosing reveals nothing and the operator reads the money BEFORE deciding; and a confirm whose accessible NAME carries the booking count in alarm ink rather than a solid fill. Reaching the escalation takes three deliberate acts and no control on the queue row can reach it at all — mutation-proved by making the heavier lever the default and watching 5 cases go red. The server still re-asserts the choice: an omitted `lever` parses to block-new-only and cancels nothing. Reachability is 18-12's `/ops` route) |
 | ENF-02 | Phase 18 · 18-07 | Complete |
 | ENF-03 | Phase 18 · 18-08 | Complete |
+| HVER-06 | Phase 18.1 · 18.1-07 (the submit path) · 18.1-10 (the words) · 18.1-11 (the surface) · 18.1-14 (the proof) | Planned |
+| HVER-07 | Phase 18.1 · 18.1-04 (the async port) · 18.1-05 (the Didit adapter) · 18.1-06 (the decision module) · 18.1-08 (the webhook) · 18.1-09 (the reconciler) · 18.1-14 (the proof) | Planned |
+| HVER-08 | Phase 18.1 · 18.1-06 (the cooldown rule) · 18.1-07 (the re-submit guard) · 18.1-08 · 18.1-10 (the words) · 18.1-11 (the surface) | Planned |
+| LVER-05 | Phase 18.1 · 18.1-12 | Planned |
+| OPS-06 | Phase 18.1 · 18.1-13 (the reveal + its audit row) · 18.1-14 (the proof) | Planned |
 
-**17 requirements · Phase 18 · 17 complete** — verified 2026-09-01 (`18-VERIFICATION.md`: `passed_with_concerns`, 0 code-level blockers, 4 PM decisions open).
+**22 requirements across two phases.**
+
+- **Phase 18 · 17 · all complete** — verified 2026-09-01 (`18-VERIFICATION.md`: `passed_with_concerns`, 0 code-level blockers, 4 PM decisions open).
+- **Phase 18.1 · 5 · all Planned** — written at plan time per D-239 by `18.1-01`. Phase 18's roadmap checkbox cannot be ticked until these land; the executor of each plan named above moves its row to Complete.
 
 ---
 
