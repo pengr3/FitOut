@@ -31,7 +31,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
       route that does not exist. *(SC1 · D-216, D-219)*
 - [ ] **OPS-03** — Every ops action records **who did it** on an `audit` row whose `actorId` is the
       authenticated staff user id — authenticated, not asserted. *(SC1 · D-218)*
-- [ ] **OPS-04** — Ops works **one queue**: hosts awaiting verification and listings awaiting review,
+- [x] **OPS-04** — Ops works **one queue**: hosts awaiting verification and listings awaiting review,
       oldest first, with everything needed to decide on the same screen. *(SC3)*
 - [x] **OPS-05** — Approve and reject each carry a **reason the host is actually told**. A rejected
       host or listing can read why. *(SC3 · D-230)*
@@ -94,9 +94,9 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | OPS-01 | Phase 18 | Partial (18-01 — staff standing reads server-side from `user.role`; `/api/auth/update-user` provably cannot write it. The "signs in to FitOut Ops" half needs the console, 18-12) |
-| OPS-02 | Phase 18 | Partial (18-01 — `requireStaff()` is the boundary and refuses non-staff / NULL-role / signed-out with `notFound()`. The route half lands in 18-12; the HTTP status-line audit in 18-14) |
+| OPS-02 | Phase 18 · 18-01 (the guard) · 18-12 (the route) | Partial (18-01 — `requireStaff()` is the boundary and refuses non-staff / NULL-role / signed-out with `notFound()`. 18-12 — the route half: `/ops` behind three layers, no `(ops)` not-found body, refusal is `notFound()` everywhere, pinned structurally by `tests/design/ops-guard-coverage.test.ts` with three watched REDs. ⚠ STILL PARTIAL: the last clause — a non-staff caller cannot DISTINGUISH the route from one that does not exist — is an HTTP STATUS LINE, which no instrument in this repo can read. The production-build curl audit is 18-14) |
 | OPS-03 | Phase 18 · 18-05 (all five console actions) | Partial (18-05 — every console action records the authenticated staff id, read BACK OUT of the table on both the allow and the deny branch. 18-08 adds a sixth ops action; "every ops action" closes there) |
-| OPS-04 | Phase 18 · 18-05 (data half) | Partial (18-05 — `loadReviewQueue` is ONE interleaved oldest-first array over both kinds, carrying every field a reviewer needs so the page runs no second query. "On the same screen" needs 18-10's row and 18-12's page) |
+| OPS-04 | Phase 18 · 18-05 (data) · 18-10 (row) · 18-12 (page) | Complete (18-05 — `loadReviewQueue` is ONE interleaved oldest-first array over both kinds, carrying every field a reviewer needs so the page runs no second query. 18-10 — the terminal row, one tree at every width, photographs included. 18-12 — `/ops`: ONE page (D-246, asserted), an `<ol>` because the order is the product, designed loading / empty / error states, and every figure formatted server-side. Overflow and a11y measured by hand at 320 and 1280 in both themes) |
 | OPS-05 | Phase 18 · 18-05 (write half) + 18-09 (delivery) | **Satisfied for D-245** (18-05 stores the taxonomy-constrained, `.max(280)`-bounded SENTENCE the host reads; 18-09 delivers it — one durable `notification` row AND one email per decision, from ONE payload through the shipped fan-out, with the operator's sentence verbatim and exactly once, and no appeal/reply/timeline/address anywhere. D-230's host-surface status (18-13) is IN ADDITION to this, not instead of it) |
 | HVER-01 | Phase 18 · 18-05 | Complete |
 | HVER-02 | Phase 18 · 18-02 | Complete |
