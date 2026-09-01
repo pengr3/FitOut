@@ -79,3 +79,12 @@ not. Nothing in 18-03 touches either file.
 
 **Fix belongs with the spec:** scope the locator to the results form, or `await` the fallback's
 removal before clicking.
+
+## From 18-09 (OPS-05 / D-245)
+
+- **`appBaseUrl()` now has three definitions.** `src/app/actions/cancel-booking.ts:364`,
+  `src/app/actions/group.ts:199`, and `notificationBaseUrl()` in `src/lib/notifications.ts`. All three
+  read `process.env.BETTER_AUTH_URL` with the same `http://localhost:3000` fallback, so they cannot
+  currently disagree — but there is no compiler census over them, which is D-253's shape in a new place.
+  NOT fixed here: consolidating means editing two modules 18-09 does not own, for no behavioural gain.
+  The honest fix is one exported helper (`src/lib/site.ts` is the natural owner) with three callers.
