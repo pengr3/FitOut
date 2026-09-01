@@ -4,13 +4,13 @@ milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
 stopped_at: "Completed 18.1-02-PLAN.md (F11/D-260 — a suspended host's /host/earnings names the frozen session). Next: 18.1-03 (D-231 material fields) and 18.1-04 (Didit credentials, BLOCKING checkpoint)."
-last_updated: "2026-09-01T20:40:39.262Z"
-last_activity: 2026-09-02 -- 18.1-02 executed (F11/D-260 -- a suspended host's /host/earnings names the frozen session)
+last_updated: "2026-09-01T21:03:16.447Z"
+last_activity: 2026-09-01
 progress:
   total_phases: 16
   completed_phases: 12
   total_plans: 177
-  completed_plans: 170
+  completed_plans: 171
   percent: 75
 ---
 
@@ -45,9 +45,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 Phase: 18.1 (close-phase-18-verification-submission-didit-listing-gate) — EXECUTING
 Previous: 18 — Host Verification, Listing Review & FitOut Ops (executed + verified; checkbox held open until 18.1 ships)
-Plan: 3 of 14
+Plan: 4 of 14
 Status: Ready to execute
-Last activity: 2026-09-02 -- 18.1-02 executed (F11/D-260 -- the frozen-session sentence)
+Last activity: 2026-09-01
 
 <details><summary>Previous activity (18-12, superseded)</summary>
 
@@ -377,6 +377,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 18 P14 | ~110 min | 3 tasks | 5 files |
 | Phase 18.1 P01 | 22min | 3 tasks | 5 files |
 | Phase 18.1 P02 | 38 | 3 tasks | 6 files |
+| Phase 18.1 P03 | 21min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1234,6 +1235,8 @@ Recent decisions affecting current work:
 - [Phase ?]: 18.1-01 measured that 18.1-RESEARCH's claim 'ops-cancel cases 4-16 read the constant nowhere' is FALSE — cases 8, 11 and 13 consume the refund basis as a consequence and redden on the D-236 flip. Nine coordinated edits, not six. Anyone re-reading that research section should not trust its closing sentence.
 - [Phase ?]: D-260 (F11) discharged: a suspended host's /host/earnings names the frozen session — the space and an absolute date — via src/lib/host/frozen-payouts.ts (the inverted freeze query) plus composeFrozenSessionSentence in review-signal.ts; wayOut stays null and nothing names what unfreezes it (D-263). tests/design/earnings-freeze.test.ts is byte-unchanged.
 - [Phase ?]: 18.1-02 design rule: a read module that REPORTS someone else's invariant spells the predicate out a second time instead of sharing a negated helper. frozen-payouts.ts carries three argued divergences from queryDuePayouts (INNER + = suspended vs LEFT + COALESCE <>; p.id IS NULL alone, dropping the WR-04 failed-retry branch; no SWEEP_BATCH_SIZE) so a drift stays visible as a difference between two readable predicates. payout-sweep.ts is byte-unchanged — ENF-02's invariant did not move.
+- [Phase ?]: D-231 discharged (18.1-03): MATERIAL_FIELDS is the SEVEN — title and description joined the five. A words-only edit returns an approved/grandfathered/rejected listing to review; accepted cost recorded unsoftened in four places (a typo fix in a description takes the listing off the market until ops re-approves).
+- [Phase ?]: MEASURED (18.1-03): MATERIAL_FIELDS is documentation-with-a-type, NOT a dispatch table — mutating the tuple reddens only the set-equality case (1 red); the behavioural proof needs a separate mutation on materialEdit in listing.ts (3 reds, one per state sweep).
 
 ### Pending Todos
 
@@ -1411,7 +1414,7 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-01T20:40:13.682Z
+Last session: 2026-09-01T21:02:57.612Z
 Stopped at: Completed 18.1-02-PLAN.md (F11/D-260 — a suspended host's /host/earnings names the frozen session). Next: 18.1-03 (D-231 material fields) and 18.1-04 (Didit credentials, BLOCKING checkpoint).
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
