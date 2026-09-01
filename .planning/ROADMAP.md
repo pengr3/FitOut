@@ -299,20 +299,56 @@ and (ii) whether holding only a `vendorRef` satisfies § 21(c)'s "updated and ve
 and the subpoena clause. **Both are vendor-independent** — equally open under Innov8tif or PayMongo —
 so neither changes what this phase builds.
 
-**Plans:** not planned yet — next step is `/gsd-plan-phase 18.1`
+**Plans:** 14 plans in 7 waves — planned 2026-09-02.
+Worktrees stay OFF, so plans run **sequentially on `dev`, one executor at a time**; the waves express
+dependency order, not concurrency. No two plans in a wave modify the same file.
 
-Suggested order (dependency, not concurrency — worktrees stay OFF, so plans run sequentially on `dev`,
-one executor at a time):
+**The suggested nine became fourteen, and each departure was a call rather than a drift:**
 
-- [ ] 18.1-01 — D-236: flip the ops-cancel refund basis (production line, docblock, three test edits)
-- [ ] 18.1-02 — D-231: title + description become material fields
-- [ ] 18.1-03 — F11: a suspended host's `/host/earnings` names the frozen session
-- [ ] 18.1-04 — The host verification submission path: the row that makes the ops queue fill
-- [ ] 18.1-05 — § 21(b)(3): phone + email required at submission; the host address FitOut must hold
-- [ ] 18.1-06 — The Didit provider behind the port, manual retained as the ops override
-- [ ] 18.1-07 — The Didit webhook + credential, if the vendor answers asynchronously
-- [ ] 18.1-08 — PM-C: the listing-creation gate, server-side, with a legible refusal
-- [ ] 18.1-09 — PM-E: host contact reveal in `/ops`, audited per reveal
+- **18.1-04/18.1-05 FOLDED** into one submission-path plan (now `18.1-07`). `18.1-RESEARCH § 18.1-05`
+  observes they *"share one action and one test file"* — phone and email are gates INSIDE
+  `requestHostVerification`, not a separate surface, and **D-267 makes the address half zero work**
+  (the listing's own address IS the § 21(b) record). Splitting them would have produced a plan whose
+  only artifact was two `if` statements inside another plan's function.
+- **The vendor work SPLIT three ways** — credentials + the port widening (`04`), the adapter (`05`),
+  the status/warning mapper (`06`) — because each is a distinct contract and the mapper must land
+  **before** the `/host/verify` `pending` panel for that panel's copy to be honest (FINDING F-3).
+- **FINDING F-4 SHIPS as its own plan (`09`).** Didit retries a webhook twice then drops it
+  permanently; with D-262 and D-263 that is a silent, unrecoverable dead end. Inngest is already
+  shipped and `payment-reconcile.ts` is the exact precedent.
+- **The host surface SPLIT** into the copy module + resend extraction (`10`) and the panel + route +
+  design ledger (`11`), on the interface-first rule: the words exist before the surface renders them.
+- **A requirements-authoring task opens `01`**, because `HVER-06..08`, `LVER-05` and `OPS-06` are
+  written at plan time (the D-239 convention) and every later plan cites them.
+- **A closing evidence plan (`14`)** carries the two things no gate in this repo can do: the real
+  Didit sandbox transcript, and the 320/1280 both-themes hand-measure.
+
+| Wave | Plans |
+|------|-------|
+| 1 | 18.1-01, 18.1-02, 18.1-04 |
+| 2 | 18.1-03, 18.1-05, 18.1-06 |
+| 3 | 18.1-07, 18.1-08 |
+| 4 | 18.1-09, 18.1-10 |
+| 5 | 18.1-11 |
+| 6 | 18.1-12, 18.1-13 |
+| 7 | 18.1-14 |
+
+Plans:
+
+- [ ] 18.1-01-PLAN.md — Phase requirements written; D-236 flips the ops-cancel refund basis to the full charge (wave 1)
+- [ ] 18.1-02-PLAN.md — F11/D-260: a suspended host's `/host/earnings` names the frozen session (wave 1)
+- [ ] 18.1-04-PLAN.md — Didit credentials, the port widened for an async provider, `updatedAt` · **[BLOCKING] Didit Console checkpoint** (wave 1)
+- [ ] 18.1-03-PLAN.md — D-231: title + description become material fields (wave 2)
+- [ ] 18.1-05-PLAN.md — The Didit adapter behind the port; manual retained, `migration` still unregistered (wave 2)
+- [ ] 18.1-06-PLAN.md — `didit-verdict.ts`: ten statuses, two casings, the D-265 allow-list · **settles F-3** (wave 2)
+- [ ] 18.1-07-PLAN.md — The host verification submission path + § 21(b)(3) phone/email · **closes the live defect, proves SC1** (wave 3)
+- [ ] 18.1-08-PLAN.md — The Didit webhook: one authenticated door, clean 400 on everything else (wave 3)
+- [ ] 18.1-09-PLAN.md — The Inngest reconciliation sweep · **F-4 ships** (wave 4)
+- [ ] 18.1-10-PLAN.md — The verification copy module and the email-resend extraction (wave 4)
+- [ ] 18.1-11-PLAN.md — `/host/verify`: the panel, the route, its plate and five moved design counts (wave 5)
+- [ ] 18.1-12-PLAN.md — PM-C: the listing-creation gate + the fixture sweep · **closes F-2, pins F-7** (wave 6)
+- [ ] 18.1-13-PLAN.md — PM-E: host contact reveal in `/ops`, audited per reveal · **resolves F-6** (wave 6)
+- [ ] 18.1-14-PLAN.md — The Didit sandbox transcript, the hand-measure, and Phase 18's checkbox · **[BLOCKING] two human checkpoints** (wave 7)
 
 
 ## Progress
@@ -332,7 +368,7 @@ one executor at a time):
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified** `passed_with_concerns` — 17/17 requirements, 0 code-level blockers; **PM checkpoint ANSWERED 2026-09-01 (all 5); checkbox held until 18.1 ships the code** | verified 2026-09-01 |
-| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 0/9 | Not planned — `/gsd-plan-phase 18.1` | — |
+| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 0/14 | Planned 2026-09-02 — 14 plans in 7 waves; next `/gsd-execute-phase 18.1` | — |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
