@@ -134,6 +134,56 @@ export const rejectListingSchema = z
   .object({ listingId: id(), reason: z.enum(LISTING_REJECT_REASONS), note })
   .refine(noteSatisfied, NOTE_REQUIRED);
 
+/**
+ * D-233 — THE TWO ENFORCEMENT LEVERS, AND THE ORDER IS THE DEFAULT.
+ *
+ * `block_new_only` is FIRST and is the schema default, because 18-UI-SPEC requires the lighter lever to
+ * be the one checked on mount, every time. Declaring the default as `LEVERS[0]` rather than repeating
+ * the string means the two cannot drift onto different answers, and re-ordering this array to put the
+ * escalation first would be a visible, reviewable change rather than a silent one.
+ *
+ * The escalation is `block_new_and_cancel`: it cancels the confirmed bookings and refunds the bookers.
+ * It is never the default and it is never implied — see `opsCancelSchema` below.
+ */
+export const OPS_ENFORCEMENT_LEVERS = ["block_new_only", "block_new_and_cancel"] as const;
+
+/** The LIGHTER lever. Checked on mount, and what an omitted field parses to. */
+export const OPS_DEFAULT_LEVER = OPS_ENFORCEMENT_LEVERS[0];
+
+export type OpsEnforcementLever = (typeof OPS_ENFORCEMENT_LEVERS)[number];
+
+/**
+ * ENF-03 — the ops cancel-and-refund argument shape.
+ *
+ * BOTH IDS, and that is not redundancy. The BOOKING is what gets cancelled; the LISTING is what is
+ * being enforced against, and it is re-asserted inside the action's own `WHERE` so a booking id from a
+ * different listing cannot be smuggled into an enforcement decision made about this one. The host-cancel
+ * path solves the same problem with an ownership `EXISTS`; an ops actor owns nothing, so the scope has
+ * to be the thing the operator was actually looking at.
+ *
+ * ⚠ `lever` IS RE-PARSED SERVER-SIDE PRECISELY SO THE ESCALATION CANNOT BE REACHED BY DEFAULT.
+ * 18-UI-SPEC's answer to "it must not be hit by muscle memory" is that no control on the queue row can
+ * cancel-and-refund anything — the operator must open a dialog, choose a reason, and actively move a
+ * radio off its default. That is a CLIENT arrangement, and a `"use server"` export is reachable by POST
+ * whatever the UI shows. So the action refuses unless the escalation was chosen EXPLICITLY: an omitted
+ * `lever` parses to the lighter one and cancels nothing.
+ *
+ * The reason is the LISTING taxonomy: an ops cancellation is the consequence of a listing rejection, so
+ * the sentence the booking carries is the same sentence the listing was rejected with.
+ */
+export const opsCancelSchema = z
+  .object({
+    bookingId: id(),
+    listingId: id(),
+    lever: z.enum(OPS_ENFORCEMENT_LEVERS).default(OPS_DEFAULT_LEVER),
+    reason: z.enum(LISTING_REJECT_REASONS),
+    note,
+  })
+  .refine(noteSatisfied, NOTE_REQUIRED);
+
+/** What a CALLER may pass — `lever` optional, because the schema supplies the lighter default. */
+export type OpsCancelInput = z.input<typeof opsCancelSchema>;
+
 export type ApproveHostInput = z.infer<typeof approveHostSchema>;
 export type RejectHostInput = z.infer<typeof rejectHostSchema>;
 export type SuspendHostInput = z.infer<typeof suspendHostSchema>;
