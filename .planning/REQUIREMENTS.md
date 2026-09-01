@@ -65,12 +65,18 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 - [x] **LVER-02** — A submitted-but-unapproved listing is **hidden**: absent from search, and its
       public page returns the shipped soft-404. The host still sees its own listing, its review
       status, and any rejection reason. *(D-208, D-228, D-229, D-230)*
-- [x] **LVER-03** — A **material edit** (address, space type, capacity, photos, price) to an
-      `approved`, `grandfathered` **or `rejected`** listing returns it to review and stops it being
-      sellable until re-approved. Approval is not a permanent grant, and a rejection is not a death
-      sentence — a resubmission enters the queue at resubmission time, never at the original time.
-      Photo changes are detected in `listing-photo.ts`, not `saveListingStep`, which structurally
-      cannot see them. *(SC4 · D-231, D-232, D-242, D-249)*
+- [x] **LVER-03** — A **material edit** (address, space type, capacity, photos, price, **title,
+      description**) to an `approved`, `grandfathered` **or `rejected`** listing returns it to review
+      and stops it being sellable until re-approved. Approval is not a permanent grant, and a
+      rejection is not a death sentence — a resubmission enters the queue at resubmission time, never
+      at the original time. Photo changes are detected in `listing-photo.ts`, not `saveListingStep`,
+      which structurally cannot see them; title and description are detected in `saveListingStep`,
+      which can. Photo **reorder** is not a material edit — position is not content.
+      ⚠ **AMENDED 2026-09-02 by plan `18.1-03`.** The field list read *"(address, space type,
+      capacity, photos, price)"* until D-231 was settled on 2026-09-01; leaving it would have left a
+      checked, Complete requirement enumerating a smaller set than the code enforces. **Accepted cost,
+      not softened: a typo fix in a description takes the listing off the market until ops
+      re-approves it.** *(SC4 · D-231 widened 2026-09-01, D-232, D-242, D-249)*
 - [x] **LVER-04** — Listings published before this phase, and their hosts, are **grandfathered** by
       the migration into a **first-class, distinct state** — never written as if a human approved
       them — so a future backfill is one statement. *(D-207, D-211, D-213)*
@@ -157,7 +163,7 @@ earnings gap — are decisions, not new requirements. They land against the exis
 | HVER-05 | Phase 18 · 18-11 | **Complete** (18-11 — the chip says "Checked by FitOut" on the listing detail page and the search card, and the detail page adds the explainer whose second sentence is a deliberate negative: *We haven't visited the space.* No document claim, no vendor claim, no inspection claim — there is no document (HVER-02) and no vendor (D-206). D-212 is STRUCTURAL: `isFitoutChecked` requires BOTH `host_verification.status` and `listing.review_state` to be `approved`, as positive literals, and is reduced to a boolean in the RSC, so neither client component ever receives the grandfathered distinction. Proved over the full 6 × 5 product of both pgEnums, over both grandfathered search fixtures end-to-end, and by a mutation to a host-only rule that reddens the named grandfathered-listing case. The fifth signal is scanned under the same twelve-row trust-signal ban via `FIFTH_SIGNAL_FILES`) |
 | LVER-01 | Phase 18 | Complete |
 | LVER-02 | Phase 18 · 18-04 (hidden-from-bookers half) + 18-13 (host half) | **Satisfied** (18-04 closed all three booker-facing leak surfaces through one expression; 18-13 closes the third clause on the HOST surfaces — the review chip joins `statusBadge()` at one chip per card, the reason line carries the operator's sentence verbatim, and `rejected` offers the one way out D-249 makes true. ⚠ Satisfied WITHOUT teaching the public path about sessions: `assertPublicListing` is byte-unchanged and still session-free, which was 18-04's closing instruction) |
-| LVER-03 | Phase 18 · 18-06 | Complete |
+| LVER-03 | Phase 18 · 18-06 · Phase 18.1 · 18.1-03 (D-231 widened the set) | **Complete, widened** (18-06 shipped the ROADMAP's five — address, space type, capacity, photos, price — across `approved` / `grandfathered` / `rejected`. 18.1-03 grew the set to SEVEN on the PM's 2026-09-01 D-231 ruling: `title` and `description` are material, so a words-only edit returns a listing to review. ⚠ **THE ACCEPTED COST, STATED PLAINLY AND NOT TO BE SOFTENED: a typo fix in a description takes the listing off the market until ops re-approves it.** `deriveBookable` requires `approved \| grandfathered`, and the PM ruled that acceptable over a "material but still sellable" variant that would need a state the sell-gate does not have. Photo REORDER stays excluded — position is not content. Detection for the two new fields lives at the ONE site that can see them, `saveListingStep`; the photo half stays in `listing-photo.ts`, which is still the only site that can see it) |
 | LVER-04 | Phase 18 · 18-02 | Complete |
 | ENF-01 | Phase 18 · 18-05 (default lever) + 18-07 (freeze) + 18-08 (escalation) + 18-10 (the per-case choice) | **Satisfied** (18-10 ships the console half: the reject dialog's `RadioGroup`, rendered only when there is something to cancel, defaulting to the lighter lever on EVERY mount and remembering nothing; the always-rendered impact block, so choosing reveals nothing and the operator reads the money BEFORE deciding; and a confirm whose accessible NAME carries the booking count in alarm ink rather than a solid fill. Reaching the escalation takes three deliberate acts and no control on the queue row can reach it at all — mutation-proved by making the heavier lever the default and watching 5 cases go red. The server still re-asserts the choice: an omitted `lever` parses to block-new-only and cancels nothing. Reachability is 18-12's `/ops` route) |
 | ENF-02 | Phase 18 · 18-07 | Complete |
@@ -184,8 +190,13 @@ Carried from `.planning/ROADMAP.md` § Backlog and from Phase 18's own discussio
 - **Booker-side reporting of a fake listing** — backlog 999.4. The queue a report would feed.
 - **Reviews and ratings** — backlog 999.5.
 - **Host appeals** — backlog 999.6. A rejected host has no self-serve route back in this phase.
-- **Title/description as material-edit fields** — excluded from LVER-03 to hold the ROADMAP's stated
-  five fields, but a fake listing lies in its words as much as its fields. Flagged as a real gap.
+- ~~**Title and description as material fields**~~ — **RESOLVED 2026-09-01 by D-231**, shipped in
+  Phase 18.1 plan `18.1-03`. Held out of LVER-03 only to keep the ROADMAP's stated five fields as
+  written; the PM promoted both for the reason this entry itself gave — a fake listing lies in its
+  words as much as its fields. `MATERIAL_FIELDS` is now the seven, and a title-only or
+  description-only edit returns an `approved`, `grandfathered` or `rejected` listing to review.
+  Photo REORDER stays excluded: position is not content. Recorded as a resolution rather than
+  deleted, so this ledger reads as a history rather than a snapshot.
 - **Tiered ops permissions** — one staff role ships; cancel-and-refund is reachable by any staff
   member, with the audit trail as the control.
 - **Backfilling the grandfathered catalogue** — LVER-04 makes it one statement whenever the PM wants it.

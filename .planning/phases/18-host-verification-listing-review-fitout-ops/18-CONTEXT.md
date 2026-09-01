@@ -518,8 +518,11 @@ layout and information architecture, error handling, rate-limit budgets.
 <deferred>
 ## Deferred Ideas
 
-- **Title/description as material fields (D-231)** — excluded to hold the ROADMAP's stated five, but a
-  fake listing lies in its words as much as its fields. Flagged as a real gap; worth its own decision.
+- ~~**Title/description as material fields (D-231)**~~ — **NO LONGER DEFERRED. Resolved 2026-09-01**,
+  shipped in Phase 18.1 plan `18.1-03`. It got the decision this entry said it was worth: the PM
+  promoted both fields, so `MATERIAL_FIELDS` is the seven and a words-only edit returns a listing to
+  review. Photo reorder stays out — position is not content. Kept as a resolution line rather than
+  deleted, so a reader who finds this section quoted elsewhere does not act on a closed item.
 - **Tiered ops permissions (D-215)** — cancel-and-refund reachable by any staff member. Fine at launch
   ops scale; revisit when the ops team is larger than the people who can be trusted with a refund.
 - **Backfilling the grandfathered catalogue (D-207/D-211)** — the data supports it with one statement
