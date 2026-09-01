@@ -381,6 +381,34 @@ equal. **Any third money-path reader of `host_verification.status` must extend t
 commit that adds it.** Recorded so the next person to touch payouts inherits the constraint instead of
 discovering it.
 
+### D-254 — `listing_review.listing_id` becomes `onDelete: "cascade"`
+
+**Raised by 18-13, ruled here, fixed in 18-14.** `e2e/host-headings.spec.ts:313` and
+`e2e/keyboard-composites.spec.ts:1352` both **pass their assertions and fail their teardown** on
+`listing_review_listing_id_listing_id_fk`: 18-06's material-edit write leaves a `listing_review` row,
+and D-221 declared that FK `onDelete: "restrict"` (`schema.ts:462`), so the fixture can no longer
+delete its own listing.
+
+**`restrict` is the wrong rule here, and it is the only one of its kind.** All six other
+listing-child FKs cascade (`schema.ts:295, 314, 325, 1019, 1037, 1076`). The two families that
+legitimately use `restrict` are **financial** (`host_payout_ledger`, `booking` — *"a financial record
+must never cascade-delete"*) and **immutable history** (`booking_group`, D-115). `listing_review` is
+neither: it is the **operational** review-state history the ops queue reads.
+
+The property D-221's comment was protecting — *a review decision is an audit record* — **is already
+guaranteed elsewhere and better.** D-218 makes every ops decision write an `audit` row, and
+`audit.actorId` deliberately carries **no `.references()`** (D4) exactly so the audit trail survives
+the deletion of what it describes. Cascading the operational history therefore loses nothing
+auditable, while `restrict` makes a listing permanently undeletable — in production `softDeleteListing`
+means that never surfaces, so the only thing the rule actually blocks is fixture teardown and future
+admin cleanup. A constraint whose entire observable effect is breaking test cleanup is not protecting
+anything.
+
+Change the FK to `cascade` with a hand-authored migration, restate at the site that the durable record
+is the `audit` row, and re-run both e2e specs by hand to confirm teardown succeeds. Do NOT "fix" this
+by making the fixtures soft-delete instead — that hides the constraint rather than correcting it, and
+the next hard delete would hit the same wall.
+
 ### The badge (Success Criterion 6)
 
 - **D-237 — The badge states WHAT FITOUT CHECKED and nothing more.** It must never imply FitOut
