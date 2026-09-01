@@ -255,3 +255,7 @@ None. Every surface this plan adds is inside the plan's own `<threat_model>`: th
 | `cb7dc5a` | `feat(18-08): add the ops-cancel refund-policy constant and the impact read` |
 | `eff3939` | `feat(18-08): cancelBookingAsOps — five forks, each documented at its own site` |
 | `0d88eda` | `test(18-08): ENF-03 measured — refund basis under both constant values, the absent debit, the excluded payout, the unsent notification` |
+
+## Self-Check: PASSED
+
+All six created/modified files verified present on disk; all four commits (`cb7dc5a`, `eff3939`, `0d88eda`, `51ff0cd`) verified in `git log`.
