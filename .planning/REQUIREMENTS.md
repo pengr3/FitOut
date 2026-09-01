@@ -22,14 +22,14 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 
 ### OPS — Staff identity, ops console & audit
 
-- [ ] **OPS-01** — A staff member signs in to FitOut Ops **as themselves**, through the existing
+- [x] **OPS-01** — A staff member signs in to FitOut Ops **as themselves**, through the existing
       account system, and their staff standing is read server-side from a field no client can write.
       *(SC1 · D-214, D-217)*
 - [x] **OPS-02** — No ops power is reachable by a non-staff account, and none is reachable by knowing
       a URL. Every ops page and every ops server action independently enforces this server-side;
       middleware is not the boundary. A non-staff caller cannot distinguish an ops route from a
       route that does not exist. *(SC1 · D-216, D-219)*
-- [ ] **OPS-03** — Every ops action records **who did it** on an `audit` row whose `actorId` is the
+- [x] **OPS-03** — Every ops action records **who did it** on an `audit` row whose `actorId` is the
       authenticated staff user id — authenticated, not asserted. *(SC1 · D-218)*
 - [x] **OPS-04** — Ops works **one queue**: hosts awaiting verification and listings awaiting review,
       oldest first, with everything needed to decide on the same screen. *(SC3)*
@@ -93,9 +93,9 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| OPS-01 | Phase 18 | Partial (18-01 — staff standing reads server-side from `user.role`; `/api/auth/update-user` provably cannot write it. The "signs in to FitOut Ops" half needs the console, 18-12) |
+| OPS-01 | Phase 18 · 18-01 (the identity) · 18-12 (the console) | **Complete** (18-01 — staff standing reads server-side from `user.role`, a field `/api/auth/update-user` provably cannot write: a smuggled value takes the whole request down with `400 FIELD_NOT_ALLOWED` rather than being silently stripped. Granting is CLI-only (`npm run ops:grant`). 18-12 shipped the console, which is what "signs in to FitOut Ops" needed. ⚠ Standing hazard recorded at the site: `requireStaff()` is correct only while `session.cookieCache` stays unconfigured — enabling it as a performance change would keep a REVOKED staff grant working for the cache TTL and no test would go red.) |
 | OPS-02 | Phase 18 · 18-01 (the guard) · 18-12 (the route) · 18-14 (the status line) | **Complete** (18-01 — `requireStaff()` is the boundary and refuses non-staff / NULL-role / signed-out with `notFound()`. 18-12 — the route half: `/ops` behind three layers, no `(ops)` not-found body, refusal is `notFound()` everywhere, pinned structurally by `tests/design/ops-guard-coverage.test.ts` with three watched REDs. 18-14 — the last clause MEASURED under a production build of `8520721`, Next 16.2.7, `next start -p 3100`: **200** staff / **404** non-staff / **404** signed-out / **404** on the nonexistent `/ops/xyz` CONTROL, second pass identical; zero occurrences of `Ops` in all three 404 bodies and readings 2 and 3 byte-identical (same sha256). Transcript at `18-EVIDENCE.md § P1`, which states it is a ONE-TIME AUDIT and names the structural test as the ongoing pin. ⚠ ONE FINDING filed, not fixed: a header-level oracle survives the status line — an unrouted path is served from the prerendered 404 (`x-nextjs-prerender: 1`) while a matched `notFound()` is chunked. App-wide, identical on `/listings/[id]`, NOT introduced by 18-12.) |
-| OPS-03 | Phase 18 · 18-05 (all five console actions) | Partial (18-05 — every console action records the authenticated staff id, read BACK OUT of the table on both the allow and the deny branch. 18-08 adds a sixth ops action; "every ops action" closes there) |
+| OPS-03 | Phase 18 · 18-05 (five console actions) · 18-08 (the sixth, ops-cancel) | **Complete** (every ops action records the authenticated staff id on an `audit` row, read BACK OUT of the table on BOTH the allow and the deny branch — never inferred from an `ok` return, because `recordAudit` swallows its own insert failure by design. 18-08 added the sixth action and closed "every ops action". This is the phase's answer to `audit.resolved_by` being *"asserted, not authenticated"* — the console's writes now carry a real actor, though the pre-existing `scripts/ops-alerts.ts` CLI keeps its asserted handle by scope.) |
 | OPS-04 | Phase 18 · 18-05 (data) · 18-10 (row) · 18-12 (page) | Complete (18-05 — `loadReviewQueue` is ONE interleaved oldest-first array over both kinds, carrying every field a reviewer needs so the page runs no second query. 18-10 — the terminal row, one tree at every width, photographs included. 18-12 — `/ops`: ONE page (D-246, asserted), an `<ol>` because the order is the product, designed loading / empty / error states, and every figure formatted server-side. Overflow and a11y measured by hand at 320 and 1280 in both themes) |
 | OPS-05 | Phase 18 · 18-05 (write half) + 18-09 (delivery) + 18-13 (host-surface read) | **Satisfied for D-245** (18-05 stores the taxonomy-constrained, `.max(280)`-bounded SENTENCE the host reads; 18-09 delivers it — one durable `notification` row AND one email per decision, from ONE payload through the shipped fan-out, with the operator's sentence verbatim and exactly once, and no appeal/reply/timeline/address anywhere. D-230's host-surface status is IN ADDITION to this, not instead of it — and 18-13 SHIPPED it: the review chip and reason on `/host/listings`, and the suspension notice on `/host`, `/host/listings` and `/host/earnings` (D-252). Both halves now landed) |
 | HVER-01 | Phase 18 · 18-05 | Complete |
@@ -111,7 +111,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | ENF-02 | Phase 18 · 18-07 | Complete |
 | ENF-03 | Phase 18 · 18-08 | Complete |
 
-**17 requirements · Phase 18 · 7 complete**
+**17 requirements · Phase 18 · 17 complete** — verified 2026-09-01 (`18-VERIFICATION.md`: `passed_with_concerns`, 0 code-level blockers, 4 PM decisions open).
 
 ---
 
