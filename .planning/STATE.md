@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-status: verified_awaiting_pm_checkpoint
-stopped_at: "PHASE 18 COMPLETE AND VERIFIED — 14/14 plans, 17/17 requirements, verifier `passed_with_concerns` with 0 code-level blockers (18-VERIFICATION.md). Gates re-run BY THE VERIFIER, each alone: tsc 0, npm test 207 files/2485 passed/5 skipped, test:design 73/1331/3, build exit 0. The ROADMAP phase checkbox is deliberately NOT ticked and completed_phases is deliberately NOT bumped: GSD Complete requires VERIFICATION status `passed`, and 18-14 Task 3 is a BLOCKING PM checkpoint that is still OPEN. FOUR DECISIONS ARE OWED BY THE PM, D-236 leading (ops-cancel retains the service fee, against cancelBookingAsHost s shipped precedent; flip is one line at src/lib/payments/fees.ts:82 and both values are already exercised by tests). ✅ ALL FIVE ARE NOW SETTLED (2026-09-01): D-236 FLIPPED to true (full-charge refund; the PM accepted the cancel-booking.ts:1134-1137 precedent), D-250 LEAVE NULL (no monitored inbox exists — STATE-05/TRUST-01 stay carried), F11 YES name the frozen session on /host/earnings (but NOT what unfreezes it — 18-13's refusal stands), D-231 ADD title+description as material and KEEP reorder excluded (accepted cost: a typo fix takes the listing off-market until re-approved), and the KYC vendor: **Didit**, manual stays as an ops override, and counsel reviews the BSP assumption BEFORE the vendor plan opens (PM-F/G/H, recorded in 18-KYC-VENDOR-COMPARISON.md § DECIDED). The doc's own 'stay manual now' recommendation was REVERSED the day it was written, because the PM's PM-C ruling (gate listing creation on verification) turns manual from harmless into friction-that-checks-nothing. NO DECISIONS REMAIN. Three of the five need CODE that is not yet written — tracked in .planning/todos/pending/2026-09-01-phase-18-pm-decision-follow-through.md. ⚠ CORRECTION recorded there and in 18-14-SUMMARY: D-236's advertised "one line" is right about production (fees.ts:82) and WRONG about the test — case 1 asserts the constant is literally false, withFlippedConstant hard-codes the mock to true, and case 3's two expectation sets swap. After those three land: tick the phase, then /gsd-new-milestone for v1.2."
-last_updated: "2026-09-01T08:05:00.000Z"
-last_activity: 2026-09-01 — Phase 18 executed end to end (14 plans, 8 waves, 51 commits) and VERIFIED. 17/17 requirements. Four PM decisions open.
+status: verifying
+stopped_at: "Completed 18-14-PLAN.md (Wave 8 — the phase's LAST plan). OPS-02's four production-build status-line readings are on the record at 18-EVIDENCE.md § P1 (200/404/404/404, second pass identical, nonexistent-route control included, zero 'Ops' in every 404 body, readings 2 and 3 byte-identical) — PLUS ONE FINDING recorded rather than tuned away: a header-level 404 oracle (x-nextjs-prerender on an unrouted path vs chunked on a matched notFound()) survives the status line, is app-wide, is identical on /listings/[id], and is NOT introduced by 18-12. HVER-04's 18-KYC-VENDOR-COMPARISON.md is written for the PM verdict-first with the D-225 re-coupling argument before any price; A1 was RE-PROBED (identical to 2026-07-23) and moves to [PROBED]. D-254 shipped as drizzle/0029 — listing_review.listing_id cascades, both e2e teardowns re-run BY HAND and green, deferred-items D6 CLOSED. Gates each run ALONE: tsc 0, npm test 207/2485/5, test:design 73/1331/3, build exit 0, git diff --exit-code src/ clean. ⚠ THE BLOCKING PM CHECKPOINT IS OPEN — all five items deferred 2026-09-01, D-236 leading. Next: the phase verifier."
+last_updated: "2026-09-01T15:36:30.249Z"
+last_activity: "2026-09-01 — 18-14 executed (3 tasks + 1 ruled scope addition, 3 commits). OPS-02's last clause — *a non-staff caller cannot distinguish an ops route from one that does not exist* — is a claim about four numbers, and this repo has no instrument that can read one (`tests/design/soft-404-status.test.ts:31-39` says so in its own words). So it was read by hand under a PRODUCTION build of `8520721`, Next 16.2.7, `next start -p 3100`: **200 / 404 / 404 / 404**, second pass identical, with the nonexistent-`/ops/xyz` CONTROL that makes the equality mean anything. Bodies too: zero occurrences of `Ops` in all three 404s, and readings 2 and 3 **byte-identical** (same sha256) — a prober cannot even tell *not-staff* from *not-signed-in*. ⚠ **ONE FINDING recorded rather than tuned away:** an unrouted path is served from the prerendered static 404 (`x-nextjs-prerender: 1`, `x-nextjs-cache: HIT`, `Content-Length: 29644`) while a matched route that throws `notFound()` is served chunked with no `x-nextjs-*` headers (25970 bytes), so a header-level existence oracle survives the status line. Measured IDENTICALLY on `/listings/[id]` — app-wide, pre-existing, NOT introduced by 18-12, and invisible until now because 17.1 § P1 deliberately captured no bodies. Filed, not fixed. HVER-04's `18-KYC-VENDOR-COMPARISON.md` is written for the PM as a fork, leading with the D-225 re-coupling argument BEFORE any price (PayMongo's activation IS the payouts gate); **A1 was RE-PROBED**, 40 days on — `GET /v2/wallets?status=activated` still HTTP 200 with zero wallets, `GET /v2/transfers/receiving_institutions` still HTTP 404, Platforms doc page still 404 on both hosts — moving it from `[ASSUMED]` to `[PROBED]`. D-254 shipped as `drizzle/0029`: `listing_review.listing_id` cascades, both e2e teardowns re-run BY HAND and green, `deferred-items` D6 CLOSED. Gates each run ALONE: tsc **0**, `npm test` **207 files / 2485 / 5 skipped**, `test:design` **73 / 1331 / 3**, build exit **0**, `git diff --exit-code src/` clean after the readings."
 progress:
-  total_phases: 14
-  completed_phases: 11
+  total_phases: 16
+  completed_phases: 12
   total_plans: 163
-  completed_plans: 163
-  percent: 79
+  completed_plans: 168
+  percent: 75
 ---
 
 # Project State
@@ -43,9 +43,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 18 — Host Verification, Listing Review & FitOut Ops (EXECUTING)
-Plan: 14 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
-Status: **All 14 plans executed. NOT complete** — the phase verifier has not run, and 18-14's blocking PM checkpoint is OPEN (five items, D-236 leading; see Deferred Items).
+Phase: 18.1 — Close Phase 18: the verification path FitOut is legally required to have (INSERTED 2026-09-01, NOT PLANNED)
+Previous: 18 — Host Verification, Listing Review & FitOut Ops (executed + verified; checkbox held open until 18.1 ships)
+Plan: 0 of ~9 (18.1 is not planned yet — next step `/gsd-plan-phase 18.1`). Phase 18 itself: 14 of 14 complete, verified.
+Status: **18.1 INSERTED 2026-09-01, NOT PLANNED.** Phase 18's five-item PM checkpoint is fully ANSWERED; three of the five need code, and 18.1 carries them alongside the live defect (nothing ever creates a `host_verification` row, so the ops host queue can never fill and no new host can ever sell) and the RA 11967 § 21(b) obligations. **Phase 18's checkbox stays unticked until 18.1 ships.** The `/ops` staff surface (PM-A/PM-B) is deliberately OUT of 18.1 → v1.2.
 Last activity: 2026-09-01 — 18-14 executed (3 tasks + 1 ruled scope addition, 3 commits). OPS-02's last clause — *a non-staff caller cannot distinguish an ops route from one that does not exist* — is a claim about four numbers, and this repo has no instrument that can read one (`tests/design/soft-404-status.test.ts:31-39` says so in its own words). So it was read by hand under a PRODUCTION build of `8520721`, Next 16.2.7, `next start -p 3100`: **200 / 404 / 404 / 404**, second pass identical, with the nonexistent-`/ops/xyz` CONTROL that makes the equality mean anything. Bodies too: zero occurrences of `Ops` in all three 404s, and readings 2 and 3 **byte-identical** (same sha256) — a prober cannot even tell *not-staff* from *not-signed-in*. ⚠ **ONE FINDING recorded rather than tuned away:** an unrouted path is served from the prerendered static 404 (`x-nextjs-prerender: 1`, `x-nextjs-cache: HIT`, `Content-Length: 29644`) while a matched route that throws `notFound()` is served chunked with no `x-nextjs-*` headers (25970 bytes), so a header-level existence oracle survives the status line. Measured IDENTICALLY on `/listings/[id]` — app-wide, pre-existing, NOT introduced by 18-12, and invisible until now because 17.1 § P1 deliberately captured no bodies. Filed, not fixed. HVER-04's `18-KYC-VENDOR-COMPARISON.md` is written for the PM as a fork, leading with the D-225 re-coupling argument BEFORE any price (PayMongo's activation IS the payouts gate); **A1 was RE-PROBED**, 40 days on — `GET /v2/wallets?status=activated` still HTTP 200 with zero wallets, `GET /v2/transfers/receiving_institutions` still HTTP 404, Platforms doc page still 404 on both hosts — moving it from `[ASSUMED]` to `[PROBED]`. D-254 shipped as `drizzle/0029`: `listing_review.listing_id` cascades, both e2e teardowns re-run BY HAND and green, `deferred-items` D6 CLOSED. Gates each run ALONE: tsc **0**, `npm test` **207 files / 2485 / 5 skipped**, `test:design` **73 / 1331 / 3**, build exit **0**, `git diff --exit-code src/` clean after the readings.
 
 <details><summary>Previous activity (18-12, superseded)</summary>
@@ -674,6 +675,7 @@ deferred walk is inconsistent rather than honest.*
 - **Phase 18 added (2026-09-01): Host Verification, Listing Review & FitOut Ops** — added AHEAD of the v1.2 milestone cycle by PM decision, because the hole is live in production: today's sell-gate makes *"the host clicked a link in an email"* the only check that can actually pass (`payoutsEnabled`, the term meant to carry identity, depends on sales-gated PayMongo Linked Accounts and never turns true on its own merits). Four PM decisions were taken before planning: **ops approves every host AND every listing**; **identity via a third-party KYC vendor, never government IDs held by FitOut**; **enforcement carries both levers with ops choosing per case** (default block-new + payout freeze, escalating to cancel-and-refund); and **this phase only — the rest to backlog**. One decision is deliberately LEFT OPEN and must not be settled by the planner: **which KYC vendor**, including whether PayMongo's own Linked-Accounts KYC can serve — the PM asked for it as a written comparison brought back as a fork. SWE scope call recorded with the PM: **suspension is IN** despite being adjacent to 999.4, because an approve-only console is unsafe when ops cannot pull a listing it already approved.
 
 - **Backlog 999.4 / 999.5 / 999.6 captured (2026-09-01)** as the deliberate remainder of that split: **999.4 booker-side reporting & dispute resolution** (without it Phase 18 catches fraud at onboarding and never again; it lands on the hold-until-session payout window, so it plugs into Phase 18's freeze lever), **999.5 reviews & ratings** (FitOut has NO reputation signal of any kind — no review or rating table exists; the cheapest continuous fraud detector and the largest booker-trust gap), and **999.6 host appeals** (Phase 18 must not paint it into a corner — reject/suspend carry a reason and an authenticated actor precisely so an appeal has something to review).
+- Phase 18.1 inserted after Phase 18: Close Phase 18 - the verification path FitOut is legally required to have (URGENT)
 
 ### Decisions
 
@@ -1240,6 +1242,7 @@ at discuss time; do not re-ask them.**
   and must re-measure the 404-cloaking with `/ops/staff` in the probe set. 2FA, step-up re-auth,
   staff session TTL and an ops-only identity policy were each raised and **declined** — recorded as
   accepted risk, not deferred work.
+
 - **`2026-09-01-host-verification-submission-path-and-listing-creation-gate.md`** (area `hosting`) —
   ⚠ **THE ONE TO READ FIRST.** The PM asked to gate hosting behind KYC; investigating it found that
   **nothing in the product ever creates a `host_verification` row** (the only INSERT repo-wide is
@@ -1251,12 +1254,14 @@ at discuss time; do not re-ask them.**
   the vendor plan opens**. ⚠ Sequencing (SWE ruling): submission path NOW → counsel → Didit → THEN
   flip the listing-creation gate on. Landing the gate while the only provider is a rubber stamp ships
   friction that checks nothing.
+
 - **`2026-09-01-phase-18-pm-decision-follow-through.md`** (area `general`) — the CODE owed by the five
   now-answered Phase-18 checkpoint decisions: **D-236** flip `OPS_CANCEL_REFUNDS_SERVICE_FEE` to
   `true`, **D-231** add `title` + `description` as material fields (reorder stays excluded), **F11**
   name the frozen session on `/host/earnings` (without promising a review). ⚠ Carries the correction
   that D-236's advertised "one line" is wrong about the test half. **Phase 18's checkbox stays unticked
   until these three land.**
+
 - **`2026-09-01-reveal-host-contact-details-in-ops-queue.md`** (area `ops`) — `/ops` shows no host
   email and no phone, so ops cannot reach a host about their listing. PM ruled **reveal-on-click with
   an audit row per reveal** (ids only in `audit.meta`, never the address itself — D-72).
@@ -1767,13 +1772,16 @@ Resume file: None
   **PM-C's gate now has statutory backing** (§ 21(b) says "prior to listing" in its own words), and
   **required phone is no longer an SWE assumption — § 21(b)(3) requires it.** The Didit plan still does
   not open until counsel returns; the provider-agnostic submission path proceeds regardless.
+
 - ⚠ **Before the Didit plan opens:** verify pricing and PH document support first-hand. Every figure on
   record is a published list price (free to 500 checks/month, then $0.33); **PH rates are quote-only at
   every vendor found**; Didit does not name the Philippines in its coverage; and
   `18-KYC-VENDOR-COMPARISON.md`'s figures **expire 2026-09-15**.
+
 - ✅ **All five Phase-18 PM checkpoint decisions are ANSWERED (2026-09-01).** Three need code:
   **D-236** flip to `true`, **D-231** add title+description as material fields, **F11** name the frozen
   session on `/host/earnings`. Tracked in
   `.planning/todos/pending/2026-09-01-phase-18-pm-decision-follow-through.md`. **Tick the Phase 18
   checkbox and bump `completed_phases` only after those three land.**
+
 - Start the next milestone with /gsd-new-milestone

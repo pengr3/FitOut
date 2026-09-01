@@ -77,7 +77,10 @@ handoff neither Phase 13 nor Phase 15 executed — found by the milestone audit.
 **v1.2 has not been through the milestone cycle** — no requirements doc, no research, no roadmap
 pass. **Phase 18 was added ahead of it on 2026-09-01 by PM decision**, because the hole it closes is
 live in production: *FitOut cannot tell a real host from a fraudulent one, and has no ops function to
-find out.* Run `/gsd-new-milestone` when v1.2's full scope is defined; Phase 18 folds into it.
+find out.* **Phase 18.1 was inserted the same day** — Phase 18 shipped the console that decides and
+never shipped the thing that submits to it, and the Internet Transactions Act of 2023 turns that from
+a product gap into a compliance one. Run `/gsd-new-milestone` when v1.2's full scope is defined; both
+fold into it.
 
 **Two requirements carry forward unsatisfied from v1.1**, both closed by one monitored support
 address at `src/lib/site.ts:70`: `STATE-05` and `TRUST-01`. `TRUST-01` is now **Phase 18's
@@ -193,6 +196,125 @@ Plans:
 - [x] 18-13-PLAN.md — Host-facing review & suspension signals (wave 7)
 - [x] 18-14-PLAN.md — HVER-04 vendor comparison & the OPS-02 status-line audit (wave 8, has checkpoint)
 
+### Phase 18.1: Close Phase 18 — the verification path FitOut is legally required to have (INSERTED)
+
+**Goal**: A host can actually be verified — and FitOut collects, before a listing goes up, what
+**RA 11967 § 21(b)** requires it to collect. Phase 18 shipped the console that *decides* and never
+shipped the thing that *submits to it*; this phase closes that, wires the chosen vendor, lands the
+gate, and discharges the PM decisions Phase 18 left open.
+
+**Depends on**: Phase 18 (closes it — the Phase 18 checkbox cannot be ticked until this ships)
+**Requirements**: new `HVER-06..08`, `LVER-05`, `OPS-06` written at plan time into
+`.planning/REQUIREMENTS.md` (the D-239 convention Phase 18 used). The three close-out items carry
+**decisions**, not requirements: **D-236**, **D-231**, and the **F11** earnings gap.
+**UI hint**: yes — a host-facing verification surface, a gated listing wizard, and one ops row change.
+
+**⚠ WHY THIS IS AN INSERTION AND NOT v1.2 SCOPE.** Two independent reasons, both measured rather than
+argued:
+
+  1. **A live production defect.** Repo-wide, the only `INSERT INTO host_verification` is
+     `e2e/helpers/booker-seed.ts:600` and the `drizzle/0026` grandfather backfill. `approveHost()` is
+     an `UPDATE … WHERE status IN ('pending','unverified')`, so with no row it flips nothing and
+     returns `STALE`. **The ops host queue can never fill, no new host can ever be approved, and no
+     new host can ever sell.** Only hosts grandfathered at cutover can transact.
+  2. **A statutory obligation, not a product choice.** The **Internet Transactions Act of 2023
+     (RA 11967)** has been **fully enforced since 20 June 2025** and requires an online platform to
+     collect from every merchant *prior to listing* a name plus at least one valid government
+     identification, a geographic address, and contact details including a phone number and a valid
+     email — and to keep that list *"updated and verified regularly"* under an **ordinary diligence**
+     standard. See `.planning/phases/18-host-verification-listing-review-fitout-ops/18-REGULATORY-BRIEF.md`.
+     Phase 18's own goal is therefore unmet in a way that is not merely a product gap.
+
+**Success Criteria** (what must be TRUE):
+
+  1. A host can **ask to be verified**, and doing so puts a real row in the ops queue. The "hosts
+     awaiting verification" half of `/ops` fills from ordinary product use — proven by driving it,
+     because today it provably cannot.
+  2. Identity is checked by **Didit** behind the existing verification port. FitOut stores
+     `{ result, vendorRef, checkedAt, provider }` and **never a document, an ID number or an image** —
+     `tests/ops/verification-schema.test.ts`'s column allow-list still passes untouched.
+  3. The **manual provider stays registered** as the ops override: a vendor outage, an edge-case
+     document or an appeal can still be decided by a named staff member, and those rows stay
+     distinguishable in the audit trail by `provider = 'manual'`.
+  4. FitOut holds, for every host verified after this phase, what § 21(b) names: the identity check
+     (via the vendor), a **geographic address**, a **phone number** and a **valid email**. Phone and
+     email are **required at submission** — not optional profile fields.
+  5. **A host cannot create a listing until they are verified.** Server-side in the action, never a
+     hidden button — and the refusal names the state, the reason and the way out.
+  6. **Ops can reach a host**: email and phone revealed on demand from the queue row, each reveal
+     writing an audit row carrying ids only — never the address itself (D-72).
+  7. The three carried PM decisions are implemented: an ops-forced cancellation refunds the **full
+     charge** (D-236 flipped), **title and description are material fields** (D-231), and a suspended
+     host's `/host/earnings` **names the frozen session** (F11).
+  8. Phase 18's roadmap checkbox can be ticked.
+
+**PM decisions already taken (2026-09-01) — ANSWERED, do not re-ask.** Recorded in `18-14-SUMMARY.md`
+§ The five checkpoint decisions and `18-KYC-VENDOR-COMPARISON.md` § ✅ DECIDED:
+
+  - **PM-C** — the gate sits at **listing creation**, not at publish and not at hosting entry.
+  - **PM-D** — the submission path is built; the no-documents storage contract is unchanged.
+  - **PM-E** — host contact is **reveal-on-click with an audit row**, not always-visible.
+  - **PM-F** — the vendor is **Didit**. PayMongo Linked Accounts rejected: its activation *is* its
+    payouts gate, so it re-couples identity to payouts and undoes D-225, and it is sales-gated —
+    probed negative twice, two months apart, with its own docs page 404ing on both hosts.
+  - **PM-G** — the manual provider stays as an ops override. D-215 stands: one staff role, no tiers,
+    no permission table.
+  - **D-236** flipped to `true`. **D-231** — add title + description, keep reorder excluded.
+    **F11** — yes, name the frozen session; do **not** name what unfreezes it (18-13's refusal stands).
+
+**⚠ THREE TRAPS, each already measured — do not rediscover them.**
+
+  - **D-236 is NOT a one-line change**, despite three phase documents saying it is. Production is one
+    line (`src/lib/payments/fees.ts:82`), but `tests/payments/ops-cancel.test.ts` **case 1 asserts the
+    constant is literally `false`** and fails by design, carrying its own "swap cases 1 and 2" message;
+    `withFlippedConstant` hard-codes its mock to `true` and must become `false`; case 3's two
+    expectation sets swap; and the docblock above the constant argues at length for the value being
+    replaced.
+  - **D-231's accepted cost**: a material edit flips `review_state` to `pending`, and `deriveBookable`
+    requires `approved|grandfathered` — so **a typo fix in a description takes the listing off the
+    market until ops re-approves it.** Ruled acceptable by the PM over a "material but still sellable"
+    variant that would need a state the sell-gate does not have.
+  - **`re-review.ts` is a deliberately SHARED helper** while the sell-gate's re-statements in
+    `booking.ts` are deliberately DUPLICATED (D-227). Do not "consistently" refactor either into the
+    other. One enum literal is also deliberately absent from that file because an acceptance grep
+    counts occurrences of it — read its header before editing.
+
+**⚠ EXPLICITLY OUT OF SCOPE:**
+
+  - **The `/ops` staff-management surface** (PM-A/PM-B — create/grant/revoke inside `/ops`, onboarded
+    by the ordinary signup + email-confirmation flow, no 2FA). It **supersedes D-217**, needs its own
+    invite flow, and has **no compliance driver** — the ITA says nothing about how FitOut's own staff
+    sign in. → **v1.2.** Captured in
+    `.planning/todos/pending/2026-09-01-ops-staff-management-surface-and-invite-flow.md`.
+  - **DTI E-Commerce Bureau registration for FitOut itself** — a company action, not code.
+  - **§ 21(f) redress mechanisms** — booker-side reporting and host appeals. Now understood as
+    **obligations rather than roadmap candidates**, but they stay backlog **999.4** and **999.6**.
+
+**⚠ ONE COUNSEL POINT REMAINS OPEN AND DOES NOT BLOCK THIS PHASE.** Desk research settled the question
+PM-H was gating on: BSP Circular 1170 binds BSP-supervised institutions and not a marketplace, FitOut
+is not an AMLA covered person, and cross-border transfer to a US/EU vendor is fine — no residency
+mandate, and NPC Advisory 2024-01's model clauses are voluntary. **Nothing mandates a PH-licensed
+vendor, so PM-F is safe to build.** What is still owed is (i) the timing exposure since 20 June 2025
+and (ii) whether holding only a `vendorRef` satisfies § 21(c)'s "updated and verified regularly" list
+and the subpoena clause. **Both are vendor-independent** — equally open under Innov8tif or PayMongo —
+so neither changes what this phase builds.
+
+**Plans:** not planned yet — next step is `/gsd-plan-phase 18.1`
+
+Suggested order (dependency, not concurrency — worktrees stay OFF, so plans run sequentially on `dev`,
+one executor at a time):
+
+- [ ] 18.1-01 — D-236: flip the ops-cancel refund basis (production line, docblock, three test edits)
+- [ ] 18.1-02 — D-231: title + description become material fields
+- [ ] 18.1-03 — F11: a suspended host's `/host/earnings` names the frozen session
+- [ ] 18.1-04 — The host verification submission path: the row that makes the ops queue fill
+- [ ] 18.1-05 — § 21(b)(3): phone + email required at submission; the host address FitOut must hold
+- [ ] 18.1-06 — The Didit provider behind the port, manual retained as the ops override
+- [ ] 18.1-07 — The Didit webhook + credential, if the vendor answers asynchronously
+- [ ] 18.1-08 — PM-C: the listing-creation gate, server-side, with a legible refusal
+- [ ] 18.1-09 — PM-E: host contact reveal in `/ops`, audited per reveal
+
+
 ## Progress
 
 | Phase | Milestone | Plans | Status | Completed |
@@ -209,7 +331,8 @@ Plans:
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-28 |
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
-| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified** `passed_with_concerns` — 17/17 requirements, 0 code-level blockers; **18-14's PM checkpoint OPEN (4 decisions, D-236 leading)** | verified 2026-09-01 |
+| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified** `passed_with_concerns` — 17/17 requirements, 0 code-level blockers; **PM checkpoint ANSWERED 2026-09-01 (all 5); checkbox held until 18.1 ships the code** | verified 2026-09-01 |
+| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 0/9 | Not planned — `/gsd-plan-phase 18.1` | — |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
