@@ -41,6 +41,8 @@ import {
   HOURS_MISSING_REASON,
   HOURS_MISSING_CTA,
 } from "@/lib/listing/hours-signal";
+import { REVIEW_SIGNAL } from "@/lib/listing/review-signal";
+import { listingReviewState } from "@/lib/db/schema";
 
 afterEach(cleanup);
 
@@ -51,6 +53,10 @@ function makeListing(overrides: Partial<ListingCardData> = {}): ListingCardData 
     primarySpaceType: "pickleball_court",
     status: "published",
     coverUrl: null,
+    // The default is the state EVERY PRE-PHASE-18 CASE IN THIS FILE IMPLICITLY ASSUMED: a listing that
+    // has been through review and passed. Choosing `pending` here — the column's own DB default —
+    // would silently repaint nine shipped cases with the new chip and prove nothing about either.
+    reviewState: "approved",
     ...overrides,
   };
 }
@@ -254,5 +260,176 @@ describe("ListingCard no-hours notice (v1.0 audit finding #4)", () => {
     expect(text).not.toContain(HOURS_MISSING_STATE);
     expect(text).not.toContain(HOURS_MISSING_REASON);
     expect(ctaAnchor(container)).toBeNull();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// THE REVIEW CHIP (phase 18 · D-230 / LVER-02's host half)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Every assertion is against the IMPORTED signal, never a re-typed sentence — the same rule the
+// no-hours block above states, for the same reason: a copy edit in `review-signal.ts` must not need an
+// edit here, and a case quoting its own literal would go on passing after the shipped copy changed.
+//
+// THE HOST GRID IS THIS COMPONENT'S ONLY CALL SITE, so these cases are the whole render-level record of
+// what a host sees. What they cannot see: whether the PAGE hands over the right review state or the
+// right operator sentence. `npm run build` proves the page compiles and the wiring is typed; nothing
+// here would notice a page that passed a constant.
+describe("ListingCard review chip and notice (D-230)", () => {
+  const HOST_PROPS = {
+    availabilityHref: "/host/listings/abc/availability",
+    editHref: "/host/listings/abc/edit",
+  } as const;
+
+  /** Every chip on the card, by the vendored Badge's own slot attribute — not by guessing at classes. */
+  function chips(container: HTMLElement): string[] {
+    return Array.from(container.querySelectorAll('[data-slot="badge"]')).map((el) =>
+      (el.textContent ?? "").trim(),
+    );
+  }
+
+  function wayOutAnchor(container: HTMLElement): HTMLAnchorElement | null {
+    return (
+      (Array.from(container.querySelectorAll("a")).find(
+        (a) => (a.textContent ?? "").trim() === REVIEW_SIGNAL.rejected.wayOut,
+      ) as HTMLAnchorElement | undefined) ?? null
+    );
+  }
+
+  it("(10) `pending`: the In review chip, the reason, and NO way out", () => {
+    const { container } = render(
+      <ListingCard
+        listing={makeListing({ reviewState: "pending" })}
+        priceParts={["₱307.50/hr"]}
+        bookable={false}
+        {...HOST_PROPS}
+      />,
+    );
+
+    expect(chips(container)).toEqual([REVIEW_SIGNAL.pending.chip]);
+    expect(container.textContent ?? "").toContain(REVIEW_SIGNAL.pending.reason);
+
+    // The absence is the assertion. There is nothing the host can do about a queue, and a control that
+    // acts on nothing teaches a host that this product's affordances are decorative.
+    expect(wayOutAnchor(container)).toBeNull();
+
+    // It DISPLACES "Published · not bookable" rather than joining it: both are true, and this one names
+    // the cause where the other names the symptom.
+    expect(screen.queryByText("Published · not bookable")).toBeNull();
+  });
+
+  it("(11) `rejected`: the chip, the reason, the OPERATOR'S sentence verbatim, and the one real way out", () => {
+    const operatorSentence = "The photos don't match the address on this listing.";
+    const { container } = render(
+      <ListingCard
+        listing={makeListing({ reviewState: "rejected" })}
+        priceParts={["₱307.50/hr"]}
+        bookable={false}
+        rejectionReason={operatorSentence}
+        {...HOST_PROPS}
+      />,
+    );
+
+    expect(chips(container)).toEqual([REVIEW_SIGNAL.rejected.chip]);
+
+    const text = container.textContent ?? "";
+    expect(text).toContain(REVIEW_SIGNAL.rejected.reason);
+    // VERBATIM, and exactly once — never paraphrased, never summarised into the chip.
+    expect(text).toContain(operatorSentence);
+    expect(text.split(operatorSentence)).toHaveLength(2);
+    // As TEXT (T-18-1301). Operator free text reaches a React text node and nothing renders markup.
+    expect(container.innerHTML).not.toContain("<script");
+
+    // The way out is TRUE because a material edit flips `rejected → pending` (D-249, plan 18-06), and
+    // it points at the wizard route the card was already given rather than a second spelling of it.
+    const wayOut = wayOutAnchor(container);
+    expect(wayOut).not.toBeNull();
+    expect(wayOut?.getAttribute("href")).toBe(HOST_PROPS.editHref);
+  });
+
+  it("(12) `grandfathered` renders EXACTLY what it rendered yesterday — nothing new (D-211/D-212)", () => {
+    // THE MUTATION ANCHOR. A grandfathered listing was never checked, so there is no review outcome to
+    // report, and "you were grandfathered" invites a question nobody at FitOut can answer. Both arms of
+    // the pre-phase behaviour are pinned, because a chip that appeared on only one of them would slip
+    // past a single-arm case.
+    const live = render(
+      <ListingCard
+        listing={makeListing({ reviewState: "grandfathered" })}
+        priceParts={["₱307.50/hr"]}
+        bookable
+        {...HOST_PROPS}
+      />,
+    );
+    expect(chips(live.container)).toEqual(["Live"]);
+    expect(live.container.textContent ?? "").not.toContain(REVIEW_SIGNAL.pending.reason);
+    cleanup();
+
+    const notBookable = render(
+      <ListingCard
+        listing={makeListing({ reviewState: "grandfathered" })}
+        priceParts={["₱307.50/hr"]}
+        bookable={false}
+        {...HOST_PROPS}
+      />,
+    );
+    expect(chips(notBookable.container)).toEqual(["Published · not bookable"]);
+    // And no notice of any kind: not the pending sentence, not the rejection one.
+    expect(notBookable.container.textContent ?? "").not.toContain(REVIEW_SIGNAL.rejected.reason);
+  });
+
+  it("(13) a DRAFT is never badged In review, though its review state is `pending` by default", () => {
+    // `listing.review_state` DEFAULTS to `pending` in the schema, so every draft carries it. Badging a
+    // draft "In review" would tell the host FitOut is checking something they never submitted.
+    const { container } = render(
+      <ListingCard
+        listing={makeListing({ status: "draft", reviewState: "pending" })}
+        priceParts={["₱307.50/hr"]}
+        bookable={false}
+        {...HOST_PROPS}
+      />,
+    );
+
+    expect(chips(container)).toEqual(["Draft"]);
+    expect(container.textContent ?? "").not.toContain(REVIEW_SIGNAL.pending.reason);
+  });
+
+  it("(14) EXACTLY ONE chip renders, for every status × bookable × review-state combination", () => {
+    // ONE CHIP PER CARD is this file's own header rule, and the reason the review state joined
+    // `statusBadge()` instead of becoming a second badge beside it. The combination sweep is what makes
+    // that a measurement rather than a claim: 3 statuses × 2 × 5 review states = 30 renders, and a
+    // second chip anywhere in that space fails here naming the combination.
+    const statuses = ["draft", "published", "unlisted"] as const;
+    const reviewStates = listingReviewState.enumValues;
+
+    const wrong: string[] = [];
+    for (const status of statuses) {
+      for (const bookable of [true, false]) {
+        for (const reviewState of reviewStates) {
+          const { container } = render(
+            <ListingCard
+              listing={makeListing({ status, reviewState })}
+              priceParts={["₱307.50/hr"]}
+              bookable={bookable}
+              {...HOST_PROPS}
+            />,
+          );
+          const found = chips(container);
+          if (found.length !== 1) {
+            wrong.push(`  ${status} · bookable=${bookable} · ${reviewState} → ${found.length} chips: ${found.join(" | ")}`);
+          }
+          cleanup();
+        }
+      }
+    }
+
+    expect(
+      wrong,
+      `these combinations do not render exactly one chip:\n${wrong.join("\n")}\n` +
+        "A management tile with two chips is two things to read before knowing whether the space is " +
+        "selling. If a new state genuinely needs its own chip, it belongs INSIDE statusBadge().",
+    ).toEqual([]);
+    // Guard-the-guard: the sweep covered the whole review dimension, derived from the pgEnum, so a
+    // sixth value widens this loop rather than slipping past it.
+    expect(reviewStates.length).toBe(5);
   });
 });

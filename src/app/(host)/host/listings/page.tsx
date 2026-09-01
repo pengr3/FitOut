@@ -143,6 +143,10 @@ export default async function HostListingsPage() {
               primarySpaceType: r.primarySpaceType,
               status: r.status,
               coverUrl: coverByListing.get(r.id) ?? null,
+              // Free from the `select()` above (`r` is a full listing row), and REQUIRED on the card's
+              // data shape so this projection cannot forget it — the tile's chip is the host's only
+              // on-surface answer to "why has this stopped selling" (D-230).
+              reviewState: r.reviewState,
             };
             // D-130 / GATE-05 — the rate columns stop HERE. Phase 9 (OC-01/D-125): the persisted mode and
             // the per-head price are read straight off the row, never inferred from which rate is null, and

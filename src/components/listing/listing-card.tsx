@@ -10,6 +10,12 @@
 // published-not-payable → "Published · not bookable" (neutral); unlisted → "Unlisted" (neutral).
 // bookable is DERIVED upstream (deriveBookable) and passed in — the card never re-derives it.
 //
+// PHASE 18 (D-230 / LVER-02's host half): a PUBLISHED listing awaiting or refused a FitOut review shows
+// the REVIEW chip instead — "In review" / "Not approved", both neutral. It joins `statusBadge()` rather
+// than becoming a second badge beside it, because ONE CHIP PER CARD is this file's rule and two chips
+// on a management tile is two things to read before knowing whether the space is selling. The words
+// live in `src/lib/listing/review-signal.ts`, with the reason line and the one way out that is true.
+//
 // PHASE 9 (09-UI-SPEC § 4, final paragraph): a drop-in listing's price line reads `₱…/person`, composed by
 // the SAME `allInRateParts` open branch the search card and the listing rail use — one definition of what
 // a per-person rate says, so the three surfaces cannot drift.
@@ -52,6 +58,13 @@ import {
   HOURS_MISSING_REASON,
   HOURS_MISSING_CTA,
 } from "@/lib/listing/hours-signal";
+import { composeReviewSentence, reviewSignalFor } from "@/lib/listing/review-signal";
+// TYPE-ONLY, and therefore erased at compile time — this is a client module and nothing from the
+// schema may reach the browser bundle. It is imported rather than re-spelled as a hand-written union
+// beside `status` above: the review states are a pgEnum, `tsc` enumerates every construction site of
+// the type below, and a sixth value would be invisible to a union typed out by hand. That is 18-04's
+// finding in miniature — the census counts what it can SEE.
+import type { ListingReviewState } from "@/lib/db/schema";
 
 export type ListingCardData = {
   id: string;
@@ -59,6 +72,12 @@ export type ListingCardData = {
   primarySpaceType: SpaceTypeValue | null;
   status: "draft" | "published" | "unlisted";
   coverUrl: string | null;
+  /**
+   * The ops review state (phase 18, D-208/D-230). REQUIRED, deliberately: it is free from the host
+   * grid's existing `select()` (`r` is a full listing row), and a defaulted field would let a future
+   * projection forget it and silently show every listing as if it had been approved.
+   */
+  reviewState: ListingReviewState;
 };
 
 // D-130 / GATE-05 — WHAT IS DELIBERATELY ABSENT FROM THE SHAPE ABOVE, so the next reader does not "restore"
@@ -85,7 +104,30 @@ type ActionResult = { ok: boolean; error?: string };
 function statusBadge(
   status: ListingCardData["status"],
   bookable: boolean,
+  reviewState: ListingReviewState,
 ): { label: string; variant: "default" | "secondary"; className: string; Icon?: LucideIcon } {
+  // ─── THE REVIEW STATE COMES FIRST, AND ONLY ON A PUBLISHED LISTING ────────────────────────────────
+  //
+  // ORDERING. A listing that is `published` but `pending` or `rejected` shows the REVIEW chip, because
+  // that is THE REASON IT IS NOT SELLING and it is the more specific fact. "Published · not bookable"
+  // is true of it as well, and it is the less useful of two true things: it names the symptom while
+  // this names the cause. The two cannot disagree — `Live` still requires `bookable`, and the review
+  // term joined `deriveBookable` in plan 18-03, so a pending or rejected listing is never bookable.
+  //
+  // ⚠ `status === "published"` IS PART OF THE CONDITION, for `hours-signal.ts`'s reason applied to a
+  // second signal — and here it is load-bearing rather than merely tidy. `listing.review_state`
+  // DEFAULTS TO `pending` (schema.ts), so EVERY DRAFT carries it. A draft badged "In review" would be
+  // telling the host that FitOut is checking something they have not submitted, on the one card where
+  // "Draft" is the whole truth. An `unlisted` listing is off the market by the host's own choice, and
+  // that choice is the fact they need; a review outcome on a listing nobody can see is noise.
+  //
+  // NEUTRAL, NO ICON, NO COLOUR (DS-10). A listing awaiting a decision, and one that did not get it,
+  // are normal lifecycle states of a working marketplace. `Live` remains the only colour-carrying
+  // branch, `src/lib/design/status-tones.ts` stays at four tones and this plan adds none.
+  if (status === "published") {
+    const review = reviewSignalFor(reviewState);
+    if (review) return { label: review.chip, variant: "secondary" as const, className: "" };
+  }
   if (status === "published" && bookable) {
     return {
       label: "Live",
@@ -156,6 +198,7 @@ export function ListingCard({
   priceParts,
   bookable = false,
   hoursMissing = false,
+  rejectionReason = null,
   titleAs: TitleTag = "h3",
   editHref,
   availabilityHref,
@@ -193,6 +236,23 @@ export function ListingCard({
    * notice. What changed is upstream — the value of `bookable` that the host grid now computes.
    */
   hoursMissing?: boolean;
+  /**
+   * The OPERATOR'S OWN SENTENCE for a rejected listing — `listing_review.reason`, read owner-scoped and
+   * ONCE for the whole grid by `(host)/host/listings/page.tsx` (the pre-collapsed `Map` idiom, never a
+   * query per card).
+   *
+   * It is DATA, not copy: the product's sentence lives in `review-signal.ts` and this is the human
+   * note an operator typed beside their decision. It is appended VERBATIM by the shared composer —
+   * never paraphrased, never summarised into the chip — and it stays readable until the host
+   * resubmits, because clearing it would delete the only thing that makes editing purposeful (D-249).
+   *
+   * ⚠ RENDERED AS TEXT (T-18-1301). This is operator free text crossing onto a surface the host
+   * controls nothing about; it reaches a React text node and nothing here interpolates it into markup.
+   *
+   * Absent on every other state — an approval carries no reason, and a `pending` listing has not been
+   * decided yet, so its notice is the product sentence alone.
+   */
+  rejectionReason?: string | null;
   /**
    * The heading LEVEL the card's title renders at. `EmptyState`'s prop of the same name, for the same
    * reason: a card is a fragment of somebody else's outline, and only the page knows what level it
@@ -250,8 +310,21 @@ export function ListingCard({
   onDelete?: (id: string) => Promise<ActionResult>;
 }) {
   const router = useRouter();
-  const badge = statusBadge(listing.status, bookable);
+  const badge = statusBadge(listing.status, bookable, listing.reviewState);
   const hasActions = Boolean(editHref || availabilityHref || onUnlist || onDelete);
+
+  // THE REVIEW SIGNAL, resolved ONCE and shared with the chip above — one lookup, so the chip and the
+  // sentence beneath it can never name different states. The `status === "published"` term is the
+  // badge's own (see `statusBadge`): a draft carries `pending` by default and has been submitted to
+  // nobody.
+  //
+  // `availabilityHref` is the HOST-ONLY guard, exactly as it is for the hours notice (T-IU7-02): a
+  // Phase-4 search card passes neither host prop, so it is structurally unable to render a management
+  // notice rather than merely unlikely to. The chip is safe on its own — search never renders this
+  // component, and every row it does render is already past the sell-gate's review term.
+  const reviewSignal = listing.status === "published" ? reviewSignalFor(listing.reviewState) : null;
+  const reviewNotice =
+    reviewSignal && availabilityHref ? composeReviewSentence(reviewSignal, rejectionReason) : null;
 
   // The no-hours sentence, assembled as ONE string (the cancellation-fee-notice.tsx lesson: SWC's JSX
   // whitespace transform strips the leading space of text following an expression container, which is how
@@ -326,6 +399,33 @@ export function ListingCard({
             <Link href={availabilityHref} className="underline underline-offset-4">
               {HOURS_MISSING_CTA}
             </Link>
+          </p>
+        )}
+        {/*
+          D-230 / OPS-05 — THE REVIEW SIGNAL'S REASON LINE, and the way out where one exists.
+
+          Same treatment as the hours notice directly above: calm muted information, never an alarm and
+          never red. Nothing has gone wrong — a decision is pending, or has been taken.
+
+          The sentence arrives already composed (product sentence, then the operator's own words
+          verbatim) and is rendered as TEXT. There is no `dangerouslySetInnerHTML` on this path and
+          there must never be one: the second half of that string is free text an operator typed.
+
+          THE WAY OUT IS RENDERED ONLY WHERE THE SIGNAL DECLARES ONE, and `pending` declares none — so
+          this is the absence made structural rather than a branch somebody has to remember. `editHref`
+          is the host grid's own spelling of the wizard route, reused rather than re-typed here.
+        */}
+        {reviewNotice && reviewSignal && (
+          <p className="text-sm text-muted-foreground">
+            {reviewNotice}
+            {reviewSignal.wayOut && editHref ? (
+              <>
+                {" "}
+                <Link href={editHref} className="underline underline-offset-4">
+                  {reviewSignal.wayOut}
+                </Link>
+              </>
+            ) : null}
           </p>
         )}
       </CardContent>

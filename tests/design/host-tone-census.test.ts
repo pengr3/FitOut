@@ -175,6 +175,43 @@ const EXPECTED_ALARM_OCCURRENCES: Readonly<Record<string, { count: number; why: 
   },
 };
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * THE SECOND SET — HOST-FACING STATE SENTENCES DECLARED NEUTRAL, AND MEASURED AT ZERO (phase 18)
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * The map above answers "which files SPEND the alarm role, and why is each correct". It cannot answer
+ * the question phase 18 raises, which is the opposite one: a NEW host-facing state sentence has shipped,
+ * it claims to be neutral, and the claim lives in prose. A file that renders zero occurrences is simply
+ * absent from a map of files that render some — indistinguishable from a file that does not exist.
+ *
+ * So the tone claim for each new signal is INVENTORIED here, on the same row shape (a path and a `why`),
+ * measured with the same stripper, and asserted at exactly zero. This makes the gate STRICTLY STRONGER:
+ * nothing above is relaxed, no exclusion is added, and one more file is policed.
+ *
+ * ⚠ THE ONE FILE THAT IS DELIBERATELY NOT HERE, AND THIS WAS MEASURED RATHER THAN ASSUMED.
+ * `src/components/listing/listing-card.tsx` renders the review chip, and it is the OTHER half of the
+ * phase-18 signal — but it already spends the alarm role once, on the per-card DELETE action, which is a
+ * destructive action and not a state at all. It is listed by name in this file's own "deliberately does
+ * not pin" block above for exactly that reason. Adding it to a zero-set would go red against correct,
+ * shipped code — which is how a gate gets loosened by whoever has to make it green again. The chip's
+ * neutrality is pinned where it can be pinned honestly: `tests/listing/review-signal.test.ts` asserts
+ * the copy module carries no tone at all, and `listing-card.test.tsx` asserts the chips that render.
+ *
+ * ⚠ AND WHY THE PATHS BELOW MAY SIT OUTSIDE `TREES`. The three trees are the AC#39 scope for the
+ * EQUALITY map. This set is a per-file zero assertion, so it reaches a file wherever it lives — which
+ * matters, because a copy module is exactly where a host-facing sentence now lives.
+ */
+const DECLARED_NEUTRAL_SIGNALS: Readonly<Record<string, string>> = {
+  "src/lib/listing/review-signal.ts":
+    "D-230 / DS-10, plan 18-13. The words for a listing In review and one Not approved, plus the " +
+    "suspended host's Hosting paused sentence. A listing awaiting a decision, and one that did not " +
+    "get it, are NORMAL LIFECYCLE STATES of a working marketplace — the same argument this file's " +
+    "header makes for an expiring request and an unpaid payout. This module therefore carries no tone " +
+    "class, no variant name and no role token at all: the surfaces choose the presentation, and both " +
+    "chips are the neutral secondary badge with no icon and no colour.",
+};
+
 /** Collect every `.ts`/`.tsx` file under a directory — `brand-recipe.test.ts:429`'s reference walker. */
 function collectSourceFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -296,6 +333,47 @@ describe("AC#39 — the alarm token gains ZERO NEW occurrences on the host and a
         "then reads a muted grey line. If the removal is deliberate, delete the entry and say why in " +
         "the same commit.",
     ).toEqual([]);
+  });
+
+  it("every DECLARED-NEUTRAL host signal renders the alarm role zero times", () => {
+    const wrong = Object.entries(DECLARED_NEUTRAL_SIGNALS).map(([file, why]) => {
+      const abs = resolve(process.cwd(), file);
+      // Guard-the-guard, per file and in both directions: the file must exist and must have real
+      // content after stripping. A missing path and a file of nothing but comments would each measure
+      // zero and agree with this assertion perfectly — the measurement-of-nothing failure this suite
+      // records more often than any other.
+      let stripped: string;
+      try {
+        stripped = stripComments(readFileSync(abs, "utf8"));
+      } catch {
+        return `  ${file} — declared neutral, but no such file. Move the declaration with the file.`;
+      }
+      if (stripped.trim().length < 200) {
+        return `  ${file} — declared neutral, but only ${stripped.trim().length} chars survive the stripper. A zero measured against nothing is not a measurement.`;
+      }
+      const hits = [...stripped.matchAll(ALARM_PATTERN)];
+      return hits.length === 0
+        ? null
+        : `  ${file} — declared NEUTRAL, measured ${hits.length}x\n      declared reason: ${why}`;
+    });
+
+    expect(
+      wrong.filter((r): r is string => r !== null),
+      "these files carry a host-facing STATE sentence that was declared neutral, and no longer " +
+        "measure zero:\n" +
+        `${wrong.filter(Boolean).join("\n")}\n` +
+        "Read the declared reason before changing the code OR this list. A state a host did not " +
+        "cause and cannot fix is not a failure needing a human, and painting it as one is how a host " +
+        "learns to scroll past the alarm that mattered.",
+    ).toEqual([]);
+  });
+
+  it("the declared-neutral set is non-empty (guard-the-guard)", () => {
+    expect(
+      Object.keys(DECLARED_NEUTRAL_SIGNALS).length,
+      "the neutral-signal set is empty, so the assertion above proves nothing. If the last entry was " +
+        "removed on purpose, delete the assertion with it rather than leaving a green no-op behind.",
+    ).toBeGreaterThan(0);
   });
 
   it("every declared count is exactly right", () => {
