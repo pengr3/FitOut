@@ -1158,8 +1158,21 @@ const PHASE_14_OWNED_TREES: readonly string[] = [
  * that task; what moved is only the REACH, which is exactly the change this constant exists to make
  * visible. Watched red at 19 with the import already in place, before the number moved:
  * *"the walk reached 20 files inside the owned trees, not 19"* — 1 failed / 25 passed.
+ *
+ * ⚠ 20 → 21 ON 1 SEPTEMBER 2026 (plan 18-13, D-243 / D-252). THE NEW FILE IS
+ * `src/components/host/hosting-paused-notice.tsx`, the suspended host's notice, which `/host` and
+ * `/host/listings` now mount above their content (and `/host/earnings`, which is not one of the five
+ * roots). It authors NO live region of any kind: it is a `PanelCard` holding a heading and one
+ * paragraph, rendered on the server from state that is fixed at request time. There is nothing
+ * asynchronous about it and therefore nothing to announce — a suspension does not happen while the
+ * host is looking at the page, so an assertive region would interrupt a screen reader to tell it
+ * something that was already true when the document loaded. The inventory in
+ * `src/lib/design/live-regions.ts` is therefore unchanged and is not edited by this plan; what moved
+ * is only the REACH, which is exactly the change this constant exists to make visible. Watched red at
+ * 20 with the imports already in place, before the number moved: *"the walk reached 21 files inside
+ * the owned trees, not 20"* — 1 failed / 25 passed, inside `npm run build`'s design pass.
  */
-const PHASE_14_SURFACE_FILE_COUNT = 20;
+const PHASE_14_SURFACE_FILE_COUNT = 21;
 
 /** `from "@/x/y"` — the only import spelling this repository uses for its own modules. */
 const ALIAS_IMPORT = /from\s+["']@\/([^"']+)["']/g;

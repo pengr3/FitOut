@@ -24,7 +24,9 @@ import { cn } from "@/lib/utils";
 import { HOST_LIST_SHELL } from "@/lib/design/measurements";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
+import { loadHostVerification } from "@/lib/host/verification-status";
 import { CancellationFeeNotice } from "@/components/host/cancellation-fee-notice";
+import { HostingPausedNotice } from "@/components/host/hosting-paused-notice";
 import { PayoutBanner } from "@/components/host/payout-banner";
 import { derivePayoutStatus } from "@/components/host/payout-status";
 import { PayoutSummary } from "@/components/host/payout-summary";
@@ -148,6 +150,15 @@ export default async function HostEarningsPage() {
     .where(eq(hostPayout.userId, session.user.id));
   const payoutStatus = derivePayoutStatus(payoutRow);
 
+  // D-252 — THE MISSING EXPLANATION ON THE ONE PAGE A HOST GOES LOOKING FOR IT.
+  //
+  // Plan 18-07's payout freeze is PRE-CLAIM: a suspended host's due payouts are filtered out BEFORE
+  // the `host_payout_ledger` row is written, so a delivered session produces NO ROW HERE AT ALL. The
+  // ledger read above is honest and complete, and to a suspended host it renders as money quietly
+  // ceasing to appear. Owner-scoped, read once, from the same authority `/host` and `/host/listings`
+  // read so the three surfaces cannot disagree.
+  const verification = await loadHostVerification(db, session.user.id);
+
   return (
     // HFLOW-05 IS A TOKEN PASS AND THIS IS THE WHOLE OF IT (14-CONTEXT D-156). The container is now
     // the declared host-list shell — the same constant `/host/earnings/loading.tsx` imports, so the
@@ -157,6 +168,18 @@ export default async function HostEarningsPage() {
     // walks the AST and proves not one string a host reads has changed.
     <div className={HOST_LIST_SHELL}>
       <PageHeader title="Earnings" />
+
+      {/* D-252 — FIRST, ABOVE THE PAYOUT BANNER AND ABOVE THE TOTALS. A suspended host's Upcoming
+          figure is not merely small, it is structurally incapable of growing, and every number below
+          has to be read through that. HFLOW-05's D-156 freeze is NOT weakened by this block: it pins
+          every string a host can read on this surface, and this one adds none — the sentence has one
+          owner (`review-signal.ts`) and one presenter (`HostingPausedNotice`), and this page only
+          decides WHERE it goes. `earnings-freeze.test.ts` is unmodified and green. */}
+      {verification.suspended ? (
+        <div className="mt-6">
+          <HostingPausedNotice reason={verification.reason} />
+        </div>
+      ) : null}
 
       {payoutStatus !== "enabled" ? (
         <div className="mt-6">

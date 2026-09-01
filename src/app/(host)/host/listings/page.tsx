@@ -12,13 +12,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { Building2Icon } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { listing, listingPhoto, hostPayout, hostVerification } from "@/lib/db/schema";
+import { listing, listingPhoto, hostPayout, listingReview } from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
+import { loadHostVerification } from "@/lib/host/verification-status";
 import { loadPublishedListingsMissingHours } from "@/lib/listing/hours-signal";
+import { HostingPausedNotice } from "@/components/host/hosting-paused-notice";
 // D-130 / GATE-05: the tile's price line is composed HERE, in the RSC, and handed to the client card as
 // finished strings. See src/lib/listing/card-price.ts for why, and src/lib/search/query.ts for the same
 // seam on the search grid.
@@ -77,11 +79,40 @@ export default async function HostListingsPage() {
   //
   // NO ROW ⇒ "unverified", never verified: the row is not created with the user, so absence is the
   // ordinary state of a host nobody has checked yet, and it must fail the gate rather than pass it.
-  const verificationRows = await db
-    .select({ status: hostVerification.status })
-    .from(hostVerification)
-    .where(eq(hostVerification.userId, session.user.id));
-  const verificationStatus = verificationRows[0]?.status ?? "unverified";
+  // That reasoning, and the row's `reason` column, now live in `loadHostVerification` — this page had
+  // the only copy of the read, and D-243/D-252 gave it two more consumers (`/host` and
+  // `/host/earnings`). The statement is the same statement; it moved so that three surfaces cannot
+  // disagree about whether a host is suspended.
+  const verification = await loadHostVerification(db, session.user.id);
+  const verificationStatus = verification.status;
+
+  // OPS-05 / D-230 — THE OPERATOR'S REJECTION SENTENCES, ONE QUERY FOR THE WHOLE GRID.
+  //
+  // The pre-collapsed `Map` idiom `coverByListing` above already uses, and deliberately NOT a query
+  // inside `rows.map` — that would put a round trip in a render loop, once per rejected card
+  // (T-IU7-04). Restricted to the ids that are actually rejected, so a host with no rejections runs no
+  // query at all.
+  //
+  // ORDERED ASCENDING SO THE LATEST DECISION WINS THE `Map` KEY. `listing_review` is a HISTORY table
+  // (D-221): a listing that was rejected, materially edited back into review (D-249) and rejected again
+  // holds two rows, and the host must read the sentence about the listing as it stands now. Keyed on
+  // `submitted_at`, which is NOT NULL on every row, rather than on `decided_at`, which is null while a
+  // cycle is open — and a null sorts LAST in Postgres ascending, so an open cycle would otherwise win
+  // the key and blank the sentence the host is meant to be reading.
+  //
+  // ⚠ THE REASON STAYS READABLE UNTIL THE HOST RESUBMITS (D-249). Nothing here clears it, and nothing
+  // should: clearing it on the re-review flip would delete the only thing that makes editing purposeful.
+  const rejectedIds = rows.filter((r) => r.reviewState === "rejected").map((r) => r.id);
+  const rejectionRows = rejectedIds.length
+    ? await db
+        .select({ listingId: listingReview.listingId, reason: listingReview.reason })
+        .from(listingReview)
+        .where(
+          and(inArray(listingReview.listingId, rejectedIds), eq(listingReview.state, "rejected")),
+        )
+        .orderBy(asc(listingReview.submittedAt))
+    : [];
+  const rejectionReasonByListing = new Map(rejectionRows.map((r) => [r.listingId, r.reason]));
 
   // v1.0 audit finding #4 — which published listings have no weekly hours, in ONE owner-scoped query,
   // collapsed to a Set the render reads from. Same idiom as coverByListing above; deliberately NOT
@@ -103,6 +134,17 @@ export default async function HostListingsPage() {
           </Button>
         )}
       </div>
+
+      {/* D-243 / D-252 — a suspended host is TOLD, at the top of every surface they own, before they
+          start wondering why nothing is selling. Above the grid rather than inside it: the suspension
+          is about the HOST, and a per-card sentence would repeat one fact N times while implying it is
+          a property of each listing. Rendered in the zero-listings state too — a host suspended before
+          they ever published still needs the sentence. */}
+      {verification.suspended && (
+        <div className="mb-8">
+          <HostingPausedNotice reason={verification.reason} />
+        </div>
+      )}
 
       {rows.length === 0 ? (
         // STATE-04 (plan 11-16) — shell B through the one shared shell: the small radius at 40px
@@ -196,6 +238,10 @@ export default async function HostListingsPage() {
                 titleAs="h2"
                 bookable={bookable}
                 hoursMissing={missingHours.has(r.id)}
+                // D-230 — the operator's own sentence for THIS listing, from the one grouped read
+                // above. Undefined for every non-rejected card, which is what the map returning
+                // nothing already means; the card falls back to the product's sentence alone.
+                rejectionReason={rejectionReasonByListing.get(r.id) ?? null}
                 editHref={`/host/listings/${r.id}/edit`}
                 availabilityHref={`/host/listings/${r.id}/availability`}
                 onUnlist={unlistListing}

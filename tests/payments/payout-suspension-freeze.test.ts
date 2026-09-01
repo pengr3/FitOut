@@ -40,8 +40,17 @@ import { and, eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { mockPayMongo } from "../helpers/mocks";
 import { makeVerifiedHost } from "../helpers/seed";
-import { audit, booking, hostPayoutLedger, hostVerification, listing, user } from "@/lib/db/schema";
+import {
+  audit,
+  booking,
+  hostPayoutLedger,
+  hostVerification,
+  hostVerificationStatus,
+  listing,
+  user,
+} from "@/lib/db/schema";
 import type { HostVerificationStatus } from "@/lib/db/schema";
+import { loadHostVerification } from "@/lib/host/verification-status";
 import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
 
@@ -473,5 +482,101 @@ describe("ENF-02 — polarity: only `suspended` freezes, so the unchecked are st
     await setVerificationStatus(rejected.hostId, "suspended");
     const after = await queryDuePayouts(testDb.db);
     expect(after.filter((d) => d.bookingId === rejected.bookingId)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8. D-253 — THE THIRD READER OF THE COLUMN, AND THE SENTENCE IT MAKES TRUE
+// ---------------------------------------------------------------------------
+//
+// ⚠ ADDED BY PLAN 18-13 IN THE COMMIT THAT ADDED THE READER, WHICH IS D-253'S STANDING INSTRUCTION.
+//
+// D-253 records that this freeze has NO COMPILER CENSUS: both predicates are raw-SQL restatements in
+// two files, `tsc` sees neither, and this file is the sole instrument holding them equal. It closes
+// with a rule for whoever comes next — *any third reader of `host_verification.status` on this path
+// must extend this test in the same commit that adds it.*
+//
+// `src/lib/host/verification-status.ts` is that third reader. It is a DISPLAY reader, not a money one:
+// it decides what a suspended host is TOLD on `/host`, `/host/listings` and `/host/earnings` (D-243 /
+// D-252), and it moves no peso. But it is coupled to the two money predicates by a SENTENCE — the
+// notice says *"payouts are on hold"*, and that clause is true only while this freeze holds. The two
+// failure directions are not symmetric and both are real:
+//
+//   • THE READER SAYS SUSPENDED AND THE SWEEP PAYS — FitOut tells a host their money is held while it
+//     is on its way to them. A lie in the calm direction, and the one nobody would report.
+//   • THE SWEEP FREEZES AND THE READER SAYS NOTHING — the exact defect D-252 exists to close, arriving
+//     back through a different door: money stops with no explanation on the page they look at.
+//
+// So the assertion is AGREEMENT ACROSS THE WHOLE ENUM, derived from the pgEnum rather than listed, so a
+// seventh status has to be answered here rather than defaulting to a silent disagreement.
+
+describe("D-253 — the display reader and the payout freeze agree, for every verification status", () => {
+  it("`loadHostVerification().suspended` is true exactly when queryDuePayouts withholds the payout", async () => {
+    // A payable session per status, plus the NO-ROW case — the state most hosts are actually in.
+    const seeded = await Promise.all(
+      hostVerificationStatus.enumValues.map(async (status) => ({
+        status: status as HostVerificationStatus | null,
+        ...(await seedPayableSession(status)),
+      })),
+    );
+    const noRow = { status: null, ...(await seedPayableSession(null)) };
+    const subjects = [...seeded, noRow];
+
+    // ONE sweep for the whole set: the freeze is a WHERE clause over all due bookings, so asking once
+    // and partitioning the answer is both cheaper and closer to what production actually runs.
+    const due = await queryDuePayouts(testDb.db);
+    const disagreements: string[] = [];
+
+    for (const subject of subjects) {
+      const frozen = due.filter((d) => d.bookingId === subject.bookingId).length === 0;
+      const told = (await loadHostVerification(testDb.db, subject.hostId)).suspended;
+      if (frozen !== told) {
+        disagreements.push(
+          `  status=${subject.status ?? "(no row)"} — the sweep ${frozen ? "WITHHELD" : "released"} ` +
+            `the payout, but the host is ${told ? "told hosting is paused" : "told nothing"}`,
+        );
+      }
+    }
+
+    expect(
+      disagreements,
+      "the money path and the surface that explains it disagree:\n" +
+        `${disagreements.join("\n")}\n` +
+        "The suspension notice says payouts are on hold. That clause is true only while " +
+        "queryDuePayouts withholds them, and there is NO compiler census over this column (D-253) — " +
+        "this assertion is the whole of it. Move both, in one commit, or move neither.",
+    ).toEqual([]);
+
+    // ANTI-VACUITY, in both directions, because an agreement test passes perfectly when nothing
+    // happened at all: at least one subject was frozen-and-told, and at least one was paid-and-silent.
+    const suspended = subjects.filter((s) => s.status === "suspended");
+    expect(suspended).toHaveLength(1);
+    expect(due.filter((d) => d.bookingId === suspended[0].bookingId)).toHaveLength(0);
+    expect((await loadHostVerification(testDb.db, suspended[0].hostId)).suspended).toBe(true);
+    expect(due.filter((d) => d.bookingId === noRow.bookingId)).toHaveLength(1);
+    expect((await loadHostVerification(testDb.db, noRow.hostId)).suspended).toBe(false);
+  });
+
+  it("the operator's stored sentence reaches the reader verbatim — it is what the notice renders", async () => {
+    // `host_verification.reason` is the ONLY thing that makes the notice more than a wall (D-243), and
+    // the ops suspend action is what writes it. A reader that dropped or truncated it would leave the
+    // product sentence standing alone on all three surfaces, green everywhere, and silently useless.
+    const sentence = "Repeated no-shows reported by bookers at this space.";
+    const subject = await seedPayableSession("suspended");
+    await testDb.db
+      .update(hostVerification)
+      .set({ reason: sentence })
+      .where(eq(hostVerification.userId, subject.hostId));
+
+    const state = await loadHostVerification(testDb.db, subject.hostId);
+    expect(state.suspended).toBe(true);
+    expect(state.reason).toBe(sentence);
+
+    // OWNER-SCOPED (T-18-1302): a second host reads their OWN row, never this one's. The control is in
+    // the same call so a reader that returned nothing for the wrong reason takes it down too.
+    const other = await seedPayableSession("approved");
+    const otherState = await loadHostVerification(testDb.db, other.hostId);
+    expect(otherState.suspended).toBe(false);
+    expect(otherState.reason).toBeNull();
   });
 });

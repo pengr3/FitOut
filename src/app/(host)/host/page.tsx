@@ -73,8 +73,10 @@ import {
   type HostAgendaRowData,
 } from "@/components/host/host-agenda";
 import { HostSignals } from "@/components/host/host-signals";
+import { HostingPausedNotice } from "@/components/host/hosting-paused-notice";
 import { derivePayoutStatus } from "@/components/host/payout-status";
 import { loadPublishedListingsMissingHours } from "@/lib/listing/hours-signal";
+import { loadHostVerification } from "@/lib/host/verification-status";
 
 /**
  * The two-sentence product explainer, retained BYTE-FOR-BYTE from the shipped surface and rendered in
@@ -143,6 +145,11 @@ export default async function HostDashboardPage() {
   // session.user.id (never by anything a client sends) in ONE query, from the same authority the
   // listings grid reads. Signal 3.
   const missingHours = await loadPublishedListingsMissingHours(db, session.user.id);
+
+  // D-243 — the host's OWN verification state, read ONCE for this surface from the same authority
+  // `/host/listings` and `/host/earnings` read, so the three cannot disagree about a suspension. This
+  // is the only thing on this page that is about the HOST rather than about their day.
+  const verification = await loadHostVerification(db, session.user.id);
 
   // ─── THE AGENDA READ (14-02). Owner-scoping is a bound `WHERE l.host_id = $1` inside the statement,
   // on BOTH buckets, and the venue-local day is decided by projecting the clock into each joined row's
@@ -246,6 +253,13 @@ export default async function HostDashboardPage() {
           ) : undefined
         }
       />
+
+      {/* D-243 — ABOVE THE AGENDA, AND ABOVE THE SIGNALS BLOCK. A suspended host's sessions cannot be
+          booked and their payouts are frozen, so this is not one more thing that needs them (D-140's
+          ordering argument for the block at the bottom) — it is the frame everything else on the page
+          has to be read through. It renders in both arms of the listings fork below, which is why it
+          sits here rather than inside either. */}
+      {verification.suspended && <HostingPausedNotice reason={verification.reason} />}
 
       {hasListings ? (
         // THE PAGE'S SUBJECT (D-140). Three states, one always-present container: today's sessions, the

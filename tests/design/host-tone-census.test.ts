@@ -210,6 +210,17 @@ const DECLARED_NEUTRAL_SIGNALS: Readonly<Record<string, string>> = {
     "header makes for an expiring request and an unpaid payout. This module therefore carries no tone " +
     "class, no variant name and no role token at all: the surfaces choose the presentation, and both " +
     "chips are the neutral secondary badge with no icon and no colour.",
+
+  "src/components/host/hosting-paused-notice.tsx":
+    "D-243 / D-252, plan 18-13. The suspended host's notice, rendered at the top of /host, " +
+    "/host/listings and /host/earnings. It takes the DECLARED ADVISORY SURFACE — PanelCard at its " +
+    "muted tone, the same container the dashboard's requests and no-hours rows take — and NOT the " +
+    "alerting composition beside it. The distinction is this file's own: the alarm role is reserved " +
+    "for a genuine failure needing a human, and `payout-banner.tsx` (3x, declared above) is that — " +
+    "money that cannot reach the host because something broke. A suspension is the opposite kind of " +
+    "event: a named person at FitOut decided it deliberately, the host is being told what was decided " +
+    "and why, and nothing is malfunctioning. Painting it red would also make the one genuinely broken " +
+    "payout state indistinguishable from a policy decision on the very page they can co-occur.",
 };
 
 /** Collect every `.ts`/`.tsx` file under a directory — `brand-recipe.test.ts:429`'s reference walker. */
