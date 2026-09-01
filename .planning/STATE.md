@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
-status: verifying
+status: executing
 stopped_at: Phase 18.1 context gathered — 17 decisions recorded (D-255..D-271), 5 accepted consequences, 4 research items
-last_updated: "2026-09-01T18:02:34.041Z"
-last_activity: "2026-09-01 — 18-14 executed (3 tasks + 1 ruled scope addition, 3 commits). OPS-02's last clause — *a non-staff caller cannot distinguish an ops route from one that does not exist* — is a claim about four numbers, and this repo has no instrument that can read one (`tests/design/soft-404-status.test.ts:31-39` says so in its own words). So it was read by hand under a PRODUCTION build of `8520721`, Next 16.2.7, `next start -p 3100`: **200 / 404 / 404 / 404**, second pass identical, with the nonexistent-`/ops/xyz` CONTROL that makes the equality mean anything. Bodies too: zero occurrences of `Ops` in all three 404s, and readings 2 and 3 **byte-identical** (same sha256) — a prober cannot even tell *not-staff* from *not-signed-in*. ⚠ **ONE FINDING recorded rather than tuned away:** an unrouted path is served from the prerendered static 404 (`x-nextjs-prerender: 1`, `x-nextjs-cache: HIT`, `Content-Length: 29644`) while a matched route that throws `notFound()` is served chunked with no `x-nextjs-*` headers (25970 bytes), so a header-level existence oracle survives the status line. Measured IDENTICALLY on `/listings/[id]` — app-wide, pre-existing, NOT introduced by 18-12, and invisible until now because 17.1 § P1 deliberately captured no bodies. Filed, not fixed. HVER-04's `18-KYC-VENDOR-COMPARISON.md` is written for the PM as a fork, leading with the D-225 re-coupling argument BEFORE any price (PayMongo's activation IS the payouts gate); **A1 was RE-PROBED**, 40 days on — `GET /v2/wallets?status=activated` still HTTP 200 with zero wallets, `GET /v2/transfers/receiving_institutions` still HTTP 404, Platforms doc page still 404 on both hosts — moving it from `[ASSUMED]` to `[PROBED]`. D-254 shipped as `drizzle/0029`: `listing_review.listing_id` cascades, both e2e teardowns re-run BY HAND and green, `deferred-items` D6 CLOSED. Gates each run ALONE: tsc **0**, `npm test` **207 files / 2485 / 5 skipped**, `test:design` **73 / 1331 / 3**, build exit **0**, `git diff --exit-code src/` clean after the readings."
+last_updated: "2026-09-01T19:41:44.099Z"
+last_activity: 2026-09-01 -- Phase 18.1 planning complete
 progress:
   total_phases: 16
   completed_phases: 12
-  total_plans: 163
+  total_plans: 177
   completed_plans: 168
   percent: 75
 ---
@@ -46,8 +46,8 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 Phase: 18.1 — Close Phase 18: the verification path FitOut is legally required to have (INSERTED 2026-09-01, NOT PLANNED)
 Previous: 18 — Host Verification, Listing Review & FitOut Ops (executed + verified; checkbox held open until 18.1 ships)
 Plan: 0 of ~9 (18.1 is not planned yet — next step `/gsd-plan-phase 18.1`). Phase 18 itself: 14 of 14 complete, verified.
-Status: **18.1 INSERTED 2026-09-01, NOT PLANNED.** Phase 18's five-item PM checkpoint is fully ANSWERED; three of the five need code, and 18.1 carries them alongside the live defect (nothing ever creates a `host_verification` row, so the ops host queue can never fill and no new host can ever sell) and the RA 11967 § 21(b) obligations. **Phase 18's checkbox stays unticked until 18.1 ships.** The `/ops` staff surface (PM-A/PM-B) is deliberately OUT of 18.1 → v1.2.
-Last activity: 2026-09-01 — 18-14 executed (3 tasks + 1 ruled scope addition, 3 commits). OPS-02's last clause — *a non-staff caller cannot distinguish an ops route from one that does not exist* — is a claim about four numbers, and this repo has no instrument that can read one (`tests/design/soft-404-status.test.ts:31-39` says so in its own words). So it was read by hand under a PRODUCTION build of `8520721`, Next 16.2.7, `next start -p 3100`: **200 / 404 / 404 / 404**, second pass identical, with the nonexistent-`/ops/xyz` CONTROL that makes the equality mean anything. Bodies too: zero occurrences of `Ops` in all three 404s, and readings 2 and 3 **byte-identical** (same sha256) — a prober cannot even tell *not-staff* from *not-signed-in*. ⚠ **ONE FINDING recorded rather than tuned away:** an unrouted path is served from the prerendered static 404 (`x-nextjs-prerender: 1`, `x-nextjs-cache: HIT`, `Content-Length: 29644`) while a matched route that throws `notFound()` is served chunked with no `x-nextjs-*` headers (25970 bytes), so a header-level existence oracle survives the status line. Measured IDENTICALLY on `/listings/[id]` — app-wide, pre-existing, NOT introduced by 18-12, and invisible until now because 17.1 § P1 deliberately captured no bodies. Filed, not fixed. HVER-04's `18-KYC-VENDOR-COMPARISON.md` is written for the PM as a fork, leading with the D-225 re-coupling argument BEFORE any price (PayMongo's activation IS the payouts gate); **A1 was RE-PROBED**, 40 days on — `GET /v2/wallets?status=activated` still HTTP 200 with zero wallets, `GET /v2/transfers/receiving_institutions` still HTTP 404, Platforms doc page still 404 on both hosts — moving it from `[ASSUMED]` to `[PROBED]`. D-254 shipped as `drizzle/0029`: `listing_review.listing_id` cascades, both e2e teardowns re-run BY HAND and green, `deferred-items` D6 CLOSED. Gates each run ALONE: tsc **0**, `npm test` **207 files / 2485 / 5 skipped**, `test:design` **73 / 1331 / 3**, build exit **0**, `git diff --exit-code src/` clean after the readings.
+Status: Ready to execute
+Last activity: 2026-09-01 -- Phase 18.1 planning complete
 
 <details><summary>Previous activity (18-12, superseded)</summary>
 
