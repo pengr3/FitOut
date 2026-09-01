@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Phase 18.1 context gathered — 17 decisions recorded (D-255..D-271), 5 accepted consequences, 4 research items
-last_updated: "2026-09-01T19:41:44.099Z"
-last_activity: 2026-09-01 -- Phase 18.1 planning complete
+stopped_at: "Completed 18.1-01-PLAN.md (requirement ledger + D-236). Next: 18.1-02 (F11/D-260) and 18.1-04 (Didit credentials, has BLOCKING checkpoint), both wave 1."
+last_updated: "2026-09-01T20:13:11.703Z"
+last_activity: 2026-09-01 -- 18.1-01 executed (requirement ledger + D-236)
 progress:
   total_phases: 16
   completed_phases: 12
   total_plans: 177
-  completed_plans: 168
+  completed_plans: 169
   percent: 75
 ---
 
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** **Phase 18 — Host Verification, Listing Review & FitOut Ops.** Added 2026-09-01 ahead of the v1.2 milestone cycle by PM decision; not planned yet — next step is `/gsd-plan-phase 18`. No milestone is formally open, so `.planning/REQUIREMENTS.md` is still absent and Phase 18's requirement families (`OPS-`, `HVER-`, `LVER-`, `ENF-`) are created at plan time. Two things the planner must NOT do on its own: **settle the KYC vendor** (PM wants a written PayMongo-vs-standalone comparison as a fork), and **treat the sell-gate as a one-line change** — `deriveBookable` has an inlined SQL twin in `src/lib/search/query.ts` Stage-1 and two deliberate re-statements in `src/app/actions/booking.ts`. Worktrees remain OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
+**Current focus:** **Phase 18.1 — Close Phase 18: the verification path FitOut is legally required to have.** Executing: **1 of 14 plans done** (18.1-01 — the requirement ledger `HVER-06..08` / `LVER-05` / `OPS-06`, plus D-236: `OPS_CANCEL_REFUNDS_SERVICE_FEE = true`). Next in wave 1: **18.1-02** (F11/D-260 — a suspended host's `/host/earnings` names the frozen session) and **18.1-04** (Didit credentials + the async port widening, which carries a **BLOCKING Didit Console checkpoint**). Two constraints carried from Phase 18 and still binding: **`deriveBookable` is OFF LIMITS** — it has an inlined SQL twin in `src/lib/search/query.ts` Stage-1 and two deliberate re-statements in `src/app/actions/booking.ts`, so it is never a one-line change — and **gates run ALONE** (`npx tsc --noEmit`, `npm test`, `npm run test:design`, `npm run build`, each its own invocation). Worktrees remain OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -43,11 +43,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 18.1 — Close Phase 18: the verification path FitOut is legally required to have (INSERTED 2026-09-01, NOT PLANNED)
+Phase: 18.1 (close-phase-18-verification-submission-didit-listing-gate) — EXECUTING
 Previous: 18 — Host Verification, Listing Review & FitOut Ops (executed + verified; checkbox held open until 18.1 ships)
-Plan: 0 of ~9 (18.1 is not planned yet — next step `/gsd-plan-phase 18.1`). Phase 18 itself: 14 of 14 complete, verified.
+Plan: 2 of 14
 Status: Ready to execute
-Last activity: 2026-09-01 -- Phase 18.1 planning complete
+Last activity: 2026-09-01 -- 18.1-01 executed (requirement ledger + D-236)
 
 <details><summary>Previous activity (18-12, superseded)</summary>
 
@@ -375,6 +375,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 17.1 P07 | 55min | 3 tasks | 5 files |
 | Phase 18 P09 | 26min | 3 tasks | 16 files |
 | Phase 18 P14 | ~110 min | 3 tasks | 5 files |
+| Phase 18.1 P01 | 22min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1227,6 +1228,9 @@ Recent decisions affecting current work:
 - [Phase ?]: 18-14: OPS-02's last clause is MEASURED — 200 (staff) / 404 (non-staff) / 404 (signed-out) / 404 (/ops/xyz control) under a PRODUCTION build of 8520721, Next 16.2.7, next start -p 3100. Second pass identical. Bodies: zero occurrences of 'Ops' in all three 404s and readings 2 and 3 are byte-identical (same sha256). Recorded verbatim at 18-EVIDENCE.md § P1, which states in its own closing that it is a ONE-TIME AUDIT and names tests/design/ops-guard-coverage.test.ts as the ongoing per-commit pin (Pitfall 9).
 - [Phase ?]: 18-14 FINDING (filed, NOT fixed, app-wide): a 404 header-level existence oracle survives the status line. An UNROUTED path is served from the prerendered static 404 (x-nextjs-prerender: 1, x-nextjs-cache: HIT, Content-Length: 29644); a MATCHED route that throws notFound() is served chunked with no x-nextjs headers (25970 bytes). Stable over three repetitions. Measured IDENTICALLY on /listings/[id], the route 17.1 § P1 blessed — so it is pre-existing and NOT introduced by 18-12, and it was invisible before because 17.1 § P1 deliberately captured no bodies. No ops-side change can close it.
 - [Phase ?]: 18-14 / HVER-04: 18-KYC-VENDOR-COMPARISON.md delivered. RECOMMENDATION (the PM has NOT yet answered): stay manual now, Didit when the operator's time becomes the constraint, NOT PayMongo Linked Accounts — because PayMongo's activation IS the payouts gate, so choosing it collapses the fifth and sixth sell-gate terms back into the third, undoing D-225. A1 RE-PROBED 2026-09-01, 40 days after the original: GET /v2/wallets?status=activated still HTTP 200 {data:[]}, GET /v2/transfers/receiving_institutions still HTTP 404, and docs.paymongo.com/docs/paymongo-platforms still 404 on both hosts. A1 moves from [ASSUMED] to [PROBED].
+- [Phase ?]: D-236 LANDED (plan 18.1-01): OPS_CANCEL_REFUNDS_SERVICE_FEE = true. An ops-forced cancellation refunds the booker the WHOLE charged total (space price AND the D-74 service fee); FitOut retains nothing and absorbs the gateway cost; the host is still paid nothing and no host-cancel fee is charged. Both docblocks INVERTED AND DATED (2026-09-01 settlement) rather than deleted, and D-209's superseded wording is kept marked superseded.
+- [Phase ?]: REQUIREMENTS.md ENF-03 AMENDED by 18.1-01, not just re-cited: its first clause said 'with the service/platform fee retained by FitOut', which D-236 negates. A checked 'Complete' requirement asserting the opposite of the money the code moves is the worst state for the ledger; rewritten with D-209's wording quoted inline and marked superseded.
+- [Phase ?]: 18.1-01 measured that 18.1-RESEARCH's claim 'ops-cancel cases 4-16 read the constant nowhere' is FALSE — cases 8, 11 and 13 consume the refund basis as a consequence and redden on the D-236 flip. Nine coordinated edits, not six. Anyone re-reading that research section should not trust its closing sentence.
 
 ### Pending Todos
 
@@ -1404,8 +1408,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-01T18:02:34.016Z
-Stopped at: Phase 18.1 context gathered — 17 decisions recorded (D-255..D-271), 5 accepted consequences, 4 research items
+Last session: 2026-09-01T20:13:11.662Z
+Stopped at: Completed 18.1-01-PLAN.md (requirement ledger + D-236). Next: 18.1-02 (F11/D-260) and 18.1-04 (Didit credentials, has BLOCKING checkpoint), both wave 1.
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte
@@ -1548,7 +1552,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/18.1-close-phase-18-verification-submission-didit-listing-gate/18.1-CONTEXT.md
+Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered

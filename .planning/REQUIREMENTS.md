@@ -82,11 +82,14 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 - [x] **ENF-02** — A suspended host's pending payouts **freeze**, and no payout leaves for a host
       under suspension. A frozen row does not read as a stuck row to the reconciler and does not page
       an operator. *(SC5 · D-222, D-234)*
-- [x] **ENF-03** — Ops cancel-and-refund returns **the full booking amount** to the booker with the
-      **service/platform fee retained** by FitOut, pays the host **nothing**, and charges **no**
-      host-cancel fee. The fee behaviour sits behind one named constant
-      (`OPS_CANCEL_REFUNDS_SERVICE_FEE`) with the D-236 conflict documented at that call site.
-      *(SC5 · D-209, D-235, D-236)*
+- [x] **ENF-03** — Ops cancel-and-refund returns **the full charged total** to the booker — the space
+      price AND the D-74 service fee, with **nothing retained** by FitOut — pays the host **nothing**,
+      and charges **no** host-cancel fee. The fee behaviour sits behind one named constant
+      (`OPS_CANCEL_REFUNDS_SERVICE_FEE`) whose docblock records the D-236 settlement at that call site.
+      ⚠ **AMENDED 2026-09-02 by plan 18.1-01.** As Phase 18 shipped it this clause read *"with the
+      **service/platform fee retained** by FitOut"* per D-209; **D-236 supersedes that** and the
+      constant is now `true`. The other two clauses are unchanged.
+      *(SC5 · D-209 superseded by D-236 · D-235)*
 
 ---
 
@@ -158,7 +161,7 @@ earnings gap — are decisions, not new requirements. They land against the exis
 | LVER-04 | Phase 18 · 18-02 | Complete |
 | ENF-01 | Phase 18 · 18-05 (default lever) + 18-07 (freeze) + 18-08 (escalation) + 18-10 (the per-case choice) | **Satisfied** (18-10 ships the console half: the reject dialog's `RadioGroup`, rendered only when there is something to cancel, defaulting to the lighter lever on EVERY mount and remembering nothing; the always-rendered impact block, so choosing reveals nothing and the operator reads the money BEFORE deciding; and a confirm whose accessible NAME carries the booking count in alarm ink rather than a solid fill. Reaching the escalation takes three deliberate acts and no control on the queue row can reach it at all — mutation-proved by making the heavier lever the default and watching 5 cases go red. The server still re-asserts the choice: an omitted `lever` parses to block-new-only and cancels nothing. Reachability is 18-12's `/ops` route) |
 | ENF-02 | Phase 18 · 18-07 | Complete |
-| ENF-03 | Phase 18 · 18-08 | Complete |
+| ENF-03 | Phase 18 · 18-08 (the action + the constant) · Phase 18.1 · 18.1-01 (D-236 settled) | **Complete, amended** (18-08 shipped ops cancel-and-refund behind `OPS_CANCEL_REFUNDS_SERVICE_FEE` with the D-209/D-236 conflict written down at the call site. 18.1-01 flipped it to `true` on the PM's 2026-09-01 settlement: the booker now gets the WHOLE charged total and FitOut retains nothing, so this requirement's first clause was rewritten rather than left asserting the opposite of the code. The other two clauses — host paid nothing, no host-cancel fee — are byte-unchanged. `withFlippedConstant` still drives the opposite branch, so "one line flips it" stays measured rather than promised) |
 | HVER-06 | Phase 18.1 · 18.1-07 (the submit path) · 18.1-10 (the words) · 18.1-11 (the surface) · 18.1-14 (the proof) | Planned |
 | HVER-07 | Phase 18.1 · 18.1-04 (the async port) · 18.1-05 (the Didit adapter) · 18.1-06 (the decision module) · 18.1-08 (the webhook) · 18.1-09 (the reconciler) · 18.1-14 (the proof) | Planned |
 | HVER-08 | Phase 18.1 · 18.1-06 (the cooldown rule) · 18.1-07 (the re-submit guard) · 18.1-08 · 18.1-10 (the words) · 18.1-11 (the surface) | Planned |
