@@ -78,7 +78,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 
 - [ ] **ENF-01** — Ops can suspend a host or pull a listing and choose **per case**: block new
       bookings only, or additionally cancel-and-refund what is already sold. *(SC5 · D-233)*
-- [ ] **ENF-02** — A suspended host's pending payouts **freeze**, and no payout leaves for a host
+- [x] **ENF-02** — A suspended host's pending payouts **freeze**, and no payout leaves for a host
       under suspension. A frozen row does not read as a stuck row to the reconciler and does not page
       an operator. *(SC5 · D-222, D-234)*
 - [ ] **ENF-03** — Ops cancel-and-refund returns **the full booking amount** to the booker with the
@@ -108,10 +108,10 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | LVER-03 | Phase 18 · 18-06 | Complete |
 | LVER-04 | Phase 18 · 18-02 | Complete |
 | ENF-01 | Phase 18 · 18-05 (default lever) | Partial (18-05 — `suspendHost` writes `status='suspended'`, which fails the sell-gate's host term through the same read as verification. The payout freeze is 18-07; the cancel-and-refund escalation is 18-08) |
-| ENF-02 | Phase 18 | Pending |
+| ENF-02 | Phase 18 · 18-07 | Complete |
 | ENF-03 | Phase 18 | Pending |
 
-**17 requirements · Phase 18 · 5 complete**
+**17 requirements · Phase 18 · 6 complete**
 
 ---
 

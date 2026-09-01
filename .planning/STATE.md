@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: Completed 18-06-PLAN.md (Wave 4 — LVER-03, material edit -> re-review). ONE guarded flip in `src/lib/listing/re-review.ts`: `review_state = pending` WHERE the current state is `approved` | `grandfathered` | `rejected`, so the two deliberate exclusions (already-pending, and the taken-off-the-market state) are 0-row no-ops rather than branches. The `listing_review` row is appended ONLY when the UPDATE moved something, with `submitted_at` left to the column default — which is what makes D-249 true in BOTH directions (a resubmission goes to the BACK of the oldest-first queue; a listing already waiting keeps its ORIGINAL submitted_at however many times its host saves). No statement in the module assigns to the rejection explanation column, so it survives the flip and stays readable to the host. DETECTION LIVES IN TWO SITES BY NECESSITY (D-242): `saveListingStep` for address / space type / capacity / price, and `listing-photo.ts` `persistPhoto` + `removePhoto` for PHOTOS, because `draftSchema` has no photos field and D-231's own sentence is unachievable at the site it names for one of its own five fields. `reorderPhotos` is deliberately NOT hooked. The flip is inside a transaction with its edit at BOTH sites — `persistPhoto`'s bare insert was paired into one (deviation, Rule 2), below the D-165 provenance gate, which is untouched and whose suites are green. Commits `5dc0247` + `5e91ffc` + `c8d132c` + `2df485d`. Suite after: tsc 0; `npm test` 200 files / **2368** passed / 5 skipped (baseline 2340 — the +28 is exactly this plan's one file); `npm run test:design` 72 / **1304** / 3 (byte-identical — ships no UI); `npm run build` exit 0. Two mutation REDs watched and reverted (persistPhoto hook removed: 2F/26P, and `removePhoto`'s own case stayed GREEN; `rejected` dropped from the WHERE: 7F/21P, every approved and grandfathered case stayed green). Next — 18-07. ⚠ CARRY FORWARD: **a host still cannot OPEN a `host_verification` submission** — this plan closed only the LISTING half of 18-05's carry-forward; the host half belongs to whoever owns host onboarding's submit action. **18-12 still owes `revalidatePath('/ops')`**, so a re-review flip will not add a row to a cached queue until the route lands. **18-13 must read the LATEST `listing_review` row with a NON-NULL reason**, not the latest row — the resubmission row's reason is NULL by design. And TITLE/DESCRIPTION ARE STILL NOT MATERIAL (D-231): a host can rewrite an approved listing's entire words and it stays approved and sellable — a live deferred item now restated in three places in the code, and worth its own PM decision. Acceptance-grep collision struck again, a fifth phase running: `grep -c "markForReReview" listing-photo.ts == 2` is off by one by construction because the file must also IMPORT the helper.
-last_updated: "2026-08-31T23:47:00.000Z"
-last_activity: 2026-09-01 — 18-05 executed (3 tasks, 3 commits): the ops console's server side — a fail-closed verification port, one interleaved oldest-first queue over the domain tables, and five self-gating decision actions whose authenticated trail row is read back out of the table rather than inferred from an ok return
+stopped_at: Completed 18-07-PLAN.md (Wave 4 — ENF-02, the suspension payout freeze). The freeze is ONE `AND` on `queryDuePayouts`, and its PLACEMENT is the whole design: filtering BEFORE `payOne`'s claim INSERT means no `host_payout_ledger` row is ever created for a suspended host, so ENF-02's second clause — *a frozen row does not read as a stuck row and does not page an operator* — is true BY CONSTRUCTION rather than by a second check. The naive alternative (claim, then refuse to transfer) would satisfy clause one and strand one `held` row per suspended booking, each firing a FALSE `[payout-alert]` forever — the exact failure `alertStuckHeld`'s own comment names for `host_cancel_fee` debits. Declared as the FOURTH numbered invariant in `payout-sweep.ts`'s header. The reconciler's mirror is GENUINELY NEW SQL (that query read `host_payout_ledger` with no host join at all; the ledger carries `host_id` directly, so it needed a `LEFT JOIN host_verification` + an alias, because `host_verification` also has a `created_at`) and it is NARROW — it exists only for the CR-01 crash-window row that was already `held` when the suspension landed. **`processing` IS DELIBERATELY NOT FROZEN AND THE NEGATIVE IS PINNED**: that money has already left the platform wallet, so a stranded transfer must page whether or not its host is suspended; `queryProcessingLedger`'s docblock says so and a test case fails loudly if anyone "completes" the mirror. POLARITY: `COALESCE(hv.status::text,'unverified') <> 'suspended'` is NOT the sell-gate's `IN ('approved','grandfathered')` — a host with NO verification row, and a `rejected` host, are STILL PAID for sessions already delivered; inverting it would freeze the payouts of every host nobody has checked yet. Commits `2ea8756` + `a485680` + metadata. Suite after: tsc 0; `npm test` **201 files / 2376 passed** / 5 skipped (baseline 200/2368 — the +8 is exactly this plan's one file); `npm run test:design` 72 / 1304 / 3 (byte-identical). Two mutation REDs watched and reverted: moving the predicate into `payOne` as a post-claim `if` → **5F/3P** with the no-ledger-row case reporting `expected 1 to be +0` and the no-false-page case the same; extending the exclusion onto the `processing` poll → **1F/7P**, exactly the negative case (`expected undefined to be defined`). Next — 18-08. ⚠ CARRY FORWARD (`human_needed`, for the PM, beside D-236): **a suspended host's `/host/earnings` now shows a delivered session that never produces a payout row, with NO explanation anywhere** — the page reads `host_payout_ledger` and the pre-claim freeze means there is no row to render. `src/lib/host/requests-signal.ts:56` states this project's own rule that *a signal names the state, the reason AND the way out*. Nothing was invented to paper over it: appeals are backlog 999.6 and `SUPPORT_EMAIL` is null (D-250/D-64), so 18-13 (host-facing suspension signals) is the natural owner IF the PM decides the host is told at all. Also carried: the two SQL predicates are RESTATEMENTS in two files with no shared expression to call — raw SQL has no compiler census, so both are held only by `tests/payments/payout-suspension-freeze.test.ts`.
+last_updated: "2026-09-01T00:10:00.000Z"
+last_activity: 2026-09-01 — 18-07 executed (2 tasks, 2 commits): the suspension payout freeze, placed BEFORE the claim so ENF-02's second clause is true by construction — no ledger row is ever created, so nothing can read as stuck; plus the reconciler's narrow crash-window mirror and the pinned negative that a stranded `processing` transfer still pages
 progress:
   total_phases: 14
   completed_phases: 11
   total_plans: 163
-  completed_plans: 155
+  completed_plans: 156
   percent: 79
 ---
 
@@ -44,9 +44,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 18 — Host Verification, Listing Review & FitOut Ops (EXECUTING)
-Plan: 6 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
-Status: Executing — next is 18-07
-Last activity: 2026-09-01 — 18-06 executed: approval became something a host can LOSE and rejection something a host can RECOVER from. One guarded flip, two detection sites that each state why there are two, and 28 integration cases including four negatives (a words-only edit, an autosave re-sending the SAME persisted values, a `reorderPhotos`, and a provenance-REJECTED add) — the negatives are what make the positives diagnostic, since a flip that fired unconditionally would pass every positive in the file. Deviations: `persistPhoto`'s bare insert was paired into a transaction with the flip (the plan asked for atomicity only at the fields site, but its own "a listing whose address committed while its review state did not is a sellable fake" is exactly as true of a photo); and the `markForReReview` acceptance count was corrected to measure CALL SITES, since the file must also import the helper. Reverting a mutation with `git checkout --` on an uncommitted file destroyed the task-3 edit and it had to be re-applied and diff-verified — mutation-prove AFTER the commit.
+Plan: 7 of 14 complete (8 waves; sequential on `dev`, worktrees OFF)
+Status: Executing — next is 18-08
+Last activity: 2026-09-01 — 18-07 executed: a suspended host's payouts freeze, and they freeze in the one place where the freeze cannot manufacture false operator alerts. One pre-claim `AND` in `queryDuePayouts` (so no ledger row is ever written), one narrow crash-window mirror in `alertStuckHeld` (genuinely new SQL — that query had no host join), and `processing` deliberately untouched with its negative pinned. Eight integration cases, every negative paired with a CONTROL in the same call so no "nothing happened" assertion can pass vacuously. Both mutation REDs observed and reverted. No deviations. Carried for the PM: the frozen host is told nothing on `/host/earnings`.
 
 ## Performance Metrics
 
@@ -72,7 +72,7 @@ Last activity: 2026-09-01 — 18-06 executed: approval became something a host c
 | 15 | 14 | - | - |
 | 16.1 | 7 | - | - |
 | 17.1 | 7 | - | - |
-| 18 | 6 | ~217 min | ~36 min |
+| 18 | 7 | ~237 min | ~34 min |
 
 *18-01: ~21 min wall-clock, 2 tasks (both auto), 6 files created + 1 modified (package.json), 2 commits + 1 metadata.
 The plan that everything else in Phase 18 consumes. `src/lib/ops/staff.ts` is ONE `cache()`'d expression with three
@@ -368,6 +368,49 @@ deferred walk is inconsistent rather than honest.*
 | Phase 17.1 P07 | 55min | 3 tasks | 5 files |
 
 ## Accumulated Context
+
+### Payout-freeze decisions taken during execution (18-07)
+
+- **THE PLACEMENT IS THE DESIGN, AND IT IS WHAT MAKES ENF-02'S SECOND CLAUSE PROVABLE.** The freeze is a
+  `WHERE` clause in `queryDuePayouts`, before `payOne`'s claim `INSERT`. Because the claim never runs, no
+  `host_payout_ledger` row is ever created, so `alertStuckHeld` has nothing to page about — the second
+  clause is true *by construction* rather than by a second check. The test that distinguishes this from a
+  post-claim refusal is a `COUNT(*)` of 0 against the ledger, not an empty `queryDuePayouts` result: a
+  post-claim `if` passes the second assertion and fails the first. Mutation-proved (5F/3P).
+- **`processing` IS NOT FROZEN, AND THE NEGATIVE IS PINNED SO A LATER "COMPLETION" FAILS LOUDLY.**
+  `reconcileOne` polls transfers that have ALREADY fired; the money has already left the platform wallet.
+  A stuck `processing` row on a suspended host is a real stranded transfer and must still page. Extending
+  the exclusion onto `queryProcessingLedger` reddens exactly one case (`expected undefined to be defined`)
+  and nothing else — which is why the case asserts the QUERY still returns the row, not merely that a
+  hand-built `reconcileOne` call still alerts. `queryProcessingLedger`'s docblock now says this in the
+  imperative, naming the test file that holds it.
+- **THE MIRROR IN `alertStuckHeld` WAS GENUINELY NEW SQL, EXACTLY AS 18-PATTERNS PREDICTED.** That query
+  read `host_payout_ledger` with **no host join at all**, unlike `queryDuePayouts` which already reaches
+  `listing` → `host_payout`. The ledger carries `host_id` directly so no `listing` hop is needed — but the
+  table had to be **aliased** (`host_payout_ledger p`), because `host_verification` also has a
+  `created_at` and the bare `SELECT created_at` becomes ambiguous the moment the join lands. Two sites, two
+  different edits; do not assume a mirror is a copy.
+- **THE TWO `COALESCE(hv.status…)` PREDICATES LOOK ALIKE AND MEAN OPPOSITE THINGS.** The sell-gate
+  (`bookability.ts`, `search/query.ts`) asks *"is this host APPROVED?"*, enumerates POSITIVE values, and
+  fails CLOSED on a missing row. This asks *"is this host SUSPENDED?"*, so a missing row means NOT
+  suspended and the host is still PAID. Inverting it into the gate's shape would freeze the payouts of
+  every host nobody has checked yet — most of them. Pinned by two cases: a host with **no**
+  `host_verification` row, and a **`rejected`** host, both still swept. Rejection stops a host SELLING; it
+  does not cancel money already earned. Only D-222's `suspended` freezes.
+- **UN-SUSPENSION IS A PREDICATE FLIP, NOT A STATE TRANSITION — ASSERTED, NOT ASSUMED.** The un-freeze case
+  performs exactly one write (the status flip) and then asserts the booking row is **byte-identical**
+  (`JSON.stringify` before/after) and the ledger count is still 0. That is what makes "no repair, no
+  re-queue, no backfill" a measurement rather than a claim — the D-14 auto-revert property.
+- **ANTI-VACUITY WAS DESIGNED IN, BECAUSE EVERY ASSERTION HERE IS AN ABSENCE.** Six of the eight cases
+  assert that something did NOT happen, and a fail-closed guard returning nothing for the wrong reason
+  would pass all of them. Each is therefore paired with a CONTROL in the SAME call: a second host still
+  selected by the same `queryDuePayouts`, still paid by the same sweep pass, still alerted on by the same
+  `alertStuckHeld`. Reuse this shape for any freeze/suppression predicate.
+- **⚠ NO COMPILER CENSUS EXISTS FOR THIS RULE.** Both predicates are raw SQL restatements in two files;
+  there is no shared expression for a new reader to CALL, and `tsc` sees nothing (the 18-04 `og-facts.ts`
+  lesson, in a form where the fix is not available). `tests/payments/payout-suspension-freeze.test.ts` is
+  the only thing holding the pair together. A third reader of suspension state on the money path should be
+  added to that file's coverage in the same commit that adds it.
 
 ### Material-edit re-review decisions taken during execution (18-06)
 
