@@ -228,7 +228,7 @@ import {
 const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
 
 /**
- * The declared file count, pinned HERE as well as at `DeclaredFileCountIsTwentyEight`.
+ * The declared file count, pinned HERE as well as at `DeclaredFileCountIsTwentyNine`.
  *
  * Two places on purpose. The type alias fails the build; this fails the gate that reads the set, with a
  * message. Plans 12-12, 12-13, 13-14, 14-14, 15-09, 16-09 and 16-10 each moved BOTH, in the commit that added
@@ -281,8 +281,19 @@ const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
  * a stale literal here fails this gate with the message three lines below. The instruction beat the
  * file list three times now, which is the same precedence call plan 15-08 recorded when a gate and a
  * plan disagreed.
+ *
+ * TWENTY-NINE as of plan 18-10, which added `src/components/ops/ops-decision-actions.tsx` — the
+ * decision controls on the internal FitOut Ops review queue — carrying ONE region: the single refusal
+ * slot Approve and Reject share, holding the server action's own sentence verbatim.
+ *
+ * ⚠ IT IS THE FIRST STAFF-ONLY FILE IN THE SET, so plan 18-10 widened the MEMBERSHIP RULE in
+ * `live-regions.ts`'s header in the same commit as this literal. An internal tool is not exempt from
+ * any of the seven rules — 18-UI-SPEC states that there is no "it's only for staff" carve-out anywhere
+ * in `tests/design/**` and that Phase 18 does not create one — so the ops console is INSIDE the
+ * audited set rather than beside it. A count that moved while the rule still asserted the set held no
+ * ops file would be the same drift in prose that T-12-06-SETDRIFT names in code.
  */
-const DECLARED_FILE_COUNT = 28;
+const DECLARED_FILE_COUNT = 29;
 
 /** A file this size is a stub or a truncated read; every declared file is far larger. */
 const MIN_FILE_BYTES = 200;
@@ -535,9 +546,9 @@ describe("guard-the-guard — the scan read the set it is asserting about", () =
     expect(
       SCAN_FILES.length,
       `the declared set is ${SCAN_FILES.length} files, not ${DECLARED_FILE_COUNT}. This number is ` +
-        "pinned in TWO places — `DeclaredFileCountIsTwentyEight` in `src/lib/design/live-regions.ts` " +
+        "pinned in TWO places — `DeclaredFileCountIsTwentyNine` in `src/lib/design/live-regions.ts` " +
         "fails the build, and this fails the gate with a message. Plans 12-12, 12-13, 13-14, 14-14, " +
-        "15-09, 16-09 and 16-10 " +
+        "15-09, 16-09, 16-10 and 18-10 " +
         "each moved BOTH, in the same commit as the components they add. A set that widened in one " +
         "place and not the other is exactly the drift T-12-06-SETDRIFT names.",
     ).toBe(DECLARED_FILE_COUNT);

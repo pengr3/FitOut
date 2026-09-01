@@ -107,11 +107,20 @@
 //
 // THE MEMBERSHIP RULE, which is what actually matters and is now stated without a side in it: *every
 // file in `src/` that renders a live region on a journey this repository has audited — the demand-side
-// journey (search, checkout and the post-booking lifecycle it hands off to) and the supply-side host
-// tooling Phase 14 owns.* What is left outside it is the auth/profile forms and the `patterns/`
-// skeletons that `tests/design/skeleton-a11y.test.tsx` gates instead. Both are OUT OF SCOPE rather than
+// journey (search, checkout and the post-booking lifecycle it hands off to), the supply-side host
+// tooling Phase 14 owns, the account surfaces a person passes through to reach either, and — since
+// plan 18-10 — the INTERNAL FitOut Ops console.* What is left outside it is the `patterns/` skeletons
+// that `tests/design/skeleton-a11y.test.tsx` gates instead. Those are OUT OF SCOPE rather than
 // excluded, and the difference is the point: an exclusion is a decision recorded about a file this
 // module knows about, and there are none left.
+//
+// ⚠ THE OPS WIDENING IS THE SAME MOVE THE RENAME ABOVE RECORDS, MADE A THIRD TIME, AND IT IS NOT A
+// FORMALITY. Phase 18 puts a live region on a STAFF-ONLY surface — a queue where a decision refused by
+// the server has to be heard by the operator who took it. A closed union that contains an ops file
+// cannot keep a rule asserting it contains none: this module's whole design is that its claims are
+// compile-checked, and a membership rule is a claim in prose sitting on top of one. An internal tool is
+// not exempt from any of the seven rules below, and 18-UI-SPEC says so in its own words — there is no
+// "it's only for staff" carve-out anywhere in `tests/design/**` and this widening does not create one.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE SEVEN RULES (12-UI-SPEC § GATE-03), STATED ONCE SO NO ROW RE-DERIVES THEM
@@ -422,6 +431,16 @@ export const LIVE_REGION_FILES = [
   // commit as the code that moved it.
   "src/components/profile/avatar-field.tsx",
   "src/components/profile/image-crop-dialog.tsx",
+  // ─── the internal ops console (plan 18-10 — see THE OPS WIDENING in the header) ─────────────────
+  //
+  // The queue row's decision controls. ONE region, shared by approve and reject, carrying the server
+  // action's own refusal sentence — a lapsed decision another operator already took, a listing that
+  // left `pending` while the queue was open, a booking whose payout left between paint and press.
+  //
+  // ⚠ THE SUCCESS PATH DELIBERATELY OWES NO REGION. A recorded decision takes the row off the queue,
+  // so there is no surface left to write on by the time the report is due and the toast is the only
+  // possible one. A refusal leaves the row exactly where it was, and the sentence belongs on it.
+  "src/components/ops/ops-decision-actions.tsx",
 ] as const;
 
 /** The closed union every row's `file` is typed against. */
@@ -670,6 +689,8 @@ export const LIVE_REGION_IDS = [
   "avatar-field-refusal",
   // profile/image-crop-dialog.tsx — one region, one kind, so one ordinal.
   "avatar-crop-save-error",
+  // ops/ops-decision-actions.tsx — one region, one kind, so one ordinal.
+  "ops-decision-refusal",
 ] as const;
 
 /** The closed union every row is typed against. */
@@ -1535,6 +1556,41 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "authors none of this text: the sentence arrives as a prop and is rendered unmodified, which " +
       "is what keeps the thing announced identical to the thing the action actually said.",
   },
+
+  // ─── ops/ops-decision-actions.tsx (plan 18-10 — the internal ops console) ───────────────────────
+  "ops-decision-refusal": {
+    file: "src/components/ops/ops-decision-actions.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      "the refusal sentence the SERVER composed, verbatim — the host or listing is no longer " +
+      "awaiting a decision, another operator got there first, the operator is acting faster than " +
+      "the ops budget allows, or a booking's payout left FitOut between the figures being painted " +
+      "and the confirm being pressed — once, after the operator presses Approve or confirms a " +
+      "rejection and the action refuses. NOTHING on the success path: a recorded decision takes the " +
+      "row off the queue, so the outcome is the surface disappearing rather than a sentence about it.",
+    why:
+      "RULE 1, RULE 5 and RULE 6. It appears strictly AFTER something the operator did, so `status` " +
+      "and never `alert`: a listing another operator already decided, or a stale impact snapshot, is " +
+      "an expected outcome on a shared queue and not a fault of this operator's. It carries no alarm " +
+      "ink for the same reason, and no retry affordance — the row's OWN two controls are the retry, " +
+      "and a second button that re-presses the first one is a control that acts on nothing.\n" +
+      "\n" +
+      "RULE 6 — ONE REGION FOR BOTH PATHS. Approve and Reject share a single refusal slot because a " +
+      "row can only ever have refused one thing; a second refusal replaces this sentence with the " +
+      "next, which is one announcement per press. The success path keeps its toast, and that is a " +
+      "per-PATH decision rather than a per-component one: a refusal leaves the surface on screen and " +
+      "belongs on it, while a success takes the surface away and has nowhere else to go.\n" +
+      "\n" +
+      "⚠ THE MONEY PATH IS WHY THE VERBATIM RULE IS NOT STYLISTIC HERE. The escalation cancels real " +
+      "bookings and sends real money back, and the server re-derives every figure the dialog showed. " +
+      "A mismatch comes back as a calm typed refusal carrying the action's OWN sentence; a client " +
+      "re-wording of it would be a second account of what happened to somebody's money, kept in " +
+      "agreement with the first by nothing at all.\n" +
+      "\n" +
+      "IT HAS TEXT OF ITS OWN AND IS NAMED ANYWAY — see its `AUTHOR_NAMED_REGIONS` row, which states " +
+      "what that trade costs rather than pretending the wrapper argument applies to it.",
+  },
 };
 
 /**
@@ -1706,6 +1762,24 @@ export const AUTHOR_NAMED_REGIONS = [
       "it is mounted its text is two words of its own, which a name must therefore not paraphrase. " +
       "\"Profile saved.\" stays the content.",
   },
+  {
+    id: "ops-decision-refusal",
+    name: "Decision not recorded",
+    why:
+      "(b) TEXT OF ITS OWN, NAMED ANYWAY — the `request-action-refusal` row's shape, on the other " +
+      "side of the marketplace and for the same reason. This region holds the server's refusal " +
+      "sentence directly, so the VoiceOver hazard is real for it: an operator who hears the name " +
+      "instead of the content hears three words where a reason belonged. It is named because a " +
+      "`status` region takes no name from its own text, and an unnamed one is unreachable by name to " +
+      "an operator navigating a queue of rows deliberately — on a surface where several rows can each " +
+      "carry one, an unlabelled region is also indistinguishable from its neighbours.\n" +
+      "\n" +
+      "WHAT THE TRADE COSTS IS BOUNDED, AND THAT IS THE ONLY REASON IT IS ACCEPTABLE ON A MONEY " +
+      "SURFACE: the refusal never disappears with the announcement — it stays rendered on the row, at " +
+      "ordinary ink, until the operator acts again — so a lost announcement costs a re-read rather " +
+      "than the fact. The label is three words, it names the OUTCOME rather than the cause, and it " +
+      "paraphrases none of the several server sentences it can carry.",
+  },
 ] as const satisfies readonly AuthorNamedRegion[];
 
 // ---------------------------------------------------------------------------
@@ -1808,9 +1882,40 @@ type Assert<T extends true> = T;
  * declared set is 28 files, not 27"), and SCAN 2 reporting `avatar-field.tsx:296 — alert#1 on <p>
  * (role="alert")` as PRESENT BUT UNDECLARED. Then the row, `27` → `28`, the rename, and the second
  * pin in the test → exit 0, 26 tests passed.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * OBSERVED RED (f) — PLAN 18-10'S ONE, THE INTERNAL OPS CONSOLE. 1 September 2026.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * ⚠ THE PROCEDURE WAS RUN IN A DIFFERENT ORDER FROM (d) AND (e), AND THE DIFFERENCE IS RECORDED RATHER
+ * THAN GLOSSED. Here the path, the row and the two `AUTHOR_NAMED_REGIONS`/`LIVE_REGION_IDS` entries
+ * went in together and the TWO PINS were then STALED BACK to 28 to watch them speak — the inverse of
+ * (e)'s order, and it measures the same property: whether a widened set with a stale literal fails.
+ * What it does NOT measure is (d)'s claim about SCAN 2 reporting a present-but-undeclared region, so
+ * that half is NOT claimed here. It was measured twice already and nothing about it changed.
+ *
+ * With the alias staled to `extends 28`, `npx tsc --noEmit` run bare (never piped — a pipe reports the
+ * LAST command's exit code, this repository's standing trap): exit code 2, ONE error, the whole of
+ * stdout:
+ *
+ *   src/lib/design/live-regions.ts(1910,3): error TS2344: Type 'false' does not satisfy the constraint
+ *   'true'.
+ *
+ * With `DECLARED_FILE_COUNT` staled to 28 as well, `tests/design/live-regions.test.tsx` reported
+ * 1 failed / 25 passed, verbatim:
+ *
+ *   AssertionError: the declared set is 29 files, not 28. … expected 29 to be 28
+ *
+ * Then both pins back to `29` → `tsc` exit 0, 26 tests passed.
+ *
+ * ⚠ THE WIDENING IS A MEMBERSHIP CHANGE AS WELL AS A COUNT, WHICH THE FIVE REDS ABOVE WERE NOT. Every
+ * previous addition sat inside a journey the rule already named; this one is the first STAFF-ONLY
+ * surface in the set, so the header's membership paragraph moved in the same commit. A count that
+ * moved while the rule kept asserting the set contained no ops file would be the drift this module
+ * exists to make impossible, one layer up from the type system.
  */
-export type DeclaredFileCountIsTwentyEight = Assert<
-  (typeof LIVE_REGION_FILES)["length"] extends 28 ? true : false
+export type DeclaredFileCountIsTwentyNine = Assert<
+  (typeof LIVE_REGION_FILES)["length"] extends 29 ? true : false
 >;
 
 // ---------------------------------------------------------------------------
