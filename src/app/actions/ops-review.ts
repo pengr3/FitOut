@@ -63,6 +63,15 @@ import { sql } from "drizzle-orm";
 
 import { recordAudit } from "@/lib/audit";
 import { db } from "@/lib/db";
+import type { NotificationPayload } from "@/lib/db/schema";
+import {
+  emitNotify,
+  hostApprovedPayload,
+  hostRejectedPayload,
+  hostSuspendedPayload,
+  listingApprovedPayload,
+  listingRejectedPayload,
+} from "@/lib/notifications";
 import { requireStaff } from "@/lib/ops/staff";
 import { rateLimit } from "@/lib/rate-limit";
 import {
@@ -151,7 +160,121 @@ type DenialReason =
   | "rate_limit"
   | "provider_unregistered"
   | "not_applicable"
-  | "history_write_failed";
+  | "history_write_failed"
+  | "notify_failed";
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// TELLING THE HOST (OPS-05 / D-245) — A CONSEQUENCE OF A FLIP THAT HAS ALREADY COMMITTED
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// D-245 settles what OPS-05's "a reason the host is actually told" means: a status a host has to go
+// and LOOK FOR is not being told, and the thing being communicated blocks their income. So every
+// decision below emits exactly ONE notification, which the shipped Phase-7 fan-out turns into a
+// durable in-app row AND an email from the SAME payload (D-86/D-91/D-92) — one function, so the two
+// channels cannot drift. The host-surface status (D-230, plan 18-13) is IN ADDITION to this.
+//
+// ⚠ EVERY EMISSION SITS AFTER THE FLIP AND AFTER THE AUDIT ROW, INSIDE THE POST-FLIP DISCIPLINE.
+// The decision has committed: the listing is already (un)sellable, the host's payouts are already
+// frozen. Nothing here may unwind that and nothing here may THROW past it, or an operator would get a
+// 500 for a decision that in fact succeeded and would press the button again. So the whole thing —
+// the recipient lookup AND the emit — is individually guarded, and a failure becomes a
+// `needs_attention` row on the established operator-alert channel (D-58/D-90) rather than an error.
+//
+// `emitNotify` already swallows its own transport errors (MANAGE-03); the guard here is for the
+// RECIPIENT LOOKUP, which is a live database read and can fail on its own.
+
+/** The one ops decision verb per action, reused as the audit `action` on both branches. */
+type OpsDecisionAction =
+  | "ops_approve_host"
+  | "ops_reject_host"
+  | "ops_suspend_host"
+  | "ops_approve_listing"
+  | "ops_reject_listing";
+
+/**
+ * Hand ONE notification to the fan-out, and never let it disturb the decision.
+ *
+ * The whole body is inside the guard — the recipient LOOKUP as well as the emit — because the lookup
+ * is a live database read that can fail on its own. `emitNotify` swallows its own transport errors
+ * (MANAGE-03); this catches everything upstream of that.
+ *
+ * `bookingId` is NULL on all five: a host's standing is not booking-scoped. `type` is read OFF the
+ * payload rather than passed alongside it, so the indexed column and the jsonb discriminant cannot
+ * disagree — the condition `notifyEventSchema`'s refine exists to catch, removed at the call site
+ * rather than merely detected at the write boundary.
+ */
+async function guardedNotify(
+  staffId: string,
+  action: OpsDecisionAction,
+  build: () => Promise<{ recipientId: string; email: string | null; payload: NotificationPayload }>,
+): Promise<void> {
+  try {
+    const { recipientId, email, payload } = await build();
+    await emitNotify({ type: payload.type, recipientId, bookingId: null, email, payload });
+  } catch (err) {
+    console.error("[OPS_REVIEW_ALERT] notify_failed", { action, err });
+    await recordAudit({
+      actorId: staffId,
+      action,
+      outcome: "needs_attention",
+      // ⚠ D-72 — the verb and the failure reason only. The payload carries the OPERATOR'S FREE TEXT
+      // and `meta` is a durable jsonb column under an explicit no-secrets/no-PII rule; the recipient's
+      // email address never goes here either (T-07-38: an alert must not become the leak). The row's
+      // own `action` column already says which decision this was.
+      meta: { reason: "notify_failed" satisfies DenialReason },
+    });
+  }
+}
+
+/**
+ * Tell the HOST about a decision on their ACCOUNT. The id IS the recipient; only the address needs
+ * looking up.
+ */
+async function notifyHost(
+  staffId: string,
+  action: OpsDecisionAction,
+  userId: string,
+  payload: NotificationPayload,
+): Promise<void> {
+  await guardedNotify(staffId, action, async () => {
+    const [row] = (await db.execute(sql`
+      SELECT u.email AS "email" FROM "user" u WHERE u.id = ${userId}
+    `)) as unknown as { email: string | null }[];
+    if (!row) throw new Error("notify recipient not found");
+    return { recipientId: userId, email: row.email, payload };
+  });
+}
+
+/**
+ * Tell the host about a decision on a LISTING. The recipient and the title the copy names both come
+ * from the listing row, so the payload is built from the read rather than before it.
+ *
+ * Read AFTER the flip rather than folded into the UPDATE's RETURNING, deliberately: the flip's job is
+ * to be the single atomic decision with every guard in its WHERE, and widening it to carry a JOIN for
+ * a downstream consequence would put a notification concern inside the one statement that must never
+ * fail for a notification reason.
+ */
+async function notifyListingHost(
+  staffId: string,
+  action: OpsDecisionAction,
+  listingId: string,
+  build: (listingTitle: string) => NotificationPayload,
+): Promise<void> {
+  await guardedNotify(staffId, action, async () => {
+    const [row] = (await db.execute(sql`
+      SELECT l.host_id AS "hostId",
+             COALESCE(NULLIF(l.title, ''), 'Your listing') AS "title",
+             u.email AS "email"
+      FROM listing l
+      JOIN "user" u ON u.id = l.host_id
+      WHERE l.id = ${listingId}
+    `)) as unknown as { hostId: string; title: string; email: string | null }[];
+    if (!row) throw new Error("notify recipient not found");
+    // `listing.title` is NULLABLE (required only at publish), and a heading reading "undefined is
+    // live" is a worse message than a generic one — so the COALESCE above is copy, not defensive noise.
+    return { recipientId: row.hostId, email: row.email, payload: build(row.title) };
+  });
+}
 
 /**
  * Close the OPEN review cycle for a listing, or open-and-close one if there is none.
@@ -302,6 +425,9 @@ export async function approveHost(input: ApproveHostInput): Promise<OpsActionRes
     outcome: "ok",
     meta: { userId: parsed.data.userId, provider: check.provider, result: check.result },
   });
+
+  // OPS-05 / D-245 — post-flip, post-audit, individually guarded. See the block above `guardedNotify`.
+  await notifyHost(staff.id, "ops_approve_host", parsed.data.userId, hostApprovedPayload());
   return OK;
 }
 
@@ -390,6 +516,17 @@ export async function rejectHost(input: RejectHostInput): Promise<OpsActionResul
       hasNote: (parsed.data.note?.trim().length ?? 0) > 0,
     },
   });
+
+  // OPS-05 / D-245 — the host is TOLD, with the reason, and the reason is the SAME string the durable
+  // `host_verification.reason` column now holds: `storedReason`, not a re-composition. Two calls to
+  // `composeReason` would be two sources for one sentence, and the host would eventually read a
+  // notification that no longer matched their own account page.
+  await notifyHost(
+    staff.id,
+    "ops_reject_host",
+    parsed.data.userId,
+    hostRejectedPayload(storedReason),
+  );
   return OK;
 }
 
@@ -475,6 +612,17 @@ export async function suspendHost(input: SuspendHostInput): Promise<OpsActionRes
       hasNote: (parsed.data.note?.trim().length ?? 0) > 0,
     },
   });
+
+  // D-243 — A SUSPENDED HOST IS TOLD, WITH THE REASON, AND NOTHING IS PROMISED. This is the message
+  // that most needs the notification rather than a status: it stops their income at both ends (no new
+  // bookings, payouts frozen), and a host who has to go looking for that has not been told. Host
+  // appeals are backlog 999.6 and OUT, so the copy says what happened, says why, and stops.
+  await notifyHost(
+    staff.id,
+    "ops_suspend_host",
+    parsed.data.userId,
+    hostSuspendedPayload(storedReason),
+  );
   return OK;
 }
 
@@ -550,6 +698,15 @@ export async function approveListing(input: ApproveListingInput): Promise<OpsAct
     outcome: "ok",
     meta: { listingId: parsed.data.listingId },
   });
+
+  // OPS-05 / D-245. Emitted AFTER the history write as well as after the flip, so the notification is
+  // never the thing that lands before the compliance record it describes.
+  await notifyListingHost(
+    staff.id,
+    "ops_approve_listing",
+    parsed.data.listingId,
+    listingApprovedPayload,
+  );
   return OK;
 }
 
@@ -629,6 +786,12 @@ export async function rejectListing(input: RejectListingInput): Promise<OpsActio
       hasNote: (parsed.data.note?.trim().length ?? 0) > 0,
     },
   });
+
+  // OPS-05 / D-245 — the reason the host READS, carried on the same `storedReason` string that
+  // `writeListingHistory` just put in `listing_review.reason`. One value, two surfaces.
+  await notifyListingHost(staff.id, "ops_reject_listing", parsed.data.listingId, (title) =>
+    listingRejectedPayload(title, storedReason),
+  );
   return OK;
 }
 

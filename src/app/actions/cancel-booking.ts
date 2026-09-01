@@ -54,7 +54,7 @@ import { db } from "@/lib/db";
 import { availabilityBlock, booking, listing, user } from "@/lib/db/schema";
 import { readDbNow } from "@/lib/booking/bookings-query";
 import { composeWhenLabel, type WhenLabelInput } from "@/lib/booking/when-label";
-import { emitNotify } from "@/lib/notifications";
+import { emitNotify, opsCancelPayload } from "@/lib/notifications";
 import { emitGuestEmail } from "@/lib/group/guest-notify";
 import { listReachableYesAttendees } from "@/lib/group/rsvp";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
@@ -1816,20 +1816,62 @@ export async function cancelBookingAsOps(input: OpsCancelInput): Promise<CancelA
     });
   }
 
-  // ── FORK 5 — NEITHER PARTY IS NOTIFIED FROM HERE, AND THE GAP IS DELIBERATE AND DATED. ────────────
+  // ── FORK 5 — BOTH PARTIES ARE TOLD, ON A TYPE OF THIS PATH'S OWN. ────────────────────────────────
   //
-  // The host path ends with two `emitNotify` calls carrying its own cancellation type. Neither may fire
-  // on this path, and it is not a near-miss: BOTH of that type's sentences are false here. The booker
-  // copy tells a defrauded person that their HOST cancelled on them — the opposite of what happened, and
-  // the one message they would repeat to anyone who asked what FitOut did. The host copy thanks them for
-  // a decision they did not make and quotes a fee this path just suppressed (D-235). Sending the right
-  // envelope with the wrong sentences would be worse than sending nothing, because it is durable and it
-  // is what both parties would believe.
+  // The host path ends with two `emitNotify` calls carrying the HOST-CANCEL type (spelled at its own
+  // call sites above, and deliberately NOT spelled here — an acceptance grep counts its occurrences in
+  // this file, and the paragraph explaining why the ops path sends none must not be what moves that
+  // count; drizzle/0021's rule). NEITHER MAY FIRE HERE, and it is not a near-miss: BOTH of that type's
+  // sentences are false on this path. The
+  // booker copy tells a defrauded person that their HOST cancelled on them — the opposite of what
+  // happened, and the one message they would repeat to anyone who asked what FitOut did. The host copy
+  // thanks them for a decision they did not make and quotes a fee this path just suppressed (D-235).
+  // Sending the right envelope with the wrong sentences would be worse than sending nothing, because
+  // it is durable and it is what both parties would believe. `tests/payments/ops-cancel.test.ts`
+  // asserts on the emission observer that the host-cancel type is not sent, so re-adding it by reflex
+  // still goes red — that assertion is UNCHANGED by 18-09 and must stay that way.
   //
-  // The correct ops-cancellation notification kinds — one per side, written against what actually
-  // happened — land in PLAN 18-09, which owns the enforcement copy. Until then this path is silent to
-  // both parties BY DECISION. `tests/payments/ops-cancel.test.ts` asserts on the emission observer that
-  // the host-cancel type is not sent, so re-adding it by reflex goes red.
+  // 18-08 left this path deliberately silent and dated the gap to this plan. `booking_cancelled_by_ops`
+  // is what closes it: one type, two audiences, written against what actually happened. The BOOKER is
+  // told FitOut cancelled it and what is coming back; the HOST is told the booking is cancelled and —
+  // explicitly — that no cancellation fee is charged, because D-235's suppression is otherwise
+  // invisible and a host would reasonably assume the usual fee applied to a cancellation they did not
+  // make. The copy lives in `src/lib/notifications.ts` with the rest of the enforcement sentences.
+  //
+  // AFTER the commit, never inside a transaction, and `emitNotify` swallows its own transport errors —
+  // so a notification outage can never fail a cancellation whose money already moved.
+  const opsWhenLabel = composeWhenLabel(whenLabelInput(row));
+  const opsListingTitle = row.title ?? "your space";
+  // CR-01 — a refund of nothing is NOT announced as a refund. `opsRefundBasisCents` can legitimately
+  // return 0, and "you're getting ₱0 back" is the disease this codebase already names by name.
+  const opsRefundLabel =
+    refundCents > 0 ? formatMoney(refundCents, row.currency ?? DISPLAY_CURRENCY) : null;
+
+  await emitNotify({
+    type: "booking_cancelled_by_ops",
+    recipientId: row.bookerId,
+    bookingId: parsed.data.bookingId,
+    email: row.bookerEmail,
+    payload: opsCancelPayload({
+      side: "booker",
+      listingTitle: opsListingTitle,
+      whenLabel: opsWhenLabel,
+      refundLabel: opsRefundLabel,
+    }),
+  });
+
+  await emitNotify({
+    type: "booking_cancelled_by_ops",
+    recipientId: row.hostId,
+    bookingId: parsed.data.bookingId,
+    email: row.hostEmail,
+    payload: opsCancelPayload({
+      side: "host",
+      listingTitle: opsListingTitle,
+      whenLabel: opsWhenLabel,
+      refundLabel: opsRefundLabel,
+    }),
+  });
 
   // The ATTENDEES are still told, and that is not a contradiction of the paragraph above. `group_voided`
   // copy names the space, the time and the invite link and blames nobody, so it is TRUE on this path

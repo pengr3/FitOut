@@ -701,7 +701,29 @@ describe("Fork 5 — the ops path emits no host-cancellation notification", () =
     // the host's quotes a fee D-235 suppresses.
     const opsSent = inngestSend.mock.calls.map((c) => c[0]);
     expect(opsSent.map((e) => e.data.type)).not.toContain("booking_cancelled_by_host");
-    expect(opsSent.filter((e) => e.data.bookingId === "oc_b_notify")).toHaveLength(0);
+
+    // ── WHAT THIS PATH DOES SEND, SINCE 18-09 (D-245). ────────────────────────────────────────────
+    // 18-08 shipped this path SILENT to both parties by decision, and asserted `toHaveLength(0)` here
+    // while dating the gap to plan 18-09, which owns the enforcement copy. 18-09 delivered it, so the
+    // zero is superseded — and the assertion that replaces it is STRICTLY STRONGER rather than
+    // relaxed: not "something was sent" but exactly TWO emissions for this booking, both on the
+    // ops-cancellation type, one per side, and still none of the host-cancel type. A path that
+    // regressed to telling only one party, or to telling either of them the wrong thing, is red here.
+    const forThisBooking = opsSent.filter((e) => e.data.bookingId === "oc_b_notify");
+    expect(forThisBooking).toHaveLength(2);
+    expect(new Set(forThisBooking.map((e) => e.data.type))).toEqual(
+      new Set(["booking_cancelled_by_ops"]),
+    );
+    expect(
+      forThisBooking.map((e) => (e.data.payload as { side?: string }).side).sort(),
+    ).toEqual(["booker", "host"]);
+    // Each side reaches the right person — an ops cancellation that mailed the host's no-fee copy to
+    // the defrauded booker would satisfy every count above.
+    const bySide = new Map(
+      forThisBooking.map((e) => [(e.data.payload as { side?: string }).side, e.data.recipientId]),
+    );
+    expect(bySide.get("booker")).toBe(bookerId);
+    expect(bySide.get("host")).toBe(hostId);
 
     // POSITIVE CONTROL — the observer WOULD have caught it. The host path over a comparable booking
     // emits exactly that type, twice, so case 12's silence is the action's and not the harness's.
