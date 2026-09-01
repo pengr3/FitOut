@@ -38,8 +38,12 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import { format } from "date-fns";
 import { tz } from "@date-fns/tz";
+
+import { grantStaff } from "@/lib/ops/grant";
+import * as schema from "@/lib/db/schema";
 
 /** Every route these specs drive is served by the dev server Playwright boots on :3000. */
 export const BASE = "http://localhost:3000";
@@ -455,4 +459,192 @@ export async function readExpiresAt(seed: SeededListing, holdId: string): Promis
     `booking ${holdId} has a null expires_at, so there is no deadline to drive a clock against`,
   ).not.toBeNull();
   return row.expires_at!.getTime();
+}
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE STAFF SESSION (plan 18-12) — the only way any spec reaches `/ops`
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠ THE GRANT GOES THROUGH `src/lib/ops/grant.ts`, NOT THROUGH A SECOND `UPDATE "user"` WRITTEN HERE.
+//
+// That module is the staff-grant POLICY (OPS-01 / D-217) and its own header says why it is a module at
+// all: *"A policy nothing can execute in isolation is a policy nothing can MUTATE in isolation
+// either — and 'how does one become staff?' is the single most load-bearing rule in Phase 18."* A
+// hand-rolled `UPDATE` here would be a SECOND way to become staff, living in a test helper, outside
+// every assertion `tests/ops/grant-cli.test.ts` makes about the first one — including the audit row it
+// writes on both branches. It would also drift silently the day the policy grows a condition.
+//
+// It takes an INJECTED `DbConn` with no default, deliberately (the `= db` default is the import that
+// hangs a short-lived process), so this file builds one over the same `postgres.js` connection the
+// rest of the fixture uses. Drizzle is imported here and nowhere else in `e2e/`.
+//
+// AND IT IS NOT BETTER AUTH'S USER-UPDATE API EITHER, WHICH COULD NOT WORK ANYWAY. `role` is
+// `input: false` (`src/lib/auth.ts:112`), so that endpoint raises `FIELD_NOT_ALLOWED` and takes the
+// WHOLE request down — measured in `tests/auth/ops-role.test.ts`, which found the behaviour stronger
+// than the plan that predicted a field-level strip. D-217 says a role-grant HTTP path does not get to
+// exist; this helper is not the place to invent one.
+//
+// ⚠ THE ENDPOINT IS NAMED DESCRIPTIVELY AND NOT SPELLED, DELIBERATELY. 18-12's acceptance criterion
+// is a ZERO-count grep for that identifier over this file, and a paragraph explaining why it is
+// forbidden would make the count 1 against a correct file. That is the eighth instance of this shape
+// in this repository (18-04 § 4, 18-05 × 3, 18-10 × 2); `price-breakdown.tsx`'s GREP TRIPWIRE rule
+// says to describe the prohibition rather than to write it out, and this is that rule applied.
+//
+// THE AUDIT ROW IS TORN DOWN BY THE CALLER. `grantStaff` writes one (that is the point of it), and
+// `audit` carries NO foreign key by design, so no cascade reaches it — the same trap
+// `overflow-320.spec.ts`'s Phase-14 teardown records for `/host/payouts/refresh`. `staffTeardown`
+// below is the statement, and it is returned rather than folded into `SeededListing.teardown()`
+// because a spec may seed a staff session without seeding a listing.
+
+/**
+ * A staff account signed in through the shipped UI, plus the teardown its audit row needs.
+ *
+ * SIGNED UP THROUGH THE FORM rather than seeded as a session row, for `login-persistence.spec.ts`'s
+ * reason: email/password needs no external credential, and a unique address per run means repeated
+ * runs never collide on the unique email constraint. The grant happens AFTER the signup and the page
+ * is reloaded, because `readStaff()` reads `user.role` off the session's DATABASE row on every
+ * request (`src/lib/ops/staff.ts` — `session.cookieCache` is unconfigured, and that module's header
+ * records that this file's correctness depends on it staying that way).
+ */
+/**
+ * The `--by` handle every e2e staff grant is recorded under — one constant, so the teardown's
+ * `DELETE FROM audit` can find exactly the rows this fixture wrote and nothing else.
+ */
+const STAFF_GRANT_ACTOR = "e2e staff fixture";
+
+/**
+ * Run one statement batch against a connection that is OPENED AND CLOSED INSIDE THE CALL.
+ *
+ * ⚠ THIS IS WHAT LETS `axe-sweep.spec.ts` USE THESE HELPERS WITHOUT BREAKING ITS OWN RULE. That file
+ * states, in as many words, that it opens no `postgres()` client — because `deferred-items.md` warns
+ * against another DB-seeding spec holding a `postgres({max:1})` client for its whole lifetime, and six
+ * specs already do. Nothing below holds one: each call takes a connection, does its work and ends it,
+ * so the spec's steady state is still zero. The rule's SPIRIT is honoured rather than its letter
+ * argued with, and this paragraph is here so the next reader can check that claim instead of taking
+ * it.
+ */
+async function withClient<T>(fn: (sql: ReturnType<typeof postgres>) => Promise<T>): Promise<T> {
+  const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {} });
+  try {
+    return await fn(sql);
+  } finally {
+    await sql.end();
+  }
+}
+
+export type SeededStaff = {
+  readonly email: string;
+  readonly userId: string;
+  staffTeardown(): Promise<void>;
+};
+
+export async function signUpStaff(page: Page): Promise<SeededStaff> {
+  const email = `e2e.staff.${Date.now()}.${Math.floor(Math.random() * 1e6)}@example.com`;
+
+  await page.goto(`${BASE}/signup`);
+  await page.getByRole("radio", { name: "Book a space" }).click();
+  await page.getByLabel("First name").fill("Ops");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill("averylongpassword");
+  await page.getByRole("button", { name: /sign up to book/i }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 60_000 });
+
+  const userId = await withClient(async (sql) => {
+    const result = await grantStaff(drizzle(sql, { schema }), email, STAFF_GRANT_ACTOR);
+    expect(
+      result.outcome,
+      `the staff grant refused ${email} (${result.outcome}). Every /ops row in this suite would then ` +
+        "measure the 404 a non-staff caller gets (D-219), which renders the ROOT not-found body — a " +
+        "real document that passes an accessibility scan and does not overflow, so the failure would " +
+        "look exactly like a pass.",
+    ).toBe("written");
+
+    const [row] = await sql<{ id: string; role: string | null }[]>`
+      SELECT id, role FROM "user" WHERE email = ${email}
+    `;
+    expect(row?.role, `${email} is not staff after the grant`).toBe("staff");
+    return row.id;
+  });
+
+  // The session cookie is already minted and the role is re-read from the row on the NEXT request —
+  // `src/lib/ops/staff.ts` depends on `session.cookieCache` staying unconfigured, and its header says
+  // so. If that ever changes, this helper has to mint the session AFTER the grant instead.
+  return {
+    email,
+    userId,
+    async staffTeardown() {
+      await withClient(async (sql) => {
+        // The grant's own audit row FIRST. `audit` carries no foreign key by design, so no cascade
+        // reaches it and the rows would otherwise accumulate one per run, forever — the same trap
+        // `overflow-320.spec.ts`'s Phase-14 teardown records for `/host/payouts/refresh`.
+        await sql`DELETE FROM audit WHERE actor_id = ${STAFF_GRANT_ACTOR}`;
+        await sql`DELETE FROM "user" WHERE email = ${email}`;
+      });
+    },
+  };
+}
+
+/**
+ * Put ONE host into the review queue, by email, without seeding a listing.
+ *
+ * For a spec that needs `/ops` to be deterministically non-empty but has no listing fixture and wants
+ * none — `axe-sweep.spec.ts` is the case, and its own header explains why it holds no client. A host
+ * signed up through the form has NO `host_verification` row at all, and a missing row reads as
+ * `unverified` (fail-closed), which is not `pending` and therefore not in the queue.
+ */
+export async function seedPendingHostVerification(email: string): Promise<() => Promise<void>> {
+  const userId = await withClient(async (sql) => {
+    const [row] = await sql<{ id: string }[]>`SELECT id FROM "user" WHERE email = ${email}`;
+    expect(row?.id, `no account for ${email} — the sign-up that should have created it did not`).toBeTruthy();
+    await sql`
+      INSERT INTO host_verification (user_id, status, provider, created_at, updated_at)
+      VALUES (${row.id}, ${"pending"}::host_verification_status, ${"manual"}, now() - interval '9 days', now())
+      ON CONFLICT (user_id) DO UPDATE
+        SET status = ${"pending"}::host_verification_status,
+            created_at = now() - interval '9 days'
+    `;
+    return row.id;
+  });
+  return async () => {
+    await withClient(async (sql) => {
+      await sql`DELETE FROM host_verification WHERE user_id = ${userId}`;
+    });
+  };
+}
+
+/**
+ * Put a seeded listing INTO the review queue, and give its host a pending verification.
+ *
+ * `seedBookableListing` writes `review_state='approved'` and an approved `host_verification` because
+ * every OTHER spec needs the listing to SELL (D-224's sell-gate). `/ops` needs the opposite, so this
+ * flips the two columns rather than forking the seed — one fixture, one place the sell-gate terms are
+ * written down.
+ *
+ * ⚠ IT SEEDS ONE OF EACH KIND ON PURPOSE. The queue interleaves hosts and listings oldest-first
+ * (D-246) and the two row shapes are structurally different — a listing row carries a photo mosaic
+ * and is roughly twice the height of a host row. A fixture with only one kind would leave every
+ * assertion below measuring half the surface. `submitted_at` is backdated so the wait figure renders
+ * a stable `Waiting {N} days` rather than an hours figure that changes while the suite runs.
+ */
+export async function seedReviewQueue(seed: SeededListing): Promise<void> {
+  await seed.sql`
+    UPDATE listing SET review_state = 'pending'::listing_review_state WHERE id = ${seed.listingId}
+  `;
+  // ⚠ NO `listing_review` ROW IS INSERTED, AND THAT IS TWO DECISIONS RATHER THAN A SHORTCUT.
+  //
+  //   1. D-249 makes the wait clock the LATEST `listing_review.submitted_at` **else**
+  //      `listing.created_at`, so backdating the listing is enough to produce a stable
+  //      `Waiting {N} days` — and it exercises the fallback branch, which is the branch a
+  //      first-submission listing actually takes.
+  //   2. `listing_review.listing_id` is ON DELETE **RESTRICT** (`schema.ts`), so a row here would make
+  //      `seedBookableListing`'s teardown fail on the host delete with a foreign-key error that says
+  //      nothing about ordering — the exact trap that file's own header warns about, one table over.
+  await seed.sql`
+    UPDATE listing SET created_at = now() - interval '6 days' WHERE id = ${seed.listingId}
+  `;
+  await seed.sql`
+    UPDATE host_verification
+    SET status = 'pending'::host_verification_status, created_at = now() - interval '9 days'
+    WHERE user_id = ${seed.hostId}
+  `;
 }

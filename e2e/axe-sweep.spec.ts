@@ -5,6 +5,7 @@ import { join, relative, resolve } from "node:path";
 import { expectAxeClean } from "./helpers/axe";
 import { BASE_URL as BASE, installTruncator } from "./helpers/served-document";
 import { seedTheme } from "./helpers/theme";
+import { seedPendingHostVerification, signUpStaff } from "./helpers/booker-seed";
 // The hooks are IMPORTED, never retyped — 17-RESEARCH Pattern 4. `visual-baselines.ts` already
 // carries a `hook` + `hookWhy` pair per surface, argued at the row, and those selectors are exactly
 // the "tell" this sweep needs before a scan. A surface whose hook changes then moves in ONE place; a
@@ -188,7 +189,13 @@ const hookOf = (id: keyof typeof VISUAL_SURFACES): string => VISUAL_SURFACES[id]
 // ---------------------------------------------------------------------------
 
 /** Which signed-in identity the row needs. Absent means the row is driven anonymously. */
-type SessionKind = "booker" | "host";
+/**
+ * ⚠ `"staff"` IS A THIRD IDENTITY AND NOT A THIRD CAPABILITY. `booker` and `host` are capabilities the
+ * shipped sign-up form grants (D-41); staff standing is CLI-only by D-217 and is a database write the
+ * UI cannot produce, which is why the fixture below grants it through `src/lib/ops/grant.ts` — the one
+ * policy module — rather than through a fourth sign-up path.
+ */
+type SessionKind = "booker" | "host" | "staff";
 
 type SweepRow = {
   /**
@@ -233,6 +240,7 @@ type Cookies = Awaited<ReturnType<BrowserContext["cookies"]>>;
 type Fixture = {
   readonly booker: Cookies;
   readonly host: Cookies;
+  readonly staff: Cookies;
   /** The id of the draft listing `/host/listings/new` minted for the host, or `null` if it did not. */
   readonly draftListingId: string | null;
 };
@@ -253,7 +261,7 @@ type Fixture = {
  * constraint across repeated runs; it never reaches a measured string. Stated because this repository
  * has shipped two time-bomb assertions seeded from `now()`.
  */
-async function signUp(page: Page, intent: SessionKind, tag: string): Promise<void> {
+async function signUp(page: Page, intent: "booker" | "host", tag: string): Promise<string> {
   const email = `e2e.axe.${tag}.${Date.now()}.${Math.floor(Math.random() * 1e6)}@example.com`;
   await page.goto(`${BASE}/signup`);
   await page
@@ -266,6 +274,9 @@ async function signUp(page: Page, intent: SessionKind, tag: string): Promise<voi
     .getByRole("button", { name: intent === "host" ? /sign up to host/i : /sign up to book/i })
     .click();
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 60_000 });
+  // Returned since plan 18-12: the `/ops` row needs the HOST's address so the fixture can put that
+  // account into the review queue. Nothing else reads it, and it never reaches a measured string.
+  return email;
 }
 
 /**
@@ -283,6 +294,10 @@ async function mintDraftListing(page: Page): Promise<string | null> {
 }
 
 let fixture: Fixture;
+/** The staff account the `/ops` row drives, and its teardown (the grant leaves an `audit` row). */
+let seededStaff: Awaited<ReturnType<typeof signUpStaff>> | undefined;
+/** Undoes the pending `host_verification` this file writes so `/ops` has a row to render. */
+let releaseQueuedHost: (() => Promise<void>) | undefined;
 
 /** The draft listing's path prefix, or a message that says why the row cannot resolve one. */
 function draftPath(suffix: string): string | null {
@@ -768,6 +783,47 @@ const ROWS: readonly SweepRow[] = [
     path: "/dev-throw-legal",
     tell: '[data-testid="error-state"]:has-text("Back to FitOut")',
   },
+  // ─── the ops tier (plan 18-12) — staff-only, and inside the audited set on the same terms ────────
+  //
+  // 18-UI-SPEC states there is no "it's only for staff" exemption anywhere in this repository's
+  // gates, and this is that rule at the a11y layer: `/ops` is scanned with the same tag filter, at
+  // the same two widths, as every booker and host surface above it.
+  {
+    file: "src/app/(ops)/ops/page.tsx",
+    name: "/ops · the review queue",
+    path: "/ops",
+    session: "staff",
+    // THE TELL IS A REAL QUEUE ROW, NOT THE PAGE HEADER, and the difference is the whole vacuity
+    // argument. `/ops` answers a hard 404 to a non-staff caller (D-219) and renders the ROOT
+    // not-found body — which has an `h1`, passes axe cleanly and would report this row GREEN having
+    // scanned the wrong document entirely. It also renders a designed EMPTY panel when the queue is
+    // clear, which is likewise clean. `row-card` exists in neither, so it is the one selector that
+    // proves the populated queue rendered. The `beforeAll` above guarantees exactly one row for it.
+    //
+    // ⚠ WHAT THIS ROW DOES NOT COVER, STATED RATHER THAN LEFT TO BE DISCOVERED — and it is two things:
+    //
+    //   • THE LISTING ROW. The fixture guarantees a HOST row (one `host_verification` flip). A
+    //     listing row additionally carries `PhotoGallery`'s mosaic and the reject dialog's
+    //     `ResponsiveDialog`, and putting one in the queue needs a full seeded listing — a fixture
+    //     this file deliberately does not open (see `signUp`). It IS measured, at 320px and in both
+    //     themes, by `e2e/overflow-320.spec.ts`'s Phase-18 block, which already holds a seed; and the
+    //     two compositions are audited as compositions on `/listings/[id]` and `/dev/theme`. If the
+    //     local catalogue happens to hold a pending listing, this row scans it too — which is a
+    //     bonus, not the guarantee.
+    //   • THE EMPTY PANEL. `EmptyState` at `tone="positive"` is the same component and the same tone
+    //     `/host/requests` renders at zero, and `/dev/theme` section 11 renders both tones side by
+    //     side in both themes. What is unaudited here is that panel *inside the ops shell*, which
+    //     differs from the host shell only in the wordmark and the absent nav.
+    tell: '[data-testid="row-card"]',
+  },
+  {
+    file: "src/app/(ops)/ops/error.tsx",
+    name: "error boundary · (ops)",
+    path: null,
+    skip: "there is no way to make this boundary throw, and creating one is forbidden by the decision the boundary exists under. The five boundary rows above are each reached through a group-local deliberate-throw route that plan 17-12 built — `/dev-throw-app`, `/host/dev-throw` and so on — and the equivalent here would be `src/app/(ops)/ops/dev-throw/page.tsx`. That file cannot exist: D-246 holds the ops console at EXACTLY ONE page, `tests/design/ops-guard-coverage.test.ts` asserts that count, and a second page would additionally require its own `loading.tsx` and move all three of `loading-coverage.test.ts`'s pinned counts — so the cheapest way to measure this row is also a product change nobody asked for. What it renders is audited as a COMPOSITION rather than as a document: it composes `patterns/error-state.tsx` with two actions, which `/dev/theme` section 12 renders in both themes and which the five rows above scan inside five different shells. Its structure — the client directive, the two actions, the digest-only rule and its own route out — is gated per commit by `tests/design/error-boundaries.test.ts`, which grew from five declared boundaries to six in the same commit as this row. The gap that is genuinely left is this panel inside the OPS shell specifically, and the shell differs from the host one only in its wordmark and its absent nav.",
+    tell: '[data-testid="error-state"]',
+  },
+
   {
     file: "src/app/global-error.tsx",
     name: "global-error · THE ONE DECLARED ROUTE-LEVEL EXCLUSION",
@@ -970,12 +1026,41 @@ test.describe(`AC#16 — zero axe violations in ${THEME} at ${WIDTHS.join(" and 
 
     const hostContext = await browser.newContext({ baseURL: BASE });
     const hostPage = await hostContext.newPage();
-    await signUp(hostPage, "host", "ht");
+    const hostEmail = await signUp(hostPage, "host", "ht");
     const draftListingId = await mintDraftListing(hostPage);
     const host = await hostContext.cookies();
     await hostContext.close();
 
-    fixture = { booker, host, draftListingId };
+    // ── THE STAFF IDENTITY, AND THE ONE QUEUE ROW THE `/ops` SCAN IS GUARANTEED TO FIND ────────────
+    //
+    // ⚠ TWO DATABASE WRITES IN A FILE WHOSE `signUp` DOCBLOCK SAYS IT OPENS NO CLIENT, AND THE RULE
+    // IS HONOURED RATHER THAN ARGUED WITH. That rule's stated reason is that another spec HOLDING a
+    // `postgres({max:1})` client for its lifetime is a contention hazard `deferred-items.md` warns
+    // about by name. Both helpers below open a connection, write, and END IT before returning
+    // (`withClient` in `helpers/booker-seed.ts` carries the argument), so this file's steady state is
+    // still zero clients. The writes are also not optional: staff standing is CLI-ONLY by D-217 —
+    // there is no sign-up intent, no server action and no route handler that can produce it — so a
+    // `/ops` row without one would measure the 404 a non-staff caller gets, which renders the ROOT
+    // not-found body: a real, clean, non-overflowing document that would report a PASS.
+    const staffContext = await browser.newContext({ baseURL: BASE });
+    const staffPage = await staffContext.newPage();
+    seededStaff = await signUpStaff(staffPage);
+    const staff = await staffContext.cookies();
+    await staffContext.close();
+
+    // The queue must be deterministically non-empty, or the row scans the EMPTY panel and its `tell`
+    // fails. The HOST account this file already created is put into it — one row, one kind. What that
+    // does NOT cover is stated at the row itself rather than implied away by the green.
+    releaseQueuedHost = await seedPendingHostVerification(hostEmail);
+
+    fixture = { booker, host, staff, draftListingId };
+  });
+
+  test.afterAll(async () => {
+    // Ordered and individually guarded: a failed `beforeAll` leaves either of these undefined, and a
+    // teardown that throws there buries the real failure under a TypeError.
+    await releaseQueuedHost?.();
+    await seededStaff?.staffTeardown();
   });
 
   for (const row of ROWS) {

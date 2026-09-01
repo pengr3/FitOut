@@ -11,7 +11,9 @@ import postgres from "postgres";
 import {
   openBookingSheet,
   seedBookableListing,
+  seedReviewQueue,
   signUpBooker,
+  signUpStaff,
   type SeededListing,
 } from "./helpers/booker-seed";
 import { expectRing, readFocus, type FocusReading } from "./helpers/focus";
@@ -3245,7 +3247,15 @@ const PHASE_14_ROWS: readonly Phase14Row[] = [
  * that reports green over an absent control is the vacuity failure this file has now recorded three
  * times.
  */
-async function expectTouchTargets(page: Page, where: string, row: Phase14Row): Promise<void> {
+// ⚠ THE PARAMETER IS THE `touch` SLICE AND NOT `Phase14Row`, AS OF PLAN 18-12 — a strict widening,
+// because the Phase-18 block below declares the same field on a row that resolves its path from no
+// fixture at all. Nothing here ever read anything else off the row, so the narrower type was a
+// coupling rather than a constraint.
+async function expectTouchTargets(
+  page: Page,
+  where: string,
+  row: { readonly touch: readonly TouchTarget[] },
+): Promise<void> {
   for (const target of row.touch) {
     const control = page.getByRole("button", { name: target.name });
     const count = await control.count();
@@ -3365,6 +3375,122 @@ test.describe(`AC#36 — every Phase-14 host surface at ${FLOOR_PX}px, in both t
         await expectVisibleFocus(page, where);
       });
     }
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// OPS-04 — THE ONE PHASE-18 SURFACE AT 320px, IN BOTH THEMES (plan 18-12)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// A FIFTH DESCRIBE, and it exists rather than a row in the tables above for one reason: no table
+// above can carry a STAFF session. `ROUTES` drives anonymously, `PHASE_13_ROWS` carries a booker and
+// `PHASE_14_ROWS` a host — and staff standing is CLI-only by D-217, a database write no sign-up
+// intent can produce.
+//
+// ⚠ THIS IS THE ONLY INSTRUMENT IN THE REPOSITORY THAT CAN PROVE THE PHOTO-BEARING ROW DOES NOT
+// OVERFLOW AT THE FLOOR, and it is worth saying why the question is real rather than ceremonial.
+// `/ops` is the one list surface whose row contains a PICTURE: `PhotoGallery`'s mosaic, at
+// `OPS_QUEUE_SHELL`'s wider `max-w-5xl` measure, beside a `shrink-0` status column and above a
+// six-term description list and two 44px buttons. 18-UI-SPEC names three narrow-viewport hazards for
+// it by name — the status-column squeeze, a horizontal photo strip, and controls that shrink instead
+// of wrapping — and a jsdom test can see none of the three.
+//
+// ⚠ AND IT IS NOT A GATE. PROJECT D-24 keeps every e2e spec but `price-parity.spec.ts` out of CI, so
+// what these two cases produce is a ONE-TIME AUDIT RESULT recorded in the plan's SUMMARY, not ongoing
+// enforcement. Nothing anywhere may describe them as enforcing OPS-04.
+//
+// THE FIXTURE IS THE SHIPPED BOOKER SEED, FLIPPED. `seedBookableListing` writes an APPROVED review
+// state and an approved host verification, because every other spec needs its listing to sell (the
+// D-224 sell-gate); `seedReviewQueue` flips both to `pending`, which puts ONE listing AND ONE host in
+// the queue — the two structurally different row shapes, which is what makes "the queue" a real
+// subject here rather than one card.
+
+const PHASE_18_TOUCH: readonly TouchTarget[] = [
+  {
+    name: /^Approve /,
+    why:
+      "18-UI-SPEC § The decision controls: `Approve` is a neutral SOLID at `size=\"touch\"` (44px). " +
+      "Never the brand variant — an ops reviewer working through forty listings must not be nudged " +
+      "toward yes by a colour — and never below the touch height, because it is the control the " +
+      "whole surface exists for.",
+  },
+  {
+    name: /^Reject /,
+    why:
+      "the same height as its pair, and for `/host/requests`' reason restated: a 44px yes beside a " +
+      "smaller no is a thumb-sized bias. It opens the reject overlay rather than acting, which is " +
+      "why it can never be one press.",
+  },
+];
+
+test.describe(`OPS-04 — the /ops review queue at ${FLOOR_PX}px, in both themes`, () => {
+  // SERIAL for the Phase-13 and Phase-14 blocks' reason: one seeded fixture built in `beforeAll`,
+  // which runs once per WORKER — so a parallel block would sign one staff account up per worker and
+  // tear down another worker's rows from under it.
+  test.describe.configure({ mode: "serial", timeout: 120_000 });
+
+  let seed: SeededListing | null = null;
+  let staff: Awaited<ReturnType<typeof signUpStaff>> | null = null;
+  let staffCookies: Awaited<ReturnType<BrowserContext["cookies"]>> = [];
+
+  test.beforeAll(async ({ browser }) => {
+    seed = await seedBookableListing({ photos: 5, titlePrefix: "E2E Ops" });
+    await seedReviewQueue(seed);
+
+    const context = await browser.newContext({ baseURL: BASE });
+    const page = await context.newPage();
+    staff = await signUpStaff(page);
+    staffCookies = await context.cookies();
+    await context.close();
+  });
+
+  test.afterAll(async () => {
+    // The staff account and its audit row first — it is unrelated to the listing's foreign keys, and
+    // ordering it first means a failure there cannot leave the bigger fixture behind.
+    await staff?.staffTeardown();
+    await seed?.teardown();
+  });
+
+  for (const theme of THEMES) {
+    test(`/ops · ${theme}`, async ({ page }) => {
+      expect(seed, "the ops fixture is null — `beforeAll` failed and there is nothing to measure")
+        .not.toBeNull();
+      expect(
+        staffCookies.length,
+        "the staff sign-up produced no cookies, so this navigation would be answered by the 404 a " +
+          "non-staff caller gets (D-219) — the ROOT not-found body, which is a real document that " +
+          "does not overflow and whose controls all clear the floor. The failure would look green.",
+      ).toBeGreaterThan(0);
+
+      await page.context().addCookies([...staffCookies]);
+      await seedTheme(page.context(), theme);
+      await page.setViewportSize({ width: FLOOR_PX, height: 900 });
+
+      await page.goto(`${BASE}/ops`);
+      await page.evaluate(() => document.fonts.ready);
+
+      const where = `/ops · ${theme} · ${FLOOR_PX}px`;
+
+      // THE TELL IS A PHOTOGRAPH, not the page header and not a row card. `row-card` would be
+      // satisfied by the HOST row alone, which carries no image and is therefore not the shape this
+      // block exists to measure; the page header is satisfied by the plate AND by the empty panel.
+      // The gallery renders only on a resolved LISTING row, and it is addressed by its own
+      // ACCESSIBLE NAME rather than by a declared id — `selector-contract.ts` is UNCHANGED by Phase 18
+      // (18-UI-SPEC's does-not-move table), and its scope rule is explicit: an id is added only where
+      // a role or label query cannot express the target. `section[aria-label]` can.
+      await expect(
+        page.locator('[data-testid="row-card"] section[aria-label^="Photos of "]'),
+        `${where}: the queue rendered no photo mosaic, so the row this block exists to measure is ` +
+          "not on the page. Either the fixture's listing did not reach the queue (check " +
+          "`review_state`), or the session is not staff and this is the root 404 — which does not " +
+          "overflow, so every assertion below would pass having measured the wrong document.",
+      ).not.toHaveCount(0, { timeout: 60_000 });
+
+      await expectNoOverflow(page, where);
+      await expectTargets(page, where);
+      await expectTouchTargets(page, where, { touch: PHASE_18_TOUCH });
+      await expectVisibleFocus(page, where);
+    });
   }
 });
 
@@ -3662,6 +3788,16 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
   { surface: "/host/payouts/return", coveredBy: ["/host/payouts/return"] },
   { surface: "/host/payouts/refresh", coveredBy: ["/host/payouts/refresh"] },
 
+  // ─── PAGE ROUTES · OPS (plan 18-12) ───────────────────────────────────────────────────────────
+  //
+  // COVERED, NOT EXCLUDED, AND THE "it's internal" ARGUMENT IS REFUSED RATHER THAN UNCONSIDERED.
+  // `/ops` is staff-only, so it is tempting to file it beside `/dev/theme` as a non-subject. It is
+  // not one: a real person uses it, on a real phone, to decide whether real spaces may sell, and
+  // 18-UI-SPEC states there is no "it's only for staff" exemption anywhere in this repository's
+  // gates. It is additionally the ONLY list surface in the product whose row carries a photograph,
+  // which makes it the hardest 320px case in this file rather than the softest.
+  { surface: "/ops", coveredBy: ["/ops"] },
+
   // ─── PAGE ROUTES · THE `src/app/dev` EXCLUSION (D-201, exclusion 1 of 4) ──────────────────────
   {
     surface: "/dev/theme",
@@ -3743,6 +3879,22 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
   {
     surface: "src/app/(legal)/error.tsx",
     coveredBy: ["error boundary · src/app/(legal)/error.tsx"],
+  },
+  {
+    surface: "src/app/(ops)/ops/error.tsx",
+    excluded:
+      "UNREACHABLE BY CONSTRUCTION, AND THE CONSTRUCTION IS A DECISION RATHER THAN AN ACCIDENT. The " +
+      "five boundaries above are each reached through the group-local deliberate-throw route plan " +
+      "17-12 built for it. The equivalent here would be a second page under `(ops)`, and D-246 holds " +
+      "that console at EXACTLY ONE page — a count `tests/design/ops-guard-coverage.test.ts` asserts, " +
+      "and one that a second page would move together with all three of " +
+      "`loading-coverage.test.ts`'s pins. So the cheapest way to measure this surface is also a " +
+      "product change nobody asked for, which is a different kind of unreachable from the four this " +
+      "file's `/dev/throw` note describes and is why it is written out here rather than assumed. " +
+      "What it renders IS measured as a composition: `patterns/error-state.tsx` at 320px in both " +
+      "themes through `/dev/theme` section 12, and inside five different shells by the five rows " +
+      "above. Its structure is gated per commit by `tests/design/error-boundaries.test.ts`, which " +
+      "grew to six declared boundaries in the same commit as this entry.",
   },
 
   // ─── THE `global-error` EXCLUSION (D-201, exclusion 2 of 4) ───────────────────────────────────
@@ -3862,6 +4014,10 @@ test.describe("D-201 / AC#2 — every surface on disk is in this file's tables, 
     ...ROUTES.map((r) => r.name),
     ...PHASE_13_ROWS.map((r) => r.name),
     ...PHASE_14_ROWS.map((r) => r.name),
+    // The Phase-18 block is not a TABLE — it is two cases over one route, because a single-surface
+    // block needs no row array to iterate. Its `coveredBy` name is declared here so the map-to-tables
+    // assertion still resolves, rather than the assertion being loosened to let one name through.
+    "/ops",
   ]);
 
   /** Every surface key derivable from disk, across the five document-rendering families. */

@@ -4,6 +4,14 @@ import postgres from "postgres";
 
 import { BASE_URL, installTruncator } from "./helpers/served-document";
 import { seedTheme } from "./helpers/theme";
+// Plan 18-12: the /ops block at the foot of this file. The staff grant goes through
+// src/lib/ops/grant.ts — the ONE policy module — rather than a second UPDATE written here.
+import {
+  seedBookableListing,
+  seedReviewQueue,
+  signUpStaff,
+  type SeededListing,
+} from "./helpers/booker-seed";
 
 // STATE-01 / AC#17 / GATE-STATES — the RENDERED half of "the skeleton does not shift".
 //
@@ -2437,6 +2445,178 @@ test.describe("14-15 — every host plate draws the list that is actually coming
             "until the totals happen to agree.",
         ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
       }
+    }
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// 18-12 — THE OPS PLATE DRAWS THE ROW THAT IS ACTUALLY COMING
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// ⚠ THIS IS WHAT MAKES `OPS_QUEUE_ROW_HEIGHT` A FACT RATHER THAN A NOTE. That constant carries a
+// measured pixel figure at two widths and a derivation for each; `measurements.ts`'s own header says
+// the module CANNOT tell you whether the constant still matches the real content, and that only a
+// rendered comparison can. This block is that comparison for the phase's one new shape.
+//
+// ⚠⚠ AND IF THE ASSERTION FAILS, THE CONSTANT IS RE-MEASURED — NOT THE TOLERANCE WIDENED.
+// `HOST_TOLERANCE_PX` is 4, the figure 14-UI-SPEC makes falsifiable, and it is reused here unchanged
+// and deliberately: a tolerance stretched to fit a number is a gate that measures nothing. The
+// declared heights are 528 and 844 against observed 526.13 and 842.09, so the headroom is 1.87px and
+// 1.91px — comfortably inside 4, and not so far inside that a real regression could hide.
+//
+// THE TWO WIDTHS ARE 320 AND 1280, and the second is `lg:`-side on purpose. `OPS_QUEUE_SHELL` is
+// `max-w-5xl` = 1024px, so the container stops growing at a 1024px viewport and the row measures
+// exactly 842.09px at every width above it — 1024, 1056, 1280 and 1440 all read identical. Below
+// `lg:` the height is a CONTINUOUS function of the container width (the mosaic is aspect-ratio
+// driven), which the constant records as a deviation rather than tracking with a third step. These
+// two widths are the two the constant actually claims; nothing in between is claimed at all.
+//
+// ⚠⚠⚠ NOT A GATE. D-24 keeps this file out of CI. What it produces is a one-time audit result, run by
+// hand and recorded in the plan's SUMMARY.
+
+/** The two widths `OPS_QUEUE_ROW_HEIGHT` declares, and the bar each one compiles to. */
+const OPS_STEPS = [
+  // `h-132` — 132 x 4px. The 320px floor, where the mosaic has collapsed to the hero alone at 16/9.
+  { width: 320, bar: 528, row: 526.13 },
+  // `lg:h-211` — 211 x 4px. Any width at or above 1024, where the container has reached its cap.
+  { width: 1280, bar: 844, row: 842.09 },
+] as const;
+
+test.describe("18-12 — the /ops plate draws the row that is actually coming", () => {
+  // Serial and generously timed, for the host block's reasons: one seeded fixture in `beforeAll`
+  // (which runs once per WORKER), a sign-up, and a dev server compiling `/ops` on first request.
+  test.describe.configure({ mode: "serial", timeout: 300_000 });
+
+  let seed: SeededListing | null = null;
+  let staff: Awaited<ReturnType<typeof signUpStaff>> | null = null;
+  let staffCookies: Awaited<ReturnType<BrowserContext["cookies"]>> = [];
+
+  test.beforeAll(async ({ browser }) => {
+    seed = await seedBookableListing({ photos: 5, titlePrefix: "E2E Ops Geo" });
+    await seedReviewQueue(seed);
+
+    const context = await browser.newContext({ baseURL: BASE_URL });
+    const page = await context.newPage();
+    staff = await signUpStaff(page);
+    staffCookies = await context.cookies();
+    await context.close();
+  });
+
+  test.afterAll(async () => {
+    await staff?.staffTeardown();
+    await seed?.teardown();
+  });
+
+  test("the plate's bar and the arriving row are the same box at 320 and 1280", async ({
+    page,
+    context,
+  }) => {
+    expect(seed, "the ops fixture is null — beforeAll failed").not.toBeNull();
+    expect(
+      staffCookies.length,
+      "the staff sign-up produced no cookies, so every navigation below is the 404 a non-staff " +
+        "caller gets (D-219) — which renders neither a plate nor a row, so the vacuity guards fire " +
+        "rather than the geometry. Named here so that failure is read correctly.",
+    ).toBeGreaterThan(0);
+    await context.clearCookies();
+    await context.addCookies(staffCookies);
+
+    const truncator = installTruncator(page);
+    await truncator.ready;
+
+    // WARM THE ROUTE BEFORE ASKING IT TO STREAM — the host block's MEASURED requirement. `next dev`
+    // compiles a route on its first request, and on that request everything the page awaits has
+    // already resolved by the time the shell flushes, so React emits no out-of-order completion
+    // segment and there is no marker to cut at.
+    truncator.set(false);
+    await page.goto(`${BASE_URL}/ops`);
+
+    for (const step of OPS_STEPS) {
+      const where = `/ops · ${step.width}px`;
+      await page.setViewportSize({ width: step.width, height: 900 });
+
+      // ── PENDING: the route's own `loading.tsx` ────────────────────────────────────────────────
+      truncator.set(true);
+      for (let attempt = 1; attempt <= 3; attempt += 1) {
+        await page.goto(`${BASE_URL}/ops`);
+        if (truncator.state.cut > 0) break;
+      }
+      await page.evaluate(() => document.fonts.ready);
+
+      // VACUITY GUARD 1 — the truncation really happened. Without it both "states" are one document
+      // compared with itself.
+      expect(
+        truncator.state.cut,
+        `${where}: the pending pass served an untruncated document (${truncator.state.length} ` +
+          "bytes, no completion marker) on three attempts. Both states would then be the same page.",
+      ).toBeGreaterThan(0);
+
+      // VACUITY GUARD 2 — it is genuinely the PENDING state: the plate is up and no real row is.
+      const bars = page.locator('[data-testid="skeleton-row-list"] [data-slot="skeleton"]');
+      await expect(
+        bars,
+        `${where}: the pending shell rendered no row-list placeholder. Either the session is not ` +
+          "staff and the route answered its 404, or the plate stopped composing the row skeleton — " +
+          "in which case there is no bar to compare and this case is measuring nothing.",
+      ).not.toHaveCount(0, { timeout: 60_000 });
+      await expect(
+        page.getByTestId("row-card"),
+        `${where}: the pending shell already contains real rows, so the truncation did not hold the ` +
+          "page in its loading state and both measurements below are the resolved list.",
+      ).toHaveCount(0);
+
+      // THE PLATE PROMISES TWO BARS AND NOT FOUR — `rows={2}`, a decision the plate's own header
+      // argues (the ops row is the tallest shape in the product). Asserted because it is the other
+      // half of "the plate promises the page that is coming": a correct bar HEIGHT drawn four times
+      // still over-promises by two rows.
+      await expect(
+        bars,
+        `${where}: the plate drew a number of bars other than 2. rows={2} is deliberate — four bars ` +
+          "of this shape promise roughly 1,700px more page than arrives.",
+      ).toHaveCount(2);
+
+      const bar = await heightOf(bars.first(), `${where} · plate bar`);
+      expect(
+        Math.abs(bar - step.bar),
+        `${where}: the plate drew a ${bar}px bar against the ${step.bar}px this width's declared ` +
+          "value in `src/lib/design/measurements.ts` compiles to. Either the plate is passing a " +
+          "different constant, or OPS_QUEUE_ROW_HEIGHT moved without this table moving with it. ⚠ A " +
+          "ZERO here means Tailwind never emitted the class at all — the dynamic spacing step is " +
+          "generated only because `measurements.ts` sits inside the `source()` root, which that " +
+          "file's header records as load-bearing.",
+      ).toBeLessThanOrEqual(HOST_BAR_EXACT_PX);
+
+      // ── RESOLVED: the whole document, the real listing row ────────────────────────────────────
+      truncator.set(false);
+      await page.goto(`${BASE_URL}/ops`);
+      await page.evaluate(() => document.fonts.ready);
+
+      // THE LISTING ROW, addressed through its gallery. The queue also holds a HOST row, which is
+      // 238-258px and is NOT the shape this constant describes — the constant declares the listing
+      // shape deliberately, and its docblock says why. The gallery's labelled section is the one
+      // thing only a listing row renders; no `data-testid` is added for it, because
+      // `selector-contract.ts` is unchanged by Phase 18 and its scope rule says an id is added only
+      // where a role or label query cannot express the target.
+      const row = page
+        .locator('[data-testid="row-card"]')
+        .filter({ has: page.locator('section[aria-label^="Photos of "]') })
+        .first();
+      await expect(
+        row,
+        `${where}: the resolved page rendered no listing row with a photo mosaic. The fixture's ` +
+          "listing may not have reached the queue (check review_state), or the plate may still be up.",
+      ).toBeVisible({ timeout: 60_000 });
+
+      const rendered = await heightOf(row, `${where} · resolved listing row`);
+      expect(
+        Math.abs(rendered - step.bar),
+        `${where}: the arriving row is ${rendered}px against the plate's ${step.bar}px bar — a ` +
+          `${Math.abs(rendered - step.bar).toFixed(2)}px shift the reader sees when the data lands. ` +
+          `The observed height when the constant was measured was ${step.row}px. ⚠ IF THIS FIRES, ` +
+          "THE CONSTANT IS RE-MEASURED AND THE TOLERANCE IS NOT WIDENED. A tolerance stretched to " +
+          "make a number pass is a gate that measures nothing, and 4px is the figure 14-UI-SPEC " +
+          "makes falsifiable.",
+      ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
     }
   });
 });
