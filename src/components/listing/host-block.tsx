@@ -22,10 +22,29 @@
 //   2. On THIS page no request row exists yet. There is no booking, so there is no real deadline to
 //      render at all — any figure here would be a general claim dressed as a specific promise.
 //
-// TRUST-04 bans the neighbours somebody will reach for next: no verification badge, no superhost marker,
-// no response rate, no "usually replies in". None of them is backed by data this product collects, and
-// inventing marketplace trust chrome is exactly what that requirement exists to refuse. If you are here
-// to add one, the requirement is the thing to change first.
+// ══ TRUST-04, AND THE ONE EXCEPTION PHASE 18 EARNED (HVER-05 · D-212 · D-237) ══════════════════════════
+// This header used to state that ALL FOUR of the neighbours somebody reaches for next were banned here,
+// because none of them was backed by data this product collects — and it closed by pointing whoever
+// wanted one at the requirement rather than at this file.
+//
+// THREE OF THE FOUR ARE STILL BANNED, for that unchanged reason. No superhost marker, no response rate,
+// no "usually replies in": `src/lib/db/schema.ts` carries no tier column, no reply-count and no latency
+// field about a host's replies, so any of the three could only be INVENTED, and inventing marketplace
+// trust chrome is exactly what TRUST-04 exists to refuse.
+//
+// THE FOURTH ONE NOW HAS A ROW BEHIND IT, so the old paragraph is REWRITTEN rather than amended around:
+// HVER-05 is the requirement change the old sentence asked for, and a gate everyone believes exists is
+// one nobody goes looking for. The fact is `host_verification.status` joined with `listing.review_state`,
+// both written by a named, authenticated staff member (D-218) — a person at FitOut looked at this account
+// and at this listing. The rule is the single predicate in `src/lib/listing/fitout-check.ts`; the chip and
+// its explainer are `fitout-check-badge.tsx`. It renders for `approved` + `approved` ONLY (D-212), never
+// for a grandfathered row — those were marked by a migration and checked by nobody, and badging them would
+// be a lie told at scale to the majority of the day-one catalogue.
+//
+// ⚠ THE DISTINCTION NEVER ARRIVES IN THIS FILE, AND THAT IS THE DESIGN. This component receives a
+// BOOLEAN, never the two statuses, so it cannot badge the wrong row even by accident — it has never been
+// told which is which. Do not re-derive the rule here, do not take the statuses instead, and do not widen
+// `PublicProfile` to carry them (see the prop's own note below).
 //
 // ══ WHY THIS RENDERS A PLAIN <img> RATHER THAN `ui/avatar.tsx` ═════════════════════════════════════════
 // The vendored Radix avatar carries the client-boundary directive, so importing it would turn a block of
@@ -37,6 +56,10 @@
 // This is a SERVER component: it carries no client directive and calls no hook. (The directive string is
 // deliberately not spelled anywhere in this file so a grep for it stays a real guard.)
 
+import {
+  FitoutCheckBadge,
+  FITOUT_CHECK_EXPLAINER,
+} from "@/components/listing/fitout-check-badge";
 import { formatMemberSince, type PublicProfile } from "@/lib/profile";
 
 /**
@@ -62,6 +85,19 @@ export type HostBlockProps = Pick<
    * surface silently keep telling a booker "books instantly" about a space that reviews every request.
    */
   bookingMode: "instant" | "request";
+  /**
+   * HVER-05 — has a person at FitOut checked BOTH this host's account and this listing?
+   *
+   * A SEPARATE PROP, deliberately NOT a widening of `PublicProfile`. Widening the allow-list would send
+   * the raw status everywhere `publicProfile()` goes, on every surface, forever — for the convenience of
+   * one chip on one page. This prop carries the ANSWER instead, computed once in the RSC, so the two
+   * statuses stay where they are read.
+   *
+   * Required rather than optional, for the reason `bookingMode` above records: an optional flag lets a
+   * surface silently stop badging (or, worse, be defaulted true by a later edit) with nothing to notice.
+   * Required means every call site is a compile error until it decides.
+   */
+  fitoutChecked: boolean;
 };
 
 export function HostBlock({
@@ -70,6 +106,7 @@ export function HostBlock({
   bio,
   createdAt,
   bookingMode,
+  fitoutChecked,
 }: HostBlockProps) {
   const name = firstName ?? "Your host";
   // First initial, uppercased, for the no-photo fallback. A host with no first name falls back to the
@@ -110,7 +147,14 @@ export function HostBlock({
           </span>
         )}
         <div className="min-w-0">
-          <p className="truncate text-base font-medium text-foreground">{name}</p>
+          {/* The chip sits BESIDE the name, and the two are laid out so 320px resolves predictably:
+              `min-w-0` + `truncate` keeps the long name as the thing that gives way, and `shrink-0` on
+              the chip means the sentence a booker is meant to read is never the half that gets clipped.
+              A chip below the name would read as a caption on the "Host since" line instead. */}
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate text-base font-medium text-foreground">{name}</p>
+            <FitoutCheckBadge checked={fitoutChecked} className="shrink-0" />
+          </div>
           <p className="text-sm text-muted-foreground">
             Host since {formatMemberSince(createdAt)}
           </p>
@@ -124,6 +168,15 @@ export function HostBlock({
       <p className="text-sm text-muted-foreground">
         {bookingMode === "request" ? HOST_REQUEST_RULE : HOST_INSTANT_RULE}
       </p>
+
+      {/* The explainer, and ONLY when the chip is actually there — a sentence explaining a badge that
+          is not on the page would be the badge's claim made in prose. Imported, never retyped, so the
+          copy the trust-signal gate scans is the copy that renders (`fitout-check-badge.tsx`). Its
+          second sentence says plainly what did NOT happen, which is Success Criterion 6's strongest
+          available compliance and the reason this surface — not the search card — carries it. */}
+      {fitoutChecked && (
+        <p className="text-sm text-muted-foreground">{FITOUT_CHECK_EXPLAINER}</p>
+      )}
     </div>
   );
 }

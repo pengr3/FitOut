@@ -45,6 +45,7 @@ import {
   listingActivityTag,
 } from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
+import { isFitoutChecked } from "@/lib/listing/fitout-check";
 import { isPubliclyViewable } from "@/lib/listing/public-listing";
 import { listingHasOperatingHours } from "@/lib/listing/hours-signal";
 import { publicListing } from "@/lib/listing-public";
@@ -310,6 +311,23 @@ export default async function PublicListingPage({
       // host with no host_verification row is UNVERIFIED, never verified (phase 18, D-224).
       verificationStatus: row.host_verification?.status ?? "unverified",
     },
+  );
+
+  // HVER-05 / D-212 — REDUCED TO A BOOLEAN HERE, IN THE RSC, AND THAT IS THE WHOLE MECHANISM.
+  //
+  // Both terms come from the row this query ALREADY read (the host_verification LEFT JOIN landed with
+  // the sixth deriveBookable term above), so this costs no query, no round trip and no fifth element of
+  // the Promise.all. What it buys is that `HostBlock` receives an ANSWER and never the two statuses: a
+  // component that is never told the difference between `approved` and `grandfathered` cannot badge a
+  // grandfathered listing, which is the majority of the day-one catalogue (D-207).
+  //
+  // The COALESCE mirrors `payoutsEnabled` and `verificationStatus` a few lines up — a host with no
+  // host_verification row is UNVERIFIED, never checked. `isFitoutChecked` would return false for the
+  // undefined too; the literal is written anyway so the fail-closed intent is visible at the call site
+  // rather than resting on a callee's tolerance.
+  const fitoutChecked = isFitoutChecked(
+    row.host_verification?.status ?? "unverified",
+    row.listing.reviewState,
   );
 
   // Project to ONLY the public shape — withholds exact street/coords unless showExactAddress (D-09).
@@ -702,6 +720,10 @@ export default async function PublicListingPage({
               bio={host.bio}
               createdAt={host.createdAt}
               bookingMode={row.listing.bookingMode}
+              // HVER-05 — the ANSWER, not the statuses. `role` and every other private column stay on
+              // the far side of `publicProfile`'s allow-list: this is a separate prop precisely so the
+              // allow-list did not have to be widened to carry one chip's input (T-05-OWNERLEAK).
+              fitoutChecked={fitoutChecked}
             />
           </section>
         </div>
