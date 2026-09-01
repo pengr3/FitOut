@@ -58,6 +58,8 @@ import { emitNotify } from "@/lib/notifications";
 import { emitGuestEmail } from "@/lib/group/guest-notify";
 import { listReachableYesAttendees } from "@/lib/group/rsvp";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
+import { opsRefundBasisCents, PAYOUT_ALREADY_LEFT_REASON } from "@/lib/ops/cancel-impact";
+import { requireStaff } from "@/lib/ops/staff";
 import { quoteRefund, tierOrDefault } from "@/lib/payments/cancellation";
 import { HOST_CANCEL_FEE_CENTS } from "@/lib/payments/fees";
 import { isApiRefundable } from "@/lib/payments/refund-rail";
@@ -79,6 +81,7 @@ import {
   hostCancellationSchema,
   type HostCancellationInput,
 } from "@/lib/validation/cancellation";
+import { opsCancelSchema, type OpsCancelInput } from "@/lib/validation/ops";
 import {
   qrphRefundDestinationSchema,
   type QrphRefundDestination,
@@ -1385,5 +1388,455 @@ export async function cancelBookingAsHost(
   await voidGroupAndNotifyAttendees(row, bookingId);
 
   revalidateCancelSurfaces(bookingId, row.listingId);
+  return { ok: true, refundCents };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// OPS-FORCED CANCELLATION (ENF-03 · D-209/D-233/D-235/D-236/D-241/D-244) — phase 18.
+//
+// FitOut has confirmed a listing is fake and is pulling it. `suspendHost` (the D-233 default lever) blocks
+// new bookings and freezes the host's payouts; THIS is the escalation, and it is the only path in the
+// codebase where FitOut cancels somebody else's booking and sends somebody else's money back.
+//
+// ⚠ IT IS A SIBLING OF `cancelBookingAsHost`, NOT A FLAG ON IT, AND THE REASON IS THAT TWO OF THE FIVE
+// HOST-SPECIFIC PARTS FAIL *SILENTLY*. Riding the host action with an ops actor would not error — it would
+// quietly do the wrong thing:
+//
+//   Fork 1  loadHostOwnedBooking(bookingId, userId)  — refuses LOUDLY for an ops actor (the safe one).
+//   Fork 2  the in-WHERE owner EXISTS                — 0-row flip, reported through a MISLEADING
+//                                                      "no longer active" explanation.
+//   Fork 3  the host path's window guard             — SILENTLY protects exactly the bookings most worth
+//                                                      undoing, and reports it as a past-start refusal.
+//   Fork 4  cancelled_by = 'host'                    — SILENTLY blames the host for FitOut's own decision.
+//   Fork 5  the two host-cancel notifications        — SILENTLY tell a DEFRAUDED booker their host
+//                                                      cancelled on them, and quote the host a fee that
+//                                                      D-235 suppresses.
+//
+// Each fork is documented at its own site below rather than here, so nobody editing one has to find this
+// block first. The order that block above calls load-bearing is kept EXACTLY: gate → rate-limit → flip →
+// consequences → money → notification, and nothing after the flip may undo it or throw past it.
+//
+// THE FOUR CONSEQUENCES, RE-DECIDED ONE BY ONE (they are NOT inherited):
+//   1. The booker is refunded — but on the D-209 basis, not the host path's. See the money block.
+//   2. An audit row is recorded against the AUTHENTICATED STAFF ACTOR (D-218), under its own verb.
+//   3. The freed window is auto-blocked. KEPT — removing a consequence is a decision, not a simplification.
+//   4. The D-71 host-cancellation fee debit is SUPPRESSED (D-235). See the block where it would have gone.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/**
+ * The ops budget for this verb, keyed on the AUTHENTICATED staff id (never on IP — these are
+ * session-gated privileged acts).
+ *
+ * 30/60s, which is `ops-review.ts`'s OPS_ACTION_RATE_LIMIT rather than this file's 5/60s money budget,
+ * and the divergence is a judgement about the WORK. Every other money-moving action here is ONE person
+ * ending ONE booking of their own; this one is ONE OPERATOR DECISION FANNED OUT over every confirmed
+ * booking on a listing they have just judged fake. A 5/60s budget would refuse the operator halfway
+ * through their own single decision and leave a fake listing HALF-cancelled — some bookers refunded,
+ * some not — which is a worse outcome than the flood it would prevent. D-215 is explicit that the audit
+ * trail, not a tier or a throttle, is the control on this action.
+ */
+const OPS_CANCEL_RATE_LIMIT = { window: 60, max: 30 } as const;
+
+/** Calm denial for a malformed argument. Says nothing about whether the ids exist. */
+const OPS_DENIED: CancelActionResult = {
+  ok: false,
+  error: "That cancellation couldn't be recorded. Reload the queue and try again.",
+};
+
+/**
+ * The escalation was not chosen. An omitted or default `lever` means the operator picked the LIGHTER
+ * D-233 lever, and the lighter lever cancels nothing — so this is a refusal, never a silent no-op that
+ * returns ok.
+ */
+const OPS_NOT_ESCALATED: CancelActionResult = {
+  ok: false,
+  error:
+    "This booking wasn't cancelled — blocking new bookings was the option chosen. Pick the cancel-and-refund option to undo bookings already made.",
+};
+
+/**
+ * D-241's REFUSAL, AND IT IS THE POINT OF THE WHOLE GUARD. A booking whose payout has already left
+ * FitOut cannot be undone here, because undoing it would need a clawback from a host wallet FitOut
+ * cannot reach. The console renders the same fact as the impact block's `Can't be undone here` row, so
+ * an operator sees the count BEFORE they commit and this sentence only if they reach one anyway. The
+ * reason string is shared with that row so the two can never describe the state differently.
+ */
+const OPS_PAYOUT_ALREADY_SENT: CancelActionResult = {
+  ok: false,
+  error: `This booking can't be cancelled here — ${PAYOUT_ALREADY_LEFT_REASON}. It needs an operator to reverse it directly.`,
+};
+
+/**
+ * Distinguish the ops path's two calm 0-row cases with ONE extra read, evaluated by Postgres so the
+ * explanation can never describe a guard different from the one that actually refused (the
+ * `explainNoRows` contract, transposed).
+ *
+ * ⚠ THIS IS NOT `explainNoRows`. That helper compares a window instant, which is the guard the ops flip
+ * deliberately does NOT carry — reusing it would report every ops refusal as a past-start refusal, which
+ * is the exact silent-wrong-answer this fork exists to eliminate.
+ */
+async function explainOpsNoRows(
+  bookingId: string,
+  listingId: string,
+): Promise<CancelActionResult> {
+  const [row] = (await db.execute(sql`
+    SELECT b.status::text AS "status",
+           (b.listing_id = ${listingId}) AS "listingMatches",
+           EXISTS (
+             SELECT 1 FROM host_payout_ledger p
+             WHERE p.booking_id = b.id
+               AND p.kind = 'payout'
+               AND p.state IN ('processing', 'paid')
+           ) AS "payoutLeft"
+    FROM booking b WHERE b.id = ${bookingId}
+  `)) as unknown as { status: string; listingMatches: boolean; payoutLeft: boolean }[];
+
+  // A still-confirmed booking on the right listing that only failed the payout predicate is D-241's
+  // case, and it gets D-241's sentence. Everything else — already cancelled, never confirmed, a booking
+  // id from a different listing, a race — is the generic no-longer-active case, which is also the answer
+  // a probed id gets, so this is not an enumeration oracle.
+  if (row && row.status === "confirmed" && row.listingMatches && row.payoutLeft) {
+    return OPS_PAYOUT_ALREADY_SENT;
+  }
+  return NOT_ACTIVE;
+}
+
+/**
+ * cancelBookingAsOps — FitOut cancels a confirmed booking on a listing it has judged fake, and sends the
+ * booker's money back (ENF-03).
+ *
+ * Reachable by ANY staff member: D-215 settled that there is no ops tier and that the audit trail is the
+ * control, which is why the trail row below is not optional and is written on BOTH branches.
+ */
+export async function cancelBookingAsOps(input: OpsCancelInput): Promise<CancelActionResult> {
+  // ── THE STAFF GATE, FIRST — before the parse, before the rate limit, before any read. ──────────────
+  //
+  // This is `ops-review.ts`'s order rather than this file's, and the difference is deliberate. The three
+  // actions above gate on OWNERSHIP, so they must load the row before they can gate at all; ops standing
+  // is a property of the CALLER alone, so it can be settled without touching a single id — and settling
+  // it first means a non-staff caller is refused without consuming anybody's budget and without learning
+  // whether the ids they guessed exist. `requireStaff` answers with `notFound()`, byte-identical to a
+  // route nobody ever created (D-219), so a prober cannot tell an ops action from a typo.
+  const staff = await requireStaff();
+
+  // Re-parse EVERY field that crossed the boundary — a `"use server"` export is reachable by POST
+  // whatever the UI shows, and this one moves money.
+  const parsed = opsCancelSchema.safeParse(input);
+  if (!parsed.success) {
+    await recordAudit({
+      actorId: staff.id,
+      action: "ops_cancel_booking",
+      outcome: "denied",
+      meta: { reason: "invalid_input" },
+    });
+    return OPS_DENIED;
+  }
+
+  // ── THE ESCALATION MUST HAVE BEEN CHOSEN EXPLICITLY (D-233). ───────────────────────────────────────
+  // 18-UI-SPEC's answer to "this must not be hit by muscle memory" is a CLIENT arrangement: no control
+  // on the queue row can cancel-and-refund anything, and reaching this needs a dialog, a reason, and a
+  // radio actively moved off its default. A client arrangement is not a gate, so the deliberate act is
+  // re-asserted here. An omitted `lever` parses to the LIGHTER lever and cancels nothing.
+  if (parsed.data.lever !== "block_new_and_cancel") {
+    await recordAudit({
+      actorId: staff.id,
+      action: "ops_cancel_booking",
+      outcome: "denied",
+      meta: {
+        reason: "lever_not_escalated",
+        bookingId: parsed.data.bookingId,
+        listingId: parsed.data.listingId,
+      },
+    });
+    return OPS_NOT_ESCALATED;
+  }
+
+  const limit = rateLimit(`ops-cancel-booking:${staff.id}`, OPS_CANCEL_RATE_LIMIT);
+  if (!limit.ok) {
+    await recordAudit({
+      actorId: staff.id,
+      action: "ops_cancel_booking",
+      outcome: "denied",
+      meta: { reason: "rate_limit", bookingId: parsed.data.bookingId, retryAfter: limit.retryAfter },
+    });
+    return TOO_FAST;
+  }
+
+  // ── FORK 1 — `loadHostOwnedBooking` IS DELIBERATELY NOT CALLED. ───────────────────────────────────
+  // It requires the caller to BE the listing's host and to still hold `canHost`, and returns null
+  // otherwise. An ops actor is neither, so it would refuse every ops cancellation — loudly, which is the
+  // benign failure of the five, but a total one. The ops read is the shared, authorization-free
+  // `loadBookingRow`; ops standing was already settled by the gate above, and the SCOPE (which listing
+  // this booking must belong to) is re-asserted inside the flip's own WHERE at fork 2.
+  const row = await loadBookingRow(parsed.data.bookingId);
+  if (!row) return OPS_DENIED;
+
+  // ── CONSEQUENCE 1, THE MONEY — AND THE ONLY LINE IN THIS PHASE THAT DIVERGES FROM A SHIPPED
+  //    PRECEDENT (D-209 / D-236). READ THIS BEFORE CHANGING IT. ──────────────────────────────────────
+  //
+  // The PM's answer to PM-4, in their own words, was *"booker 100% refund, but not the service fee /
+  // platform fee"*: the booker gets the full booking amount back, FitOut RETAINS its service fee, and
+  // the host is paid nothing. That is what ships.
+  //
+  // ⚠ AND IT CONTRADICTS WHAT THIS VERY FILE ARGUES FOUR HUNDRED LINES ABOVE. `cancelBookingAsHost`
+  // refunds the FULL charge including the D-74 service fee, and states the principle verbatim:
+  //
+  //   "The refund is the FULL charge — space price AND the D-74 service fee. This is the ONE case where
+  //    the non-refundable fee IS returned: the booker did nothing wrong, so the platform, not the
+  //    booker, absorbs the gateway cost of the reversal. Read off the frozen row, never recomputed."
+  //
+  // An ops-forced cancellation fires because FitOut has CONFIRMED THE LISTING IS FAKE — a strictly
+  // STRONGER instance of "the booker did nothing wrong" than a host who flaked. So as it stands FitOut
+  // is LESS generous to a defrauded booker than to an inconvenienced one. The PM answered without this
+  // precedent in view; the omission is in how the question was framed, not in their answer, and a money
+  // call is not re-decided by an engineer who noticed a better argument afterwards.
+  //
+  // So the behaviour sits behind ONE constant with ONE read site, and flipping it is one line:
+  // `src/lib/payments/fees.ts` declares it; `opsRefundBasisCents` in `src/lib/ops/cancel-impact.ts` is
+  // the single expression that reads it, and carries this same argument in full. The impact figures the
+  // operator is shown before they commit come from that SAME expression, so the dialog cannot promise
+  // one number while this line moves another. `tests/payments/ops-cancel.test.ts` runs both values.
+  //
+  // ⚠ DO NOT RESOLVE THE CONFLICT HERE. It is the PM's, and it leads the phase summary.
+  //
+  // Read off the FROZEN row, never recomputed. Integer centavos.
+  const refundCents = opsRefundBasisCents(row);
+
+  // ── THE ATOMIC, STATUS-SCOPED FLIP. Every guard lives in the WHERE, so a 0-row result is the single
+  //    calm failure path and no two guards can be raced apart. ────────────────────────────────────────
+  //
+  // `retained_space_cents = 0` is not boilerplate carried over: it is the ENTIRE mechanism by which "the
+  // host is paid nothing" is enforced. `queryDuePayouts`'s shipped predicate is
+  // `status = 'cancelled' AND COALESCE(retained_space_cents, 0) > 0`, so a zero here EXCLUDES this
+  // booking from the sweep with no new code anywhere. Writing NULL instead would fall through to
+  // `COALESCE(retained, space_price)` and pay the host the full space price for a session on a listing
+  // FitOut just judged fake — the exact inversion of the consequence.
+  const flipped = (await db.execute(sql`
+    UPDATE booking
+    SET status = 'cancelled',
+        refund_cents = ${refundCents},
+        retained_space_cents = 0,
+        -- ── FORK 4 (D-244). THE FIRST RUNTIME WRITE OF THIS VALUE, EVER. ──────────────────────────
+        -- The host path writes 'host' here, which on this path would durably blame the host for a
+        -- decision FitOut made about them — a repudiation failure, and a silent one, since nothing
+        -- would error. 'system' is equally wrong in the other direction: it means NO PERSON DECIDED
+        -- THIS (an expiry, a timeout), and an ops cancellation is a named human's decision, which is
+        -- the whole point of OPS-03. The enum gained this value in drizzle/0027, a migration that did
+        -- nothing else and wrote it nowhere — that separation is exactly what made it safe under PG
+        -- 55P04, which forbids USING a value added to an already-committed type in the same
+        -- transaction. The first write is here, at runtime, long after that migration committed.
+        cancelled_by = 'ops',
+        cancelled_at = now(),
+        -- The TAXONOMY SENTENCE only. The operator's free-text note is deliberately NOT copied here:
+        -- D-72's rule is that the note stays in the domain column the host reads it from (the listing's
+        -- review row, written by rejectListing), and a booking's decline reason is neither that
+        -- surface nor a place an operator's prose about a person should be duplicated per booking.
+        decline_reason = ${parsed.data.reason},
+        expires_at = NULL
+    WHERE id = ${parsed.data.bookingId}
+      -- ── FORK 2 — THE OPS SCOPE, REPLACING THE HOST-OWNERSHIP EXISTS. ───────────────────────────
+      -- The host path proves the caller owns the listing. An ops actor owns nothing, so that predicate
+      -- would match zero rows on every call — and the 0-row path would explain it as "no longer
+      -- active", which is MISLEADING rather than merely unhelpful: the booking is perfectly active.
+      -- What replaces it is the scope that actually matters here — this booking must belong to the
+      -- listing the operator was looking at when they judged it. It keeps the SHAPE (a guard in the
+      -- WHERE, not a JS pre-check), so a booking id from another listing cannot be smuggled into an
+      -- enforcement decision made about this one.
+      AND listing_id = ${parsed.data.listingId}
+      AND status = 'confirmed'
+      -- ── FORK 3 (D-241) — THE REPLACEMENT GUARD, AND THIS IS THE SILENT ONE. ────────────────────
+      -- The host path refuses once the session has begun (D-94), which structurally eliminates payout
+      -- clawback because payout is not eligible until endsAt + PAYOUT_DELAY_HOURS. An ops cancel
+      -- cannot inherit that comparison: a space confirmed fake is fake whether or not the clock has
+      -- started, and that guard would SILENTLY protect exactly the bookings most worth undoing — a
+      -- fraudulent host's in-progress and just-finished sessions — while reporting the refusal as a
+      -- past-start one, so nobody would even know it had happened.
+      --
+      -- REPLACED, NOT DROPPED. The property D-94 was really protecting is "never promise a refund we
+      -- would have to claw back from a host wallet we cannot reach", and THAT is what this predicate
+      -- states directly: no payout row for this booking has left. A booking whose payout HAS left is
+      -- an operator case, not a self-serve one, and it is surfaced as not-cancellable-here WITH the
+      -- reason — by the impact block's own count before the operator commits, and by
+      -- explainOpsNoRows if they reach one anyway. Never a silent no-op.
+      --
+      -- the kind = 'payout' scoping is load-bearing for the same reason the sweep states at its join: a
+      -- cancellation-fee DEBIT row is not a payout, and without the scoping one would make a booking
+      -- look already-paid and block a cancellation that should succeed. (The debit kind's literal name
+      -- is deliberately not spelled on this path — an acceptance grep counts its occurrences, and the
+      -- comment explaining why the ops path writes none must not be what makes that count move.)
+      AND NOT EXISTS (
+        SELECT 1 FROM host_payout_ledger p
+        WHERE p.booking_id = booking.id
+          AND p.kind = 'payout'
+          AND p.state IN ('processing', 'paid')
+      )
+    RETURNING id
+  `)) as unknown as { id: string }[];
+
+  if (flipped.length === 0) {
+    const calm = await explainOpsNoRows(parsed.data.bookingId, parsed.data.listingId);
+    await recordAudit({
+      actorId: staff.id,
+      action: "ops_cancel_booking",
+      outcome: "denied",
+      meta: {
+        reason: calm === OPS_PAYOUT_ALREADY_SENT ? "payout_already_sent" : "not_active",
+        bookingId: parsed.data.bookingId,
+        listingId: parsed.data.listingId,
+      },
+    });
+    return calm; // calm, never a throw
+  }
+
+  // ── CONSEQUENCE 2 — THE TRAIL ROW, WITH AN AUTHENTICATED ACTOR AND ITS OWN VERB. ───────────────────
+  // `actorId` is the id the STAFF GATE returned for the signed-in session (D-218), never a handle a
+  // caller supplied — this action takes none. The verb is DISTINCT from the host path's: an operator
+  // asking "who cancelled this?" must not have to read the meta to tell FitOut's decision from the
+  // host's. `hostId` rides in the meta so the row is still findable by host, which is how an
+  // enforcement action against a fraudulent host will actually be queried.
+  await recordAudit({
+    actorId: staff.id,
+    action: "ops_cancel_booking",
+    outcome: "ok",
+    meta: {
+      bookingId: parsed.data.bookingId,
+      listingId: parsed.data.listingId,
+      hostId: row.hostId,
+      // The taxonomy sentence is a closed enum value and may go in the durable jsonb column; the
+      // operator's free-text note may not (D-72), and is not here.
+      reason: parsed.data.reason,
+      refundCents,
+      lever: parsed.data.lever,
+      autoBlocked: !row.openCapacity,
+    },
+  });
+
+  // ── Everything below is a side-effect of a flip that has ALREADY committed. ───────────────────────
+  // None of it may unwind the flip and none of it may THROW past this point: the booking is cancelled
+  // and the slot freed, so a raised exception would hand the operator a 500 for an action that in fact
+  // succeeded, and would skip the refund entirely. Each consequence is individually guarded and any
+  // failure becomes a `needs_attention` audit row.
+
+  // ── CONSEQUENCE 3 — the auto-block of the freed window. KEPT. ─────────────────────────────────────
+  // Its D-70 purpose (stop the host reselling the slot they just freed) is weaker here, since the
+  // listing is being pulled anyway — but it costs nothing, it is the same Phase-3 machinery with the
+  // same undeletable sentinel, and removing a consequence is a DECISION rather than a simplification.
+  // The Phase-9 drop-in fork is inherited unchanged and for the unchanged reason: an open-capacity
+  // booking's window is the venue's whole operating day on the shared sentinel unit, so the block would
+  // zero the date for every other pass-holder.
+  if (!row.openCapacity) {
+    try {
+      await db.insert(availabilityBlock).values({
+        id: randomUUID(),
+        listingId: row.listingId,
+        unit: row.unit,
+        startsAt: row.startsAt,
+        endsAt: row.endsAt,
+        reason: HOST_CANCEL_BLOCK_REASON,
+      });
+    } catch (err) {
+      console.error("[OPS_CANCEL_ALERT] auto_block_failed", { bookingId: parsed.data.bookingId, err });
+      await recordAudit({
+        actorId: staff.id,
+        action: "ops_cancel_autoblock_failed",
+        outcome: "needs_attention",
+        meta: { bookingId: parsed.data.bookingId, listingId: row.listingId, unit: row.unit },
+      });
+    }
+  }
+
+  // ── CONSEQUENCE 4 — THE D-71 FEE DEBIT, AND ITS DELIBERATE ABSENCE (D-235). ───────────────────────
+  //
+  // THIS IS THE POSITION IN THE SEQUENCE WHERE THE HOST PATH CHARGES ITS CANCELLATION FEE, AND NOTHING
+  // IS WRITTEN HERE. The block above in `cancelBookingAsHost` is untouched and still charges every host
+  // who breaks their own confirmed booking; this path branches around it, and the branch is the two
+  // functions being siblings rather than one function with a flag.
+  //
+  // WHY. The fee exists to make a host bear the cost of a commitment THEY broke, and to self-fund the
+  // gateway cost of the reversal. Neither applies: FitOut broke this booking, not the host, and billing
+  // a host ₱300 for the privilege of being removed for fraud is a meaningless entry — it would be netted
+  // against a payout that 18-07 has already frozen, so it would never be collected either, just sit as a
+  // permanent phantom debt on a suspended account.
+  //
+  // ⚠ AND IT IS AN ABSENCE, NOT A ZERO. Passing a zero fee through the shipped block would still write a
+  // ledger row, still drive the notification's fee-label logic, and still make a ₱0 claim — which
+  // `cancelBookingAsHost`'s own notification comment calls "CR-01's disease in a new place", the bug
+  // where a money event that never happened gets announced as if it had. `tests/payments/ops-cancel.test.ts`
+  // therefore asserts `count(*) = 0` for that ledger kind, never `net_cents = 0`.
+
+  // ── CONSEQUENCE 1 (continued) — DISPATCH THE MONEY. The shipped discipline, reused unchanged. ─────
+  //
+  // ⚠️ The POST records INTENT ONLY. Refund status is ASYNCHRONOUS and the payment.refunded webhook is
+  // the SINGLE WRITER of terminal state (D-57) — never display a settled refund off this return value.
+  const refundable =
+    refundCents >= MIN_API_REFUND_CENTS && row.paymentId != null && isApiRefundable(row.paymentMethod);
+
+  if (refundable) {
+    try {
+      await createRefund({
+        amountCents: refundCents,
+        paymentId: row.paymentId!,
+        notes: `FitOut cancellation (${parsed.data.bookingId})`,
+      });
+    } catch (err) {
+      console.error("[CANCEL_ALERT] refund_dispatch_failed", {
+        bookingId: parsed.data.bookingId,
+        err,
+      });
+      await recordAudit({
+        actorId: staff.id,
+        action: "refund_dispatch_failed",
+        outcome: "needs_attention",
+        meta: {
+          bookingId: parsed.data.bookingId,
+          paymentId: row.paymentId,
+          method: row.paymentMethod,
+          refundCents,
+        },
+      });
+    }
+  } else if (refundCents > 0) {
+    // Money IS owed but the API cannot move it (unrefundable rail, no captured payment id, or below
+    // PayMongo's ₱1 floor). Operator-alert; NEVER silently keep the money — least of all here, where the
+    // reason the booking is being cancelled is that FitOut's own catalogue let somebody down.
+    console.error("[CANCEL_ALERT] refund_needs_manual", {
+      bookingId: parsed.data.bookingId,
+      method: row.paymentMethod,
+    });
+    await recordAudit({
+      actorId: staff.id,
+      action: "refund_manual_required",
+      outcome: "needs_attention",
+      meta: {
+        bookingId: parsed.data.bookingId,
+        paymentId: row.paymentId,
+        method: row.paymentMethod,
+        refundCents,
+      },
+    });
+  }
+
+  // ── FORK 5 — NEITHER PARTY IS NOTIFIED FROM HERE, AND THE GAP IS DELIBERATE AND DATED. ────────────
+  //
+  // The host path ends with two `emitNotify` calls carrying its own cancellation type. Neither may fire
+  // on this path, and it is not a near-miss: BOTH of that type's sentences are false here. The booker
+  // copy tells a defrauded person that their HOST cancelled on them — the opposite of what happened, and
+  // the one message they would repeat to anyone who asked what FitOut did. The host copy thanks them for
+  // a decision they did not make and quotes a fee this path just suppressed (D-235). Sending the right
+  // envelope with the wrong sentences would be worse than sending nothing, because it is durable and it
+  // is what both parties would believe.
+  //
+  // The correct ops-cancellation notification kinds — one per side, written against what actually
+  // happened — land in PLAN 18-09, which owns the enforcement copy. Until then this path is silent to
+  // both parties BY DECISION. `tests/payments/ops-cancel.test.ts` asserts on the emission observer that
+  // the host-cancel type is not sent, so re-adding it by reflex goes red.
+
+  // The ATTENDEES are still told, and that is not a contradiction of the paragraph above. `group_voided`
+  // copy names the space, the time and the invite link and blames nobody, so it is TRUE on this path
+  // exactly as it is on the other two — and D-121's reasoning applies with more force here, since an
+  // attendee on a pulled listing has no other way to find out at all.
+  await voidGroupAndNotifyAttendees(row, parsed.data.bookingId);
+
+  revalidateCancelSurfaces(parsed.data.bookingId, row.listingId);
   return { ok: true, refundCents };
 }
