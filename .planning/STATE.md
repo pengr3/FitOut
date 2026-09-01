@@ -1230,7 +1230,26 @@ Recent decisions affecting current work:
 
 [From .planning/todos/pending/ — ideas captured during sessions]
 
-None yet.
+**3 pending, all captured 2026-09-01 from the PM's post-Phase-18 walkthrough of `/ops` and the host
+path. Each carries its PM decisions already ANSWERED (marked PM-A … PM-E) — record them as D-numbers
+at discuss time; do not re-ask them.**
+
+- **`2026-09-01-ops-staff-management-surface-and-invite-flow.md`** (area `ops`) — there is no ops
+  sign-up today (D-217: grants are CLI-only). PM ruled a simple **create/grant/revoke screen inside
+  `/ops`**, onboarded by the ordinary FitOut signup + email-confirmation flow. ⚠ **Supersedes D-217**
+  and must re-measure the 404-cloaking with `/ops/staff` in the probe set. 2FA, step-up re-auth,
+  staff session TTL and an ops-only identity policy were each raised and **declined** — recorded as
+  accepted risk, not deferred work.
+- **`2026-09-01-host-verification-submission-path-and-listing-creation-gate.md`** (area `hosting`) —
+  ⚠ **THE ONE TO READ FIRST.** The PM asked to gate hosting behind KYC; investigating it found that
+  **nothing in the product ever creates a `host_verification` row** (the only INSERT repo-wide is
+  `e2e/helpers/booker-seed.ts:600` plus the `drizzle/0026` grandfather backfill), so the ops host
+  queue can never fill, no new host can ever be approved, and no new host can ever sell. Phase 18
+  shipped the console that decides but not the thing that submits to it. PM ruled the gate sits at
+  **listing creation**. **This puts the open KYC vendor decision on the critical path.**
+- **`2026-09-01-reveal-host-contact-details-in-ops-queue.md`** (area `ops`) — `/ops` shows no host
+  email and no phone, so ops cannot reach a host about their listing. PM ruled **reveal-on-click with
+  an audit row per reveal** (ids only in `audit.meta`, never the address itself — D-72).
 
 ### Blockers/Concerns
 
