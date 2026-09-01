@@ -129,6 +129,207 @@ export async function emitNotify(event: NotifyEvent): Promise<void> {
   }
 }
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// OPS-05 — THE SIX SENTENCES FITOUT SAYS TO A HOST ABOUT THEIR OWN STANDING (D-245 / D-243 / D-250)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// THE COPY LIVES HERE, IN ONE PLACE, AND BOTH CHANNELS READ IT OFF THE PAYLOAD. Every other kind in
+// this system stores DATA (a title, a time label) and lets the panel and the email each compose their
+// own sentence from it. These six store the SENTENCES, composed once, right here — and the reason is
+// specific to what they say rather than a general preference:
+//
+//   · D-91 SUFFICIENCY, taken literally. What a host is told about why FitOut blocked their income
+//     must be the SAME words in the panel and in their inbox. Two hand-maintained texts that look
+//     synchronised is precisely the drift D-91 exists to prevent, and it is far more damaging in a
+//     rejection than in a reminder.
+//   · D-86 DURABILITY. The host has READ this. If a later re-wording silently re-rendered the durable
+//     row, the record of what they were told would be retroactively false — the argument
+//     `src/lib/validation/ops.ts` makes about the taxonomy sentence, applied to the sentences around it.
+//
+// ⚠ D-243 / BACKLOG 999.6 — NOTHING BELOW PROMISES A WAY BACK. Host appeals are OUT. Say what
+// happened, say why, and stop. Specifically absent, and asserted absent by
+// `tests/notifications/ops-decision-notify.test.ts`: any offer to appeal, any promise of a reply, any
+// invitation to write back, any timeline ("within N days"). A rejected LISTING does have a real
+// self-serve route back (a material edit — D-249), and a suspended HOST does not; the copy below does
+// not blur the two by promising the listing route on a host surface.
+//
+// ⚠ D-250 — `SUPPORT_EMAIL` IS NULL (`src/lib/site.ts:70`) AND EVERY SENTENCE BELOW IS COMPLETE AND
+// HONEST WITHOUT IT. There is no trailing "email us at…" clause that would render half the time, no
+// fabricated address, and no placeholder. `tests/design/site-contacts.test.ts` asserts ZERO support
+// affordances anywhere under `src/` while the constant is null, and it is UNMODIFIED by this plan. If
+// an address ever exists, the affordance goes in behind `src/components/booking/support-path.tsx`'s
+// guard shape — the whole control inside a `SUPPORT_EMAIL !== null` conditional, literals authored
+// INSIDE it — never as a sentence spliced into the strings below.
+//
+// The operator's stored sentence (`composeReason`'s output) rides as `reasonText`, ON ITS OWN, so it
+// is rendered VERBATIM exactly once in the body and never paraphrased into a heading. Nothing here
+// touches it: no trimming of its interior, no escaping, no re-casing. Escaping happens at render — JSX
+// escapes text children by construction, and the email shell escapes at its one choke point.
+
+/**
+ * App base URL for a notification `href`.
+ *
+ * ⚠ EVERY `href` IN A NOTIFICATION PAYLOAD MUST BE ABSOLUTE. One payload string feeds BOTH channels,
+ * and an email client has no origin to resolve `/host/listings` against — a relative href is a silent
+ * dead link in the half of the delivery the recipient is most likely to be reading. This regressed
+ * once already (found by 07-10) and is asserted against in tests/booking/cancellation.test.ts.
+ *
+ * `BETTER_AUTH_URL` is the app-URL convention every other emitter uses; do NOT introduce a second env
+ * var. It is read HERE rather than at each ops call site so the six kinds below cannot end up with
+ * three different notions of where the host surface is.
+ */
+function notificationBaseUrl(): string {
+  return process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+}
+
+/** Where a host goes to see their listings — the destination of every listing-review decision. */
+const HOST_LISTINGS_PATH = "/host/listings";
+/** The host's own home — the destination of every decision about their ACCOUNT. */
+const HOST_HOME_PATH = "/host";
+
+/**
+ * 18-UI-SPEC § Telling the host, row 1. An approval is the one message in the set that is simply good
+ * news, so it says so and stops.
+ */
+export function listingApprovedPayload(listingTitle: string): NotificationPayload {
+  return {
+    type: "listing_review_approved",
+    heading: `${listingTitle} is live`,
+    lead: "Your listing passed FitOut's check and can now be booked.",
+    ctaLabel: "View your listings",
+    href: `${notificationBaseUrl()}${HOST_LISTINGS_PATH}`,
+  };
+}
+
+/**
+ * 18-UI-SPEC § Telling the host, row 3. The operator's sentence sits BETWEEN the fact and the
+ * consequence, which is the order a person reads it in: what happened, why, what it means.
+ *
+ * ⚠ NO WAY OUT IS OFFERED HERE. D-232 flips `approved` or `grandfathered` → `pending` on a material
+ * edit; it says nothing about `rejected`, so "edit it and it comes back" is a route this product does
+ * not yet have. 18-UI-SPEC flags the gap explicitly and this plan resolves it the honest way: the copy
+ * states the consequence and makes no promise. Offering the route before D-232 covers it would be the
+ * same defect as an appeal promise — a surface that says a door exists when it does not.
+ */
+export function listingRejectedPayload(
+  listingTitle: string,
+  reasonText: string,
+): NotificationPayload {
+  return {
+    type: "listing_review_rejected",
+    heading: `${listingTitle} wasn't approved`,
+    lead: "FitOut checked this listing and didn't approve it.",
+    reasonText,
+    tail: "It won't take bookings.",
+    ctaLabel: "View your listings",
+    href: `${notificationBaseUrl()}${HOST_LISTINGS_PATH}`,
+  };
+}
+
+/**
+ * 18-UI-SPEC § Telling the host, row 2. States the SECOND gate plainly — an approved host still needs
+ * each listing approved (D-224) — because a host told only "you're approved" and then finding nothing
+ * bookable would reasonably conclude something is broken.
+ *
+ * ⚠ NAMES NO DOCUMENT AND NO INSPECTION. "Someone at FitOut checked your account" is the whole claim
+ * HVER-02 supports: no ID, no passport, no licence, and nobody visited anything (Success Criterion 6).
+ */
+export function hostApprovedPayload(): NotificationPayload {
+  return {
+    type: "host_verification_approved",
+    heading: "You're approved to host on FitOut",
+    lead: "Someone at FitOut checked your account. Your listings can go live once each one is approved.",
+    ctaLabel: "Go to your hosting page",
+    href: `${notificationBaseUrl()}${HOST_HOME_PATH}`,
+  };
+}
+
+/** 18-UI-SPEC § Telling the host, row 4. Same structure as the listing rejection, host-scoped. */
+export function hostRejectedPayload(reasonText: string): NotificationPayload {
+  return {
+    type: "host_verification_rejected",
+    heading: "We couldn't approve your host account",
+    lead: "FitOut checked your account and didn't approve it.",
+    reasonText,
+    tail: "Your listings can't take bookings.",
+    ctaLabel: "Go to your hosting page",
+    href: `${notificationBaseUrl()}${HOST_HOME_PATH}`,
+  };
+}
+
+/**
+ * 18-UI-SPEC § Telling the host, row 5 — and the sharpest message in the product.
+ *
+ * NO LEAD: this body OPENS with the operator's own sentence. The reason is the first thing a suspended
+ * host needs and the only thing that makes the message anything other than a wall, so nothing is put
+ * in front of it. The consequence follows, stated in full — BOTH halves, because a host who reads
+ * "can't be booked" and is not told about the payout freeze (D-233, plan 18-07) will discover it as an
+ * unexplained missing payment, which is the worse way to learn it.
+ *
+ * ⚠ AND IT ENDS THERE. No appeal, no reply, no timeline, no address (D-243 / D-250).
+ */
+export function hostSuspendedPayload(reasonText: string): NotificationPayload {
+  return {
+    type: "host_suspended",
+    heading: "FitOut has paused your hosting",
+    reasonText,
+    tail: "Your spaces can't be booked, and payouts are on hold.",
+    ctaLabel: "Go to your hosting page",
+    href: `${notificationBaseUrl()}${HOST_HOME_PATH}`,
+  };
+}
+
+/**
+ * ENF-03's copy — the ops cancellation, one type and two audiences (WR-04's idiom on a new type).
+ *
+ * ⚠ THIS EXISTS BECAUSE `booking_cancelled_by_host` IS FALSE ON THIS PATH, IN BOTH DIRECTIONS.
+ * 18-08 shipped `cancelBookingAsOps` deliberately silent rather than send it: its booker copy tells a
+ * defrauded person that their HOST cancelled on them — the opposite of what happened, and the sentence
+ * they would repeat to anyone who asked what FitOut did — and its host copy quotes a cancellation fee
+ * that D-235 suppresses on this path. `tests/payments/ops-cancel.test.ts` keeps that type off this path.
+ *
+ * THE BOOKER is told FitOut cancelled it and what is coming back. `refundLabel` is OMITTED when
+ * nothing is being returned rather than rendered as a zero — CR-01's rule: a money event that did not
+ * happen must not be announced as though it had.
+ *
+ * THE HOST is told the booking is cancelled and — explicitly — that NO cancellation fee is charged.
+ * D-235 made visible: the fee block is silently skipped on this path, so without this sentence a host
+ * would have no way to know it had been, and would reasonably assume the usual fee applied to a
+ * cancellation they did not make.
+ */
+export function opsCancelPayload(args: {
+  side: "booker" | "host";
+  listingTitle: string;
+  whenLabel: string;
+  refundLabel: string | null;
+}): NotificationPayload {
+  const { side, listingTitle, whenLabel, refundLabel } = args;
+  if (side === "booker") {
+    return {
+      type: "booking_cancelled_by_ops",
+      heading: "FitOut cancelled this booking",
+      lead:
+        `FitOut cancelled your booking at ${listingTitle} on ${whenLabel}.` +
+        (refundLabel === null
+          ? ""
+          : ` You're getting ${refundLabel} back, to the way you paid.`),
+      side,
+      ctaLabel: "View your bookings",
+      href: `${notificationBaseUrl()}/bookings`,
+    };
+  }
+  return {
+    type: "booking_cancelled_by_ops",
+    heading: "FitOut cancelled a booking at your space",
+    lead:
+      `The booking at ${listingTitle} on ${whenLabel} is cancelled and the guest is being refunded. ` +
+      "You're not charged a cancellation fee for this.",
+    side,
+    ctaLabel: "View your bookings",
+    href: `${notificationBaseUrl()}/host/bookings`,
+  };
+}
+
 /**
  * The D-92 unread badge count. Hits `notification_unread_idx` — the PARTIAL index that covers unread rows
  * only — directly, so it stays cheap forever while read history grows without bound. This runs on EVERY
