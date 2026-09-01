@@ -11,11 +11,48 @@
 //   4. booking behaviour       — `listing.bookingMode` (schema.ts:199)
 //
 // ⚠ THERE IS NO RESPONSIVENESS COLUMN ANYWHERE IN `src/lib/db/schema.ts`. Checked against the schema
-// when this file was written: it carries no rate, latency or SLA field about a host's replies. A fifth
-// signal of that shape could therefore only be INVENTED — a sentence with no row behind it, on the one
-// surface where a booker is deciding whether their money is safe. TRUST-04 exists to prevent exactly
-// that, and D-80 forbids the "add the column then" escape hatch for this phase. If a surface wants a
-// fifth signal, the answer is no.
+// when this file was written, and again in phase 18: it carries no rate, latency or SLA field about a
+// host's replies. A fifth signal OF THAT SHAPE could therefore only be INVENTED — a sentence with no
+// row behind it, on the one surface where a booker is deciding whether their money is safe. TRUST-04
+// exists to prevent exactly that, and D-80 forbids the "add the column then" escape hatch.
+//
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// THE RULE THIS GATE ALWAYS STOOD FOR — RESTATED IN PHASE 18, WHEN IT WAS FINALLY TESTED
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// This header used to close with "if a surface wants a fifth signal, the answer is no". That sentence
+// became FALSE in phase 18 and has been REWRITTEN rather than amended around, because a rule everyone
+// believes exists is one nobody goes looking for. The rule it was always standing for is narrower,
+// and it is still absolute:
+//
+//     THE ANSWER IS NO TO A SIGNAL WITH NO COLUMN BEHIND IT.
+//
+// HVER-05 / D-237 adds a fifth signal that HAS one — two, in fact, and it requires both: the ops-check
+// `status` column on the host's phase-18 ops row, joined with `listing.review_state`. (That table's
+// name is not written in this file: it contains one of the twelve tokens in its ordinary technical
+// sense, and this file may not spell any of them — see the encoding section below. `isFitoutChecked`
+// in `src/lib/listing/fitout-check.ts` spells it out where it is safe to.) Both columns are written by
+// a named, authenticated staff member (D-218), so the chip stands on a real row rather than on
+// marketing — which is the entire distinction TRUST-04 has been enforcing all along.
+//
+// The fifth signal is exactly one file, `src/components/listing/fitout-check-badge.tsx`, holding both
+// of its strings. It is added UNDER THE BAN, not beside it: `FIFTH_SIGNAL_FILES` below runs that file
+// through the SAME `findForbidden` pass with the SAME twelve rows. `FORBIDDEN_SIGNALS` stays at
+// twelve and `SCAN_ROOTS` stays at three, so this edit makes the gate STRICTLY STRONGER — one more
+// file policed, nothing unbanned, no exclusion row anywhere.
+//
+// D-212 is what keeps that fifth signal honest, and it lives in the predicate rather than here: BOTH
+// terms must be `approved`, as positive literals, so a grandfathered row — a row nobody ever checked,
+// and the majority of the day-one catalogue — can never wear the chip. A negative spelling against
+// the grandfathered value would let four other states through, which is why the predicate has a test
+// of its own (`tests/listing/fitout-check-badge.test.tsx`) driving every pair of both enums.
+//
+// ⚠ DO NOT ADD THE LISTING TREE TO `SCAN_ROOTS` IN ORDER TO REACH THAT FILE. Measured, not assumed:
+// `host-block.tsx`'s shipped `HOST_REQUEST_RULE` uses row 11's plural noun in its OTHER, legitimate
+// sense (a host looking over a booking request), and row 11's own `why` already records that this copy
+// is deliberately outside these roots. Widening the roots goes red against correct, shipped copy —
+// which is precisely how a gate gets loosened by whoever has to make it green again. Naming the one
+// new file is the narrower and more honest instrument.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // THE SCOPE DECISION, RECORDED RATHER THAN ASSUMED
@@ -105,7 +142,14 @@ import { describe, expect, it } from "vitest";
 // THE SCANNED TREE
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** The Phase-13 file set, exactly as 13-UI-SPEC § The forbidden set declares it. */
+/**
+ * The Phase-13 file set, exactly as 13-UI-SPEC § The forbidden set declares it.
+ *
+ * ⚠ THREE, AND IT STAYED THREE IN PHASE 18. The fifth signal lives in the listing tree, and the
+ * listing tree is NOT added here — see the header: `host-block.tsx`'s shipped request-mode sentence
+ * uses row 11's plural noun in its other legitimate sense, so widening this list would go red against
+ * correct copy this phase does not own. The new file is named explicitly instead.
+ */
 const SCAN_ROOTS = [
   "src/app/(app)/bookings",
   "src/components/booking",
@@ -113,6 +157,21 @@ const SCAN_ROOTS = [
 ] as const;
 
 type ScanRoot = (typeof SCAN_ROOTS)[number];
+
+/**
+ * THE FIFTH SIGNAL, SCANNED UNDER THE SAME BAN — HVER-05 / D-237.
+ *
+ * Exactly one file, and that is a property of the design rather than of today's tree: both of the
+ * chip's strings (`FITOUT_CHECK_LABEL` and `FITOUT_CHECK_EXPLAINER`) are exported constants living
+ * together, precisely so the whole of the new signal's copy is one scannable file. If a surface ever
+ * retypes either string instead of importing it, the copy leaves this scan's reach — which is the
+ * failure this arrangement is built to make unattractive.
+ *
+ * These files go through the SAME `findForbidden` pass with the SAME twelve rows as the three roots
+ * above. Adding a permitted signal did not buy it an exemption: the gate now polices one more file
+ * than it did, and unbanned nothing.
+ */
+const FIFTH_SIGNAL_FILES = ["src/components/listing/fitout-check-badge.tsx"] as const;
 
 /**
  * WINDOWS PATH NORMALISATION — `focus-recipe.test.ts:89`'s idiom, load-bearing rather than cosmetic.
@@ -174,8 +233,8 @@ const FORBIDDEN_SIGNALS: readonly Forbidden[] = [
     pieces: ["superh", "ost"],
     why:
       "tier chrome — the closed-up spelling. FitOut operates no host tier programme, so the badge " +
-      "would stand for nothing at all. D-68 closes the set at four signals and each of the four " +
-      "names a column; this one names none.",
+      "would stand for nothing at all. D-68 closed the set at four signals and phase 18 made it " +
+      "five; every one of them names a column, and this one names none.",
   },
   {
     pieces: ["super ho", "st"],
@@ -337,6 +396,32 @@ function scan(roots: readonly string[]): Scan {
 }
 
 /**
+ * The SAME collector over an EXPLICIT file list rather than a tree walk — `FIFTH_SIGNAL_FILES`'s pass.
+ *
+ * It returns the files it actually READ, not the files it was asked for, so a renamed or deleted entry
+ * shows up as a missing member in the guard-the-guard clause below instead of as a silently empty
+ * haystack. `collectSourceFilesSafe` swallows a missing directory for the same reason and reports it
+ * the same way: a scan that reached nothing satisfies `toEqual([])` perfectly.
+ */
+function scanFiles(files: readonly string[]): { files: string[]; copy: CopyUnit[] } {
+  const read: string[] = [];
+  const copy: CopyUnit[] = [];
+
+  for (const name of files) {
+    let source: string;
+    try {
+      source = readFileSync(resolve(process.cwd(), name), "utf8");
+    } catch {
+      continue;
+    }
+    read.push(name);
+    copy.push(...readCopy(name, source));
+  }
+
+  return { files: read, copy };
+}
+
+/**
  * Every forbidden phrase riding authored copy, as `file:line — why`.
  *
  * TWO PASSES — see the header. Pass 1 is line-wise over each copy unit and can name a line. Pass 2 is
@@ -388,6 +473,7 @@ function findForbidden(units: readonly CopyUnit[], phrases: readonly Forbidden[]
 }
 
 const scanned = scan(SCAN_ROOTS);
+const fifthSignal = scanFiles(FIFTH_SIGNAL_FILES);
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // (0) GUARD THE GUARD — a scan that reached nothing is green and means nothing
@@ -442,6 +528,35 @@ describe("TRUST-04 — the scan reaches what it claims to police", () => {
     ).toBe(true);
   });
 
+  it("reached the fifth signal's file too — it is named, it exists, and it yielded copy", () => {
+    // THE SAME VACUITY, ONE LEVEL DOWN. `scanFiles` deliberately skips a file it cannot read, so a
+    // rename would leave the ban below green over an empty haystack — a badge free to say anything.
+    // Three separate claims, because each one fails for a different reason and the message should say
+    // which: the set is declared, every declared file was actually read, and copy came out of it.
+    expect(FIFTH_SIGNAL_FILES).toHaveLength(1);
+
+    expect(
+      fifthSignal.files,
+      "a file named in FIFTH_SIGNAL_FILES could not be read. It moved or was renamed — move this " +
+        "declaration in the same commit, because a skipped file makes the ban below vacuously green.",
+    ).toEqual([...FIFTH_SIGNAL_FILES]);
+
+    expect(
+      fifthSignal.copy.length,
+      "no string literal, template chunk or JSX text was extracted from the fifth signal's file. It " +
+        "ships two exported copy constants, so zero means the node matcher stopped matching — a " +
+        "vacuous green, not a clean one.",
+    ).toBeGreaterThan(0);
+
+    // …and it reached real PROSE, not just an import specifier or a utility class. Both shipped
+    // constants are multi-word sentences; a haystack of single tokens would mean the copy is gone.
+    expect(
+      fifthSignal.copy.some((u) => u.text.trim().split(/\s+/).length > 3),
+      "the fifth signal's file yielded no multi-word copy — its two exported sentences are not being " +
+        "collected, so the ban over them proves nothing.",
+    ).toBe(true);
+  });
+
   it("FINDS a forbidden phrase when there is one — in both passes, and in every row", () => {
     // BOTH DIRECTIONS, through the same code path the real assertion uses. Without this, "found
     // nothing" below is equally consistent with a scanner that can never find anything.
@@ -485,10 +600,22 @@ describe("TRUST-04 — the scan reaches what it claims to police", () => {
             line: 3,
             text: "This host approves each request before it's confirmed.",
           },
+          // The FIFTH signal's two sentences (HVER-05 / D-237), stated here as the permitted-copy
+          // control. The shipped file is scanned for real below; this fixture is what proves the
+          // twelve rows have no quarrel with the words the chip actually uses — the near miss being
+          // row 11's plural noun, which is why this surface says "checked" instead.
+          { file: "fixture-clean.tsx", line: 4, text: "Checked by FitOut" },
+          {
+            file: "fixture-clean.tsx",
+            line: 5,
+            text:
+              "Someone at FitOut checked this host's account and this listing before it could take " +
+              "bookings. We haven't visited the space.",
+          },
         ],
         FORBIDDEN_SIGNALS,
       ),
-      "the four permitted signals must be clean under this scan — if they are not, the copy is " +
+      "the five permitted signals must be clean under this scan — if they are not, the copy is " +
         "wrong or a row is over-broad, and both are worth failing on.",
     ).toEqual([]);
   });
@@ -534,18 +661,49 @@ describe("TRUST-04 — the scan reaches what it claims to police", () => {
 // (1) THE BAN ITSELF — no invented trust signal ships on any Phase-13 booker surface
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("TRUST-04 / D-68 — the trust signal set is closed at four, and nothing invents a fifth", () => {
+describe("TRUST-04 / D-68 — every booker-facing signal names a column, and nothing invents one", () => {
+  /**
+   * The permitted set, enumerated ONCE and shared by both failure messages below — five now, and each
+   * one named beside the column it stands on, because "you may not add a signal" is only actionable
+   * next to "here is what the permitted ones are made of".
+   */
+  const PERMITTED_SIGNALS =
+    `the platform guarantee (the hold-until-session payout model, D-65), user.createdAt, ` +
+    `listing.publishedAt, listing.bookingMode, and — added by HVER-05/D-237 in phase 18 — the ` +
+    `ops-check status on the host's phase-18 ops row joined with listing.review_state, reduced by ` +
+    `isFitoutChecked (both terms 'approved', never grandfathered — D-212)`;
+
   it("renders none of the twelve forbidden signals anywhere in the Phase-13 file set", () => {
     const hits = findForbidden(scanned.copy, FORBIDDEN_SIGNALS);
     expect(
       hits,
       `an invented trust signal reached a booker surface: ${JSON.stringify(hits, null, 2)}\n\n` +
-        `D-68 closes the booker-facing signal set at FOUR, and every one of the four maps to a real ` +
-        `column: the platform guarantee (the hold-until-session payout model, D-65), ` +
-        `user.createdAt, listing.publishedAt and listing.bookingMode. There is NO responsiveness, ` +
-        `assurance, tier or score column in src/lib/db/schema.ts, so a fifth signal can only be ` +
-        `INVENTED — and D-80 forbids adding a column for it this phase. The answer to "this surface ` +
-        `wants one more signal" is no. Encode the phrase in two pieces if you must refer to it.`,
+        `The booker-facing signal set is closed at FIVE, and every one of the five maps to a real ` +
+        `column: ${PERMITTED_SIGNALS}. There is NO responsiveness, tier or score column in ` +
+        `src/lib/db/schema.ts, so a SIXTH signal of those shapes can only be INVENTED — and D-80 ` +
+        `forbids adding a column for it. The answer to "this surface wants one more signal" is no ` +
+        `whenever there is no column behind it. Encode the phrase in two pieces if you must refer ` +
+        `to it.`,
+    ).toEqual([]);
+  });
+
+  it("renders none of the twelve in the FIFTH signal's own file either — it is subject to the ban", () => {
+    // THE POINT OF THIS CASE. Phase 18 permitted a fifth signal, so the tempting shape was an
+    // exclusion row. Instead the new file is run through the SAME `findForbidden` with the SAME twelve
+    // rows: the chip may state what a person at FitOut checked, and it still may not borrow a tier
+    // word, an assurance-verb form, a responsiveness measure, a score or a score glyph to say it.
+    //
+    // The live hazard is row 11's plural noun. The fact being stated is a person looking over an
+    // account and a listing, so the nearest word to reach for is exactly the one the ban targets in
+    // its feedback-count sense — copy on this surface says "checked", and a later edit that reaches
+    // for the other word fails HERE rather than shipping.
+    const hits = findForbidden(fifthSignal.copy, FORBIDDEN_SIGNALS);
+    expect(
+      hits,
+      `the fifth signal's own copy tripped the ban: ${JSON.stringify(hits, null, 2)}\n\n` +
+        `HVER-05 permits this chip because it names real columns — ${PERMITTED_SIGNALS}. It does NOT ` +
+        `exempt the chip from the twelve. Say what was checked, in words the gate has no quarrel ` +
+        `with, and keep both strings in ${FIFTH_SIGNAL_FILES[0]} so this scan can still see them.`,
     ).toEqual([]);
   });
 });
