@@ -300,3 +300,10 @@ T-18-SC (nothing installed, `badge` already vendored).
 | 1 | `d254f05` | the predicate, the badge, the component spec, and the four trust-signal edits |
 | 2 | `e245dfe` | the listing detail surface and the rewritten TRUST-04 paragraph |
 | 3 | `c033903` | the search SELECT, `toRow`'s boolean, the card's second chip, and the D-212 fixture assertion |
+| — | `b6dec2d` | this summary |
+
+## Self-Check: PASSED
+
+All three created files exist on disk (`fitout-check.ts`, `fitout-check-badge.tsx`,
+`fitout-check-badge.test.tsx`), this SUMMARY exists, and all four commits resolve in `git log`. No task
+commit deleted a tracked file (`git diff --diff-filter=D b6dec2d~4 b6dec2d` is empty).

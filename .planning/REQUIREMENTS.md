@@ -50,7 +50,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 - [ ] **HVER-04** — A written **PayMongo Linked Accounts vs standalone PH KYC vendor** comparison is
       delivered to the PM as a fork: cost, sandbox reachability, KYC depth, data residency, what
       FitOut would store, and what switching costs given the HVER-01 port. *(D-238)*
-- [ ] **HVER-05** — A booker sees a badge that states **what FitOut actually checked**, and never
+- [x] **HVER-05** — A booker sees a badge that states **what FitOut actually checked**, and never
       implies FitOut inspected the space when it checked a document. The badge renders for
       `approved` only — **never for a grandfathered row**, which was never checked. *(SC6 · D-212, D-237)*
 
@@ -102,7 +102,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | HVER-02 | Phase 18 · 18-02 | Complete |
 | HVER-03 | Phase 18 | Complete |
 | HVER-04 | Phase 18 | Pending |
-| HVER-05 | Phase 18 | Pending |
+| HVER-05 | Phase 18 · 18-11 | **Complete** (18-11 — the chip says "Checked by FitOut" on the listing detail page and the search card, and the detail page adds the explainer whose second sentence is a deliberate negative: *We haven't visited the space.* No document claim, no vendor claim, no inspection claim — there is no document (HVER-02) and no vendor (D-206). D-212 is STRUCTURAL: `isFitoutChecked` requires BOTH `host_verification.status` and `listing.review_state` to be `approved`, as positive literals, and is reduced to a boolean in the RSC, so neither client component ever receives the grandfathered distinction. Proved over the full 6 × 5 product of both pgEnums, over both grandfathered search fixtures end-to-end, and by a mutation to a host-only rule that reddens the named grandfathered-listing case. The fifth signal is scanned under the same twelve-row trust-signal ban via `FIFTH_SIGNAL_FILES`) |
 | LVER-01 | Phase 18 | Complete |
 | LVER-02 | Phase 18 · 18-04 (hidden-from-bookers half) | Pending |
 | LVER-03 | Phase 18 · 18-06 | Complete |

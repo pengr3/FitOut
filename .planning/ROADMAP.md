@@ -174,7 +174,7 @@ instantly). ⚠ One invariant now rides on the auth config: `requireStaff()` is 
 `session.cookieCache` stays unconfigured — enabling it would keep a REVOKED grant alive for the cache
 TTL, and no test would go red. It is written into that module's header.
 
-**Plans:** 10/14 plans executed
+**Plans:** 11/14 plans executed
 SEQUENTIALLY on `dev`, one executor at a time — waves express dependency order, not concurrency.
 
 Plans:
@@ -188,7 +188,7 @@ Plans:
 - [x] 18-08-PLAN.md — Ops cancel-and-refund, behind the D-236 constant (wave 5)
 - [x] 18-09-PLAN.md — Telling the host: the OPS-05 notification · **[BLOCKING] `npm run db:migrate`** (wave 6)
 - [x] 18-10-PLAN.md — The ops queue row & decision controls (wave 6)
-- [ ] 18-11-PLAN.md — The booker-facing check badge (wave 6)
+- [x] 18-11-PLAN.md — The booker-facing check badge (wave 6)
 - [ ] 18-12-PLAN.md — The `/ops` route, its three guard layers & the design-gate ledger (wave 7)
 - [ ] 18-13-PLAN.md — Host-facing review & suspension signals (wave 7)
 - [ ] 18-14-PLAN.md — HVER-04 vendor comparison & the OPS-02 status-line audit (wave 8, has checkpoint)
@@ -209,7 +209,7 @@ Plans:
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-28 |
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
-| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 10/14 | In Progress|  |
+| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 11/14 | In Progress|  |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
