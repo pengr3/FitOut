@@ -500,6 +500,33 @@ const CARD_SURFACES: readonly CardSurface[] = [
       "field membership, because the D-09/D-10 split is a server-side boundary this surface only " +
       "describes. This row asserts a container, never a state machine and never a projection.",
   },
+
+  // ─── Phase 18 — the internal FitOut Ops review queue (OPS-04 · 18-UI-SPEC § The queue row) ────────
+  //
+  // The second kind again — a surface that did not exist when the 11-UI-SPEC's three `Replaces` lists
+  // were written. The header's standing instruction for that kind is that a new surface EXTENDS this
+  // inventory in its own commit, which is what this row and the constant beneath it are.
+  {
+    file: "src/components/ops/ops-queue-row.tsx",
+    pattern: "row-card",
+    status: "adopted",
+    why:
+      "THE OPS REVIEW-QUEUE ROW (plan 18-10), and the first declared surface on a STAFF-ONLY page. It " +
+      "is here for the reason the header gives for the second kind: it postdates the three `Replaces` " +
+      "lists, so nothing in the original inventory could have named it, and an internal tool is not " +
+      "exempt from DS-11 — 18-UI-SPEC states in its own words that there is no \"it's only for staff\" " +
+      "carve-out anywhere in `tests/design/**` and that Phase 18 does not create one. The row composes " +
+      "the SECOND declared container and opens no box of its own, so `ALLOWED_RAW_CARD` is UNCHANGED " +
+      "by this plan — this arrives by NEITHER of the allow-list routes and there was no exemption to " +
+      "delete. Two of the pattern's optional slots are deliberately unused and both absences are " +
+      "decisions rather than omissions: `href`, because the row is TERMINAL (a detail page you click " +
+      "into to see the photos is what OPS-04 and D-246 forbid, pinned as a rendered fact in " +
+      "`tests/ops/ops-queue-row.test.tsx`), and `media`, because the pattern's 48px thumbnail is " +
+      "useless as evidence of whether a space is real — the photo mosaic goes through `children` " +
+      "instead, beside the evidence description list, at a size a person can judge. GATE-NOREG: this " +
+      "row asserts a container, never the decision actions inside it and never the money the reject " +
+      "dialog renders.",
+  },
 ];
 
 /**
@@ -568,8 +595,21 @@ const CARD_SURFACES: readonly CardSurface[] = [
  *   its own assertions.: expected 21 to be 20 // Object.is equality
  *
  * and beside it `expected [ … ] to have a length of 18 but got 19`.
+ *
+ * TWENTY-TWO SINCE PLAN 18-10, and the twenty-second is the SECOND kind — `ops-queue-row.tsx` is a
+ * surface that did not exist when the 11-UI-SPEC's three `Replaces` lists were written, and it is the
+ * first declared surface on a staff-only page. `ALLOWED_RAW_CARD` did not move with it, and that is
+ * the CONTENT of the decision rather than a side effect: the ops row composes the pattern from its
+ * first commit, so there was never an exemption to delete and there is no allow-list → inventory
+ * transition to record. Its red was watched with the row in and this constant still reading 21:
+ *
+ *   AssertionError: the declared card-surface inventory is not the size the UI-SPEC's three
+ *   `Replaces` lists describe. A coverage gate whose inventory silently emptied passes every one of
+ *   its own assertions.: expected 22 to be 21 // Object.is equality
+ *
+ * and beside it `expected [ … ] to have a length of 19 but got 20`.
  */
-const EXPECTED_SURFACES = 21;
+const EXPECTED_SURFACES = 22;
 
 /**
  * EVERY FILE OUTSIDE `patterns/` ALLOWED TO RENDER A RAW `<Card>`, WITH THE REASON AND THE PHASE
@@ -943,7 +983,14 @@ describe("DS-11 / AC#25 — every card surface renders one of three declared con
     // profile form is a surface that adopted a container it never had, and a conversion mis-recorded
     // as a `"refused"` row would satisfy `EXPECTED_SURFACES` at 21 and fail only here. Red watched
     // with the row in and this number still at 18 — `expected [ … ] to have a length of 18 but got 19`.
-    expect(adopted).toHaveLength(19);
+    //
+    // 20 SINCE PLAN 18-10 (+1: the ops review-queue row). Red watched twice on the way in, which is
+    // the pairing working as designed: with the row added and BOTH numbers stale, this one said
+    // `expected [ … ] to have a length of 19 but got 20` beside `expected 22 to be 21`; with
+    // `EXPECTED_SURFACES` moved and this one still at 19 it said the same thing ALONE, which is the
+    // whole reason the two pins are separate. `refused` stays 2: Phase 18 revisited no measured
+    // refusal, and the ops row is an adoption from its first commit rather than a conversion.
+    expect(adopted).toHaveLength(20);
     expect(refused).toHaveLength(2);
 
     const composing = adopted.filter((s) => {
