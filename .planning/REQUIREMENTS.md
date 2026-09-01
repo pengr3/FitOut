@@ -81,7 +81,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 - [x] **ENF-02** — A suspended host's pending payouts **freeze**, and no payout leaves for a host
       under suspension. A frozen row does not read as a stuck row to the reconciler and does not page
       an operator. *(SC5 · D-222, D-234)*
-- [ ] **ENF-03** — Ops cancel-and-refund returns **the full booking amount** to the booker with the
+- [x] **ENF-03** — Ops cancel-and-refund returns **the full booking amount** to the booker with the
       **service/platform fee retained** by FitOut, pays the host **nothing**, and charges **no**
       host-cancel fee. The fee behaviour sits behind one named constant
       (`OPS_CANCEL_REFUNDS_SERVICE_FEE`) with the D-236 conflict documented at that call site.
@@ -107,11 +107,11 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | LVER-02 | Phase 18 · 18-04 (hidden-from-bookers half) | Pending |
 | LVER-03 | Phase 18 · 18-06 | Complete |
 | LVER-04 | Phase 18 · 18-02 | Complete |
-| ENF-01 | Phase 18 · 18-05 (default lever) | Partial (18-05 — `suspendHost` writes `status='suspended'`, which fails the sell-gate's host term through the same read as verification. The payout freeze is 18-07; the cancel-and-refund escalation is 18-08) |
+| ENF-01 | Phase 18 · 18-05 (default lever) + 18-07 (freeze) + 18-08 (escalation) | Partial (both LEVERS now exist and the D-233 default is enforced server-side — an omitted `lever` parses to block-new-only and cancels nothing. What remains is the CONSOLE that lets ops choose per case: the reject dialog's `RadioGroup` and the impact block, 18-10) |
 | ENF-02 | Phase 18 · 18-07 | Complete |
-| ENF-03 | Phase 18 | Pending |
+| ENF-03 | Phase 18 · 18-08 | Complete |
 
-**17 requirements · Phase 18 · 6 complete**
+**17 requirements · Phase 18 · 7 complete**
 
 ---
 

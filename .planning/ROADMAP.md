@@ -174,7 +174,7 @@ instantly). ⚠ One invariant now rides on the auth config: `requireStaff()` is 
 `session.cookieCache` stays unconfigured — enabling it would keep a REVOKED grant alive for the cache
 TTL, and no test would go red. It is written into that module's header.
 
-**Plans:** 7/14 plans executed
+**Plans:** 8/14 plans executed
 SEQUENTIALLY on `dev`, one executor at a time — waves express dependency order, not concurrency.
 
 Plans:
@@ -185,7 +185,7 @@ Plans:
 - [x] 18-05-PLAN.md — Verification port, ops decision actions & the review queue (wave 4)
 - [x] 18-06-PLAN.md — Material edit returns a listing to review (wave 4)
 - [x] 18-07-PLAN.md — Payout freeze under suspension (wave 4)
-- [ ] 18-08-PLAN.md — Ops cancel-and-refund, behind the D-236 constant (wave 5)
+- [x] 18-08-PLAN.md — Ops cancel-and-refund, behind the D-236 constant (wave 5)
 - [ ] 18-09-PLAN.md — Telling the host: the OPS-05 notification · **[BLOCKING] `npm run db:migrate`** (wave 6)
 - [ ] 18-10-PLAN.md — The ops queue row & decision controls (wave 6)
 - [ ] 18-11-PLAN.md — The booker-facing check badge (wave 6)
