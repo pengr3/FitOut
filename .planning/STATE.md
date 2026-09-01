@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: "Completed 18.1-01-PLAN.md (requirement ledger + D-236). Next: 18.1-02 (F11/D-260) and 18.1-04 (Didit credentials, has BLOCKING checkpoint), both wave 1."
-last_updated: "2026-09-01T20:13:11.703Z"
-last_activity: 2026-09-01 -- 18.1-01 executed (requirement ledger + D-236)
+stopped_at: "Completed 18.1-02-PLAN.md (F11/D-260 — a suspended host's /host/earnings names the frozen session). Next: 18.1-03 (D-231 material fields) and 18.1-04 (Didit credentials, BLOCKING checkpoint)."
+last_updated: "2026-09-01T20:40:39.262Z"
+last_activity: 2026-09-02 -- 18.1-02 executed (F11/D-260 -- a suspended host's /host/earnings names the frozen session)
 progress:
   total_phases: 16
   completed_phases: 12
   total_plans: 177
-  completed_plans: 169
+  completed_plans: 170
   percent: 75
 ---
 
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** **Phase 18.1 — Close Phase 18: the verification path FitOut is legally required to have.** Executing: **1 of 14 plans done** (18.1-01 — the requirement ledger `HVER-06..08` / `LVER-05` / `OPS-06`, plus D-236: `OPS_CANCEL_REFUNDS_SERVICE_FEE = true`). Next in wave 1: **18.1-02** (F11/D-260 — a suspended host's `/host/earnings` names the frozen session) and **18.1-04** (Didit credentials + the async port widening, which carries a **BLOCKING Didit Console checkpoint**). Two constraints carried from Phase 18 and still binding: **`deriveBookable` is OFF LIMITS** — it has an inlined SQL twin in `src/lib/search/query.ts` Stage-1 and two deliberate re-statements in `src/app/actions/booking.ts`, so it is never a one-line change — and **gates run ALONE** (`npx tsc --noEmit`, `npm test`, `npm run test:design`, `npm run build`, each its own invocation). Worktrees remain OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
+**Current focus:** **Phase 18.1 — Close Phase 18: the verification path FitOut is legally required to have.** Executing: **2 of 14 plans done** (18.1-01 — the requirement ledger `HVER-06..08` / `LVER-05` / `OPS-06`, plus D-236: `OPS_CANCEL_REFUNDS_SERVICE_FEE = true`; 18.1-02 — F11/D-260, a suspended host's `/host/earnings` now names the frozen session through the new `src/lib/host/frozen-payouts.ts` inverted freeze query, with `payout-sweep.ts` and `tests/design/earnings-freeze.test.ts` both byte-unchanged). Next in wave 1: **18.1-03** (D-231 — `title` and `description` join the material-field set) and **18.1-04** (Didit credentials + the async port widening, which carries a **BLOCKING Didit Console checkpoint**). Two constraints carried from Phase 18 and still binding: **`deriveBookable` is OFF LIMITS** — it has an inlined SQL twin in `src/lib/search/query.ts` Stage-1 and two deliberate re-statements in `src/app/actions/booking.ts`, so it is never a one-line change — and **gates run ALONE** (`npx tsc --noEmit`, `npm test`, `npm run test:design`, `npm run build`, each its own invocation). Worktrees remain OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -45,9 +45,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 Phase: 18.1 (close-phase-18-verification-submission-didit-listing-gate) — EXECUTING
 Previous: 18 — Host Verification, Listing Review & FitOut Ops (executed + verified; checkbox held open until 18.1 ships)
-Plan: 2 of 14
+Plan: 3 of 14
 Status: Ready to execute
-Last activity: 2026-09-01 -- 18.1-01 executed (requirement ledger + D-236)
+Last activity: 2026-09-02 -- 18.1-02 executed (F11/D-260 -- the frozen-session sentence)
 
 <details><summary>Previous activity (18-12, superseded)</summary>
 
@@ -376,6 +376,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 18 P09 | 26min | 3 tasks | 16 files |
 | Phase 18 P14 | ~110 min | 3 tasks | 5 files |
 | Phase 18.1 P01 | 22min | 3 tasks | 5 files |
+| Phase 18.1 P02 | 38 | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1231,6 +1232,8 @@ Recent decisions affecting current work:
 - [Phase ?]: D-236 LANDED (plan 18.1-01): OPS_CANCEL_REFUNDS_SERVICE_FEE = true. An ops-forced cancellation refunds the booker the WHOLE charged total (space price AND the D-74 service fee); FitOut retains nothing and absorbs the gateway cost; the host is still paid nothing and no host-cancel fee is charged. Both docblocks INVERTED AND DATED (2026-09-01 settlement) rather than deleted, and D-209's superseded wording is kept marked superseded.
 - [Phase ?]: REQUIREMENTS.md ENF-03 AMENDED by 18.1-01, not just re-cited: its first clause said 'with the service/platform fee retained by FitOut', which D-236 negates. A checked 'Complete' requirement asserting the opposite of the money the code moves is the worst state for the ledger; rewritten with D-209's wording quoted inline and marked superseded.
 - [Phase ?]: 18.1-01 measured that 18.1-RESEARCH's claim 'ops-cancel cases 4-16 read the constant nowhere' is FALSE — cases 8, 11 and 13 consume the refund basis as a consequence and redden on the D-236 flip. Nine coordinated edits, not six. Anyone re-reading that research section should not trust its closing sentence.
+- [Phase ?]: D-260 (F11) discharged: a suspended host's /host/earnings names the frozen session — the space and an absolute date — via src/lib/host/frozen-payouts.ts (the inverted freeze query) plus composeFrozenSessionSentence in review-signal.ts; wayOut stays null and nothing names what unfreezes it (D-263). tests/design/earnings-freeze.test.ts is byte-unchanged.
+- [Phase ?]: 18.1-02 design rule: a read module that REPORTS someone else's invariant spells the predicate out a second time instead of sharing a negated helper. frozen-payouts.ts carries three argued divergences from queryDuePayouts (INNER + = suspended vs LEFT + COALESCE <>; p.id IS NULL alone, dropping the WR-04 failed-retry branch; no SWEEP_BATCH_SIZE) so a drift stays visible as a difference between two readable predicates. payout-sweep.ts is byte-unchanged — ENF-02's invariant did not move.
 
 ### Pending Todos
 
@@ -1408,8 +1411,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-01T20:13:11.662Z
-Stopped at: Completed 18.1-01-PLAN.md (requirement ledger + D-236). Next: 18.1-02 (F11/D-260) and 18.1-04 (Didit credentials, has BLOCKING checkpoint), both wave 1.
+Last session: 2026-09-01T20:40:13.682Z
+Stopped at: Completed 18.1-02-PLAN.md (F11/D-260 — a suspended host's /host/earnings names the frozen session). Next: 18.1-03 (D-231 material fields) and 18.1-04 (Didit credentials, BLOCKING checkpoint).
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte

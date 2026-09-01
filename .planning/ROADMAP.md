@@ -299,7 +299,7 @@ and (ii) whether holding only a `vendorRef` satisfies § 21(c)'s "updated and ve
 and the subpoena clause. **Both are vendor-independent** — equally open under Innov8tif or PayMongo —
 so neither changes what this phase builds.
 
-**Plans:** 1/14 executed — 14 plans in 7 waves, planned 2026-09-02.
+**Plans:** 2/14 plans executed
 Worktrees stay OFF, so plans run **sequentially on `dev`, one executor at a time**; the waves express
 dependency order, not concurrency. No two plans in a wave modify the same file.
 
@@ -336,7 +336,7 @@ dependency order, not concurrency. No two plans in a wave modify the same file.
 Plans:
 
 - [x] 18.1-01-PLAN.md — Phase requirements written; D-236 flips the ops-cancel refund basis to the full charge (wave 1)
-- [ ] 18.1-02-PLAN.md — F11/D-260: a suspended host's `/host/earnings` names the frozen session (wave 1)
+- [x] 18.1-02-PLAN.md — F11/D-260: a suspended host's `/host/earnings` names the frozen session (wave 1)
 - [ ] 18.1-04-PLAN.md — Didit credentials, the port widened for an async provider, `updatedAt` · **[BLOCKING] Didit Console checkpoint** (wave 1)
 - [ ] 18.1-03-PLAN.md — D-231: title + description become material fields (wave 2)
 - [ ] 18.1-05-PLAN.md — The Didit adapter behind the port; manual retained, `migration` still unregistered (wave 2)
@@ -368,7 +368,7 @@ Plans:
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified** `passed_with_concerns` — 17/17 requirements, 0 code-level blockers; **PM checkpoint ANSWERED 2026-09-01 (all 5); checkbox held until 18.1 ships the code** | verified 2026-09-01 |
-| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 1/14 | In Progress — 18.1-01 shipped the requirement ledger (HVER-06..08, LVER-05, OPS-06) and D-236; 13 plans remain across waves 1-7 | — |
+| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 2/14 | In Progress|  |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
