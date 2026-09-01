@@ -76,7 +76,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 
 ### ENF — Enforcement
 
-- [ ] **ENF-01** — Ops can suspend a host or pull a listing and choose **per case**: block new
+- [x] **ENF-01** — Ops can suspend a host or pull a listing and choose **per case**: block new
       bookings only, or additionally cancel-and-refund what is already sold. *(SC5 · D-233)*
 - [x] **ENF-02** — A suspended host's pending payouts **freeze**, and no payout leaves for a host
       under suspension. A frozen row does not read as a stuck row to the reconciler and does not page
@@ -107,7 +107,7 @@ The PM's four pre-planning answers live in the sibling `18-PM-DECISIONS.md`.
 | LVER-02 | Phase 18 · 18-04 (hidden-from-bookers half) | Pending |
 | LVER-03 | Phase 18 · 18-06 | Complete |
 | LVER-04 | Phase 18 · 18-02 | Complete |
-| ENF-01 | Phase 18 · 18-05 (default lever) + 18-07 (freeze) + 18-08 (escalation) | Partial (both LEVERS now exist and the D-233 default is enforced server-side — an omitted `lever` parses to block-new-only and cancels nothing. What remains is the CONSOLE that lets ops choose per case: the reject dialog's `RadioGroup` and the impact block, 18-10) |
+| ENF-01 | Phase 18 · 18-05 (default lever) + 18-07 (freeze) + 18-08 (escalation) + 18-10 (the per-case choice) | **Satisfied** (18-10 ships the console half: the reject dialog's `RadioGroup`, rendered only when there is something to cancel, defaulting to the lighter lever on EVERY mount and remembering nothing; the always-rendered impact block, so choosing reveals nothing and the operator reads the money BEFORE deciding; and a confirm whose accessible NAME carries the booking count in alarm ink rather than a solid fill. Reaching the escalation takes three deliberate acts and no control on the queue row can reach it at all — mutation-proved by making the heavier lever the default and watching 5 cases go red. The server still re-asserts the choice: an omitted `lever` parses to block-new-only and cancels nothing. Reachability is 18-12's `/ops` route) |
 | ENF-02 | Phase 18 · 18-07 | Complete |
 | ENF-03 | Phase 18 · 18-08 | Complete |
 
