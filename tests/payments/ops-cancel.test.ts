@@ -16,9 +16,10 @@
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // THE SEVEN CLAIMS
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-//   C1. THE REFUND BASIS, UNDER BOTH VALUES OF THE POLICY CONSTANT (D-209 / D-236). Shipped (`false`):
-//       the booker gets the SPACE PRICE and FitOut retains the D-74 service fee. Flipped (`true`): the
-//       booker gets the whole charged total. Case (2) is what makes "flipping it is one line" a
+//   C1. THE REFUND BASIS, UNDER BOTH VALUES OF THE POLICY CONSTANT (D-209 / D-236). Shipped (`true`,
+//       settled by the PM on 2026-09-01): the booker gets the WHOLE CHARGED TOTAL and FitOut retains
+//       nothing. Flipped (`false`, the superseded D-209 basis): the booker gets the SPACE PRICE and
+//       FitOut retains the D-74 service fee. Case (2) is what makes "flipping it is one line" a
 //       MEASURED claim rather than a promise — the PM has to be able to re-decide this cheaply.
 //
 //   C2. NO CANCELLATION-FEE DEBIT IS WRITTEN (D-235) — an ABSENCE, not a zero. Case (4), and it is
@@ -241,8 +242,8 @@ async function trailRows(action: string, outcome: "ok" | "denied" | "needs_atten
 }
 
 /**
- * Re-import the action with `OPS_CANCEL_REFUNDS_SERVICE_FEE` flipped to `true`, run one call against
- * it, and put the module registry back.
+ * Re-import the action with `OPS_CANCEL_REFUNDS_SERVICE_FEE` flipped to `false` — i.e. AWAY from the
+ * shipped value — run one call against it, and put the module registry back.
  *
  * THIS IS WHAT MAKES "ONE LINE FLIPS IT" MEASURED. The constant is a literal in a module that both the
  * action and the console's impact read import, so the ONLY thing this helper changes is that literal —
@@ -252,7 +253,7 @@ async function withFlippedConstant<T>(fn: (mod: CancelActions) => Promise<T>): P
   vi.doMock("@/lib/payments/fees", async () => {
     const actual =
       await vi.importActual<typeof import("@/lib/payments/fees")>("@/lib/payments/fees");
-    return { ...actual, OPS_CANCEL_REFUNDS_SERVICE_FEE: true };
+    return { ...actual, OPS_CANCEL_REFUNDS_SERVICE_FEE: false };
   });
   vi.resetModules();
   try {
@@ -371,13 +372,13 @@ beforeEach(async () => {
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("ENF-03 / D-209 — what an ops-forced cancellation refunds", () => {
-  it("case 1 — SHIPPED (constant false): the booker gets the SPACE PRICE and FitOut retains the D-74 service fee", async () => {
+  it("case 1 — SHIPPED (constant true): the booker gets the WHOLE CHARGED TOTAL and FitOut retains nothing", async () => {
     // The constant this case is written against. If somebody flips it in `fees.ts`, this assertion
     // fails FIRST and names the reason, rather than cases 1 and 2 mysteriously swapping results.
     expect(
       OPS_CANCEL_REFUNDS_SERVICE_FEE,
-      "case 1 asserts the SHIPPED (false) basis — swap cases 1 and 2 if D-236 is re-decided",
-    ).toBe(false);
+      "case 1 asserts the SHIPPED (true) basis — swap cases 1 and 2 if D-236 is re-decided",
+    ).toBe(true);
 
     const l = await seedListing("oc_l_basis");
     await seedBooking("oc_b_basis", l, 3 * HOUR);
@@ -389,20 +390,22 @@ describe("ENF-03 / D-209 — what an ops-forced cancellation refunds", () => {
       reason: REASON,
     });
 
-    expect(res).toEqual({ ok: true, refundCents: HOURLY });
+    expect(res).toEqual({ ok: true, refundCents: TOTAL });
 
-    // EXPLICIT CENTAVOS, off the frozen row. ₱1,000 back, ₱50 retained out of ₱1,050 charged.
+    // EXPLICIT CENTAVOS, off the frozen row. ₱1,050 back, ₱0 retained out of ₱1,050 charged — the
+    // D-74 service fee comes back too, which is what the host-cancel precedent at
+    // cancel-booking.ts:1134-1137 already does and what the PM settled D-236 on, 2026-09-01.
     const row = await readRow("oc_b_basis");
-    expect(row.refundCents).toBe(100000);
-    expect(TOTAL - row.refundCents!).toBe(5000);
+    expect(row.refundCents).toBe(105000);
+    expect(TOTAL - row.refundCents!).toBe(0);
 
     // …and the same figure is what was DISPATCHED. The written amount and the moved amount are one
     // number, which is the whole promise the money path makes.
     expect(mockPayMongo.createRefund).toHaveBeenCalledTimes(1);
-    expect(mockPayMongo.createRefund.mock.calls[0][0]).toMatchObject({ amountCents: 100000 });
+    expect(mockPayMongo.createRefund.mock.calls[0][0]).toMatchObject({ amountCents: 105000 });
   });
 
-  it("case 2 — FLIPPED (constant true): the same shape of booking refunds the whole charged total, and nothing else changes", async () => {
+  it("case 2 — FLIPPED (constant false): the same shape of booking refunds only the SPACE PRICE, and nothing else changes", async () => {
     const l = await seedListing("oc_l_flip");
     await seedBooking("oc_b_flip", l, 3 * HOUR);
 
@@ -415,13 +418,13 @@ describe("ENF-03 / D-209 — what an ops-forced cancellation refunds", () => {
       }),
     );
 
-    // ₱1,050, not ₱1,000 — the D-74 service fee comes back too, which is what the host-cancel
-    // precedent at cancel-booking.ts:1134-1137 already does and what D-236 leaves the PM to settle.
-    expect(res).toEqual({ ok: true, refundCents: TOTAL });
+    // ₱1,000, not ₱1,050 — the pre-D-236 basis, where FitOut retained the D-74 service fee out of
+    // what the booker actually paid. Kept exercised so re-deciding D-236 back stays one line.
+    expect(res).toEqual({ ok: true, refundCents: HOURLY });
     const row = await readRow("oc_b_flip");
-    expect(row.refundCents).toBe(105000);
-    expect(TOTAL - row.refundCents!).toBe(0);
-    expect(mockPayMongo.createRefund.mock.calls[0][0]).toMatchObject({ amountCents: 105000 });
+    expect(row.refundCents).toBe(100000);
+    expect(TOTAL - row.refundCents!).toBe(5000);
+    expect(mockPayMongo.createRefund.mock.calls[0][0]).toMatchObject({ amountCents: 100000 });
 
     // EVERY OTHER CONSEQUENCE IS UNCHANGED BY THE FLIP. The constant decides one number and nothing
     // else — which is the property that makes flipping it a one-line change rather than a project.
@@ -438,8 +441,8 @@ describe("ENF-03 / D-209 — what an ops-forced cancellation refunds", () => {
     // Two bookings, so the aggregate is a real sum rather than a single row wearing one.
     const shipped = await loadOpsCancelImpact(testDb.db, l);
     expect(shipped.cancellableCount).toBe(2);
-    expect(shipped.refundTotal).toBe(formatMoney(2 * HOURLY, "php"));
-    expect(shipped.retainedTotal).toBe(formatMoney(2 * SERVICE_FEE, "php"));
+    expect(shipped.refundTotal).toBe(formatMoney(2 * TOTAL, "php"));
+    expect(shipped.retainedTotal).toBe(formatMoney(0, "php"));
     expect(shipped.hostPaid).toBe("Nothing");
     expect(shipped.notCancellableCount).toBe(0);
 
@@ -449,8 +452,8 @@ describe("ENF-03 / D-209 — what an ops-forced cancellation refunds", () => {
       const mod = (await import("@/lib/ops/cancel-impact")) as ImpactModule;
       return mod.loadOpsCancelImpact(testDb.db, l);
     });
-    expect(flipped.refundTotal).toBe(formatMoney(2 * TOTAL, "php"));
-    expect(flipped.retainedTotal).toBe(formatMoney(0, "php"));
+    expect(flipped.refundTotal).toBe(formatMoney(2 * HOURLY, "php"));
+    expect(flipped.retainedTotal).toBe(formatMoney(2 * SERVICE_FEE, "php"));
   });
 });
 
@@ -600,7 +603,9 @@ describe("D-241 — the replacement guard: reach a started session, refuse a pai
       reason: REASON,
     });
 
-    expect(res).toEqual({ ok: true, refundCents: HOURLY });
+    // The shipped D-236 basis — the whole charged total, same as case 1. This case is about the
+    // WINDOW GUARD, not the basis, but it reads the basis as a consequence, so it moves with it.
+    expect(res).toEqual({ ok: true, refundCents: TOTAL });
     expect((await readRow("oc_b_started")).cancelledBy).toBe("ops");
   });
 
@@ -671,8 +676,8 @@ describe("D-241 — the replacement guard: reach a started session, refuse a pai
     expect(impact.notCancellableReason).toBe("their payout has already left FitOut");
     // The money figures cover the CANCELLABLE set only — the paid-out booking's ₱1,050 is not money
     // that would go back, and counting it would over-state the refund the operator is authorising.
-    expect(impact.refundTotal).toBe(formatMoney(2 * HOURLY, "php"));
-    expect(impact.retainedTotal).toBe(formatMoney(2 * SERVICE_FEE, "php"));
+    expect(impact.refundTotal).toBe(formatMoney(2 * TOTAL, "php"));
+    expect(impact.retainedTotal).toBe(formatMoney(0, "php"));
     expect(impact.hostPaid).toBe("Nothing");
     // Every money field is a FINISHED STRING — the console performs no arithmetic (D-130 / GATE-05).
     expect(typeof impact.refundTotal).toBe("string");
@@ -770,7 +775,9 @@ describe("OPS-03 / D-215 / D-218 — the audit trail is the control", () => {
     // Findable BY HOST — an enforcement action against a fraudulent host is queried that way.
     expect(meta.hostId).toBe(hostId);
     expect(meta.listingId).toBe(l);
-    expect(meta.refundCents).toBe(HOURLY);
+    // The AMOUNT ON THE TRAIL ROW is the shipped D-236 basis, so the audit record and the money that
+    // moved are the same number. Consequential on the constant; moves with it.
+    expect(meta.refundCents).toBe(TOTAL);
 
     // The verb is DISTINCT: the host path's rows must not absorb FitOut's own decisions.
     const hostVerb = await trailRows("host_cancel_booking", "ok");
