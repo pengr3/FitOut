@@ -260,6 +260,12 @@ beforeAll(async () => {
     },
   }));
   vi.doMock("@/lib/rate-limit", () => ({ rateLimit: fakeRateLimit }));
+  // ⚠ ADDED WITH PLAN 18-12's `revalidatePath("/ops")`. The five actions now invalidate the console
+  // route they feed; outside a Next request there is no cache store to invalidate, so the real
+  // function throws `Invariant: static generation store missing` and all ten cases in this file fail
+  // on the CACHE rather than on the notification row they are measuring. The shipped idiom
+  // (tests/payments/ops-cancel.test.ts:331) is a no-op stub.
+  vi.doMock("next/cache", () => ({ revalidatePath: () => {} }));
   vi.resetModules();
 
   ({ approveHost, rejectHost, suspendHost, approveListing, rejectListing } = await import(
@@ -275,6 +281,7 @@ afterAll(async () => {
   vi.doUnmock("@/lib/db");
   vi.doUnmock("next/navigation");
   vi.doUnmock("@/lib/rate-limit");
+  vi.doUnmock("next/cache");
   await teardownTestDb(testDb);
 });
 
