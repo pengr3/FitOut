@@ -292,3 +292,7 @@ No new endpoint, no new auth path, no schema change, and **no package was instal
 | `3b3e810` | `feat(18-10): the reject dialog — bounded reason, always-visible money, a label that names the number` |
 | `90e1c75` | `feat(18-10): the decision controls and the one named refusal region` |
 | `4b1476b` | `feat(18-10): the queue row — terminal, one tree, everything on the same screen` |
+
+## Self-Check: PASSED
+
+All ten created/modified files verified present on disk; all four commits (`3b3e810`, `90e1c75`, `4b1476b`, `27e1e27`) verified in `git log`; working tree clean.
