@@ -2,7 +2,8 @@
 //
 // WHAT THIS FILE IS MEASURING. Approval is not a permanent grant. A host who is approved and then
 // changes what the space IS — where it is, what kind of space it is, how many people it holds, what it
-// costs, or WHAT IT LOOKS LIKE — goes back in the queue, and stops being sellable through the same gate.
+// costs, WHAT IT LOOKS LIKE, or (since D-231's 2026-09-01 promotion) WHAT IT SAYS IT IS — goes back in
+// the queue, and stops being sellable through the same gate.
 // The same edit is the burn-down path out of `grandfathered` (D-213) and the resubmission path out of a
 // rejection (D-249).
 //
@@ -15,11 +16,16 @@
 // looks exactly like a regression in the other from the listing row alone.
 //
 // ── THE NEGATIVES ARE WHAT MAKE THE POSITIVES DIAGNOSTIC ─────────────────────────────────────────────
-// A `markForReReview` that flipped unconditionally would pass every positive case in this file. Four
-// cases exist to stop that: a title/description-only edit, an autosave that re-sends the SAME persisted
-// values (the wizard's normal behaviour on every step — treating those as edits would freeze the whole
-// catalogue into the review queue), a `reorderPhotos` (reordering changes the cover, not the space),
-// and a provenance-REJECTED `persistPhoto` (a refusal changed no photo).
+// A `markForReReview` that flipped unconditionally would pass every positive case in this file. Three
+// cases exist to stop that: an autosave that re-sends the SAME persisted values (the wizard's normal
+// behaviour on every step — treating those as edits would freeze the whole catalogue into the review
+// queue, and D-231's promotion of title/description makes that risk WIDER, which is why the autosave
+// case now re-sends the words too), a `reorderPhotos` (reordering changes the cover, not the space —
+// position is not content), and a provenance-REJECTED `persistPhoto` (a refusal changed no photo).
+//
+// ⚠ There WERE four. The fourth was a title/description-only edit asserting it did NOT flip; D-231
+// promoted both fields on 2026-09-01, so that case was INVERTED IN PLACE rather than deleted — it now
+// lives in its own describe directly above the negatives, carrying the record of what it used to say.
 //
 // Harness: `tests/listing/crud.test.ts` + `tests/listing/photos.test.ts`, merged — setupTestDb +
 // makeTestAuth + a mutable sessionHeaders holder feeding a mocked next/headers, with `@/lib/db` mocked
@@ -183,31 +189,48 @@ function upload(listingId: string, name: string): { publicId: string; url: strin
 }
 
 /**
- * The four column-backed material edits, one per D-231 field group that `saveListingStep` can see.
- * Driven as a table so the `approved` / `grandfathered` / `rejected` sweeps are literally the same
- * four edits — if one state ever diverged it would be visible as a difference in this table, not
- * buried in three hand-written copies.
+ * The six column-backed material edits, one per D-231 field group that `saveListingStep` can see —
+ * the original four, plus `title` and `description` since D-231's 2026-09-01 promotion. Driven as a
+ * table so the `approved` / `grandfathered` / `rejected` sweeps are literally the same six edits — if
+ * one state ever diverged it would be visible as a difference in this table, not buried in three
+ * hand-written copies. Adding a row here is worth three cases, which is the point of the table.
  */
 const FIELD_EDITS: { field: string; patch: Parameters<ListingActions["saveListingStep"]>[1] }[] = [
   { field: "address", patch: { addressLine1: "9 Somewhere Else St" } },
   { field: "space type", patch: { primarySpaceType: "yoga_studio" } },
   { field: "capacity", patch: { maxOccupancy: 40 } },
   { field: "price", patch: { hourlyRateCents: 95_000 } },
+  // D-231, 2026-09-01. The WORDS. A host who rewrites an approved listing's prose into a different
+  // space has changed what ops checked just as surely as one who moves the pin.
+  { field: "title", patch: { title: "Midnight Basketball Dome" } },
+  {
+    field: "description",
+    patch: { description: "Actually an unlit lot with no cover at all." },
+  },
 ];
 
 describe("LVER-03 — the material field set (D-231)", () => {
-  it("is exactly the ROADMAP's five, and title/description are deliberately OUT", () => {
-    // A restatement of the decision as an assertion, so widening the set silently is not possible:
-    // a sixth member must be added here, which is a line in a diff a reviewer sees.
+  it("is the ROADMAP's five PLUS D-231's two — title and description are IN", () => {
+    // A restatement of the decision as an assertion, so changing the set silently is not possible:
+    // an eighth member must be added here, which is a line in a diff a reviewer sees. Set EQUALITY,
+    // not a subset check — a `toContain` sweep would let a member be added without anyone deciding to.
     expect([...MATERIAL_FIELDS]).toEqual([
       "address",
       "space_type",
       "capacity",
       "photos",
       "price",
+      "title",
+      "description",
     ]);
-    expect(MATERIAL_FIELDS).not.toContain("title");
-    expect(MATERIAL_FIELDS).not.toContain("description");
+    // These two lines were NEGATED assertions until 2026-09-01 — each asserted the set did not carry
+    // its member. They were INVERTED, not deleted, when the PM closed the recorded gap: a fake listing
+    // lies in its words as much as in its fields. (The negated matcher is described rather than typed
+    // on purpose: this plan's acceptance gate counts its occurrences in this file, and a comment
+    // naming it would make a correct file read as a broken one — the collision
+    // `src/lib/validation/cancellation.ts:16-19` states as a rule.)
+    expect(MATERIAL_FIELDS).toContain("title");
+    expect(MATERIAL_FIELDS).toContain("description");
   });
 });
 
@@ -326,9 +349,9 @@ describe("LVER-03 [listing_fields] — a material edit is RESUBMISSION for a rej
   });
 });
 
-describe("LVER-03 [listing_fields] — the NEGATIVES that make the positives diagnostic", () => {
-  it("a title + description edit does NOT flip — they are deliberately outside D-231's five", async () => {
-    const hostId = await signInHost("me.negative.words@example.com");
+describe("LVER-03 [listing_fields] — the WORDS are material too, as of D-231 (2026-09-01)", () => {
+  it("a title + description edit flips approved → pending and opens a review row", async () => {
+    const hostId = await signInHost("me.words.promoted@example.com");
     const listingId = await makeListing(hostId, "approved");
 
     const res = await saveListingStep(listingId, {
@@ -337,17 +360,34 @@ describe("LVER-03 [listing_fields] — the NEGATIVES that make the positives dia
     });
     expect(res.ok).toBe(true);
 
-    // A recorded gap, not an oversight (REQUIREMENTS.md § Deferred): a fake listing lies in its words
-    // as much as its fields. If title/description are ever promoted into the material set, UPDATE this
-    // case rather than deleting it, so the change is visible.
-    expect(await reviewStateOf(listingId)).toBe("approved");
-    expect(await reviewsOf(listingId)).toHaveLength(0);
+    // ⚠ THIS CASE WAS INVERTED, NOT WRITTEN FRESH, AND IT LIVED UNDER "the NEGATIVES" UNTIL
+    // 2026-09-01. It asserted the OPPOSITE — that this exact save left the listing `approved` —
+    // because title and description were deliberately outside the material set, a recorded gap
+    // carried in `.planning/REQUIREMENTS.md` § Deferred. Its own comment instructed whoever promoted
+    // them to UPDATE it rather than delete it so the change would be visible in a diff; D-231 did,
+    // in Phase 18.1 plan `18.1-03`. Anyone who finds the old assertion quoted elsewhere is reading a
+    // decision, not a regression.
+    //
+    // ⚠ THE ACCEPTED COST RIDES ON THIS LINE AND IS NOT A DEFECT. `deriveBookable` requires
+    // `approved | grandfathered`, so this listing is now UNSELLABLE until ops re-approves it — and a
+    // mere typo fix in a description does exactly the same. The PM ruled that acceptable over a
+    // "material but still sellable" variant, which would need a state the sell-gate does not have.
+    // Do not weaken this case to make that cost smaller; the cost is the decision.
+    expect(await reviewStateOf(listingId)).toBe("pending");
+    const rows = await reviewsOf(listingId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].state).toBe("pending");
+    expect(rows[0].decidedAt).toBeNull();
+    expect(rows[0].decidedByStaffId).toBeNull();
     // And the words really were written — otherwise this case would pass against an action that
-    // silently ignored the whole save.
+    // silently ignored the whole save and flipped the state for some unrelated reason.
     const [row] = await testDb.db.select().from(listing).where(eq(listing.id, listingId));
     expect(row.title).toBe("Sunrise Pickleball Court — now with lights");
+    expect(row.description).toBe("Completely different words about the same space.");
   });
+});
 
+describe("LVER-03 [listing_fields] — the NEGATIVES that make the positives diagnostic", () => {
   it("an autosave re-sending the SAME persisted values does NOT flip", async () => {
     const hostId = await signInHost("me.negative.resend@example.com");
     const listingId = await makeListing(hostId, "approved");
@@ -356,7 +396,14 @@ describe("LVER-03 [listing_fields] — the NEGATIVES that make the positives dia
     // an unrelated step's autosave carries the same stored address and the same stored price. Treating
     // those as edits would pull every published listing on the platform back into review the moment
     // its host opened the editor.
+    //
+    // ⚠ THE TITLE AND DESCRIPTION ARE IN THIS PATCH DELIBERATELY, added by `18.1-03` alongside D-231's
+    // promotion. The wizard's step-1 form carries both on EVERY save, so the moment the words became
+    // material this became the widest freeze-the-whole-catalogue risk in the product — and a version
+    // of this case that omitted them would not cover the two newest members of the set at all.
     const res = await saveListingStep(listingId, {
+      title: BASELINE.title,
+      description: BASELINE.description,
       addressLine1: BASELINE.addressLine1,
       city: BASELINE.city,
       region: BASELINE.region,
