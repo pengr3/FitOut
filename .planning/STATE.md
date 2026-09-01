@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: verified_awaiting_pm_checkpoint
-stopped_at: "PHASE 18 COMPLETE AND VERIFIED — 14/14 plans, 17/17 requirements, verifier `passed_with_concerns` with 0 code-level blockers (18-VERIFICATION.md). Gates re-run BY THE VERIFIER, each alone: tsc 0, npm test 207 files/2485 passed/5 skipped, test:design 73/1331/3, build exit 0. The ROADMAP phase checkbox is deliberately NOT ticked and completed_phases is deliberately NOT bumped: GSD Complete requires VERIFICATION status `passed`, and 18-14 Task 3 is a BLOCKING PM checkpoint that is still OPEN. FOUR DECISIONS ARE OWED BY THE PM, D-236 leading (ops-cancel retains the service fee, against cancelBookingAsHost s shipped precedent; flip is one line at src/lib/payments/fees.ts:82 and both values are already exercised by tests). Then: D-250 SUPPORT_EMAIL (also closes STATE-05/TRUST-01) and the D-231 photo-reorder reading. ✅ THE KYC VENDOR CHOICE IS SETTLED (2026-09-01): **Didit**, manual stays as an ops override, and counsel reviews the BSP assumption BEFORE the vendor plan opens (PM-F/G/H, recorded in 18-KYC-VENDOR-COMPARISON.md § DECIDED). The doc's own 'stay manual now' recommendation was REVERSED the day it was written, because the PM's PM-C ruling (gate listing creation on verification) turns manual from harmless into friction-that-checks-nothing. THREE decisions remain, D-236 still leading. After those land: tick the phase, then /gsd-new-milestone for v1.2."
+stopped_at: "PHASE 18 COMPLETE AND VERIFIED — 14/14 plans, 17/17 requirements, verifier `passed_with_concerns` with 0 code-level blockers (18-VERIFICATION.md). Gates re-run BY THE VERIFIER, each alone: tsc 0, npm test 207 files/2485 passed/5 skipped, test:design 73/1331/3, build exit 0. The ROADMAP phase checkbox is deliberately NOT ticked and completed_phases is deliberately NOT bumped: GSD Complete requires VERIFICATION status `passed`, and 18-14 Task 3 is a BLOCKING PM checkpoint that is still OPEN. FOUR DECISIONS ARE OWED BY THE PM, D-236 leading (ops-cancel retains the service fee, against cancelBookingAsHost s shipped precedent; flip is one line at src/lib/payments/fees.ts:82 and both values are already exercised by tests). ✅ ALL FIVE ARE NOW SETTLED (2026-09-01): D-236 FLIPPED to true (full-charge refund; the PM accepted the cancel-booking.ts:1134-1137 precedent), D-250 LEAVE NULL (no monitored inbox exists — STATE-05/TRUST-01 stay carried), F11 YES name the frozen session on /host/earnings (but NOT what unfreezes it — 18-13's refusal stands), D-231 ADD title+description as material and KEEP reorder excluded (accepted cost: a typo fix takes the listing off-market until re-approved), and the KYC vendor: **Didit**, manual stays as an ops override, and counsel reviews the BSP assumption BEFORE the vendor plan opens (PM-F/G/H, recorded in 18-KYC-VENDOR-COMPARISON.md § DECIDED). The doc's own 'stay manual now' recommendation was REVERSED the day it was written, because the PM's PM-C ruling (gate listing creation on verification) turns manual from harmless into friction-that-checks-nothing. NO DECISIONS REMAIN. Three of the five need CODE that is not yet written — tracked in .planning/todos/pending/2026-09-01-phase-18-pm-decision-follow-through.md. ⚠ CORRECTION recorded there and in 18-14-SUMMARY: D-236's advertised "one line" is right about production (fees.ts:82) and WRONG about the test — case 1 asserts the constant is literally false, withFlippedConstant hard-codes the mock to true, and case 3's two expectation sets swap. After those three land: tick the phase, then /gsd-new-milestone for v1.2."
 last_updated: "2026-09-01T08:05:00.000Z"
 last_activity: 2026-09-01 — Phase 18 executed end to end (14 plans, 8 waves, 51 commits) and VERIFIED. 17/17 requirements. Four PM decisions open.
 progress:
@@ -1230,8 +1230,8 @@ Recent decisions affecting current work:
 
 [From .planning/todos/pending/ — ideas captured during sessions]
 
-**3 pending, all captured 2026-09-01 from the PM's post-Phase-18 walkthrough of `/ops` and the host
-path. Each carries its PM decisions already ANSWERED (marked PM-A … PM-E) — record them as D-numbers
+**4 pending. Three captured 2026-09-01 from the PM's post-Phase-18 walkthrough of `/ops` and the host
+path, plus one carrying the code owed by the now-answered Phase-18 checkpoint. Each carries its PM decisions already ANSWERED (marked PM-A … PM-E) — record them as D-numbers
 at discuss time; do not re-ask them.**
 
 - **`2026-09-01-ops-staff-management-surface-and-invite-flow.md`** (area `ops`) — there is no ops
@@ -1251,6 +1251,12 @@ at discuss time; do not re-ask them.**
   the vendor plan opens**. ⚠ Sequencing (SWE ruling): submission path NOW → counsel → Didit → THEN
   flip the listing-creation gate on. Landing the gate while the only provider is a rubber stamp ships
   friction that checks nothing.
+- **`2026-09-01-phase-18-pm-decision-follow-through.md`** (area `general`) — the CODE owed by the five
+  now-answered Phase-18 checkpoint decisions: **D-236** flip `OPS_CANCEL_REFUNDS_SERVICE_FEE` to
+  `true`, **D-231** add `title` + `description` as material fields (reorder stays excluded), **F11**
+  name the frozen session on `/host/earnings` (without promising a review). ⚠ Carries the correction
+  that D-236's advertised "one line" is wrong about the test half. **Phase 18's checkbox stays unticked
+  until these three land.**
 - **`2026-09-01-reveal-host-contact-details-in-ops-queue.md`** (area `ops`) — `/ops` shows no host
   email and no phone, so ops cannot reach a host about their listing. PM ruled **reveal-on-click with
   an audit row per reveal** (ids only in `audit.meta`, never the address itself — D-72).
@@ -1750,5 +1756,9 @@ Resume file: None
   record is a published list price (free to 500 checks/month, then $0.33); **PH rates are quote-only at
   every vendor found**; Didit does not name the Philippines in its coverage; and
   `18-KYC-VENDOR-COMPARISON.md`'s figures **expire 2026-09-15**.
-- Three Phase-18 PM decisions still open (**D-236 leading**), then tick the phase checkbox.
+- ✅ **All five Phase-18 PM checkpoint decisions are ANSWERED (2026-09-01).** Three need code:
+  **D-236** flip to `true`, **D-231** add title+description as material fields, **F11** name the frozen
+  session on `/host/earnings`. Tracked in
+  `.planning/todos/pending/2026-09-01-phase-18-pm-decision-follow-through.md`. **Tick the Phase 18
+  checkbox and bump `completed_phases` only after those three land.**
 - Start the next milestone with /gsd-new-milestone

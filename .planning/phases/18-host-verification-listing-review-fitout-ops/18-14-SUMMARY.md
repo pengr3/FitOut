@@ -221,18 +221,42 @@ delete meets the same wall. Written into the schema site.
 
 ## ⚠ CARRIED ITEMS — for the PM. Surfaced, not solved.
 
-### The five checkpoint decisions — all OPEN, deferred 2026-09-01
+### The five checkpoint decisions — ✅ ALL FIVE ANSWERED BY THE PM, 2026-09-01
 
-The plan's Task 3 is a **blocking `checkpoint:human-verify`** and `workflow.auto_advance` is `false`.
-No item below was answered by this executor. Each is recorded as an **explicit dated deferral**.
+The plan's Task 3 was a **blocking `checkpoint:human-verify`**. It was deferred by the executor on
+2026-09-01 and **answered by the PM the same day**, in the session that followed. Recorded here as the
+canonical answers; the implementation of (a), (c) and (d) is follow-on work, tracked in
+`.planning/todos/pending/2026-09-01-phase-18-pm-decision-follow-through.md`.
 
-| # | Item | Status | The one line that closes it |
+| # | Item | Answer | What it costs |
 |---|---|---|---|
-| **a** | **D-236** — ops-cancel refund (see the top of this file) | **OPEN — deferred 2026-09-01** | `src/lib/payments/fees.ts:82`, `false` → `true`. Both branches already tested. |
-| **b** | **D-250** — `SUPPORT_EMAIL` is `null` | **OPEN — deferred 2026-09-01** | `src/lib/site.ts:70`. See below. |
-| **c** | **F11 gap** — is a suspended host told their payouts are frozen? | **OPEN — deferred 2026-09-01** | Product decision. D-252 already tells them on `/host/earnings`; what is missing is naming the *due session that will never pay*. |
-| **d** | **A4 / D-231 "photos"** — read as the photo SET; reorder excluded | **OPEN — deferred 2026-09-01** | Confirm or overturn. Cheap either way. |
-| **e** | **The KYC vendor** — PayMongo / a vendor / stay manual | **OPEN — deferred 2026-09-01** | Answer to be recorded as a D-number so the next phase inherits it. |
+| **a** | **D-236** — ops-cancel refund (see the top of this file) | ✅ **FLIPPED — refund the full charge.** `OPS_CANCEL_REFUNDS_SERVICE_FEE = true`. The booker gets ₱1,050 back, FitOut absorbs the ₱50 gateway cost, the host is still paid nothing. The PM accepted the `cancel-booking.ts:1134-1137` precedent argument: a defrauded booker is a strictly stronger instance of *"the booker did nothing wrong"* than an inconvenienced one. | ⚠ **More than one line — see the correction below.** |
+| **b** | **D-250** — `SUPPORT_EMAIL` is `null` | ✅ **LEAVE IT NULL.** No monitored FitOut inbox exists yet, and D-64 forbids a placeholder. Every surface already stands without one. **`STATE-05` and `TRUST-01` stay open and carried forward** — the blocker is the inbox, not the code line. | Nothing. No change. |
+| **c** | **F11 gap** — is a suspended host told their payouts are frozen? | ✅ **YES — name the frozen session** on `/host/earnings`. Not merely "hosting is paused" (which D-252 already says) but *which* due session is on hold and why. Follows this project's own rule that a signal names the state, the reason and the way out. ⚠ The PM did **not** choose the variant that names what unfreezes it — 18-13's refusal to promise a forthcoming review **stands**. | One surface change. |
+| **d** | **A4 / D-231 "photos"** — read as the photo SET; reorder excluded | ✅ **ADD `title` AND `description` as material fields. KEEP reorder excluded.** Closes the largest remaining SC-4 hole — the words are what a booker actually reads. Reorder stays out on its own argument: every photo in the set was already reviewed, so a reorder can only promote an already-approved image. | ⚠ Real cost, accepted: **a typo fix in a description now takes the listing off the market until ops re-approves it.** The PM chose this over the "material but still sellable" variant, which would have needed a new state the sell-gate does not have. |
+| **e** | **The KYC vendor** — PayMongo / a vendor / stay manual | ✅ **DIDIT** (PM-F), manual stays as an ops override (PM-G), **counsel reviews the BSP assumption before the vendor plan opens** (PM-H). Full reasoning in `18-KYC-VENDOR-COMPARISON.md` § ✅ DECIDED, including why the doc's own "stay manual now" recommendation was reversed on the day it was written. | One plan, gated on counsel. |
+
+### ⚠ CORRECTION — D-236 is NOT a one-line change, and this document said it was
+
+This file, `18-08-SUMMARY.md` and `18-14-PLAN.md`'s acceptance criteria all state that flipping D-236
+costs exactly one line in `src/lib/payments/fees.ts` because the test already covers both branches.
+**That was checked against the source when the answer landed, and it is wrong in the test half.** The
+production change is genuinely one line; the test is not:
+
+- `tests/payments/ops-cancel.test.ts` **case 1** asserts `OPS_CANCEL_REFUNDS_SERVICE_FEE` is literally
+  `false` and then asserts the real action refunds `100000`. It fails on the flip **by design** — it
+  carries the message *"swap cases 1 and 2 if D-236 is re-decided"*, so it fails loudly and names the
+  reason rather than mysteriously inverting.
+- The `withFlippedConstant` helper hard-codes the mock to `true`. After the flip it must mock `false`
+  to keep exercising the other branch.
+- **Case 3** reads the real constant for its `shipped` figures and the mock for its `flipped` ones;
+  both expectation sets swap.
+- The `fees.ts` docblock above the constant argues at length that `false` is what ships and that the
+  conflict is unsettled. It must be rewritten to record the PM's ruling, or it becomes a comment that
+  contradicts the line beneath it.
+
+Nothing in `cancel-booking.ts` is touched, so the *architectural* claim the constant was built to make
+still holds. The estimate was optimistic about the test, not about the design.
 
 ### D-250 / `SUPPORT_EMAIL` — one line, three things
 
