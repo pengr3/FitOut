@@ -21,7 +21,7 @@ settled rather than pending. Record as D-numbers at discuss time.
 |---|---|
 | **PM-F — the vendor** | **Didit.** Option A (PayMongo) rejected on the D-225 re-coupling argument and on two negative probes two months apart. Option C (stay manual) rejected as an END STATE — see the reversal below. |
 | **PM-G — the manual provider** | **Stays registered behind the port as an ops override.** Ops may still decide a host by hand — an edge-case document, a vendor outage, an appeal. Those rows already record `provider='manual'` plus an authenticated `actorId`, so the audit trail shows exactly which decisions bypassed the machine. Not retired, not tiered (D-215 stands: one staff role). |
-| **PM-H — the counsel gate** | **Counsel reviews the BSP assumption BEFORE the Didit plan opens.** The PM chose "get counsel first, then wire" over proceeding in parallel. This is now a real blocker on the vendor work, and it is a PM action, not an engineering one. |
+| **PM-H — the counsel gate** | **Counsel reviews the BSP assumption BEFORE the Didit plan opens.** The PM chose "get counsel first, then wire" over proceeding in parallel. ⚠ **DESK RESEARCH DONE 2026-09-01 — see `18-REGULATORY-BRIEF.md`. The assumption HOLDS (BSP Circular 1170 binds BSP-supervised institutions; FitOut is not one, and is not an AMLA covered person either) but the conclusion drawn from it does NOT: the Internet Transactions Act of 2023 (RA 11967, fully enforced since 20 June 2025) imposes a direct merchant-identity duty on online platforms. Verification is a statutory obligation, not a product choice. Counsel still owed — with five sharper questions than the one PM-H asked.** |
 
 ## ⚠ Why "stay manual now" was reversed on the day it was written
 
@@ -63,6 +63,35 @@ cannot all land at once, so the order is:
 5. **Then flip PM-C's gate on**, with the host-facing copy describing the check that actually runs.
 
 If counsel comes back fast, steps 3–5 collapse into the same phase and this ordering costs nothing.
+
+## ⚠ The regulatory picture changed after this document was written — and it STRENGTHENS Didit
+
+Desk research on 2026-09-01 (`18-REGULATORY-BRIEF.md`) checked § The regulatory section's assumption 2.
+**It holds.** BSP Circular 1170 amends the Manual of Regulations for Banks and Non-Bank Financial
+Institutions and binds BSP-supervised institutions — PayMongo is one, FitOut is not — and an online
+services marketplace does not appear on the AMLA covered-person list either.
+
+**So the hedge this document raised does not materialise.** It said: *"if this assumption is wrong the
+bar is materially higher and a PH-licensed vendor becomes closer to mandatory — which would strengthen
+Innov8tif and weaken Didit."* The assumption is not wrong. **Nothing weakens Didit on residency or
+licensing grounds**, and § The regulatory section's fact 3 (no residency mandate; NPC Advisory 2024-01
+makes model clauses available and voluntary) is confirmed against the NPC's own published advisory.
+
+**What the research DID find is a different regime, and it makes this decision more urgent rather than
+less.** The **Internet Transactions Act of 2023 (RA 11967)**, fully enforced since **20 June 2025**,
+requires an online platform to collect from every merchant *prior to listing* — in the statute's own
+words — a name plus **at least one valid government identification**, a geographic address, and
+**contact details including a mobile or landline number and a valid email**, and to maintain a merchant
+list that is *"updated and verified regularly"*, under an **ordinary diligence** standard with
+administrative penalties.
+
+That is what Didit performs, and performing it through a processor keeps the document off FitOut's own
+infrastructure — which § 21(d)'s Data Privacy Act duty makes an asset rather than a compromise.
+⚠ **Whether a processor arrangement satisfies "require … to submit" is counsel question 4 in the
+brief, and it is the one that decides whether Phase 18's storage contract survives contact with the
+statute.**
+
+---
 
 ## Two caveats that survive the decision
 

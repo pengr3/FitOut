@@ -1746,12 +1746,27 @@ Resume file: None
 
 ## Operator Next Steps
 
-- ⚠ **PM ACTION, ON THE CRITICAL PATH — counsel review (PM-H, 2026-09-01).** One line of legal review:
-  BSP Circular No. 1170 (electronic KYC) binds BSP-supervised institutions such as PayMongo, **not** a
-  marketplace — FitOut's obligation is the Data Privacy Act of 2012 (RA 10173) instead. If that
-  assumption is wrong, a PH-licensed vendor moves closer to mandatory, which strengthens Innov8tif and
-  weakens Didit. The PM chose "counsel first, then wire", so **the Didit plan does not open until this
-  returns.** Nothing else is blocked by it — the provider-agnostic submission path proceeds regardless.
+- ⚠⚠ **PM ACTION, NOW THE LARGEST OPEN ITEM ON THE PROJECT — counsel review (PM-H).** Desk research
+  ran 2026-09-01: **`.planning/phases/18-.../18-REGULATORY-BRIEF.md`**. The BSP half of the assumption
+  **HOLDS** — Circular 1170 binds BSP-supervised institutions (PayMongo), not a marketplace, and FitOut
+  is not an AMLA covered person. **But the conclusion drawn from it does not.** The **Internet
+  Transactions Act of 2023 (RA 11967)**, **fully enforced since 20 June 2025**, requires an online
+  platform to collect from every merchant *prior to listing* a name plus **at least one valid
+  government ID**, a geographic address, and **contact details including a phone number and a valid
+  email**, and to keep a merchant list *"updated and verified regularly"* under an **ordinary
+  diligence** standard with administrative penalties, subsidiary/solidary liability, and DTI takedown
+  and blacklisting powers. **Host verification is a statutory obligation, not a product choice — and
+  FitOut has been live in production for ~14 months since full enforcement.** Five questions for
+  counsel are in the brief; **question 1 is the timing exposure and question 4 decides whether Phase
+  18's no-documents storage contract survives the statute.** Two obligations nobody has costed: **DTI
+  E-Commerce Bureau registration for FitOut itself**, and the § 21(b) publication clause — whose
+  discharge route is *"means to facilitate communication between online merchants and online
+  consumers"*, i.e. **host↔booker messaging may be a compliance mechanism, not a future nicety**.
+  ⚠ Effect on decisions already taken: **Didit is STRENGTHENED** (no PH-licensed vendor is mandated;
+  cross-border to US/EU confirmed fine under NPC Advisory 2024-01, whose model clauses are voluntary),
+  **PM-C's gate now has statutory backing** (§ 21(b) says "prior to listing" in its own words), and
+  **required phone is no longer an SWE assumption — § 21(b)(3) requires it.** The Didit plan still does
+  not open until counsel returns; the provider-agnostic submission path proceeds regardless.
 - ⚠ **Before the Didit plan opens:** verify pricing and PH document support first-hand. Every figure on
   record is a published list price (free to 500 checks/month, then $0.33); **PH rates are quote-only at
   every vendor found**; Didit does not name the Philippines in its coverage; and
