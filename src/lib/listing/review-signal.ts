@@ -241,3 +241,39 @@ export function composeReviewSentence(
 export function composeSuspendedSentence(operatorReason: string | null | undefined): string {
   return appendOperatorSentence(SUSPENDED_HOST_SIGNAL.reason, operatorReason);
 }
+
+/**
+ * THE FROZEN SESSION, NAMED — D-260 (F11), and the SECOND sentence on `/host/earnings` only.
+ *
+ * WHAT IT IS FOR. `SUSPENDED_HOST_SIGNAL.reason` above says payouts are on hold; it cannot say WHICH
+ * session, because it is one constant read by three surfaces and only one of them has the answer. The
+ * pre-claim freeze means a delivered session produces no payout line AT ALL, so on the earnings page
+ * the general sentence sits above a table that is silently short a row. This names the row.
+ *
+ * ⚠ AND IT ENDS THERE, EXACTLY LIKE THE SENTENCE ABOVE IT. It states a fact and stops: no route back,
+ * no promise of a reply, no timeline, no address. D-260 is explicit that naming the frozen session is
+ * NOT a step toward naming what unfreezes it, and 18-13's refusal to promise a review with no SLA
+ * behind it stands unchanged (D-263). `SUSPENDED_HOST_SIGNAL.wayOut` stays null, and it is not this
+ * function's business to fill it in.
+ *
+ * ⚠ IT PERFORMS NO ARITHMETIC AND NO FORMATTING (PROJECT D-130 / GATE-05). The count is already
+ * counted, the space is already resolved and the date arrives as a FINISHED string from
+ * `src/lib/host/frozen-payouts.ts`. Two reasons, and both are load-bearing: a figure derived twice is
+ * a figure that can be derived differently twice, and the date must be ABSOLUTE — a relative phrasing
+ * would trip the banned-language family that forbids a timeline nothing in the system agrees to keep.
+ *
+ * The caller guarantees `count >= 1`; count 0 has no sentence, because a sentence about an absence
+ * that isn't there is worse than silence.
+ */
+export function composeFrozenSessionSentence(
+  count: number,
+  spaceTitle: string,
+  sessionDate: string,
+): string {
+  // Two written forms rather than one with a pluralising helper: they differ in more than an "s" —
+  // the singular names the only session there is, the plural names a total AND then singles one out —
+  // and a host reading either must get a sentence somebody wrote, not one a template assembled.
+  return count === 1
+    ? `One session you've already hosted isn't in this table: ${spaceTitle} on ${sessionDate}. Its payout is on hold.`
+    : `${count} sessions you've already hosted aren't in this table, the earliest ${spaceTitle} on ${sessionDate}. Their payouts are on hold.`;
+}

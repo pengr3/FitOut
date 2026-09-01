@@ -53,6 +53,7 @@ import "server-only";
 
 import { sql } from "drizzle-orm";
 import type { DbConn } from "@/lib/availability/read-model";
+import { composeFrozenSessionSentence } from "@/lib/listing/review-signal";
 import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
 
 /** The launch region's clock and locale — `src/app/(ops)/ops/page.tsx:52-58`'s idiom, and its reason. */
@@ -192,4 +193,26 @@ export function formatFrozenSessionDate(at: Date): string {
     day: "numeric",
     timeZone: HOST_CLOCK_TZ,
   }).format(at);
+}
+
+/**
+ * The summary as ONE FINISHED SENTENCE, or `null` when there is nothing to say.
+ *
+ * The whole of what `/host/earnings` calls after the read: format, compose, hand down. It exists so
+ * that page can pass the result through as a single expression, because the page is under
+ * `tests/design/earnings-freeze.test.ts`'s per-file equality map over every string literal in the
+ * earnings scope — and the format options and the sentence forms are both string literals. Splitting
+ * them across the page would move a map that D-156 says must not move; the remedy for a moved map is
+ * to move the CODE, and this function is where it moved to.
+ *
+ * The words themselves still belong to `review-signal.ts`. This only decides that the two facts it
+ * holds are the ones that go in.
+ */
+export function frozenSessionSentence(summary: FrozenPayoutSummary | null): string | null {
+  if (summary === null) return null;
+  return composeFrozenSessionSentence(
+    summary.count,
+    summary.earliestSpaceTitle,
+    formatFrozenSessionDate(summary.earliestSessionEnd),
+  );
 }

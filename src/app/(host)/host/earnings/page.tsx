@@ -25,6 +25,7 @@ import { HOST_LIST_SHELL } from "@/lib/design/measurements";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
 import { loadHostVerification } from "@/lib/host/verification-status";
+import { frozenSessionSentence, loadFrozenPayoutSummary } from "@/lib/host/frozen-payouts";
 import { CancellationFeeNotice } from "@/components/host/cancellation-fee-notice";
 import { HostingPausedNotice } from "@/components/host/hosting-paused-notice";
 import { PayoutBanner } from "@/components/host/payout-banner";
@@ -159,6 +160,19 @@ export default async function HostEarningsPage() {
   // read so the three surfaces cannot disagree.
   const verification = await loadHostVerification(db, session.user.id);
 
+  // D-260 (F11) — WHICH session, not merely that something is on hold.
+  //
+  // The reader above answers whether hosting is paused; this one answers what the pause is holding.
+  // Owner-scoped by the same session id, and it returns null both when the host is not suspended and
+  // when nothing is actually frozen, so a host with nothing missing reads nothing extra.
+  //
+  // The sentence arrives FINISHED — counted, resolved and date-formatted server-side, in the module
+  // that owns the query, for two separate reasons that happen to agree: GATE-05 keeps every figure and
+  // date off the render, and this file's own string literals are pinned by
+  // `earnings-freeze.test.ts`'s per-file equality map. This block adds an import and an attribute and
+  // NOT ONE LITERAL, which is why that map still does not move.
+  const frozen = frozenSessionSentence(await loadFrozenPayoutSummary(db, session.user.id));
+
   return (
     // HFLOW-05 IS A TOKEN PASS AND THIS IS THE WHOLE OF IT (14-CONTEXT D-156). The container is now
     // the declared host-list shell — the same constant `/host/earnings/loading.tsx` imports, so the
@@ -177,7 +191,7 @@ export default async function HostEarningsPage() {
           decides WHERE it goes. `earnings-freeze.test.ts` is unmodified and green. */}
       {verification.suspended ? (
         <div className="mt-6">
-          <HostingPausedNotice reason={verification.reason} />
+          <HostingPausedNotice reason={verification.reason} frozen={frozen} />
         </div>
       ) : null}
 
