@@ -344,6 +344,43 @@ unchanged. The same constant that was independently watched red under the old sh
 new one. Both REDs were re-watched under the new shape with a control proving the new migrations move
 nothing.
 
+### D-252 — A suspended host IS told on `/host/earnings`; 18-13 owns it
+
+**Raised by 18-07 during execution, ruled here.** The ENF-02 freeze is deliberately **pre-claim**, so
+no `host_payout_ledger` row is ever created for a suspended host. `/host/earnings` renders ledger
+rows. The consequence: the host sees a delivered session that never produces a payout line, and **no
+explanation anywhere.**
+
+That fails this project's own stated rule — `requests-signal.ts:56`, *a signal names the state, the
+reason and the way out* — and it contradicts **D-243**, which already settled that a suspended host is
+told, with the reason. A host discovering that money stopped and finding nothing that says why is the
+worst version of this feature, and `/host/earnings` is precisely where they will look.
+
+**Ruling: tell them, and 18-13 (host-facing signals) owns it.** `host_verification.reason` already
+holds the host-readable sentence the ops suspend action writes — the data exists; only the surface is
+missing.
+
+Bounded by what is already locked, and none of these are negotiable:
+- **No appeal route, and no language implying one** — appeals are backlog 999.6 (D-243).
+- **No support address** — `SUPPORT_EMAIL` is null and stays null (D-250); `site-contacts.test.ts`
+  asserts zero support affordances while it is. The sentence must stand without one.
+- Name the state and the reason. The "way out" is *"a FitOut ops review"*, which is the truth, rather
+  than a promise of a reply.
+
+### D-253 — The payout freeze has NO compiler census, and the test is the only thing holding it
+
+Also raised by 18-07. Unlike the sell-gate — where D-224's required fields make `tsc` the census —
+both freeze predicates are **raw-SQL restatements in two files** (`payout-sweep.ts`'s
+`queryDuePayouts` and `payout-reconcile.ts`'s `alertStuckHeld`). The compiler sees nothing, and there
+is no shared expression a future reader could call.
+
+This is the same shape as 18-04's `og-facts.ts` finding — **the census counts callers, not
+restatements** — and it is now a known, accepted structural gap on a money path rather than an
+unknown one. `tests/payments/payout-suspension-freeze.test.ts` is the sole instrument holding the pair
+equal. **Any third money-path reader of `host_verification.status` must extend that test in the same
+commit that adds it.** Recorded so the next person to touch payouts inherits the constraint instead of
+discovering it.
+
 ### The badge (Success Criterion 6)
 
 - **D-237 — The badge states WHAT FITOUT CHECKED and nothing more.** It must never imply FitOut
