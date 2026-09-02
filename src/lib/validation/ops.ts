@@ -57,8 +57,17 @@ import { z } from "zod";
  * Better Auth ids; 128 is comfortably above every real one. The bound is not cosmetic: an unbounded
  * id becomes a rate-limiter key and an audit-meta value, and `src/lib/rate-limit.ts:36-40` records
  * why a caller-chosen unbounded key space is memory exhaustion against the whole process.
+ *
+ * EXPORTED SINCE PLAN 18.1-13, and the export is what keeps the bound single-owned. The ops CONTACT
+ * REVEAL (`src/app/actions/ops-contact.ts`, OPS-06) parses a host id across the same boundary for the
+ * same two reasons — the value becomes a rate-limiter key and an audit-meta value — but it cannot
+ * live in this file's schema list, because its own module declares it beside an action whose result
+ * carries PII. A second `128` typed in that file would be the drift this repository spends whole
+ * headers preventing: one number, one owner, read by both. `REJECT_NOTE_MAX` above is exported for
+ * exactly this reason and states it in `src/lib/rate-limit.ts:63`'s words — a test (or a sibling
+ * module) should assert against the REAL number rather than against a copy that could drift from it.
  */
-const ID_MAX = 128;
+export const ID_MAX = 128;
 const id = () => z.string().min(1).max(ID_MAX);
 
 /** The free-text note's ceiling. See point 3 in the header. */
