@@ -9,8 +9,9 @@
 // produce a verified outcome. Both halves are properties of code paths, not of return values, so
 // this file asserts them as paths:
 //
-//   - cases 1-6  — the fail-closed cases. Unknown, empty, `undefined`, `null`, and the two
-//                  PROTOTYPE-SHAPED names a bare `Record` lookup answers truthily.
+//   - cases 1-6  — the fail-closed cases. Unknown, empty, `undefined`, `null`, and the
+//                  PROTOTYPE-SHAPED names a bare `Record` lookup answers truthily (four of them
+//                  from 18.1-05 on — `valueOf` joined the sweep with the second registry row).
 //   - case 7     — `"manual"` resolves, and to the manual adapter specifically.
 //   - cases 8-10 — the manual provider's contract: `vendorRef: null`, `provider: "manual"`, a
 //                  non-null `checkedAt`, and the `result` it was GIVEN (never a hardcoded verdict).
@@ -34,6 +35,14 @@
 //                  own — the case therefore puts a genuinely promise-returning adapter behind the
 //                  registry and asserts the resolved value is a plain four-key result, identical in
 //                  shape to the synchronous one, with the fail-closed branch still closed.
+//   - cases 15-19 — 18.1-05's REGISTRATION, and the properties a second row could have quietly
+//                   cost. `didit` resolves to the Didit adapter and `manual` still resolves to the
+//                   manual one (D-258 beside D-259, not instead of it); `migration` still resolves
+//                   to nothing by every path; the prototype-shaped names are still refused with a
+//                   second row present; the registry is EXACTLY TWO ROWS, read structurally out of
+//                   port.ts's own source so a third provider has to be a decision rather than a
+//                   drift; and the vendor's verdict comes back through `runVerification` as the
+//                   same four keys the manual one does.
 //
 // ⚠ WHY EVERY `runVerification(...)` IS AWAITED FROM 18.1-04 ONWARD. It returns
 // `Promise<VerificationResult | null>` now. An un-awaited call is TRUTHY for every input including
@@ -58,6 +67,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import ts from "typescript";
 
 import {
   isVerified,
@@ -70,6 +80,10 @@ import {
   MANUAL_PROVIDER_NAME,
   manualVerificationProvider,
 } from "@/lib/verification/providers/manual";
+import {
+  DIDIT_PROVIDER_NAME,
+  diditVerificationProvider,
+} from "@/lib/verification/providers/didit";
 import { stripComments } from "../helpers/source-text";
 
 const ROOT = process.cwd();
@@ -91,7 +105,36 @@ const UNREGISTERED: ReadonlyArray<{ label: string; name: string | null | undefin
   { label: "the prototype key `constructor`", name: "constructor" },
   { label: "the prototype key `__proto__`", name: "__proto__" },
   { label: "the prototype key `toString`", name: "toString" },
+  { label: "the prototype key `valueOf`", name: "valueOf" },
 ];
+
+/**
+ * The registry's OWN-PROPERTY COUNT, read structurally out of `port.ts` rather than through an
+ * export.
+ *
+ * `PROVIDERS` is deliberately module-private — exporting it so a test could count it would open the
+ * one branch point this whole file exists to keep closed, and a test that forces a widening of the
+ * production surface is measuring its own edit. So the count is taken from the AST: the object
+ * literal `PROVIDERS` is initialised with, counted by property.
+ *
+ * AST AND NOT A GREP, for tests/design/server-only-guards.test.ts's recorded reason — this file's
+ * headers and port.ts's both discuss provider names at length, and a text search cannot tell a
+ * registry row from a sentence about one. A parse miss returns -1 rather than 0, so a refactor that
+ * moves the registry out of a plain object literal reddens LOUDLY instead of silently reporting
+ * "zero rows, which is fewer than three, so nothing has drifted".
+ */
+function registryRowCount(portSource: string): number {
+  const sf = ts.createSourceFile(PORT_PATH, portSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  for (const stmt of sf.statements) {
+    if (!ts.isVariableStatement(stmt)) continue;
+    for (const decl of stmt.declarationList.declarations) {
+      if (!ts.isIdentifier(decl.name) || decl.name.text !== "PROVIDERS") continue;
+      const init = decl.initializer;
+      if (init && ts.isObjectLiteralExpression(init)) return init.properties.length;
+    }
+  }
+  return -1;
+}
 
 /**
  * Narrow a provider's WIDENED return to its synchronous branch — asserting, never assuming.
@@ -303,5 +346,95 @@ describe("18.1-04 — an ASYNCHRONOUS provider goes through the SAME single bran
       vi.doUnmock("@/lib/verification/providers/manual");
       vi.resetModules();
     }
+  });
+});
+
+describe("D-258 / D-259 — the registry is EXACTLY TWO ROWS: the ops override and the vendor", () => {
+  it("case 15 — 'didit' resolves to the Didit adapter, and 'manual' still resolves to the manual one", () => {
+    // D-258. Identity, not truthiness — case 7's reason, applied to the second row: a registry that
+    // answered with *something* for "didit" would satisfy a `toBeTruthy()` while pointing anywhere.
+    expect(resolveVerificationProvider("didit")).toBe(diditVerificationProvider);
+    expect(DIDIT_PROVIDER_NAME).toBe("didit");
+
+    // D-259, and this half is the one a "we have a real vendor now" tidy-up would delete. The manual
+    // provider is the OPS OVERRIDE: a vendor outage, a document the workflow cannot read, or an
+    // appeal still has to be decidable by a named member of staff, and `provider = 'manual'` is what
+    // keeps those rows distinguishable from a vendor verdict in the audit trail.
+    expect(resolveVerificationProvider("manual")).toBe(manualVerificationProvider);
+    expect(MANUAL_PROVIDER_NAME).toBe("manual");
+
+    // The two names are DIFFERENT and each adapter reports its own — one constant per adapter is
+    // what stops the registered name and the persisted `host_verification.provider` value drifting.
+    expect(diditVerificationProvider.name).not.toBe(manualVerificationProvider.name);
+  });
+
+  it("case 16 — 'migration' is STILL unregistered, by every path, permanently", async () => {
+    // drizzle/0026's grandfathered rows carry this string because NOTHING WAS CHECKED on them. There
+    // is no adapter that could have produced them, so registering one would be a lie about history —
+    // and would make a row nobody ever looked at re-runnable through the verdict path.
+    expect(resolveVerificationProvider("migration")).toBeNull();
+
+    const produced = await runVerification("migration", { result: "pass" });
+    expect(produced, "no adapter may exist for a check nobody ran").toBeNull();
+    expect(isVerified(produced)).toBe(false);
+  });
+
+  it("case 17 — the prototype-shaped names are still refused with a SECOND row in the registry", async () => {
+    // `Object.hasOwn` is what makes this hold, and a second row is exactly the kind of edit that
+    // gets rewritten as a `PROVIDERS[name] ?? null` on the way past. `"constructor"`, `"toString"`,
+    // `"valueOf"` and `"__proto__"` are inherited members, so a bare index answers TRUTHILY for all
+    // four and a caller-influenced provider name would resolve to a function that is not a provider.
+    for (const name of ["constructor", "toString", "valueOf", "__proto__"]) {
+      expect(resolveVerificationProvider(name), name).toBeNull();
+      expect(await runVerification(name, { result: "pass" }), name).toBeNull();
+    }
+  });
+
+  it("case 18 — the registry has EXACTLY TWO rows, so a third provider is a decision and not a drift", () => {
+    const portSrc = readFileSync(resolve(ROOT, PORT_PATH), "utf8");
+    const rows = registryRowCount(portSrc);
+
+    expect(
+      rows,
+      "PROVIDERS was not found as a plain object literal in port.ts — the structural read missed it",
+    ).not.toBe(-1);
+
+    // TWO, counted at the SOURCE, because the runtime cannot be asked: `PROVIDERS` is private and
+    // must stay private. A third row is not forbidden — it is a decision, and this is the assertion
+    // that makes somebody take it deliberately (and update D-258/D-259's docblock while they do).
+    expect(rows, "the registry is manual + didit; a third row needs a recorded decision").toBe(2);
+
+    // AND THE TWO ARE THESE TWO — the count alone would be satisfied by two rows pointing anywhere.
+    expect(resolveVerificationProvider(MANUAL_PROVIDER_NAME)).toBe(manualVerificationProvider);
+    expect(resolveVerificationProvider(DIDIT_PROVIDER_NAME)).toBe(diditVerificationProvider);
+  });
+
+  it("case 19 — the vendor's verdict comes back through the port as the SAME four keys", async () => {
+    const produced = await runVerification(DIDIT_PROVIDER_NAME, { result: "pass" });
+    expect(produced).not.toBeNull();
+
+    // Case 12's storage contract, re-measured over the second adapter. The vendor holds the document,
+    // the selfie and the ID number; what crosses into FitOut is four fields and there is no fifth —
+    // in particular the hosted session URL comes back from `beginDiditVerification` BESIDE the
+    // result and never inside it (tests/verification/didit-session.test.ts case 2).
+    expect(Object.keys(produced!).sort()).toEqual(
+      ["checkedAt", "provider", "result", "vendorRef"].sort(),
+    );
+    expect(produced!.provider).toBe("didit");
+    expect(produced!.result).toBe("pass");
+    expect(isVerified(produced)).toBe(true);
+
+    // ⚠ `vendorRef: null` ON THE VERDICT PATH DOES NOT MEAN "THERE IS NO HANDLE" — it means THIS
+    // CALL CARRIES NO NEW ONE. The session id was written when the check was STARTED and it is
+    // still the right one, so the verdict write must PRESERVE `vendor_ref` rather than overwrite it
+    // with this null (plan 18.1-08 asserts that at the row). Do not "fix" this into an overwrite:
+    // the handle is the only pointer FitOut keeps at the vendor's copy of the evidence.
+    expect(produced!.vendorRef).toBeNull();
+
+    // Both directions, for case 9's reason: an adapter hardcoded to "pass" marks every declined host
+    // verified, and a vendor adapter is where that would be least visible.
+    const declined = await runVerification(DIDIT_PROVIDER_NAME, { result: "fail" });
+    expect(declined!.result).toBe("fail");
+    expect(isVerified(declined)).toBe(false);
   });
 });

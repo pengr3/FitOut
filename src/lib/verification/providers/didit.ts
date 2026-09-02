@@ -24,10 +24,13 @@ import "server-only";
 // begin path may only ever produce `result: null`. Nothing but `verify` — reached through
 // `runVerification` — may produce a non-null verdict.
 //
-// ⚠ AND NEITHER HALF MAY BE REACHED BY A `provider === "didit"` BRANCH. The registry in port.ts is
-// the ONE mapping from a provider name to an adapter (property 1 in its header). Nothing else in the
-// codebase learns this name; the constant below is exported so the registry can key itself from it,
-// not so a call site can compare against it.
+// ⚠ AND NEITHER HALF MAY BE REACHED BY COMPARING A PROVIDER NAME TO THIS VENDOR'S AT A CALL SITE.
+// The registry in port.ts is the ONE mapping from a provider name to an adapter (property 1 in its
+// header), and an acceptance grep asserts that such a comparison appears nowhere under `src/` — so
+// do not spell one here either, not even to forbid it (a gate about a string's absence goes red on
+// prose quoting that string; this repo has closed that same collision more times than it is funny).
+// Nothing else in the codebase learns this name: the constant below is exported so the registry can
+// key itself from it, not so a caller can test against it.
 //
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // WHY THE GUARD IS ON THIS FILE

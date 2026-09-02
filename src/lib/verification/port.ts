@@ -107,6 +107,7 @@
 // tests/helpers/server-only.stub.ts. An `npm install server-only` is a recorded-decision reversal
 // (D-34 / GATE-05), not a fix.
 
+import { diditVerificationProvider } from "./providers/didit";
 import { manualVerificationProvider } from "./providers/manual";
 
 /**
@@ -127,8 +128,10 @@ export type VerificationOutcome = "pass" | "fail";
  * - `checkedAt` — when the check happened. `null` when it has not. It MUST stay `null` on a
  *                 grandfathered row: writing a timestamp for a check that never ran fabricates an
  *                 audit record (T-18-0202, the drizzle/0025 `resolved_by` principle).
- * - `provider`  — WHICH port answered. `'manual'` is what ships in this phase; `'migration'` is what
- *                 the drizzle/0026 grandfather rows carry, because nothing was checked.
+ * - `provider`  — WHICH port answered. `'manual'` (the ops override, D-259) and `'didit'` (the KYC
+ *                 vendor, D-258) are the two that are REGISTERED; `'migration'` is what the
+ *                 drizzle/0026 grandfather rows carry, because nothing was checked, and it is
+ *                 deliberately registered nowhere.
  *
  * ⚠ DO NOT ADD A FIELD HERE. Not a document url, not an ID number, not a raw vendor payload, not a
  * "just for debugging" blob. There is no column for one and there must never be.
@@ -173,13 +176,40 @@ export interface VerificationProvider {
 }
 
 /**
- * THE REGISTRY — the one branch point (property 1 in the header).
+ * THE REGISTRY — the one branch point (property 1 in the header). EXACTLY TWO ROWS, and both of them
+ * are decisions rather than accumulation.
  *
  * Adding a vendor is one row here plus its adapter module. Nothing else in the codebase learns a
  * provider name, and nothing else may.
+ *
+ * D-258 — `didit` LANDED HERE IN PLAN 18.1-05, AND THE COST IS THE MEASUREMENT. This module has
+ * claimed since plan 18-05 that wiring a real KYC vendor would be a REGISTRATION plus a config
+ * change rather than a re-architecture. It came to one import, one row and three environment
+ * variables: no call site learned the vendor's name, no caller grew a branch, and the four-field
+ * `VerificationResult` every reader already understood did not change shape. The asking half — a
+ * hosted session has to be CREATED before anyone can decide anything — lives on the adapter as its
+ * own named function, which is FINDING F-5's option (b) in the header, not an exception to it.
+ *
+ * D-259 — THE MANUAL ROW STAYS, AND NOT AS A LEFTOVER. It is the OPS OVERRIDE. A vendor outage, a
+ * document the workflow cannot read, or a host appealing a decline still has to be decidable by a
+ * named member of staff, and `provider = 'manual'` is what keeps those rows distinguishable from a
+ * vendor's verdict in the audit trail for as long as the row exists. Deleting it would leave FitOut
+ * with no verification path at all on the day Didit is unreachable.
+ *
+ * ⚠ `'migration'` IS STILL ABSENT, AND A THIRD ROW FOR IT WOULD BE A MISTAKE RATHER THAN A
+ * COMPLETION. drizzle/0026's grandfathered rows carry that string precisely because NOTHING WAS
+ * CHECKED on them; there is no adapter that could have produced them and no code path that may
+ * re-run one. It must keep resolving to nothing, permanently.
+ *
+ * ⚠ THE CLIENT-BUNDLE DIRECTIVE STAYS ON THE ADAPTERS AND STILL DOES NOT APPEAR IN THIS FILE — see
+ * the heading for why, and note the case is stronger now: the Didit adapter holds an API KEY, so it
+ * is exactly the module a browser bundle must never REACH, while this one only carries the contract
+ * a badge component may legitimately `import type` from. This module inherits the protection by
+ * importing the adapters. Do not restate the directive here, in code or in prose.
  */
 const PROVIDERS: Readonly<Record<string, VerificationProvider>> = {
   [manualVerificationProvider.name]: manualVerificationProvider,
+  [diditVerificationProvider.name]: diditVerificationProvider,
 };
 
 /**
