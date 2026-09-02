@@ -521,3 +521,59 @@ rather than this entry.
 **Status:** OPEN — recorded by 18.1-15, not fixed by it (out of scope: three files it does not own,
 and a green gate under a stubbed env is the proof it is not this plan's).
 
+
+---
+
+## D8 — `tests/host/verification-panel.test.tsx` IS FLAKY UNDER SUITE CONTENTION, AND THE FAILING CASE MOVES
+
+**Found during:** the 18.1-15 close-out gate run (orchestrator, 2026-09-03). Same root cause as
+**D4**; different symptom, and a third file, so recorded separately rather than folded in.
+
+### What was measured
+
+Two consecutive full-suite runs, same commit, no source change between them:
+
+| Run | Failing case in this file |
+|---|---|
+| 1 | *"hands the typed phone to the action and locks the control while the press is out"* |
+| 2 | *"one press announces one thing: a second refusal REPLACES the first rather than joining it"* |
+
+**Solo, the file passes 12/12 — three times in a row:**
+
+```
+solo run 1:  Tests  12 passed (12)
+solo run 2:  Tests  12 passed (12)
+solo run 3:  Tests  12 passed (12)
+```
+
+⚠ **The failing case MOVES between runs**, which is the signature that matters. A stable failure is a
+defect; a wandering one is contention. Both cases that failed are the file's async-timing cases — a
+press that must lock a control while it is in flight, and a second announcement that must replace
+rather than append. Both depend on how promptly a microtask settles, which is exactly what a loaded
+machine perturbs.
+
+### Why it is deferred rather than fixed
+
+- **It is not this phase's defect.** D4 already records two other unit files timing out under
+  suite-wide contention on the same box, on the same day, from before 18.1-15 existed. The mechanism
+  is the runner and the machine, not the panel.
+- **The panel's behaviour is not in doubt.** The same twelve cases pass solo, repeatedly, and
+  18.1-15's own mutation pass reddened the cases it targeted. The assertions work; their *timing
+  budget* is what fails.
+- Fixing it properly means either widening the async waits (which weakens the very timing property
+  the two cases exist to pin) or isolating the file's pool — both are real design choices about the
+  test suite, not a one-line patch, and neither belongs in a phase close-out.
+
+### ⚠ Why it must not be left indefinitely
+
+**A flaky gate is a gate that gets ignored**, and this repo has already paid for that: D-24 records
+that the seven Playwright specs do not run in CI, and `axe-sweep`'s own completeness self-check sat
+RED through four review passes partly because nobody trusted what they were seeing. A unit file that
+reddens a different case on each full run trains a reader to re-run rather than read — and the next
+real regression in this file will be dismissed as "that flaky one".
+
+**How to tell them apart in the meantime:** a real failure in this file reproduces SOLO. Run
+`npx vitest run tests/host/verification-panel.test.tsx` before believing a suite-run red. If solo is
+green, it is this. If solo is red, it is not.
+
+**Status:** OPEN — carried with D4 as one suite-contention problem to fix together, outside 18.1.
