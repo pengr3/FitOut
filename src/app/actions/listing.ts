@@ -20,6 +20,16 @@
 //     PERSISTED row. The wizard's live checklist is a courtesy, never the gate — a client that skips the
 //     step, or a stale one that predates it, is rejected here. Gating PUBLISH (not creation) mirrors the
 //     bookability gate and is what keeps pre-Phase-7 NULL-tier drafts saveable rather than bricked.
+//   - HOST VERIFICATION (D-255 / PM-C, T-18.1-1201): createDraftListing enforces, server-side, that the
+//     host has been CHECKED. It refuses for `unverified | pending | rejected | suspended`, reading the
+//     one owner-scoped helper every other host surface reads. THE PAGE IN FRONT OF IT IS A HINT AND
+//     THIS IS THE GATE — `/host/listings/new` reads the same row and redirects a refusing host to
+//     `/host/verify` so the refusal is legible, but a client that skips the page, replays the POST or
+//     types the action's endpoint meets this clause instead. The page read is a COURTESY, NEVER THE
+//     GATE — this file's own words for the wizard's checklist, one action over, and the four
+//     `Create listing` links are left enabled for the same reason (D-255): a hint on a surface has
+//     never been an authorization decision here.
+//     ⚠ Gating CREATION and not `saveListingStep` is D-270 — see that function's own note.
 //   - Soft-deleted rows (deletedAt IS NOT NULL) are excluded from normal reads/writes.
 
 import { randomUUID } from "node:crypto";
@@ -47,6 +57,16 @@ import {
   type DraftListingInput,
 } from "@/lib/validation/listing";
 import { getModeLockState } from "@/lib/listing/mode-lock";
+// D-255 / PM-C — the SIXTH reader of one owner-scoped read, never a seventh query. Its own header
+// carries the argument: a host told one thing on `/host` and another here is the two-authorities
+// defect PROJECT D-130 / GATE-05 is named for, and this module deciding whether a listing may exist
+// has to agree with the surfaces that tell the host why it may not.
+import { loadHostVerification } from "@/lib/host/verification-status";
+// The refusal's ONE owner. It cannot be a const at the top of this file: a `"use server"` module may
+// export only async functions (`tests/use-server-exports.test.ts`'s recorded incident), so a literal
+// here would be module-private and invisible to the banned-language corpus that polices every
+// host-facing sentence. Same split, same reason, as `host-verification.ts` one action over.
+import { HOST_VERIFICATION_LISTING_REFUSED } from "@/lib/host/verification-refusals";
 // LVER-03 — the guarded re-review flip. A shared WRITE helper, deliberately (its header records why
 // D-227's no-shared-helper rule governs booking.ts's sell-gate re-statements and not this).
 import { markForReReview } from "@/lib/listing/re-review";
@@ -93,6 +113,44 @@ export async function createDraftListing(): Promise<ListingResult> {
   if (!userId) {
     return { ok: false, error: "You must be signed in to create a listing." };
   }
+
+  // ── D-255 / PM-C — THE HOST-VERIFICATION GATE, AND IT IS THE GATE (T-18.1-1201) ────────────────
+  //
+  // Owner-scoped by ARGUMENT from the session, exactly as `loadHostVerification`'s docblock requires:
+  // there is no id parameter on this action, so one host can never be measured against another's
+  // decision. NO ROW READS AS `unverified` (that helper's header rule), which is precisely the state
+  // that must refuse — a host nobody has checked is the ordinary state of a new account, and it is
+  // the whole reason this gate exists.
+  //
+  // ⚠ `grandfathered` IS DELIBERATELY NOT A REFUSING STATE — 18.1-RESEARCH FINDING F-7, written here
+  // because a later reader will read D-255's own sentence ("a host cannot create a listing until they
+  // are verified") and try to "fix" this set. D-255 names FOUR refusing states and `grandfathered` is
+  // not among them. `drizzle/0026` grandfathered the hosts who already owned a published listing at
+  // cutover, and D-211/D-224 make them SELLABLE — so refusing them a NEW listing would make an
+  // account that is selling today unable to grow tomorrow, which is a scope change nobody decided.
+  // Their route to a real check is LVER-04's backfill, which stays deferred.
+  // PINNED BY: `tests/listing/crud.test.ts` — "grandfathered SUCCEEDS (FINDING F-7)", whose failure
+  // message states this whole argument. Delete the term below and that case reddens by name.
+  //
+  // ⚠ THE FOUR ARE SPELLED POSITIVELY, NOT AS `!== "approved"`. A negation would silently start
+  // refusing every state added to `host_verification_status` after today, including `grandfathered`
+  // — the exact "fix" the paragraph above exists to prevent, arrived at by accident.
+  const verification = await loadHostVerification(db, userId);
+  if (
+    verification.status === "unverified" ||
+    verification.status === "pending" ||
+    verification.status === "rejected" ||
+    verification.status === "suspended"
+  ) {
+    // ONE sentence for all four, and that is a privacy property rather than an economy: a suspended
+    // host must not be able to tell, from the SHAPE of a listing refusal, that they are
+    // distinguishable from a host who simply has not asked yet. Where a suspension is legitimately
+    // explained — once, to its owner — is `/host/verify`, which is where the page in front of this
+    // action sends all four. `HOST_VERIFICATION_NOTHING_CHANGED` carries the identical argument for
+    // the identical reason one action over.
+    return { ok: false, error: HOST_VERIFICATION_LISTING_REFUSED };
+  }
+
   const id = randomUUID();
   await db.insert(listing).values({
     id,
@@ -108,6 +166,17 @@ export async function createDraftListing(): Promise<ListingResult> {
  * writes ONLY the editable draft fields to the OWNER's row (never status/hostId/publishedAt), maps
  * lat/lng → PostGIS point {x:lng, y:lat} (Pitfall 1), and replaces the amenity/activity-tag join rows
  * when those arrays are provided. Idempotent partial save — undefined fields are left untouched.
+ *
+ * ⚠ NO HOST-VERIFICATION READ HERE, AND THAT IS D-270 RATHER THAN AN OVERSIGHT. `createDraftListing`
+ * above is gated; this is not, and it must not become so. Gating autosave would STRAND WORK HOSTS
+ * ALREADY DID: every draft begun before D-255 landed belongs to a host with no verification row, so
+ * the first save after deploy would refuse and the wizard would become a form that cannot be left.
+ * It is the identical shape as the cancellation-tier gate below — gate the transition that creates
+ * something sellable, never the autosave that keeps a half-finished draft reachable — and the
+ * bookability gate makes the same choice one domain over. A host who cannot sell can still finish
+ * their sentence; they simply cannot publish, and cannot start a NEW listing.
+ * PINNED BY: `tests/listing/crud.test.ts` — "saveListingStep on an EXISTING draft still succeeds for
+ * an UNVERIFIED host (D-270)".
  */
 export async function saveListingStep(
   listingId: string,

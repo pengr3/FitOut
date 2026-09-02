@@ -113,11 +113,45 @@ export const HOST_VERIFICATION_VENDOR_UNAVAILABLE =
   "We couldn't start the check just now. Try again.";
 
 /**
+ * D-255 / PM-C — `createDraftListing` refused because the host is not checked yet (plan 18.1-12).
+ *
+ * TRANSCRIBED VERBATIM from 18.1-UI-SPEC § Surface 3 § The gate, byte for byte, for the same reason
+ * the six above are: it is a copy decision, so it belongs in the spec first.
+ *
+ * ⚠ IT LIVES HERE RATHER THAN IN `src/app/actions/listing.ts` FOR THIS MODULE'S OPENING REASON, WHICH
+ * APPLIES UNCHANGED ONE ACTION OVER. `listing.ts` opens with the server-action directive too, so it
+ * may export ONLY async functions — `tests/use-server-exports.test.ts` records the `avatar.ts`
+ * incident that proves it. A `const` at the top of that file would be module-private and therefore
+ * unreachable by the banned-language corpus, which is exactly how a host-facing sentence stops being
+ * policed. So the sentence has one owner here and the action imports it.
+ *
+ * ⚠ IT IS NOT IN `HOST_VERIFICATION_REFUSALS` BELOW, AND THAT IS DELIBERATE RATHER THAN AN OMISSION.
+ * That array's contract is "every sentence `requestHostVerification` can return", and it is consumed
+ * as exactly that claim; a sentence from a different action would make its docblock false. The
+ * corpus in `tests/listing/review-signal.test.ts` scans THIS constant by name, under its own bullet.
+ *
+ * ⚠ AND IT IS THE SENTENCE FOR A REFUSAL THE PRODUCT PATH CANNOT REACH. `/host/listings/new` reads
+ * the same row and redirects a refusing host to `/host/verify` BEFORE calling the action (FINDING
+ * F-2), so a host meets the panel rather than this string. It is still host-facing and still
+ * host-readable, because a `"use server"` export is reachable by POST whatever the UI shows — the
+ * rule `src/lib/validation/ops.ts` opens with. It therefore names the check and points at the one
+ * place a host can act, and it says nothing about WHICH of the four states refused them: a suspended
+ * host must not learn their standing from the shape of a listing refusal, which is the privacy
+ * property `HOST_VERIFICATION_NOTHING_CHANGED` above carries for the same reason.
+ */
+export const HOST_VERIFICATION_LISTING_REFUSED =
+  "FitOut checks who a host is before a listing can go up. Ask for your check from your hosting dashboard.";
+
+/**
  * EVERY sentence `requestHostVerification` can return, in one array — the handle plan 18.1-10 adds
  * to the banned-language corpus.
  *
  * All SIX, not the spec table's five: a corpus that checks the tone of what a host may be shown must
  * see every sentence the action can produce, and the signed-out branch produces one.
+ *
+ * ⚠ SIX, AND `HOST_VERIFICATION_LISTING_REFUSED` IS NOT THE SEVENTH — see its own docblock. It
+ * belongs to `createDraftListing`, and widening this array would quietly falsify the claim above
+ * that every reader of it depends on.
  */
 export const HOST_VERIFICATION_REFUSALS: readonly string[] = [
   HOST_VERIFICATION_SIGNED_OUT,
