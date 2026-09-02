@@ -376,7 +376,7 @@ export async function approveHost(input: ApproveHostInput): Promise<OpsActionRes
     return TOO_FAST;
   }
 
-  const check = runVerification(opsVerificationProvider(), { result: "pass" });
+  const check = await runVerification(opsVerificationProvider(), { result: "pass" });
   if (!check) {
     await recordAudit({
       actorId: staff.id,
@@ -471,7 +471,7 @@ export async function rejectHost(input: RejectHostInput): Promise<OpsActionResul
     return TOO_FAST;
   }
 
-  const check = runVerification(opsVerificationProvider(), { result: "fail" });
+  const check = await runVerification(opsVerificationProvider(), { result: "fail" });
   if (!check) {
     await recordAudit({
       actorId: staff.id,

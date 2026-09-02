@@ -42,6 +42,45 @@
 //      truthily.
 //
 // ════════════════════════════════════════════════════════════════════════════════════════════════
+// FINDING F-5, DECIDED — A PROVIDER THAT MUST *ASK* GETS A SECOND ENTRY POINT, NOT A WIDER CONTRACT
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// `VerificationDecision` models exactly ONE moment: A VERDICT HANDED IN. That fits the ops-manual
+// provider precisely — a staff member decided, and their decision IS the input — and it fits
+// applying a verdict a network vendor has already reached and sent back. It does NOT fit the moment
+// FitOut ASKS a vendor to look at somebody: at that instant nobody has decided anything, there is no
+// `result` to hand in, and the vendor's answer arrives later on a channel this function is not on.
+//
+// TWO HONEST SHAPES WERE ON THE TABLE, AND (b) IS CHOSEN.
+//
+//   (a) REJECTED — widen `VerificationDecision` into a discriminated union, e.g.
+//       `{ kind: "decided", result } | { kind: "requested", subjectId }`, so one method covers both
+//       moments. Rejected for a structural reason rather than on taste: it changes the contract type
+//       BOTH providers implement in order to model a moment only ONE of them has. The manual
+//       provider would grow a branch for a request it can never receive, `runVerification` would
+//       start returning things that are not verdicts, and every reader of a `VerificationResult`
+//       would have to learn which `kind` produced it. That is how ONE branch point becomes two.
+//
+//   (b) CHOSEN — TWO ENTRY POINTS. `verify(decision)` keeps its single meaning and stays the only
+//       member of `VerificationProvider`. A provider that must first ASK exposes a SECOND named
+//       function of its own — `beginVerification` — which is deliberately NOT part of this interface
+//       and therefore NOT reachable through `runVerification`. It creates the vendor's session and
+//       hands back the same four-field `VerificationResult` with `result: null` and `checkedAt:
+//       null`, because nothing has been decided yet and writing either field would fabricate a check
+//       (the `VerificationResult` docblock's grandfathered-row rule, applied one moment earlier).
+//
+// WHY THAT IS THE RIGHT TRADE. The property worth protecting is that THE VERDICT has exactly one
+// code path — that is what "the only branch point" and "it fails closed" are statements about, and
+// it is what makes a verified `host_verification` row impossible to write without coming through
+// here. A session REQUEST decides nothing and writes no verdict, so routing it through the same door
+// buys no safety; it only adds a discriminator a future reader can get wrong on the path that
+// actually matters.
+//
+// THE COST, STATED RATHER THAN HIDDEN: the asking half of a vendor adapter is NOT policed by this
+// module. It is an ordinary exported function on the adapter, and the discipline that keeps it
+// honest is that it may only ever produce `result: null`. Nothing but `verify` — reached through
+// `runVerification` — may produce a non-null verdict.
+//
+// ════════════════════════════════════════════════════════════════════════════════════════════════
 // WHY THIS MODULE IS DIRECTIVE-FREE AND THE ADAPTER IS GUARDED
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // ⚠ THIS HEADING DELIBERATELY DOES NOT SPELL THE DIRECTIVE. An acceptance grep asserts that the
@@ -101,23 +140,36 @@ export type VerificationResult = {
   provider: string;
 };
 
-/** The staff/vendor decision handed INTO a provider. One field, for the same reason `VerificationResult` has four. */
+/**
+ * The staff/vendor decision handed INTO a provider. One field, for the same reason
+ * `VerificationResult` has four.
+ *
+ * ⚠ IT STAYS ONE FIELD AND IT STAYS A VERDICT. A provider that must first ASK a vendor to look at
+ * somebody does not come through here at all — FINDING F-5 in the header records why that is a
+ * second named function on the adapter rather than a `kind` discriminator on this type.
+ */
 export type VerificationDecision = {
   result: VerificationOutcome;
 };
 
 /**
- * The adapter contract every provider — the ops-manual one today, a KYC vendor later — implements.
+ * The adapter contract every provider — the ops-manual one today, a network KYC vendor next —
+ * implements.
  *
- * `verify` is synchronous because the manual provider has nothing to await. A future vendor adapter
- * that must make an HTTP call widens this to `VerificationResult | Promise<VerificationResult>`;
- * every call site already goes through `runVerification`, so that widening is one edit here plus one
- * `await`, not a call-site sweep. Stated so the next person does not read the sync signature as a
- * reason the port cannot take a network provider.
+ * `verify` may return its result DIRECTLY or as a PROMISE. The manual provider has nothing to await
+ * and still returns a plain value; an adapter that has to make an HTTP call returns a promise from
+ * the same method, and `runVerification` awaits either. Widening the RETURN type cannot break a
+ * synchronous provider, because `await` on a non-promise is a legal no-op.
+ *
+ * THE PREVIOUS VERSION OF THIS COMMENT PROMISED THE WIDENING WOULD COST "one edit here plus one
+ * `await`, not a call-site sweep". That promise is now MEASURED rather than asserted: it cost this
+ * union, the one `await` in `runVerification` below, and exactly TWO non-test call sites
+ * (`approveHost` and `rejectHost` in `src/app/actions/ops-review.ts`). There was no third, because
+ * every caller already goes through the port — which is the whole point of there being a port.
  */
 export interface VerificationProvider {
   readonly name: string;
-  verify(decision: VerificationDecision): VerificationResult;
+  verify(decision: VerificationDecision): VerificationResult | Promise<VerificationResult>;
 }
 
 /**
@@ -163,20 +215,34 @@ export function resolveVerificationProvider(
  * ⚠ Callers MUST NOT construct a `VerificationResult` literal. Going through here is what keeps the
  * manual provider a REAL provider rather than decoration, and it is the property that makes the
  * later vendor swap a registration instead of a rewrite (D-206).
+ *
+ * ASYNC FOR EVERYBODY, INCLUDING THE SYNCHRONOUS PROVIDER. The unregistered branch still returns
+ * `null` — a resolved `null`, which every caller reads the same fail-closed way — and the resolution
+ * itself is unchanged and still happens before anything is awaited, so a hostile provider name never
+ * reaches an adapter at all. Making this async is what lets a network vendor live behind the SAME
+ * single branch point instead of beside it; the alternative was a second, un-policed road to a
+ * verified row.
  */
-export function runVerification(
+export async function runVerification(
   providerName: string | null | undefined,
   decision: VerificationDecision,
-): VerificationResult | null {
+): Promise<VerificationResult | null> {
   const provider = resolveVerificationProvider(providerName);
   if (!provider) return null;
-  return provider.verify(decision);
+  return await provider.verify(decision);
 }
 
 /**
  * Did a check actually come back verified? `null` in, `false` out — the fail-closed reading of "no
  * provider answered", stated once so no caller re-spells it as a truthiness test on an object that
  * exists but carries `result: null`.
+ *
+ * ⚠ DELIBERATELY STILL SYNCHRONOUS. It takes a VALUE, never a promise, and it was not widened
+ * alongside `runVerification`. That narrowness is a guard rather than an oversight: `runVerification`
+ * is async now, so `isVerified(runVerification(…))` — the un-awaited form — is a REJECTED PROGRAM
+ * rather than a quiet `false` for a genuinely verified host. Widening this signature to accept a
+ * promise would delete that compile error and re-open exactly the reading the fail-closed contract
+ * cannot afford to be silent about.
  */
 export function isVerified(result: VerificationResult | null | undefined): boolean {
   return result?.result === "pass";

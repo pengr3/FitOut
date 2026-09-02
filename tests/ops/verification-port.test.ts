@@ -27,6 +27,19 @@
 //                  specifier at length and a raw-text grep cannot tell prose from a directive — the
 //                  exact collision tests/design/server-only-guards.test.ts:140-150 records biting
 //                  this repo twelve times.
+//   - case 14    — THE ASYNC WIDENING, MEASURED. Plan 18.1-04 widened `verify` to return
+//                  `VerificationResult | Promise<VerificationResult>` so a network vendor can live
+//                  behind the SAME single branch point. An `async` `runVerification` flattens a
+//                  returned promise whether or not it awaits, so "it is async" proves nothing on its
+//                  own — the case therefore puts a genuinely promise-returning adapter behind the
+//                  registry and asserts the resolved value is a plain four-key result, identical in
+//                  shape to the synchronous one, with the fail-closed branch still closed.
+//
+// ⚠ WHY EVERY `runVerification(...)` IS AWAITED FROM 18.1-04 ONWARD. It returns
+// `Promise<VerificationResult | null>` now. An un-awaited call is TRUTHY for every input including
+// the hostile ones, so a case that forgot the `await` would go GREEN against a port that verifies
+// everybody — the precise inversion of what cases 1-6 and 11 exist to catch. `isVerified` stays
+// SYNCHRONOUS for the same reason: the compiler refuses the un-awaited form outright.
 //
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // MUTATION, RUN AND SCORED (2026-09-01) — recorded in 18-05-SUMMARY.md
@@ -42,7 +55,7 @@
 // four columns this contract maps onto are asserted against `information_schema` by
 // tests/ops/verification-schema.test.ts (plan 18-02), which is the right instrument for that half.
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -50,6 +63,7 @@ import {
   isVerified,
   resolveVerificationProvider,
   runVerification,
+  type VerificationProvider,
   type VerificationResult,
 } from "@/lib/verification/port";
 import {
@@ -79,6 +93,26 @@ const UNREGISTERED: ReadonlyArray<{ label: string; name: string | null | undefin
   { label: "the prototype key `toString`", name: "toString" },
 ];
 
+/**
+ * Narrow a provider's WIDENED return to its synchronous branch — asserting, never assuming.
+ *
+ * 18.1-04 widened `VerificationProvider.verify` to
+ * `VerificationResult | Promise<VerificationResult>`, so the compiler no longer knows which branch
+ * any one adapter hands back. The manual provider is still synchronous and cases 8-10 still measure
+ * it as such; this is where that claim is CHECKED rather than cast away. An adapter that quietly
+ * became async would keep satisfying the interface while silently breaking every reader that takes a
+ * field off its return — including `checkedAt`'s before/after bracket in case 8.
+ *
+ * The `throw` is unreachable: the `expect` above it has already failed the test. It exists so the
+ * narrowing is done by `instanceof` rather than by an `as`, because an `as` here would assert
+ * exactly the thing this helper is for.
+ */
+function syncResult(out: VerificationResult | Promise<VerificationResult>): VerificationResult {
+  expect(out, "a synchronous provider must not hand back a promise").not.toBeInstanceOf(Promise);
+  if (out instanceof Promise) throw new Error("unreachable — the assertion above has already failed");
+  return out;
+}
+
 describe("HVER-01 — the verification port fails CLOSED on anything unregistered", () => {
   for (const { label, name } of UNREGISTERED) {
     it(`resolves NO provider for ${label}`, () => {
@@ -86,12 +120,15 @@ describe("HVER-01 — the verification port fails CLOSED on anything unregistere
     });
   }
 
-  it("case 11 — THE FAIL-CLOSED PROOF: no unregistered name yields a verified outcome, by any path", () => {
+  it("case 11 — THE FAIL-CLOSED PROOF: no unregistered name yields a verified outcome, by any path", async () => {
     for (const { label, name } of UNREGISTERED) {
       // The port exposes exactly one way to turn a decision into a persistable result. For an
       // unregistered name it returns null, so there is no object to write to host_verification —
       // stronger than returning a failing one, because a failing one could still be misread.
-      const produced = runVerification(name, { result: "pass" });
+      // AWAITED: `runVerification` returns a promise from 18.1-04 on, and an un-awaited one is
+      // truthy for every name here — the whole sweep would go green against a port that verifies
+      // everybody.
+      const produced = await runVerification(name, { result: "pass" });
       expect(produced, label).toBeNull();
       expect(isVerified(produced), label).toBe(false);
 
@@ -102,7 +139,7 @@ describe("HVER-01 — the verification port fails CLOSED on anything unregistere
 
     // POSITIVE CONTROL — without this the whole sweep above would pass against a port hardcoded to
     // refuse everybody, which would be a different bug wearing this test's green.
-    const real = runVerification(MANUAL_PROVIDER_NAME, { result: "pass" });
+    const real = await runVerification(MANUAL_PROVIDER_NAME, { result: "pass" });
     expect(real).not.toBeNull();
     expect(isVerified(real)).toBe(true);
   });
@@ -116,7 +153,7 @@ describe("HVER-01 — the ops-manual provider is REGISTERED and is a real provid
 
   it("case 8 — verify() returns vendorRef null, provider 'manual', and a non-null checkedAt", () => {
     const before = Date.now();
-    const out = manualVerificationProvider.verify({ result: "pass" });
+    const out = syncResult(manualVerificationProvider.verify({ result: "pass" }));
     const after = Date.now();
 
     // No vendor ⇒ no reference. A synthetic id here would look exactly like a vendor handle to every
@@ -131,14 +168,14 @@ describe("HVER-01 — the ops-manual provider is REGISTERED and is a real provid
   it("case 9 — verify() returns the result it was GIVEN, both ways", () => {
     // Both directions, because a provider hardcoded to "pass" passes a one-sided test and would mark
     // every rejected host verified.
-    expect(manualVerificationProvider.verify({ result: "pass" }).result).toBe("pass");
-    expect(manualVerificationProvider.verify({ result: "fail" }).result).toBe("fail");
-    expect(isVerified(manualVerificationProvider.verify({ result: "fail" }))).toBe(false);
+    expect(syncResult(manualVerificationProvider.verify({ result: "pass" })).result).toBe("pass");
+    expect(syncResult(manualVerificationProvider.verify({ result: "fail" })).result).toBe("fail");
+    expect(isVerified(syncResult(manualVerificationProvider.verify({ result: "fail" })))).toBe(false);
   });
 
-  it("case 10 — runVerification is the same adapter reached through the port", () => {
-    const direct = manualVerificationProvider.verify({ result: "fail" });
-    const viaPort = runVerification("manual", { result: "fail" });
+  it("case 10 — runVerification is the same adapter reached through the port", async () => {
+    const direct = syncResult(manualVerificationProvider.verify({ result: "fail" }));
+    const viaPort = await runVerification("manual", { result: "fail" });
     expect(viaPort).not.toBeNull();
     expect(viaPort!.result).toBe(direct.result);
     expect(viaPort!.provider).toBe(direct.provider);
@@ -147,8 +184,8 @@ describe("HVER-01 — the ops-manual provider is REGISTERED and is a real provid
 });
 
 describe("D-206 — the storage contract is four fields, and there is no fifth", () => {
-  it("case 12 — the produced result's KEY SET is exactly {result, vendorRef, checkedAt, provider}", () => {
-    const out = runVerification("manual", { result: "pass" })!;
+  it("case 12 — the produced result's KEY SET is exactly {result, vendorRef, checkedAt, provider}", async () => {
+    const out = (await runVerification("manual", { result: "pass" }))!;
 
     // SET EQUALITY, never a membership check — the tests/ops/verification-schema.test.ts allow-list
     // reasoning applied one layer up. A deny-list naming `document`/`idNumber`/`image` passes
@@ -176,5 +213,95 @@ describe("GATE-05 shape — the guard is on the implementation, not on the contr
 
     expect(guard.test(manualSrc), `${MANUAL_PATH} must carry the guard`).toBe(true);
     expect(guard.test(portSrc), `${PORT_PATH} must stay directive-free`).toBe(false);
+  });
+});
+
+describe("18.1-04 — an ASYNCHRONOUS provider goes through the SAME single branch point", () => {
+  it("case 14 — a promise-returning adapter resolves through runVerification exactly as a sync one does", async () => {
+    // WHY THIS REACHES FOR THE MODULE REGISTRY INSTEAD OF A LOCAL VARIABLE. `runVerification` takes
+    // a provider NAME, never a provider — that IS property 1, and it is the property worth keeping.
+    // So the only honest way to put an async adapter behind the port is to re-import the port over a
+    // replaced implementation module: the same module the registry keys itself from. Scoped to this
+    // case and undone in the `finally`, so every other case in this file keeps measuring the real
+    // manual adapter.
+    //
+    // AND IT IS NOT CEREMONY. An `async` function flattens a returned promise whether or not its
+    // body writes `await`, so "runVerification is async now" proves nothing on its own. What has to
+    // be measured is that an adapter handing back a PROMISE produces a plain, four-key, fully-formed
+    // result at the caller — because the failure mode on the other side of that is a `Promise`
+    // object written into `host_verification`, i.e. a verified-looking row for a check nobody read.
+    const CHECKED_AT = new Date("2026-09-02T04:05:06.000Z");
+    let calls = 0;
+
+    // The annotation is the COMPILE-TIME half of the widening: before 18.1-04 an implementation
+    // returning `Promise<VerificationResult>` did not satisfy this interface at all.
+    const asyncProvider: VerificationProvider = {
+      name: "manual",
+      verify: async (decision) => {
+        calls += 1;
+        // A real task-queue boundary, so a missing `await` in the port cannot be papered over by a
+        // promise that happened to be settled already at the moment it was returned.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        return {
+          result: decision.result,
+          vendorRef: "fixture-session-id",
+          checkedAt: CHECKED_AT,
+          provider: "manual",
+        };
+      },
+    };
+
+    try {
+      vi.resetModules();
+      vi.doMock("@/lib/verification/providers/manual", () => ({
+        MANUAL_PROVIDER_NAME: "manual",
+        manualVerificationProvider: asyncProvider,
+      }));
+
+      const port = await import("@/lib/verification/port");
+
+      // The port's own return is THENABLE, so a caller that forgets to await gets an object that is
+      // truthy for every input — which is why the two ops call sites were changed in the same
+      // commit and why every case in this file awaits.
+      const pending = port.runVerification("manual", { result: "pass" });
+      expect(pending).toBeInstanceOf(Promise);
+
+      const produced = await pending;
+      // ONE await is enough: the port unwrapped the adapter's promise rather than nesting it.
+      expect(produced).not.toBeInstanceOf(Promise);
+      expect(produced).not.toBeNull();
+      expect(produced!.result).toBe("pass");
+      expect(produced!.vendorRef).toBe("fixture-session-id");
+      expect(produced!.checkedAt).toEqual(CHECKED_AT);
+      expect(produced!.provider).toBe("manual");
+      expect(port.isVerified(produced)).toBe(true);
+
+      // "EXACTLY AS A SYNC ONE DOES" — case 12's storage contract, re-measured over the async path.
+      // The widening changed WHEN a result arrives and must not have changed WHAT one is.
+      expect(Object.keys(produced!).sort()).toEqual(
+        ["checkedAt", "provider", "result", "vendorRef"].sort(),
+      );
+
+      // Both directions, for case 9's reason: an adapter hardcoded to "pass" marks every rejected
+      // host verified, and threading a value through a promise is exactly the kind of edit that
+      // loses the input on one branch.
+      const failed = await port.runVerification("manual", { result: "fail" });
+      expect(failed).not.toBeNull();
+      expect(failed!.result).toBe("fail");
+      expect(port.isVerified(failed)).toBe(false);
+
+      // AND THE FAIL-CLOSED BRANCH IS STILL CLOSED with an async provider registered. Resolution
+      // happens before anything is awaited, so a hostile name never reaches an adapter at all —
+      // asserted by the call counter rather than inferred from the null.
+      for (const { label, name } of UNREGISTERED) {
+        const refused = await port.runVerification(name, { result: "pass" });
+        expect(refused, label).toBeNull();
+        expect(port.isVerified(refused), label).toBe(false);
+      }
+      expect(calls, "no unregistered name may reach the adapter").toBe(2);
+    } finally {
+      vi.doUnmock("@/lib/verification/providers/manual");
+      vi.resetModules();
+    }
   });
 });
