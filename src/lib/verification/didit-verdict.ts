@@ -503,7 +503,12 @@ function featureReports(decision: DiditDecision | null | undefined): readonly Di
  * arrives through four gates, none of which is a translator:
  *
  *   1. ONLY AN ERROR. A `warning` or an `information` log did not cause the decline; keeping one
- *      would tell a host that something they cannot act on is the reason they were refused.
+ *      would tell a host that something they cannot act on is the reason they were refused. ⚠ This
+ *      comparison is EXACT while the status comparison is case-insensitive, and the asymmetry is
+ *      deliberate: only the status has two documented vendor spellings, and the two mismatches fail
+ *      in opposite directions. A mis-cased STATUS would strand a host at `pending` with nobody
+ *      prompted; a mis-cased LOG LEVEL only drops a sentence, and the host still gets the canned
+ *      one. Fail closed on the side where being wrong is merely quieter.
  *   2. ONLY AN ALLOW-LISTED CODE, via `Object.hasOwn` — see `DIDIT_SAFE_RISKS` for the four reasons
  *      a code is excluded, and see the header for the prototype-shaped names a bare index would
  *      answer truthily for.
