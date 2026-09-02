@@ -61,13 +61,13 @@
 //   4. RE-READ `user.emailVerified` SERVER-SIDE (D-269). The publish wizard's checklist row is a
 //      hint; this is the gate.
 //   5. ASK THE VENDOR, then perform ONE guarded upsert whose WHERE holds every source state — so a
-//      0-row result is the single calm no-op. Both halves land in this plan's second commit.
+//      0-row result is the single calm no-op and there is no branch a later edit can forget.
 //
 // ⚠ D-72 — WHAT THE AUDIT ROWS MAY CARRY. `{ userId }` and enum-shaped denial reasons, and nothing
 // else. The phone and the email never enter `audit.meta` (a durable jsonb column under an explicit
 // no-secrets/no-PII rule), never a log line, and never a column this action writes.
 
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { z } from "zod";
 
@@ -77,12 +77,18 @@ import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
 import {
   HOST_VERIFICATION_EMAIL_UNCONFIRMED,
+  HOST_VERIFICATION_NOTHING_CHANGED,
   HOST_VERIFICATION_PHONE_REQUIRED,
   HOST_VERIFICATION_SIGNED_OUT,
   HOST_VERIFICATION_TOO_MANY_ATTEMPTS,
   HOST_VERIFICATION_VENDOR_UNAVAILABLE,
 } from "@/lib/host/verification-refusals";
 import { rateLimit } from "@/lib/rate-limit";
+import {
+  beginDiditVerification,
+  DiditSessionError,
+  type DiditSessionStart,
+} from "@/lib/verification/providers/didit";
 
 /**
  * `{ ok: true, redirectTo } | { ok: false, error }` — `src/app/actions/capability.ts:38-40`'s shape,
@@ -142,6 +148,17 @@ const EMAIL_UNCONFIRMED: HostVerificationResult = {
   error: HOST_VERIFICATION_EMAIL_UNCONFIRMED,
 };
 
+/**
+ * THE 0-ROW BRANCH — one sentence for five conditions (suspended, already pending, already
+ * approved, grandfathered, and a rejection whose cooldown has not elapsed). See the sentence's own
+ * docblock for the two reasons it is one sentence; this is `approveHost`'s `STALE` in another
+ * domain.
+ */
+const NOTHING_CHANGED: HostVerificationResult = {
+  ok: false,
+  error: HOST_VERIFICATION_NOTHING_CHANGED,
+};
+
 /** The vendor call failed. Fail closed: no session exists, so NO ROW may be written. */
 const VENDOR_UNAVAILABLE: HostVerificationResult = {
   ok: false,
@@ -196,6 +213,39 @@ async function requireUserId(): Promise<string | null> {
 const ACTIVATE_RATE_LIMIT = { window: 60, max: 5 } as const;
 
 /**
+ * THE DURABLE CAP (D-264) — a rejected host may ask again after 24 hours.
+ *
+ * A COOLDOWN AND NOT AN ATTEMPT COUNTER, and that is forced rather than chosen: case 1 of
+ * `tests/ops/verification-schema.test.ts` asserts `host_verification`'s column set by SET EQUALITY,
+ * so a counter column reddens it. There is consequently no lifetime cap either, because a lifetime
+ * cap cannot be expressed without somewhere to keep the count. Retry is the only thing standing
+ * between a vendor misread and a permanently unsellable real host, so an interval is the right
+ * shape anyway.
+ *
+ * ⚠ A LITERAL, AND NEVER READ FROM THE ENVIRONMENT. `src/lib/payments/fees.ts:82`'s
+ * `OPS_CANCEL_REFUNDS_SERVICE_FEE` precedent: a behaviour change of this kind should be a REVIEWED
+ * one-line code change with a diff and a test, never an environment variable that can flip silently
+ * in a deploy nobody read. (An acceptance grep counts environment reads in this file and expects
+ * zero, so the spelling of that access is deliberately absent from this paragraph too — the same
+ * drizzle/0021 rule the staff-gate note in the header follows.)
+ *
+ * ⚠ AND IT IS THE SINGLE AUTHORITY ON HOW OFTEN A HOST MAY TRY (D-272). The Didit account carries
+ * `max_retry_attempts: 7` over `retry_window_days: 7`, which is this number restated in the
+ * vendor's units, deliberately raised so the vendor can never refuse a retry FitOut has already
+ * promised — the two-authorities defect PROJECT D-130 / GATE-05 is named for. **If this constant
+ * ever changes, `DECLARED_RETRY` in `scripts/didit-setup.ts` changes in the SAME COMMIT**;
+ * `npm run didit:verify` fails when the account and the declaration disagree, but only the
+ * same-commit rule keeps the two MEANINGS aligned.
+ *
+ * ⚠ The vendor's PER-MODULE caps are lower and were NOT raised (`id_verification_max_retry_attempts:
+ * 2`, `face_liveness_max_attempts: 3`, `face_match_max_attempts: 3`). Those bound retries WITHIN one
+ * session, not sessions per week, so a host can exhaust a document's attempts inside one session
+ * while this cooldown is nowhere near reached — which is why an exhausted module must never be
+ * rendered to a host as "you have no attempts left" (18.1-06's rule, D-272).
+ */
+const COOLDOWN_HOURS = 24;
+
+/**
  * D-268 — THE PHONE, BOUNDED BUT NOT PARSED.
  *
  * 7–20 characters after trimming, and only digits, `+`, spaces and hyphens, with at least one digit
@@ -228,12 +278,10 @@ const requestHostVerificationSchema = z.object({
  * Guards run in the order the header states. Every refusal is a named constant and an audited row;
  * nothing raises.
  *
- * ⚠ INCOMPLETE IN THIS COMMIT, AND FAIL-CLOSED BY CONSTRUCTION WHILE IT IS. This commit lands the
- * guards, the two § 21(b)(3) gates and the refusal vocabulary; the vendor session and the guarded
- * upsert are the next commit in this plan (18.1-07 Task 2). Until they exist there is no code here
- * that could write a `host_verification` row, so the action refuses with the vendor sentence rather
- * than claiming a success it cannot deliver — the same fail-closed reading the port applies to a
- * provider that did not answer.
+ * ON SUCCESS the host's row reads `pending` with a `vendor_ref` and no verdict, `loadReviewQueue`
+ * returns them in `created_at ASC` position, and `redirectTo` is the vendor's hosted URL. That
+ * sequence is the whole content of this plan: it is what gives `approveHost` a row to flip, which is
+ * what makes the ops host queue fillable from ordinary product use.
  */
 export async function requestHostVerification(
   input: RequestHostVerificationInput,
@@ -297,12 +345,166 @@ export async function requestHostVerification(
     return EMAIL_UNCONFIRMED;
   }
 
-  // ── 5. THE VENDOR SESSION AND THE GUARDED UPSERT — 18.1-07 Task 2, next commit. ──────────────
+  // ── 5a. ASK THE VENDOR, FIRST, AND FAIL CLOSED IF IT WILL NOT ANSWER. ────────────────────────
+  //
+  // The session has to exist before a row can point at it: `vendor_ref` is the ONLY handle FitOut
+  // keeps pointing at the vendor's copy of the evidence, and a `pending` row carrying an invented
+  // one would be a row nobody can ever explain. So the order is ask-then-write, and a failed ask
+  // writes NOTHING — there is no object to write, which is strictly stronger than writing a failing
+  // one (the port's fail-closed property, one layer out).
+  //
+  // ⚠ THIS GOES THROUGH THE ADAPTER'S OWN NAMED ENTRY POINT, and this call site does not know, test
+  // or compare a provider name. FINDING F-5 settled that a provider which must first ASK gets a
+  // SECOND named function rather than a wider `VerificationDecision`: nothing has been decided at
+  // this instant, so there is no verdict to hand in, and the answer arrives later on a channel this
+  // action is not on (the signed webhook, plan 18.1-08; the reconciliation sweep, plan 18.1-09).
+  // The registry in `src/lib/verification/port.ts` remains the ONE mapping from a name to an
+  // adapter; a comparison here would be a second one. The `provider` written below is read OFF the
+  // result the adapter produced, never composed from a literal.
+  //
+  // ⚠ A DUPLICATE PRESS IS ALREADY BOUNDED VENDOR-SIDE, so what follows is defence in depth rather
+  // than the only defence. `POST /v3/session/` is idempotent over UNFINISHED sessions on the same
+  // `vendor_data`: a second press returns the SAME session (still 201) with only the callback
+  // updated, and finished sessions are never reused (18.1-RESEARCH § ADDENDUM A3). That also means a
+  // press this action refuses at the 0-row branch below has not minted a second billable session —
+  // the unfinished one it got back is the one the host's next legitimate submission will be handed.
+  let started: DiditSessionStart;
+  try {
+    started = await beginDiditVerification(userId);
+  } catch (err) {
+    // ⚠ AN OPERATOR LINE, AND ONLY THE MESSAGE. The adapter's messages name the ENV VAR and never
+    // its value, so they are safe to log; the raw error is not logged wholesale because a transport
+    // failure's `cause` is an arbitrary object and this path must not become the leak (T-07-38's
+    // rule applied to a vendor error). A missing, malformed, expired or wrong-application credential
+    // all answer HTTP 403 with no machine-readable discriminator (ADDENDUM A5) — ONE credential
+    // fault wearing two numbers — so `status` is recorded for the operator and branched on by
+    // nobody.
+    console.error("[HOST_VERIFY_ALERT] vendor_session_failed", {
+      userId,
+      status: err instanceof DiditSessionError ? err.status : null,
+      message: err instanceof Error ? err.message : "unknown",
+    });
+    await recordAudit({
+      actorId: userId,
+      action: AUDIT_ACTION,
+      outcome: "denied",
+      meta: { reason: "provider_unavailable" satisfies DenialReason, userId },
+    });
+    return VENDOR_UNAVAILABLE;
+  }
+  const check = started.verification;
+
+  // ── 5b. ONE GUARDED UPSERT. It is the durable cap, the suspension refusal and the queue ──────
+  //        re-stamp, all in a single statement.
+  //
+  // FOUR PROPERTIES LIVE IN THIS ONE STATEMENT, and each is written at the site because each is a
+  // thing a later edit could quietly undo:
+  //
+  //   ① `suspended` IS ABSENT FROM THE WHERE, so D-266 is STRUCTURAL rather than a branch. A
+  //      suspension is a named staff member's deliberate act (ENF-01 / D-233); letting the machine
+  //      auto-approve a suspended host back toward sellable would let a vendor silently reverse a
+  //      human's enforcement decision. The refusal is therefore not an `if` somebody can forget to
+  //      re-add — the statement simply has no source state that matches, so it flips 0 rows. The
+  //      same is true of `approved` (already decided), `pending` (already asked) and
+  //      `grandfathered` (D-211 keeps that state first-class and distinct): all four are calm 0-row
+  //      no-ops, and only `unverified` and a cooled-down `rejected` are admitted.
+  //
+  //   ② THE COOLDOWN READS `updated_at`, NEVER `created_at`. Not a style choice: `created_at` is
+  //      made MUTABLE by property ③ of this very statement, so a cooldown derived from it would
+  //      re-stamp its own clock and reset itself on every press. It must also never be derived from
+  //      anything the vendor returns — the session's creation instant does not move on a
+  //      resubmission, because there is no new session (ADDENDUM A3, the cause of FINDING F-1).
+  //      `loadHostVerification` returns this same column so the host surface can SHOW the instant
+  //      the WHERE reads, rather than becoming a second authority on it.
+  //
+  //   ③ FINDING F-1 — `created_at = now()` ON THE RESUBMISSION BRANCH. `host_verification` is 1:1,
+  //      primary-keyed on `user_id`, so a resubmission is an UPDATE of the same row, and
+  //      `createdAt` is `.defaultNow()` — which fires on INSERT ONLY. Without this explicit
+  //      assignment a host who submits in January and resubmits in September re-enters the
+  //      `created_at ASC` queue STAMPED JANUARY and sits permanently ahead of every first-time
+  //      submitter: exactly the line-jumping D-249 forbids, in the opposite direction. This is the
+  //      host-side equivalent of `src/lib/listing/re-review.ts`'s resubmission-time rule, and it has
+  //      to be spelled this way because `host_verification` has no history table to COALESCE over
+  //      the way the listing queue does, and is not growing one.
+  //
+  //   ④ `updated_at = now()` IS SPELLED EXPLICITLY even though `schema.ts:432-435` declares
+  //      `$onUpdate(() => new Date())`. `$onUpdate` fires only through Drizzle's query BUILDER, and
+  //      this is a raw statement; every shipped ops write spells it for the same reason.
+  //
+  // NO JS `Date` IS BOUND HERE. `ops-review.ts:390-401` records the measurement — a `Date` cannot
+  // be bound as a parameter through raw `db.execute` on postgres.js — and this statement sidesteps
+  // it entirely by letting Postgres supply every instant with `now()`. The only bound values are two
+  // strings and an integer.
+  //
+  // ONE TRANSACTION WITH THE PHONE WRITE, so a submitted phone and a submitted verification can
+  // never disagree: the upsert goes first, and a 0-row result returns before `user.phone` is
+  // touched, so a refused press leaves the profile exactly as it was.
+  const flipped = await db.transaction(async (tx) => {
+    const rows = (await tx.execute(sql`
+      INSERT INTO host_verification
+        (user_id, status, provider, vendor_ref, result, checked_at, reason,
+         decided_by_staff_id, created_at, updated_at)
+      VALUES
+        (${userId}, 'pending', ${check.provider}, ${check.vendorRef},
+         NULL, NULL, NULL, NULL, now(), now())
+      ON CONFLICT (user_id) DO UPDATE
+        SET status = 'pending',
+            provider = ${check.provider},
+            vendor_ref = ${check.vendorRef},
+            result = NULL,
+            checked_at = NULL,
+            reason = NULL,
+            decided_by_staff_id = NULL,
+            created_at = now(),
+            updated_at = now()
+        WHERE host_verification.status = 'unverified'
+           OR ( host_verification.status = 'rejected'
+                AND host_verification.updated_at
+                    < now() - make_interval(hours => ${COOLDOWN_HOURS}::int) )
+      RETURNING user_id
+    `)) as unknown as { user_id: string }[];
+
+    if (rows.length === 0) return rows;
+
+    // D-268 — the self-declared phone, inside the same transaction as the verification write.
+    // `user.phone` stays NULLABLE and stays optional for bookers; supplying one is a condition of
+    // ASKING to be verified, not of having an account.
+    await tx.update(user).set({ phone: parsed.data.phone }).where(eq(user.id, userId));
+    return rows;
+  });
+
+  if (flipped.length === 0) {
+    await recordAudit({
+      actorId: userId,
+      action: AUDIT_ACTION,
+      outcome: "denied",
+      meta: { reason: "not_applicable" satisfies DenialReason, userId },
+    });
+    return NOTHING_CHANGED;
+  }
+
   await recordAudit({
     actorId: userId,
     action: AUDIT_ACTION,
-    outcome: "denied",
-    meta: { reason: "provider_unavailable" satisfies DenialReason, userId },
+    outcome: "ok",
+    // ⚠ D-72 — the id and the provider name. NOT the phone, NOT the email, and NOT the vendor
+    // session handle: `vendor_ref` lives in the domain column it belongs to, and a second copy in a
+    // jsonb column would be a second place a compliance question could be answered wrongly from.
+    // `userId` duplicates `actorId` here only because this action is self-service; carrying it makes
+    // the deny and allow rows findable by the same instrument the ops trail is read with.
+    meta: { userId, provider: check.provider },
   });
-  return VENDOR_UNAVAILABLE;
+
+  // NO `revalidatePath` HERE, DELIBERATELY. `approveHost` invalidates `/ops` because the operator is
+  // standing on the page the decision just changed. This caller is a host who is about to leave the
+  // app entirely for the vendor's hosted flow, and `/ops` is not this action's surface — the next
+  // operator load renders the new row from the database. Adding an invalidation for a route the
+  // caller cannot see would be a cache decision taken in the wrong place.
+  //
+  // ⚠ THE HOSTED URL IS RETURNED AND NEVER PERSISTED. It is a redirect target carrying a session
+  // token, not a fact about a check; the adapter keeps it OUT of `VerificationResult` for exactly
+  // that reason, and it must not become a fifth field or a column. And when the host comes BACK,
+  // nothing about that return moves this row: only the signed webhook (18.1-08) or the
+  // reconciliation sweep (18.1-09) may (ADDENDUM A9 — the redirect is attacker-controllable).
+  return { ok: true, redirectTo: started.hostedUrl };
 }
