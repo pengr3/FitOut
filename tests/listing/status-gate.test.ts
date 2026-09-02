@@ -10,6 +10,8 @@ import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { mockCloudinary } from "../helpers/mocks";
+// D-255 (plan 18.1-12) — the ONE shared seed, imported rather than re-implemented here.
+import { seedHostVerification } from "../helpers/verification";
 import { stripComments } from "../helpers/source-text";
 import type { DraftListingInput } from "@/lib/validation/listing";
 import {
@@ -114,6 +116,16 @@ const VALID_FIELDS: DraftListingInput = {
   showExactAddress: true,
 };
 
+/**
+ * ⚠ `opts.verified` IS THE EMAIL SOFT-GATE (D-07), AND THE `approved` ROW SEEDED BELOW IS A DIFFERENT
+ * GATE ENTIRELY — the two are one line apart and must not be read as one thing.
+ *
+ * `emailVerified` is the PUBLISH requirement this file's own cases drive both ways. The
+ * `host_verification` row is D-255's CREATION gate (plan 18.1-12): `createDraftListing` refuses a
+ * host with no row, which is what Better Auth's sign-up leaves, so `newDraftId()` would fail at its
+ * setup line in every case here — including the ones that deliberately withhold `emailVerified` and
+ * would then be measuring the wrong refusal.
+ */
 async function signInHost(email: string, opts?: { verified?: boolean }): Promise<string> {
   const res = (await signUp(testAuth, {
     email,
@@ -122,6 +134,7 @@ async function signInHost(email: string, opts?: { verified?: boolean }): Promise
     firstName: "Host",
     intent: "host",
   })) as { user: { id: string } };
+  await seedHostVerification(testDb.db, res.user.id, "approved");
   if (opts?.verified) {
     await testDb.db.update(user).set({ emailVerified: true }).where(eq(user.id, res.user.id));
   }

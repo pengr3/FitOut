@@ -585,6 +585,48 @@ export async function signUpStaff(page: Page): Promise<SeededStaff> {
 }
 
 /**
+ * Give ONE host, by email, an APPROVED `host_verification` row — the D-255 CREATION gate (18.1-12).
+ *
+ * ⚠ WHY A SECOND SEEDER IN A FILE THAT ALREADY WRITES AN APPROVED ROW, AND WHY IT IS AN ADDITION
+ * RATHER THAN A REPLACEMENT. `seedBookableListing` above writes one for the host it INVENTS, because
+ * that host must be able to SELL (`deriveBookable`'s sixth term, D-224). This one is for a host that
+ * SIGNED UP THROUGH THE FORM, which leaves no row at all — and from plan 18.1-12 a host with no row
+ * cannot even CREATE a draft: `createDraftListing` refuses `unverified | pending | rejected |
+ * suspended`, and `/host/listings/new` redirects them to `/host/verify` before the action is reached.
+ *
+ * So the gate this closes is a DIFFERENT one from the sell-gate, one step earlier in the same host's
+ * life, and the spec that needs it is `axe-sweep.spec.ts`: it mints its draft listing by DRIVING
+ * `/host/listings/new` with a freshly signed-up account, and that navigation now lands on the account
+ * check instead of the wizard unless this runs first.
+ *
+ * ⚠ IT DOES NOT RETURN A TEARDOWN, AND THAT IS DELIBERATE. Its one caller composes it with
+ * `seedPendingHostVerification` below, whose `ON CONFLICT DO UPDATE` flips this row to `pending` and
+ * whose own teardown deletes it. A second teardown here would either double-delete or race with that
+ * one, and a helper that hands back a cleanup its caller must remember NOT to call is worse than one
+ * that documents whose cleanup owns the row.
+ *
+ * ⚠ THESE SPECS DO NOT RUN IN CI (D-24). Nothing but a hand run can catch a miss here — which is
+ * precisely how this class of fixture gap has stayed red through three review passes before.
+ */
+export async function seedApprovedHostVerification(email: string): Promise<string> {
+  return withClient(async (sql) => {
+    const [row] = await sql<{ id: string }[]>`SELECT id FROM "user" WHERE email = ${email}`;
+    expect(
+      row?.id,
+      `no account for ${email} — the sign-up that should have created it did not`,
+    ).toBeTruthy();
+    await sql`
+      INSERT INTO host_verification (user_id, status, provider, created_at, updated_at)
+      VALUES (${row.id}, ${"approved"}::host_verification_status, ${"manual"}, now(), now())
+      ON CONFLICT (user_id) DO UPDATE
+        SET status = ${"approved"}::host_verification_status,
+            updated_at = now()
+    `;
+    return row.id;
+  });
+}
+
+/**
  * Put ONE host into the review queue, by email, without seeding a listing.
  *
  * For a spec that needs `/ops` to be deterministically non-empty but has no listing fixture and wants

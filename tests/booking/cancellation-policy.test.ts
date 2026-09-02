@@ -20,6 +20,8 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
+// D-255 (plan 18.1-12) — the ONE shared seed, imported rather than re-implemented here.
+import { seedHostVerification } from "../helpers/verification";
 import { listing, listingPhoto, booking, user } from "@/lib/db/schema";
 import type { DraftListingInput } from "@/lib/validation/listing";
 import {
@@ -123,6 +125,11 @@ beforeAll(async () => {
   // The email soft-gate is a SEPARATE publish requirement (01-CONTEXT D-07). Satisfy it so a rejection
   // in these cases can only ever be about the cancellation tier.
   await testDb.db.update(user).set({ emailVerified: true }).where(eq(user.id, hostId));
+  // …and so is D-255's CREATION gate, one action earlier and for the same reason (plan 18.1-12).
+  // `createDraftListing` refuses a host with no `host_verification` row — which is what Better Auth's
+  // sign-up leaves — so `seedPublishReadyDraft` would fail at "draft setup failed" and no case below
+  // would ever reach the tier it is about. Through the ONE shared helper, never a local insert.
+  await seedHostVerification(testDb.db, hostId, "approved");
 
   const signIn = await testAuth.api.signInEmail({
     body: { email: "tier.host@example.com", password: "averylongpassword" },

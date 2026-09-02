@@ -11,7 +11,16 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
-import { listing, listingAmenity, listingActivityTag } from "@/lib/db/schema";
+// D-255 (plan 18.1-12) — the ONE shared seed. See `signInHost` below for why every fixture in this
+// file now carries a verification row, and `tests/helpers/verification.ts`'s header for why the
+// helper exists rather than a dozen copies of the same two inserts.
+import { seedHostVerification } from "../helpers/verification";
+import {
+  listing,
+  listingAmenity,
+  listingActivityTag,
+  type HostVerificationStatus,
+} from "@/lib/db/schema";
 
 let testDb: TestDb;
 let testAuth: TestAuth;
@@ -41,8 +50,27 @@ afterAll(async () => {
   await teardownTestDb(testDb);
 });
 
-/** Sign up + sign in a host; stash the session cookie for the next/headers mock. Returns the id. */
-async function signInHost(email: string): Promise<string> {
+/**
+ * Sign up + sign in a host; stash the session cookie for the next/headers mock. Returns the id.
+ *
+ * ⚠ IT NOW SEEDS A VERIFICATION ROW, AND THE DEFAULT IS `approved` (D-255, plan 18.1-12).
+ * `createDraftListing` refuses `unverified | pending | rejected | suspended` server-side, and a host
+ * signed up through Better Auth has NO `host_verification` row at all — which reads as `unverified`.
+ * Without this, every case below that mints a draft fails at its setup line with "setup failed",
+ * which looks like a regression in listing CRUD and is actually the gate doing its job.
+ *
+ * SEEDED HERE RATHER THAN AT ~SEVEN CALL SITES on `tests/helpers/verification.ts`'s own argument: a
+ * copy per site is a chance per site to seed the wrong status, and seeding `approved` where the case
+ * meant `unverified` produces a test that passes for the wrong reason. One place, one default.
+ *
+ * The `status` parameter is what the LVER-05 census below drives — including `null`, which seeds the
+ * user with NO verification row at all. That is a DISTINCT fixture from a row at `unverified`, not a
+ * synonym for it, and the census measures both (the helper's header states the rule).
+ */
+async function signInHost(
+  email: string,
+  status: HostVerificationStatus | null = "approved",
+): Promise<string> {
   const res = (await signUp(testAuth, {
     email,
     password: "averylongpassword",
@@ -50,6 +78,7 @@ async function signInHost(email: string): Promise<string> {
     firstName: "Host",
     intent: "host",
   })) as { user: { id: string } };
+  await seedHostVerification(testDb.db, res.user.id, status);
   const signIn = await testAuth.api.signInEmail({
     body: { email, password: "averylongpassword" },
     asResponse: true,

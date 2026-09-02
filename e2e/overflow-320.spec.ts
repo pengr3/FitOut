@@ -3284,7 +3284,14 @@ const PHASE_14_ROWS: readonly Phase14Row[] = [
       "more than it does on the two rows above: `page.tsx` redirects to `/host/listings` when " +
       "`createDraftListing` fails, and that grid renders no rail. So the rail is also the proof that " +
       "the draft was created rather than that the fallback was taken. The route's own plate is a " +
-      "`Creating your listing…` status paragraph with no rail, and `/login` renders `panel-card`.",
+      "`Creating your listing…` status paragraph with no rail, and `/login` renders `panel-card`. " +
+      "⚠ AMENDED BY PLAN 18.1-12: there is now a THIRD destination this rail rules out. D-255 gates " +
+      "listing CREATION on the host's `host_verification` row, and the route redirects an " +
+      "`unverified | pending | rejected | suspended` host to `/host/verify` BEFORE the action is " +
+      "called — a `panel-card` surface with no rail. This block's fixture seeds that host `approved` " +
+      "(see the `/host/verify` row above, which measures the panel that state renders), so the row " +
+      "is unaffected and the rail now proves the verification gate passed as well as that the insert " +
+      "landed. The seed is therefore load-bearing for CREATION here, not only for bookability.",
     touch: [],
     touchWhy:
       "NONE DECLARED, for the `/host/listings/[id]/edit · photos step` row's reason: the one control " +

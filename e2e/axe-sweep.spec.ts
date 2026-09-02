@@ -5,7 +5,11 @@ import { join, relative, resolve } from "node:path";
 import { expectAxeClean } from "./helpers/axe";
 import { BASE_URL as BASE, installTruncator } from "./helpers/served-document";
 import { seedTheme } from "./helpers/theme";
-import { seedPendingHostVerification, signUpStaff } from "./helpers/booker-seed";
+import {
+  seedApprovedHostVerification,
+  seedPendingHostVerification,
+  signUpStaff,
+} from "./helpers/booker-seed";
 // The hooks are IMPORTED, never retyped — 17-RESEARCH Pattern 4. `visual-baselines.ts` already
 // carries a `hook` + `hookWhy` pair per surface, argued at the row, and those selectors are exactly
 // the "tell" this sweep needs before a scan. A surface whose hook changes then moves in ONE place; a
@@ -257,6 +261,14 @@ type Fixture = {
  * Every surface that genuinely needs a seeded booking is a NAMED SKIP below that says which fixture
  * it wants, rather than a row quietly missing.
  *
+ * ⚠ AMENDED BY PLAN 18.1-12, AND THE AMENDMENT NARROWS THE CLAIM RATHER THAN BREAKING THE RULE.
+ * "What the shipped UI can produce from a fresh account" no longer includes a draft listing: D-255
+ * gates `createDraftListing` on the host's `host_verification` row, and a fresh account has none. So
+ * `beforeAll` now makes THREE writes through `helpers/booker-seed.ts` rather than two. The rule this
+ * docblock states is about HOLDING a connection, not about never writing — `withClient` there opens,
+ * writes and ends inside the call, so this file's steady state is still zero clients, which is the
+ * same argument the staff/queue writes already carry two paragraphs down.
+ *
  * ⚠ THE CLOCK IS IN THE EMAIL AND NOWHERE ELSE. `Date.now()` buys uniqueness against the unique-email
  * constraint across repeated runs; it never reaches a measured string. Stated because this repository
  * has shipped two time-bomb assertions seeded from `now()`.
@@ -284,8 +296,17 @@ async function signUp(page: Page, intent: "booker" | "host", tag: string): Promi
  *
  * `src/app/(host)/host/listings/new/page.tsx` renders NOTHING — it creates an empty draft owned by the
  * caller and `redirect()`s into `/host/listings/{id}/edit`. That is what makes the wizard and the
- * availability editor reachable from a bare sign-up with no seeded row anywhere, and it is why this
- * file can measure nine host surfaces without a database client.
+ * availability editor reachable from a bare sign-up, and it is why this file can measure nine host
+ * surfaces without holding a database client.
+ *
+ * ⚠ "WITH NO SEEDED ROW ANYWHERE" WAS TRUE UNTIL PLAN 18.1-12 AND IS NOW FALSE — corrected here
+ * rather than left standing, because a stale sentence in a fixture docblock is how the next reader
+ * concludes this navigation cannot fail. D-255 put a SERVER-SIDE gate in front of
+ * `createDraftListing`: it refuses `unverified | pending | rejected | suspended`, and a host signed
+ * up through the form above has NO `host_verification` row at all — which reads as `unverified`. The
+ * route then redirects to `/host/verify`, this function's `waitForURL` never sees an `/edit` path,
+ * and NINE host rows below resolve to `null` at once. So `beforeAll` seeds an APPROVED row for this
+ * host FIRST, through `seedApprovedHostVerification`, whose own docblock carries the argument.
  */
 async function mintDraftListing(page: Page): Promise<string | null> {
   await page.goto(`${BASE}/host/listings/new`);
@@ -1070,6 +1091,14 @@ test.describe(`AC#16 — zero axe violations in ${THEME} at ${WIDTHS.join(" and 
     const hostContext = await browser.newContext({ baseURL: BASE });
     const hostPage = await hostContext.newPage();
     const hostEmail = await signUp(hostPage, "host", "ht");
+    // ⚠ ORDER IS LOAD-BEARING, AND SO IS THE FACT THAT IT IS OVERWRITTEN LATER (D-255, plan 18.1-12).
+    // `/host/listings/new` refuses a host with no verification row and routes them to `/host/verify`,
+    // so the draft cannot be minted until this lands. The row is then flipped to `pending` by
+    // `seedPendingHostVerification` further down — which the `/host/verify` row below DEPENDS on,
+    // since its tell names the in-progress panel's own title. Two states for one host, in this order,
+    // and neither is an accident: `approved` to get the draft, `pending` to get the queue row and the
+    // panel. `seedPendingHostVerification`'s teardown owns the row.
+    await seedApprovedHostVerification(hostEmail);
     const draftListingId = await mintDraftListing(hostPage);
     const host = await hostContext.cookies();
     await hostContext.close();

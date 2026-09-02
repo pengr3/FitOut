@@ -22,6 +22,8 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
+// D-255 (plan 18.1-12) — the ONE shared seed, imported rather than re-implemented here.
+import { seedHostVerification } from "../helpers/verification";
 import { user, listing, booking } from "@/lib/db/schema";
 import { getModeLockState } from "@/lib/listing/mode-lock";
 import { MODE_LOCKED_MESSAGE } from "@/lib/validation/listing";
@@ -75,7 +77,15 @@ afterAll(async () => {
   await teardownTestDb(testDb);
 });
 
-/** Sign up + sign in a host; stash the session cookie for the next/headers mock. Returns the id. */
+/**
+ * Sign up + sign in a host; stash the session cookie for the next/headers mock. Returns the id.
+ *
+ * ⚠ SEEDS AN `approved` VERIFICATION ROW (D-255, plan 18.1-12). `createDraftListing` now refuses a
+ * host with no `host_verification` row — which is what Better Auth's sign-up leaves — so `draftForHost`
+ * below would fail at its setup line and the OC-17 refusal cases would never reach their subject.
+ * The status is `approved` because nothing in this file is about verification: it is about the mode
+ * lock, and a fixture refused for an unrelated reason measures nothing.
+ */
 async function signInHost(email: string): Promise<string> {
   const res = (await signUp(testAuth, {
     email,
@@ -84,6 +94,7 @@ async function signInHost(email: string): Promise<string> {
     firstName: "Host",
     intent: "host",
   })) as { user: { id: string } };
+  await seedHostVerification(testDb.db, res.user.id, "approved");
   const signIn = await testAuth.api.signInEmail({
     body: { email, password: "averylongpassword" },
     asResponse: true,
