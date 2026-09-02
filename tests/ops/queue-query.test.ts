@@ -41,13 +41,57 @@
 // gallery would render nothing. Case 8 pins the exclusion so it is a decision with a test, not an
 // omission.
 
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// ⚠ WHAT PLAN 18.1-07 ADDED, AND WHY IT IS IN **THIS** FILE
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// Every case above seeds `host_verification` DIRECTLY, which is the right shape for measuring the
+// SQL — but it means the whole file could stay green against a product where no host can ever get
+// into the queue in the first place. That was not hypothetical: until plan 18.1-07 the only
+// `INSERT INTO host_verification` in the repository was a test seed and `drizzle/0026`'s backfill.
+//
+// So the last describe block drives the REAL submission action and then asserts on the queue.
+// It lives here rather than in `host-verification-submit.test.ts` because the claim is about
+// `loadReviewQueue`'s ORDERING — a host row taking its `created_at ASC` place BETWEEN two listing
+// rows — and that is this file's subject. It needs the session/action harness the submission suite
+// has, so the harness is added at the END of `beforeAll`, after the fixture, where it cannot change
+// what cases 1-9 read.
+//
+// ⚠ MUTATION-SCORED. Commenting out the guarded upsert in
+// `src/app/actions/host-verification.ts` must turn case 10 RED. If it does not, the case is
+// measuring a seed rather than the path, which is the whole failure mode it exists to rule out.
+
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
+import { eq } from "drizzle-orm";
 
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
+import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
+import { seedHostVerification } from "../helpers/verification";
 import { user, listing, listingPhoto, listingReview, hostVerification } from "@/lib/db/schema";
 import { loadReviewQueue, type OpsQueueItem } from "@/lib/ops/review-queue";
 
+const sessionHeaders: { cookie: string } = { cookie: "" };
+vi.mock("next/headers", () => ({
+  headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
+}));
+
 let testDb: TestDb;
+let testAuth: TestAuth;
+
+/** The submission action under test, imported after the mocks are in place. */
+type HostActions = typeof import("@/app/actions/host-verification");
+let requestHostVerification: HostActions["requestHostVerification"];
+
+const SC1_PASSWORD = "averylongpassword";
+const SC1_EMAIL = "q_sc1_host@example.com";
+/** Obvious fakes: no case may depend on a real Didit credential being present OR absent. */
+const SC1_API_KEY = "didit-test-key-not-a-credential";
+const SC1_WORKFLOW_ID = "00000000-1111-2222-3333-444444444444";
+/** The captured create-session 201, narrowed to the two fields the adapter reads. */
+const SC1_SESSION = {
+  session_id: "99999999-8888-7777-6666-555555555555",
+  url: "https://verify.didit.me/en/session/QueueProof1",
+  status: "Not Started",
+} as const;
 
 /** The clock the whole fixture is laid out on. Absolute, so nothing depends on when the suite runs. */
 const T = (day: number, month = 8) => new Date(Date.UTC(2026, month - 1, day, 12, 0, 0));
@@ -190,9 +234,38 @@ beforeAll(async () => {
     provider: "manual",
     createdAt: T(1, 1),
   });
+
+  // ── THE SC1 HARNESS, added last so nothing above it can be disturbed (plan 18.1-07). ──────────
+  //
+  // A REAL Better Auth account, because the submission action reads the session; `emailVerified` is
+  // flipped through the shared seeding helper with `null` status, i.e. NO verification row at all —
+  // which is exactly the fixture the queue must be shown to fill from.
+  testAuth = makeTestAuth(testDb);
+  await signUp(testAuth, {
+    email: SC1_EMAIL,
+    password: SC1_PASSWORD,
+    name: "Sam Submits",
+    firstName: "Sam",
+    intent: "host",
+  });
+  const [sc1] = await testDb.db.select({ id: user.id }).from(user).where(eq(user.email, SC1_EMAIL));
+  await seedHostVerification(testDb.db, sc1.id, null, { emailVerified: true });
+
+  vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
+  vi.doMock("@/lib/db", () => ({ db: testDb.db }));
+  // Always-allow, so the case's outcome cannot depend on the limiter's module-level Map — which is
+  // process-wide state this file shares with every other suite in the same worker.
+  vi.doMock("@/lib/rate-limit", () => ({ rateLimit: () => ({ ok: true }) }));
+  vi.resetModules();
+  ({ requestHostVerification } = await import("@/app/actions/host-verification"));
+  // ⚠ `loadReviewQueue` was imported STATICALLY, before `resetModules`, and every case calls it with
+  // `testDb.db` explicitly — so the reset above cannot change what the queue reads.
 }, 120_000);
 
 afterAll(async () => {
+  vi.doUnmock("@/lib/auth");
+  vi.doUnmock("@/lib/db");
+  vi.doUnmock("@/lib/rate-limit");
   await teardownTestDb(testDb);
 });
 
@@ -373,5 +446,104 @@ describe("OPS-04 — every row carries what the reviewer needs, selected once", 
     expect(ids).toContain("q_h2_l3"); // unlisted IS reviewable
     expect(ids).not.toContain("q_h2_out_draft");
     expect(ids).not.toContain("q_h2_out_appr");
+  });
+});
+
+describe("SC1 — the host queue fills from ORDINARY PRODUCT USE, in created_at ASC position", () => {
+  it("case 10 — driving requestHostVerification() puts a host item BETWEEN two listing items", async () => {
+    // ── The host who has never been checked, signed in and about to ask. ────────────────────────
+    const [sc1] = await testDb.db
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.email, SC1_EMAIL));
+    expect(
+      await testDb.db
+        .select({ userId: hostVerification.userId })
+        .from(hostVerification)
+        .where(eq(hostVerification.userId, sc1.id)),
+      "the fixture must start with NO verification row — that is the state the product has to be able to leave",
+    ).toEqual([]);
+
+    // A listing already waiting, submitted BEFORE the host will ask. Its `submittedAt` is
+    // 2026-08-10, and everything the action writes carries the real clock, so this one sorts first.
+    await makeListing("q_sc1_before", { createdAt: T(19, 7) });
+    await makeReview("q_sc1_rev_before", "q_sc1_before", T(10));
+
+    // ── SIGN IN AND PRESS THE CONTROL. This is the only line in the file that is the PRODUCT. ────
+    const signedIn = await testAuth.api.signInEmail({
+      body: { email: SC1_EMAIL, password: SC1_PASSWORD },
+      asResponse: true,
+    });
+    const setCookie = signedIn.headers.get("set-cookie");
+    sessionHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
+
+    const fetchMock = vi
+      .fn()
+      // A FRESH `Response` per call: a body may be read only once, and a shared instance turns the
+      // second press into a vendor failure for a reason that exists nowhere in the product.
+      .mockImplementation(() =>
+        Promise.resolve(new Response(JSON.stringify(SC1_SESSION), { status: 201 })),
+      );
+    vi.stubEnv("DIDIT_API_KEY", SC1_API_KEY);
+    vi.stubEnv("DIDIT_WORKFLOW_ID", SC1_WORKFLOW_ID);
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const res = await requestHostVerification({ phone: "+63 917 000 0009" });
+      expect(res.ok, "the submission must succeed for a confirmed-email host with a phone").toBe(
+        true,
+      );
+      // The vendor was really asked — a fail-closed refusal returns a sentence, not a row, and a
+      // case that only read the row could not tell the two apart.
+      expect(fetchMock.mock.calls).toHaveLength(1);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
+
+    // The submission's own instant — the value the queue's ORDER BY reads.
+    const [hostRow] = await testDb.db
+      .select({ createdAt: hostVerification.createdAt, status: hostVerification.status })
+      .from(hostVerification)
+      .where(eq(hostVerification.userId, sc1.id));
+    expect(hostRow.status).toBe("pending");
+
+    // A listing submitted a minute AFTER the host asked, so the host row has a neighbour on both
+    // sides and the assertion below is a genuine INTERLEAVE rather than "it came last".
+    const afterAt = new Date(hostRow.createdAt.getTime() + 60_000);
+    await makeListing("q_sc1_after", { createdAt: afterAt });
+
+    // ── THE CLAIM. ──────────────────────────────────────────────────────────────────────────────
+    const q = await loadReviewQueue(testDb.db);
+    const ids = q.map(idOf);
+
+    const beforeIndex = ids.indexOf("q_sc1_before");
+    const hostIndex = ids.indexOf(sc1.id);
+    const afterIndex = ids.indexOf("q_sc1_after");
+
+    // ⚠ THE MUTATION TARGET. Comment out the guarded upsert in the action and this is the line that
+    // reddens: with no row written, the host is simply not in the queue and `indexOf` is -1.
+    expect(hostIndex, "the submitted host must BE in the queue").toBeGreaterThan(-1);
+    expect(beforeIndex).toBeGreaterThan(-1);
+    expect(afterIndex).toBeGreaterThan(-1);
+
+    // Interleaved by TIME, not grouped by kind — the property no per-item assertion can see.
+    expect(beforeIndex).toBeLessThan(hostIndex);
+    expect(hostIndex).toBeLessThan(afterIndex);
+
+    const hostItem = q[hostIndex];
+    expect(hostItem.kind).toBe("host");
+    if (hostItem.kind !== "host") return;
+    expect(hostItem.userId).toBe(sc1.id);
+    expect(hostItem.hostName).toBe("Sam Submits");
+    expect(hostItem.emailVerified).toBe(true);
+    // The wait clock IS the row's `created_at` — the same column FINDING F-1 makes mutable, so a
+    // resubmitter re-enters here rather than at their original instant.
+    expect(hostItem.submittedAt.getTime()).toBe(hostRow.createdAt.getTime());
+
+    // And the ordering property itself, across the whole queue, so the case does not rest solely on
+    // three indices.
+    for (let i = 1; i < q.length; i++) {
+      expect(q[i].submittedAt.getTime()).toBeGreaterThanOrEqual(q[i - 1].submittedAt.getTime());
+    }
   });
 });
