@@ -83,6 +83,7 @@ import {
   HOST_VERIFICATION_TOO_MANY_ATTEMPTS,
   HOST_VERIFICATION_VENDOR_UNAVAILABLE,
 } from "@/lib/host/verification-refusals";
+import { COOLDOWN_HOURS } from "@/lib/host/verification-cooldown";
 import { rateLimit } from "@/lib/rate-limit";
 import {
   beginDiditVerification,
@@ -212,38 +213,23 @@ async function requireUserId(): Promise<string | null> {
  */
 const ACTIVATE_RATE_LIMIT = { window: 60, max: 5 } as const;
 
-/**
- * THE DURABLE CAP (D-264) — a rejected host may ask again after 24 hours.
- *
- * A COOLDOWN AND NOT AN ATTEMPT COUNTER, and that is forced rather than chosen: case 1 of
- * `tests/ops/verification-schema.test.ts` asserts `host_verification`'s column set by SET EQUALITY,
- * so a counter column reddens it. There is consequently no lifetime cap either, because a lifetime
- * cap cannot be expressed without somewhere to keep the count. Retry is the only thing standing
- * between a vendor misread and a permanently unsellable real host, so an interval is the right
- * shape anyway.
- *
- * ⚠ A LITERAL, AND NEVER READ FROM THE ENVIRONMENT. `src/lib/payments/fees.ts:82`'s
- * `OPS_CANCEL_REFUNDS_SERVICE_FEE` precedent: a behaviour change of this kind should be a REVIEWED
- * one-line code change with a diff and a test, never an environment variable that can flip silently
- * in a deploy nobody read. (An acceptance grep counts environment reads in this file and expects
- * zero, so the spelling of that access is deliberately absent from this paragraph too — the same
- * drizzle/0021 rule the staff-gate note in the header follows.)
- *
- * ⚠ AND IT IS THE SINGLE AUTHORITY ON HOW OFTEN A HOST MAY TRY (D-272). The Didit account carries
- * `max_retry_attempts: 7` over `retry_window_days: 7`, which is this number restated in the
- * vendor's units, deliberately raised so the vendor can never refuse a retry FitOut has already
- * promised — the two-authorities defect PROJECT D-130 / GATE-05 is named for. **If this constant
- * ever changes, `DECLARED_RETRY` in `scripts/didit-setup.ts` changes in the SAME COMMIT**;
- * `npm run didit:verify` fails when the account and the declaration disagree, but only the
- * same-commit rule keeps the two MEANINGS aligned.
- *
- * ⚠ The vendor's PER-MODULE caps are lower and were NOT raised (`id_verification_max_retry_attempts:
- * 2`, `face_liveness_max_attempts: 3`, `face_match_max_attempts: 3`). Those bound retries WITHIN one
- * session, not sessions per week, so a host can exhaust a document's attempts inside one session
- * while this cooldown is nowhere near reached — which is why an exhausted module must never be
- * rendered to a host as "you have no attempts left" (18.1-06's rule, D-272).
- */
-const COOLDOWN_HOURS = 24;
+// THE DURABLE CAP (D-264) IS IMPORTED, NOT DECLARED HERE — AND PLAN 18.1-11 IS WHY.
+//
+// It was a module-private const in this file for exactly as long as this file was its only reader.
+// `/host/verify` is the second: a rejected host must be SHOWN the instant they may ask again, and
+// that instant is `updated_at` plus this interval. The value could not be exported from here — a
+// server-action module may export only async functions (`tests/use-server-exports.test.ts`, with an
+// incident behind it), and every export of one is a network-reachable POST endpoint besides — so it
+// moved to an UNGUARDED DECLARATION MODULE beside this guarded one, which is the split
+// `payments/config.ts` beside `payments/fees.ts` already ships and which
+// `deferred-items.md` D2 names for this family of value.
+//
+// ⚠ NOTHING ABOUT THE RULE MOVED. This statement's own `WHERE` is still the only thing that
+// enforces it; the surface only quotes it. Both derive from the same constant and the same column,
+// so the sentence a host reads cannot disagree with the clause that refuses them (PROJECT D-130 /
+// GATE-05). The constant's docblock carries the whole reasoning, including D-272's same-commit rule
+// with `DECLARED_RETRY` in `scripts/didit-setup.ts` and why an exhausted per-module cap must never
+// be rendered to a host as having used up their tries.
 
 /**
  * D-268 — THE PHONE, BOUNDED BUT NOT PARSED.

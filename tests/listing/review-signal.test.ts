@@ -75,6 +75,7 @@ import {
   composeRetryAfterSentence,
   composeVerificationRejectionReason,
 } from "@/lib/host/verification-signal";
+import { COOLDOWN_HOURS } from "@/lib/host/verification-cooldown";
 import { HOST_VERIFICATION_REFUSALS } from "@/lib/host/verification-refusals";
 import { composeDiditRejectReason, type DiditDecision } from "@/lib/verification/didit-verdict";
 
@@ -107,9 +108,14 @@ const HOST_OWN_ADDRESS = "maria.santos@example.com";
  * The verification `updated_at` and the cooldown the server enforces, so the retry sentence under test
  * is the one a real rejected host reads (D-264). Both are arguments in production too: the action's
  * guarded UPDATE owns the interval and this module owns only the wording.
+ *
+ * ⚠ THE INTERVAL IS IMPORTED, NOT RESTATED, SINCE PLAN 18.1-11. It was a local `24` here, which was a
+ * third spelling of one policy beside the action's `WHERE` and the page's sentence; the constant now
+ * has one unguarded owner and this fixture reads it, so the sentence under test is the sentence the
+ * shipped cooldown actually produces. A fixture that pinned its own number would keep passing after
+ * the policy moved.
  */
 const REJECTED_AT = new Date("2026-09-02T08:15:00Z");
-const COOLDOWN_HOURS = 24;
 
 /**
  * A DECLINE FROM THE CHECKING PARTNER, in the shape `composeDiditRejectReason` actually receives
