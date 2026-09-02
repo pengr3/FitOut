@@ -132,12 +132,14 @@ const WEBHOOK_SECRET_VAR = "DIDIT_WEBHOOK_SECRET";
 const CHECK_INDENT = "        ";
 
 const USAGE = [
-  "usage: npx tsx scripts/didit-setup.ts <verify|apply> [--webhook-url <https url>]",
+  "usage: npx tsx scripts/didit-setup.ts <verify|apply|probe> [--webhook-url <https url>]",
   "",
   "  verify   read-only. Lists the workflows and webhook destinations this API key can see,",
   "           prints what it read, and checks them against the declaration in this file.",
   "  apply    creates the declared workflow and/or webhook destination if absent. Never edits",
   "           an existing one. Writes DIDIT_WORKFLOW_ID and DIDIT_WEBHOOK_SECRET into .env.local.",
+  "  probe    answers ONE question: is this key's application SANDBOX or LIVE? Creates one",
+  "           throwaway session with `sandbox_scenario` and deletes it. See the note below.",
   "",
   `  ${API_KEY_VAR} is read from the shell or from .env.local. It is never printed.`,
   "  --webhook-url is required by `apply` and must be public HTTPS — Didit refuses localhost and",
@@ -341,6 +343,34 @@ function livenessMethodOf(workflow: RemoteWorkflow): string | undefined {
 
 // ── CHECKING ────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Keys whose VALUE must never be printed, however the record reaches a print site.
+ *
+ * ⚠ THIS EXISTS BECAUSE THE SCRIPT LEAKED ONE. The header promised the signing secret would go
+ * straight into `.env.local` and never to stdout — and then `checkDestination` printed the whole
+ * creation response as `raw record`, `secret_shared_key` included, into a terminal and an agent
+ * transcript. The write path was careful and the DIAGNOSTIC path was not, which is the usual shape
+ * of this bug. Redaction now lives at the print boundary, so a future field named `*_secret` or
+ * `*_key` is covered by default rather than by whoever adds the next `console.log`.
+ */
+const SECRET_KEY_PATTERN = /secret|api_key|apikey|token|password|private/i;
+
+/** Deep-copy a record for printing with every secret-shaped value replaced by its length. */
+function redact(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redact);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, inner]) => [
+        key,
+        SECRET_KEY_PATTERN.test(key)
+          ? `«redacted, ${typeof inner === "string" ? inner.length : 0} chars»`
+          : redact(inner),
+      ]),
+    );
+  }
+  return value;
+}
+
 function check(failures: string[], ok: boolean, property: string, evidence: string): void {
   console.log(`  ${ok ? "ok  " : "FAIL"}  ${property}`);
   console.log(`${CHECK_INDENT}${evidence}`);
@@ -475,7 +505,7 @@ function checkDestination(failures: string[], row: Record<string, unknown>, expe
 
   console.log(`\n── webhook destination ${"─".repeat(56)}`);
   console.log(`${CHECK_INDENT}url            ${url}`);
-  console.log(`${CHECK_INDENT}raw record     ${JSON.stringify(row)}`);
+  console.log(`${CHECK_INDENT}raw record     ${JSON.stringify(redact(row))}`);
 
   check(failures, url === expectedUrl, "destination url matches the one asked for", `${url || "(none)"}`);
   check(failures, version === "v3", "webhook_version is v3 (plural-array decision contract)", `webhook_version = ${version || "(absent)"}`);
@@ -493,13 +523,74 @@ function printUsage(): void {
   for (const line of USAGE) console.error(line);
 }
 
+/**
+ * Answer SANDBOX-vs-LIVE for the key's application, which nothing else on this API exposes.
+ *
+ * ⚠ THE TEST IS `sandbox_scenario`, AND IT IS SAFE IN ONE DIRECTION ONLY. A live application
+ * REFUSES the field, so a live account cannot be made to mint a billable session by running this.
+ * A sandbox application accepts it, and sandbox sessions are mocked and unbilled; the created
+ * session is deleted immediately afterwards.
+ *
+ * ⚠ AND THE FAILURE MUST BE READ NARROWLY. The first version of this probe treated ANY 400 as
+ * "live" and reported a LIVE verdict for a key that was merely pointed at a workflow belonging to a
+ * different application (`{"workflow_id":"Invalid workflow_id."}`). A wrong id and a live
+ * application are different answers and only the response body separates them, so the sandbox
+ * sentinel is matched explicitly and everything else is reported as INCONCLUSIVE — never as live.
+ */
+async function probeApplicationMode(apiKey: string, workflowId: string): Promise<boolean | null> {
+  const probe = await diditFetch(apiKey, "POST", "/v3/session/", {
+    workflow_id: workflowId,
+    vendor_data: "fitout-mode-probe-do-not-use",
+    sandbox_scenario: "approve",
+  });
+  console.log(`${CHECK_INDENT}POST /v3/session/ (sandbox_scenario) -> ${probe.status}`);
+  console.log(`${CHECK_INDENT}${probe.raw.slice(0, 300)}`);
+
+  if (probe.status === 201 || probe.status === 200) {
+    const body = (probe.body ?? {}) as Record<string, unknown>;
+    const sessionId = String(body.session_id ?? "");
+    console.log(`\n  => SANDBOX. \`sandbox_scenario\` was accepted, so this application is not live.`);
+    if (sessionId !== "") {
+      // The single-session verb is DELETE, not POST — measured: POST returns 405. (The batch
+      // endpoint `POST /v3/sessions/delete/` is the one that takes a POST, and it is a different
+      // path.) Cleanup failing is reported, never swallowed: a probe that leaves a session behind
+      // and says nothing teaches you the wrong thing about what the account now contains.
+      const del = await diditFetch(apiKey, "DELETE", `/v3/session/${sessionId}/delete/`);
+      console.log(`${CHECK_INDENT}cleanup: DELETE ${sessionId} -> ${del.status}`);
+      if (del.status >= 400) {
+        const batch = await diditFetch(apiKey, "POST", "/v3/sessions/delete/", {
+          session_ids: [sessionId],
+        });
+        console.log(`${CHECK_INDENT}cleanup retry (batch) -> ${batch.status} ${batch.raw.slice(0, 200)}`);
+        if (batch.status >= 400) {
+          console.log(`${CHECK_INDENT}⚠ probe session ${sessionId} REMAINS on the account — delete it in the Console.`);
+        }
+      }
+    }
+    return true;
+  }
+
+  // The one sentinel that actually means "live". Anything else is a different failure.
+  if (/sandbox_scenario is only accepted on sandbox applications/i.test(probe.raw)) {
+    console.log(`\n  => LIVE. The vendor named the reason: sandbox_scenario is sandbox-only.`);
+    console.log(`     No session was created. This phase cannot be tested on this key.`);
+    return false;
+  }
+
+  console.log(`\n  => INCONCLUSIVE — NOT a live verdict.`);
+  console.log(`     The call failed for some other reason (a workflow id belonging to a different`);
+  console.log(`     application answers {"workflow_id":"Invalid workflow_id."}, which says nothing`);
+  console.log(`     about mode). Re-run against a workflow this key can actually see.`);
+  return null;
+}
+
 export async function main(argv: readonly string[]): Promise<void> {
   // ── WHY EVERY EXIT BELOW IS `process.exitCode` AND NEVER `process.exit()` ──────────────────────
   // `process.exit()` tears the process down synchronously; called while an undici socket from the
   // fetch above is still settling, it can truncate output or drop the write to `.env.local`. This is
   // `scripts/cloudinary-preset.ts`'s rule and it holds for the same reason.
   const mode = argv[0] ?? "verify";
-  if (mode !== "verify" && mode !== "apply") {
+  if (mode !== "verify" && mode !== "apply" && mode !== "probe") {
     printUsage();
     process.exitCode = 1;
     return;
@@ -545,6 +636,31 @@ export async function main(argv: readonly string[]): Promise<void> {
       console.log(
         `  · ${workflow.label || "(unlabelled)"} [${workflow.id}] — ${workflow.features.map((f) => f.feature).join(" + ") || "(no features)"}`,
       );
+    }
+
+    // ── PROBE MODE — one question, answered and then stop ───────────────────────────────────────
+    if (mode === "probe") {
+      // Prefer a document-based workflow. A face-first one (LIVENESS/FACE_MATCH with no OCR)
+      // answers 400 `portrait_image: No stored face image was found for this user` before it ever
+      // reaches the sandbox check — measured, and it is NOT a mode signal.
+      const probeTarget =
+        pinnedId !== ""
+          ? pinnedId
+          : (workflows.find((w) => w.features.some((f) => f.feature === "OCR"))?.id ??
+            workflows[0]?.id ??
+            "");
+      if (probeTarget === "") {
+        console.log("\nNo workflow is visible to this key, so there is nothing to probe against.");
+        console.log("Run `apply` first, or pass --workflow-id.");
+        process.exitCode = 3;
+        return;
+      }
+      console.log(`\n── application mode probe ${"─".repeat(53)}`);
+      console.log(`${CHECK_INDENT}against workflow ${probeTarget}`);
+      const isSandbox = await probeApplicationMode(apiKey, probeTarget);
+      if (isSandbox === null) process.exitCode = 3;
+      else if (!isSandbox) process.exitCode = 1;
+      return;
     }
 
     let target =
@@ -702,9 +818,10 @@ export async function main(argv: readonly string[]): Promise<void> {
   console.log("");
   console.log("  ⚠ WHAT THIS RUN DOES AND DOES NOT PROVE. It proves the workflow and destination");
   console.log("    matched the declaration AT THIS MOMENT. Both are Console state, not repo state:");
-  console.log("    an edit made between two runs is UNDETECTABLE by this script. It also cannot see");
-  console.log("    which APPLICATION the key belongs to — a live key and a sandbox key look the");
-  console.log("    same here, and only `sandbox_scenario` being refused will tell you the difference.");
+  console.log("    an edit made between two runs is UNDETECTABLE by this script. It also does not");
+  console.log("    check which APPLICATION the key belongs to — a live key and a sandbox key are");
+  console.log("    indistinguishable on these endpoints. Run `probe` for that; it is the only");
+  console.log("    thing here that can tell them apart.");
 
   console.log("");
   if (failures.length > 0) {
