@@ -65,8 +65,8 @@ import { sql } from "drizzle-orm";
 import { recordAudit } from "@/lib/audit";
 import { db } from "@/lib/db";
 import type { NotificationPayload } from "@/lib/db/schema";
+import { guardedNotify, notifyAccountOwner } from "@/lib/notification-guard";
 import {
-  emitNotify,
   hostApprovedPayload,
   hostRejectedPayload,
   hostSuspendedPayload,
@@ -183,6 +183,15 @@ type DenialReason =
 //
 // `emitNotify` already swallows its own transport errors (MANAGE-03); the guard here is for the
 // RECIPIENT LOOKUP, which is a live database read and can fail on its own.
+//
+// ⚠ THE GUARD AND THE ACCOUNT-OWNER LOOKUP NOW LIVE IN `src/lib/notification-guard.ts` (plan
+// 18.1-08). They MOVED — they were not reimplemented — so that the second writer of host standing
+// (a Didit verdict arriving by signed webhook, `src/lib/verification/apply-verdict.ts`) reuses the
+// identical guarantee instead of replicating it. Behaviour here is unchanged: same statement, same
+// swallow, same `needs_attention` row, same `[OPS_REVIEW_ALERT] notify_failed` line. That module's
+// header records why exporting them FROM this file was refused — every export of a server-actions
+// module is a network-reachable endpoint, and both `tests/design/ops-guard-coverage.test.ts` clauses
+// (the staff-gate-first rule and the pinned six-action census) say so structurally.
 
 /** The one ops decision verb per action, reused as the audit `action` on both branches. */
 type OpsDecisionAction =
@@ -192,44 +201,12 @@ type OpsDecisionAction =
   | "ops_approve_listing"
   | "ops_reject_listing";
 
-/**
- * Hand ONE notification to the fan-out, and never let it disturb the decision.
- *
- * The whole body is inside the guard — the recipient LOOKUP as well as the emit — because the lookup
- * is a live database read that can fail on its own. `emitNotify` swallows its own transport errors
- * (MANAGE-03); this catches everything upstream of that.
- *
- * `bookingId` is NULL on all five: a host's standing is not booking-scoped. `type` is read OFF the
- * payload rather than passed alongside it, so the indexed column and the jsonb discriminant cannot
- * disagree — the condition `notifyEventSchema`'s refine exists to catch, removed at the call site
- * rather than merely detected at the write boundary.
- */
-async function guardedNotify(
-  staffId: string,
-  action: OpsDecisionAction,
-  build: () => Promise<{ recipientId: string; email: string | null; payload: NotificationPayload }>,
-): Promise<void> {
-  try {
-    const { recipientId, email, payload } = await build();
-    await emitNotify({ type: payload.type, recipientId, bookingId: null, email, payload });
-  } catch (err) {
-    console.error("[OPS_REVIEW_ALERT] notify_failed", { action, err });
-    await recordAudit({
-      actorId: staffId,
-      action,
-      outcome: "needs_attention",
-      // ⚠ D-72 — the verb and the failure reason only. The payload carries the OPERATOR'S FREE TEXT
-      // and `meta` is a durable jsonb column under an explicit no-secrets/no-PII rule; the recipient's
-      // email address never goes here either (T-07-38: an alert must not become the leak). The row's
-      // own `action` column already says which decision this was.
-      meta: { reason: "notify_failed" satisfies DenialReason },
-    });
-  }
-}
+/** This module's operator-alert prefix. Per-DOMAIN, the `[PAYMENT_ALERT]` convention. */
+const OPS_ALERT_TAG = "OPS_REVIEW_ALERT";
 
 /**
- * Tell the HOST about a decision on their ACCOUNT. The id IS the recipient; only the address needs
- * looking up.
+ * Tell the HOST about a decision on their ACCOUNT — the shared account-owner lookup, bound to this
+ * module's verb union and alert tag so a call site reads exactly as it did before the move.
  */
 async function notifyHost(
   staffId: string,
@@ -237,13 +214,7 @@ async function notifyHost(
   userId: string,
   payload: NotificationPayload,
 ): Promise<void> {
-  await guardedNotify(staffId, action, async () => {
-    const [row] = (await db.execute(sql`
-      SELECT u.email AS "email" FROM "user" u WHERE u.id = ${userId}
-    `)) as unknown as { email: string | null }[];
-    if (!row) throw new Error("notify recipient not found");
-    return { recipientId: userId, email: row.email, payload };
-  });
+  await notifyAccountOwner(staffId, action, OPS_ALERT_TAG, userId, payload);
 }
 
 /**
@@ -261,7 +232,7 @@ async function notifyListingHost(
   listingId: string,
   build: (listingTitle: string) => NotificationPayload,
 ): Promise<void> {
-  await guardedNotify(staffId, action, async () => {
+  await guardedNotify(staffId, action, OPS_ALERT_TAG, async () => {
     const [row] = (await db.execute(sql`
       SELECT l.host_id AS "hostId",
              COALESCE(NULLIF(l.title, ''), 'Your listing') AS "title",
