@@ -2460,9 +2460,19 @@ test.describe("14-15 — every host plate draws the list that is actually coming
 //
 // ⚠⚠ AND IF THE ASSERTION FAILS, THE CONSTANT IS RE-MEASURED — NOT THE TOLERANCE WIDENED.
 // `HOST_TOLERANCE_PX` is 4, the figure 14-UI-SPEC makes falsifiable, and it is reused here unchanged
-// and deliberately: a tolerance stretched to fit a number is a gate that measures nothing. The
-// declared heights are 528 and 844 against observed 526.13 and 842.09, so the headroom is 1.87px and
-// 1.91px — comfortably inside 4, and not so far inside that a real regression could hide.
+// and deliberately: a tolerance stretched to fit a number is a gate that measures nothing.
+//
+// ⚠⚠⚠ THIS FIRED FOR REAL ON 2 SEPTEMBER 2026, AND THE PROCEDURE ABOVE IS WHAT HAPPENED. Plan
+// 18.1-13 put D-271's contact affordance on the queue row, the row grew a seventh `<dl>` term, and
+// this case reported a **48.13px shift at 320 and a 48.09px shift at 1280** against the declared
+// bars. The constant was re-measured — `OPS_QUEUE_ROW_HEIGHT` moved `h-132 lg:h-211` -> `h-144
+// lg:h-223`, i.e. 528/844 -> 576/892 — and the table below moved with it. Nothing was widened.
+//
+// THE DECLARED HEIGHTS ARE NOW 576 and 892 against observed 576.13 and 892.09, so the headroom is
+// **0.13px and 0.09px** — and note the SIGN CHANGED: these are under-claims where the previous pair
+// were over-claims. `measurements.ts` argues that choice at the constant; the short version is that
+// the steps above (580 and 896) would have sat 0.13px and 0.09px inside the 4px tolerance, which is a
+// pin that reddens on the next sub-pixel change to any font or border on this row.
 //
 // THE TWO WIDTHS ARE 320 AND 1280, and the second is `lg:`-side on purpose. `OPS_QUEUE_SHELL` is
 // `max-w-5xl` = 1024px, so the container stops growing at a 1024px viewport and the row measures
@@ -2476,10 +2486,10 @@ test.describe("14-15 — every host plate draws the list that is actually coming
 
 /** The two widths `OPS_QUEUE_ROW_HEIGHT` declares, and the bar each one compiles to. */
 const OPS_STEPS = [
-  // `h-132` — 132 x 4px. The 320px floor, where the mosaic has collapsed to the hero alone at 16/9.
-  { width: 320, bar: 528, row: 526.13 },
-  // `lg:h-211` — 211 x 4px. Any width at or above 1024, where the container has reached its cap.
-  { width: 1280, bar: 844, row: 842.09 },
+  // `h-144` — 144 x 4px. The 320px floor, where the mosaic has collapsed to the hero alone at 16/9.
+  { width: 320, bar: 576, row: 576.13 },
+  // `lg:h-223` — 223 x 4px. Any width at or above 1024, where the container has reached its cap.
+  { width: 1280, bar: 892, row: 892.09 },
 ] as const;
 
 test.describe("18-12 — the /ops plate draws the row that is actually coming", () => {

@@ -959,12 +959,24 @@ export const HOST_BOOKING_ROW_HEIGHT = "h-44 md:h-9";
 export const OPS_QUEUE_SHELL = "mx-auto w-full max-w-5xl px-4 py-10";
 
 /**
- * The `/ops` review queue's row: 528px below the large breakpoint, 844px at and above it.
+ * The `/ops` review queue's row: 576px below the large breakpoint, 892px at and above it.
  *
  * THE SLOT CONFIGURATION IT DESCRIBES: a title, a meta line, a status column holding the lead-scale
- * wait figure, a `PhotoGallery` mosaic, a six-term description list and a full-width actions row of
- * touch-height Approve/Reject buttons. **It is now the tallest row shape in the product**, and it is
- * the only one whose height is set by a PICTURE rather than by text.
+ * wait figure, a `PhotoGallery` mosaic, a SEVEN-term description list — six facts plus D-271's
+ * contact affordance — and a full-width actions row of touch-height Approve/Reject buttons. **It is
+ * the tallest row shape in the product**, and it is the only one whose height is set by a PICTURE
+ * rather than by text.
+ *
+ * ⚠ RE-MEASURED 2026-09-02 BY PLAN 18.1-13, WHICH ADDED THE SEVENTH TERM. The values below moved
+ * **528 -> 576** and **844 -> 892**, and the re-measurement was forced rather than tidy: the row grew
+ * and `e2e/skeleton-geometry.spec.ts` went RED at both widths with a 48px shift, which is what that
+ * spec exists to catch. Both numbers were read off the rendered route
+ * (`npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium --workers=1
+ * -g "18-12 — the /ops plate"`), and ⚠ THE TOLERANCE WAS NOT WIDENED — that spec's own words.
+ *
+ * THE GROWTH IS +50.00px AT BOTH DECLARED WIDTHS, IDENTICALLY, and the derivation is why that is not
+ * a coincidence: the new `<dd>` holds a `size="touch"` control (44px, DS-09) and the `<dl>`'s
+ * `space-y-1.5` adds the 6px gap above it. Neither term is width-driven, so the shift is a constant.
  *
  * MEASURED, NOT DERIVED, on the rendered route at `/ops` against the dev catalogue with two pending
  * listings and one pending host, in BOTH themes — and the two themes agree to the hundredth of a
@@ -972,14 +984,30 @@ export const OPS_QUEUE_SHELL = "mx-auto w-full max-w-5xl px-4 py-10";
  * court's and this row's lead is at the heading role:
  *
  *     viewport   320      375      414      639      640      768      1024     1056     1280     1440
- *     listing    526.13   517.05   538.98   625.53   626.09   698.09   842.09   842.09   842.09   842.09
- *     host       258.06   238.06   238.06   238.06   238.06   238.06   238.06   238.06   238.06   238.06
+ *     listing    576.13   567.05*  588.98*  675.53*  676.09*  748.09*  892.09   892.09   892.09   892.09
+ *     host       308.06*  288.06*  288.06*  288.06*  288.06*  288.06*  288.06*  288.06*  288.06*  288.06*
  *
- * The declared values are the two nearest steps on the ladder to the LISTING row at the two widths
- * this project declares at: **528** at the 320px floor (a 1.87px over-claim against 526.13) and
- * **844** at the desktop width (a 1.91px over-claim against 842.09). Both are inside the 4px that
- * 14-UI-SPEC makes falsifiable, and both are over-claims, which is the direction every sibling
- * constant in this file already chose.
+ * ⚠ ONLY THE TWO UNSTARRED COLUMNS WERE RE-MEASURED, AND THE STARS ARE NOT DECORATION. 320 and 1280
+ * are the two widths this constant DECLARES and the only two the spec asserts, so they were read off
+ * a browser. Every starred figure is the pre-18.1-13 measurement plus the same +50.00px, which is
+ * **derived** — justified by the derivation above and by the shift being identical at both measured
+ * extremes, but not observed. They are labelled rather than silently shifted because this docblock's
+ * own first discipline is *measured, not derived*, and a table that mixed the two without saying so
+ * would be the more useful-looking and less trustworthy artifact. Nothing depends on them: the band
+ * between the two breakpoints was never a declared step (see below).
+ *
+ * The declared values are the nearest steps on the ladder to the LISTING row at the two widths this
+ * project declares at: **576** at the 320px floor (a 0.13px UNDER-claim against 576.13) and **892**
+ * at the desktop width (a 0.09px under-claim against 892.09).
+ *
+ * ⚠ THE DIRECTION FLIPPED FROM OVER-CLAIM TO UNDER-CLAIM, AND IT IS THE RIGHT CALL RATHER THAN AN
+ * OVERSIGHT. Every sibling constant in this file rounds UP, and the previous values did too (1.87px
+ * and 1.91px over). The steps above the new observations are `h-145` (580) and `h-224` (896), which
+ * would over-claim by **3.87px and 3.91px** — inside the 4px 14-UI-SPEC makes falsifiable by 0.13px
+ * and 0.09px respectively. A pin that sits 0.13px from the tolerance it is checked against is a pin
+ * that reddens on the next sub-pixel change to any font, gap or border on this row, and a gate that
+ * fails for reasons unrelated to what it measures is a gate somebody eventually widens. Rounding
+ * DOWN buys 3.87px and 3.91px of real headroom for a shift no reader can perceive.
  *
  * ⚠ THE BREAKPOINT IS `lg:` BECAUSE THAT IS WHERE `OPS_QUEUE_SHELL` STOPS GROWING, AND THAT IS
  * MEASURED RATHER THAN INFERRED. `max-w-5xl` is 1024px, so at a 1024px viewport the container has
@@ -990,18 +1018,22 @@ export const OPS_QUEUE_SHELL = "mx-auto w-full max-w-5xl px-4 py-10";
  * for a structurally harder version of the same problem. This row's height is a CONTINUOUS function
  * of the container width between roughly 375 and 1024, because `PhotoGallery`'s mosaic is
  * aspect-ratio-driven: every pixel the container gains, the hero gains 9/16 of. The plate therefore
- * under-draws through the middle of the range — 528 against 626.09 at 640 and against 698.09 at 768,
- * a 98px and a 170px under-claim — and NO ladder of declared steps can track a continuous curve. A
+ * under-draws through the middle of the range — on the pre-18.1-13 figures, 528 against 626.09 at 640
+ * and against 698.09 at 768, a 98px and a 170px under-claim, and the +50px shift moves both terms so
+ * the gap is unchanged — and NO ladder of declared steps can track a continuous curve. A
  * third step at `sm:` was considered and rejected: it would be exact at exactly one width inside the
  * band and wrong at every other, while adding a number this file has to keep true.
  *
  * ⚠⚠⚠ AND THE ONE THING THIS CONSTANT CANNOT SAY: THE QUEUE HAS TWO ROW SHAPES, NOT ONE. A host row
- * carries no photographs, so it measures 238.06px at every width above the floor — less than half
- * this bar at 320 and barely a quarter of it at 1280. The queue interleaves both kinds oldest-first
+ * carries no photographs, so it measures ~288.06px at every width above the floor (derived — see the
+ * stars in the table) — less than half this bar at 320 and barely a third of it at 1280. The
+ * D-271 affordance is on BOTH kinds, so the +50px lands on both and the DIFFERENCE between the two
+ * shapes is untouched, which is what keeps this paragraph's argument intact rather than merely
+ * arithmetically adjusted. The queue interleaves both kinds oldest-first
  * (D-246), so which shape the first two rows take is a property of the catalogue on the day, not of
  * the route. The plate declares the LISTING shape deliberately: listings are the higher-volume kind
  * (one host submits many), the photo-bearing row is the one whose arrival actually moves the page,
- * and a plate that promised the host row would under-draw the common case by 288px. `rows={2}`
+ * and a plate that promised the host row would under-draw the common case by ~288px. `rows={2}`
  * rather than the pattern's default 4 is the other half of that decision — see
  * `(ops)/ops/loading.tsx`.
  *
@@ -1014,7 +1046,11 @@ export const OPS_QUEUE_SHELL = "mx-auto w-full max-w-5xl px-4 py-10";
  * split `REQUEST_STATUS_CAP` encodes.
  *
  * A CAP WAS PROBED RATHER THAN ARGUED, and the probe is what settles it. With `max-w-28` (112px, the
- * shipped value) on the status content, re-measured at three widths in court:
+ * shipped value) on the status content, re-measured at three widths in court. ⚠ THESE FIGURES PREDATE
+ * PLAN 18.1-13 and are left at their measured values deliberately: they are a record of a probe of a
+ * variant that was NOT shipped, and shifting them by +50px would turn an observation into an
+ * arithmetic guess about a layout nobody ever rendered. What the probe settles — that the cap costs
+ * +12px at every width by wrapping the lead — is unaffected by the row being 50px taller.
  *
  *     with the cap    320: title 132px, rows 506.13 / 258.06 / 526.13
  *                     375: title 187px, host row 250.06  (+12 against the uncapped 238.06)
@@ -1037,4 +1073,4 @@ export const OPS_QUEUE_SHELL = "mx-auto w-full max-w-5xl px-4 py-10";
  * to `src/components/ops/ops-queue-row.tsx`'s copy and a product decision rather than a measurement.
  * Logged in the phase's `deferred-items.md`.
  */
-export const OPS_QUEUE_ROW_HEIGHT = "h-132 lg:h-211";
+export const OPS_QUEUE_ROW_HEIGHT = "h-144 lg:h-223";
