@@ -3207,6 +3207,61 @@ const PHASE_14_ROWS: readonly Phase14Row[] = [
       "same opt-in argument every row above records.",
   },
   {
+    // ─── /host/verify (plan 18.1-11) ─────────────────────────────────────────────────────────────
+    //
+    // ⚠ WHICH OF THE SIX STATES THIS MEASURES IS A FACT ABOUT THE FIXTURE, NOT ABOUT THE ROUTE, AND
+    // IT IS THE LEAST INTERESTING OF THE SIX. This block's host is seeded with an APPROVED
+    // `host_verification` row — `deriveBookable`'s sixth term, which every other row here depends on
+    // to have a bookable listing — so `/host/verify` renders its TERMINAL panel: one heading, one
+    // sentence, one inline link, and no form.
+    //
+    // WHAT IS THEREFORE NOT MEASURED HERE, stated rather than left to be discovered: the SUBMISSION
+    // FORM at 320px — the stacked email checklist row with its outline control, the required `tel`
+    // input, the neutral-solid `Start the check` button, the two supporting lines and the refusal
+    // region. That is the state 18.1-UI-SPEC actually wants swept, and it cannot be reached from this
+    // fixture without un-approving the host and breaking every row above. It is the hand-measured
+    // item plan 18.1-14 owns, at both widths and both themes, in the `unverified`, `pending` and
+    // `rejected` states.
+    //
+    // SO WHY THE ROW AT ALL. Two things it does measure that nothing else does: that the route's SHELL
+    // and header do not overflow the floor (the `max-w-3xl` panel shell is shared with `/host` and the
+    // availability editor, but this is the only prose-led page inside it), and that the D-201
+    // inventory has an account for this file rather than a silence. A row that measures a real
+    // document and names its own gap is worth more than an `excluded` sentence claiming there is
+    // nothing here to see.
+    name: "/host/verify",
+    path: () => "/host/verify",
+    // THE PLATE TRAP AGAIN, AND SHARPER THAN ON `/host/earnings`: this route's `loading.tsx` reads the
+    // SAME two exported copy constants the page reads, so its `PageHeader` is character-identical and
+    // an `h1` tell would be satisfied by the skeleton. `panel-card` alone is satisfied by `/login`,
+    // which is a declared panel-card surface — so the state's own title is what pins both the route
+    // and the fact that the row resolved.
+    tell: '[data-testid="panel-card"]:has-text("Your account is checked")',
+    tellWhy:
+      "the terminal panel's own heading. The route's plate composes `PageHeader` from the IDENTICAL " +
+      "title and lede constants the page composes it from — one shared export, so the two cannot " +
+      "drift — and renders a `skeleton-panel` and NO `panel-card`, so the heading is satisfied by the " +
+      "skeleton and this is not. Scoped by the state's title rather than by `panel-card` alone " +
+      "because `/login` is itself a declared panel-card surface, so an expired session would " +
+      "otherwise report this row green off the sign-in screen. It additionally pins WHICH of the six " +
+      "states rendered, which is this row's largest caveat and belongs in its proof rather than only " +
+      "in its prose.",
+    touch: [],
+    touchWhy:
+      "NONE DECLARED, and in the fixture's state that is structural rather than a judgement. The " +
+      "approved panel renders exactly one affordance — an inline underlined `Go to your listings` " +
+      "LINK, which is a destination and not a control that acts — so there is no button on this " +
+      "document to give a height note to. The two controls this surface CAN draw are both " +
+      "`size=\"touch\"` and both live on the submission form, which only the unverified and " +
+      "cooled-down-rejected states render; asserting them needs the un-approved fixture named above.",
+    noOwnControls:
+      "in the fixture's `approved` state `/host/verify` is a terminal three-sentence panel and ships " +
+      "no action at all. The form and its two 44px controls exist only on the `unverified` panel and " +
+      "on the `rejected` panel once the cooldown has elapsed, and this block's host is approved " +
+      "because every other row in it needs a bookable listing. Same declaration, same shape, as the " +
+      "`/host/earnings` row above — a control-less surface is a state, not an omission",
+  },
+  {
     // ⚠ LAST IN THIS TABLE ON PURPOSE, AND THE ORDER IS THE MEASUREMENT. Every visit to this route
     // CREATES A DRAFT LISTING owned by the fixture host (`createDraftListing`, then `redirect` into
     // `[id]/edit`), so two visits add two cards to the grid `/host/listings` measures three rows above.
@@ -3787,6 +3842,16 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
   { surface: "/host/listings/[id]/availability", coveredBy: ["/host/listings/[id]/availability"] },
   { surface: "/host/payouts/return", coveredBy: ["/host/payouts/return"] },
   { surface: "/host/payouts/refresh", coveredBy: ["/host/payouts/refresh"] },
+
+  // ─── PAGE ROUTES · HOST STANDING (plan 18.1-11) ───────────────────────────────────────────────
+  //
+  // COVERED, NOT EXCLUDED, and the "once-ever utility" argument is refused rather than unconsidered.
+  // `/host/verify` is the surface where a real person hands their identity to a checking partner in
+  // order to be allowed to sell at all, on a phone, in the launch market's dominant device class. It
+  // is the LAST surface in the product that should be measured only on a desktop, and 18.1-UI-SPEC
+  // states in its own words that there is no carve-out for a once-ever host surface anywhere in this
+  // repository's gates.
+  { surface: "/host/verify", coveredBy: ["/host/verify"] },
 
   // ─── PAGE ROUTES · OPS (plan 18-12) ───────────────────────────────────────────────────────────
   //

@@ -356,7 +356,7 @@ function declaredRouteFiles(): string[] {
 // ---------------------------------------------------------------------------
 
 /**
- * ONE ROW PER DECLARED SURFACE — 46 route files on disk plus the one non-route class below, and the
+ * ONE ROW PER DECLARED SURFACE — 47 route files on disk plus the one non-route class below, and the
  * equality test underneath this table is what keeps that sentence true.
  *
  * ⚠ THAT NUMBER READ 42, AND THE STALE COUNT WAS THE SYMPTOM RATHER THAN THE DEFECT — FOUR ROWS WERE
@@ -369,10 +369,25 @@ function declaredRouteFiles(): string[] {
  * run in CI (D-24), so the phase's own three closing cross-checks all passed over it.
  *
  * THE COUNT HERE IS RE-MEASURED RATHER THAN COPIED FROM THE FAILURE MESSAGE, which is the same rule
- * the surface-filename docblock above states for itself: `src/app/` holds 33 `page.tsx`, 4
- * `not-found.tsx`, 5 `error.tsx`, 1 `global-error.tsx` and 3 `opengraph-image.tsx` — 46. The 33 is
- * the same number `loading-coverage.test.ts` independently pins, which is a second reading of the
- * same tree rather than a restatement of this one.
+ * the surface-filename docblock above states for itself: `src/app/` holds 34 `page.tsx`, 4
+ * `not-found.tsx`, 5 `error.tsx`, 1 `global-error.tsx` and 3 `opengraph-image.tsx` — 47. The 34 is
+ * the same tree `loading-coverage.test.ts` independently pins at 35, which is a second reading of it
+ * rather than a restatement of this one — and the ONE-file difference is not a disagreement: that
+ * gate counts `src/app/dev/theme/page.tsx` and every other `page.tsx` without exception, while
+ * `NON_ROUTE_DECLARED` and the four D-201 exclusions are accounted for by ROWS here. Read the two
+ * numbers as two questions about one tree.
+ *
+ * ── RE-MEASURED 2 SEPTEMBER 2026 (plan 18.1-11): 46 → 47, ONE ROUTE FILE. ────────────────────────
+ *
+ * `src/app/(host)/host/verify/page.tsx` — the host's own account-check surface. Its `loading.tsx` is
+ * NOT a second row: `SURFACE_FILENAMES` above deliberately omits that filename, because a plate is a
+ * transient state of its own route rather than a separately addressable surface.
+ *
+ * ⚠ RECONCILED IN THE SAME COMMIT AS THE ROUTE, WHICH IS THE WHOLE LESSON OF THE PARAGRAPH ABOVE.
+ * That paragraph records this table sitting stale — and therefore RED — through a phase's three
+ * closing cross-checks, because none of these specs runs in CI (D-24) and every OTHER instrument that
+ * reads the route tree had been reconciled. So the route, its row here, and its row in
+ * `overflow-320.spec.ts`'s D-201 inventory all land together, and this spec was re-run by hand.
  *
  * AND CLOSING IT WAS NOT FOUR SKIPS. Four of the five error-boundary rows below carried a skip whose
  * reason was *"no dev throw affordance exists inside the (app) route group"* — a sentence plan 17-12
@@ -782,6 +797,34 @@ const ROWS: readonly SweepRow[] = [
     // `/privacy` reaches it. What reaches it is a route built for the purpose.
     path: "/dev-throw-legal",
     tell: '[data-testid="error-state"]:has-text("Back to FitOut")',
+  },
+  {
+    file: "src/app/(host)/host/verify/page.tsx",
+    name: "/host/verify",
+    path: "/host/verify",
+    session: "host",
+    // THE TELL NAMES A STATE'S OWN TITLE, WHICH IS THIS ROUTE'S ONLY HONEST OPTION — and the reason is
+    // the same trap the `/host/earnings` row records one block over, doubled. The route's own plate
+    // composes `PageHeader` reading the IDENTICAL title constant the page reads (deliberately: they
+    // share one export so the two cannot drift), so the `h1` is satisfied by the skeleton. And
+    // `panel-card` ALONE is satisfied by `/login`, which is a declared panel-card surface — so a
+    // session that silently expired would report this row green off the sign-in screen.
+    //
+    // ⚠ WHICH TITLE IT IS, IS A FACT ABOUT THIS FILE'S FIXTURE RATHER THAN ABOUT THE ROUTE. The
+    // `beforeAll` above puts this same host into the ops queue with a PENDING verification row and
+    // only releases it in `afterAll`, so for the whole run `/host/verify` renders the in-progress
+    // panel. That coupling is deliberate and is what makes the selector precise; if the fixture's
+    // verification state ever changes, this row goes red naming the state it expected, which is the
+    // correct outcome rather than a nuisance.
+    //
+    // ⚠ WHAT THIS ROW DOES NOT COVER, and it is the majority of the surface: the SUBMISSION FORM. The
+    // in-progress panel draws no control at all — the hosted-flow URL is not storable, so there is no
+    // continue affordance to render — so the two 44px controls, the email checklist row, the required
+    // `tel` field and the one named refusal region are all outside this scan. Their MARKUP is asserted
+    // in `tests/host/verification-panel.test.tsx`; their rendered a11y at these two widths is the
+    // hand-measured sweep plan 18.1-14 owns. Reaching them here would need this file to seed an
+    // unverified host, which is the same host it needs pending for the `/ops` row above.
+    tell: '[data-testid="panel-card"]:has-text("Your check is in progress")',
   },
   // ─── the ops tier (plan 18-12) — staff-only, and inside the audited set on the same terms ────────
   //
