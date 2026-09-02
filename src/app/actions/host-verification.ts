@@ -60,7 +60,9 @@
 //      contact reveal later returns, so it is re-validated server-side with a bound (D-268).
 //   4. RE-READ `user.emailVerified` SERVER-SIDE (D-269). The publish wizard's checklist row is a
 //      hint; this is the gate.
-//   5. ASK THE VENDOR, then perform ONE guarded upsert whose WHERE holds every source state — so a
+//   5. THE RESUME PRE-CHECK (D5). For a `pending` row holding a non-blank handle ONLY: ask the
+//      partner whether that session is still open. ⚠ IT IS NOT A GATE — see its own docblock.
+//   6. ASK THE VENDOR, then perform ONE guarded upsert whose WHERE holds every source state — so a
 //      0-row result is the single calm no-op and there is no branch a later edit can forget.
 //
 // ⚠ D-72 — WHAT THE AUDIT ROWS MAY CARRY. `{ userId }` and enum-shaped denial reasons, and nothing
@@ -74,7 +76,7 @@ import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { user } from "@/lib/db/schema";
+import { hostVerification, user } from "@/lib/db/schema";
 import {
   HOST_VERIFICATION_EMAIL_UNCONFIRMED,
   HOST_VERIFICATION_NOTHING_CHANGED,
@@ -88,6 +90,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import {
   beginDiditVerification,
   DiditSessionError,
+  isDiditSessionOpen,
   type DiditSessionStart,
 } from "@/lib/verification/providers/didit";
 
@@ -150,10 +153,17 @@ const EMAIL_UNCONFIRMED: HostVerificationResult = {
 };
 
 /**
- * THE 0-ROW BRANCH — one sentence for five conditions (suspended, already pending, already
- * approved, grandfathered, and a rejection whose cooldown has not elapsed). See the sentence's own
- * docblock for the two reasons it is one sentence; this is `approveHost`'s `STALE` in another
- * domain.
+ * THE CALM REFUSAL — one sentence for every condition that changes nothing.
+ *
+ * FOUR of them reach the guarded upsert and flip 0 rows: `suspended`, `approved`, `grandfathered`,
+ * and a rejection whose cooldown has not elapsed. ⚠ `pending` USED TO BE A FIFTH AND IS NOT ANY MORE
+ * (D5, plan 18.1-15) — it is admitted by the WHERE and resumes. The fifth condition today is the
+ * pre-check's: a `pending` row whose vendor session the partner has already FINISHED, which is
+ * refused rather than replaced.
+ *
+ * See the sentence's own docblock for the two reasons it is one sentence; this is `approveHost`'s
+ * `STALE` in another domain, and the fact that the two refusals above are indistinguishable to the
+ * caller is a privacy property rather than an accident.
  */
 const NOTHING_CHANGED: HostVerificationResult = {
   ok: false,
@@ -178,6 +188,13 @@ type DenialReason =
   | "invalid_input"
   | "email_unconfirmed"
   | "provider_unavailable"
+  /**
+   * D5 — the caller's `pending` row points at a session the PARTNER has already finished, so asking
+   * again would mint a new billable one and repoint `vendor_ref` away from the session whose verdict
+   * is still in flight. Distinct from `not_applicable` in the TRAIL and identical to it in the
+   * SENTENCE: an operator needs to be able to tell the two apart, and the host must not be able to.
+   */
+  | "session_closed"
   | "not_applicable";
 
 /**
@@ -192,6 +209,44 @@ const AUDIT_ACTION = "request_host_verification";
 async function requireUserId(): Promise<string | null> {
   const session = await auth.api.getSession({ headers: await headers() });
   return session?.user?.id ?? null;
+}
+
+/** The one token an operator greps for when a host says the check would not start. */
+const OPERATOR_ALERT = "[HOST_VERIFY_ALERT]";
+
+/**
+ * THE VENDOR WOULD NOT ANSWER — one shape, two call sites, so the two cannot drift.
+ *
+ * Both vendor calls on this path fail the same way and must refuse the same way: the operator line,
+ * the `provider_unavailable` trail row, and the host-facing sentence that says the check could not be
+ * started. `event` is the only thing that differs, and it exists so an operator reading the log can
+ * tell WHICH call failed — the READ that asks whether a session is still open, or the CREATE that
+ * asks for one. Nothing branches on it.
+ *
+ * ⚠ AN OPERATOR LINE, AND ONLY THE MESSAGE. The adapter's messages name the ENV VAR and never its
+ * value, so they are safe to log; the raw error is not logged wholesale because a transport failure's
+ * `cause` is an arbitrary object and this path must not become the leak (T-07-38's rule applied to a
+ * vendor error). A missing, malformed, expired or wrong-application credential all answer HTTP 403
+ * with no machine-readable discriminator (ADDENDUM A5) — ONE credential fault wearing two numbers —
+ * so `status` is recorded for the operator and branched on by nobody.
+ */
+async function refuseOnVendorFailure(
+  userId: string,
+  event: "vendor_session_failed" | "vendor_session_read_failed",
+  err: unknown,
+): Promise<HostVerificationResult> {
+  console.error(`${OPERATOR_ALERT} ${event}`, {
+    userId,
+    status: err instanceof DiditSessionError ? err.status : null,
+    message: err instanceof Error ? err.message : "unknown",
+  });
+  await recordAudit({
+    actorId: userId,
+    action: AUDIT_ACTION,
+    outcome: "denied",
+    meta: { reason: "provider_unavailable" satisfies DenialReason, userId },
+  });
+  return VENDOR_UNAVAILABLE;
 }
 
 /**
@@ -331,7 +386,67 @@ export async function requestHostVerification(
     return EMAIL_UNCONFIRMED;
   }
 
-  // ── 5a. ASK THE VENDOR, FIRST, AND FAIL CLOSED IF IT WILL NOT ANSWER. ────────────────────────
+  // ── 5. THE RESUME PRE-CHECK (deferred-items.md § D5). ────────────────────────────────────────
+  //
+  // WHAT IT IS FOR, IN ONE SENTENCE: to stop FitOut asking for a NEW session when the caller's row
+  // already points at one the partner has FINISHED — because that ask would mint a second billable
+  // session AND repoint `vendor_ref` away from the session whose verdict is still in flight, leaving
+  // a real answer orphaned for as long as the row lives. `POST /v3/session/` is idempotent over
+  // UNFINISHED sessions only (ADDENDUM A3), so for an OPEN session there is nothing to protect
+  // against and the ordinary ask below hands the host back their own flow with a fresh, usable URL.
+  //
+  // ⚠ THE PRE-CHECK IS NOT THE GATE. THE GUARDED UPSERT'S `WHERE` STILL IS, AND ONLY IT IS. This read
+  // is a snapshot taken before two round trips; the row can move underneath it — the webhook landing
+  // mid-flight is the ordinary case — and when it does, the statement below refuses and the press is
+  // a calm 0-row no-op. Nothing here may become the thing that decides whether a row flips: a source
+  // state absent from that `WHERE` is refused whatever this read said (D-266 is structural), and a
+  // state present in it is admitted whatever this read said.
+  //
+  // ⚠ A NARROW TWO-COLUMN READ OF THIS ACTION'S OWN, AND `loadHostVerification` IS DELIBERATELY NOT
+  // WIDENED TO CARRY `vendor_ref`. That read feeds three RSC pages, so a session handle on it would
+  // travel into an initial RSC payload — the shape FINDING F-6 / D-271 already refused for host
+  // contact values. The handle is a bearer-adjacent pointer at the vendor's copy of the evidence and
+  // belongs on the server side of a server action, not in a payload a browser receives.
+  const [existing] = await db
+    .select({ status: hostVerification.status, vendorRef: hostVerification.vendorRef })
+    .from(hostVerification)
+    .where(eq(hostVerification.userId, userId));
+
+  // ⚠ BLANKNESS, NOT NULL-NESS, IS THE TEST — and a blank handle SKIPS THE ASK, deliberately.
+  // There is nothing to ask about, and a blank handle would address `/v3/session//decision/`: a
+  // different endpoint entirely (18.1-09's measured note). Such a row is ALSO invisible to the
+  // reconciliation sweep, whose candidate query excludes it — `btrim(NULL) <> ''` evaluates to NULL
+  // and a `WHERE` treats that as not-true, which is the predicate actually doing the work there. So
+  // this branch is the ONLY escape a handle-less `pending` row has, and it must RESUME rather than
+  // refuse.
+  const handle = existing?.vendorRef?.trim() ?? "";
+
+  if (existing?.status === "pending" && handle !== "") {
+    let sessionOpen: boolean;
+    try {
+      sessionOpen = await isDiditSessionOpen(handle);
+    } catch (err) {
+      // FAIL CLOSED. A caller that cannot learn whether the session is open must not mint one: the
+      // failure is the READ's, so it refuses with the vendor's own sentence rather than with the
+      // calm one, and it writes no row.
+      return refuseOnVendorFailure(userId, "vendor_session_read_failed", err);
+    }
+
+    if (!sessionOpen) {
+      // The partner is done with this session. Write NO row, ask for NO session, and return the
+      // SHIPPED calm sentence — the same one four other conditions return, so the caller learns
+      // nothing about their row's shape that their own panel already renders.
+      await recordAudit({
+        actorId: userId,
+        action: AUDIT_ACTION,
+        outcome: "denied",
+        meta: { reason: "session_closed" satisfies DenialReason, userId },
+      });
+      return NOTHING_CHANGED;
+    }
+  }
+
+  // ── 6a. ASK THE VENDOR, FIRST, AND FAIL CLOSED IF IT WILL NOT ANSWER. ────────────────────────
   //
   // The session has to exist before a row can point at it: `vendor_ref` is the ONLY handle FitOut
   // keeps pointing at the vendor's copy of the evidence, and a `pending` row carrying an invented
@@ -358,32 +473,16 @@ export async function requestHostVerification(
   try {
     started = await beginDiditVerification(userId);
   } catch (err) {
-    // ⚠ AN OPERATOR LINE, AND ONLY THE MESSAGE. The adapter's messages name the ENV VAR and never
-    // its value, so they are safe to log; the raw error is not logged wholesale because a transport
-    // failure's `cause` is an arbitrary object and this path must not become the leak (T-07-38's
-    // rule applied to a vendor error). A missing, malformed, expired or wrong-application credential
-    // all answer HTTP 403 with no machine-readable discriminator (ADDENDUM A5) — ONE credential
-    // fault wearing two numbers — so `status` is recorded for the operator and branched on by
-    // nobody.
-    console.error("[HOST_VERIFY_ALERT] vendor_session_failed", {
-      userId,
-      status: err instanceof DiditSessionError ? err.status : null,
-      message: err instanceof Error ? err.message : "unknown",
-    });
-    await recordAudit({
-      actorId: userId,
-      action: AUDIT_ACTION,
-      outcome: "denied",
-      meta: { reason: "provider_unavailable" satisfies DenialReason, userId },
-    });
-    return VENDOR_UNAVAILABLE;
+    // The shared vendor-failure shape — see `refuseOnVendorFailure`, which the pre-check above uses
+    // for its own read so the two calls cannot come to refuse differently.
+    return refuseOnVendorFailure(userId, "vendor_session_failed", err);
   }
   const check = started.verification;
 
-  // ── 5b. ONE GUARDED UPSERT. It is the durable cap, the suspension refusal and the queue ──────
+  // ── 6b. ONE GUARDED UPSERT. It is the durable cap, the suspension refusal and the queue ──────
   //        re-stamp, all in a single statement.
   //
-  // FOUR PROPERTIES LIVE IN THIS ONE STATEMENT, and each is written at the site because each is a
+  // FIVE PROPERTIES LIVE IN THIS ONE STATEMENT, and each is written at the site because each is a
   // thing a later edit could quietly undo:
   //
   //   ① `suspended` IS ABSENT FROM THE WHERE, so D-266 is STRUCTURAL rather than a branch. A
@@ -391,9 +490,28 @@ export async function requestHostVerification(
   //      auto-approve a suspended host back toward sellable would let a vendor silently reverse a
   //      human's enforcement decision. The refusal is therefore not an `if` somebody can forget to
   //      re-add — the statement simply has no source state that matches, so it flips 0 rows. The
-  //      same is true of `approved` (already decided), `pending` (already asked) and
-  //      `grandfathered` (D-211 keeps that state first-class and distinct): all four are calm 0-row
-  //      no-ops, and only `unverified` and a cooled-down `rejected` are admitted.
+  //      same is true of `approved` (already decided) and `grandfathered` (D-211 keeps that state
+  //      first-class and distinct): both are calm 0-row no-ops.
+  //
+  //      ⚠ THREE POSITIVE EQUALITIES AND NOT ONE NEGATION, which is 18.1-12's discipline for the
+  //      listing gate and it is here for the same reason: a SEVENTH enum member must be neither
+  //      admitted nor refused by accident. Written the other way round — as an inequality naming the
+  //      states to EXCLUDE — this clause would silently admit every state added after today, and the
+  //      state that gets added to an enforcement enum is rarely the harmless one. The banned
+  //      spellings are DESCRIBED here and never typed, because an acceptance grep counts them in
+  //      this file and expects zero: a comment that spells what it forbids is what makes the count
+  //      non-zero at the moment the code is most obviously correct.
+  //
+  //      ⚠ `pending` USED TO BE A FOURTH REFUSED STATE AND IS NOW ADMITTED (deferred-items.md § D5,
+  //      plan 18.1-15). The omission was correct on its own terms — it is what stopped a host
+  //      minting a second session and paying twice — but the vendor itself refuses to create that
+  //      duplicate: `POST /v3/session/` returns the SAME unfinished session on the same
+  //      `vendor_data` (ADDENDUM A3, confirmed first-hand on 2026-09-02 against a real stuck
+  //      session). So for THIS state the guard was protecting nothing, and it was costing a host who
+  //      simply got distracted mid-flow up to SEVEN DAYS locked out of their own verification, with
+  //      no route to a person (D-262 / D-263) and no listing they could create (D-255). The
+  //      session's openness is checked BEFORE this statement, by guard 5, which is what keeps a
+  //      finished session from being replaced rather than resumed.
   //
   //   ② THE COOLDOWN READS `updated_at`, NEVER `created_at`. Not a style choice: `created_at` is
   //      made MUTABLE by property ③ of this very statement, so a cooldown derived from it would
@@ -403,19 +521,45 @@ export async function requestHostVerification(
   //      `loadHostVerification` returns this same column so the host surface can SHOW the instant
   //      the WHERE reads, rather than becoming a second authority on it.
   //
-  //   ③ FINDING F-1 — `created_at = now()` ON THE RESUBMISSION BRANCH. `host_verification` is 1:1,
-  //      primary-keyed on `user_id`, so a resubmission is an UPDATE of the same row, and
-  //      `createdAt` is `.defaultNow()` — which fires on INSERT ONLY. Without this explicit
-  //      assignment a host who submits in January and resubmits in September re-enters the
-  //      `created_at ASC` queue STAMPED JANUARY and sits permanently ahead of every first-time
-  //      submitter: exactly the line-jumping D-249 forbids, in the opposite direction. This is the
-  //      host-side equivalent of `src/lib/listing/re-review.ts`'s resubmission-time rule, and it has
-  //      to be spelled this way because `host_verification` has no history table to COALESCE over
-  //      the way the listing queue does, and is not growing one.
+  //   ③ FINDING F-1 — `created_at = now()` ON THE RESUBMISSION BRANCH, AND **NOT** ON THE RESUME
+  //      BRANCH. `host_verification` is 1:1, primary-keyed on `user_id`, so a repeat press is an
+  //      UPDATE of the same row, and `createdAt` is `.defaultNow()` — which fires on INSERT ONLY.
+  //      Without an explicit assignment a host who submits in January and resubmits in September
+  //      re-enters the `created_at ASC` queue STAMPED JANUARY and sits permanently ahead of every
+  //      first-time submitter: exactly the line-jumping D-249 forbids, in the opposite direction.
+  //      This is the host-side equivalent of `src/lib/listing/re-review.ts`'s resubmission-time
+  //      rule, and it has to be spelled this way because `host_verification` has no history table to
+  //      COALESCE over the way the listing queue does, and is not growing one.
+  //
+  //      ⚠ A RESUBMISSION RE-STAMPS AND A RESUME DOES NOT, AND THE DISTINCTION IS THE WHOLE CONTENT
+  //      OF THE `CASE` BELOW. F-1 is about somebody entering the queue AGAIN with a NEW ask. A
+  //      resume is not a new ask: it is the same session, the same `vendor_ref`, the same question
+  //      already put to the partner, and the host has been waiting since the instant that row was
+  //      stamped. Re-stamping it would move a WAITING host UP the queue for pressing a button —
+  //      FINDING F-1 IN REVERSE, and the same line-jumping D-249 forbids, arrived at from the other
+  //      side. The pre-update status is what tells the two apart, and inside `ON CONFLICT DO UPDATE`
+  //      a bare `host_verification.x` IS the existing row's value, which is what keeps this one
+  //      guarded statement rather than a read followed by a branch.
   //
   //   ④ `updated_at = now()` IS SPELLED EXPLICITLY even though `schema.ts:432-435` declares
   //      `$onUpdate(() => new Date())`. `$onUpdate` fires only through Drizzle's query BUILDER, and
   //      this is a raw statement; every shipped ops write spells it for the same reason.
+  //      ⚠ IT FIRES ON THE RESUME BRANCH TOO, AND THAT IS CORRECT. The row WAS touched; the cooldown
+  //      clause only reads `updated_at` for a `rejected` row, so nothing about a `pending` one is
+  //      loosened; and re-arming the reconciliation sweep's grace window for this row costs nothing,
+  //      because a session the sweep would read as still open produces no transition anyway (F-3).
+  //
+  //   ⑤ THE TRAIL SAYS WHICH KIND OF PRESS IT WAS, AND THE ROW IS WHAT TELLS IT. `RETURNING` carries
+  //      `created_at <> updated_at`, computed INSIDE the statement over the two instants the
+  //      statement itself just wrote. Both come from the same `now()` — which is the transaction
+  //      timestamp and is constant for the whole statement — so a fresh INSERT and a resubmission
+  //      both return `false`, and only a resume returns `true`.
+  //      ⚠ DERIVED FROM THE STATEMENT AND NEVER FROM THE PRE-READ ABOVE. The two can honestly
+  //      disagree: the sweep may have released the row to `unverified` between the read and the
+  //      write, in which case the press really was a resubmission and really did re-stamp. A trail
+  //      row that described the read rather than the write would be a trail that disagrees with the
+  //      row it is about. D-72 holds — a boolean over two server instants is not PII and is not
+  //      caller-supplied.
   //
   // NO JS `Date` IS BOUND HERE. `ops-review.ts:390-401` records the measurement — a `Date` cannot
   // be bound as a parameter through raw `db.execute` on postgres.js — and this statement sidesteps
@@ -441,14 +585,17 @@ export async function requestHostVerification(
             checked_at = NULL,
             reason = NULL,
             decided_by_staff_id = NULL,
-            created_at = now(),
+            created_at = CASE WHEN host_verification.status = 'pending'
+                              THEN host_verification.created_at
+                              ELSE now() END,
             updated_at = now()
         WHERE host_verification.status = 'unverified'
+           OR host_verification.status = 'pending'
            OR ( host_verification.status = 'rejected'
                 AND host_verification.updated_at
                     < now() - make_interval(hours => ${COOLDOWN_HOURS}::int) )
-      RETURNING user_id
-    `)) as unknown as { user_id: string }[];
+      RETURNING user_id, (created_at <> updated_at) AS "resumed"
+    `)) as unknown as { user_id: string; resumed: boolean }[];
 
     if (rows.length === 0) return rows;
 
@@ -478,7 +625,11 @@ export async function requestHostVerification(
     // jsonb column would be a second place a compliance question could be answered wrongly from.
     // `userId` duplicates `actorId` here only because this action is self-service; carrying it makes
     // the deny and allow rows findable by the same instrument the ops trail is read with.
-    meta: { userId, provider: check.provider },
+    //
+    // `resumed` comes off the STATEMENT (property ⑤) and is what lets an operator reading the queue
+    // tell a host who re-entered it today from one who has been waiting since their original stamp.
+    // Without it, a `created_at` that did not move looks like a queue that lost a write.
+    meta: { userId, provider: check.provider, resumed: flipped[0].resumed },
   });
 
   // NO `revalidatePath` HERE, DELIBERATELY. `approveHost` invalidates `/ops` because the operator is

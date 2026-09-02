@@ -118,6 +118,41 @@ function alwaysRespond(body: unknown, status = 201) {
   return vi.fn().mockImplementation(() => Promise.resolve(jsonResponse(body, status)));
 }
 
+/**
+ * TWO VENDOR CALLS NOW LIVE ON THIS PATH, and they must be answerable separately.
+ *
+ * Since plan 18.1-15 a press by a `pending` host first READS `GET /v3/session/{id}/decision/` to ask
+ * whether that session is still open (`deferred-items.md` § D5, ADDENDUM A3), and only then POSTs for
+ * a session. A stub that answered both with the create-session 201 could not tell a resume from a
+ * refusal — so this one routes on the HTTP method, which is the only thing the two calls differ by at
+ * this level.
+ *
+ * A FRESH `Response` PER CALL, for `alwaysRespond`'s measured reason: a `Response` body may be read
+ * only once, and three cases here press more than once.
+ */
+function routeVendor(decisionStatus: unknown, session: unknown = CAPTURED_201) {
+  return vi.fn().mockImplementation((_url: string, init?: RequestInit) => {
+    const method = (init?.method ?? "GET").toUpperCase();
+    if (method === "GET") return Promise.resolve(jsonResponse({ status: decisionStatus }, 200));
+    return Promise.resolve(jsonResponse(session, 201));
+  });
+}
+
+/**
+ * The recorded calls, split by which vendor endpoint they were.
+ *
+ * ⚠ THE COUNTS ARE THE ASSERTION IN THREE CASES BELOW, per this file's own rule about vacuous
+ * fail-closed answers: "the row did not change" is true both of a refusal that never asked and of an
+ * ask whose write was refused, and only one of those is the property D5's pre-check exists for.
+ */
+function vendorCalls(mock: ReturnType<typeof vi.fn>) {
+  const calls = mock.mock.calls as Array<[string, RequestInit | undefined]>;
+  return {
+    decisionReads: calls.filter(([, init]) => (init?.method ?? "GET").toUpperCase() === "GET"),
+    createSessions: calls.filter(([, init]) => (init?.method ?? "GET").toUpperCase() === "POST"),
+  };
+}
+
 // ── The observable rate-limit stub, with a REAL mode. ────────────────────────────────────────────
 //
 // `allow` is the default so a file making ~20 privileged calls does not start measuring the limiter
@@ -497,10 +532,21 @@ describe("HVER-08 — the durable cap, and the four calm 0-row states", () => {
     expect(row!.vendorRef).toBeNull();
   });
 
-  it("case 8 — T-18.1-0706: approved, grandfathered, pending and suspended are INDISTINGUISHABLE to the caller", async () => {
+  it("case 8 — T-18.1-0706: approved, grandfathered and suspended are INDISTINGUISHABLE to the caller", async () => {
+    // ⚠ THE DEPARTURE, WRITTEN DOWN RATHER THAN LEFT AS A NARROWED LIST. This case drove FOUR states
+    // until plan 18.1-15; `pending` left it because `pending` is now ADMITTED BY DESIGN (D5) — a host
+    // who walked away from the hosted flow presses again and is handed their own session back. See
+    // case 14.
+    //
+    // The privacy claim does not weaken, because it was never about `pending`. What T-18.1-0706
+    // protects is a SUSPENDED host being unable to tell, from the shape of a refusal, that they are
+    // distinguishable from a host who is merely already decided — and those three still return one
+    // identical sentence. The only thing a caller learns from `pending` being admitted is a fact
+    // about their OWN row, which their own panel already renders in full: this action takes no id
+    // parameter, so there is no cross-account inference to be had.
     const errors: string[] = [];
 
-    for (const status of ["approved", "grandfathered", "pending", "suspended"] as const) {
+    for (const status of ["approved", "grandfathered", "suspended"] as const) {
       const host = await makeHost(`c8_${status}`, status, {
         provider: status === "grandfathered" ? "migration" : "manual",
         // Ancient, so no outcome here can be explained by the cooldown.
@@ -517,8 +563,8 @@ describe("HVER-08 — the durable cap, and the four calm 0-row states", () => {
 
     // ⚠ THE PRIVACY PROPERTY, ASSERTED RATHER THAN DESCRIBED. A suspended host must not be able to
     // tell, from the SHAPE of a refusal, that they are distinguishable from a host who is merely
-    // already pending — so all four sentences are the same sentence.
-    expect(errors).toHaveLength(4);
+    // already decided — so all three sentences are the same sentence.
+    expect(errors).toHaveLength(3);
     expect(new Set(errors).size).toBe(1);
     expect(errors[0]).toBe(HOST_VERIFICATION_NOTHING_CHANGED);
   });
@@ -555,15 +601,16 @@ describe("HVER-08 — the durable cap, and the four calm 0-row states", () => {
     // `src/lib/rate-limit.ts`.
     rateLimitMode = "real";
 
-    // Calls 1..5 are within budget. The first lands the row; 2..5 are refused by the guarded
-    // upsert's WHERE (already `pending`), which is the 0-row sentence and NOT the burst sentence —
-    // so the two refusals stay distinguishable in this case.
+    // Calls 1..5 are within budget. The first lands the row; 2..5 are RESUMES of that same session
+    // — the stub answers the decision read with `"Not Started"`, so the pre-check finds the session
+    // open and the widened WHERE admits `pending` (D5, plan 18.1-15). Before that plan they were
+    // 0-row no-ops. Either way this case's subject is the SIXTH call, and the point of driving five
+    // successful ones first is that the budget is spent by presses the product allows.
     const first = await requestHostVerification({ phone: GOOD_PHONE });
     expect(first.ok).toBe(true);
     for (let i = 2; i <= 5; i++) {
       const res = await requestHostVerification({ phone: GOOD_PHONE });
-      expect(res.ok, `call ${i} must not be flipped`).toBe(false);
-      if (!res.ok) expect(res.error, `call ${i}`).toBe(HOST_VERIFICATION_NOTHING_CHANGED);
+      expect(res.ok, `call ${i} is a resume of the host's own open session (D5)`).toBe(true);
     }
 
     const sixth = await requestHostVerification({ phone: GOOD_PHONE });
@@ -636,17 +683,29 @@ describe("HVER-08 — the durable cap, and the four calm 0-row states", () => {
   });
 });
 
-describe("D-72 — the phone and the email are in no trail row, at any depth", () => {
-  it("case 12 — the SERIALISED audit row contains neither the phone nor the email", async () => {
+describe("D-72 — the phone, the email and the hosted URL are in no trail row, at any depth", () => {
+  it("case 12 — the SERIALISED audit row contains neither the phone, the email, nor the session token", async () => {
     // Unmistakable fixture values: if either string appears anywhere in a row, at any nesting depth,
     // it can only have come from here.
     const CANARY_PHONE = "+639170000042";
     const CANARY_EMAIL = "hvs_c12_canary_84713@example.com";
+    // ⚠ THE THIRD CANARY (plan 18.1-15). The hosted URL is RETURNED to the caller and NEVER PERSISTED
+    // — it is a redirect target carrying a bearer `session_token` for this host's verification flow,
+    // not a fact about a check (D-263 / ADDENDUM A8). That property was described at the action's own
+    // closing note and never measured; a fake token in the stubbed `url` is what measures it.
+    const CANARY_TOKEN = "sessiontokencanary84713";
+    const CANARY_URL = `https://verify.didit.me/en/session/${CANARY_TOKEN}`;
     const host = await makeHost("c12_d72", null, { email: CANARY_EMAIL });
+
+    fetchMock = alwaysRespond({ ...CAPTURED_201, session_token: CANARY_TOKEN, url: CANARY_URL });
+    vi.stubGlobal("fetch", fetchMock);
 
     // One ALLOW row…
     const ok = await requestHostVerification({ phone: CANARY_PHONE });
     expect(ok.ok).toBe(true);
+    // …and the URL really did come back to the CALLER, so the assertions below are about absence from
+    // the trail rather than about a token that never existed.
+    if (ok.ok) expect(ok.redirectTo).toBe(CANARY_URL);
     // …and one DENY row, because a trail that is only clean on the success branch is clean on
     // exactly the wrong half.
     const denied = await requestHostVerification({ phone: "nope" });
@@ -665,9 +724,20 @@ describe("D-72 — the phone and the email are in no trail row, at any depth", (
       expect(serialised, "the email must not appear in a durable trail row").not.toContain(
         CANARY_EMAIL,
       );
+      expect(
+        serialised,
+        "the hosted URL's session token must not appear in a durable trail row: it is a BEARER " +
+          "secret for this host's verification flow, and a jsonb column is not where one goes",
+      ).not.toContain(CANARY_TOKEN);
+      expect(serialised, "nor the URL that carries it").not.toContain(CANARY_URL);
       // Guard-the-guard: the serialisation must actually be the row, not an empty object.
       expect(serialised).toContain(host.id);
     }
+
+    // And the handle that DOES belong in a durable place is in its own column rather than in the
+    // trail — the domain column, once, so a compliance question has one place to be answered from.
+    const row = await verificationRow(host.id);
+    expect(row!.vendorRef).toBe(CAPTURED_201.session_id);
 
     // And the value really was stored where it belongs, so the assertions above are about ABSENCE
     // from the trail rather than about the phone never having existed.
@@ -676,6 +746,250 @@ describe("D-72 — the phone and the email are in no trail row, at any depth", (
       .from(user)
       .where(eq(user.id, host.id));
     expect(profile.phone).toBe(CANARY_PHONE);
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// D5 — AN ABANDONED FLOW IS NO LONGER A SEVEN-DAY LOCKOUT  (`deferred-items.md` § D5, plan 18.1-15)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// FOUND BY HAND, NOT BY A GATE, and the reason is worth carrying here: the defect only existed across
+// a HUMAN TIMELINE — press, leave, come back — which no jsdom test and no unit suite in this repo
+// models. The operator pressed *Start the check*, reached the partner's hosted flow, walked away, and
+// was measured 128 minutes later at `status: "Not Started"` with `expires_at` SEVEN DAYS out, unable
+// to re-press (the WHERE refused `pending`), unable to resume (the URL is not stored), and unable to
+// be released by the sweep (a live session is correctly left alone).
+//
+// These four cases are that timeline, compressed into a fixture: a row seeded in the state the walk
+// measured, driven through the real action, and asserted on the ROW rather than on a return value.
+
+describe("D5 — a host who walked away can finish, and the queue does not notice", () => {
+  it("case 14 — a `pending` host with an OPEN session gets their OWN session back, and `created_at` does NOT move (FINDING F-1 IN REVERSE)", async () => {
+    // ⚠ TWO DISTINCT PAST INSTANTS, AND NEITHER IS `now()`. A fixture stamped at the present cannot
+    // tell "preserved" from "re-stamped" — that is 18.1-11's measured trap (COOLDOWN_HOURS 24 -> 25
+    // stayed green because one fixture sat at exactly the boundary) wearing this plan's clothes. Three
+    // hours and thirty minutes are both far from every clock this statement touches.
+    const seededCreatedAt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const seededUpdatedAt = new Date(Date.now() - 30 * 60 * 1000);
+    const OPEN_HANDLE = "sess_d5_open";
+    const FRESH_URL = "https://verify.didit.me/en/session/On7Pi2cFzYOO";
+
+    const host = await makeHost("c14_resume", "pending", {
+      provider: "didit",
+      vendorRef: OPEN_HANDLE,
+      createdAt: seededCreatedAt,
+      updatedAt: seededUpdatedAt,
+    });
+
+    // The partner's two answers, exactly as measured on 2026-09-02: the session is still unfinished,
+    // and a second POST on the same `vendor_data` returns THE SAME session id with a fresh, usable
+    // url (ADDENDUM A3).
+    fetchMock = routeVendor("Not Started", {
+      ...CAPTURED_201,
+      session_id: OPEN_HANDLE,
+      url: FRESH_URL,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await requestHostVerification({ phone: GOOD_PHONE });
+    expect(res.ok, "a distracted host must be able to finish their own check").toBe(true);
+    if (!res.ok) return;
+    // THE WHOLE POINT OF D5: they are handed back into the flow rather than told to wait a week.
+    expect(res.redirectTo).toBe(FRESH_URL);
+
+    const { decisionReads, createSessions } = vendorCalls(fetchMock);
+    expect(decisionReads, "the pre-check asked whether the session was still open").toHaveLength(1);
+    expect(createSessions, "and then asked for it — one create, not two").toHaveLength(1);
+
+    const row = await verificationRow(host.id);
+    expect(row!.status, "a resume does not change the state; the host is still waiting").toBe(
+      "pending",
+    );
+    expect(
+      row!.vendorRef,
+      "the SAME session came back (A3), so the compliance handle is unchanged and no second " +
+        "billable session exists",
+    ).toBe(OPEN_HANDLE);
+
+    // ⚠ THE CLAIM THIS CASE EXISTS FOR — EQUALITY, not `<= now()`. FINDING F-1 requires a
+    // RESUBMISSION to re-stamp `created_at` so a returning host cannot outrank first-timers forever.
+    // A RESUME is the mirror image: the same session, the same ask, the same wait — re-stamping it
+    // would move a host who has been waiting three hours UP the `created_at ASC` queue for pressing a
+    // button, which is the same line-jumping D-249 forbids arrived at from the other side.
+    expect(
+      row!.createdAt.getTime(),
+      "a resume must not move the host's place in the ops queue (F-1 in reverse)",
+    ).toBe(seededCreatedAt.getTime());
+    // The row WAS touched, and `updated_at` says so — the cooldown clause reads it only for a
+    // `rejected` row, so nothing is loosened by it moving here.
+    expect(row!.updatedAt.getTime()).toBeGreaterThan(seededUpdatedAt.getTime());
+
+    // ⑤ — the trail says which kind of press it was, derived inside the statement from the two
+    // instants the statement itself wrote.
+    const rows = await trailRows(ACTION, "ok");
+    const trail = rows.find((r) => (r.meta as { userId?: string })?.userId === host.id);
+    expect(trail, "an allow-branch audit row must exist for this host").toBeTruthy();
+    expect(
+      (trail!.meta as { resumed?: boolean }).resumed,
+      "an operator reading the queue has to be able to tell a resume from a fresh submission, or a " +
+        "`created_at` that did not move looks like a lost write",
+    ).toBe(true);
+  });
+
+  it("case 15 — a FINISHED session is REFUSED rather than replaced, and no second session is ever asked for", async () => {
+    // ⚠ THE FAILURE THIS RULES OUT IS D5 RECREATED BY ITS OWN FIX. If the widened WHERE admitted
+    // `pending` with no pre-check, a host pressing while a verdict was in flight — the webhook
+    // dropped, the sweep's window not yet elapsed — would mint a NEW billable session and overwrite
+    // `vendor_ref`, orphaning the real answer for as long as the row lives. The partner never reuses
+    // a finished session (ADDENDUM A3), so the only safe move is to ask BEFORE asking.
+    const seededCreatedAt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const seededUpdatedAt = new Date(Date.now() - 30 * 60 * 1000);
+    const DONE_HANDLE = "sess_d5_finished";
+
+    const host = await makeHost("c15_finished", "pending", {
+      provider: "didit",
+      vendorRef: DONE_HANDLE,
+      createdAt: seededCreatedAt,
+      updatedAt: seededUpdatedAt,
+    });
+
+    // BOTH finished statuses, because it is the OPENNESS that decides and not one status: `Approved`
+    // is a verdict in flight, `Expired` is a session that is simply over. Neither is reusable.
+    for (const finished of ["Approved", "Expired"] as const) {
+      fetchMock = routeVendor(finished);
+      vi.stubGlobal("fetch", fetchMock);
+
+      const res = await requestHostVerification({ phone: GOOD_PHONE });
+      expect(res.ok, `${finished} must be refused`).toBe(false);
+      if (!res.ok) {
+        // THE SHIPPED 0-ROW SENTENCE. No new refusal sentence was authored for this branch — the
+        // host learns nothing about the shape of their own row that their panel does not render.
+        expect(res.error, finished).toBe(HOST_VERIFICATION_NOTHING_CHANGED);
+      }
+
+      // ⚠ THE ASSERTION THAT MATTERS, and it is on the RECORDED CALLS rather than on the row: "the
+      // row did not change" is equally true of a refusal that never asked and of an ask whose write
+      // was refused, and only the first is the property this pre-check exists for.
+      const { decisionReads, createSessions } = vendorCalls(fetchMock);
+      expect(decisionReads, `${finished}: the partner was asked`).toHaveLength(1);
+      expect(
+        createSessions,
+        `${finished}: NO create-session call may be made — a second session would repoint ` +
+          "`vendor_ref` away from the one holding the verdict",
+      ).toHaveLength(0);
+
+      const row = await verificationRow(host.id);
+      expect(row!.status, finished).toBe("pending");
+      expect(row!.vendorRef, `${finished}: the handle must survive untouched`).toBe(DONE_HANDLE);
+      expect(row!.createdAt.getTime(), finished).toBe(seededCreatedAt.getTime());
+      expect(row!.updatedAt.getTime(), finished).toBe(seededUpdatedAt.getTime());
+    }
+
+    // The refusal is audited under its OWN enum reason: identical to the host, distinguishable to an
+    // operator.
+    const denied = await trailRows(ACTION, "denied");
+    const trail = denied.filter(
+      (r) => r.actorId === host.id && (r.meta as { reason?: string })?.reason === "session_closed",
+    );
+    expect(trail, "both refusals are in the table, not inferred from a return").toHaveLength(2);
+  });
+
+  it("case 16 — a `pending` row with NO handle, and one with a WHITESPACE handle, both resume", async () => {
+    // ⚠ THIS PATH IS THEIR ONLY ESCAPE, AND THAT IS WHY BOTH SHAPES ARE DRIVEN. The reconciliation
+    // sweep's candidate query cannot see either row: `btrim(NULL) <> ''` evaluates to NULL and a
+    // WHERE treats that as not-true (measured in `fitout_test`, 18.1-09), and the whitespace one
+    // fails the same blank test. So no sweep will ever release them and no expiry will ever reach
+    // them — the press is the whole recovery.
+    //
+    // A blank handle also SKIPS the decision read, deliberately: there is nothing to ask about, and
+    // it would address `/v3/session//decision/`, which is a different endpoint entirely.
+    const cases: ReadonlyArray<{ slug: string; vendorRef: string | null; label: string }> = [
+      { slug: "c16_null", vendorRef: null, label: "a NULL handle" },
+      { slug: "c16_blank", vendorRef: "   ", label: "a WHITESPACE handle" },
+    ];
+
+    for (const { slug, vendorRef, label } of cases) {
+      const seededCreatedAt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+      const host = await makeHost(slug, "pending", {
+        provider: "didit",
+        vendorRef,
+        createdAt: seededCreatedAt,
+        updatedAt: new Date(Date.now() - 30 * 60 * 1000),
+      });
+
+      fetchMock = routeVendor("Not Started");
+      vi.stubGlobal("fetch", fetchMock);
+
+      const res = await requestHostVerification({ phone: GOOD_PHONE });
+      expect(res.ok, `${label} must resume`).toBe(true);
+
+      const { decisionReads, createSessions } = vendorCalls(fetchMock);
+      expect(
+        decisionReads,
+        `${label}: there is nothing to ask about, so no decision read may be made`,
+      ).toHaveLength(0);
+      expect(createSessions, `${label}: the session ask still happens`).toHaveLength(1);
+
+      const row = await verificationRow(host.id);
+      expect(row!.status, label).toBe("pending");
+      expect(row!.vendorRef, `${label}: the handle is REPAIRED by the resume`).toBe(
+        CAPTURED_201.session_id,
+      );
+      expect(
+        row!.createdAt.getTime(),
+        `${label}: still a resume, so the queue position is still theirs`,
+      ).toBe(seededCreatedAt.getTime());
+    }
+  });
+
+  it("case 17 — the pre-check cannot admit what the WHERE refuses: the STATEMENT is the gate", async () => {
+    // The pre-check reads a snapshot and answers one question about a vendor session. It is not a
+    // gate and must never become one: an `approved` row is refused because that state is ABSENT from
+    // the guarded upsert's WHERE (D-266's discipline, three positive equalities), whatever the
+    // partner says about any session handle the row happens to carry.
+    const seededCreatedAt = new Date(Date.UTC(2026, 0, 5, 9, 0, 0));
+    const seededUpdatedAt = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000);
+    const STALE_HANDLE = "sess_c17_approved";
+
+    const host = await makeHost("c17_gate", "approved", {
+      provider: "didit",
+      vendorRef: STALE_HANDLE,
+      createdAt: seededCreatedAt,
+      updatedAt: seededUpdatedAt,
+    });
+
+    // The partner says the session is wide open. It changes nothing.
+    fetchMock = routeVendor("Not Started");
+    vi.stubGlobal("fetch", fetchMock);
+
+    const res = await requestHostVerification({ phone: GOOD_PHONE });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.error).toBe(HOST_VERIFICATION_NOTHING_CHANGED);
+
+    const { decisionReads, createSessions } = vendorCalls(fetchMock);
+    expect(
+      decisionReads,
+      "the pre-check runs for `pending` ONLY — an approved row is not a resume candidate",
+    ).toHaveLength(0);
+    // ⚠ RECORDED AS A KNOWN COST RATHER THAN A DISCOVERY (T-18.1-1509): the session ask still
+    // happens before the write, because the ask-then-write ordering is what stops a `pending` row
+    // ever carrying an invented handle. The panel draws no control on this branch and the burst
+    // guard bounds a direct POST.
+    expect(createSessions).toHaveLength(1);
+
+    const row = await verificationRow(host.id);
+    expect(row!.status, "0 rows flipped — the WHERE has no source state that matches").toBe(
+      "approved",
+    );
+    expect(row!.vendorRef).toBe(STALE_HANDLE);
+    expect(row!.createdAt.getTime()).toBe(seededCreatedAt.getTime());
+    expect(row!.updatedAt.getTime()).toBe(seededUpdatedAt.getTime());
+
+    const denied = await trailRows(ACTION, "denied");
+    const trail = denied.find(
+      (r) => r.actorId === host.id && (r.meta as { reason?: string })?.reason === "not_applicable",
+    );
+    expect(trail, "the 0-row refusal is the statement's, and it is audited as such").toBeTruthy();
   });
 });
 

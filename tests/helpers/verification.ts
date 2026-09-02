@@ -59,6 +59,19 @@ export type SeedHostVerificationOpts = {
    * `drizzle/0026`.
    */
   readonly provider?: string;
+  /**
+   * `host_verification.vendor_ref` — the vendor's own handle for the check. Defaults to `null`, which
+   * is what a `manual` row and a never-started row both carry.
+   *
+   * ⚠ APPLIED ON PRESENCE, NEVER ON TRUTHINESS, and that is why it is worth a paragraph. A BLANK
+   * handle is a legal fixture and a load-bearing one: `''` and `'   '` are rows the reconciliation
+   * sweep's candidate query cannot see (`btrim(NULL) <> ''` is NULL, which a WHERE treats as
+   * not-true), so the submission path's resume is their only escape. A truthiness check here would
+   * silently drop `'   '` and an explicit `null` and hand the case a row seeded at the DEFAULT — a
+   * test that passes for the wrong reason, which is the exact defect this helper's header was written
+   * about.
+   */
+  readonly vendorRef?: string | null;
   /** The verification row's `created_at` — the ops queue's ordering column. Defaults to `now()`. */
   readonly createdAt?: Date;
   /**
@@ -121,6 +134,9 @@ export async function seedHostVerification(
       userId,
       status,
       provider: opts.provider ?? "manual",
+      // PRESENCE, not truthiness — see the option's own docblock. `null` and `'   '` are both
+      // fixtures this repo needs and both are falsy.
+      ...(opts.vendorRef !== undefined ? { vendorRef: opts.vendorRef } : {}),
       ...(opts.createdAt ? { createdAt: opts.createdAt } : {}),
       ...(opts.updatedAt ? { updatedAt: opts.updatedAt } : {}),
     });
