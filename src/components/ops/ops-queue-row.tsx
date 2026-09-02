@@ -17,8 +17,18 @@
 // browses is no longer a queue, and a second place carrying approve/reject is a second place that has
 // to be kept in agreement with this one.
 //
-// `tests/ops/ops-queue-row.test.tsx` holds it as a RENDERED fact — zero anchors and zero link-role
-// elements inside the card — so a later plan that adds a destination fails there rather than in review.
+// `tests/ops/ops-queue-row.test.tsx` holds it as a RENDERED fact — so a later plan that adds a
+// destination fails there rather than in review.
+//
+// ⚠ AND SINCE PLAN 18.1-13 THE ANCHOR CLAUSE IS "ZERO EXCEPT ONE SCHEME", NOT "ZERO". D-271 puts the
+// host CONTACT REVEAL on both row kinds, and a revealed row renders at most ONE anchor, whose href
+// begins `mailto:`. THAT IS NOT A WEAKENING AND THE DIFFERENCE IS THE WHOLE POINT: a `mailto:` is a
+// COMPOSE ACTION, not navigation — pressing it opens the operator's mail client and the row itself
+// still browses NOWHERE. The `[role="link"]` clause stays at ZERO, unchanged; the exemption is one
+// scheme, one count, one reason, declared in the assertion's own failure message; and the
+// guard-the-guard case that proves the selector can find an anchor at all is untouched. Deleting the
+// clause instead would license a DESTINATION on the row — the detail page you click into to see the
+// photos — which is exactly what this decision exists to prevent.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // NO MEDIA SLOT: THE PHOTOS GO IN THE BODY, AT A SIZE A PERSON CAN JUDGE
@@ -69,32 +79,18 @@
 // GATE-05 for the money — this component performs no arithmetic on any of it — and it is the shipped
 // `whenLabel` idiom for the dates, which keeps a viewer's clock and locale out of a client render.
 
-import * as React from "react";
+// NO `react` IMPORT: this file declares no hook and, since `Fact`'s `React.ReactNode` prop type moved
+// to `ops-row-fact.tsx`, names no React type either. JSX needs none under the automatic runtime.
 
+import { OpsContactReveal } from "@/components/ops/ops-contact-reveal";
 import { OpsDecisionActions } from "@/components/ops/ops-decision-actions";
+import { Fact, ROW_MONEY_CLASS } from "@/components/ops/ops-row-fact";
 import { PhotoGallery } from "@/components/listing/photo-gallery";
 import { RowCard } from "@/components/patterns/row-card";
 import type { HostVerificationStatus } from "@/lib/db/schema";
 import type { OpsCancelImpact } from "@/lib/ops/cancel-impact";
 import type { OpsQueueHostItem, OpsQueueListingItem } from "@/lib/ops/review-queue";
 import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
-
-/**
- * The description list's VALUE class — ONE constant, so no value on this row can drift into a
- * different size or weight from its neighbours.
- *
- * THE WAIT FIGURE IS THE LOUDEST THING ON THE ROW AND NOTHING ELSE IS PROMOTED. The listing title, the
- * host name, the address, the capacity and the price all compute an IDENTICAL size and weight through
- * this one string, so the equality is a fact about one constant rather than an accident of five
- * similar ones — `request-row.tsx:ROW_VALUE_CLASS`'s reason, on a row with five values instead of two.
- */
-const ROW_VALUE_CLASS = "text-label";
-
-/** A money value — the same role as every other value, plus the figure treatment. Derived, never retyped. */
-const ROW_MONEY_CLASS = `${ROW_VALUE_CLASS} tabular-nums`;
-
-/** The muted term class every `<dt>` carries. */
-const ROW_TERM_CLASS = "text-label text-muted-foreground";
 
 /**
  * The wait figure's class — the row's LEAD.
@@ -207,24 +203,6 @@ function spaceTypeOf(value: string | null): string {
   return SPACE_TYPE_LABELS[value as SpaceTypeValue] ?? value;
 }
 
-/** One `<dt>`/`<dd>` pair, on the shipped idiom — label left, value right, linearising on a narrow row. */
-function Fact({
-  term,
-  children,
-  valueClass = ROW_VALUE_CLASS,
-}: {
-  term: string;
-  children: React.ReactNode;
-  valueClass?: string;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-4">
-      <dt className={ROW_TERM_CLASS}>{term}</dt>
-      <dd className={valueClass}>{children}</dd>
-    </div>
-  );
-}
-
 export function OpsQueueRow({ row }: { row: OpsQueueRowItem }) {
   // BRANCHED ON THE DISCRIMINANT, once, at the top. Everything below reads a narrowed type.
   const isListing = row.kind === "listing";
@@ -292,6 +270,16 @@ export function OpsQueueRow({ row }: { row: OpsQueueRowItem }) {
                 ` — ${HOST_VERIFICATION_LABEL[row.hostVerificationStatus]}`}
             </Fact>
             <Fact term="Submitted">{row.submittedLabel}</Fact>
+            {/* D-271 / OPS-06 — THE CONTACT REVEAL, ON THIS KIND TOO AND NOT ONLY ON THE HOST ROW.
+                An ops question is usually about a specific LISTING, so the way to reach the person
+                has to be where the subject of the question is; sending an operator to hunt for the
+                host's row is how a question stops being asked. The island renders the fact — one
+                (`Contact`) before a reveal, two (`Email`, `Phone`) after — because a component
+                cannot replace the `<dt>`/`<dd>` pair it is rendered inside. */}
+            <OpsContactReveal
+              userId={row.hostId}
+              hostLabel={row.hostName ?? MISSING_TITLE.host}
+            />
           </>
         ) : (
           <>
@@ -301,6 +289,10 @@ export function OpsQueueRow({ row }: { row: OpsQueueRowItem }) {
               {row.listingsWaiting}
             </Fact>
             <Fact term="Submitted">{row.submittedLabel}</Fact>
+            {/* The same affordance on the other kind — see the listing branch above. `title` is the
+                host's own name here, which is the same string the two decision controls are named
+                after, so the row's three accessible names all quote one subject. */}
+            <OpsContactReveal userId={row.userId} hostLabel={title} />
           </>
         )}
       </dl>
