@@ -69,8 +69,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   beginDiditVerification,
   diditVerificationProvider,
+  DiditRateLimitError,
   DiditSessionError,
   DIDIT_PROVIDER_NAME,
+  isDiditSessionOpen,
   type DiditSessionStart,
 } from "@/lib/verification/providers/didit";
 import { isVerified } from "@/lib/verification/port";
@@ -319,6 +321,113 @@ describe("D-256 — the verdict half, and what its null vendorRef means", () => 
     // Both directions, because an adapter hardcoded to "pass" marks every declined host verified.
     const declined = diditVerificationProvider.verify({ result: "fail" });
     expect((declined as Awaited<typeof declined>).result).toBe("fail");
+  });
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// D5 — WILL THE PARTNER HAND THIS SESSION BACK?  (`deferred-items.md` § D5, ADDENDUM A3)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// `isDiditSessionOpen` is the reader the submission path asks BEFORE it asks for a session, so that a
+// host who walked away mid-flow is handed their OWN session instead of being locked out until it
+// expires — and so that a session the partner has already FINISHED is refused rather than replaced by
+// a fresh billable one that would orphan a verdict in flight.
+//
+// ⚠ EVERY CASE ALSO MEASURES THE CALL. This file's own rule: a return value that coincides with a
+// fail-closed default is vacuous unless the call itself is measured — `false` is what a broken read
+// would produce too, so "it returned false" says nothing on its own.
+
+const SESSION_ID = "8bb15a5c-a71e-4393-984b-033ef1f69278";
+
+/** The decision endpoint's answer, narrowed to the one field this reader cares about. */
+function decisionResponse(status: unknown, httpStatus = 200): Response {
+  return new Response(JSON.stringify({ status }), { status: httpStatus });
+}
+
+describe("D5 / ADDENDUM A3 — the adapter answers ONE question about the vendor's session", () => {
+  it("case 9 — an UNFINISHED session reads OPEN, and a FINISHED one does not", async () => {
+    // The exact state D5 was measured in: 128 minutes after the press, the operator's own session
+    // still read "Not Started" with `expires_at` seven days out. This is the answer that lets the
+    // submission path hand it back.
+    fetchMock.mockResolvedValue(decisionResponse("Not Started"));
+    expect(await isDiditSessionOpen(SESSION_ID)).toBe(true);
+    expect(fetchMock.mock.calls, "the vendor was actually asked, exactly once").toHaveLength(1);
+
+    // And the GET really is the decision read, on the encoded path, with the credential header.
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(
+      `https://verification.didit.me/v3/session/${encodeURIComponent(SESSION_ID)}/decision/`,
+    );
+    expect((init.method ?? "GET").toUpperCase()).toBe("GET");
+    expect((init.headers as Record<string, string>)["x-api-key"]).toBe(FAKE_API_KEY);
+
+    // A finished session is never reused, so asking again would mint a NEW one — which is the whole
+    // reason the caller has to ask first.
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue(decisionResponse("Approved"));
+    expect(await isDiditSessionOpen(SESSION_ID)).toBe(false);
+    expect(fetchMock.mock.calls).toHaveLength(1);
+  });
+
+  it("case 10 — a status the mapper has never heard of reads CLOSED, and does not throw", async () => {
+    // FAIL CLOSED ON THE AXIS WHERE PERMISSIVE COSTS MONEY. An eleventh vendor status must not be
+    // read as "go ahead and ask for a session": that would spend a billable session and repoint the
+    // one column pointing at the vendor's copy of the evidence. It is a false rather than a throw
+    // because the read SUCCEEDED — the vendor answered, FitOut simply does not recognise the answer.
+    fetchMock.mockResolvedValue(decisionResponse("Teleported"));
+
+    let threw: unknown;
+    let answer: boolean | undefined;
+    try {
+      answer = await isDiditSessionOpen(SESSION_ID);
+    } catch (err) {
+      threw = err;
+    }
+
+    expect(threw, "an unrecognised status is an answer, not a transport failure").toBeUndefined();
+    expect(answer).toBe(false);
+    expect(fetchMock.mock.calls).toHaveLength(1);
+  });
+
+  it("case 11 — a 429 rejects with the RATE-LIMIT refusal, and it is not swallowed into `false`", async () => {
+    // ⚠ THE ABSENCE OF A `catch` IN THE ADAPTER IS THE DECISION THIS CASE PINS. `false` is the answer
+    // that REFUSES a host, so a swallowed failure would refuse somebody on the strength of a question
+    // that never got an answer. The caller must be able to tell "the partner says this session is
+    // finished" from "we could not ask" — they are different refusals with different sentences.
+    fetchMock.mockResolvedValue(decisionResponse("Not Started", 429));
+
+    let caught: unknown;
+    let answer: boolean | undefined;
+    try {
+      answer = await isDiditSessionOpen(SESSION_ID);
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(answer, "no boolean may exist when the read failed").toBeUndefined();
+    expect(caught).toBeInstanceOf(DiditRateLimitError);
+    expect((caught as DiditSessionError).status).toBe(429);
+    expect(fetchMock.mock.calls).toHaveLength(1);
+  });
+
+  it("case 12 — a 403 rejects with the CREDENTIAL refusal, unchanged from the read it wraps", async () => {
+    // ONE credential fault wearing two numbers (ADDENDUM A5). The message is for an OPERATOR — it
+    // names the env var and never its value — and nothing here is fit to show a host.
+    fetchMock.mockResolvedValue(forbiddenResponse(403));
+
+    let caught: unknown;
+    let answer: boolean | undefined;
+    try {
+      answer = await isDiditSessionOpen(SESSION_ID);
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(answer).toBeUndefined();
+    expect(caught).toBeInstanceOf(DiditSessionError);
+    expect((caught as DiditSessionError).status).toBe(403);
+    expect((caught as DiditSessionError).message).toContain("DIDIT_API_KEY");
+    expect(fetchMock.mock.calls).toHaveLength(1);
   });
 });
 

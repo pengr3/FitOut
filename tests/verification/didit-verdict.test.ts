@@ -107,6 +107,13 @@ const CENSUS: readonly {
   transition: DiditTransition;
   audit: boolean;
   carriesDecision: boolean;
+  /**
+   * ADDENDUM A3's reuse set, restated by hand for the same reason the rest of this table is: whether
+   * a second `POST /v3/session/` on the same `vendor_data` is handed back THIS session. It is a fact
+   * about the VENDOR'S lifecycle and not about a FitOut transition — see the two rows named in case
+   * 21b, which are the pair that proves the two axes are independent.
+   */
+  sessionOpen: boolean;
   why: string;
 }[] = [
   {
@@ -114,6 +121,7 @@ const CENSUS: readonly {
     transition: "none",
     audit: false,
     carriesDecision: false,
+    sessionOpen: true,
     why: "the link has not been opened; the check is genuinely still ahead of the host",
   },
   {
@@ -121,6 +129,7 @@ const CENSUS: readonly {
     transition: "none",
     audit: false,
     carriesDecision: false,
+    sessionOpen: true,
     why: "the host is mid-flow; nothing has been decided",
   },
   {
@@ -128,6 +137,7 @@ const CENSUS: readonly {
     transition: "none",
     audit: true,
     carriesDecision: false,
+    sessionOpen: true,
     why: "KYB-only and therefore unreachable — refused exactly as an unknown status (ADDENDUM A6)",
   },
   {
@@ -135,6 +145,7 @@ const CENSUS: readonly {
     transition: "none",
     audit: true,
     carriesDecision: true,
+    sessionOpen: false,
     why: "Didit's OWN compliance reviewer has it; a check really is still running (FINDING F-3)",
   },
   {
@@ -142,6 +153,7 @@ const CENSUS: readonly {
     transition: "approve",
     audit: true,
     carriesDecision: true,
+    sessionOpen: false,
     why: "D-261 — a vendor pass auto-approves the host, with no operator confirming it",
   },
   {
@@ -149,6 +161,7 @@ const CENSUS: readonly {
     transition: "reject",
     audit: true,
     carriesDecision: true,
+    sessionOpen: false,
     why: "D-262 — a vendor fail auto-rejects the host, with no operator confirming it",
   },
   {
@@ -156,6 +169,7 @@ const CENSUS: readonly {
     transition: "none",
     audit: false,
     carriesDecision: false,
+    sessionOpen: true,
     why: "NOT a verdict: it carries resubmission instructions instead of a decision (ADDENDUM A6)",
   },
   {
@@ -163,6 +177,7 @@ const CENSUS: readonly {
     transition: "reset-to-unverified",
     audit: true,
     carriesDecision: true,
+    sessionOpen: false,
     why: "FINDING F-3 — the host never finished, so nobody checked",
   },
   {
@@ -170,6 +185,7 @@ const CENSUS: readonly {
     transition: "reset-to-unverified",
     audit: true,
     carriesDecision: false,
+    sessionOpen: false,
     why: "FINDING F-3 — the TTL elapsed before the link was opened, so nobody checked",
   },
   {
@@ -177,6 +193,7 @@ const CENSUS: readonly {
     transition: "none",
     audit: true,
     carriesDecision: true,
+    sessionOpen: false,
     why: "unreachable while no expiration policy is configured (ADDENDUM B7); moves nothing, audits",
   },
 ];
@@ -213,6 +230,16 @@ for (const casing of CASINGS) {
         `\`${row.status}\` ${row.carriesDecision ? "carries" : "does NOT carry"} a decision object ` +
           "(ADDENDUM A6) — a caller reads this instead of knowing the exception",
       ).toBe(row.carriesDecision);
+
+      expect(
+        outcome.sessionOpen,
+        `ADDENDUM A3: a session at \`${row.status}\` is ` +
+          `${row.sessionOpen ? "UNFINISHED, so a second POST /v3/session/ on the same vendor_data " +
+            "returns THIS session with a fresh url" : "FINISHED, so a second POST mints a NEW session " +
+            "and would repoint vendor_ref away from the one holding the verdict"}. ` +
+          "The reuse set is transcribed from the vendor's own rule and was confirmed first-hand " +
+          "against a real stuck session on 2026-09-02 — do not derive it from `transition`.",
+      ).toBe(row.sessionOpen);
     });
   });
 }
@@ -228,6 +255,38 @@ describe("HVER-07 — the census is a census, not a sample", () => {
 
     expect(CENSUS).toHaveLength(DIDIT_STATUSES.length);
     expect(DIDIT_STATUSES, "ADDENDUM A6's complete enumeration is ten").toHaveLength(10);
+  });
+
+  it("case 21b — `sessionOpen` and `transition` are INDEPENDENT axes, proved by the two rows that disagree", () => {
+    // THE COLLAPSE THIS RULES OUT, and it is the edit a later reader is most likely to make: deriving
+    // openness from `transition === "none"`. Four statuses move nothing, and they do NOT agree about
+    // whether the partner will hand the session back — so the derived version would be wrong in both
+    // directions at once, and the census above would still be green because it drives the module.
+    const inReview = mapDiditStatus("In Review");
+    const notStarted = mapDiditStatus("Not Started");
+
+    expect(inReview.transition, "the vendor's own reviewer holds it; the row stays put").toBe("none");
+    expect(
+      inReview.sessionOpen,
+      "`In Review` moves NOTHING and is FINISHED. ADDENDUM A3's reuse set does not contain it, so a " +
+        "second POST mints a new session — asking again would repoint `vendor_ref` away from the " +
+        "session whose verdict is with the vendor's reviewer.",
+    ).toBe(false);
+
+    expect(notStarted.transition, "nobody has decided anything").toBe("none");
+    expect(
+      notStarted.sessionOpen,
+      "`Not Started` moves NOTHING and is OPEN. It is the exact state `deferred-items.md` § D5 was " +
+        "measured in — the host walked away and the same session is still their way in.",
+    ).toBe(true);
+
+    // Stated as the general claim as well as the two witnesses, so a future third disagreeing row
+    // cannot quietly be the one that breaks it.
+    expect(
+      inReview.transition === notStarted.transition && inReview.sessionOpen === notStarted.sessionOpen,
+      "these two rows must AGREE on `transition` and DISAGREE on `sessionOpen` — that is what makes " +
+        "the second field a fact of its own rather than a spelling of the first",
+    ).toBe(false);
   });
 
   it("case 22 — the two casings produce IDENTICAL outcomes for all ten", () => {
@@ -247,10 +306,12 @@ describe("HVER-07 — the census is a census, not a sample", () => {
 
 const F3_MESSAGE =
   "FINDING F-3, settled in didit-verdict.ts: this status must return the row to `unverified`. " +
-  "18.1-UI-SPEC's `/host/verify` PENDING panel says the check is with the checking partner and " +
-  "offers NO WAY OUT, because the hosted-flow URL is not storable. That copy is honest ONLY while " +
-  "this holds — leave the row at `pending` and a host who closed the tab reads, forever, a sentence " +
-  "about a session that will never answer.";
+  "18.1-UI-SPEC's `/host/verify` PENDING panel says the check is with the checking partner and that " +
+  "FitOut is waiting on the result. That copy is honest on TWO legs and this is one of them: the " +
+  "resume press (plan 18.1-15) covers a session the host has NOT finished, and this mapping covers " +
+  "the one that is already over. Leave the row at `pending` and a host whose session expired reads, " +
+  "forever, a sentence about a session that will never answer — and the press cannot help them, " +
+  "because the partner never reuses a finished session (ADDENDUM A3).";
 
 describe("FINDING F-3 — a session nobody finished releases the row", () => {
   it("case 23 — `Expired` returns the row to `unverified`", () => {
@@ -326,6 +387,39 @@ describe("HVER-07 — an unrecognised status moves NOTHING", () => {
       expect(outcome.transition).toBe("none");
       expect(outcome.transition).not.toBe("approve");
     }
+  });
+
+  it("case 27b — everything the mapper does not recognise answers `sessionOpen: false`", () => {
+    // THE SECOND FAIL-CLOSED AXIS, asserted positively rather than inferred from the first. The caller
+    // of this field decides whether to spend a billable session and whether to repoint `vendor_ref`,
+    // so "the session is open" is the PERMISSIVE answer here and an unrecognised string must never
+    // reach it. The four prototype-shaped names are swept for the same reason as case 27: a bare index
+    // on an object literal answers truthily for all four.
+    const unrecognised: readonly (string | null | undefined)[] = [
+      "Teleported",
+      "",
+      "   ",
+      null,
+      undefined,
+      "constructor",
+      "toString",
+      "valueOf",
+      "__proto__",
+    ];
+
+    for (const raw of unrecognised) {
+      expect(
+        mapDiditStatus(raw).sessionOpen,
+        `\`${JSON.stringify(raw)}\` is not a status FitOut recognises. Reading it as an OPEN session ` +
+          "would tell the submission path to go ahead and ask the partner for one — the permissive " +
+          "answer, on the axis where permissive costs money and overwrites a compliance handle.",
+      ).toBe(false);
+    }
+
+    // A non-string input, driven through the cast the boundary's own header licenses: a status that
+    // arrived as a number is not a status.
+    expect(mapDiditStatus(42 as unknown as string).sessionOpen).toBe(false);
+    expect(mapDiditStatus({} as unknown as string).sessionOpen).toBe(false);
   });
 });
 

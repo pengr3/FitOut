@@ -34,6 +34,15 @@ import "server-only";
 // a session would be handed the SAME session back and would have learned nothing at all — a no-op
 // wearing the shape of a fix.
 //
+// ⚠ AND SINCE 18.1-15 THERE IS A FOURTH, WHICH IS THE SAME READ ASKING A NARROWER QUESTION.
+// `isDiditSessionOpen(sessionId)` calls that same GET and returns ONE BOOLEAN: whether the partner
+// still considers the session unfinished and will therefore hand it back. That is precisely what A3's
+// idempotency is a fact about, and the submission path needs it BEFORE it asks for a session so that
+// a host who walked away mid-flow gets their OWN session returned instead of being locked out until
+// it expires (`deferred-items.md` § D5). It is a READ like the third: it decides nothing, writes
+// nothing, and translates nothing — the shared mapper does that, and `../apply-verdict.ts` is still
+// the only writer.
+//
 // THE DISCIPLINE THAT KEEPS THE ASKING HALF HONEST, stated because the port cannot police it: the
 // begin path may only ever produce `result: null`. Nothing but `verify` — reached through
 // `runVerification` — may produce a non-null verdict.
@@ -117,6 +126,11 @@ import "server-only";
 // Both are ONE credential fault, they are an OPERATOR's problem, and the sentence below says so;
 // nothing here is fit to show a host.
 
+// ⚠ THE FIRST VALUE IMPORT FROM THE MAPPER, AND IT IS THE POINT RATHER THAN AN EXCEPTION. This file
+// imported two TYPES from `../didit-verdict` and no values; `isDiditSessionOpen` below resolves the
+// vendor's answer through the SHARED mapper so that the ten strings keep their ONE reader. There is
+// no cycle: `didit-verdict.ts` imports only from `@/lib/validation/ops`.
+import { mapDiditStatus } from "../didit-verdict";
 import type { DiditDecision, DiditFeatureReport } from "../didit-verdict";
 import type {
   VerificationDecision,
@@ -535,6 +549,44 @@ export async function fetchDiditDecision(sessionId: string): Promise<DiditSessio
       face_matches: featureBlock(parsed.face_matches),
     },
   };
+}
+
+/**
+ * ASK WHETHER THE PARTNER WILL HAND THIS SESSION BACK — one question, one boolean, no verdict.
+ *
+ * `POST /v3/session/` is idempotent over UNFINISHED sessions on the same `vendor_data`: an open
+ * session is RETURNED (still `201`) with a fresh, usable `url`, and a finished one is never reused
+ * (18.1-RESEARCH § ADDENDUM A3, confirmed first-hand against a real stuck session on 2026-09-02).
+ * The submission path needs that fact BEFORE it asks, so it can hand a distracted host back their own
+ * flow without ever repointing `vendor_ref` at a fresh billable session — which is what would orphan
+ * a verdict that is already in flight (`deferred-items.md` § D5).
+ *
+ * The whole body is a read and a lookup: `fetchDiditDecision` for the status, the shared mapper for
+ * what it means. NO SECOND NORMALISER AND NO STATUS LITERAL AT THIS LEVEL — the ten spellings have
+ * one reader (`../didit-verdict.ts`), and a comparison here would be a second thing to keep in
+ * agreement with it the day the vendor adds an eleventh.
+ *
+ * ⚠ IT DOES NOT SWALLOW A FAILURE, AND THE ABSENCE OF A `catch` IS THE DECISION. Every refusal
+ * `fetchDiditDecision` throws propagates unchanged, because "closed" is the answer that REFUSES a
+ * host: a swallowed 403 or a swallowed transport failure would silently become "this session is
+ * finished", and the caller would refuse a host on the strength of a question it never got an answer
+ * to. A caller that cannot learn whether a session is open must fail closed on its own terms —
+ * refusing to mint one — and it can only do that if the failure reaches it.
+ *
+ * ⚠ AND IT DECIDES NOTHING ABOUT A HOST. It reads a status and answers one question about the
+ * VENDOR'S SESSION. It applies no verdict, calls no write module, touches no database and returns
+ * nothing a row could be built from. The signed webhook (18.1-08) and the reconciliation sweep
+ * (18.1-09) remain the only two roads a verdict travels, and `../apply-verdict.ts` remains the only
+ * writer. This sentence is here because the property a later reader is most likely to break is the
+ * helpful one: this function can SEE a finished session's status, and recovering the verdict from it
+ * would be a third road to `approved`.
+ *
+ * @throws DiditRateLimitError on a 429, and DiditSessionError on every other failure — both unchanged
+ *   from `fetchDiditDecision`, which is the only call this makes.
+ */
+export async function isDiditSessionOpen(sessionId: string): Promise<boolean> {
+  const decision = await fetchDiditDecision(sessionId);
+  return mapDiditStatus(decision.status).sessionOpen;
 }
 
 /**

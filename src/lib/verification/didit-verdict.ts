@@ -83,14 +83,18 @@
 //   2. IT CLEARS A ROW NOBODY WILL EVER DECIDE. `host_verification_queue_idx` is partial over the
 //      pending rows, so an expired session is permanent ops-queue pollution: a row sitting in front
 //      of operators who have no decision to make about it and, under D-263, no path into it either.
-//   3. ⚠ IT IS WHAT MAKES THE `/host/verify` PENDING PANEL HONEST. That panel tells the host their
-//      check is with the checking partner and that FitOut is waiting on the result, and it offers NO
-//      WAY OUT — deliberately, because the hosted-flow URL is a redirect target carrying a session
-//      token and is not storable (the four-field contract in `port.ts`). That copy is a true
-//      sentence only while an expired session RELEASES the row. If it stayed pending, a host who
-//      closed the tab would read, forever, a sentence about a session that will never answer.
-//      18.1-UI-SPEC records this as the one place its honesty depends on a decision it does not own.
-//      This is that decision, and the test file pins it by name in both directions.
+//   3. ⚠ IT IS ONE OF THE TWO THINGS THAT MAKE THE `/host/verify` PENDING PANEL HONEST. That panel
+//      tells the host their check is with the checking partner and that FitOut is waiting on the
+//      result. That copy is a true sentence only while a session nobody finished eventually RELEASES
+//      the row — otherwise a host who closed the tab reads, forever, a sentence about a session that
+//      will never answer. 18.1-UI-SPEC records this as a place its honesty depends on a decision it
+//      does not own. This is that decision, and the test file pins it by name in both directions.
+//      ⚠ THE SECOND THING IS THE RESUME PRESS (plan 18.1-15, `deferred-items.md` § D5): the panel now
+//      offers a way back into an UNFINISHED session, because the partner hands the same session back
+//      on a second ask (`sessionOpen` below, ADDENDUM A3). The hosted URL is still never persisted —
+//      it is re-fetched on demand. The two legs are independent and both are load-bearing: this
+//      mapping covers the session that is already over, the press covers the one that is not. If
+//      either is ever removed the panel becomes a dead end again, and all three must move together.
 //
 // THE COOLDOWN DOES NOT APPLY, AND THAT IS DELIBERATE. D-264's 24-hour wait is derived from
 // `host_verification.updated_at` and gates a REJECTED host. A released row is unverified, not
@@ -212,6 +216,31 @@ export type DiditStatusOutcome = {
    */
   readonly carriesDecision: boolean;
   /**
+   * Whether the VENDOR still considers this session unfinished — i.e. whether a second
+   * `POST /v3/session/` on the same `vendor_data` is handed back THIS session (still `201`, with only
+   * `callback` and `metadata` updated) rather than being given a new one.
+   *
+   * ⚠ IT IS A FACT ABOUT THE VENDOR'S SESSION LIFECYCLE AND NOT ABOUT A FITOUT TRANSITION.
+   * `transition` above owns what the ROW does; this owns what the PARTNER will do if asked again, and
+   * the two axes deliberately disagree. `In Review` moves nothing AND is finished — the vendor's own
+   * reviewer holds it, so asking again mints a new session rather than returning that one.
+   * `Not Started` moves nothing AND is open — nobody has decided anything and the same link is still
+   * the host's way in. Neither field can be derived from the other, and a later edit that collapses
+   * this into `transition === "none"` would be wrong in both of those rows at once.
+   *
+   * TRANSCRIBED FROM 18.1-RESEARCH § ADDENDUM A3, NOT INFERRED. A3 enumerates the reuse set —
+   * `Not Started`, `In Progress`, `Resubmitted`, `Awaiting User` — and states that the six finished
+   * states are never reused. It was then confirmed FIRST-HAND against the live sandbox account on
+   * 2026-09-02, on a real stuck session: the same `session_id` came back with a fresh, usable `url`.
+   *
+   * ⚠ `Awaiting User` IS `true` BECAUSE A3 LISTS IT, even though FitOut runs no KYB workflow and
+   * therefore cannot reach it (ADDENDUM A6 — it belongs to a KYB parent session waiting on a
+   * sub-session). This is a faithful transcription of the vendor's rule rather than a claim about
+   * FitOut's reachable states, and it is written down so that nobody "fixes" it into `false` on the
+   * strength of the row's own unreachability note. The row's `transition` is what makes it harmless.
+   */
+  readonly sessionOpen: boolean;
+  /**
    * ⚠ FOR AN OPERATOR AND FOR AN AUDIT ROW — NEVER FOR A HOST. It explains what the vendor's status
    * means and what FitOut decided about it. Host-facing copy is 18.1-UI-SPEC's, the rejection
    * sentence is `composeDiditRejectReason`'s, and neither is this.
@@ -233,6 +262,7 @@ const STATUS_OUTCOMES: Readonly<Record<DiditStatus, DiditStatusOutcome>> = {
     status: "Not Started",
     audit: false,
     carriesDecision: false,
+    sessionOpen: true,
     operatorNote:
       "The session exists and the host has not opened the hosted flow yet. Nothing has been decided.",
   },
@@ -241,6 +271,7 @@ const STATUS_OUTCOMES: Readonly<Record<DiditStatus, DiditStatusOutcome>> = {
     status: "In Progress",
     audit: false,
     carriesDecision: false,
+    sessionOpen: true,
     operatorNote: "The host is part-way through the hosted flow. Nothing has been decided.",
   },
   "Awaiting User": {
@@ -248,6 +279,7 @@ const STATUS_OUTCOMES: Readonly<Record<DiditStatus, DiditStatusOutcome>> = {
     status: "Awaiting User",
     audit: true,
     carriesDecision: false,
+    sessionOpen: true,
     operatorNote:
       "Unreachable: this status belongs to a KYB parent session waiting on a sub-session, and " +
       "FitOut runs no KYB workflow. Refused exactly as an unrecognised status, with a trail row, " +
@@ -258,6 +290,7 @@ const STATUS_OUTCOMES: Readonly<Record<DiditStatus, DiditStatusOutcome>> = {
     status: "In Review",
     audit: true,
     carriesDecision: true,
+    sessionOpen: false,
     operatorNote:
       "The vendor flagged this session for THEIR OWN compliance reviewer, so a check really is " +
       "still running and a further status event is expected. It is not a FitOut decision and there " +
@@ -268,6 +301,7 @@ const STATUS_OUTCOMES: Readonly<Record<DiditStatus, DiditStatusOutcome>> = {
     status: "Approved",
     audit: true,
     carriesDecision: true,
+    sessionOpen: false,
     operatorNote: "The check passed and the host is approved automatically (D-261).",
   },
   Declined: {
@@ -275,6 +309,7 @@ const STATUS_OUTCOMES: Readonly<Record<DiditStatus, DiditStatusOutcome>> = {
     status: "Declined",
     audit: true,
     carriesDecision: true,
+    sessionOpen: false,
     operatorNote:
       "The check failed and the host is rejected automatically (D-262). The host-readable reason " +
       "is composed from the vendor's own allow-listed sentences (D-265).",
@@ -284,6 +319,7 @@ const STATUS_OUTCOMES: Readonly<Record<DiditStatus, DiditStatusOutcome>> = {
     status: "Resubmitted",
     audit: false,
     carriesDecision: false,
+    sessionOpen: true,
     operatorNote:
       "The host is redoing flagged steps. Not a verdict — this status carries resubmission " +
       "instructions instead of a decision object (ADDENDUM A6), so nothing may be read out of it.",
@@ -293,6 +329,7 @@ const STATUS_OUTCOMES: Readonly<Record<DiditStatus, DiditStatusOutcome>> = {
     status: "Abandoned",
     audit: true,
     carriesDecision: true,
+    sessionOpen: false,
     operatorNote:
       "The host started the hosted flow and never finished it. FINDING F-3: nobody checked, so the " +
       "row returns to the unverified state and the host gets their control back. No cooldown — the " +
@@ -303,6 +340,7 @@ const STATUS_OUTCOMES: Readonly<Record<DiditStatus, DiditStatusOutcome>> = {
     status: "Expired",
     audit: true,
     carriesDecision: false,
+    sessionOpen: false,
     operatorNote:
       "The session's TTL elapsed before the link was opened. FINDING F-3: nobody checked, so the " +
       "row returns to the unverified state and the host gets their control back. No cooldown — the " +
@@ -313,6 +351,7 @@ const STATUS_OUTCOMES: Readonly<Record<DiditStatus, DiditStatusOutcome>> = {
     status: "Kyc Expired",
     audit: true,
     carriesDecision: true,
+    sessionOpen: false,
     operatorNote:
       "Unreachable while no KYC expiration policy is configured, and the account carries no such " +
       "field at all (ADDENDUM B7). Arriving anyway means the vendor Console changed underneath " +
@@ -334,6 +373,11 @@ const UNKNOWN_STATUS_OUTCOME: DiditStatusOutcome = {
   status: null,
   audit: true,
   carriesDecision: false,
+  // FAIL CLOSED ON THIS AXIS TOO. An eleventh status, a typo, a truncated string and a hostile
+  // one must never be read as "go ahead and ask the partner for a session": the caller that reads
+  // this is deciding whether to spend a billable session and whether to repoint `vendor_ref`, and
+  // the safe answer to a spelling nobody recognises is that the session is not open.
+  sessionOpen: false,
   operatorNote:
     "Didit sent a session status FitOut does not recognise. Nothing was moved. Either the vendor " +
     "added a status or something is wrong with the delivery; a person decides, never this module.",
