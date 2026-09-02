@@ -219,6 +219,10 @@ import {
   type LiveRegionExclusion,
   type LiveRegionKind,
 } from "@/lib/design/live-regions";
+// The one PRODUCT constant this gate imports, and it is imported for the self-test of the import hop
+// rather than for an assertion about a surface: the hop's whole claim is that it reads this value off
+// disk, so the expectation has to be the value itself and not a copy of it.
+import { HOST_VERIFICATION_REGION_NAME } from "@/lib/host/verification-signal";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // The set under audit, taken as a PARAMETER everywhere so probe (d) is a one-line edit and so the
@@ -228,7 +232,7 @@ import {
 const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
 
 /**
- * The declared file count, pinned HERE as well as at `DeclaredFileCountIsTwentyNine`.
+ * The declared file count, pinned HERE as well as at `DeclaredFileCountIsThirty`.
  *
  * Two places on purpose. The type alias fails the build; this fails the gate that reads the set, with a
  * message. Plans 12-12, 12-13, 13-14, 14-14, 15-09, 16-09 and 16-10 each moved BOTH, in the commit that added
@@ -292,8 +296,22 @@ const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
  * in `tests/design/**` and that Phase 18 does not create one — so the ops console is INSIDE the
  * audited set rather than beside it. A count that moved while the rule still asserted the set held no
  * ops file would be the same drift in prose that T-12-06-SETDRIFT names in code.
+ *
+ * THIRTY AS OF PLAN 18.1-11, which added `src/components/host/verification-panel.tsx` — the host's own
+ * account-check surface — carrying ONE region: the single refusal slot every branch of the submission
+ * action shares, holding the server's own sentence verbatim.
+ *
+ * ⚠ IT IS THE FIRST FILE IN THE SET ABOUT A HOST'S OWN STANDING RATHER THAN ABOUT THEIR WORK, so the
+ * MEMBERSHIP RULE in `live-regions.ts`'s header moved in the same commit as this literal. The supply
+ * half of that rule named the host TOOLING — the surfaces a host uses to run a business they already
+ * have — and `/host/verify` is upstream of all of it: it is where somebody asks to be allowed to sell.
+ *
+ * ⚠ AND IT IS THE FIRST STEP OF A TWO-STEP BUDGET. 18.1-UI-SPEC row 7 reads 29 -> 31 because the phase
+ * authors a region in two new files; plan 18.1-13 takes this to 31 when the ops contact-reveal island
+ * exists. Both cannot be declared at once, because every declared file must exist and must contain its
+ * region — the same pass-through 16-UI-SPEC's 26 -> 28 budget made, for the same reason.
  */
-const DECLARED_FILE_COUNT = 29;
+const DECLARED_FILE_COUNT = 30;
 
 /** A file this size is a stub or a truncated read; every declared file is far larger. */
 const MIN_FILE_BYTES = 200;
@@ -393,6 +411,91 @@ function resolveModuleStringConsts(sf: ts.SourceFile): Map<string, string> {
   return out;
 }
 
+/** Parsed string-const tables, keyed by resolved path, so a shared copy module is read once. */
+const importedConstCache = new Map<string, Map<string, string>>();
+
+/**
+ * Resolve one `@/`-aliased module specifier to a file on disk, or null.
+ *
+ * The alias is the repository's own — `@/x` is `src/x` in both Vitest configs and in the bundler — so
+ * this is a rewrite rather than a module resolution. The four candidate suffixes are the only shapes
+ * `src/` actually contains; a specifier that resolves to none of them returns null and the caller
+ * simply learns nothing, which is the same outcome as before this hop existed.
+ */
+function resolveAliasedModule(specifier: string): string | null {
+  if (!specifier.startsWith("@/")) return null;
+  const base = resolve(process.cwd(), "src", specifier.slice(2));
+  for (const candidate of [`${base}.ts`, `${base}.tsx`, `${base}/index.ts`, `${base}/index.tsx`]) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+/**
+ * ONE MORE STATICALLY DECIDABLE HOP: a named IMPORT of a module-level string const (plan 18.1-11).
+ *
+ * ⚠ THE HOP EXISTS BECAUSE THE ALTERNATIVES ARE BOTH DEFECTS, AND THAT WAS MEASURED RATHER THAN
+ * ARGUED. `src/components/host/verification-panel.tsx` names its region from
+ * `HOST_VERIFICATION_REGION_NAME`, which is EXPORTED BY THE COPY MODULE that owns every other word
+ * that panel renders. With only the same-file hop, this gate said, verbatim:
+ *
+ *   host-verification-refusal (src/components/host/verification-panel.tsx:395) has an aria-label
+ *   this scan cannot resolve to a string. Inline it, or hoist it to a module-level
+ *   `const NAME = "…"` the way the other four do — a name nothing can read is a name nothing can
+ *   check against its sentence.
+ *
+ * Both remedies that message offers are wrong for that file. INLINING the literal would make a
+ * presentation component the author of a host-visible string, which is exactly what its own
+ * acceptance greps forbid and what `hosting-paused-notice.tsx:7-11`'s rule is about. HOISTING a local
+ * copy would put the same three words in two files with nothing keeping them equal — the drift this
+ * inventory's `name` column exists to catch, reintroduced in order to satisfy the check that catches
+ * it. So the SCAN is what had to widen.
+ *
+ * ⚠ IT IS ONE HOP AND IT DOES NOT RECURSE, deliberately. A re-export chain stays unresolved and is
+ * reported as such, which is honest and is the same bound the same-file hop already accepts: this
+ * resolves `import { NAME } from "@/lib/…"` where the target declares `export const NAME = "literal"`
+ * and nothing else. No expression evaluation, no template, no ternary, no barrel walking.
+ *
+ * ⚠ NOTHING WAS RELAXED. The name still has to resolve to a NON-EMPTY string and still has to equal
+ * the string `AUTHOR_NAMED_REGIONS` records, in both directions — so a rename in the copy module
+ * reddens this gate exactly as a rename of a local const does. The set of files that can satisfy the
+ * check grew; the check did not shrink.
+ */
+function resolveImportedStringConsts(sf: ts.SourceFile): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const statement of sf.statements) {
+    if (!ts.isImportDeclaration(statement)) continue;
+    if (!ts.isStringLiteral(statement.moduleSpecifier)) continue;
+    const bindings = statement.importClause?.namedBindings;
+    if (bindings === undefined || !ts.isNamedImports(bindings)) continue;
+
+    const target = resolveAliasedModule(statement.moduleSpecifier.text);
+    if (target === null) continue;
+
+    let consts = importedConstCache.get(target);
+    if (consts === undefined) {
+      try {
+        const text = readFileSync(target, "utf8");
+        consts = resolveModuleStringConsts(
+          ts.createSourceFile(target, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS),
+        );
+      } catch {
+        consts = new Map<string, string>();
+      }
+      importedConstCache.set(target, consts);
+    }
+
+    for (const element of bindings.elements) {
+      // `import { A as B }` — the EXPORTED name is what the target declares and the LOCAL name is
+      // what the markup writes, so the lookup and the key are different sides of the same element.
+      const exported = (element.propertyName ?? element.name).text;
+      const value = consts.get(exported);
+      if (value !== undefined) out.set(element.name.text, value);
+    }
+  }
+  return out;
+}
+
 /**
  * Walk one module's JSX and collect every live region in it, in source order.
  *
@@ -403,7 +506,12 @@ function collectFrom(file: string, text: string): FoundRegion[] {
   const sf = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const out: FoundRegion[] = [];
   const perKind = new Map<LiveRegionKind, number>();
-  const stringConsts = resolveModuleStringConsts(sf);
+  // The file's OWN consts win over an imported one of the same name, which is what a shadowing local
+  // declaration does at runtime too.
+  const stringConsts = new Map([
+    ...resolveImportedStringConsts(sf),
+    ...resolveModuleStringConsts(sf),
+  ]);
 
   /** `aria-label="x"` → `"x"`; `aria-label={NAME}` → the module const's value; anything else → null. */
   const nameOf = (attrs: Map<string, AttrValue>): string | null => {
@@ -546,9 +654,9 @@ describe("guard-the-guard — the scan read the set it is asserting about", () =
     expect(
       SCAN_FILES.length,
       `the declared set is ${SCAN_FILES.length} files, not ${DECLARED_FILE_COUNT}. This number is ` +
-        "pinned in TWO places — `DeclaredFileCountIsTwentyNine` in `src/lib/design/live-regions.ts` " +
+        "pinned in TWO places — `DeclaredFileCountIsThirty` in `src/lib/design/live-regions.ts` " +
         "fails the build, and this fails the gate with a message. Plans 12-12, 12-13, 13-14, 14-14, " +
-        "15-09, 16-09, 16-10 and 18-10 " +
+        "15-09, 16-09, 16-10, 18-10 and 18.1-11 " +
         "each moved BOTH, in the same commit as the components they add. A set that widened in one " +
         "place and not the other is exactly the drift T-12-06-SETDRIFT names.",
     ).toBe(DECLARED_FILE_COUNT);
@@ -1005,6 +1113,45 @@ describe("SCAN 3 — the naming mechanism, per kind", () => {
       collectFrom(
         "fixture.tsx",
         'export const A = ({ n }: { n: string }) => <div role="status" aria-label={n}>hi</div>;',
+      )[0]?.label,
+    ).toBeNull();
+
+    // …and, since plan 18.1-11, it resolves an IMPORTED identifier — the hop a region named from the
+    // module that OWNS its surface's copy needs. Read against a REAL module rather than a fixture,
+    // because the whole content of the hop is that it goes to disk; a fixture would prove the parser
+    // works and nothing about the resolution.
+    expect(
+      collectFrom(
+        "fixture.tsx",
+        [
+          'import { HOST_VERIFICATION_REGION_NAME } from "@/lib/host/verification-signal";',
+          'export const A = () => <div role="status" aria-label={HOST_VERIFICATION_REGION_NAME}>hi</div>;',
+        ].join("\n"),
+      )[0]?.label,
+    ).toBe(HOST_VERIFICATION_REGION_NAME);
+
+    // BOTH DIRECTIONS. An import of a name the target module does not export stays UNRESOLVED, so the
+    // hop cannot invent a value — the failure mode that would make every name check above vacuous by
+    // quietly succeeding on nothing.
+    expect(
+      collectFrom(
+        "fixture.tsx",
+        [
+          'import { NO_SUCH_EXPORTED_NAME } from "@/lib/host/verification-signal";',
+          'export const A = () => <div role="status" aria-label={NO_SUCH_EXPORTED_NAME}>hi</div>;',
+        ].join("\n"),
+      )[0]?.label,
+    ).toBeNull();
+
+    // And a specifier that is not the repository's own alias is not followed at all — no bare package
+    // is read from disk by this scan.
+    expect(
+      collectFrom(
+        "fixture.tsx",
+        [
+          'import { NAME } from "some-package";',
+          'export const A = () => <div role="status" aria-label={NAME}>hi</div>;',
+        ].join("\n"),
       )[0]?.label,
     ).toBeNull();
   });

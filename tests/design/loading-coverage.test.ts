@@ -281,14 +281,42 @@ const APP_DIR = resolve(process.cwd(), "src/app");
 // The third line is the measurement of `EXPECTED_NON_QUALIFYING` at 12: the suite went green with
 // that constant untouched, which is the only way to establish that a count did NOT move.
 //
+// ── RE-MEASURED 2 SEPTEMBER 2026 (plan 18.1-11): 34 → 35 PAGES, 22 → 23 QUALIFYING, 12 UNCHANGED ──
+//
+// ONE ROUTE WAS ADDED, and here is the decision the sentence above asks for:
+//
+//   src/app/(host)/host/verify/page.tsx    → the host's own account-check surface (HVER-06 / HVER-08)
+//
+// THE VERDICT: its default export is **async** — it awaits the session, the owner-scoped
+// `loadHostVerification` read and the database clock the retry boundary is measured against — so it
+// QUALIFIES, and `src/app/(host)/host/verify/loading.tsx` ships in the SAME COMMIT as the route (the
+// D-88.3 note at the top of this file). The plate composes exactly one `PanelSkeleton`, imports the
+// same shell constant the page imports, and writes no box measurement of its own, which is the other
+// half this gate checks.
+//
+// **`EXPECTED_NON_QUALIFYING` DOES NOT MOVE, AND THAT IS THE CONTENT OF THE DECISION RATHER THAN A
+// SIDE EFFECT OF IT.** The route this phase adds is the only one, and it is on the side that needs a
+// fallback. If a later edit makes that export sync — folding the verification read into a client
+// component, say — this file goes red on the qualifying count and the remedy is to restore the await,
+// not a fourth number.
+//
+// THE THREE WERE MEASURED ONE AT A TIME, each against the previous constant. Verbatim, in order:
+//
+//   AssertionError: the number of page.tsx files under src/app changed. … expected 35 to be 34
+//   AssertionError: the routes that qualify changed. … expected 23 to be 22
+//   Tests  15 passed (15)
+//
+// The third line is the measurement of `EXPECTED_NON_QUALIFYING` at 12: the suite went green with that
+// constant untouched, which is the only way to establish that a count did NOT move.
+//
 // ⚠ THE SECOND JOB `(ops)/ops/loading.tsx` DOES, recorded here because this gate is what REQUIRES the
 // file and a reader who deletes it will come here first. Its `<Suspense>` boundary is what puts
 // `(ops)/ops/layout.tsx`'s `assertStaff()` above the boundary, and above the boundary is the only
 // place a refusal can still set the HTTP status line (D-247). Removing this fallback would not merely
 // fail this gate — it would re-open the route-existence oracle D-219 exists to close.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-const EXPECTED_PAGES = 34;
-const EXPECTED_QUALIFYING = 22;
+const EXPECTED_PAGES = 35;
+const EXPECTED_QUALIFYING = 23;
 const EXPECTED_NON_QUALIFYING = 12;
 
 /** The three declared skeleton shapes, by module and by export name. */

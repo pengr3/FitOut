@@ -221,6 +221,41 @@ const DECLARED_NEUTRAL_SIGNALS: Readonly<Record<string, string>> = {
     "event: a named person at FitOut decided it deliberately, the host is being told what was decided " +
     "and why, and nothing is malfunctioning. Painting it red would also make the one genuinely broken " +
     "payout state indistinguishable from a policy decision on the very page they can co-occur.",
+
+  // ── Phase 18.1 — the host's own account check (D-262 / D-264, plan 18.1-11) ──────────────────────
+  //
+  // ⚠ BOTH ROWS SIT OUTSIDE `TREES`, AND THAT IS WHY THEY ARE ROWS. The measurement above only walks
+  // the host route tree and the two host component trees; the copy module lives under `src/lib/host/`
+  // and is invisible to it, and the census below resolves declared paths DIRECTLY rather than through
+  // that walk. So a declaration is the only way either file is policed at all — which is the same
+  // argument the two rows above make for `review-signal.ts`, one domain over.
+
+  "src/lib/host/verification-signal.ts":
+    "D-262 / D-264, plan 18.1-11. The words a host reads about their own account check, on all six " +
+    "states of /host/verify. TWO of the six are the ones this row is about: a host WAITING on the " +
+    "checking partner's answer, and a host the partner did NOT pass. Both are NORMAL LIFECYCLE " +
+    "STATES of a working marketplace — an identity check that is still running is the ordinary " +
+    "consequence of asking for one, and a decline is an answer rather than a fault. The alarm role " +
+    "is reserved for a genuine failure needing a person, and `payout-banner.tsx` (3x, declared " +
+    "above) is what that looks like: money that cannot reach the host because something broke. This " +
+    "module names no tone, no variant and no role token AT ALL — the panel chooses the presentation " +
+    "and may not reach for the elevated one — so a zero here is the module keeping its own contract " +
+    "rather than a coincidence.",
+
+  "src/components/host/verification-panel.tsx":
+    "D-262 / D-264 / D-266, plan 18.1-11. The panel that presents those six states, and the surface " +
+    "where the temptation actually lives: it holds a FORM, and a validation refusal on a control " +
+    "somebody just used is inside the alarm role's shipped reservation — `wizard.tsx`'s declared " +
+    "occurrence above is exactly that. 18.1-UI-SPEC declines it anyway and the reasoning is recorded " +
+    "rather than assumed. This panel has ONE outcome and already has ONE named live region to " +
+    "announce it, so a field-level error beside that region would be a second announcement of one " +
+    "outcome on a form with one field. Its closest sibling by shape — the ops row's refusal region, " +
+    "which reports a server refusal on a surface that survives the press — is explicitly ordinary " +
+    "ink with no alarm colour, and this is that same shape on the host side of the same console. " +
+    "⚠ THE ALTERNATIVE IS RECORDED, NOT HIDDEN: treating the phone refusal as the canonical field " +
+    "refusal and adding a SIXTH row to the map above is defensible. It is not what was chosen, and a " +
+    "plan that takes it must move that map with a written reason in the same commit — which is a " +
+    "different edit from deleting this row.",
 };
 
 /** Collect every `.ts`/`.tsx` file under a directory — `brand-recipe.test.ts:429`'s reference walker. */

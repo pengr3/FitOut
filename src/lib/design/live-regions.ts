@@ -108,11 +108,21 @@
 // THE MEMBERSHIP RULE, which is what actually matters and is now stated without a side in it: *every
 // file in `src/` that renders a live region on a journey this repository has audited — the demand-side
 // journey (search, checkout and the post-booking lifecycle it hands off to), the supply-side host
-// tooling Phase 14 owns, the account surfaces a person passes through to reach either, and — since
-// plan 18-10 — the INTERNAL FitOut Ops console.* What is left outside it is the `patterns/` skeletons
+// tooling Phase 14 owns, the account surfaces a person passes through to reach either, since
+// plan 18-10 the INTERNAL FitOut Ops console, and — since plan 18.1-11 — the HOST-STANDING surfaces a
+// host passes through to become supply at all.* What is left outside it is the `patterns/` skeletons
 // that `tests/design/skeleton-a11y.test.tsx` gates instead. Those are OUT OF SCOPE rather than
 // excluded, and the difference is the point: an exclusion is a decision recorded about a file this
 // module knows about, and there are none left.
+//
+// ⚠ THE HOST-STANDING WIDENING IS THE SAME MOVE AGAIN, MADE A FOURTH TIME, AND THE CLAUSE IT REPLACES
+// IS THE REASON IT WAS NEEDED. Until plan 18.1-11 the supply half of this rule named the host TOOLING
+// — the wizard, the request row, the address field, the photo step — i.e. the surfaces a host uses to
+// run a business they already have. `/host/verify` is upstream of all four: it is where a person ASKS
+// to be allowed to sell, and its one region carries the sentence that says the ask was refused. A
+// closed union that contains that file cannot keep a rule describing only the tooling downstream of
+// it, for the reason the two widenings above give: this module's claims are compile-checked, and a
+// membership rule is a claim in prose sitting on top of one.
 //
 // ⚠ THE OPS WIDENING IS THE SAME MOVE THE RENAME ABOVE RECORDS, MADE A THIRD TIME, AND IT IS NOT A
 // FORMALITY. Phase 18 puts a live region on a STAFF-ONLY surface — a queue where a decision refused by
@@ -441,6 +451,18 @@ export const LIVE_REGION_FILES = [
   // so there is no surface left to write on by the time the report is due and the toast is the only
   // possible one. A refusal leaves the row exactly where it was, and the sentence belongs on it.
   "src/components/ops/ops-decision-actions.tsx",
+  // ─── the host-standing surface (plan 18.1-11 — see THE HOST-STANDING WIDENING in the header) ────
+  //
+  // `/host/verify`'s submission form. ONE region, shared by every branch the action can refuse with —
+  // an unconfirmed email, a phone outside the bound, the burst guard, the calm 0-row no-op that
+  // covers five source states at once, and a checking partner that would not answer. A press can only
+  // ever have refused one thing, so one slot is the whole requirement.
+  //
+  // ⚠ THE SUCCESS PATH OWES NO REGION HERE EITHER, AND FOR A DIFFERENT REASON THAN THE OPS ROW'S. A
+  // successful ask does not take the surface away — it takes the HOST away, into the partner's hosted
+  // flow on another origin. There is no moment at which an announcement could be heard, which is a
+  // stronger absence than the ops row's and is recorded rather than assumed.
+  "src/components/host/verification-panel.tsx",
 ] as const;
 
 /** The closed union every row's `file` is typed against. */
@@ -691,6 +713,11 @@ export const LIVE_REGION_IDS = [
   "avatar-crop-save-error",
   // ops/ops-decision-actions.tsx — one region, one kind, so one ordinal.
   "ops-decision-refusal",
+  // host/verification-panel.tsx — one region, one kind, so one ordinal. The form is written ONCE and
+  // rendered from two of the six panels, which is what keeps this singular: two copies of that markup
+  // would be two regions in one file, and the count is a claim about the DOM rather than about what
+  // is visible at a given moment.
+  "host-verification-refusal",
 ] as const;
 
 /** The closed union every row is typed against. */
@@ -1591,6 +1618,43 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "IT HAS TEXT OF ITS OWN AND IS NAMED ANYWAY — see its `AUTHOR_NAMED_REGIONS` row, which states " +
       "what that trade costs rather than pretending the wrapper argument applies to it.",
   },
+
+  // ─── host/verification-panel.tsx ────────────────────────────────────────────────────────────────
+  "host-verification-refusal": {
+    file: "src/components/host/verification-panel.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      "The submission action's own sentence, verbatim, at the moment a press comes back refused — " +
+      "an unconfirmed email, a phone outside the permissive bound, the burst guard, the one calm " +
+      "no-op that covers five source states at once, or a checking partner that would not answer. " +
+      "The element is absent from the document until a refusal lands and disappears again on the " +
+      "next press, so what a listener hears is one sentence per press and never a re-read of the " +
+      "last one. NOTHING on the success path: the host leaves for another origin, so there is no " +
+      "moment at which an announcement could be heard.",
+    why:
+      "RULE 1, RULE 5 and RULE 6. It appears strictly AFTER something the host did, so `status` and " +
+      "never `alert`: an unconfirmed email and a cooldown that has not elapsed are ordinary states " +
+      "of an account, not faults needing a person, and this surface's whole tone ruling is that a " +
+      "host shown the elevated role for ordinary states stops believing it when it matters. It " +
+      "carries no alarm ink for the same reason, and no retry affordance — the form's OWN control is " +
+      "the retry, and a second button that re-presses the first one acts on nothing.\n" +
+      "\n" +
+      "RULE 6 — ONE REGION FOR EVERY BRANCH. The action has six refusals and this is one slot, " +
+      "because a press can only ever have refused one thing. That is also a PRIVACY property rather " +
+      "than an economy: the 0-row sentence deliberately collapses five conditions — suspended, " +
+      "already pending, already approved, grandfathered, and a cooldown still running — into one " +
+      "calm sentence, so a suspended host cannot learn from the SHAPE of a refusal that they are " +
+      "distinguishable from a host who simply asked too soon. A per-branch region would hand that " +
+      "distinction back through the markup.\n" +
+      "\n" +
+      "⚠ THE SENTENCE IS THE SERVER'S AND THE CLIENT RE-AUTHORS NONE OF IT. A second wording of a " +
+      "refusal is a second thing to keep in agreement with the code that refused, and one of these " +
+      "sentences is about a person's own standing on the platform.\n" +
+      "\n" +
+      "IT HAS TEXT OF ITS OWN AND IS NAMED ANYWAY — see its `AUTHOR_NAMED_REGIONS` row, which states " +
+      "what that trade costs on a surface a host meets once.",
+  },
 };
 
 /**
@@ -1780,6 +1844,29 @@ export const AUTHOR_NAMED_REGIONS = [
       "than the fact. The label is three words, it names the OUTCOME rather than the cause, and it " +
       "paraphrases none of the several server sentences it can carry.",
   },
+  {
+    id: "host-verification-refusal",
+    name: "Check not started",
+    why:
+      "(b) TEXT OF ITS OWN, NAMED ANYWAY — the `ops-decision-refusal` row's shape, on the other side " +
+      "of the same console. This region holds the action's refusal sentence directly, so the " +
+      "announced-by-name hazard is real for it rather than absent: a host who hears the label " +
+      "instead of the content hears three words where a reason belonged. It is named because a " +
+      "`status` region takes no name from its own text, and because this one sits inside a form " +
+      "beside two field labels and two supporting lines — an unlabelled region on that surface is " +
+      "unaddressable by name to somebody navigating a form deliberately.\n" +
+      "\n" +
+      "WHAT THE TRADE COSTS IS BOUNDED, AND ON A ONCE-EVER SURFACE THAT MATTERS MORE THAN USUAL: " +
+      "the refusal never disappears with the announcement — it stays rendered beneath the control, " +
+      "at ordinary ink, until the host presses again — so a lost announcement costs a re-read rather " +
+      "than the fact. A host who missed why their ask was refused, on a page they visit once, would " +
+      "otherwise be left pressing a button that keeps saying nothing.\n" +
+      "\n" +
+      "THE NAME IS A LABEL AND NOT A PARAPHRASE, and the rule bites hardest here because ONE of the " +
+      "sentences it can carry collapses five conditions on purpose. Three words naming the OUTCOME " +
+      "cannot leak which of the five it was; three words naming a CAUSE would have to pick one, and " +
+      "picking one is the privacy property this region's row exists to protect.",
+  },
 ] as const satisfies readonly AuthorNamedRegion[];
 
 // ---------------------------------------------------------------------------
@@ -1790,7 +1877,7 @@ export const AUTHOR_NAMED_REGIONS = [
 type Assert<T extends true> = T;
 
 /**
- * THE DECLARED SET IS TWENTY-EIGHT FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
+ * THE DECLARED SET IS THIRTY FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
  * declaration whose size nothing checks can shrink without leaving a trace, and a gate that quietly
  * covers less than it claims is worse than one that covers nothing, because it is trusted.
  *
@@ -1805,7 +1892,22 @@ type Assert<T extends true> = T;
  * inside a block comment closes it — `…IsTwentySix` until plan 16-09 added the avatar crop dialog,
  * and the one-file-short spelling of the present name (described, not spelled — see the note at the
  * set itself) until plan 16-10 added the avatar FIELD that opens it, closing the pass-through
- * 16-UI-SPEC's 26 -> 28 budget always described as two moves. A `length extends number`
+ * 16-UI-SPEC's 26 -> 28 budget always described as two moves, and `…IsTwentyNine` until plan 18-10
+ * added the ops console's decision controls.
+ *
+ * ⚠ THE PRESENT NAME IS THE FIRST STEP OF ANOTHER TWO-STEP BUDGET, AND THE SEQUENCE IS RECORDED HERE
+ * SO IT READS AS A DECISION RATHER THAN AS AN OVERSHOOT. 18.1-UI-SPEC § Gate Amendments row 7 budgets
+ * 29 -> 31, because Phase 18.1 authors a region in TWO new files: the host verification panel and the
+ * ops contact-reveal island. They cannot be declared together — this gate requires every declared file
+ * to EXIST and to CONTAIN its region, so a path declared a plan early fails on both counts. So:
+ *
+ *   29 -> 30   plan 18.1-11, `src/components/host/verification-panel.tsx` (this name)
+ *   30 -> 31   plan 18.1-13, the ops contact-reveal island
+ *
+ * That is the identical shape 16-UI-SPEC's 26 -> 28 budget took, for the identical reason, and the
+ * rename in between is the cost of the rule that a file's row lands in the same commit as its element.
+ *
+ * A `length extends number`
  * assertion would compile forever and
  * read exactly like this one; that is the failure mode a type-level gate is easiest to write. The friction IS the
  * mechanism: adding a live region to the audited set costs a rename, a row and a second literal in
@@ -1913,9 +2015,47 @@ type Assert<T extends true> = T;
  * surface in the set, so the header's membership paragraph moved in the same commit. A count that
  * moved while the rule kept asserting the set contained no ops file would be the drift this module
  * exists to make impossible, one layer up from the type system.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * OBSERVED RED (g) — PLAN 18.1-11'S ONE, THE HOST-STANDING SURFACE. 2 September 2026.
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * ⚠ 18.1-UI-SPEC § Gate Amendments ROW 7 BUDGETS 29 -> 31 IN ONE MOVE, AND THIS IS 30. That is the
+ * same deliberate pass-through 16-UI-SPEC's 26 -> 28 budget made, for the same mechanical reason: the
+ * gate requires every declared file to EXIST and to CONTAIN its region, so two files that land in two
+ * different plans cannot be declared in one step. Plan 18.1-11 adds
+ * `src/components/host/verification-panel.tsx` here; plan **18.1-13** adds the ops contact-reveal
+ * island and takes this to **31**. The intermediate rename is the cost of the rule that each file's
+ * row lands in the same commit as its element, and the sequence is written down here so a reader who
+ * finds the thirty-file spelling in the history reads it as a decision rather than as a miscount.
+ *
+ * The order was (f)'s: the path, the row and the two `LIVE_REGION_IDS`/`AUTHOR_NAMED_REGIONS` entries
+ * went in together and BOTH pins were left stale at 29 to watch them speak. `npx tsc --noEmit` run
+ * bare (never piped — a pipe reports the LAST command's exit code, this repository's standing trap):
+ * exit code 2, ONE error, the whole of stdout:
+ *
+ *   src/lib/design/live-regions.ts(2005,3): error TS2344: Type 'false' does not satisfy the
+ *   constraint 'true'.
+ *
+ * and `tests/design/live-regions.test.tsx` reported 2 failed / 24 passed, verbatim:
+ *
+ *   AssertionError: the declared set is 30 files, not 29. … expected 30 to be 29
+ *   AssertionError: host-verification-refusal (…verification-panel.tsx:395) has an aria-label this
+ *   scan cannot resolve to a string. …
+ *
+ * ⚠ THE SECOND OF THOSE TWO IS A FINDING RATHER THAN A STALE NUMBER, AND IT IS WHY THE GATE'S SCANNER
+ * MOVED IN THIS COMMIT. Until now every author-named region took its name from a const declared in
+ * the SAME file, and the resolver could only take that one hop. This region's name is
+ * `HOST_VERIFICATION_REGION_NAME`, exported by the copy module that owns every other word the panel
+ * renders — so the two remedies the failure message offers (inline it, or hoist a local copy) are
+ * both defects on that surface: the first makes a presentation component the author of host-visible
+ * copy, and the second puts one name in two files with nothing keeping them equal. The SCAN was
+ * widened by exactly one more statically decidable hop instead; see its own docblock in the test for
+ * what that does and does not now resolve. Nothing was relaxed — the name must still be non-empty
+ * and must still equal the string recorded below.
  */
-export type DeclaredFileCountIsTwentyNine = Assert<
-  (typeof LIVE_REGION_FILES)["length"] extends 29 ? true : false
+export type DeclaredFileCountIsThirty = Assert<
+  (typeof LIVE_REGION_FILES)["length"] extends 30 ? true : false
 >;
 
 // ---------------------------------------------------------------------------

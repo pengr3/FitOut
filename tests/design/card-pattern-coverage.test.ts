@@ -527,6 +527,33 @@ const CARD_SURFACES: readonly CardSurface[] = [
       "row asserts a container, never the decision actions inside it and never the money the reject " +
       "dialog renders.",
   },
+
+  // ─── Phase 18.1 — the host's own account-check surface (HVER-06 · 18.1-UI-SPEC § Surface 1) ───────
+  //
+  // The second kind once more — a surface that did not exist when the 11-UI-SPEC's three `Replaces`
+  // lists were written — and the second declared surface in a row to arrive by neither allow-list
+  // route. The header's standing instruction for that kind is that a new surface EXTENDS this
+  // inventory in its own commit, which is what this row and the constant beneath it are.
+  {
+    file: "src/components/host/verification-panel.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE HOST VERIFICATION PANEL (plan 18.1-11) — six states of one surface, and every one of them " +
+      "is the SAME muted panel with different words. That is the whole reason it is one declared " +
+      "container rather than six: a host waiting on the checking partner and a host the partner did " +
+      "not pass are normal lifecycle states, so nothing here escalates its box, and the approved " +
+      "state in particular draws no hue, no glyph and no second shape — it is being told a fact, not " +
+      "congratulated. The suspended branch does not open a box at all; it renders the shipped " +
+      "`HostingPausedNotice`, which is a declared adopter of this same pattern one file over, so the " +
+      "two surfaces a suspended host meets are literally the same component. `ALLOWED_RAW_CARD` is " +
+      "UNCHANGED by this plan: the panel composes the pattern from its first commit, so there was " +
+      "never an exemption to delete and there is no allow-list -> inventory transition to record. " +
+      "GATE-NOREG: this row asserts a CONTAINER. It says nothing about the two submission gates " +
+      "inside it, nothing about the one named live region that carries the server's refusal, and " +
+      "nothing about the cooldown sentence — all three are the surface test's, and none of them is a " +
+      "box.",
+  },
 ];
 
 /**
@@ -608,8 +635,21 @@ const CARD_SURFACES: readonly CardSurface[] = [
  *   its own assertions.: expected 22 to be 21 // Object.is equality
  *
  * and beside it `expected [ … ] to have a length of 19 but got 20`.
+ *
+ * TWENTY-THREE SINCE PLAN 18.1-11, and the twenty-third is the SECOND kind again —
+ * `verification-panel.tsx` is a surface that did not exist when the three `Replaces` lists were
+ * written, and it is the first declared surface a host meets about their OWN standing rather than
+ * about a listing or a booking. `ALLOWED_RAW_CARD` did not move with it either, for the same reason
+ * the ops row's entry gives: the panel composes the pattern from its first commit, so there was never
+ * an exemption to delete. Its red was watched with the row in and this constant still reading 22:
+ *
+ *   AssertionError: the declared card-surface inventory is not the size the UI-SPEC's three
+ *   `Replaces` lists describe. A coverage gate whose inventory silently emptied passes every one of
+ *   its own assertions.: expected 23 to be 22 // Object.is equality
+ *
+ * and beside it `expected [ … ] to have a length of 20 but got 21`.
  */
-const EXPECTED_SURFACES = 22;
+const EXPECTED_SURFACES = 23;
 
 /**
  * EVERY FILE OUTSIDE `patterns/` ALLOWED TO RENDER A RAW `<Card>`, WITH THE REASON AND THE PHASE
@@ -990,7 +1030,14 @@ describe("DS-11 / AC#25 — every card surface renders one of three declared con
     // `EXPECTED_SURFACES` moved and this one still at 19 it said the same thing ALONE, which is the
     // whole reason the two pins are separate. `refused` stays 2: Phase 18 revisited no measured
     // refusal, and the ops row is an adoption from its first commit rather than a conversion.
-    expect(adopted).toHaveLength(20);
+    //
+    // 21 SINCE PLAN 18.1-11 (+1: the host verification panel). Same pairing, same order, and the same
+    // two reds: with the row added and both numbers stale this one said `expected [ … ] to have a
+    // length of 20 but got 21` beside `expected 23 to be 22`; with `EXPECTED_SURFACES` moved to 23 and
+    // this one still at 20 it said the same thing ALONE. `refused` stays 2 — Phase 18.1 revisited no
+    // measured refusal, and the panel composes the pattern from its first commit rather than being
+    // converted to it.
+    expect(adopted).toHaveLength(21);
     expect(refused).toHaveLength(2);
 
     const composing = adopted.filter((s) => {
