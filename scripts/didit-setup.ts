@@ -75,6 +75,38 @@ const DECLARED_EVENTS = ["status.updated"] as const;
 /** Features whose presence is a FAILURE, not a difference. See the header for why each is banned. */
 const FORBIDDEN_FEATURES = ["AML", "IP_ANALYSIS", "KYB_REGISTRY", "KYB_DOCUMENTS", "KYB_KEY_PEOPLE"];
 
+/**
+ * Boolean flags on the workflow DETAIL record that must be false, and why each one matters.
+ *
+ * ⚠ `allow_create_session_with_vendor_data_without_apikey` is the sharpest of these. True would let
+ * anyone who can guess a `vendor_data` — which for FitOut is a `user.id` — mint a verification
+ * session for that user without holding the API key. That is an authentication bypass on the one
+ * flow this phase exists to build, so it is checked here rather than assumed off.
+ */
+const MUST_BE_FALSE: readonly (readonly [string, string])[] = [
+  ["is_aml_enabled", "AML buys a compliance posture FitOut does not have (18-REGULATORY-BRIEF § 1)"],
+  ["is_aml_ongoing_monitoring_enabled", "same, plus a recurring per-user charge"],
+  ["is_ip_analysis_enabled", "not in the declared three modules"],
+  ["is_kyb_enabled", "FitOut verifies people, never businesses"],
+  ["is_archived", "an archived workflow cannot start sessions"],
+  [
+    "allow_create_session_with_vendor_data_without_apikey",
+    "TRUE = anyone guessing a user.id can mint a session for that host — an auth bypass",
+  ],
+];
+
+/**
+ * The vendor-side retry cap, read first-hand off the account rather than from the docs.
+ *
+ * ⚠ THIS FALSIFIES RESEARCH R4. R4 concluded "NO" vendor-imposed limit and left the session TTL as
+ * an `[ASSUMED]` item to *"settle by reading the Console's workflow settings once an account
+ * exists"*. Both are now settled, and the answer to the first is not the one R4 recorded — see
+ * `18.1-RESEARCH.md § ADDENDUM B1`. D-264's 24h cooldown permits 7 attempts per 7 days, which is
+ * MORE than the vendor allows; whichever way that conflict is resolved, it must be resolved in ONE
+ * place, and this check is what stops the two drifting apart silently.
+ */
+const DECLARED_RETRY = { max_retry_attempts: 3, retry_window_days: 7 } as const;
+
 const VERIFICATION_API = "https://verification.didit.me";
 
 /** The three variables plan 18.1-04 declares. Only the first is required to run this script. */
@@ -95,6 +127,7 @@ const USAGE = [
   `  ${API_KEY_VAR} is read from the shell or from .env.local. It is never printed.`,
   "  --webhook-url is required by `apply` and must be public HTTPS — Didit refuses localhost and",
   "  private CIDRs (SSRF guard), so a local run needs a tunnel. There is no Didit CLI.",
+  "  --workflow-id inspects one workflow by id instead of matching on the declared label.",
 ];
 
 // ── ERRORS ──────────────────────────────────────────────────────────────────────────────────────
@@ -241,25 +274,53 @@ function resultsOf(body: unknown): readonly Record<string, unknown>[] {
   return [];
 }
 
+/**
+ * Normalise a workflow row.
+ *
+ * ⚠ `features` COMES BACK AS A STRING on both the list and the detail endpoint — literally
+ * `"OCR + LIVENESS + FACE_MATCH"` — not as the `[{feature, config}]` array the create payload takes.
+ * Measured 2026-09-02 against a real account; the first version of this script assumed the array
+ * shape and printed "(no features)" for every workflow, which read exactly like an empty account.
+ * Both shapes are accepted here so the parser cannot be the thing that lies.
+ */
 function asWorkflow(row: Record<string, unknown>): RemoteWorkflow {
-  const rawFeatures = Array.isArray(row.features) ? row.features : [];
-  return {
-    id: String(row.workflow_id ?? row.uuid ?? row.id ?? ""),
-    label: String(row.workflow_label ?? row.label ?? row.name ?? ""),
-    features: rawFeatures.map((entry) => {
+  const raw = row.features ?? row.cached_features;
+  let features: { feature: string; config?: Record<string, unknown> }[];
+  if (typeof raw === "string") {
+    features = raw
+      .split("+")
+      .map((name) => name.trim())
+      .filter((name) => name !== "")
+      .map((feature) => ({ feature }));
+  } else if (Array.isArray(raw)) {
+    features = raw.map((entry) => {
       const item = (entry ?? {}) as Record<string, unknown>;
       return {
         feature: String(item.feature ?? item.name ?? ""),
         config: (item.config ?? undefined) as Record<string, unknown> | undefined,
       };
-    }),
+    });
+  } else {
+    features = [];
+  }
+  return {
+    id: String(row.workflow_id ?? row.uuid ?? row.id ?? ""),
+    label: String(row.workflow_label ?? row.label ?? row.name ?? ""),
+    features,
     raw: row,
   };
 }
 
+/**
+ * The liveness method is a TOP-LEVEL field on the detail record (`face_liveness_method`), not a
+ * `config` block hanging off the LIVENESS feature — the create payload and the read payload are not
+ * the same shape. Both are consulted so this works against either.
+ */
 function livenessMethodOf(workflow: RemoteWorkflow): string | undefined {
-  const liveness = workflow.features.find((entry) => entry.feature === "LIVENESS");
-  const method = liveness?.config?.face_liveness_method;
+  const top = workflow.raw.face_liveness_method;
+  if (top !== undefined && top !== null) return String(top);
+  const method = workflow.features.find((entry) => entry.feature === "LIVENESS")?.config
+    ?.face_liveness_method;
   return method === undefined ? undefined : String(method);
 }
 
@@ -318,22 +379,70 @@ function checkWorkflow(failures: string[], workflow: RemoteWorkflow): void {
         }`,
   );
 
-  // A KYC expiration policy is not part of this payload; its absence is asserted by reading back
-  // whatever the vendor DOES expose, and printed so a human can see what was actually inspected.
-  const expiryKeys = Object.keys(workflow.raw).filter((key) => /expir|retention|validity/i.test(key));
-  const expiryValues = expiryKeys.map((key) => `${key}=${JSON.stringify(workflow.raw[key])}`);
-  const expirySet = expiryKeys.some((key) => {
+  // ⚠ THE KYC-EXPIRY CHECK IS NARROW ON PURPOSE. A loose `/expir/` scan over the detail record
+  // matches `session_expiration_time` (the session TTL — a different thing, and legitimately set)
+  // and `expiration_date_not_detected_action` (a document-OCR branch), so it would fail a correctly
+  // configured workflow. What Pitfall 8 forbids is a policy that RE-EXPIRES an already-approved
+  // host, which is what makes the `Kyc Expired` status reachable. Only fields naming that are read.
+  const kycExpiryKeys = Object.keys(workflow.raw).filter((key) =>
+    /^(kyc_expir|.*_kyc_expir|kyc_validity|reverification|re_verification)/i.test(key),
+  );
+  const kycExpirySet = kycExpiryKeys.some((key) => {
     const value = workflow.raw[key];
     return value !== null && value !== undefined && value !== false && value !== 0 && value !== "";
   });
   check(
     failures,
-    !expirySet,
-    "no KYC expiration policy is configured",
-    expiryValues.length === 0
-      ? "the workflow record exposes no expiry/retention/validity field at all"
-      : expiryValues.join(" · "),
+    !kycExpirySet,
+    "no KYC expiration policy is configured (keeps `Kyc Expired` unreachable)",
+    kycExpiryKeys.length === 0
+      ? "no kyc-expiry / re-verification field is present on the workflow record at all"
+      : kycExpiryKeys.map((key) => `${key}=${JSON.stringify(workflow.raw[key])}`).join(" · "),
   );
+
+  // ── FLAGS THAT MUST BE FALSE ────────────────────────────────────────────────────────────────
+  // Only asserted when the record actually carries the key: the LIST endpoint does not, and a
+  // missing key must not read as a pass. `verify` fetches the detail record so these are present.
+  for (const [key, why] of MUST_BE_FALSE) {
+    if (!(key in workflow.raw)) continue;
+    const value = workflow.raw[key];
+    check(failures, value === false, `${key} is false`, `${JSON.stringify(value)} — ${why}`);
+  }
+
+  // ── THE VENDOR-SIDE RETRY CAP (falsifies R4; see ADDENDUM B1) ───────────────────────────────
+  if ("max_retry_attempts" in workflow.raw || "retry_window_days" in workflow.raw) {
+    const attempts = workflow.raw.max_retry_attempts;
+    const windowDays = workflow.raw.retry_window_days;
+    check(
+      failures,
+      attempts === DECLARED_RETRY.max_retry_attempts &&
+        windowDays === DECLARED_RETRY.retry_window_days,
+      "the vendor retry cap matches the declaration",
+      `max_retry_attempts=${JSON.stringify(attempts)} retry_window_days=${JSON.stringify(windowDays)} · declared ${DECLARED_RETRY.max_retry_attempts}/${DECLARED_RETRY.retry_window_days}d` +
+        ` · ⚠ D-264's 24h cooldown permits ${DECLARED_RETRY.retry_window_days} attempts per ${DECLARED_RETRY.retry_window_days}d — MORE than the vendor allows`,
+    );
+  }
+
+  // ── REPORTED, NOT CHECKED — read first-hand, consequential, no declared value yet ────────────
+  const ttl = workflow.raw.session_expiration_time;
+  if (ttl !== undefined) {
+    console.log(
+      `${CHECK_INDENT}note  session_expiration_time = ${JSON.stringify(ttl)}s (${Number(ttl) / 86400}d) — settles R4's [ASSUMED] session TTL`,
+    );
+  }
+  if ("is_desktop_allowed" in workflow.raw) {
+    const desktop = workflow.raw.is_desktop_allowed;
+    console.log(
+      `${CHECK_INDENT}note  is_desktop_allowed = ${JSON.stringify(desktop)}${
+        desktop === false ? " — ⚠ hosts must finish on MOBILE; /host/verify must say so (18.1-11)" : ""
+      }`,
+    );
+  }
+  for (const key of ["id_verification_max_retry_attempts", "face_liveness_max_attempts", "face_match_max_attempts"]) {
+    if (key in workflow.raw) {
+      console.log(`${CHECK_INDENT}note  ${key} = ${JSON.stringify(workflow.raw[key])} (per-module cap)`);
+    }
+  }
 }
 
 function checkDestination(failures: string[], row: Record<string, unknown>, expectedUrl: string): void {
@@ -375,6 +484,10 @@ export async function main(argv: readonly string[]): Promise<void> {
 
   const urlFlag = argv.indexOf("--webhook-url");
   const webhookUrl = urlFlag === -1 ? "" : (argv[urlFlag + 1] ?? "");
+  // Inspect a workflow this script did not create — e.g. one composed by hand in the Console —
+  // by id, instead of matching on the declared label.
+  const idFlag = argv.indexOf("--workflow-id");
+  const pinnedId = idFlag === -1 ? "" : (argv[idFlag + 1] ?? "");
   if (webhookUrl !== "" && !webhookUrl.startsWith("https://")) {
     console.error(`--webhook-url must be https. Got: ${webhookUrl}`);
     console.error("Didit refuses localhost and private CIDRs (SSRF guard) — a local run needs a tunnel.");
@@ -412,6 +525,10 @@ export async function main(argv: readonly string[]): Promise<void> {
     }
 
     let target =
+      (pinnedId === ""
+        ? undefined
+        : (workflows.find((workflow) => workflow.id === pinnedId) ??
+          ({ id: pinnedId, label: "(pinned)", features: [], raw: {} } as RemoteWorkflow))) ??
       workflows.find((workflow) => workflow.label === DECLARED_WORKFLOW.workflow_label) ??
       (workflows.length === 1 ? workflows[0] : undefined);
 
@@ -436,6 +553,23 @@ export async function main(argv: readonly string[]): Promise<void> {
       console.log(`Run \`apply\` to create "${DECLARED_WORKFLOW.workflow_label}".`);
       failures.push("a declared workflow exists");
     } else {
+      // ⚠ THE LIST ROW IS NOT ENOUGH. Every flag in MUST_BE_FALSE, the retry cap, the session TTL
+      // and `face_liveness_method` live ONLY on the detail record. Checking the list row would skip
+      // them silently — and a skipped check that prints nothing reads exactly like a passed one.
+      const detail = await diditFetch(apiKey, "GET", `/v3/workflows/${target.id}/`);
+      if (detail.status === 200 && detail.body && typeof detail.body === "object") {
+        target = asWorkflow({
+          ...(detail.body as Record<string, unknown>),
+          workflow_id: target.id,
+          workflow_label:
+            (detail.body as Record<string, unknown>).workflow_label ?? target.label,
+        });
+      } else {
+        console.log(
+          `\n⚠ could not read the workflow detail record (GET /v3/workflows/${target.id}/ -> ${detail.status}).`,
+        );
+        console.log("  Flag, retry-cap and liveness-method checks below are SKIPPED, not passed.");
+      }
       checkWorkflow(failures, target);
       if (mode === "apply" && target.id) {
         const outcome = writeToEnvLocal(WORKFLOW_ID_VAR, target.id);
