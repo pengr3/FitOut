@@ -194,3 +194,52 @@ outside `port.ts` learns a provider name.
 **Recommended owner:** **18.1-10** (the words) or **18.1-11** (the surface) — the two plans that own
 host-facing verification copy, and the two that will be reading these exact strings anyway.
 **→ Taken by 18.1-10. Nothing is left for 18.1-11 here.**
+
+---
+
+## D4 — TWO UNIT FILES TIME OUT UNDER SUITE-WIDE CONTENTION (18.1-13, 2026-09-02)
+
+**Found during:** 18.1-13, gate 2 (`npm test`).
+
+**Symptom.** The plan's FIRST full `npm test` took **5405s** (`import 26271.93s`, `tests 11133.68s`)
+and reported `2 failed | 214 passed | 2 skipped (218)`. One of the two was
+`tests/search/relaxation-ladder.test.ts > (b) stop at first hit … > runs exactly ONE query when the
+radius rung gives` — `Error: Test timed out in 20000ms`. The other's identity was lost: the default
+reporter's final frame had already overwritten it, and the background runner captured only that frame.
+
+A second full run (**258s**) reported ONE different failure —
+`tests/host/verification-panel.test.tsx > … > one press announces one thing: a second refusal REPLACES
+the first rather than joining it`, with
+`TestingLibraryElementError: Unable to find an accessible element with the role "button" and name
+"Start the check"` — i.e. the control was caught mid-flight, still reading its in-flight label.
+
+A third full run (**286s**) was fully green: `216 passed | 2 skipped (218)` · `2668 passed | 5 skipped`.
+
+**Why it is deferred, not fixed:**
+
+- **Unrelated surfaces.** 18.1-13 touched `src/app/actions/ops-contact.ts`,
+  `src/components/ops/**`, `src/lib/validation/ops.ts`, `src/lib/design/live-regions.ts`,
+  `src/lib/design/measurements.ts` and five test files. Neither failing file imports any of them.
+  `relaxation-ladder` is search-ladder logic; `verification-panel` is 18.1-11's render test.
+- **Both pass alone, fast.** `relaxation-ladder` 15 passed in **3.80s** against a 20s timeout — a
+  ~5x margin, so this is contention and not a slow test. `verification-panel` 12 passed in 3.01s.
+- **The 21x duration spread is the actual finding.** 5405s vs 258s on a byte-identical tree is the
+  machine, not the suite; the two failures are what that spread does to a 20s timeout and to a test
+  that presses a control twice in a row.
+
+**Two things worth doing when someone owns this, neither of which is a timeout bump:**
+
+1. **`verification-panel.test.tsx`'s second-press case has a real race**, independent of load: it
+   presses, then presses again, and the second `getByRole` runs while the first press may still be
+   in flight. The honest fix is to await the in-flight label leaving (or the region arriving) between
+   the two presses rather than to widen a timeout. That is 18.1-11's file and its author's call.
+2. **The reporter loses failure identity in a piped run.** `npm test > log` captured only the final
+   frame, so a two-failure run named one file. Whoever next needs a durable transcript should pass a
+   non-overwriting reporter rather than rediscovering this.
+
+⚠ **Do NOT raise `testTimeout` on the strength of this entry.** A 5x margin when run alone is the
+evidence that the tests are correctly sized; a raised timeout would hide a real regression later.
+
+**Recommended owner:** whichever later plan touches `tests/host/verification-panel.test.tsx` (for
+item 1) or the CI/test configuration (for item 2). If either failure ever reproduces **alone**, it is
+a real finding rather than this entry.
