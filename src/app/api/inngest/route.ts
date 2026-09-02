@@ -3,7 +3,16 @@
 // ORDERING (the entire reason former Plan 05 was split): this file STATICALLY imports `payoutSweep` from
 // Plan 05a's payout-sweep.ts (a landed prior-wave artifact) AND `payoutReconcile` from Plan 05b's
 // payout-reconcile.ts. It is created LAST — after both function files exist — so `tsc` resolves both
-// imports with no TS2307. A route.ts that preceded either function file would never compile.
+// imports with no TS2307. A route.ts that preceded either function file would never compile. The same
+// ordering rule governs every later addition, most recently plan 18.1-09's Didit reconciliation sweep in
+// `src/inngest/functions/didit-reconcile.ts`, which is edited into the array below only after that file
+// exists.
+//
+// ⚠ THAT NEWEST ENTRY IS NAMED BY ITS FILE PATH RATHER THAN BY ITS EXPORT, HERE AND NOWHERE ELSE IN THIS
+// HEADER. Its plan pins the exported identifier at EXACTLY TWO occurrences in this file — one import, one
+// array entry — so that a registration cannot be half-done (an import with no array entry compiles, and
+// silently registers nothing). Spelling the identifier in prose would make that count three and turn a
+// correct file red, which is Pitfall 7 and which this repository has now paid for several times over.
 //
 // FAIL-CLOSED (T-05-26, mirrors the paymongo.ts / auth.ts WR-03 boot guards): in PRODUCTION the serve
 // endpoint MUST verify inbound Inngest requests via INNGEST_SIGNING_KEY. We throw at module load if it is
@@ -22,6 +31,7 @@ import { notify } from "@/inngest/functions/notify";
 import { guestEmail } from "@/inngest/functions/guest-email";
 import { remindersSweep } from "@/inngest/functions/reminders";
 import { opsAlertDigest } from "@/inngest/functions/ops-alert-digest";
+import { diditReconcile } from "@/inngest/functions/didit-reconcile";
 
 // serve() verifies the Paymongo-style signed Inngest request with node crypto — Node runtime, not edge.
 export const runtime = "nodejs";
@@ -40,16 +50,18 @@ if (
 }
 
 // serve() reads INNGEST_SIGNING_KEY / INNGEST_EVENT_KEY from env automatically; the guard above just makes
-// a missing prod key fatal. Registers all NINE functions — the SEVEN crons on offset minutes so they never
+// a missing prod key fatal. Registers all TEN functions — the EIGHT crons on offset minutes so they never
 // contend (Pitfall 4): the hourly payout sweep (05a, :00), the request-to-book expiry sweep (06-06, :15),
 // the payout reconcile (05b, :30) and the D-85 reminder sweep (07-13, :45), plus the DAILY ops alert digest
 // (quick 260810-j3z, 08:50 Asia/Manila — minute :50, which none of the four hourly crons occupy), plus the
 // 13.1-02 PAYMENT reconcile (`2-59/5`, i.e. :02 and every five minutes after — a start minute none of the
 // five above occupy), plus the 13.1-04 CHECKOUT-RETIRE sweep (`4-59/5`, i.e. :04 and every five minutes
 // after — residue 4 mod 5, where the four hourly crons and the digest are all residue 0 and the payment
-// reconcile is residue 2, so no two of the three sub-hourly families ever land on the same minute) — plus
-// `notify` (07-07), the only EVENT-triggered function here: it listens for `fitout/notify` and fans one
-// event out to the durable in-app notification row and the email (D-83/D-91).
+// reconcile is residue 2, so no two of the three sub-hourly families ever land on the same minute), plus
+// the 18.1-09 DIDIT reconciliation sweep (`8-59/15`, i.e. :08, :23, :38 and :53 — residue 3 mod 5, the
+// last residue no sub-hourly family held, and four minutes none of the hourly slots or the digest occupy)
+// — plus `notify` (07-07), the only EVENT-triggered function here: it listens for `fitout/notify` and fans
+// one event out to the durable in-app notification row and the email (D-83/D-91).
 //
 // A function that is not in this array does not exist as far as Inngest is concerned — registration is
 // DERIVED from this file at sync time, not stored anywhere else. An unregistered `notify` means every
@@ -76,6 +88,15 @@ if (
 // unscanned QR can still charge a booker for a slot FitOut has already given away, and because a cron that
 // never ticks raises no error anywhere, nothing fails to say so. It is the ONE job that makes D-113 true;
 // 13.1-05's inline reclaim wirings only make it faster.
+//
+// AND THE 18.1-09 SWEEP IS THAT ARGUMENT AGAIN, ON A HOST'S IDENTITY INSTEAD OF A BOOKER'S MONEY.
+// `src/inngest/functions/didit-reconcile.ts` is the only thing standing between a Didit verdict that was
+// decided and a host who is never told. The vendor retries a failed delivery TWICE and then drops it
+// PERMANENTLY, and under D-262 (no operator confirms a verdict) plus D-263 (the host has no route to a
+// person) a dropped delivery is a host stuck at `pending` indefinitely — approved by the vendor, unsellable
+// on FitOut, with nobody prompted. Leave it out of this array and it does not exist: the recovery never
+// runs, and because a cron that never ticks raises no error anywhere, NOTHING FAILS TO SAY SO. Its plan
+// pins the identifier at exactly two occurrences in this file for that reason — see the ⚠ in the header.
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
@@ -88,5 +109,6 @@ export const { GET, POST, PUT } = serve({
     guestEmail,
     remindersSweep,
     opsAlertDigest,
+    diditReconcile,
   ],
 });
