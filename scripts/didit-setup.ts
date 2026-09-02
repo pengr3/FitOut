@@ -96,16 +96,31 @@ const MUST_BE_FALSE: readonly (readonly [string, string])[] = [
 ];
 
 /**
- * The vendor-side retry cap, read first-hand off the account rather than from the docs.
+ * The vendor-side retry cap — D-272.
  *
- * ⚠ THIS FALSIFIES RESEARCH R4. R4 concluded "NO" vendor-imposed limit and left the session TTL as
- * an `[ASSUMED]` item to *"settle by reading the Console's workflow settings once an account
- * exists"*. Both are now settled, and the answer to the first is not the one R4 recorded — see
- * `18.1-RESEARCH.md § ADDENDUM B1`. D-264's 24h cooldown permits 7 attempts per 7 days, which is
- * MORE than the vendor allows; whichever way that conflict is resolved, it must be resolved in ONE
- * place, and this check is what stops the two drifting apart silently.
+ * ⚠ RESEARCH R4 SAID THERE WAS NO SUCH CAP. It concluded "NO" vendor-imposed limit and left the
+ * session TTL as an `[ASSUMED]` item to *"settle by reading the Console's workflow settings once an
+ * account exists"*. The account's defaults are `3` attempts per `7` days, which is STRICTER than
+ * D-264's 24h cooldown (7 per 7 days) — so FitOut would have promised a retry Didit refuses, which
+ * is the D-130 / GATE-05 two-authorities defect. See `18.1-RESEARCH.md § ADDENDUM B1`.
+ *
+ * **D-272 (PM, 2026-09-02): raise the vendor cap to match D-264 rather than tighten D-264.** The
+ * 24h cooldown stays the single authority on how often a host may try; these values exist only to
+ * stop the vendor refusing first. 7 per 7 days is `24h` expressed in the vendor's units — if
+ * `COOLDOWN_HOURS` ever changes, THIS CHANGES IN THE SAME COMMIT.
  */
-const DECLARED_RETRY = { max_retry_attempts: 3, retry_window_days: 7 } as const;
+const DECLARED_RETRY = { max_retry_attempts: 7, retry_window_days: 7 } as const;
+
+/**
+ * D-273 (PM, 2026-09-02): the hosted flow stays MOBILE-ONLY.
+ *
+ * Phone cameras give markedly better liveness and face-match results, and a decline is the most
+ * expensive outcome FitOut has — it burns one of the host's limited attempts. The cost of the
+ * decision is a host-facing promise: `/host/verify` must say "continue on your phone" BEFORE the
+ * host commits, never after a dead-end redirect (18.1-11 / UI-SPEC). Checked here so the account
+ * cannot drift away from the surface's copy.
+ */
+const DECLARED_DESKTOP_ALLOWED = false;
 
 const VERIFICATION_API = "https://verification.didit.me";
 
@@ -417,9 +432,25 @@ function checkWorkflow(failures: string[], workflow: RemoteWorkflow): void {
       failures,
       attempts === DECLARED_RETRY.max_retry_attempts &&
         windowDays === DECLARED_RETRY.retry_window_days,
-      "the vendor retry cap matches the declaration",
-      `max_retry_attempts=${JSON.stringify(attempts)} retry_window_days=${JSON.stringify(windowDays)} · declared ${DECLARED_RETRY.max_retry_attempts}/${DECLARED_RETRY.retry_window_days}d` +
-        ` · ⚠ D-264's 24h cooldown permits ${DECLARED_RETRY.retry_window_days} attempts per ${DECLARED_RETRY.retry_window_days}d — MORE than the vendor allows`,
+      "the vendor retry cap matches D-272 (= D-264's 24h cooldown in vendor units)",
+      `max_retry_attempts=${JSON.stringify(attempts)} retry_window_days=${JSON.stringify(windowDays)}` +
+        ` · declared ${DECLARED_RETRY.max_retry_attempts}/${DECLARED_RETRY.retry_window_days}d` +
+        (attempts === DECLARED_RETRY.max_retry_attempts &&
+        windowDays === DECLARED_RETRY.retry_window_days
+          ? ""
+          : ` · ⚠ the vendor would refuse a retry FitOut's 24h cooldown has already promised —` +
+            ` raise it in the Console, or change COOLDOWN_HOURS and this constant in one commit`),
+    );
+  }
+
+  // ── D-273: mobile-only is a DECLARED value, so it is checked, not merely reported ────────────
+  if ("is_desktop_allowed" in workflow.raw) {
+    check(
+      failures,
+      workflow.raw.is_desktop_allowed === DECLARED_DESKTOP_ALLOWED,
+      "is_desktop_allowed matches D-273 (mobile-only)",
+      `is_desktop_allowed=${JSON.stringify(workflow.raw.is_desktop_allowed)} · declared ${DECLARED_DESKTOP_ALLOWED}` +
+        " · /host/verify must tell the host to continue on their phone BEFORE they commit (18.1-11)",
     );
   }
 
@@ -428,14 +459,6 @@ function checkWorkflow(failures: string[], workflow: RemoteWorkflow): void {
   if (ttl !== undefined) {
     console.log(
       `${CHECK_INDENT}note  session_expiration_time = ${JSON.stringify(ttl)}s (${Number(ttl) / 86400}d) — settles R4's [ASSUMED] session TTL`,
-    );
-  }
-  if ("is_desktop_allowed" in workflow.raw) {
-    const desktop = workflow.raw.is_desktop_allowed;
-    console.log(
-      `${CHECK_INDENT}note  is_desktop_allowed = ${JSON.stringify(desktop)}${
-        desktop === false ? " — ⚠ hosts must finish on MOBILE; /host/verify must say so (18.1-11)" : ""
-      }`,
     );
   }
   for (const key of ["id_verification_max_retry_attempts", "face_liveness_max_attempts", "face_match_max_attempts"]) {
@@ -534,8 +557,29 @@ export async function main(argv: readonly string[]): Promise<void> {
 
     if (!target && mode === "apply") {
       console.log(`\n── creating workflow ${"─".repeat(58)}`);
-      console.log(`${CHECK_INDENT}sending        ${JSON.stringify(DECLARED_WORKFLOW)}`);
-      const created = await diditFetch(apiKey, "POST", "/v3/workflows/", DECLARED_WORKFLOW);
+
+      // ── TWO ATTEMPTS, ON PURPOSE ──────────────────────────────────────────────────────────
+      // D-272 and D-273 are settings, not features, and the documented create body is only
+      // `{workflow_label, features[]}` — the v3 API rejects ANY unknown field with 400. Whether
+      // it accepts these three is UNVERIFIED (there is no sandbox workflow to try it on yet), so
+      // this asks once and falls back rather than guessing. An undocumented PATCH is deliberately
+      // NOT invented here: a settings write that silently no-ops is worse than one that is
+      // reported as needing a human, because the first looks like it worked.
+      const withSettings = {
+        ...DECLARED_WORKFLOW,
+        max_retry_attempts: DECLARED_RETRY.max_retry_attempts,
+        retry_window_days: DECLARED_RETRY.retry_window_days,
+        is_desktop_allowed: DECLARED_DESKTOP_ALLOWED,
+      };
+      console.log(`${CHECK_INDENT}attempt 1      ${JSON.stringify(withSettings)}`);
+      let created = await diditFetch(apiKey, "POST", "/v3/workflows/", withSettings);
+      const settingsAccepted = created.status === 201 || created.status === 200;
+
+      if (!settingsAccepted) {
+        console.log(`${CHECK_INDENT}attempt 1 ->   ${created.status} ${created.raw.slice(0, 200)}`);
+        console.log(`${CHECK_INDENT}attempt 2      ${JSON.stringify(DECLARED_WORKFLOW)} (settings dropped)`);
+        created = await diditFetch(apiKey, "POST", "/v3/workflows/", DECLARED_WORKFLOW);
+      }
       if (created.status !== 201 && created.status !== 200) {
         throw new CouldNotRunError("THE WORKFLOW WAS NOT CREATED.", [
           `POST /v3/workflows/ -> ${created.status}`,
@@ -546,6 +590,17 @@ export async function main(argv: readonly string[]): Promise<void> {
       }
       target = asWorkflow((created.body ?? {}) as Record<string, unknown>);
       console.log(`${CHECK_INDENT}created        ${target.id}`);
+      if (!settingsAccepted) {
+        console.log("");
+        console.log(`  ⚠ THE CREATE API REFUSED THE SETTINGS. The workflow exists with the right three`);
+        console.log(`    modules, but D-272 and D-273 are NOT applied. Set these by hand in the Console`);
+        console.log(`    (Workflows -> this workflow -> settings), then re-run \`npm run didit:verify\`:`);
+        console.log(`        max_retry_attempts  = ${DECLARED_RETRY.max_retry_attempts}`);
+        console.log(`        retry_window_days   = ${DECLARED_RETRY.retry_window_days}`);
+        console.log(`        is_desktop_allowed  = ${DECLARED_DESKTOP_ALLOWED}`);
+        console.log(`    The checks below will FAIL until they are — that is the intended behaviour,`);
+        console.log(`    not a bug: an unapplied decision must not read as an applied one.`);
+      }
     }
 
     if (!target) {
