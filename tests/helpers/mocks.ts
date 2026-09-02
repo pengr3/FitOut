@@ -268,6 +268,64 @@ export const mockPayMongo = {
 };
 
 // ---------------------------------------------------------------------------
+// Didit webhook signing (plan 18.1-08) — BESIDE the PayMongo pair, not folded into it.
+// ---------------------------------------------------------------------------
+//
+// ⚠ THE MESSAGE IS NOT PAYMONGO'S, AND THAT IS THE WHOLE REASON THIS IS A SECOND PAIR. PayMongo
+// signs `${timestamp}.${rawBody}`; Didit's primary `X-Signature` is an HMAC-SHA256 hex digest over
+// THE RAW BYTES ALONE. Reusing `paymongoSig` here would produce a helper that agrees with itself and
+// with nothing the vendor sends.
+//
+// ⚠ AND THE HEADER SHAPE IS THE REAL ONE, DELIBERATELY. This repository has already paid for the
+// other choice once: PayMongo's real header populates exactly ONE of `te`/`li` depending on mode,
+// `parseSignature` required BOTH, and every real signature was refused with a 400 in local UAT for a
+// whole phase — because the synthetic fixtures filled both fields and were the only thing anyone
+// looked at. So these helpers emit SEPARATE headers exactly as Didit does (`X-Signature`,
+// `X-Signature-V2`, `X-Timestamp`) rather than a convenient single string, and the timestamp is a
+// header the caller sets independently of the body's own — because on Didit's scheme those two are
+// genuinely independent, and a fixture that couples them cannot drive the case that matters.
+//
+// A SELF-SIGNED MOCK PROVES ONLY THAT THE ROUTE AGREES WITH THESE FUNCTIONS. What proves the scheme
+// is right is the sandbox transcript in `18.1-EVIDENCE.md` (plan 18.1-14).
+
+/**
+ * The V2 canonicalisation, mirrored from the route: recursive lexicographic key sort, then compact
+ * `JSON.stringify` with Unicode left unescaped. Written out here rather than imported so the test
+ * and the implementation are two statements that must AGREE — importing the route's function would
+ * make the V2 case assert that a function equals itself.
+ */
+function diditCanonical(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(diditCanonical);
+  if (value !== null && typeof value === "object") {
+    const src = value as Record<string, unknown>;
+    const out: Record<string, unknown> = {};
+    for (const k of Object.keys(src).sort()) out[k] = diditCanonical(src[k]);
+    return out;
+  }
+  return value;
+}
+
+/** A VALID primary `X-Signature`: HMAC-SHA256 hex over the raw body alone. */
+export function signDiditWebhook(rawBody: string, secret: string): string {
+  return createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+}
+
+/** A VALID fallback `X-Signature-V2`: the same HMAC over the canonicalised re-serialisation. */
+export function signDiditWebhookV2(rawBody: string, secret: string): string {
+  const canonical = JSON.stringify(diditCanonical(JSON.parse(rawBody)));
+  return createHmac("sha256", secret).update(canonical, "utf8").digest("hex");
+}
+
+/**
+ * Sentinel INVALID signature (all-zero hex), the shape of `badSignature()` above: right LENGTH,
+ * wrong content — so it reaches the constant-time compare instead of being length-skipped, which is
+ * what makes it a test of the comparison rather than of the guard in front of it.
+ */
+export function badDiditSignature(): string {
+  return ZERO_SIG;
+}
+
+// ---------------------------------------------------------------------------
 // Reset everything between tests.
 // ---------------------------------------------------------------------------
 export function resetMocks() {

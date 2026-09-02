@@ -81,6 +81,10 @@ let suspendHost: OpsActions["suspendHost"];
 let approveListing: OpsActions["approveListing"];
 let rejectListing: OpsActions["rejectListing"];
 
+/** Plan 18.1-08's write module — the one road a Didit verdict takes. Case 15 (D-259) drives it. */
+type ApplyVerdict = typeof import("@/lib/verification/apply-verdict");
+let applyDiditVerdict: ApplyVerdict["applyDiditVerdict"];
+
 const HOST_REASON = HOST_REJECT_REASONS[0];
 const LISTING_REASON = LISTING_REJECT_REASONS[0];
 
@@ -200,6 +204,9 @@ beforeAll(async () => {
   ({ approveHost, rejectHost, suspendHost, approveListing, rejectListing } = await import(
     "@/app/actions/ops-review"
   ));
+  // Plan 18.1-08, for case 15 (D-259). Imported through the SAME doMock graph as the actions, so
+  // the vendor's write and the operator's write are provably hitting one database.
+  ({ applyDiditVerdict } = await import("@/lib/verification/apply-verdict"));
 }, 120_000);
 
 afterAll(async () => {
@@ -506,5 +513,75 @@ describe("T-18-0505 / T-18-0506 — the two refusals that are not about the targ
     expect(row.checkedAt).not.toBeNull();
     expect(row.checkedAt!.getTime()).toBeGreaterThanOrEqual(before - 1000);
     expect(row.decidedByStaffId).toBe(staffId);
+  });
+
+  it("case 15 — D-259: after a Didit verdict has landed, an ops override still writes provider='manual'", async () => {
+    // ════════════════════════════════════════════════════════════════════════════════════════════
+    // WHY THIS CASE EXISTS (plan 18.1-08)
+    // ════════════════════════════════════════════════════════════════════════════════════════════
+    // D-262 makes both vendor verdicts automatic, which raises an obvious question: is the manual
+    // provider now a leftover? D-259 answers no — it is the OPS OVERRIDE. A vendor outage, a
+    // document the workflow cannot read, or a host whose session simply expired still has to be
+    // decidable by a named member of staff, and `provider = 'manual'` is what keeps that row
+    // distinguishable from a vendor's verdict for as long as the row exists.
+    //
+    // The sequence below is the real one rather than a contrived pair: the vendor's session EXPIRED
+    // (FINDING F-3 returns the row to `unverified`, because nobody checked), and a staff member then
+    // decides. `approveHost`'s WHERE already admits `unverified`, so no widening was needed for the
+    // override to be reachable — which is itself part of the claim.
+    const host = await seedHost("oa_d259_host", "pending");
+    await testDb.db
+      .update(hostVerification)
+      .set({ provider: "didit", vendorRef: "sess_d259" })
+      .where(eq(hostVerification.userId, host));
+
+    // ── The VENDOR's answer, through the one write module both delivery paths share. ────────────
+    const expired = await applyDiditVerdict({
+      vendorData: host,
+      sessionId: "sess_d259",
+      status: "Expired",
+      decision: null,
+    });
+    expect(expired.moved, "the F-3 reset must actually have happened").toBe(true);
+    expect(await verificationStatus(host)).toBe("unverified");
+
+    // ── The OPERATOR's answer, on the same row. ─────────────────────────────────────────────────
+    expect(await approveHost({ userId: host })).toEqual({ ok: true });
+
+    const [after] = await testDb.db
+      .select()
+      .from(hostVerification)
+      .where(eq(hostVerification.userId, host));
+    expect(after.status).toBe("approved");
+    expect(
+      after.provider,
+      "D-259: an ops-initiated decision is attributed to the manual provider, never to the vendor " +
+        "whose session it is replacing",
+    ).toBe("manual");
+    expect(after.decidedByStaffId, "and to the AUTHENTICATED staff member (D-218)").toBe(staffId);
+
+    // ── AND THE TWO ARE DISTINGUISHABLE IN THE TRAIL, read back out of the table. ───────────────
+    //
+    // Two ways over, deliberately: by the audit VERB (a vendor answer is `didit_verdict`; an
+    // operator's is one of the five `ops_*` verbs) and by `meta.provider` inside it. Either alone
+    // would answer "who decided this?"; both together mean a later reader cannot reach the wrong
+    // answer by querying the trail the way they happen to prefer.
+    const vendorRows = await trailRows("didit_verdict", "ok");
+    const vendorRow = vendorRows.find((r) => (r.meta as { userId?: string })?.userId === host);
+    expect(vendorRow, "the vendor's answer must be in the trail").toBeDefined();
+    expect(vendorRow!.actorId, "no PERSON decided this, and the trail must not claim one did").toBe(
+      "system",
+    );
+
+    const opsRows = await trailRows("ops_approve_host", "ok");
+    const opsRow = opsRows.find((r) => (r.meta as { userId?: string })?.userId === host);
+    expect(opsRow, "the operator's decision must be in the trail").toBeDefined();
+    expect(opsRow!.actorId).toBe(staffId);
+    expect((opsRow!.meta as { provider?: string }).provider).toBe("manual");
+
+    // The two rows are not the same row, and they do not agree about who decided — which is the
+    // whole content of "still distinguishable".
+    expect(vendorRow!.id).not.toBe(opsRow!.id);
+    expect(vendorRow!.actorId).not.toBe(opsRow!.actorId);
   });
 });
