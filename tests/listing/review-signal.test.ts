@@ -16,6 +16,19 @@
 // sidesteps the trap entirely: this file may spell every banned phrase in its own patterns, because the
 // scan never looks at this file OR at the module's prose — only at what a host would actually read.
 //
+// ⚠ THE CORPUS NOW REACHES BEYOND LISTING REVIEW SIGNALS, AND THE FILE'S NAME IS THE LESSER EVIL.
+// Phase 18.1 (18.1-UI-SPEC § Gate Amendments row 9) adds the HOST VERIFICATION surface's sentences to
+// the scan below: `src/lib/host/verification-signal.ts`'s six panels and form copy, the composed
+// rejection sentence built by `src/lib/verification/didit-verdict.ts`, and the six refusals
+// `src/lib/host/verification-refusals.ts` exports for `requestHostVerification`. So this file's NAME
+// is now narrower than its SCOPE, and that is a deliberate trade: the alternative was a second test
+// file carrying its own copy of the four family regexes, which is a guarantee that one of the two
+// copies drifts — one gets a fifth family, or has its third narrowed to make a sentence pass, and
+// nothing anywhere reports that the two guards no longer agree. ONE corpus, ONE owner, strictly more
+// strings scanned. The four `BANNED` patterns below are BYTE-IDENTICAL to what they were before that
+// amendment: nothing was widened, narrowed or removed to accommodate the new sentences, and if a new
+// sentence had failed a family the sentence was the thing to change.
+//
 // NOT COVERED, so the next reader under-trusts this file:
 //   • WHETHER A SURFACE RENDERS ANY OF IT. `tests/listing/listing-card.test.tsx` renders the chips and
 //     `npm run build` proves the two pages compile; a sentence exported here and referenced nowhere is
@@ -25,10 +38,17 @@
 //   • THE NOTIFICATION HALF (D-245). `tests/notifications/*` owns `hostSuspendedPayload` and the two
 //     rejection payloads. These two owners were written from the same spec table and must move
 //     together; neither is the other's test.
+//   • THE TWO EMAIL-RESEND TOAST SENTENCES. They live inside the function that speaks them
+//     (`src/lib/host/resend-verification.ts`) rather than as exported constants, so there is nothing
+//     for this file to import. What pins them is a repo-wide occurrence count of each sentence —
+//     exactly one owner — asserted in plan 18.1-10's own verification rather than here.
+//   • WHETHER THE MOBILE-ONLY INSTRUCTION IS RENDERED IN THE PANEL'S RESTING STATE (D-273). This file
+//     can see that the sentence exists and that it is safe to say; only the surface can be wrong about
+//     WHEN it is said, and saying it after a dead-end redirect is the failure that matters.
 
 import { describe, it, expect } from "vitest";
 
-import { listingReviewState } from "@/lib/db/schema";
+import { hostVerificationStatus, listingReviewState } from "@/lib/db/schema";
 import {
   REVIEW_SIGNAL,
   SILENT_REVIEW_STATES,
@@ -38,6 +58,25 @@ import {
   composeSuspendedSentence,
   reviewSignalFor,
 } from "@/lib/listing/review-signal";
+import {
+  HOST_VERIFICATION_REGION_NAME,
+  VERIFICATION_EMAIL_GATE_LABEL,
+  VERIFICATION_EMAIL_RESEND_LABEL,
+  VERIFICATION_HANDOFF_LINE,
+  VERIFICATION_LEDE,
+  VERIFICATION_LOADING_LABEL,
+  VERIFICATION_MOBILE_ONLY_LINE,
+  VERIFICATION_PAGE_TITLE,
+  VERIFICATION_PHONE_HELPER,
+  VERIFICATION_PHONE_LABEL,
+  VERIFICATION_SIGNAL,
+  VERIFICATION_SUBMIT_PENDING_LABEL,
+  composeEmailGateLine,
+  composeRetryAfterSentence,
+  composeVerificationRejectionReason,
+} from "@/lib/host/verification-signal";
+import { HOST_VERIFICATION_REFUSALS } from "@/lib/host/verification-refusals";
+import { composeDiditRejectReason, type DiditDecision } from "@/lib/verification/didit-verdict";
 
 /** A stored operator sentence, in the shape `ops-review.ts` actually writes: a taxonomy line plus a note. */
 const OPERATOR_SENTENCE =
@@ -52,6 +91,53 @@ const OPERATOR_SENTENCE =
  */
 const FROZEN_SPACE = "Kalayaan Court B";
 const FROZEN_DATE = "Aug 26, 2026";
+
+/**
+ * ONE HOST'S OWN ADDRESS, as the verify form's first gate echoes it back to them (D-269).
+ *
+ * ⚠ IT IS ADDRESS-SHAPED ON PURPOSE, AND THAT IS WHY IT IS ELIDED FROM THE CORPUS BELOW. Family 4
+ * bans an address-shaped literal on any host surface, and it is right to: `SUPPORT_EMAIL` is null and
+ * FitOut publishes no address for anyone to write TO. The gate-1 line is the INVERSE direction — the
+ * host's own address, handed back to the person it belongs to so they know which inbox to open — and
+ * it arrives as an ARGUMENT from the session, never as a literal in `src/`. See case (16).
+ */
+const HOST_OWN_ADDRESS = "maria.santos@example.com";
+
+/**
+ * The verification `updated_at` and the cooldown the server enforces, so the retry sentence under test
+ * is the one a real rejected host reads (D-264). Both are arguments in production too: the action's
+ * guarded UPDATE owns the interval and this module owns only the wording.
+ */
+const REJECTED_AT = new Date("2026-09-02T08:15:00Z");
+const COOLDOWN_HOURS = 24;
+
+/**
+ * A DECLINE FROM THE CHECKING PARTNER, in the shape `composeDiditRejectReason` actually receives
+ * (18.1-RESEARCH § R3): plural feature arrays, each report carrying its own `warnings[]` of
+ * `{ log_type, risk, short_description }`.
+ *
+ * Both codes are on `DIDIT_SAFE_RISKS`, and the descriptions are the vendor's own end-user phrasings.
+ * WHAT THIS FIXTURE IS NOT FOR: proving the allow-list, the `log_type` filter or the 280-char bound —
+ * `tests/verification/didit-verdict.test.ts` owns all three, and double-pinning them here would be two
+ * places to edit and one that gets forgotten. This corpus's subject is the TONE of the sentence that
+ * SURVIVES those gates, composed rather than quoted.
+ */
+const PARTNER_DECLINE: DiditDecision = {
+  id_verifications: [
+    {
+      node_id: "id-verification-1",
+      status: "Declined",
+      warnings: [
+        { log_type: "error", risk: "DOCUMENT_EXPIRED", short_description: "Document expired" },
+        {
+          log_type: "error",
+          risk: "IMAGE_TOO_BLURRY",
+          short_description: "Document image is too blurry",
+        },
+      ],
+    },
+  ],
+};
 
 describe("REVIEW_SIGNAL — the four review states a host can be in (18-UI-SPEC § Every state that is NOT the badge)", () => {
   it("(1) `pending`: the chip, the reason, and NO way out — the absence is the decision", () => {
@@ -192,6 +278,51 @@ describe("the banned language — what no host surface may say (D-243 / D-250 / 
     // and a real date landed is exactly the drift a corpus of templates would miss.
     composeFrozenSessionSentence(1, FROZEN_SPACE, FROZEN_DATE),
     composeFrozenSessionSentence(3, FROZEN_SPACE, FROZEN_DATE),
+
+    // ── PHASE 18.1 — THE HOST VERIFICATION SURFACE (18.1-UI-SPEC § Gate Amendments row 9) ─────────
+    //
+    // (a) EVERY host-visible string `src/lib/host/verification-signal.ts` exports. All three of the
+    // page's own strings, all six panels' state / reason / way-out, the live region's NAME (a screen
+    // reader announces it, so it is read), the in-flight label, and the form's five lines. The
+    // `suspended` row re-states `SUSPENDED_HOST_SIGNAL`, so two of these are the same bytes as two
+    // entries above — scanning them twice costs nothing and asserts the re-statement rather than
+    // trusting it.
+    VERIFICATION_PAGE_TITLE,
+    VERIFICATION_LEDE,
+    VERIFICATION_LOADING_LABEL,
+    ...Object.values(VERIFICATION_SIGNAL).flatMap((s) => [s.state, s.reason, s.wayOut ?? ""]),
+    HOST_VERIFICATION_REGION_NAME,
+    VERIFICATION_SUBMIT_PENDING_LABEL,
+    VERIFICATION_MOBILE_ONLY_LINE,
+    VERIFICATION_HANDOFF_LINE,
+    VERIFICATION_EMAIL_GATE_LABEL,
+    VERIFICATION_EMAIL_RESEND_LABEL,
+    VERIFICATION_PHONE_LABEL,
+    VERIFICATION_PHONE_HELPER,
+
+    // D-264's retry sentence, COMPOSED — the formatted instant included, because a template with a
+    // placeholder in it is exactly the string that stays safe while the finished one goes wrong.
+    // Case (15) is the named argument for why it is safe.
+    composeRetryAfterSentence(REJECTED_AT, COOLDOWN_HOURS),
+
+    // Gate 1's line with THE HOST'S OWN ADDRESS REMOVED — see `HOST_OWN_ADDRESS` and case (16). What
+    // is scanned here is every word FitOut wrote; the one thing elided is the one thing FitOut did not.
+    composeEmailGateLine(HOST_OWN_ADDRESS).replace(HOST_OWN_ADDRESS, ""),
+
+    // (b) THE COMPOSED REJECTION SENTENCE (D-265) — built through the real composer from a real
+    // decline shape, so the RENDERED string is scanned and not a template. Both forms: the one a
+    // surviving vendor sentence produces, and the canned one a decline with nothing survivable
+    // produces. `composeVerificationRejectionReason` is what the panel calls with the stored column.
+    composeDiditRejectReason(PARTNER_DECLINE),
+    composeVerificationRejectionReason(composeDiditRejectReason(PARTNER_DECLINE)),
+    composeVerificationRejectionReason(null),
+
+    // (c) EVERY SENTENCE `requestHostVerification` CAN RETURN (plan 18.1-07). They are exported from
+    // `src/lib/host/verification-refusals.ts` and not from the action itself, because a `"use server"`
+    // module may export only async functions — the incident `tests/use-server-exports.test.ts`
+    // records. A host reads these in the panel's one live region, so they are host-visible strings
+    // exactly like the panels above.
+    ...HOST_VERIFICATION_REFUSALS,
   ].filter((s) => s.length > 0);
 
   /**
@@ -242,9 +373,13 @@ describe("the banned language — what no host surface may say (D-243 / D-250 / 
     // A scan of nothing agrees with an empty violation list perfectly — this repository's most-recorded
     // failure mode. Both halves: the corpus is non-empty, and each pattern is proved live against a
     // fixture that SHOULD trip it.
-    // The floor MOVES WITH THE CORPUS — 7 → 9 when D-260's two composed forms joined it. A floor left
-    // behind is a floor that stops noticing a whole family of strings dropping out of the scan.
-    expect(HOST_VISIBLE.length).toBeGreaterThanOrEqual(9);
+    // The floor MOVES WITH THE CORPUS — 7 → 9 when D-260's two composed forms joined it, and 9 → 49
+    // when phase 18.1's host verification surface did (MEASURED, not estimated: the corpus was read
+    // at 49 with the floor deliberately failed, then the floor was set to it). A floor left behind is
+    // a floor that stops noticing a whole family of strings dropping out of the scan — and the 18.1
+    // amendment adds THIRTY-EIGHT strings from four modules, so a floor of 9 would have gone on
+    // passing with every one of them deleted.
+    expect(HOST_VISIBLE.length).toBeGreaterThanOrEqual(49);
 
     const tripwires = [
       "Contact us to appeal this decision.",
@@ -297,5 +432,127 @@ describe("the banned language — what no host surface may say (D-243 / D-250 / 
 
     // And neither of them, nor the sentence above them, names what unfreezes it (D-260 / D-263).
     expect(SUSPENDED_HOST_SIGNAL.wayOut).toBeNull();
+  });
+
+  it("(15) D-264 — the retry affordance quotes an INSTANT the database keeps, never a duration", () => {
+    // FAMILY 3 IS THE ONE THAT BITES IN PHASE 18.1, and it bites at exactly this sentence. The ban's
+    // stated reason is *a timeline nothing in the system agrees to keep* — but the cooldown IS kept:
+    // it is literally a clause of the submission UPDATE's own WHERE. So the honest way to express it
+    // is the instant rather than the interval, and the natural phrasings ("in 24 hours", "tomorrow",
+    // "try again in a day") are all wrong twice over: banned here, and FALSE to a host reading the
+    // page twenty hours in.
+    const sentence = composeRetryAfterSentence(REJECTED_AT, COOLDOWN_HOURS);
+    const DURATION_FAMILY = BANNED[2];
+
+    // An absolute calendar date — month name, day, FOUR-DIGIT YEAR — plus a clock time, because a
+    // date alone would leave the host guessing which hour of it. Case (14)'s own date assertion, one
+    // surface over.
+    expect(sentence).toMatch(/\b[A-Z][a-z]{2} \d{1,2}, \d{4}\b/);
+    expect(sentence).toMatch(/\d{1,2}:\d{2}/);
+
+    expect(
+      DURATION_FAMILY.pattern.test(sentence),
+      `the retry sentence matched ${DURATION_FAMILY.pattern}: "${sentence}"\n` +
+        `banned because: ${DURATION_FAMILY.why}\n` +
+        "A DURATION IS A PROMISE ABOUT A HUMAN; AN INSTANT IS A FACT THE DATABASE KEEPS. The cooldown " +
+        "is enforced by `updated_at < now() - make_interval(hours => …)` in the submission UPDATE's " +
+        "own WHERE, so the honest sentence quotes the moment that clause starts letting the host " +
+        "through — formatted server-side and passed in finished (PROJECT D-130 / GATE-05). Do not " +
+        "replace it with an interval, a countdown or the name of the next calendar day.",
+    ).toBe(false);
+
+    // And the instant MOVES WITH THE COOLDOWN rather than being a constant that happens to look
+    // right: a longer cooldown must produce a later sentence, or the arithmetic is decorative.
+    expect(composeRetryAfterSentence(REJECTED_AT, 48)).not.toBe(sentence);
+  });
+
+  it("(16) the gate-1 line echoes the host's OWN address and publishes none of FitOut's", () => {
+    const line = composeEmailGateLine(HOST_OWN_ADDRESS);
+    const ADDRESS_FAMILY = BANNED[3];
+
+    // The host's address appears EXACTLY ONCE — they are being told which inbox to open, not handed a
+    // route to write to anybody.
+    expect(line.split(HOST_OWN_ADDRESS)).toHaveLength(2);
+
+    // GUARD-THE-GUARD FOR THE ELISION IN THE CORPUS ABOVE, IN BOTH DIRECTIONS. Family 4 fires on the
+    // whole line — proving the address is genuinely there and that the elision is doing real work
+    // rather than papering over a sentence that was already clean — and does NOT fire once the
+    // caller's own argument is removed, which is what makes every word FitOut wrote scannable. An
+    // elision that could never have mattered is an exclusion, and exclusions are how this family
+    // stops meaning anything.
+    expect(ADDRESS_FAMILY.pattern.test(line)).toBe(true);
+    expect(
+      ADDRESS_FAMILY.pattern.test(line.replace(HOST_OWN_ADDRESS, "")),
+      "FitOut's own words in the email-confirmation line matched " +
+        `${ADDRESS_FAMILY.pattern}\n      banned because: ${ADDRESS_FAMILY.why}\n` +
+        "The host's own address arrives as an argument from their session and is the one thing this " +
+        "family may not judge. Anything else address-shaped in this sentence is FitOut publishing a " +
+        "route to a human, which D-263 says does not exist.",
+    ).toBe(false);
+  });
+
+  it("(17) D-272 — no sentence tells a host they have no tries left, because they have", () => {
+    // THE TRAP THIS CASE EXISTS FOR. The checking partner's PER-MODULE caps (two attempts at the ID
+    // step, three at each of the other two) bound retries WITHIN ONE session; the host's own
+    // allowance is seven sessions per seven days, raised deliberately so the partner can never refuse
+    // before FitOut's cooldown does. A host can therefore exhaust one session's tries with almost all
+    // of their weekly allowance untouched — so "you have no attempts left" is FALSE at the moment
+    // they read it, and it sends somebody who could simply start again looking for the route to a
+    // person that D-263 says does not exist.
+    //
+    // The mechanism that keeps it out is `DIDIT_SAFE_RISKS`: an attempts-exhausted code is off the
+    // allow-list, so the partner's own wording never reaches a host and no replacement is written.
+    // This is the assertion that would notice somebody writing one anyway.
+    const EXHAUSTION =
+      /no (more )?(tries|attempts|goes)|attempts? (left|remaining|exhausted|used up)|out of (tries|attempts)|used up your/i;
+
+    const violations = HOST_VISIBLE.filter((text) => EXHAUSTION.test(text));
+
+    expect(
+      violations,
+      "a host-facing string says or implies the host has no tries left:\n" +
+        `${violations.join("\n")}\n` +
+        "It is false. The per-module caps bound ONE session; the weekly allowance is seven, and D-264 " +
+        "is the single authority on how often a host may try — it says it with a timestamp. Say what " +
+        "happened and, if a retry is bounded, say WHEN.",
+    ).toEqual([]);
+
+    // Proof the pattern can fire, on the sentence somebody would reasonably have written.
+    expect(EXHAUSTION.test("You have no attempts left for this check.")).toBe(true);
+  });
+
+  it("(18) THE CENSUS — every `host_verification_status` value has a panel with words in it", () => {
+    // The runtime half of the `satisfies Record<HostVerificationStatus, VerificationSignal>` clause,
+    // derived from the pgEnum so a SEVENTH value reddens this line and names itself. `/host/verify` is
+    // a DESTINATION: unlike the listing card's three declared silences, there is no state here that
+    // may render nothing, because a destination that renders nothing is a broken page.
+    expect(Object.keys(VERIFICATION_SIGNAL).sort()).toEqual(
+      [...hostVerificationStatus.enumValues].sort(),
+    );
+
+    for (const [status, signal] of Object.entries(VERIFICATION_SIGNAL)) {
+      expect(signal.state.length, `${status} has no state`).toBeGreaterThan(10);
+      expect(signal.reason.length, `${status} has no reason`).toBeGreaterThan(20);
+    }
+
+    // The two states with NO WAY OUT, and both absences are decisions rather than gaps. `pending`:
+    // FitOut stores the session id and not the hosted-flow URL (`port.ts:76-98` — four fields, and it
+    // says do not add a fifth), so a "Continue the check" link cannot be reconstructed and drawing one
+    // would be a control that acts on nothing. `suspended`: D-266 — the machine does not draw a button
+    // that would try to reverse a named operator's decision, and D-260/D-263 refuse to name what
+    // unfreezes it.
+    expect(VERIFICATION_SIGNAL.pending.wayOut).toBeNull();
+    expect(VERIFICATION_SIGNAL.suspended.wayOut).toBeNull();
+
+    // ⚠ `grandfathered` NAMES NO CHECK AND NO CUTOVER (D-211 / D-212). Unlike the listing card it is
+    // not silent — this is a destination — but what it says is what is TRUE for that host: they can
+    // already list. It must not spell the data state, and it must not claim a verdict nobody reached,
+    // which would be `pending-copy.test.ts`'s fabricated-verdict defect.
+    const words = [
+      VERIFICATION_SIGNAL.grandfathered.state,
+      VERIFICATION_SIGNAL.grandfathered.reason,
+    ].join(" ");
+    expect(words).not.toMatch(/grandfather|legacy|existing host/i);
+    expect(words).not.toMatch(/checked|verified|approved/i);
   });
 });
