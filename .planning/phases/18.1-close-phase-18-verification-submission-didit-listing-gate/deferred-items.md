@@ -326,5 +326,17 @@ passes. The defect only exists across a **human timeline** — press, leave, com
 jsdom test, no vitest suite and no Playwright spec in this repo models. It needed a person to get
 distracted. That is precisely what 18.1-14's hand-walk is for, and it earned its place here.
 
-**Status:** OPEN (D5) — awaiting the PM's call on whether it closes inside 18.1 as a gap plan or is
-carried to a follow-up phase.
+**Status:** **PLANNED — closing inside phase 18.1 as gap plan `18.1-15` (wave 8).** The PM ruled on
+2026-09-02 that it closes here rather than being carried to a follow-up phase, on the ground that
+*the phase's stated goal is the verification path FitOut is legally required to have, and a path a
+distracted host cannot complete is arguably not that path.*
+
+`18.1-15-PLAN.md` implements the recommended shape above and nothing beyond it: `pending` joins the
+submission path's `WHERE` as a third POSITIVE equality bounded by the existing burst guard; the write
+is a RESUME, so `created_at` is preserved by a `CASE` and the host keeps their ops-queue position
+(**FINDING F-1 in reverse**); the hosted URL is still never persisted but is re-fetched on demand
+through the partner's own idempotency (ADDENDUM A3); and a session the partner has already FINISHED
+is refused rather than replaced, so a dropped verdict is never orphaned by a fresh `vendor_ref`. The
+`pending` panel's way back in is one new `wayOut` label in `src/lib/host/verification-signal.ts`, and
+no new refusal sentence is authored. **The executor of `18.1-15` marks this entry RESOLVED**, on D3's
+convention above.
