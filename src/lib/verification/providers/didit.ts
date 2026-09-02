@@ -20,6 +20,20 @@ import "server-only";
 //     answer has already arrived on a channel this module is not on (the signed webhook, plan
 //     18.1-08; the reconciliation sweep, plan 18.1-09) and needs shaping into something persistable.
 //
+// ⚠ AND SINCE 18.1-09 THERE IS A THIRD, WHICH IS NOT A THIRD OPINION. `fetchDiditDecision(sessionId)`
+// is FitOut ASKING WHAT WAS ALREADY DECIDED — the vendor's officially-supported polling fallback,
+// reached only by the reconciliation sweep. It READS; it decides nothing. It returns the vendor's own
+// status string and the vendor's own decision payload, untranslated, so the shared mapper in
+// `../didit-verdict.ts` stays the single translation and `../apply-verdict.ts` stays the single
+// write. Like `beginDiditVerification` it is deliberately NOT a member of `VerificationProvider`:
+// asking a question is not answering one, and routing a READ through the verdict's single branch
+// point would add a discriminator to the path that actually matters in exchange for nothing.
+//
+// ⚠ IT RECONCILES BY READING AND NEVER BY RE-CREATING. `POST /v3/session/` is idempotent over
+// UNFINISHED sessions on the same `vendor_data` (ADDENDUM A3), so a sweep that "retried" by creating
+// a session would be handed the SAME session back and would have learned nothing at all — a no-op
+// wearing the shape of a fix.
+//
 // THE DISCIPLINE THAT KEEPS THE ASKING HALF HONEST, stated because the port cannot police it: the
 // begin path may only ever produce `result: null`. Nothing but `verify` — reached through
 // `runVerification` — may produce a non-null verdict.
@@ -103,6 +117,7 @@ import "server-only";
 // Both are ONE credential fault, they are an OPERATOR's problem, and the sentence below says so;
 // nothing here is fit to show a host.
 
+import type { DiditDecision, DiditFeatureReport } from "../didit-verdict";
 import type {
   VerificationDecision,
   VerificationProvider,
@@ -178,6 +193,34 @@ export class DiditSessionError extends Error {
 }
 
 /**
+ * THE ONE FAILURE THAT IS NOT A FAILURE OF THE CHECK — it is a failure of the ASKING, and it is
+ * retryable on the next tick.
+ *
+ * A named subclass rather than a `status === 429` test at the caller, because the two answers mean
+ * opposite things to a batched sweep and folding them together would make the wrong one the default:
+ *
+ *   · Any other refusal means "we did not learn about THIS session" — skip the row, keep sweeping.
+ *   · A 429 means "you are asking too fast" — and continuing to ask is precisely what makes it
+ *     worse. The sweep stops the pass cleanly and the next tick resumes where it left off; the rows
+ *     it had not reached are still `pending`, still stale, and therefore still selected.
+ *
+ * Didit's GET ceiling is **600/min per API key on the paid tier and 10/min on the free tier**
+ * (18.1-RESEARCH § R1 § The status / decision retrieval endpoint), so on the free tier this is a
+ * ceiling a careless batch size can actually reach. `DIDIT_RECONCILE_BATCH_LIMIT` is sized against
+ * the lower of the two; this class is what makes being wrong about that survivable rather than a
+ * tight loop against a vendor that is already saying stop.
+ *
+ * It extends the module's refusal rather than standing beside it, so a caller that only knows about
+ * `DiditSessionError` still fails closed and never mistakes a rate limit for a verdict.
+ */
+export class DiditRateLimitError extends DiditSessionError {
+  constructor(message: string) {
+    super(message, 429);
+    this.name = "DiditRateLimitError";
+  }
+}
+
+/**
  * What starting a check produces: the persistable four-field result, and — SEPARATELY — the hosted
  * URL the host is redirected to.
  *
@@ -194,6 +237,47 @@ export type DiditSessionStart = {
 type DiditSessionResponse = {
   session_id?: unknown;
   url?: unknown;
+};
+
+/**
+ * The decision-endpoint response, narrowed to what FitOut is allowed to read.
+ *
+ * ⚠ PLURAL ARRAYS, AND THE SINGULAR SPELLINGS ARE ABSENT BY CONSTRUCTION. V3 returns one array per
+ * feature family, each item carrying its own `node_id` and its own feature-level status, and a block
+ * is `null` until that feature has run (ADDENDUM A8). The V2 singular keys ship only for a
+ * destination pinned to the older version: on ours they are `undefined`, which reads as "not
+ * approved" and would refuse every host (18.1-RESEARCH § Pitfall 2). A field that is not on this
+ * type cannot be read by accident.
+ *
+ * Every field is `unknown` because all of it arrives from outside FitOut — the same rule
+ * `../didit-verdict.ts` states for the webhook's copy of the same payload.
+ */
+type DiditDecisionResponse = {
+  status?: unknown;
+  id_verifications?: unknown;
+  liveness_checks?: unknown;
+  face_matches?: unknown;
+};
+
+/**
+ * What READING an already-decided session produces: the vendor's own status string and the vendor's
+ * own decision payload, both untranslated.
+ *
+ * ⚠ `status` IS HANDED BACK IN WHATEVER SPELLING ARRIVED, AND THAT IS THE POINT. The decision
+ * endpoint answers in one casing and the webhook envelope answers in another for the same verdict
+ * (18.1-RESEARCH § R1, two vendor pages) — so there is a real normalisation to do, and it is already
+ * done, ONCE, inside `../didit-verdict.ts`'s mapper, which both delivery paths share. A second
+ * normaliser here would be a second thing to keep in agreement about the ten strings that decide
+ * whether a host may sell, and the two would disagree the day the vendor adds an eleventh.
+ *
+ * ⚠ NO MEDIA VALUE IS MODELLED. A real decision carries short-lived presigned URLs; none is
+ * representable here, so none can be persisted (ADDENDUM A8 / D-263 — store a reason, not evidence).
+ */
+export type DiditSessionDecision = {
+  /** The vendor's session status, verbatim. Translated by the shared mapper and by nothing else. */
+  readonly status: string;
+  /** The three feature families the composed workflow runs. Passed through unread by this module. */
+  readonly decision: DiditDecision;
 };
 
 /**
@@ -321,6 +405,135 @@ export async function beginDiditVerification(userId: string): Promise<DiditSessi
       provider: DIDIT_PROVIDER_NAME,
     },
     hostedUrl,
+  };
+}
+
+/**
+ * One feature block off a decision response, or `null` when that feature has not run.
+ *
+ * `null` and "not an array" collapse to the same answer deliberately: the composer treats an absent
+ * block as contributing nothing rather than as a reason to throw, because a decline can arrive
+ * before every feature ran (ADDENDUM A8). Nothing INSIDE a report is inspected here — the warning
+ * allow-list, the log-level gate and the D-265 sentence are all `../didit-verdict.ts`'s, and a
+ * second reader here would be a second opinion about what a vendor warning means.
+ */
+function featureBlock(value: unknown): readonly DiditFeatureReport[] | null {
+  return Array.isArray(value) ? (value as readonly DiditFeatureReport[]) : null;
+}
+
+/**
+ * READ an already-decided session: `GET /v3/session/{sessionId}/decision/`.
+ *
+ * THE OFFICIALLY-SUPPORTED POLLING FALLBACK, and the only reason it exists is FINDING F-4. Didit
+ * retries a failed webhook delivery at most TWICE (~1 min, ~4 min) and then drops it PERMANENTLY, so
+ * a deploy or a five-second timeout inside that window loses a verdict forever — and under D-262
+ * (nobody confirms) plus D-263 (the host has no route to a person) a lost verdict is a host who sits
+ * at pending with nothing anywhere failing to say so. The vendor's own guidance is
+ * "webhook-then-fetch": the webhook is the fast path and THIS is what makes it survivable.
+ *
+ * ⚠ IT IS A READ, AND IT REMAINS ONE. It produces no `VerificationResult`, writes nothing, and
+ * translates nothing. `../didit-verdict.ts` maps the status; `../apply-verdict.ts` performs the one
+ * write. Both callers of a Didit answer go through both of those, which is what keeps a recovered
+ * verdict and a delivered verdict the SAME verdict (D-105, one domain over).
+ *
+ * FAILS CLOSED ON EVERY FAILURE THIS CALL HAS, exactly as the create-session path does: a transport
+ * failure, a 429, a refused credential, any other non-2xx, a body that is not JSON and a 2xx with no
+ * usable status all THROW. None returns a half-filled answer and none invents a status, so the sweep
+ * has nothing to apply and the row is left exactly where it was.
+ *
+ * @throws DiditRateLimitError on a 429 — retryable, and the one failure the caller must treat as
+ *   "stop asking" rather than as "this row taught us nothing".
+ * @throws DiditSessionError on every other failure.
+ */
+export async function fetchDiditDecision(sessionId: string): Promise<DiditSessionDecision> {
+  const apiKey = process.env.DIDIT_API_KEY ?? "";
+  // Encoded because it is interpolated into a URL path. The value comes from FitOut's own column,
+  // written by the create-session response — but "the value is ours" is a property of today's
+  // writer, not of this function, and a handle that ever carried a `/` would silently address a
+  // different endpoint.
+  const path = `/v3/session/${encodeURIComponent(sessionId)}/decision/`;
+
+  let res: Response;
+  try {
+    res = await fetch(`${DIDIT_VERIFICATION_API}${path}`, {
+      method: "GET",
+      headers: { "x-api-key": apiKey },
+    });
+  } catch (cause) {
+    throw new DiditSessionError(
+      `Didit GET ${path} did not complete. Nothing was learned about this session.`,
+      null,
+      { cause },
+    );
+  }
+
+  const text = await res.text();
+
+  // FIRST, because it is the one refusal that is about the ASKING rather than about the session, and
+  // because folding it into the generic branch below would tell the sweep to keep going.
+  if (res.status === 429) {
+    throw new DiditRateLimitError(
+      `Didit rate-limited GET ${path} (HTTP 429). The pass stops here and resumes on the next tick.`,
+    );
+  }
+
+  if (!res.ok) {
+    // ONE credential fault, two numbers — the header's rule, and it holds on this endpoint family
+    // too (ADDENDUM A5). Written for an OPERATOR; nothing here is fit to show a host.
+    if (res.status === 401 || res.status === 403) {
+      throw new DiditSessionError(
+        `Didit refused the credential on GET ${path} (HTTP ${res.status}). A missing, malformed, ` +
+          "expired or wrong-application DIDIT_API_KEY all answer this way and cannot be told apart " +
+          "from the response — check the deploy environment against the Didit Console application.",
+        res.status,
+      );
+    }
+    throw new DiditSessionError(
+      `Didit GET ${path} failed (HTTP ${res.status}). No verdict was read.`,
+      res.status,
+    );
+  }
+
+  let parsed: DiditDecisionResponse;
+  try {
+    parsed = JSON.parse(text) as DiditDecisionResponse;
+  } catch (cause) {
+    throw new DiditSessionError(
+      `Didit GET ${path} returned a body that is not JSON.`,
+      res.status,
+      { cause },
+    );
+  }
+
+  // ⚠ READ THE FIELDS NEEDED, NEVER A KEY SET — `beginDiditVerification`'s measured rule (ADDENDUM
+  // A7): the vendor already ships more keys than its own documentation lists, so a parser that
+  // asserts an exact shape breaks the day it ships one more.
+  //
+  // The emptiness test is over a trimmed copy while the RETURNED value is verbatim. A whitespace-only
+  // status is not a status; but which of the vendor's two spellings arrived is a fact the shared
+  // mapper is the only thing entitled to flatten.
+  const status = typeof parsed.status === "string" ? parsed.status : "";
+  if (status.trim() === "") {
+    throw new DiditSessionError(
+      `Didit GET ${path} returned ${res.status} without a usable session status. Nothing was read.`,
+      res.status,
+    );
+  }
+
+  // ⚠ THE THREE BLOCKS ARE READ FROM THE TOP LEVEL OF THIS RESPONSE, which is where the decision
+  // endpoint puts them — the webhook nests the same three under a `decision` key, and the two
+  // shapes genuinely differ. STATED BECAUSE THE BLAST RADIUS OF BEING WRONG IS BOUNDED AND WORTH
+  // KNOWING: the STATUS is what decides, and it is top-level on both surfaces. If the nesting here
+  // turned out to be otherwise, a recovered rejection would carry the canned product sentence alone
+  // (the composer's fourth gate — never empty, D-265) instead of the vendor's own phrasing. It could
+  // not produce a wrong verdict, and 18.1-14's sandbox walk records the real body.
+  return {
+    status,
+    decision: {
+      id_verifications: featureBlock(parsed.id_verifications),
+      liveness_checks: featureBlock(parsed.liveness_checks),
+      face_matches: featureBlock(parsed.face_matches),
+    },
   };
 }
 
