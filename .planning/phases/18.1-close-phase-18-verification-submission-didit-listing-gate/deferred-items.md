@@ -118,3 +118,50 @@ account afterwards.
 composition or the retry policy in product code (D-272's `COOLDOWN_HOURS` same-commit rule points at
 the same module).
 
+
+---
+
+## D3 — `hostApprovedPayload()` TELLS AN AUTO-APPROVED HOST THAT A PERSON CHECKED THEM
+
+**Found during:** 18.1-08, Task 1 (wiring the D-245 fan-out into the Didit verdict path).
+
+**The finding.** `src/lib/notifications.ts:237-245` composes the host-approval notice, and its lead
+reads, verbatim:
+
+> "Someone at FitOut checked your account. Your listings can go live once each one is approved."
+
+That sentence was written in Phase 18, when the ONLY way to reach `approved` was an operator pressing
+a button in `/ops` — at which point it was exactly true. **D-261 makes a Didit PASS auto-approve the
+host with no operator involved at all**, so from plan 18.1-08 onward the same words go to hosts about
+whom the literal claim is false: nobody at FitOut looked at anything. The docblock above the function
+even pins the claim as deliberate — *"NAMES NO DOCUMENT AND NO INSPECTION. 'Someone at FitOut checked
+your account' is the whole claim HVER-02 supports"* — which is what makes this a real drift rather
+than loose phrasing.
+
+`hostRejectedPayload` is milder and probably fine ("FitOut checked your account and didn't approve
+it" is true of FitOut-through-its-vendor); the approval is the sharp one, because it asserts a PERSON.
+
+**Why it was NOT fixed here, and this is a finding rather than a skip:**
+
+1. **The plan forbids it in as many words.** 18.1-08 Task 1: *"send the notification through the
+   SHIPPED payloads … **Do not write new copy** — D-245 gives one payload, one `notification` row and
+   one email."* Editing the string in a write module is precisely what that instruction rules out.
+2. **It is not this file's decision to take.** The six host-standing sentences live in one place
+   deliberately (D-91 sufficiency, D-86 durability): what a host is told about their own standing must
+   be the same words in the panel and in their inbox, and a durable `notification` row already read by
+   a host must not silently re-render. Changing one of the six is UI-SPEC work.
+3. **The blast radius is asserted.** `tests/notifications/ops-decision-notify.test.ts` pins these
+   payloads, and 18.1-10's banned-language corpus is about to read the same strings. A copy edit made
+   inside an unrelated plan would land in the middle of that.
+
+**Recommended shape when someone owns it.** Either (a) re-word the lead so it is true of BOTH writers
+without naming a mechanism ("Your FitOut host account is verified." — no actor, no inspection claim),
+or (b) accept a second approval payload keyed on provider, which is worse: it would make the port's
+provider name a thing the COPY layer branches on, and the whole point of the port is that nothing
+outside `port.ts` learns a provider name.
+
+⚠ Option (a) is strongly preferred and is a one-line change. Whoever takes it must also check
+`tests/notifications/ops-decision-notify.test.ts` and 18.1-10's corpus in the same commit.
+
+**Recommended owner:** **18.1-10** (the words) or **18.1-11** (the surface) — the two plans that own
+host-facing verification copy, and the two that will be reading these exact strings anyway.
