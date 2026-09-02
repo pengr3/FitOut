@@ -299,7 +299,7 @@ and (ii) whether holding only a `vendorRef` satisfies § 21(c)'s "updated and ve
 and the subpoena clause. **Both are vendor-independent** — equally open under Innov8tif or PayMongo —
 so neither changes what this phase builds.
 
-**Plans:** 8/14 plans executed
+**Plans:** 9/14 plans executed
 Worktrees stay OFF, so plans run **sequentially on `dev`, one executor at a time**; the waves express
 dependency order, not concurrency. No two plans in a wave modify the same file.
 
@@ -343,7 +343,7 @@ Plans:
 - [x] 18.1-06-PLAN.md — `didit-verdict.ts`: ten statuses, two casings, the D-265 allow-list · **settles F-3** (wave 2)
 - [x] 18.1-07-PLAN.md — The host verification submission path + § 21(b)(3) phone/email · **closes the live defect, proves SC1** (wave 3)
 - [x] 18.1-08-PLAN.md — The Didit webhook: one authenticated door, clean 400 on everything else (wave 3)
-- [ ] 18.1-09-PLAN.md — The Inngest reconciliation sweep · **F-4 ships** (wave 4)
+- [x] 18.1-09-PLAN.md — The Inngest reconciliation sweep · **F-4 ships** (wave 4)
 - [ ] 18.1-10-PLAN.md — The verification copy module and the email-resend extraction (wave 4)
 - [ ] 18.1-11-PLAN.md — `/host/verify`: the panel, the route, its plate and five moved design counts (wave 5)
 - [ ] 18.1-12-PLAN.md — PM-C: the listing-creation gate + the fixture sweep · **closes F-2, pins F-7** (wave 6)
@@ -368,7 +368,7 @@ Plans:
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified** `passed_with_concerns` — 17/17 requirements, 0 code-level blockers; **PM checkpoint ANSWERED 2026-09-01 (all 5); checkbox held until 18.1 ships the code** | verified 2026-09-01 |
-| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 8/14 | In Progress|  |
+| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 9/14 | In Progress|  |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
