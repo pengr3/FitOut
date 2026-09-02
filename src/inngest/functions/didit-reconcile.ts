@@ -197,10 +197,25 @@ export type DiditReconcileResult = { userId: string; outcome: DiditReconcileOutc
  *      `approved`, `rejected`, `unverified` or `suspended` row is not waiting on anything; asking about it
  *      every fifteen minutes forever would spend the account's rate limit on questions with no answer.
  *
- * `vendor_ref IS NOT NULL` is the second half of that: never spend a round trip on a row with nothing to
- * ask about. The blank test beside it is defence in depth — today the only writer of that column is the
- * submission path, which stores a session handle the vendor validated, but "the value is ours" is a
- * property of today's writer rather than of this query, and a blank handle would address a different URL.
+ * The handle bound is the second half of that: never spend a round trip on a row with nothing to ask
+ * about. It is written as TWO predicates and they are NOT two independent controls — MEASURED, not
+ * assumed, because the plan's own mutation pass removed `vendor_ref IS NOT NULL` and NOTHING WENT RED:
+ *
+ *     SELECT (btrim(NULL::text) <> '') IS NULL,  (btrim('   ') <> ''),  (btrim('sess_x') <> '');
+ *     → t | f | t                                     (fitout_test, 2026-09-02)
+ *
+ * In SQL's three-valued logic `btrim(NULL) <> ''` evaluates to NULL, which a `WHERE` treats as "not
+ * true" — so the blank test ALREADY excludes a handle-less row and is the predicate actually doing the
+ * work. `vendor_ref IS NOT NULL` is kept as a readability restatement of the dominant case (a row that
+ * never started a session), NOT as a second guarantee, and this paragraph exists so that nobody deletes
+ * the blank test on the belief that the NULL test is holding the line. That belief is exactly what the
+ * measurement disproved. `tests/inngest/didit-reconcile.test.ts` case 6 drives BOTH a null handle and a
+ * whitespace handle for the same reason: an unmeasured guard is a guard nobody knows the state of.
+ *
+ * The blank case is not hypothetical vendor-side, either: today the only writer of that column is the
+ * submission path, which stores a session handle the vendor itself returned — but "the value is ours" is
+ * a property of today's writer rather than of this query, and a blank handle would address `/v3/session//
+ * decision/`, a different endpoint entirely.
  *
  * Takes an explicit `dbConn` so an isolated-schema test can inject a connection; defaults to the prod `db`.
  */
