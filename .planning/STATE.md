@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Front-End Polish & Placeholder Design System
 status: executing
-stopped_at: "Phase 18.1 wave 1-2: plans 01/02/03 complete; BLOCKED on 18.1-04 Task 1 human-action checkpoint (Didit Console account + 3 credentials in .env.local)"
-last_updated: "2026-09-01T21:04:10.056Z"
-last_activity: 2026-09-01
+stopped_at: "Phase 18.1 wave 1-2: plans 01/02/03/04 complete. The 18.1-04 credential gate is CLEARED (sandbox + live Didit applications exist, workflow FitOut Host Verification = OCR + LIVENESS + FACE_MATCH, no AML, no KYC-expiry, 3 credentials in .env.local). Wave 2 (18.1-05, 18.1-06) is now runnable."
+last_updated: "2026-09-02T03:49:40.634Z"
+last_activity: 2026-09-02
 progress:
   total_phases: 16
   completed_phases: 12
   total_plans: 177
-  completed_plans: 171
+  completed_plans: 172
   percent: 75
 ---
 
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** **Phase 18.1 — Close Phase 18: the verification path FitOut is legally required to have.** Executing: **3 of 14 plans done** (18.1-01 — the requirement ledger `HVER-06..08` / `LVER-05` / `OPS-06`, plus D-236: `OPS_CANCEL_REFUNDS_SERVICE_FEE = true`, and an `ENF-03` amendment because that requirement asserted the opposite of the shipped refund; 18.1-02 — F11/D-260, a suspended host's `/host/earnings` names the frozen session via the new `src/lib/host/frozen-payouts.ts` inverted freeze query, with `payout-sweep.ts` and `tests/design/earnings-freeze.test.ts` both byte-unchanged; 18.1-03 — D-231, `title` + `description` join the material-field set, `MATERIAL_FIELDS` is now the seven, plus an `LVER-03` amendment for the same class of stale-requirement defect). **BLOCKED: 18.1-04 Task 1 is a `checkpoint:human-action` gate="blocking"** — the operator must create the Didit sandbox + live applications, compose the workflow as exactly ID Verification + Liveness + Face Match (NO AML Screening, NO KYC expiration policy), and place `DIDIT_API_KEY`, `DIDIT_WORKFLOW_ID`, `DIDIT_WEBHOOK_SECRET` in the git-ignored `.env.local`. **All ten remaining plans (05-14) depend on 18.1-04**, so nothing else in this phase is runnable until that gate clears. ⚠ `neon link` / `neon deploy` overwrite `.env.local` — always pass `--no-env-pull`. Two constraints carried from Phase 18 and still binding: **`deriveBookable` is OFF LIMITS** — it has an inlined SQL twin in `src/lib/search/query.ts` Stage-1 and two deliberate re-statements in `src/app/actions/booking.ts` — and **gates run ALONE** (`npx tsc --noEmit`, `npm test`, `npm run test:design`, `npm run build`, each its own invocation). Worktrees remain OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
+**Current focus:** **Phase 18.1 — Close Phase 18: the verification path FitOut is legally required to have.** Executing: **4 of 14 plans done** (18.1-01 — the requirement ledger `HVER-06..08` / `LVER-05` / `OPS-06`, plus D-236: `OPS_CANCEL_REFUNDS_SERVICE_FEE = true`, and an `ENF-03` amendment because that requirement asserted the opposite of the shipped refund; 18.1-02 — F11/D-260, a suspended host's `/host/earnings` names the frozen session via the new `src/lib/host/frozen-payouts.ts` inverted freeze query, with `payout-sweep.ts` and `tests/design/earnings-freeze.test.ts` both byte-unchanged; 18.1-03 — D-231, `title` + `description` join the material-field set, `MATERIAL_FIELDS` is now the seven, plus an `LVER-03` amendment for the same class of stale-requirement defect; 18.1-04 — the credential gate CLEARED plus the port widened for an asynchronous provider). **THE 18.1-04 BLOCKER IS GONE and all ten remaining plans (05-14) are unblocked.** The operator created a SANDBOX and a LIVE Didit application — sandbox mode PROVEN, not assumed, by `sandbox_scenario: "approve"` returning 201 on the sandbox key and 400 on the live one — and `scripts/didit-setup.ts apply` composed workflow **`FitOut Host Verification`** (its UUID is `DIDIT_WORKFLOW_ID` and stays in `.env.local`, deliberately un-committed) as exactly **OCR + LIVENESS + FACE_MATCH** with **no AML module** (`is_aml_enabled: false`) and **no KYC expiration policy** (no `kyc_expir*` field exists on the record, so `Kyc Expired` is unreachable), `face_liveness_method: "PASSIVE"`. `DIDIT_API_KEY`, `DIDIT_WORKFLOW_ID` and `DIDIT_WEBHOOK_SECRET` are non-empty in the git-ignored `.env.local` and are declared EMPTY in `.env.example`; a `status.updated`-only webhook destination is registered. ⚠ `neon link` / `neon deploy` overwrite `.env.local` — always pass `--no-env-pull`. **Two NEW PM decisions arrived with that gate and are already applied to the vendor account — `D-272` (`max_retry_attempts: 7` over `retry_window_days: 7`, so the vendor can never refuse a retry D-264 has already promised) and `D-273` (`is_desktop_allowed: false`, so `/host/verify` must say "continue on your phone" BEFORE the host presses anything).** Both are written up in `18.1-RESEARCH.md § ADDENDUM B8` and both are 18.1-11's / 18.1-14's to keep. ⚠ `18.1-RESEARCH.md § ADDENDUM A` and `§ ADDENDUM B` supersede parts of that document's body — B1 FALSIFIES R4's "no vendor retry cap". Two constraints carried from Phase 18 and still binding: **`deriveBookable` is OFF LIMITS** — it has an inlined SQL twin in `src/lib/search/query.ts` Stage-1 and two deliberate re-statements in `src/app/actions/booking.ts` — and **gates run ALONE** (`npx tsc --noEmit`, `npm test`, `npm run test:design`, `npm run build`, each its own invocation). Worktrees remain OFF (`workflow.use_worktrees: false`) so plans run SEQUENTIALLY on `dev`, one executor at a time.
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -45,9 +45,9 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 Phase: 18.1 (close-phase-18-verification-submission-didit-listing-gate) — EXECUTING
 Previous: 18 — Host Verification, Listing Review & FitOut Ops (executed + verified; checkbox held open until 18.1 ships)
-Plan: 4 of 14
+Plan: 5 of 14
 Status: Ready to execute
-Last activity: 2026-09-01
+Last activity: 2026-09-02
 
 <details><summary>Previous activity (18-12, superseded)</summary>
 
@@ -1237,6 +1237,11 @@ Recent decisions affecting current work:
 - [Phase ?]: 18.1-02 design rule: a read module that REPORTS someone else's invariant spells the predicate out a second time instead of sharing a negated helper. frozen-payouts.ts carries three argued divergences from queryDuePayouts (INNER + = suspended vs LEFT + COALESCE <>; p.id IS NULL alone, dropping the WR-04 failed-retry branch; no SWEEP_BATCH_SIZE) so a drift stays visible as a difference between two readable predicates. payout-sweep.ts is byte-unchanged — ENF-02's invariant did not move.
 - [Phase ?]: D-231 discharged (18.1-03): MATERIAL_FIELDS is the SEVEN — title and description joined the five. A words-only edit returns an approved/grandfathered/rejected listing to review; accepted cost recorded unsoftened in four places (a typo fix in a description takes the listing off the market until ops re-approves).
 - [Phase ?]: MEASURED (18.1-03): MATERIAL_FIELDS is documentation-with-a-type, NOT a dispatch table — mutating the tuple reddens only the set-equality case (1 red); the behavioural proof needs a separate mutation on materialEdit in listing.ts (3 reds, one per state sweep).
+- [Phase ?]: FINDING F-5 DECIDED (18.1-04) as option (b), TWO ENTRY POINTS, argued in port.ts's header. `verify(decision)` keeps its single meaning — a verdict handed in — and stays the only member of `VerificationProvider`; a provider that must first ASK exposes its own `beginVerification`, which is deliberately NOT on the interface and NOT reachable through `runVerification`. Option (a), widening `VerificationDecision` into a `{kind}` union, is rejected in writing: it changes the contract type BOTH providers implement to model a moment only ONE of them has, and it is how one branch point becomes two.
+- [Phase ?]: The port is ASYNC-CAPABLE (18.1-04): `VerificationProvider.verify` returns `VerificationResult | Promise<VerificationResult>` and `runVerification` awaits it. `isVerified` stays SYNCHRONOUS on purpose — the un-awaited form is now a compile error rather than a quiet `false` for a verified host. The header's four-year-old promise ("one edit plus one await, not a call-site sweep") is now MEASURED: exactly two non-test call sites, both in ops-review.ts.
+- [Phase ?]: MEASURED (18.1-04): the plan's own acceptance grep `grep -c "runVerification" src/app/actions/ops-review.ts` returns 3, not 2 — the third line is the IMPORT, which was there before the plan and would have made the criterion unsatisfiable at any point in history. The property it was reaching for (no third CALL SITE) holds: 1 import + 2 awaited calls. Do not "fix" the code to satisfy the grep.
+- [Phase ?]: 18.1-04 did NOT tick HVER-07. Its own traceability row names six plans (18.1-04, -05, -06, -08, -09, -14) and Didit is not wired until 18.1-05; ticking a multi-plan requirement at its first plan is the stale-ledger defect 18.1-01 and 18.1-03 each had to repair one requirement over.
+- [Phase ?]: D-272 and D-273 (PM, 2026-09-02) are INHERITED by 18.1-04 from the Task-1 account probe, not made by it: `max_retry_attempts: 7` / `retry_window_days: 7` restates D-264's COOLDOWN_HOURS=24 in the vendor's units so Didit can never refuse a retry FitOut has already promised (B1 falsified RESEARCH R4's "no vendor cap"), and `is_desktop_allowed: false` keeps the hosted flow mobile-only. ⚠ If COOLDOWN_HOURS ever changes, DECLARED_RETRY in scripts/didit-setup.ts changes in the SAME COMMIT. D-273 makes 18.1-14's Assumption A8 phone walk REQUIRED rather than optional.
 
 ### Pending Todos
 
