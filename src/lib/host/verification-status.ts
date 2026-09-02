@@ -25,6 +25,23 @@
 // `tests/payments/payout-suspension-freeze.test.ts` gained a case in the same commit that pins the two
 // answers as agreeing across every value of the enum, per D-253's standing instruction.
 //
+// ⚠ WHY `updatedAt` IS ON THIS SHARED READ AND NOT A SECOND QUERY IN THE PAGE (18.1-04 / D-264).
+// The retry cooldown a rejected host may act on is derived from `host_verification.updated_at`: the
+// submission action's guarded UPDATE carries `AND updated_at < now() - interval '…'` in its OWN
+// WHERE, so a 0-row result is the single calm refusal and there is no branch a later edit can
+// forget. The host surface has to SHOW that same instant ("you can try again after …"), and a
+// displayed instant that disagrees with the server's guard is precisely the TWO-AUTHORITIES defect
+// PROJECT D-130 / GATE-05 is named for — a second read in the page would be cheaper to write and
+// would be the wrong shape, because it makes the display a second authority on a rule the server
+// already owns. So the column is returned HERE, once, and every surface reads the same value the
+// WHERE clause reads. It is ADDITIVE: the three shipped readers keep compiling untouched.
+// ⚠ AND IT IS `updated_at`, NEVER `created_at`. `created_at` is about to become MUTABLE — a
+// resubmission re-stamps it so a returning host re-enters the ops queue at resubmission time rather
+// than jumping the line with their original timestamp (the D-249 rule, host-side). A cooldown read
+// off a column that moves for a different reason would silently reset itself.
+// ⚠ THE HEADER RULE ABOVE STILL GOVERNS: when there is NO ROW there is nothing to have been updated,
+// so `updatedAt` is `null` — the same absence `unverified` and `suspended: false` already encode.
+//
 // NON-CLIENT MODULE — no directive prologue, no client-only import, for the reason
 // `src/components/host/payout-status.ts` records: a "use client" module's exports become client
 // references when a Server Component imports them and cannot be invoked server-side, which crashed
@@ -48,6 +65,12 @@ export type HostVerificationState = {
   readonly reason: string | null;
   /** ENF-01/ENF-02's state, positively spelled: hosting is paused and payouts are frozen (D-233). */
   readonly suspended: boolean;
+  /**
+   * When this row last moved — the SAME column the submission action's cooldown WHERE reads (D-264).
+   * `null` when there is no row, because nothing has been updated. See the header for why the
+   * display must derive from this and never from a second read.
+   */
+  readonly updatedAt: Date | null;
 };
 
 /**
@@ -64,7 +87,11 @@ export async function loadHostVerification(
   hostId: string,
 ): Promise<HostVerificationState> {
   const rows = await dbConn
-    .select({ status: hostVerification.status, reason: hostVerification.reason })
+    .select({
+      status: hostVerification.status,
+      reason: hostVerification.reason,
+      updatedAt: hostVerification.updatedAt,
+    })
     .from(hostVerification)
     .where(eq(hostVerification.userId, hostId));
 
@@ -77,5 +104,9 @@ export async function loadHostVerification(
     // `suspended` branch. Blanking it here would make this helper the wrong owner of that decision.
     reason: rows[0]?.reason ?? null,
     suspended,
+    // The column is NOT NULL in the table, so the only `null` this can produce is the NO-ROW case —
+    // which is the header's rule, not a missing value: nothing has been updated because nothing has
+    // been written. A caller computing a cooldown from `null` must read it as "no submission yet".
+    updatedAt: rows[0]?.updatedAt ?? null,
   };
 }
