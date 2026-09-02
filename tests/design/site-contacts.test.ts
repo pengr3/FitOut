@@ -76,13 +76,19 @@
 // GREEN, in BOTH states, because a two-state gate has two greens and only recording one of them
 // would hide exactly the branch that has never run:
 //
-//   • `SUPPORT_EMAIL === null` (today)              → **28 passed | 3 skipped (31)**
-//   • `SUPPORT_EMAIL` set + the link rendered       → **25 passed | 6 skipped (31)**
+//   • `SUPPORT_EMAIL === null` (today)              → **29 passed | 3 skipped (32)**
+//   • `SUPPORT_EMAIL` set + the link rendered       → **25 passed | 7 skipped (32)**
 //
-// Both re-measured 24 August 2026 after the inventory landed; they read 23|3 (26) and 20|6 (26)
-// before it. The five new tests are the inventory-shape row, the reach assertion, and the trio
-// running a second time over `src/lib/email-shell.ts`. The counts moving TOGETHER is the visible
-// proof the additions run in both states rather than only in the one that happens to execute today.
+// Re-measured 24 August 2026 after the inventory landed (28|3 (31) and 25|6 (31)); they read 23|3
+// (26) and 20|6 (26) before it. The five tests that arrived then are the inventory-shape row, the
+// reach assertion, and the trio running a second time over `src/lib/email-shell.ts`. The counts
+// moving TOGETHER is the visible proof the additions run in both states rather than only in the one
+// that happens to execute today.
+//
+// ⚠ PLAN 18.1-13 ADDED ONE MORE, NULL-BRANCH ONLY — the `EXCLUDED_MAILTO` guard-the-guard — which is
+// why the null branch gained a pass and the non-null branch gained a SKIP. That asymmetry is correct
+// rather than an omission: the row it guards is an exemption from the null branch's zero, so there is
+// nothing for it to assert in the state where the footer is supposed to render an address.
 //
 // The skip counts are the branch selector working: `describe.runIf` stands the other state's block
 // down, and the numbers moving in opposite directions is the visible proof that BOTH blocks exist.
@@ -234,9 +240,15 @@
 //   • Comments are invisible BY CONSTRUCTION, not by stripping — the walk is over AST literal and
 //     JSX-text nodes, which comments never produce. `src/lib/site.ts` and `site-footer.tsx` both
 //     discuss `mailto:` and addresses at length in prose, and must be able to keep doing so.
-//   • `EXCLUDED_ADDRESSES` is a DECLARATION that matches the tree today. If a future plan adds a
-//     legitimate address-shaped literal, the honest change is a row WITH ITS REASON — never a
-//     loosened regex.
+//   • `EXCLUDED_ADDRESSES` and `EXCLUDED_MAILTO` are DECLARATIONS that match the tree today. If a
+//     future plan adds a legitimate address-shaped literal, or a `mailto:` that is not FitOut
+//     publishing a way to be reached, the honest change is a row WITH ITS REASON — never a loosened
+//     regex and never a relaxed `unguardedMailto`.
+//   • ⚠ AND THE NULL BRANCH'S `mailto:` CLAUSE IS NO LONGER "ZERO". Since plan 18.1-13 it reads
+//     "zero except one declared row" (the ops contact reveal, OPS-06/D-271 — see `EXCLUDED_MAILTO`
+//     for the direction argument). That is strictly weaker than zero and is stated here, not only at
+//     the map, so a reader of this footer does not over-trust the clause. Re-read it the day
+//     `SUPPORT_EMAIL` is set.
 
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, existsSync } from "node:fs";
@@ -326,6 +338,43 @@ const EXCLUDED_ADDRESSES: Readonly<Record<string, string>> = {
   "src/app/(auth)/signup/page.tsx — you@example.com": "Same email-input placeholder, signup form.",
   "src/components/group/rsvp-form.tsx — you@example.com":
     "Same email-input placeholder, the group RSVP form's optional notify-me field.",
+};
+
+/**
+ * EVERY `mailto:` LITERAL IN `src/` THAT IS NOT FITOUT PUBLISHING AN ADDRESS TO WRITE TO, WITH THE
+ * REASON IT IS ONE. Keyed `file — literal`, exactly as `EXCLUDED_ADDRESSES` above is.
+ *
+ * ⚠ THIS IS THE ONE PLACE THIS GATE GOT WEAKER, AND IT IS RECORDED AS A COST RATHER THAN A
+ * HOUSEKEEPING NOTE. The null branch's `mailto:` clause used to read *"zero"*; it now reads *"zero
+ * except one declared row"*, which is strictly less than zero. It should be re-read the day
+ * `SUPPORT_EMAIL` is set.
+ *
+ * WHY THE EXEMPTION IS THE RIGHT SHAPE ANYWAY. D-26's subject is FitOut PUBLISHING an address for a
+ * stranger to write TO — a support affordance the app cannot honour, offered to whoever loads the
+ * page. The ops contact reveal is the INVERSE DIRECTION: an authenticated staff member, behind
+ * `requireStaff()`, composing TO a host whose address FitOut already holds and already stores, on a
+ * console D-219 makes indistinguishable from a route that does not exist. Nothing about it is a claim
+ * that FitOut can be reached.
+ *
+ * AND WHY IT IS A MAP RATHER THAN A RELAXED `unguardedMailto`. Relaxing the scanner — dropping the
+ * clause, or exempting a directory — would re-open the footer/email-shell hole D-26 exists to close
+ * FOR EVERY FILE AT ONCE, silently, at the moment somebody adds a "Contact support" link back to the
+ * footer. A keyed row cannot do that: it names one file and one literal, it carries a mandatory
+ * reason, and the guard-the-guard below proves the SCANNER STILL FINDS THAT LITERAL — so a typo in a
+ * key fails loudly instead of quietly widening the ban into a hole.
+ *
+ * ⚠ THE NON-NULL BRANCH IS UNTOUCHED by this and must stay so: it is about the footer rendering the
+ * real address exactly once, and this row is not in the footer.
+ */
+const EXCLUDED_MAILTO: Readonly<Record<string, string>> = {
+  "src/components/ops/ops-contact-reveal.tsx — mailto:":
+    "OPS-06 / D-271 — the internal ops console's host-contact reveal. This composes a message TO a " +
+    "host, from a signed-in staff member, using an address FitOut already stores; it publishes " +
+    "nothing to anybody and it is not reachable without a staff session (`requireStaff()` is the " +
+    "action's first statement, and D-219 makes the whole route group answer a 404 to everybody " +
+    "else). The literal is the SCHEME alone — the address is interpolated from a server action's " +
+    "return value at render time and appears in no source file at all, which is also why " +
+    "`EXCLUDED_ADDRESSES` needs no row for it.",
 };
 
 /** An address-shaped literal. Deliberately loose: over-matching here costs a declared row, never a miss. */
@@ -503,10 +552,23 @@ function scanTree(dir: string): Scan {
 // against the real tree today can still be run against a fixture.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
-/** Every `mailto:` literal NOT enclosed by a verified guard, rendered `file:line — "text"`. */
+/**
+ * Every `mailto:` literal NOT enclosed by a verified guard, rendered `file:line — "text"`.
+ *
+ * ⚠ MINUS THE DECLARED `EXCLUDED_MAILTO` ROWS (plan 18.1-13). The filter is on the KEYED PAIR, never
+ * on the file alone and never on the literal alone: an exemption that travelled without its site
+ * could wave through the same scheme appearing somewhere it has no business being, which is the
+ * reason `EXCLUDED_ADDRESSES` is keyed the same way. The clause itself is NOT relaxed — see the map's
+ * docblock for why relaxing it would re-open D-26's hole for every file at once.
+ */
 function unguardedMailto(scan: Scan): string[] {
   return scan.literals
-    .filter((l) => l.text.includes(MAILTO) && !l.guarded)
+    .filter(
+      (l) =>
+        l.text.includes(MAILTO) &&
+        !l.guarded &&
+        !(`${l.file} — ${l.text}` in EXCLUDED_MAILTO),
+    )
     .map((l) => `${l.file}:${l.line} — ${JSON.stringify(l.text)}`);
 }
 
@@ -769,6 +831,48 @@ describe.runIf(SUPPORT_EMAIL === null)(
           foundKeys.has(key),
           `EXCLUDED_ADDRESSES declares "${key}" but the scan no longer finds it. A stale exemption ` +
             `waves through whatever appears at that path next — delete the row instead.`,
+        ).toBe(true);
+      }
+    });
+
+    it("every EXCLUDED_MAILTO row has a real reason, and the scanner still finds its literal", () => {
+      // GUARD THE GUARD for the one exemption plan 18.1-13 added, in both directions — the shape
+      // `EXCLUDED_ADDRESSES` gets above, for the identical reason. The clause it exempts from is
+      // `unguardedMailto`'s zero, so:
+      //
+      //   • A MAP THAT IS EMPTY means the exemption was deleted without the call site being fixed,
+      //     and the zero above is then green for the wrong reason.
+      //   • A ROW WHOSE FILE OR LITERAL HAS DRIFTED (a rename, a typo in the key, a switch to a
+      //     template literal) stops matching, so the `mailto:` it was meant to declare becomes an
+      //     UNDECLARED one — and the row itself becomes a permanent licence for whatever appears at
+      //     that path next. Both halves fail here rather than passing quietly.
+      expect(
+        Object.keys(EXCLUDED_MAILTO).length,
+        "EXCLUDED_MAILTO is empty. If the ops contact reveal's compose anchor was removed, delete " +
+          "this assertion with it; if it was renamed, the row moves with it.",
+      ).toBeGreaterThan(0);
+
+      const foundPairs = new Set(
+        scan.literals.filter((l) => l.text.includes(MAILTO)).map((l) => `${l.file} — ${l.text}`),
+      );
+
+      for (const [key, why] of Object.entries(EXCLUDED_MAILTO)) {
+        expect(why.length, `EXCLUDED_MAILTO["${key}"] has no reason`).toBeGreaterThan(40);
+
+        const [file] = key.split(" — ");
+        expect(
+          existsSync(resolve(process.cwd(), file)),
+          `EXCLUDED_MAILTO declares "${key}" but ${file} is not on disk`,
+        ).toBe(true);
+        expect(
+          scan.walked,
+          `EXCLUDED_MAILTO declares "${key}" but the walker never opened ${file}`,
+        ).toContain(file);
+        expect(
+          foundPairs.has(key),
+          `EXCLUDED_MAILTO declares "${key}" but the scanner no longer finds that literal in that ` +
+            `file. A stale exemption waves through whatever appears at that path next — fix the key ` +
+            `or delete the row. (Found: ${[...foundPairs].join(" | ") || "no mailto: literal at all"})`,
         ).toBe(true);
       }
     });

@@ -232,12 +232,17 @@ import { HOST_VERIFICATION_REGION_NAME } from "@/lib/host/verification-signal";
 const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
 
 /**
- * The declared file count, pinned HERE as well as at `DeclaredFileCountIsThirty`.
+ * The declared file count, pinned HERE as well as at `DeclaredFileCountIsThirtyOne`.
+ *
+ * ⚠ THE ALIAS NAME CARRIES THE NUMBER, so a reference to it goes stale the moment the set moves. Both
+ * of this file's references to it move with the rename, and that is the point of naming it in prose at
+ * all: a message pointing at a symbol that no longer exists is a message that costs the next reader a
+ * grep.
  *
  * Two places on purpose. The type alias fails the build; this fails the gate that reads the set, with a
- * message. Plans 12-12, 12-13, 13-14, 14-14, 15-09, 16-09 and 16-10 each moved BOTH, in the commit that added
- * their component — a set that widened in one place and not the other is the exact drift T-12-06-SETDRIFT
- * names.
+ * message. Plans 12-12, 12-13, 13-14, 14-14, 15-09, 16-09, 16-10, 18-10, 18.1-11 and 18.1-13 each
+ * moved BOTH, in the commit that added their component — a set that widened in one place and not the
+ * other is the exact drift T-12-06-SETDRIFT names.
  *
  * TEN as of plan 12-12, which added `src/components/search/relax-band.tsx` (STATE-03's relaxation band,
  * `role="status"`, one announcement on arrival). ELEVEN as of plan 12-13, which added
@@ -306,12 +311,23 @@ const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
  * half of that rule named the host TOOLING — the surfaces a host uses to run a business they already
  * have — and `/host/verify` is upstream of all of it: it is where somebody asks to be allowed to sell.
  *
- * ⚠ AND IT IS THE FIRST STEP OF A TWO-STEP BUDGET. 18.1-UI-SPEC row 7 reads 29 -> 31 because the phase
- * authors a region in two new files; plan 18.1-13 takes this to 31 when the ops contact-reveal island
- * exists. Both cannot be declared at once, because every declared file must exist and must contain its
- * region — the same pass-through 16-UI-SPEC's 26 -> 28 budget made, for the same reason.
+ * ⚠ AND IT WAS THE FIRST STEP OF A TWO-STEP BUDGET. 18.1-UI-SPEC row 7 reads 29 -> 31 because the
+ * phase authors a region in two new files; both could not be declared at once, because every declared
+ * file must exist and must contain its region — the same pass-through 16-UI-SPEC's 26 -> 28 budget
+ * made, for the same reason.
+ *
+ * THIRTY-ONE AS OF PLAN 18.1-13, which closed that budget by adding
+ * `src/components/ops/ops-contact-reveal.tsx` — the `/ops` queue row's host-contact affordance
+ * (OPS-06 / D-257 / D-271) — carrying ONE region: the refusal slot the reveal action's two sentences
+ * share.
+ *
+ * ⚠ ITS SUCCESS PATH OWES NO REGION, AND FOR A REASON NEITHER EARLIER FILE HAD. The ops decision row
+ * owes none because the surface disappears; the host verification panel owes none because the HOST
+ * disappears, to another origin. Here neither happens: the announcement is the MOVED FOCUS onto the
+ * revealed email anchor (GATE-03 rule 7), and a polite region beside that move would be two
+ * announcements for one outcome. Each reason is written at its own site rather than generalised.
  */
-const DECLARED_FILE_COUNT = 30;
+const DECLARED_FILE_COUNT = 31;
 
 /** A file this size is a stub or a truncated read; every declared file is far larger. */
 const MIN_FILE_BYTES = 200;
@@ -654,9 +670,9 @@ describe("guard-the-guard — the scan read the set it is asserting about", () =
     expect(
       SCAN_FILES.length,
       `the declared set is ${SCAN_FILES.length} files, not ${DECLARED_FILE_COUNT}. This number is ` +
-        "pinned in TWO places — `DeclaredFileCountIsThirty` in `src/lib/design/live-regions.ts` " +
+        "pinned in TWO places — `DeclaredFileCountIsThirtyOne` in `src/lib/design/live-regions.ts` " +
         "fails the build, and this fails the gate with a message. Plans 12-12, 12-13, 13-14, 14-14, " +
-        "15-09, 16-09, 16-10, 18-10 and 18.1-11 " +
+        "15-09, 16-09, 16-10, 18-10, 18.1-11 and 18.1-13 " +
         "each moved BOTH, in the same commit as the components they add. A set that widened in one " +
         "place and not the other is exactly the drift T-12-06-SETDRIFT names.",
     ).toBe(DECLARED_FILE_COUNT);

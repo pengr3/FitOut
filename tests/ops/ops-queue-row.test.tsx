@@ -11,6 +11,13 @@
 //     rendered row is a link" are only the same statement if the container honours the absence, which
 //     is what this asserts against the output, with the router link stubbed to a plain anchor so a
 //     re-added destination shows up as one.
+//     ⚠ SINCE PLAN 18.1-13 THE CLAIM IS "ZERO DESTINATIONS", NOT "ZERO ANCHORS", and the difference
+//     is one declared scheme rather than a loosened rule. D-271's contact reveal renders a compose
+//     anchor once an operator has pressed for it; a compose anchor hands the address to a mail
+//     client and navigates this document NOWHERE, so the terminal property is untouched by it. The
+//     exemption is one scheme, capped at one per row, with `[role="link"]` still at zero — and the
+//     filter that implements it has its OWN both-directions guard, because a filter that dropped
+//     every anchor would satisfy the zero above permanently.
 //   • EVERYTHING NEEDED TO DECIDE IS ON THE ROW. D-231's five material fields plus the OTHER term of
 //     the sell-gate, read as `<dt>`/`<dd>` PAIRS so a re-ordered list cannot pass by position.
 //   • A HOST ROW HAS NO DOCUMENT AFFORDANCE, because no document exists (HVER-02 / D-206 / D-220).
@@ -32,8 +39,8 @@
 // (`"use server"` → the DB + `next/headers`).
 
 import * as React from "react";
-import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, cleanup, within } from "@testing-library/react";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { act, render, cleanup, fireEvent, within } from "@testing-library/react";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -59,22 +66,75 @@ vi.mock("@/app/actions/ops-review", () => ({
   rejectListing: vi.fn(),
 }));
 vi.mock("@/app/actions/cancel-booking", () => ({ cancelBookingAsOps: vi.fn() }));
+// D-271 / OPS-06. Stubbed for the same reason the four decision actions are: its only server
+// coupling is a `"use server"` module (the DB + `next/headers`). What it RETURNS is set per case, so
+// the revealed state is reachable in jsdom without a session, a database or a network.
+vi.mock("@/app/actions/ops-contact", () => ({ revealHostContact: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+import { revealHostContact } from "@/app/actions/ops-contact";
 import {
   OpsQueueRow,
   type OpsQueueHostRow,
   type OpsQueueListingRow,
 } from "@/components/ops/ops-queue-row";
+import { OPS_CONTACT_REGION_NAME } from "@/components/ops/ops-contact-reveal";
 import type { OpsCancelImpact } from "@/lib/ops/cancel-impact";
 
 afterEach(cleanup);
+beforeEach(() => vi.mocked(revealHostContact).mockReset());
 
 const HOST_NAME = "Ana Reyes";
 const LISTING_TITLE = "Sunset Court";
 const WAIT = "Waiting 6 days";
 const SUBMITTED = "Aug 26, 2026";
 const PRICE = "₱1,000.00/hr";
+
+/**
+ * The two revealed values (D-271 / OPS-06).
+ *
+ * ⚠ NEITHER MATCHES `DOCUMENT_WORDS` BELOW, and that is checked by eye here because the scan runs
+ * over the row's whole text: an address containing "id" as a word, or a domain spelling "license",
+ * would fail the no-fabricated-document-affordance clause for a reason that has nothing to do with
+ * what that clause is about.
+ */
+const HOST_EMAIL = "ana.reyes@example.test";
+const HOST_PHONE = "0917 555 0110";
+
+/** The one anchor shape the row may render. See the header's TERMINAL note. */
+const COMPOSE_ANCHOR = 'a[href^="mailto:"]';
+
+/** How many of them a row may render. One host, one address, one way to write to them. */
+const MAX_COMPOSE_ANCHORS = 1;
+
+/**
+ * Every anchor in the row that is NOT the one declared compose exception — i.e. every DESTINATION.
+ *
+ * This is the amendment plan 18.1-13 made to assertion 1, and it is a filter rather than a deleted
+ * clause on purpose: deleting the clause would license a detail page you click into to see the
+ * photos, which is precisely what OPS-04 / D-246 forbid. Guarded in both directions below.
+ */
+function destinationAnchors(card: HTMLElement): Element[] {
+  return Array.from(card.querySelectorAll("a")).filter((a) => !a.matches(COMPOSE_ANCHOR));
+}
+
+/** The accessible name the interactive-set assertions compare on — an `aria-label`, else the text. */
+function nameOf(element: Element): string | null {
+  return element.getAttribute("aria-label") ?? element.textContent;
+}
+
+/**
+ * Press the reveal and let the stubbed action's promise settle.
+ *
+ * `act` around the click because the island sets state in a `.then` continuation: without it React
+ * warns and — worse for a test — the assertions run against the pre-resolution render.
+ */
+async function revealContact(card: HTMLElement, subject: string = HOST_NAME): Promise<void> {
+  const control = within(card).getByRole("button", { name: `Show contact for ${subject}` });
+  await act(async () => {
+    fireEvent.click(control);
+  });
+}
 
 /** The four declared type roles (`src/lib/utils.ts`'s `TYPE_ROLES`), as the utilities that carry them. */
 const ROLE_CLASSES = ["text-display", "text-heading", "text-body", "text-label"] as const;
@@ -187,18 +247,34 @@ function typeRoleOf(element: Element): string | null {
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("OPS-04 / D-246 — the queue row browses nowhere", () => {
-  it("renders zero anchors and zero link-role elements, on BOTH kinds", () => {
+  it("renders zero DESTINATION anchors and zero link-role elements, on BOTH kinds", () => {
     for (const row of [hostRow(), listingRow()]) {
       cleanup();
       const card = renderRow(row);
 
       expect(
-        card.querySelectorAll("a"),
-        "an anchor is inside the queue row. The row is TERMINAL: a detail page you click into to " +
-          "see the photos is precisely what OPS-04 and D-246 forbid, and a second place carrying " +
-          "approve/reject is a second place that has to be kept in agreement with this one.",
+        destinationAnchors(card),
+        "a DESTINATION anchor is inside the queue row. The row is TERMINAL: a detail page you " +
+          "click into to see the photos is precisely what OPS-04 and D-246 forbid, and a second " +
+          "place carrying approve/reject is a second place that has to be kept in agreement with " +
+          "this one.\n\n" +
+          "⚠ THE ONE EXEMPTION IS ONE SCHEME, ONE COUNT, ONE REASON (plan 18.1-13 / D-271): an " +
+          "anchor whose href begins `mailto:` is a COMPOSE ACTION, not navigation — it hands the " +
+          "address to a mail client and moves this document nowhere, so the row still browses " +
+          "nowhere. Anything else here is a destination, whatever it is called. Do NOT widen the " +
+          "filter to make a new href pass; a second scheme is a second argument, and deleting the " +
+          "clause outright licenses exactly the detail page this row exists without.",
       ).toHaveLength(0);
 
+      expect(
+        card.querySelectorAll(COMPOSE_ANCHOR).length,
+        `the row rendered more than ${MAX_COMPOSE_ANCHORS} compose anchor. One host has one ` +
+          "address; a second is either a duplicate or a value that belongs to somebody else.",
+      ).toBeLessThanOrEqual(MAX_COMPOSE_ANCHORS);
+
+      // UNCHANGED, AND IT IS THE HALF THAT DID NOT MOVE. A `role="link"` element claims to be a
+      // destination and is not exempted by anything: it is the shape a "make the row clickable"
+      // change takes when somebody already knows an anchor would be filtered.
       expect(card.querySelectorAll('[role="link"]')).toHaveLength(0);
     }
   });
@@ -210,16 +286,98 @@ describe("OPS-04 / D-246 — the queue row browses nowhere", () => {
     expect(container.querySelectorAll("a")).toHaveLength(1);
   });
 
-  it("a host row has exactly TWO interactive descendants, and they are the two decisions", () => {
+  it("the compose exemption is a FILTER that still reports a destination, in both directions", () => {
+    // The case above guards the raw selector; this one guards the EXEMPTION plan 18.1-13 added. A
+    // filter that dropped every anchor — `() => []`, or a predicate matching `a` rather than the
+    // scheme — would satisfy the zero above permanently and indistinguishably from a clean row.
+    const { container } = render(
+      <div data-testid="row-card">
+        <a href="/listings/lst_1">A destination</a>
+        <a href={`mailto:${HOST_EMAIL}`}>{HOST_EMAIL}</a>
+      </div>,
+    );
+    const card = container.querySelector('[data-testid="row-card"]') as HTMLElement;
+
+    expect(card.querySelectorAll("a"), "the fixture did not render two anchors").toHaveLength(2);
+    expect(
+      destinationAnchors(card).map((a) => a.getAttribute("href")),
+      "the exemption filter swallowed a page destination, so assertion 1's zero means nothing",
+    ).toEqual(["/listings/lst_1"]);
+    expect(
+      card.querySelectorAll(COMPOSE_ANCHOR),
+      "…and the declared scheme is not found by the exemption's own selector",
+    ).toHaveLength(1);
+  });
+
+  it("a host row has exactly THREE interactive descendants, in DOM order", () => {
     const card = renderRow(hostRow());
     const operable = Array.from(card.querySelectorAll(INTERACTIVE));
 
     expect(
-      operable.map((el) => el.getAttribute("aria-label") ?? el.textContent),
-      "the host row grew an interactive descendant beyond its two decisions. On a host row in " +
-        "particular this is how a fabricated document affordance arrives — a disabled control that " +
-        "suggests an upload is coming.",
-    ).toEqual([`Approve ${HOST_NAME}`, `Reject ${HOST_NAME}`]);
+      operable.map(nameOf),
+      "the host row's interactive set is not the declared THREE, in DOM order.\n\n" +
+        "⚠ THE THIRD IS D-271'S CONTACT REVEAL, AND A FOURTH IS STILL FORBIDDEN. This array grew " +
+        "from two to three in plan 18.1-13 for one named affordance with a decision behind it — it " +
+        "was NOT loosened generically, and the next control to arrive here fails this assertion " +
+        "exactly as it would have before. On a host row in particular that control is how a " +
+        "FABRICATED DOCUMENT AFFORDANCE arrives: a disabled button suggesting an upload is coming " +
+        "for a check that has no column, no image and no ID number (HVER-02 / D-206 / D-220).\n\n" +
+        "The ORDER is asserted and is not incidental: `RowCard` renders `children` before " +
+        "`actions`, and the reveal lives in the `<dl>` inside `children`, so an operator tabbing " +
+        "the row meets the read before either decision.",
+    ).toEqual([
+      `Show contact for ${HOST_NAME}`,
+      `Approve ${HOST_NAME}`,
+      `Reject ${HOST_NAME}`,
+    ]);
+  });
+
+  it("a REVEALED host row swaps the control for the address, and stays terminal", async () => {
+    vi.mocked(revealHostContact).mockResolvedValue({
+      ok: true,
+      contact: { email: HOST_EMAIL, phone: HOST_PHONE },
+    });
+    const card = renderRow(hostRow());
+    await revealContact(card);
+
+    // The control is GONE and the address has taken its place — the same three-shaped set, one
+    // member swapped. A row that grew the anchor and KEPT the button would have four and fail.
+    expect(Array.from(card.querySelectorAll(INTERACTIVE)).map(nameOf)).toEqual([
+      HOST_EMAIL,
+      `Approve ${HOST_NAME}`,
+      `Reject ${HOST_NAME}`,
+    ]);
+
+    // The one anchor is the declared exemption, and there is still no destination and no link role.
+    expect(destinationAnchors(card)).toHaveLength(0);
+    expect(card.querySelectorAll(COMPOSE_ANCHOR)).toHaveLength(1);
+    expect(card.querySelectorAll('[role="link"]')).toHaveLength(0);
+
+    // FOCUS MOVING IS THE SUCCESS ANNOUNCEMENT (GATE-03 rule 7), which is why no second live region
+    // is owed here and none may be added. Measurable in jsdom; the 320/1280 hand-walk is 18.1-14's.
+    expect(
+      document.activeElement?.getAttribute("href"),
+      "focus did not land on the email anchor after a reveal. That move IS the announcement — " +
+        "without it a screen-reader operator presses a button and hears nothing at all.",
+    ).toBe(`mailto:${HOST_EMAIL}`);
+
+    // And the action was called with the HOST's id, not the listing's and not a label.
+    expect(vi.mocked(revealHostContact)).toHaveBeenCalledWith({ userId: "usr_1" });
+  });
+
+  it("a LISTING row reveals the host's contact too, keyed on the host id (D-271)", async () => {
+    vi.mocked(revealHostContact).mockResolvedValue({
+      ok: true,
+      contact: { email: HOST_EMAIL, phone: HOST_PHONE },
+    });
+    const card = renderRow(listingRow());
+    await revealContact(card);
+
+    // The whole content of D-271's "both kinds": an ops question is usually about a LISTING, so the
+    // way to reach the person has to be on the row carrying the subject of the question.
+    expect(vi.mocked(revealHostContact)).toHaveBeenCalledWith({ userId: "usr_1" });
+    expect(valueFor(card, "Email").textContent).toBe(HOST_EMAIL);
+    expect(destinationAnchors(card)).toHaveLength(0);
   });
 });
 
@@ -294,6 +452,107 @@ describe("OPS-04 — the evidence, per kind", () => {
     expect(valueFor(card, "Capacity").textContent).toBe("Not set");
     expect(valueFor(card, "Space type").textContent).toBe("Not set");
     expect(within(card).getByText("Untitled listing")).toBeTruthy();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// 2b — THE CONTACT REVEAL'S THREE STATES (OPS-06 / D-257 / D-271)
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// The AUDIT half of OPS-06 is `tests/ops/host-contact-reveal.test.ts`'s subject, measured against a
+// real session and read back out of the trail table. What is measured HERE is the half a render can
+// own: that nothing is in the document before a press, that a success REPLACES one fact with two
+// rather than expanding one, that an absent phone reads as a state, and that a refusal lands in the
+// island's one named region carrying the server's sentence unaltered.
+
+describe("OPS-06 / D-271 — the contact reveal, before and after a press", () => {
+  it("puts NEITHER value in the document before a press, on both kinds", () => {
+    for (const row of [hostRow(), listingRow()]) {
+      cleanup();
+      const card = renderRow(row);
+
+      // The affordance is there…
+      expect(valueFor(card, "Contact").textContent).toBe("Show contact");
+      // …and the values are not. This is the RENDERED half of the claim the server action's header
+      // argues structurally: the queue projections do not carry these columns (FINDING F-6), so
+      // there is nothing for the initial payload to have shipped and nothing for a CSS toggle to
+      // hide. A reveal that read from props would pass every other case in this file.
+      expect(card.textContent).not.toContain(HOST_EMAIL);
+      expect(card.textContent).not.toContain(HOST_PHONE);
+      expect(within(card).queryByText("Email")).toBeNull();
+      expect(within(card).queryByText("Phone")).toBeNull();
+      expect(vi.mocked(revealHostContact)).not.toHaveBeenCalled();
+    }
+  });
+
+  it("REPLACES the Contact fact with TWO facts, read as dt/dd pairs", async () => {
+    vi.mocked(revealHostContact).mockResolvedValue({
+      ok: true,
+      contact: { email: HOST_EMAIL, phone: HOST_PHONE },
+    });
+    const card = renderRow(hostRow());
+    await revealContact(card);
+
+    // TWO facts, not one line. `row-card.tsx`'s docblock records that the `<dl>` exists so the
+    // label-to-value association survives linearisation on a narrow screen, and two values crammed
+    // into one `<dd>` throws that away at exactly the width where it matters.
+    expect(valueFor(card, "Email").textContent).toBe(HOST_EMAIL);
+    expect(valueFor(card, "Phone").textContent).toBe(HOST_PHONE);
+
+    // REPLACED, not added — otherwise the row would carry a stale control beside the values it
+    // already fetched, and pressing it again would write a second audit row for no second reveal.
+    expect(
+      within(card).queryByText("Contact"),
+      "the Contact fact survived the reveal, so the row grew rather than swapped",
+    ).toBeNull();
+  });
+
+  it("renders an absent phone as \"Not provided\", never an empty <dd>", async () => {
+    // `user.phone` is nullable and self-declared at submission (D-268), so this is a real state.
+    vi.mocked(revealHostContact).mockResolvedValue({
+      ok: true,
+      contact: { email: HOST_EMAIL, phone: null },
+    });
+    const card = renderRow(hostRow());
+    await revealContact(card);
+
+    const phone = valueFor(card, "Phone");
+    expect(
+      phone.textContent,
+      "an absent phone rendered a blank cell. `addressOf()`'s precedent one file over: a blank " +
+        "cell reads as \"fine\" rather than as \"there is nothing here to check\".",
+    ).toBe("Not provided");
+    expect(phone.textContent?.trim().length).toBeGreaterThan(0);
+    // The email is still there and is still the one compose anchor — a null phone is not a failure.
+    expect(valueFor(card, "Email").textContent).toBe(HOST_EMAIL);
+    expect(card.querySelectorAll(COMPOSE_ANCHOR)).toHaveLength(1);
+  });
+
+  it("lands a refusal in ONE named region, verbatim, and returns the control to idle", async () => {
+    const SENTENCE = "Those contact details couldn't be shown. Reload the queue and try again.";
+    vi.mocked(revealHostContact).mockResolvedValue({ ok: false, error: SENTENCE });
+    const card = renderRow(hostRow());
+    await revealContact(card);
+
+    const regions = Array.from(card.querySelectorAll('[role="status"]'));
+    expect(
+      regions.map((r) => r.getAttribute("aria-label")),
+      "the reveal's refusal did not land in exactly one region named by the constant the island " +
+        "exports. `src/lib/design/live-regions.ts` declares ONE region for this file and reads " +
+        "source rather than a render, so this is the only place the rendered name is checked.",
+    ).toEqual([OPS_CONTACT_REGION_NAME]);
+    expect(
+      regions[0].textContent,
+      "the client re-authored the server's sentence. A second wording of a refusal is a second " +
+        "thing that has to be kept in agreement with the code that refused.",
+    ).toBe(SENTENCE);
+
+    // Idle again: the control is the retry, and no value leaked on the way past.
+    expect(
+      within(card).getByRole("button", { name: `Show contact for ${HOST_NAME}` }),
+    ).toBeTruthy();
+    expect(card.querySelectorAll(COMPOSE_ANCHOR)).toHaveLength(0);
+    expect(within(card).queryByText("Email")).toBeNull();
   });
 });
 

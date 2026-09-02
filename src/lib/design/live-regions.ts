@@ -463,6 +463,21 @@ export const LIVE_REGION_FILES = [
   // flow on another origin. There is no moment at which an announcement could be heard, which is a
   // stronger absence than the ops row's and is recorded rather than assumed.
   "src/components/host/verification-panel.tsx",
+  // ─── the ops contact reveal (plan 18.1-13 — the second step of the phase's 29 -> 31 budget) ─────
+  //
+  // The queue row's host-contact affordance (OPS-06 / D-257 / D-271). ONE region, carrying the
+  // reveal action's own refusal sentence — a read that failed, or the burst guard. Same membership
+  // half as the decision controls one file up: the internal ops console.
+  //
+  // ⚠ AND THIS IS THE FILE WHERE THE SUCCESS PATH OWES NO REGION FOR THE THIRD DISTINCT REASON IN
+  // THIS SET, which is worth naming because "no success region" has now been the right answer three
+  // times for three different mechanisms. The ops decision row: the surface DISAPPEARS. The host
+  // verification panel: the HOST disappears, to another origin. Here NEITHER happens — the row stays
+  // and the operator stays — and the announcement is the MOVED FOCUS (GATE-03 rule 7): the revealed
+  // `Email` value takes focus, which speaks the anchor and its `<dt>` context and lands the caret on
+  // the operator's next action in one move. A polite region saying "contact shown" beside a focus
+  // move would be two announcements for one outcome, which is the shape rule 6 forbids.
+  "src/components/ops/ops-contact-reveal.tsx",
 ] as const;
 
 /** The closed union every row's `file` is typed against. */
@@ -639,8 +654,15 @@ export type LiveRegionRow = {
  * Every region on the declared set, one id per REGION (not per file). Ordered by file, matching
  * `LIVE_REGION_FILES`, then by source order within the file.
  *
- * Thirty-four today (sixteen until plan 13-14's discharge added seven, twenty-three until plan 14-14's
- * added four, then twenty-seven until plan 15-09's five account surfaces added seven). The number is deliberately NOT pinned by a type-level assertion, unlike the file
+ * THIRTY-EIGHT today (sixteen until plan 13-14's discharge added seven, twenty-three until plan
+ * 14-14's added four, then twenty-seven until plan 15-09's five account surfaces added seven, and one
+ * each from plans 16-09, 16-10, 18-10, 18.1-11 and 18.1-13).
+ *
+ * ⚠ THIS PROSE READ "THIRTY-FOUR" AGAINST A LIST OF THIRTY-SEVEN, and the drift is corrected here
+ * rather than carried: the last three single-region plans each added an id without moving this
+ * sentence, which is exactly the failure the file-count alias exists to make impossible for FILES and
+ * which nothing makes impossible for IDS. See the note below on why that is tolerable —
+ * The number is deliberately NOT pinned by a type-level assertion, unlike the file
  * count: `tests/design/live-regions.test.tsx`'s SCAN 2 asserts this set equals the set of regions
  * actually present in the tree, which is strictly stronger than agreeing with a literal. A count
  * assertion beside a set assertion would only ever fail at the same moment, one line earlier and with
@@ -718,6 +740,10 @@ export const LIVE_REGION_IDS = [
   // would be two regions in one file, and the count is a claim about the DOM rather than about what
   // is visible at a given moment.
   "host-verification-refusal",
+  // ops/ops-contact-reveal.tsx — one region, one kind, so one ordinal. The island renders EITHER the
+  // control (with this slot beneath it) or the two revealed values, never both, so there is exactly
+  // one `role="status"` in the source however many rows the queue holds.
+  "ops-contact-refusal",
 ] as const;
 
 /** The closed union every row is typed against. */
@@ -1655,16 +1681,62 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "IT HAS TEXT OF ITS OWN AND IS NAMED ANYWAY — see its `AUTHOR_NAMED_REGIONS` row, which states " +
       "what that trade costs on a surface a host meets once.",
   },
+
+  // ─── ops/ops-contact-reveal.tsx ─────────────────────────────────────────────────────────────────
+  "ops-contact-refusal": {
+    file: "src/components/ops/ops-contact-reveal.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      "The reveal action's own sentence, verbatim, at the moment a press comes back refused — the " +
+      "read failed (a malformed id, a host row that left the queue between paint and press, or a " +
+      "query that threw), or the burst guard fired. The element is absent from the document until a " +
+      "refusal lands and is cleared on the next press, so a listener hears one sentence per press " +
+      "and never a re-read of the last one. NOTHING on the success path: the two revealed values " +
+      "appear and FOCUS MOVES to the email anchor, which is the announcement.",
+    why:
+      "RULE 1, RULE 5 and RULE 6, plus RULE 7 for the half this region deliberately does NOT carry.\n" +
+      "\n" +
+      "RULE 1 / RULE 5 — it appears strictly AFTER something the operator did, so `status` and never " +
+      "`alert`: a queue that has moved on since it was painted is the normal state of a shared " +
+      "console, not a fault of this operator's. No alarm ink, and no retry affordance — the control " +
+      "returns to idle and IS the retry.\n" +
+      "\n" +
+      "RULE 6 — ONE REGION, ONE OUTCOME, and here that means one region for the FAILURE PATH ONLY. " +
+      "The success path's announcement is rule 7's *polite region + moved focus* mechanism reduced " +
+      "to its second term: the outcome of a successful reveal is CONTENT APPEARING ELSEWHERE IN THE " +
+      "LIST — the `Contact` fact is replaced by `Email` and `Phone` — and moving focus onto the " +
+      "email anchor speaks the value, its `<dt>` context and the operator's next action in one move. " +
+      "A second polite region saying so beside that focus move would be two announcements for one " +
+      "outcome. ⚠ SO NO SUCCESS REGION MAY BE ADDED HERE, and the reason is a mechanism rather than " +
+      "an economy: it is the third distinct reason this set has had for owing no success region (the " +
+      "ops decision row's surface disappears, the host panel's host disappears, and this one's " +
+      "outcome is audible because focus moved), which is why each is written at its own site.\n" +
+      "\n" +
+      "⚠ AND THE SENTENCE IS THE SERVER'S, UNALTERED. This action returns PII and refuses for " +
+      "reasons an operator must be able to act on; a client re-wording would be a second account of " +
+      "why a disclosure did not happen, kept in agreement with the first by nothing at all.\n" +
+      "\n" +
+      "IT HAS TEXT OF ITS OWN AND IS NAMED ANYWAY — see its `AUTHOR_NAMED_REGIONS` row, which states " +
+      "what that trade costs on a row that holds two other named controls.",
+  },
 };
 
 /**
- * THE ELEVEN REGIONS WHOSE NAME COMES FROM AN `aria-label` DESPITE NOT BEING `loading`, EACH WITH THE
- * REASON IT CARRIES ONE.
+ * THE FOURTEEN REGIONS WHOSE NAME COMES FROM AN `aria-label` DESPITE NOT BEING `loading`, EACH WITH
+ * THE REASON IT CARRIES ONE.
  *
  * ⚠ NINE UNTIL PLAN 15-09, which added the two account-surface rows at the bottom: the reset-request
  * result and the profile save line. Both are case (a) and neither widens the exception's shape — the
  * five alerts the same plan declared carry their server sentences and are named by their content, as
- * every refusal on those surfaces must be.
+ * every refusal on those surfaces must be. Then twelve — plans 18-10 (the ops decision row) and
+ * 18.1-11 (the host verification panel) — and FOURTEEN with plan 18.1-13's ops contact reveal.
+ *
+ * ⚠ THIS COUNT READ "ELEVEN" AGAINST A LIST OF THIRTEEN, and it is corrected here rather than
+ * carried. The count is prose and nothing checks it, unlike the file-count alias — but a stated
+ * number that is wrong is worse than no number, because the both-directions membership assertion
+ * below is what a reader is being invited to trust and a stale count invites them to believe the list
+ * was audited more recently than it was.
  *
  * See the header's naming section for why this exists at all instead of the blanket ban it replaced.
  *
@@ -1867,6 +1939,29 @@ export const AUTHOR_NAMED_REGIONS = [
       "cannot leak which of the five it was; three words naming a CAUSE would have to pick one, and " +
       "picking one is the privacy property this region's row exists to protect.",
   },
+  {
+    id: "ops-contact-refusal",
+    name: "Contact not shown",
+    why:
+      "(b) TEXT OF ITS OWN, NAMED ANYWAY. The region carries the reveal action's sentence, and the " +
+      "VoiceOver hazard above is REAL for it rather than absent. It is named because of WHERE it " +
+      "sits: this region is inside a `<dl>` on a queue row that already holds two other " +
+      "author-named controls (`Approve {name}`, `Reject {name}`) and, once revealed, two more values " +
+      "under their own `<dt>`s. An unlabelled region on THAT surface is unaddressable by name to an " +
+      "operator working the row deliberately — and the row it sits in is one of many identical rows, " +
+      "so \"the status region\" is not a way to find anything.\n" +
+      "\n" +
+      "WHAT THE TRADE COSTS IS BOUNDED. The sentence never disappears with the announcement — it " +
+      "stays rendered beneath the control, at ordinary ink, until the operator presses again — so a " +
+      "name read instead of the content costs a re-read rather than the fact. Both sentences this " +
+      "region can hold also end in the same instruction (try again), so an operator who hears only " +
+      "the label still knows the reveal did not happen.\n" +
+      "\n" +
+      "THE NAME IS A LABEL AND NOT A PARAPHRASE: three words naming the OUTCOME (the contact was not " +
+      "shown), never the cause. Naming a cause would have to pick between a failed read and a burst " +
+      "guard, and the action deliberately answers a malformed id, a vanished host and a thrown query " +
+      "with ONE sentence so a caller cannot learn from the shape of a refusal which ids resolve.",
+  },
 ] as const satisfies readonly AuthorNamedRegion[];
 
 // ---------------------------------------------------------------------------
@@ -1877,8 +1972,8 @@ export const AUTHOR_NAMED_REGIONS = [
 type Assert<T extends true> = T;
 
 /**
- * THE DECLARED SET IS THIRTY FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it: a
- * declaration whose size nothing checks can shrink without leaving a trace, and a gate that quietly
+ * THE DECLARED SET IS THIRTY-ONE FILES. `visual-baselines.ts`'s idiom, for the same reason it uses it:
+ * a declaration whose size nothing checks can shrink without leaving a trace, and a gate that quietly
  * covers less than it claims is worse than one that covers nothing, because it is trusted.
  *
  * The alias NAME carries the number so that MOVING the set forces renaming it — it was
@@ -1893,19 +1988,28 @@ type Assert<T extends true> = T;
  * and the one-file-short spelling of the present name (described, not spelled — see the note at the
  * set itself) until plan 16-10 added the avatar FIELD that opens it, closing the pass-through
  * 16-UI-SPEC's 26 -> 28 budget always described as two moves, and `…IsTwentyNine` until plan 18-10
- * added the ops console's decision controls.
+ * added the ops console's decision controls, then the thirty-file spelling of this name until plan
+ * 18.1-13 added the ops contact-reveal island.
  *
- * ⚠ THE PRESENT NAME IS THE FIRST STEP OF ANOTHER TWO-STEP BUDGET, AND THE SEQUENCE IS RECORDED HERE
+ * ⚠ PHASE 18.1'S BUDGET WAS ANOTHER TWO-STEP ONE, AND THE SEQUENCE IS RECORDED HERE — NOW COMPLETE —
  * SO IT READS AS A DECISION RATHER THAN AS AN OVERSHOOT. 18.1-UI-SPEC § Gate Amendments row 7 budgets
  * 29 -> 31, because Phase 18.1 authors a region in TWO new files: the host verification panel and the
  * ops contact-reveal island. They cannot be declared together — this gate requires every declared file
  * to EXIST and to CONTAIN its region, so a path declared a plan early fails on both counts. So:
  *
- *   29 -> 30   plan 18.1-11, `src/components/host/verification-panel.tsx` (this name)
- *   30 -> 31   plan 18.1-13, the ops contact-reveal island
+ *   29 -> 30   plan 18.1-11, `src/components/host/verification-panel.tsx`
+ *   30 -> 31   plan 18.1-13, `src/components/ops/ops-contact-reveal.tsx` (this name) — DONE
  *
  * That is the identical shape 16-UI-SPEC's 26 -> 28 budget took, for the identical reason, and the
  * rename in between is the cost of the rule that a file's row lands in the same commit as its element.
+ *
+ * ⚠ THE SECOND STEP COST ONE RED, NOT TWO, AND THE DIFFERENCE IS THE HOP 18.1-11 ADDED. That plan
+ * watched the count fail AND its region's `aria-label` fail to resolve, because the host panel names
+ * its region from a constant exported by the copy module. The ops island declares
+ * `OPS_CONTACT_REGION_NAME` in the file that renders it — the same shape `ops-decision-actions.tsx`
+ * uses, and correct here for the reason the panel's was not: this string is INTERNAL console copy
+ * with no host-visible twin and no copy module that owns it. So the same-file hop resolved it and only
+ * the count reddened. The widened hop is still exercised by the host panel and by its own self-test.
  *
  * A `length extends number`
  * assertion would compile forever and
@@ -2054,8 +2158,8 @@ type Assert<T extends true> = T;
  * what that does and does not now resolve. Nothing was relaxed — the name must still be non-empty
  * and must still equal the string recorded below.
  */
-export type DeclaredFileCountIsThirty = Assert<
-  (typeof LIVE_REGION_FILES)["length"] extends 30 ? true : false
+export type DeclaredFileCountIsThirtyOne = Assert<
+  (typeof LIVE_REGION_FILES)["length"] extends 31 ? true : false
 >;
 
 // ---------------------------------------------------------------------------

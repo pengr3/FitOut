@@ -83,8 +83,10 @@
 //     against a real Better Auth session on an isolated schema, with the inverted predicate
 //     mutation-scored at 4 of 7 cases red.
 //   • THE ACTION CENSUS IS BY FILENAME PLUS ONE NAMED EXCEPTION. `ops-*.ts` plus
-//     `cancelBookingAsOps`. A sixth ops action added to a file matching neither is invisible — which
-//     is why the exception is DECLARED by name rather than inferred, and why the count is pinned.
+//     `cancelBookingAsOps`. An eighth ops action added to a file matching neither is invisible —
+//     which is why the exception is DECLARED by name rather than inferred, and why the count is
+//     pinned. (SEVEN as of plan 18.1-13, which added `revealHostContact` in an `ops-*.ts` file the
+//     glob finds; see `EXPECTED_OPS_ACTIONS`.)
 
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, existsSync, type Dirent } from "node:fs";
@@ -112,11 +114,25 @@ const OPS_LAYOUT = "src/app/(ops)/ops/layout.tsx";
  * cancellation paths, because it shares their refund rail, and a filename-only census would miss the
  * one ops action that MOVES MONEY. It is declared by name here rather than found, and the total is
  * pinned, so an ops action added to a file matching neither convention fails this file.
+ *
+ * THE SEVENTH IS `revealHostContact`, added by plan 18.1-13 (OPS-06 / D-257 / D-271) in
+ * `src/app/actions/ops-contact.ts`. It needs NO `EXTRA_OPS_ACTIONS` row — that filename is what the
+ * `ops-*.ts` glob is for — and `EXTRA_OPS_ACTIONS` is therefore byte-unchanged by that plan. What
+ * moved is this number and this paragraph, together, in one commit, which is what the pin is for.
+ *
+ * ⚠ IT IS ALSO THE ONE OPS ACTION THAT RETURNS PII, and that makes the layer-3 clause below matter
+ * more here than anywhere else on this surface rather than less. The other six FLIP something and are
+ * refused by guards in their `WHERE`; this one READS a host's email and phone and hands them to
+ * whoever called it, so `requireStaff()` being the FIRST statement — before the parse, before the
+ * rate limit — is the entire boundary. The behavioural half (a non-staff and a signed-out caller each
+ * refused BEFORE any read, with a positive staff control so the refusal cannot be passing for the
+ * wrong reason) is `tests/ops/host-contact-reveal.test.ts`'s subject; this file owns the syntactic
+ * half, which is the one a human can check by reading the route file.
  */
 const EXTRA_OPS_ACTIONS: readonly { readonly file: string; readonly name: string }[] = [
   { file: "src/app/actions/cancel-booking.ts", name: "cancelBookingAsOps" },
 ];
-const EXPECTED_OPS_ACTIONS = 6;
+const EXPECTED_OPS_ACTIONS = 7;
 
 /** D-246. One queue, one page. Every extra page costs a `loading.tsx` and moves three pinned counts. */
 const EXPECTED_OPS_PAGES = 1;
