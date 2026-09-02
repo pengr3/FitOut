@@ -304,6 +304,11 @@ export default async function HostDashboardPage() {
         pendingRequests={pendingRequests}
         payoutStatus={payoutStatus}
         missingHours={missingHours}
+        // The FOURTH signal's state, threaded from the read this page already performs above for the
+        // suspension notice — no fourth query, and no second answer to one question about one host.
+        // The block hides the row for the three states that owe nothing, `suspended` among them,
+        // because the notice above says that one already (plan 18.1-11).
+        verificationStatus={verification.status}
       />
     </div>
   );
