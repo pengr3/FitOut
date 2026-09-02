@@ -368,7 +368,7 @@ Plans:
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified** `passed_with_concerns` — 17/17 requirements, 0 code-level blockers; **PM checkpoint ANSWERED 2026-09-01 (all 5); checkbox held until 18.1 ships the code** | verified 2026-09-01 |
-| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 4/14 | In Progress|  |
+| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 5/14 | In Progress|  |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
