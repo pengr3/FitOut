@@ -28,10 +28,12 @@
 // WHAT ELSE IS HERE, AND WHY EACH ONE IS A RENDER RATHER THAN A SCAN
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //
-//   • THE ABSENT CONTROLS. D-266's suspended branch, `pending`'s missing continue affordance and the
-//     cooling-down rejection all say something by drawing NOTHING, and an absence in a source scan is
-//     indistinguishable from a component that failed to render. Every one of them is asserted with a
-//     positive control beside it.
+//   • THE ABSENT CONTROLS. D-266's suspended branch and the cooling-down rejection both say
+//     something by drawing NOTHING, and an absence in a source scan is indistinguishable from a
+//     component that failed to render. Each is asserted with a positive control beside it. ⚠ The
+//     `pending` panel used to be a third: it draws the resume form since plan 18.1-15, because the
+//     partner returns the host's own unfinished session when asked again (`deferred-items.md` § D5).
+//     The two remaining absences are what stop that edit becoming "every panel draws a form".
 //   • THE ONE REGION, AND ITS NAME. `role="status"` is nameFrom:author in ARIA — it takes no name from
 //     its own text — so a region with a perfectly good sentence in it can still be unaddressable, and
 //     nothing on screen shows the difference. Read here through `@testing-library`'s `{ name }`
@@ -199,10 +201,10 @@ describe("D-273 — the check needs a phone, and the host reads that before pres
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// THE STATES THAT SPEAK BY DRAWING NOTHING
+// WHICH PANELS DRAW A CONTROL, AND WHICH SPEAK BY DRAWING NOTHING
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
-describe("D-266 / D-264 — the panels that deliberately draw no control", () => {
+describe("D-266 / D-264 / D5 — the control each state may and may not draw", () => {
   it("suspended renders the shipped notice and NO submit control", () => {
     const { container } = render(
       panel({ status: "suspended", reason: "Repeated no-shows reported by bookers." }),
@@ -218,15 +220,52 @@ describe("D-266 / D-264 — the panels that deliberately draw no control", () =>
     expect(screen.queryByLabelText(/phone/i)).toBeNull();
   });
 
-  it("pending renders the state and offers no way out", () => {
+  it("pending renders the state, the reason and the resume control, labelled from the copy module", async () => {
+    // D5, closed by plan 18.1-15. This panel used to draw nothing, on the reasoning that the
+    // hosted-flow URL is not storable — which was true and is still true, and was never the whole
+    // story: the partner hands back the host's own unfinished session when asked again, so the way
+    // back in is a PRESS and the link is re-fetched rather than kept. The failure that reasoning
+    // shipped was a host who got distracted mid-flow reading "in progress" for up to seven days with
+    // nothing to press and nobody to ask.
+    submitMock.mockResolvedValue({ ok: false, error: HOST_VERIFICATION_NOTHING_CHANGED });
+
     render(panel({ status: "pending" }));
 
     expect(screen.getByText(VERIFICATION_SIGNAL.pending.state)).toBeTruthy();
     expect(screen.getByText(VERIFICATION_SIGNAL.pending.reason)).toBeTruthy();
-    // The hosted-flow URL is not storable, so a continue affordance cannot be reconstructed and
-    // drawing one would be a control that acts on nothing.
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
-    expect(screen.queryAllByRole("link")).toHaveLength(0);
+
+    // ONE control, and its accessible name is the copy module's — not a sentence typed here. There is
+    // no third spelling of this label anywhere in the product.
+    const control = screen.getByRole("button", {
+      name: VERIFICATION_SIGNAL.pending.wayOut as string,
+    });
+    expect(screen.queryAllByRole("button")).toHaveLength(1);
+
+    // The same form the first panel draws, so the same gate: the phone is re-collected because
+    // § 21(b) contact details stay current and the host may be fixing a typo.
+    const field = screen.getByLabelText(/phone/i) as HTMLInputElement;
+    expect(field.type).toBe("tel");
+    expect(field.required).toBe(true);
+
+    // ⚠ D-273 AT FIRST PAINT ON THIS BRANCH TOO, and it is correct rather than incidental: the flow
+    // is mobile-only when it is RESUMED just as much as when it is started, and the host reads that
+    // BEFORE the press. The sibling case below is what stops this becoming "the line appears
+    // everywhere" — it drives the cooling-down `rejected` panel, which still draws no control and
+    // therefore still says nothing about a device, and it is byte-unchanged by this plan.
+    expect(screen.getByText(VERIFICATION_MOBILE_ONLY_LINE)).toBeTruthy();
+    expect(submitMock, "present before any interaction, not because of one").not.toHaveBeenCalled();
+
+    fireEvent.change(field, { target: { value: "0917 123 4567" } });
+    fireEvent.click(control);
+    await waitFor(() => expect(submitMock).toHaveBeenCalledTimes(1));
+    expect(submitMock).toHaveBeenCalledWith({ phone: "0917 123 4567" });
+
+    // And the refusal the server may answer with — the partner already finished this session — lands
+    // in the SAME one named region this surface has always had. No branch of its own, no second
+    // wording: the sentence is the action's, verbatim.
+    const region = await screen.findByRole("status", { name: HOST_VERIFICATION_REGION_NAME });
+    expect(region.textContent).toBe(HOST_VERIFICATION_NOTHING_CHANGED);
+    expect(screen.getAllByRole("status")).toHaveLength(1);
   });
 
   it("approved states a fact — no control, no glyph, and no success hue", () => {

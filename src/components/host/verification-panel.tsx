@@ -22,10 +22,11 @@
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //
 //   unverified     the panel + THE FORM. The ordinary state of a host nobody has checked.
-//   pending        the panel and NOTHING ELSE. FitOut stores the session id and not the hosted-flow
-//                  URL (`src/lib/verification/port.ts:76-98` carries four fields and says do not add a
-//                  fifth), so a continue affordance cannot be reconstructed and drawing one would be a
-//                  control that acts on nothing.
+//   pending        the panel + THE SAME FORM, labelled from this state's own way out. FitOut still
+//                  stores the session id and NEVER the hosted-flow URL; the link is re-fetched on
+//                  demand, because the partner hands back the same unfinished session when asked
+//                  again. So the affordance is a PRESS rather than a stored link, and a host who
+//                  walked away mid-flow can finish (`deferred-items.md` § D5).
 //   approved       terminal, plus an inline link to the listings grid.
 //   rejected       the panel, plus EITHER the retry control and the form (cooldown elapsed) OR one
 //                  sentence naming the instant (cooldown running). Never both, never neither.
@@ -165,14 +166,29 @@ export function VerificationPanel({
     );
   }
 
-  // A session is out and no answer has landed. NO WAY OUT, and the absence is structural rather than
-  // stylistic — see the header. This copy is honest only because an expired or abandoned session
-  // returns the row to `unverified`; if that mapping is ever removed, this branch becomes a permanent
-  // dead end dressed as patience and the two must move in the same commit.
+  // A session is out and no answer has landed — and the host may still be the one holding it up.
+  // THE SAME FORM THE FIRST PANEL DRAWS, because it is the same ask: the partner returns the host's
+  // own unfinished session when asked again, so this press hands them back into their own flow rather
+  // than starting a second check (`deferred-items.md` § D5). The action refuses if the partner has in
+  // fact already finished it, which is a server decision this component may not second-guess.
   if (status === "pending") {
     return (
       <PanelCard tone="muted" title={signal.state}>
         <p className={REASON_CLASS}>{signal.reason}</p>
+        <div className="mt-4">
+          <VerificationForm
+            // Indexed by the CONCRETE key, exactly as the `rejected` branch is and for its reason:
+            // the map's `as const` makes this a non-nullable literal at COMPILE time rather than at a
+            // runtime fallback.
+            idleLabel={VERIFICATION_SIGNAL.pending.wayOut}
+            // NEUTRAL SOLID, not the secondary weight. The outline weight is reserved for a second
+            // ASK after a refusal; this is the SAME ask, and the host has done nothing wrong — they
+            // got distracted. Nothing here is the conversion colour either.
+            controlVariant="default"
+            hostEmail={hostEmail}
+            emailVerified={emailVerified}
+          />
+        </div>
       </PanelCard>
     );
   }
@@ -189,9 +205,9 @@ export function VerificationPanel({
             <VerificationForm
               // Indexed by the CONCRETE key rather than through the narrowed `signal`, and that is
               // what makes the label non-nullable at compile time rather than at a runtime fallback:
-              // the map's `as const` keeps each state's way-out a literal, and `pending` and
-              // `suspended` are the two whose way-out is genuinely null. There is no third spelling
-              // of this string anywhere.
+              // the map's `as const` keeps each state's way-out a literal, and `suspended` is now the
+              // ONLY state whose way-out is genuinely null — D-260/D-263 refuse to name what
+              // unfreezes a suspension. There is no third spelling of this string anywhere.
               idleLabel={VERIFICATION_SIGNAL.rejected.wayOut}
               controlVariant="outline"
               hostEmail={hostEmail}

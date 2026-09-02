@@ -559,14 +559,18 @@ describe("the banned language — what no host surface may say (D-243 / D-250 / 
       expect(signal.reason.length, `${status} has no reason`).toBeGreaterThan(20);
     }
 
-    // The two states with NO WAY OUT, and both absences are decisions rather than gaps. `pending`:
-    // FitOut stores the session id and not the hosted-flow URL (`port.ts:76-98` — four fields, and it
-    // says do not add a fifth), so a "Continue the check" link cannot be reconstructed and drawing one
-    // would be a control that acts on nothing. `suspended`: D-266 — the machine does not draw a button
-    // that would try to reverse a named operator's decision, and D-260/D-263 refuse to name what
-    // unfreezes it.
-    expect(VERIFICATION_SIGNAL.pending.wayOut).toBeNull();
+    // ONE state has NO WAY OUT, and that absence is a decision rather than a gap. `suspended`: D-266
+    // — the machine does not draw a button that would try to reverse a named operator's decision —
+    // and D-260/D-263 refuse to name what unfreezes it.
     expect(VERIFICATION_SIGNAL.suspended.wayOut).toBeNull();
+
+    // `pending` HAS one, and the value is asserted rather than the absence (plan 18.1-15, closing
+    // `deferred-items.md` § D5). A host whose session is still unfinished can be handed back into it:
+    // the partner returns the same session when asked again, so the affordance is a PRESS and the
+    // hosted URL is still never stored. The panel labels its control from this string and `/host`'s
+    // advisory row links with it, so it has to read correctly as both.
+    expect(VERIFICATION_SIGNAL.pending.wayOut).not.toBeNull();
+    expect((VERIFICATION_SIGNAL.pending.wayOut ?? "").trim().length).toBeGreaterThan(0);
 
     // ⚠ `grandfathered` NAMES NO CHECK AND NO CUTOVER (D-211 / D-212). Unlike the listing card it is
     // not silent — this is a destination — but what it says is what is TRUE for that host: they can

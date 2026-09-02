@@ -248,6 +248,42 @@ a real finding rather than this entry.
 
 ## D5 — AN ABANDONED DIDIT FLOW LOCKS A HOST OUT OF THEIR OWN VERIFICATION FOR UP TO 7 DAYS
 
+**✅ RESOLVED in 18.1-15** (2026-09-03) — the recommended shape below, implemented exactly, and
+nothing beyond it.
+
+`src/app/actions/host-verification.ts`'s guarded upsert now admits `pending` as a **third positive
+equality**, bounded by the burst guard it already had. The write is a **RESUME**, not a submission:
+`created_at = CASE WHEN host_verification.status = 'pending' THEN host_verification.created_at ELSE
+now() END`, so a returning host keeps their ops-queue position — **FINDING F-1 in reverse**, and the
+same line-jumping D-249 forbids, arrived at from the other side. The hosted URL is **still never
+persisted** and is re-fetched on demand through the partner's own idempotency (ADDENDUM A3).
+`/host/verify`'s `pending` panel draws the shipped form labelled **"Finish the check"**, sourced from
+`src/lib/host/verification-signal.ts` like every other sentence; `HOST_VERIFICATION_REFUSALS` is still
+six, because no new refusal sentence was authored.
+
+**One thing this entry did NOT say, and it is the sharpest part of the fix.** A widening on its own
+would have recreated D5 through its own remedy: a host pressing while a verdict was in flight — the
+webhook dropped, the sweep's grace window not yet elapsed — would have minted a NEW billable session
+and overwritten `vendor_ref`, orphaning a real answer for as long as the row lived. So a **new guard
+5** asks the partner whether the session is still open BEFORE asking for one: `sessionOpen` joined the
+ruling table in `src/lib/verification/didit-verdict.ts` (total over the ten, `false` on the unknown
+branch) and `isDiditSessionOpen` on the adapter reads it through the shared mapper. A **FINISHED**
+session is refused with the shipped 0-row sentence and a `session_closed` trail row. ⚠ The pre-check
+is **not the gate** — the guarded `WHERE` still is, and the TOCTOU case is driven (case 17).
+
+A `pending` row with a NULL or WHITESPACE handle **skips the ask and resumes**: there is nothing to
+ask about, it would address a different endpoint, and such a row is invisible to the reconciliation
+sweep's candidate query — so this press is its only escape.
+
+Four mutations were run and scored, each reddening the case named for it: dropping the `pending`
+equality reddened case 14; a plain `created_at = now()` reddened case 14's queue-stamp equality;
+deleting the pre-check reddened case 15; dropping the blank-handle skip reddened case 16.
+
+**And the reason this entry's own § "Why no gate could have caught this" now has one.** It was right
+that no instrument in this phase could see a human timeline. What CI can see is the ROW that timeline
+leaves behind, which is what cases 14-17 seed and drive. The hand-walk is still what FOUND it — that
+is 18.1-14's earned place, and the finding's body below is left intact as the record of how.
+
 **Found during:** 18.1-14 Task 1, the operator's sandbox walk (2026-09-02). Found by the PM, not by
 a gate — no automated instrument in this phase can see it, and the reason why is itself the finding.
 
@@ -326,20 +362,20 @@ passes. The defect only exists across a **human timeline** — press, leave, com
 jsdom test, no vitest suite and no Playwright spec in this repo models. It needed a person to get
 distracted. That is precisely what 18.1-14's hand-walk is for, and it earned its place here.
 
-**Status:** **PLANNED — closing inside phase 18.1 as gap plan `18.1-15` (wave 8).** The PM ruled on
-2026-09-02 that it closes here rather than being carried to a follow-up phase, on the ground that
+**Status:** **✅ RESOLVED — closed inside phase 18.1 by gap plan `18.1-15` (wave 8), 2026-09-03.**
+The PM ruled on 2026-09-02 that it closes here rather than being carried to a follow-up phase, on the ground that
 *the phase's stated goal is the verification path FitOut is legally required to have, and a path a
 distracted host cannot complete is arguably not that path.*
 
-`18.1-15-PLAN.md` implements the recommended shape above and nothing beyond it: `pending` joins the
+`18.1-15-PLAN.md` implemented the recommended shape above and nothing beyond it: `pending` joins the
 submission path's `WHERE` as a third POSITIVE equality bounded by the existing burst guard; the write
 is a RESUME, so `created_at` is preserved by a `CASE` and the host keeps their ops-queue position
 (**FINDING F-1 in reverse**); the hosted URL is still never persisted but is re-fetched on demand
 through the partner's own idempotency (ADDENDUM A3); and a session the partner has already FINISHED
 is refused rather than replaced, so a dropped verdict is never orphaned by a fresh `vendor_ref`. The
 `pending` panel's way back in is one new `wayOut` label in `src/lib/host/verification-signal.ts`, and
-no new refusal sentence is authored. **The executor of `18.1-15` marks this entry RESOLVED**, on D3's
-convention above.
+no new refusal sentence is authored. **Marked RESOLVED by the executor of `18.1-15`**, on D3's
+convention above — see the RESOLVED paragraph at the head of this entry.
 
 ---
 

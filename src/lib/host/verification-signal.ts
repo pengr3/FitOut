@@ -155,24 +155,40 @@ export const VERIFICATION_SIGNAL = {
   /**
    * A session was started and no answer has landed yet.
    *
-   * ⚠ NO WAY OUT, AND THE REASON IS STRUCTURAL RATHER THAN STYLISTIC. FitOut stores `vendorRef` — the
-   * session id — and NOT the hosted-flow URL: `src/lib/verification/port.ts:76-98` carries four
-   * fields and says *do not add a fifth*. A "Continue the check" link therefore cannot be
-   * reconstructed, and drawing one would be a control that acts on nothing, which is
-   * `REVIEW_SIGNAL.pending`'s recorded reason for the same absence one surface over.
+   * ⚠ THE WAY OUT IS A PRESS, NOT A STORED LINK, AND THAT DISTINCTION IS THE WHOLE DESIGN. FitOut
+   * stores `vendorRef` — the session id — and NEVER the hosted-flow URL, because the URL carries a
+   * bearer token for this host's flow and D-263's "store a reason, not evidence" posture governs it
+   * (`src/lib/verification/port.ts` carries four fields and says do not add a fifth; that contract is
+   * untouched). What makes the affordance possible without storing anything is the partner's own
+   * idempotency: a second ask on the same host returns the SAME unfinished session with a fresh,
+   * usable link, so the link is RE-FETCHED ON DEMAND rather than kept.
    *
-   * ⚠ AND THIS COPY IS ONLY HONEST BECAUSE PLAN 18.1-06 MAPPED `Expired`/`Abandoned` TO `unverified`.
-   * Had those left the row at `pending`, a host who closed the tab would be reading "FitOut is
-   * waiting on the result" about a session that will never answer — a permanent dead end dressed as
-   * patience. If that mapping is ever removed, this panel's honesty goes with it, and the two must
-   * move in the same commit.
+   * The press is bounded by the submission action's existing burst guard, and it does NOT move the
+   * host's place in the ops queue — `host-verification.ts` preserves `created_at` on this branch
+   * precisely so that pressing a button cannot advance somebody who is already waiting.
+   *
+   * ⚠ AND THIS COPY IS HONEST ON TWO LEGS, BOTH OF WHICH MUST BE THERE. The first: plan 18.1-06 maps
+   * an expired or abandoned session back to `unverified`, so a session that is genuinely over
+   * releases the row. The second: the press above, which is what a host with an UNFINISHED session
+   * uses. Neither covers the other's case — the partner never reuses a finished session, and no
+   * mapping can release one that is still live — so if either is ever removed this panel becomes a
+   * permanent dead end dressed as patience, and all three must move in the same commit.
    */
   pending: {
     state: "Your check is in progress",
     reason:
       "Your check is with our checking partner and FitOut is waiting on the result. You can't " +
-      "create a listing until it lands.",
-    wayOut: null,
+      "create a listing until it lands. If you haven't finished it yet, you can open it again.",
+    // ⚠ CHOSEN TO BE TRUE IN TWO PLACES. On this panel it labels a control that hands the host into
+    // the partner's flow; on the `/host` advisory row it labels a LINK to the page that carries that
+    // control (`host-signals.tsx` reads this same value). It sits in the shipped grammar beside
+    // "Start the check" and "Ask for another check", and it is a third spelling of neither.
+    //
+    // ⚠ IT PROMISES NO STEP POSITION, and the reason clause above says "open it again" rather than
+    // anything about picking up where they left off: the partner's idempotency guarantees the same
+    // SESSION comes back and says nothing about where inside the hosted flow the host lands. An
+    // unmeasured promise about somebody else's UI is not FitOut's to make.
+    wayOut: "Finish the check",
   },
 
   /**
