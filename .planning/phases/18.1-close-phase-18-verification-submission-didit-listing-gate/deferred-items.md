@@ -243,3 +243,88 @@ evidence that the tests are correctly sized; a raised timeout would hide a real 
 **Recommended owner:** whichever later plan touches `tests/host/verification-panel.test.tsx` (for
 item 1) or the CI/test configuration (for item 2). If either failure ever reproduces **alone**, it is
 a real finding rather than this entry.
+
+---
+
+## D5 — AN ABANDONED DIDIT FLOW LOCKS A HOST OUT OF THEIR OWN VERIFICATION FOR UP TO 7 DAYS
+
+**Found during:** 18.1-14 Task 1, the operator's sandbox walk (2026-09-02). Found by the PM, not by
+a gate — no automated instrument in this phase can see it, and the reason why is itself the finding.
+
+**⚠ NOTHING IS BROKEN. Every component behaves exactly as designed.** This is a gap *between* three
+correct parts, which is why it survived plan review, execution, four green gates and a mutation pass.
+
+### The symptom, reproduced and measured
+
+The operator pressed *Start the check*, reached Didit's hosted flow, and walked away without
+submitting a document. The panel then reads **"check is in progress"** and offers nothing further.
+
+Measured state at 128 minutes after the press:
+
+```
+host_verification: status=pending  provider=didit  vendor_ref=8bb15a5c-a71e-4393-984b-033ef1f69278
+GET /v3/session/{vendor_ref}/decision/  ->  200
+   status      "Not Started"
+   created_at  2026-09-02T13:38:24Z
+   expires_at  2026-09-09T13:38:24Z     <-- SEVEN DAYS
+   environment "sandbox"
+```
+
+### Why the host is stuck — three correct behaviours, composing badly
+
+1. **They cannot re-press.** `src/app/actions/host-verification.ts`'s upsert `WHERE` admits only
+   `status = 'unverified'` or a cooled-down `'rejected'`. **`pending` is deliberately absent**, so a
+   second press is a calm 0-row no-op. That omission is right on its own terms — it is what stops a
+   host minting a second session and paying twice.
+2. **They cannot resume.** The hosted-flow URL is not stored. `vendor_ref` holds the `session_id`;
+   the `url` carries a 12-character `session_token` which is a bearer secret, and D-263's
+   "store a reason, not evidence" posture argues against persisting it. So the panel has no link to
+   offer.
+3. **The reconciliation sweep cannot help, and is right not to.** 18.1-09's sweep reads the decision
+   endpoint and gets `"Not Started"` — a *live* session the host could still finish. F-3 releases the
+   row on `Expired` / `Abandoned`, and neither is true yet. The sweep correctly does nothing.
+
+So the row sits `pending` until `expires_at` — **up to seven days** — at which point Didit flips it to
+`Expired`, the sweep sees it, and F-3 releases the host to `unverified`. The recovery path exists and
+is correct. It is just seven days long.
+
+⚠ **And D-262/D-263's "no route to a human" makes it sharper.** The panel deliberately offers no
+support contact. A host in this state has no way forward and nobody to ask. Under D-255 they also
+cannot create a listing. For a host who simply got distracted mid-signup — which is the common case,
+not the edge case — that is a total onboarding stop.
+
+### The fix, and it is cheap — ADDENDUM A3, now confirmed FIRST-HAND
+
+`POST /v3/session/` is idempotent over unfinished sessions on the same `vendor_data`. Proven against
+the live sandbox account on 2026-09-02, with the operator's own stuck session:
+
+```
+POST /v3/session/ { workflow_id, vendor_data: <the same host user id> }  ->  201
+   session_id  8bb15a5c-a71e-4393-984b-033ef1f69278   <-- THE SAME SESSION
+   status      "Not Started"
+   url         https://verify.didit.me/session/On7Pi2cFzYOO   <-- a fresh, usable link
+```
+
+**Re-pressing while `pending` therefore returns the host their OWN session with a working URL.** No
+duplicate session, no second charge, no new vendor state, and the `vendor_ref` already stored stays
+correct. The vendor's own idempotency is what makes the guard in (1) unnecessary for this case — the
+guard was written to prevent a duplicate the vendor already refuses to create.
+
+**Recommended shape** (not implemented; this is a record, not a plan):
+- Admit `pending` to the submission path's `WHERE`, bounded by the existing rate limiter, and treat
+  the returned session as a *resume* rather than a new submission — `created_at` must NOT be
+  re-stamped on this path, or the host jumps the ops queue (FINDING F-1 in reverse).
+- The panel's `pending` state gains a way back in, sourced from `verification-signal.ts` like every
+  other sentence.
+- ⚠ Do not simply store the `url`. The `session_token` in it is a bearer secret for that host's
+  verification flow; re-fetching it on demand is both safer and already proven to work.
+
+### Why no gate could have caught this
+
+The `pending` panel's copy is honest, its state machine is correct, and every unit and design test
+passes. The defect only exists across a **human timeline** — press, leave, come back — which no
+jsdom test, no vitest suite and no Playwright spec in this repo models. It needed a person to get
+distracted. That is precisely what 18.1-14's hand-walk is for, and it earned its place here.
+
+**Status:** OPEN (D5) — awaiting the PM's call on whether it closes inside 18.1 as a gap plan or is
+carried to a follow-up phase.
