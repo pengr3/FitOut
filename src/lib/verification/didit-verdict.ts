@@ -118,6 +118,24 @@
 // unconditionally would throw on the one status that means "the host is still working". It moves
 // nothing, it asks for no audit row (the check is genuinely in flight), and the outcome below says
 // in a field that no decision object is expected — so a caller never has to know the exception.
+//
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// ⚠ D-272 — WHAT THIS MODULE MAY NEVER TELL A HOST
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// The vendor account allows 7 attempts per 7 days, raised deliberately so the vendor can never
+// refuse before FitOut's own 24-hour cooldown does. But the PER-MODULE caps are LOWER and were
+// deliberately NOT raised: two document attempts, three liveness attempts, three face-match
+// attempts. Those bound retries WITHIN ONE SESSION, not sessions per week.
+//
+// So a host can exhaust one session's document attempts while still holding most of their weekly
+// allowance. NO SENTENCE THIS MODULE COMPOSES MAY SAY OR IMPLY THAT THEY HAVE NO TRIES LEFT — it
+// would be false, and it would send a host who could simply start again looking for a support
+// address that D-263 says does not exist. The mechanism is the allow-list further down: an
+// attempts-exhausted risk code is not on it, so its sentence never reaches a host, and no
+// replacement sentence is written here. D-264 owns what a host is told about retrying, and it says
+// it with a timestamp.
+
+import { composeReason, HOST_REJECT_REASONS, REJECT_NOTE_MAX } from "@/lib/validation/ops";
 
 /**
  * The ten session statuses Didit documents, in the vendor's own spelling and their own order of
@@ -359,4 +377,182 @@ export function mapDiditStatus(raw: string | null | undefined): DiditStatusOutco
   if (key === "") return UNKNOWN_STATUS_OUTCOME;
   if (!Object.hasOwn(STATUS_BY_NORMALISED, key)) return UNKNOWN_STATUS_OUTCOME;
   return STATUS_OUTCOMES[STATUS_BY_NORMALISED[key]];
+}
+
+/**
+ * ONE warning off a feature report, narrowed to the THREE fields FitOut is allowed to look at.
+ *
+ * ⚠ THE TYPE IS THE EXCLUSION, AND THAT IS DELIBERATE. A vendor warning also carries a
+ * `long_description` and an `additional_data` object holding the detector's score and its threshold.
+ * Neither is modelled here, because a field that is not on the type cannot be read by accident, and
+ * the threshold pair is a tuning oracle handed to whoever is probing (T-18.1-0602). The three fields
+ * below are: which log level fired, which code fired, and the vendor's own end-user phrasing.
+ *
+ * Every field is `unknown` rather than `string`, because all of this arrives from outside FitOut and
+ * a declared type is documentation rather than a runtime guarantee. The composer narrows each one
+ * before it is used.
+ */
+export type DiditWarning = {
+  /** `"error"` | `"warning"` | `"information"`. ONLY an error caused the decline. */
+  readonly log_type?: unknown;
+  /** The stable vendor risk code. It SELECTS; it is never rendered and never stored. */
+  readonly risk?: unknown;
+  /** The vendor's 2–5 word end-user phrasing — the only field that may ever reach a host. */
+  readonly short_description?: unknown;
+};
+
+/**
+ * One feature report inside a decision. V3 returns these in PLURAL ARRAYS, one array per feature,
+ * each item carrying its own identity and its own feature-level status, and an array is `null` until
+ * that feature has run (ADDENDUM A8).
+ *
+ * ⚠ `node_id` IS THE REPORT'S IDENTITY AND IS READ BY NOTHING HERE. It is modelled so the shape is
+ * honest and so a later reader who needs a SPECIFIC report locates it by that identity — never by
+ * one of the V2 singular keys, which ship only for a destination pinned to the older webhook version
+ * and are `undefined` on ours. An undefined block reads as "not approved", which would reject every
+ * host (Pitfall 2). It is never rendered and never stored: it means nothing to a person and it is
+ * vendor-internal (T-18.1-0601).
+ */
+export type DiditFeatureReport = {
+  readonly node_id?: unknown;
+  readonly status?: unknown;
+  readonly warnings?: readonly DiditWarning[] | null;
+};
+
+/**
+ * A Didit decision, narrowed to the three feature families FitOut's workflow actually runs — OCR,
+ * liveness and face match. The vendor also returns AML and NFC blocks; both are switched off on the
+ * account and confirmed off first-hand (ADDENDUM B7), so modelling them would describe a workflow
+ * FitOut deliberately does not run.
+ *
+ * ⚠ PLURAL, ALWAYS. The singular V2 spellings are absent from this type on purpose.
+ */
+export type DiditDecision = {
+  readonly id_verifications?: readonly DiditFeatureReport[] | null;
+  readonly liveness_checks?: readonly DiditFeatureReport[] | null;
+  readonly face_matches?: readonly DiditFeatureReport[] | null;
+};
+
+/**
+ * THE ALLOW-LIST — declared, never inferred, never a deny-list.
+ *
+ * `refund-rail.ts`'s `REFUNDABLE_RAILS` is the shape: a short, explicit set of things that are known
+ * to be safe, so anything unlisted fails to the safe side by construction. A deny-list would invert
+ * that — the 47 documented ID-verification codes are only one of six taxonomies, the vendor adds to
+ * them, and every code nobody thought to ban would reach a host the day it ships.
+ *
+ * THREE DISTINCT REASONS A CODE IS OFF THIS LIST, each with a named example, so the next person
+ * extending it has a test rather than a vibe:
+ *
+ *   1. ACCUSATORY / ANTI-FRAUD — naming the detector that fired is a tuning oracle handed to the
+ *      person most motivated to tune against it. `SCREEN_CAPTURE_DETECTED`, `PRINTED_COPY_DETECTED`,
+ *      `PORTRAIT_MANIPULATION_DETECTED`, `ID_DOCUMENT_IN_BLOCKLIST` and `LOW_LIVENESS_SCORE` are all
+ *      off the list for this reason. So is the score/threshold pair that would accompany them, which
+ *      is excluded structurally by not being on `DiditWarning` at all.
+ *   2. IT ASSERTS A FACT ABOUT ANOTHER FITOUT ACCOUNT — `POSSIBLE_DUPLICATED_USER` ("another
+ *      document in your application has matching date of birth, issuing country and name") and
+ *      `DOCUMENT_NAME_DIFFERENT_FROM_OTHER_APPROVED_DOCUMENTS` both tell one host something about a
+ *      different host. Rendering either is a D-72 privacy breach, not a copy problem, and the two
+ *      are excluded BY NAME here so a later reader cannot add them without reading this line.
+ *   3. MEANINGLESS TO A PERSON — `MRZ_VALIDATION_FAILED`, `BARCODE_SIGNATURE_INVALID`,
+ *      `QR_VALIDATION_FAILED` and `UNPARSED_ADDRESS` are true, unactionable and confusing. A host
+ *      who reads them learns nothing they can do, which is worse than the canned sentence.
+ *
+ * ⚠ AND A FOURTH EXCLUSION THIS PHASE ADDS, WHICH IS NOT ABOUT SAFETY BUT ABOUT TRUTH. A code
+ * meaning "you have used up this module's attempts" is NOT on the list. Per D-272 the per-module
+ * caps (two document attempts, three liveness, three face match) bound retries within ONE session,
+ * while the host's weekly allowance is seven — so a sentence about attempts being exhausted would be
+ * FALSE at the moment a host reads it. See the D-272 block in the header.
+ *
+ * The values are `true` rather than a description because the list is a MEMBERSHIP test and nothing
+ * else: what a host reads is the vendor's own `short_description`, never anything written here.
+ * 18.1-RESEARCH § R3 § Which ones are safe to show a host verbatim is where the thirteen came from.
+ */
+export const DIDIT_SAFE_RISKS: Readonly<Record<string, true>> = {
+  DOCUMENT_EXPIRED: true,
+  IMAGE_TOO_BLURRY: true,
+  IMAGE_TOO_DARK: true,
+  IMAGE_TOO_BRIGHT: true,
+  COULD_NOT_RECOGNIZE_DOCUMENT: true,
+  COULD_NOT_DETECT_DOCUMENT_TYPE: true,
+  DOCUMENT_NOT_SUPPORTED_FOR_APPLICATION: true,
+  PORTRAIT_IMAGE_NOT_DETECTED: true,
+  NAME_NOT_DETECTED: true,
+  DATE_OF_BIRTH_NOT_DETECTED: true,
+  DOCUMENT_NUMBER_NOT_DETECTED: true,
+  EXPIRATION_DATE_NOT_DETECTED: true,
+  DOCUMENT_SIDES_MISMATCH: true,
+};
+
+/**
+ * Every feature report in a decision, in one flat list. Reads the PLURAL arrays and nothing else;
+ * an absent or `null` block contributes nothing rather than throwing, because a block is `null`
+ * until its feature has run and a decline can arrive before every feature did.
+ */
+function featureReports(decision: DiditDecision | null | undefined): readonly DiditFeatureReport[] {
+  if (decision == null) return [];
+  return [decision.id_verifications, decision.liveness_checks, decision.face_matches].flatMap(
+    (block) => (Array.isArray(block) ? block : []),
+  );
+}
+
+/**
+ * THE HOST-READABLE REJECTION SENTENCE (D-265) — bounded, escaped by the renderer, and never empty.
+ *
+ * There is no operator behind an auto-reject, so the explanation has to come from the vendor. It
+ * arrives through four gates, none of which is a translator:
+ *
+ *   1. ONLY AN ERROR. A `warning` or an `information` log did not cause the decline; keeping one
+ *      would tell a host that something they cannot act on is the reason they were refused.
+ *   2. ONLY AN ALLOW-LISTED CODE, via `Object.hasOwn` — see `DIDIT_SAFE_RISKS` for the four reasons
+ *      a code is excluded, and see the header for the prototype-shaped names a bare index would
+ *      answer truthily for.
+ *   3. BOUNDED IN THE NOTE SLOT. The kept sentences are joined and sliced to `REJECT_NOTE_MAX`, the
+ *      same 280 characters an operator's free text is bounded by. ⚠ That ceiling is on the NOTE, not
+ *      on the whole stored string: `composeReason` prepends the product sentence, exactly as a
+ *      rejection an operator writes composes today.
+ *   4. NEVER EMPTY. `HOST_REJECT_REASONS[0]` IS the canned fallback D-265 asks for — when nothing
+ *      survives the allow-list `composeReason` returns that product sentence alone, which is the
+ *      identical behaviour `appendOperatorSentence` already gives for a null operator note
+ *      (`src/lib/listing/review-signal.ts:227-230`). No new fallback string is invented and none
+ *      should be: a second sentence meaning the same thing is a second thing to keep true.
+ *
+ * ⚠ NOTHING IS SANITISED HERE, DELIBERATELY. `src/lib/validation/ops.ts:30-40` states the rule this
+ * follows — the stored string leaves through the same escaped React text-node path an operator's
+ * sentence already takes (T-18-1301), React's one raw-HTML escape hatch occurs nowhere in `src/`,
+ * and a half-sanitiser is worse than none because it reads like the problem was handled. Bound it
+ * and allow-list it; do not "clean" it.
+ *
+ * The only shaping applied is punctuation BETWEEN vendor fragments: the sentences are 2–5 word
+ * phrases with no terminal stop, and running two of them together would produce a sentence FitOut
+ * never wrote and cannot read aloud. Joining them with a full stop is typography, not copy.
+ */
+export function composeDiditRejectReason(decision: DiditDecision | null | undefined): string {
+  const kept: string[] = [];
+
+  for (const report of featureReports(decision)) {
+    const warnings = Array.isArray(report?.warnings) ? report.warnings : [];
+    for (const warning of warnings) {
+      if (warning == null) continue;
+      if (warning.log_type !== "error") continue;
+
+      const risk = warning.risk;
+      if (typeof risk !== "string") continue;
+      if (!Object.hasOwn(DIDIT_SAFE_RISKS, risk)) continue;
+
+      const sentence =
+        typeof warning.short_description === "string"
+          ? warning.short_description.trim().replace(/\.+$/, "")
+          : "";
+      if (sentence === "") continue;
+      // The same feature can warn twice across two reports; a host reading one sentence twice would
+      // read it as a bug in FitOut rather than as two findings.
+      if (kept.includes(sentence)) continue;
+
+      kept.push(sentence);
+    }
+  }
+
+  const note = kept.length === 0 ? "" : `${kept.join(". ")}.`;
+  return composeReason(HOST_REJECT_REASONS[0], note.slice(0, REJECT_NOTE_MAX).trim());
 }
