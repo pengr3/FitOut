@@ -64,3 +64,57 @@ e2e env contract — so the deferral reasoning in the entry above carries over u
 case whose solo runtime is ~0.7 s. That points at contention in `loadWebServer`'s config read rather
 than at any assertion being wrong. The fix, when someone owns it, is most likely a per-test timeout
 or a hoisted config load — **not** a weakened assertion.
+
+---
+
+## D2 — `scripts/didit-setup.ts`'s `DECLARED_WORKFLOW` STAYS WHERE IT IS (the move it asks for is not executable as written)
+
+**Found during:** 18.1-05, Task 1.
+
+**What was asked.** `scripts/didit-setup.ts:16-22` says its `DECLARED_WORKFLOW` constant lives in the
+script only because *"the module that should own it, `src/lib/verification/providers/didit.ts`, is
+plan 18.1-05's file and does not exist yet"*, and instructs: *"⚠ WHEN 18.1-05 LANDS THAT ADAPTER,
+MOVE THIS CONSTANT INTO IT AND IMPORT IT HERE."* `18.1-04-SUMMARY.md § Next Phase Readiness` repeats
+it. The adapter now exists.
+
+**Why it was NOT done, and this is a finding rather than a skip:**
+
+1. **The plan does not contemplate it.** `18.1-05-PLAN.md`'s `files_modified` is four files and the
+   script is not one of them; Task 1 additionally says in as many words not to pre-build what a later
+   plan owns. The plan is the authority.
+
+2. **⚠ THE MOVE AS WRITTEN CANNOT WORK, AND THIS WAS MEASURED, NOT REASONED.** The script runs under
+   `npx tsx` (`npm run didit:verify` / `didit:apply`). The adapter's first line is the client-bundle
+   guard, and that specifier is NOT an installed package — Next aliases it in its own bundler and
+   both Vitest configs alias it to `tests/helpers/server-only.stub.ts`, so from plain Node it does
+   not resolve at all (D-34 / GATE-05; installing it is a recorded-decision reversal, not a fix).
+   Probed on the shipped adapter:
+
+   ```
+   npx tsx -e "import('./src/lib/verification/providers/didit.ts')…"
+   FAILED: MODULE_NOT_FOUND Cannot find module 'server-only'
+   ```
+
+   So importing the adapter from the script would break `npm run didit:verify` outright. The guard is
+   correct and must stay — the adapter holds the API key — which means the instruction, not the
+   guard, is the thing that has to change.
+
+3. **The adapter has no use for the constant.** `beginDiditVerification` sends a workflow *ID* read
+   from the environment; it never spells the composition. Moving a declaration into a module that
+   does not read it would leave the value just as unread as it is now, one file further from the
+   script that checks it.
+
+**Recommended shape when someone owns it** — the repo already ships this exact split twice, and both
+halves are recorded in `tests/design/server-only-guards.test.ts`'s `MUST_NOT_BE_GUARDED`:
+`payments/config.ts` beside guarded `payments/fees.ts`, and `availability/horizon.ts` beside guarded
+`availability/slots.ts`. A small UNGUARDED declaration module (e.g.
+`src/lib/verification/didit-workflow.ts`) holding `DECLARED_WORKFLOW` / `DECLARED_RETRY` /
+`DECLARED_DESKTOP_ALLOWED`, imported by the script and by whichever later plan needs to state the
+composition, retypes no value and stays importable from `tsx`. ⚠ Whoever does it must add the row to
+`MUST_NOT_BE_GUARDED` with its reason, and must re-run `npm run didit:verify` against the live
+account afterwards.
+
+**Recommended owner:** 18.1-07 or 18.1-11 — the plans that next have a reason to state the vendor
+composition or the retry policy in product code (D-272's `COOLDOWN_HOURS` same-commit rule points at
+the same module).
+

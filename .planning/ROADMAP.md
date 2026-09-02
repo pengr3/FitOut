@@ -299,7 +299,7 @@ and (ii) whether holding only a `vendorRef` satisfies § 21(c)'s "updated and ve
 and the subpoena clause. **Both are vendor-independent** — equally open under Innov8tif or PayMongo —
 so neither changes what this phase builds.
 
-**Plans:** 4/14 plans executed
+**Plans:** 5/14 plans executed
 Worktrees stay OFF, so plans run **sequentially on `dev`, one executor at a time**; the waves express
 dependency order, not concurrency. No two plans in a wave modify the same file.
 
@@ -339,7 +339,7 @@ Plans:
 - [x] 18.1-02-PLAN.md — F11/D-260: a suspended host's `/host/earnings` names the frozen session (wave 1)
 - [x] 18.1-04-PLAN.md — Didit credentials, the port widened for an async provider, `updatedAt` · **[BLOCKING] Didit Console checkpoint** (wave 1)
 - [x] 18.1-03-PLAN.md — D-231: title + description become material fields (wave 2)
-- [ ] 18.1-05-PLAN.md — The Didit adapter behind the port; manual retained, `migration` still unregistered (wave 2)
+- [x] 18.1-05-PLAN.md — The Didit adapter behind the port; manual retained, `migration` still unregistered (wave 2)
 - [ ] 18.1-06-PLAN.md — `didit-verdict.ts`: ten statuses, two casings, the D-265 allow-list · **settles F-3** (wave 2)
 - [ ] 18.1-07-PLAN.md — The host verification submission path + § 21(b)(3) phone/email · **closes the live defect, proves SC1** (wave 3)
 - [ ] 18.1-08-PLAN.md — The Didit webhook: one authenticated door, clean 400 on everything else (wave 3)
