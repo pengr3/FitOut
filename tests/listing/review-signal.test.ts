@@ -76,7 +76,10 @@ import {
   composeVerificationRejectionReason,
 } from "@/lib/host/verification-signal";
 import { COOLDOWN_HOURS } from "@/lib/host/verification-cooldown";
-import { HOST_VERIFICATION_REFUSALS } from "@/lib/host/verification-refusals";
+import {
+  HOST_VERIFICATION_LISTING_REFUSED,
+  HOST_VERIFICATION_REFUSALS,
+} from "@/lib/host/verification-refusals";
 import { composeDiditRejectReason, type DiditDecision } from "@/lib/verification/didit-verdict";
 
 /** A stored operator sentence, in the shape `ops-review.ts` actually writes: a taxonomy line plus a note. */
@@ -329,6 +332,19 @@ describe("the banned language — what no host surface may say (D-243 / D-250 / 
     // records. A host reads these in the panel's one live region, so they are host-visible strings
     // exactly like the panels above.
     ...HOST_VERIFICATION_REFUSALS,
+
+    // (d) THE LISTING-CREATION REFUSAL (D-255 / PM-C, plan 18.1-12). Scanned by NAME rather than
+    // spread from the array above, because that array's contract is "every sentence
+    // `requestHostVerification` can return" and this one belongs to `createDraftListing` — widening
+    // it would falsify a claim its other readers depend on.
+    //
+    // ⚠ IT IS IN THE CORPUS EVEN THOUGH THE PRODUCT PATH CANNOT REACH IT. `/host/listings/new` reads
+    // the same row and routes a refusing host to `/host/verify` before the action is called, so a
+    // host meets the panel instead. It is scanned anyway for `HOST_VERIFICATION_SIGNED_OUT`'s
+    // recorded reason: a `"use server"` export is reachable by POST whatever the UI shows, so the
+    // branch is real, the sentence is host-readable, and an unreachable string is exactly the one
+    // that drifts without anybody noticing.
+    HOST_VERIFICATION_LISTING_REFUSED,
   ].filter((s) => s.length > 0);
 
   /**
@@ -385,7 +401,9 @@ describe("the banned language — what no host surface may say (D-243 / D-250 / 
     // a floor that stops noticing a whole family of strings dropping out of the scan — and the 18.1
     // amendment adds THIRTY-EIGHT strings from four modules, so a floor of 9 would have gone on
     // passing with every one of them deleted.
-    expect(HOST_VISIBLE.length).toBeGreaterThanOrEqual(49);
+    // 49 → 50 when plan 18.1-12's listing-creation refusal joined the corpus. MEASURED the same way:
+    // the floor was deliberately failed and the reported length read back, never estimated.
+    expect(HOST_VISIBLE.length).toBeGreaterThanOrEqual(50);
 
     const tripwires = [
       "Contact us to appeal this decision.",

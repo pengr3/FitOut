@@ -19,6 +19,7 @@ import {
   listing,
   listingAmenity,
   listingActivityTag,
+  hostVerification,
   type HostVerificationStatus,
 } from "@/lib/db/schema";
 
@@ -300,5 +301,152 @@ describe("saveListingStep — surcharge reachability on edit (HG-01 / 08-22)", (
     expect(res.fieldErrors?.included).toBeDefined();
     const row = await readListing(id);
     expect(row.maxOccupancy).toBe(8); // unchanged
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// LVER-05 / D-255 (PM-C) — THE HOST-VERIFICATION GATE ON LISTING CREATION, ALL SIX STATES
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Driven through the REAL `createDraftListing` against the isolated schema, for this file's opening
+// reason: the gate is a SERVER-SIDE clause, and the page in front of it is a courtesy. A test that
+// drove the page would be measuring the courtesy.
+//
+// ⚠ EVERY REFUSING CASE ASSERTS THE `listing` ROW COUNT DID NOT MOVE, not merely that `ok` is false.
+// A gate that returns a refusal AFTER inserting is not a gate, and `{ ok: false }` alone cannot tell
+// the two apart — the action would have to leak the id for that to show up on its own.
+//
+// ⚠ SEVEN CASES FOR SIX STATES, because `unverified` has TWO fixtures that must both refuse: a ROW at
+// `unverified`, and NO ROW AT ALL. `verification-status.ts`'s header rule is that absence reads as
+// `unverified`, and absence is the ordinary state of every host nobody has checked — so the no-row
+// case is the one a real new host actually meets, and it is the one a refactor is most likely to
+// drop. Asserting only the row form would leave the common path unmeasured.
+//
+// MUTATION-VERIFY (run before committing, and it WAS run — see 18.1-12-SUMMARY):
+//   · delete `verification.status === "pending"` from the refusing set in `createDraftListing`
+//     → case (LVER-05 · pending) goes RED naming pending; every other case stays GREEN.
+//   · delete the whole `if` block → all five refusing cases go RED together while (F-7) and
+//     (approved) stay GREEN — which is what distinguishes "the gate is gone" from "the gate refuses
+//     everything", and is why the two positive cases are not decoration.
+describe("LVER-05 — createDraftListing is gated on the host's verification (D-255 / PM-C)", () => {
+  /** How many listings exist right now, across all hosts — the number a refusal must not move. */
+  async function listingCount(): Promise<number> {
+    return (await testDb.db.select({ id: listing.id }).from(listing)).length;
+  }
+
+  /**
+   * Drive one state through the real action and assert it REFUSED WITHOUT WRITING.
+   *
+   * The count is taken across ALL hosts rather than scoped to this one, deliberately: a gate that
+   * inserted a row owned by somebody else would still be a gate that inserted a row.
+   */
+  async function expectRefused(
+    email: string,
+    status: HostVerificationStatus | null,
+    what: string,
+  ): Promise<void> {
+    await signInHost(email, status);
+    const before = await listingCount();
+    const res = await createDraftListing();
+    expect(res.ok, `${what} must NOT be able to create a listing (D-255)`).toBe(false);
+    expect(
+      await listingCount(),
+      `${what} was refused but a listing row still landed — so the refusal is returned AFTER the ` +
+        "insert, which is not a gate. In `createDraftListing`, the verification check must sit " +
+        "BEFORE `db.insert(listing)`.",
+    ).toBe(before);
+  }
+
+  it("(LVER-05 · unverified, NO ROW) refuses a host nobody has checked — the ordinary new-host state", async () => {
+    // ⚠ `null` seeds the USER ONLY, with NO `host_verification` row. This is the fixture a real host
+    // signing up today produces, and `loadHostVerification` reports it as `unverified` by its header
+    // rule. If a future read ever starts treating absence as anything else, THIS case catches it.
+    await expectRefused("lver05.norow@example.com", null, "a host with no verification row at all");
+  });
+
+  it("(LVER-05 · unverified) refuses a host with a row at unverified", async () => {
+    await expectRefused("lver05.unverified@example.com", "unverified", "an `unverified` host");
+  });
+
+  it("(LVER-05 · pending) refuses a host whose check is still with the checking partner", async () => {
+    // The panel this host reads says so in its own shipped words — "You can't create a listing until
+    // it lands." — so a `pending` host who COULD create one would make that copy false.
+    await expectRefused("lver05.pending@example.com", "pending", "a `pending` host");
+  });
+
+  it("(LVER-05 · rejected) refuses a host the checking partner did not pass", async () => {
+    await expectRefused("lver05.rejected@example.com", "rejected", "a `rejected` host");
+  });
+
+  it("(LVER-05 · suspended) refuses a host whose hosting is paused (ENF-01 / ENF-02)", async () => {
+    await expectRefused("lver05.suspended@example.com", "suspended", "a `suspended` host");
+  });
+
+  it("(LVER-05 · approved) a checked host CREATES a draft — the mirror that stops the gate refusing everything", async () => {
+    // Without this, all five cases above would pass against an action that returns `{ok:false}`
+    // unconditionally. It is the guard-the-guard half rather than a duplicate of this file's opening
+    // case, which drives a host whose status the sweep now seeds implicitly.
+    const userId = await signInHost("lver05.approved@example.com", "approved");
+    const res = await createDraftListing();
+    expect(res.ok).toBe(true);
+    if (!res.ok) return;
+    const row = await readListing(res.id!);
+    expect(row.hostId).toBe(userId);
+    expect(row.status).toBe("draft");
+  });
+
+  it("(LVER-05 · grandfathered — FINDING F-7) a GRANDFATHERED host CREATES a draft, deliberately", async () => {
+    await signInHost("lver05.grandfathered@example.com", "grandfathered");
+    const res = await createDraftListing();
+
+    expect(
+      res.ok,
+      "FINDING F-7 — THIS IS DELIBERATE AND IT IS NOT A BUG. `grandfathered` is NOT one of D-255's " +
+        "four refusing states: D-255 names `unverified | pending | rejected | suspended`, and " +
+        "`grandfathered` is not among them. `drizzle/0026` grandfathered the hosts who already owned " +
+        "a PUBLISHED listing at cutover, and D-211/D-224 make them SELLABLE today — so refusing them " +
+        "a NEW listing would mean an account taking bookings this morning cannot grow this " +
+        "afternoon, which is a scope change nobody decided. The natural reading of 'a host cannot " +
+        "create a listing until they are verified' DOES exclude them, which is exactly why this case " +
+        "exists: if you arrived here intending to add `grandfathered` to the refusing set, that is a " +
+        "PRODUCT decision needing a decision record, not a one-line fix. Their route to a real check " +
+        "is LVER-04's backfill, which stays deferred.",
+    ).toBe(true);
+    if (!res.ok) return;
+    expect(res.id).toBeTruthy();
+  });
+
+  it("(D-270) saveListingStep on an EXISTING draft still succeeds for an UNVERIFIED host", async () => {
+    // Both halves of D-270 in one case: creation is gated, autosave is NOT. The draft is minted while
+    // the host is `approved`, then the SAME host is moved to `unverified` — which is what a review or
+    // enforcement flip looks like to a host who is mid-wizard.
+    const userId = await signInHost("lver05.d270@example.com", "approved");
+    const created = await createDraftListing();
+    if (!created.ok) throw new Error("setup failed");
+    const id = created.id!;
+
+    await testDb.db
+      .update(hostVerification)
+      .set({ status: "unverified" })
+      .where(eq(hostVerification.userId, userId));
+
+    // The gate is now closed for CREATION…
+    const blocked = await createDraftListing();
+    expect(
+      blocked.ok,
+      "the fixture did not actually move — this host can still create, so the second half of this " +
+        "case would be proving nothing",
+    ).toBe(false);
+
+    // …and OPEN for the draft they already had.
+    const saved = await saveListingStep(id, { title: "Half-finished when the check lapsed" });
+    expect(
+      saved.ok,
+      "D-270 — `saveListingStep` must stay UNGATED. An unverified host may not START a listing, but " +
+        "the one they are already writing must stay editable: every draft begun before D-255 landed " +
+        "belongs to a host with no verification row, and gating autosave would turn the wizard into " +
+        "a form that cannot be left.",
+    ).toBe(true);
+    expect((await readListing(id)).title).toBe("Half-finished when the check lapsed");
   });
 });

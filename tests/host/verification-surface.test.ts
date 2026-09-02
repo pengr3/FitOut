@@ -67,6 +67,10 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import ts from "typescript";
 
+// Claim 4's tool (plan 18.1-12). Its own header carries the argument this file already makes in
+// prose: a scan over a DOCUMENTED file is falsely red unless the comments come off first, and the
+// page claim 4 reads necessarily discusses both the redirect it must make and the bounce it must not.
+import { stripComments } from "../helpers/source-text";
 import { hostVerificationStatus } from "@/lib/db/schema";
 import { COOLDOWN_HOURS } from "@/lib/host/verification-cooldown";
 import { VERIFICATION_SIGNAL } from "@/lib/host/verification-signal";
@@ -308,5 +312,85 @@ describe("D-264 / GATE-05 — the retry cooldown has exactly one authority", () 
     // database's own clause, which is the only place it can honestly be pinned.
     expect(Number.isInteger(COOLDOWN_HOURS)).toBe(true);
     expect(COOLDOWN_HOURS).toBeGreaterThan(0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// CLAIM 4 (T-18.1-1202, plan 18.1-12) — THE REFUSAL IS ROUTED BEFORE IT CAN BE SWALLOWED
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// FINDING F-2, measured before this plan: `/host/listings/new` had exactly one failure branch, a bare
+// bounce to the listings grid carrying no message. D-255's refusal added to `createDraftListing`
+// alone would therefore have reached a host as a SILENT BOUNCE — SC5's exact prohibition, and the
+// copy-about-a-check-that-never-ran defect one level up.
+//
+// ⚠ WHY THIS IS A SOURCE SCAN AND NOT A RENDER, WHICH IS THE SAME QUESTION CLAIM 1 ANSWERS. The
+// property is an ORDERING between two statements in one function: the verification read and its
+// redirect must precede the action call. A render cannot see an ordering — both orderings produce a
+// redirect, and the WRONG one produces a redirect to the grid that a test asserting "the host did not
+// reach the wizard" would happily report green. It is also why the plan's threat register names an
+// ordering assertion as T-18.1-1202's mitigation rather than a behavioural one.
+//
+// ⚠ AND WHY IT IS NOT MERELY AN e2e CONCERN. `e2e/host-verification.spec.ts` drives the same property
+// through a browser and is the richer proof — but PROJECT D-24 keeps Playwright OUT OF CI, so it can
+// go red for a month without anyone learning. This case is the half that runs on every commit.
+//
+// The scan is COMMENT-STRIPPED (`tests/helpers/source-text.ts`), for that module's recorded reason:
+// the page under scan necessarily discusses the redirect it must perform and the bounce it must not,
+// and a raw-text index would find the prose rather than the code. Five gates in this phase alone have
+// gone falsely red exactly that way.
+describe("CLAIM 4 — /host/listings/new routes a refusing host BEFORE it calls the action (F-2)", () => {
+  const NEW_LISTING_PAGE = "src/app/(host)/host/listings/new/page.tsx";
+  const CODE = stripComments(read(NEW_LISTING_PAGE));
+
+  it("redirects to the account check, and does so BEFORE createDraftListing is called", () => {
+    const redirectAt = CODE.indexOf('redirect("/host/verify")');
+    const actionAt = CODE.indexOf("createDraftListing()");
+
+    expect(
+      redirectAt,
+      "`/host/listings/new` does not redirect a refusing host to `/host/verify` at all. That is " +
+        "FINDING F-2 re-opened: the action's refusal would reach the host as a bare bounce to the " +
+        "listings grid with no sentence anywhere, which is SC5's exact prohibition — a refusal must " +
+        "name the state, the reason and the way out, and `/host/verify` is the one destination that " +
+        "does so for all four refusing states.",
+    ).toBeGreaterThanOrEqual(0);
+
+    expect(actionAt, "the page no longer calls `createDraftListing` at all").toBeGreaterThanOrEqual(0);
+
+    expect(
+      redirectAt < actionAt,
+      "the redirect to `/host/verify` is placed AFTER `createDraftListing()` is called. The order is " +
+        "the property: the point of reading verification on the page is that a refusing host never " +
+        "reaches the action, so its refusal cannot be swallowed by the failure branch below it. " +
+        "Reversed, the host meets the silent bounce first and the redirect is unreachable.",
+    ).toBe(true);
+  });
+
+  it("reads the SAME shared helper the action reads — never a second query", () => {
+    // D-130 / GATE-05. A second read here would be cheaper to write and would make the display a
+    // second authority on a rule the server owns: the page could route a host the action would have
+    // accepted, or let one through that it refuses. One helper, one answer, both call sites.
+    expect(
+      CODE.includes("loadHostVerification"),
+      "the page decides who to redirect from something other than `loadHostVerification` — the " +
+        "two-authorities defect PROJECT D-130 / GATE-05 is named for.",
+    ).toBe(true);
+  });
+
+  it("keeps the infrastructure-failure bounce it already had — this plan does not widen into fixing it", () => {
+    // ⚠ THE TOKEN IS ASSEMBLED FROM HALVES for `FORBIDDEN_PARAM`'s reason one claim up: 18.1-12's
+    // acceptance criteria count this redirect's occurrences in the page and expect the count
+    // UNCHANGED at 1, and a test file spelling it contiguously is how such a count reads a correct
+    // tree as a broken one.
+    const GRID_BOUNCE = `redirect("/host/${"listings"}")`;
+    const occurrences = CODE.split(GRID_BOUNCE).length - 1;
+    expect(
+      occurrences,
+      "the pre-existing bounce to the grid was removed or duplicated. It catches genuine " +
+        "infrastructure failure — an insert that did not land — and it is STILL a bounce with no " +
+        "sentence: recorded as a known blind spot in 18.1-UI-SPEC § NOT COVERED rather than quietly " +
+        "fixed here. Removing it leaves a failed create rendering a broken wizard.",
+    ).toBe(1);
   });
 });
