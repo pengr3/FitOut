@@ -231,14 +231,28 @@ export function listingRejectedPayload(
  * each listing approved (D-224) — because a host told only "you're approved" and then finding nothing
  * bookable would reasonably conclude something is broken.
  *
- * ⚠ NAMES NO DOCUMENT AND NO INSPECTION. "Someone at FitOut checked your account" is the whole claim
+ * ⚠ NAMES NO DOCUMENT AND NO INSPECTION. "FitOut has checked your account" is the whole claim
  * HVER-02 supports: no ID, no passport, no licence, and nobody visited anything (Success Criterion 6).
+ *
+ * ⚠ AND IT NAMES NO PERSON EITHER — CHANGED IN PLAN 18.1-10, deferred item D3, ONE CLAUSE.
+ * The lead read "Someone at FitOut checked your account" from phase 18, when the only way to reach
+ * `approved` was an operator pressing a button in `/ops`, and it was exactly true. D-261 makes a PASS
+ * from the checking partner auto-approve the host with no operator involved at all, so from plan
+ * 18.1-08 onward the same words went to hosts about whom the literal claim was FALSE: nobody at
+ * FitOut looked at anything. The institutional voice is true of BOTH writers, and it is not a new
+ * voice — `hostRejectedPayload` immediately below has always said "FitOut checked your account", so
+ * this makes the pair agree rather than inventing a register.
+ *
+ * ⚠ IT IS ALSO NOW THE PANEL'S OWN FIRST CLAUSE. `VERIFICATION_SIGNAL.approved.reason` in
+ * `src/lib/host/verification-signal.ts` opens with these same words, which is D-245's property made
+ * literal: what a host is told about their own standing is the same in the panel and in their inbox.
+ * If one of the two changes, the other changes in the same commit.
  */
 export function hostApprovedPayload(): NotificationPayload {
   return {
     type: "host_verification_approved",
     heading: "You're approved to host on FitOut",
-    lead: "Someone at FitOut checked your account. Your listings can go live once each one is approved.",
+    lead: "FitOut has checked your account. Your listings can go live once each one is approved.",
     ctaLabel: "Go to your hosting page",
     href: `${notificationBaseUrl()}${HOST_HOME_PATH}`,
   };

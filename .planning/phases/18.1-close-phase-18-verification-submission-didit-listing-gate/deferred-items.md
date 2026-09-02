@@ -123,6 +123,34 @@ the same module).
 
 ## D3 — `hostApprovedPayload()` TELLS AN AUTO-APPROVED HOST THAT A PERSON CHECKED THEM
 
+**✅ RESOLVED in 18.1-10** (2026-09-02) — option (a), one clause, as recommended below.
+
+`src/lib/notifications.ts`'s lead now reads **"FitOut has checked your account. Your listings can go
+live once each one is approved."** No actor, no inspection claim, true of both writers.
+
+Three things made 18.1-10 the right owner rather than 18.1-11, and they are worth recording because
+the entry below offered a choice:
+
+1. **18.1-10 landed the sentence this one has to agree with.** `VERIFICATION_SIGNAL.approved.reason`
+   in `src/lib/host/verification-signal.ts` opens with those exact words, so leaving the payload
+   alone would have shipped the panel and the inbox saying different things about one host's
+   standing in the same phase — which is the D-245 property the entry below invokes, breached by the
+   plan that was supposed to be honouring it.
+2. **It is not a new register.** `hostRejectedPayload`, four lines down, has always said "FitOut
+   checked your account and didn't approve it". The approval was the only one of the pair asserting a
+   PERSON; the fix makes them agree rather than inventing a voice.
+3. **The blast radius was measured, not assumed.** `tests/notifications/ops-decision-notify.test.ts`
+   pins these payloads STRUCTURALLY — case 3 scans for overclaim words, case 4 asserts the two
+   channels render byte-identical strings — and not by quoting the lead. 12 passed unchanged, and
+   case 3's "names no document and no inspection" claim is now more true than it was. The old
+   sentence occurred exactly ONCE in `src/` and nowhere in `tests/` or `e2e/` (grepped both).
+
+⚠ **NOT added to 18.1-10's banned-language corpus.** `tests/listing/review-signal.test.ts`'s own
+header declares the notification half out of scope and names `tests/notifications/*` as its owner;
+double-pinning one string in two files is two places to edit and one that gets forgotten. The two
+owners were written from the same spec table and must move together — which is exactly what happened
+here.
+
 **Found during:** 18.1-08, Task 1 (wiring the D-245 fan-out into the Didit verdict path).
 
 **The finding.** `src/lib/notifications.ts:237-245` composes the host-approval notice, and its lead
@@ -165,3 +193,4 @@ outside `port.ts` learns a provider name.
 
 **Recommended owner:** **18.1-10** (the words) or **18.1-11** (the surface) — the two plans that own
 host-facing verification copy, and the two that will be reading these exact strings anyway.
+**→ Taken by 18.1-10. Nothing is left for 18.1-11 here.**
