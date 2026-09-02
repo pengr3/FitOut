@@ -601,6 +601,16 @@ describe("HVER-07 — authenticated but not applicable: 200, and nothing moves",
     // The module-level boot guard already ran under NODE_ENV=test; `environmentAccepted` reads the
     // environment at CALL time, which is what this stub reaches.
     vi.stubEnv("NODE_ENV", "production");
+    // ⚠ AND THE SECOND HALF OF THE PREDICATE MUST BE STUBBED TOO, OR THIS CASE ASSERTS NOTHING.
+    // `environmentAccepted` is `environment === (process.env.DIDIT_ENVIRONMENT ?? "live")`. Stubbing
+    // only NODE_ENV leaves the comparison reading the MACHINE's value, so the case tested a
+    // deployment posture rather than the guarantee in its own name: on a developer box configured
+    // for the sandbox application — which is the correct configuration for running the sandbox walk
+    // — a sandbox delivery was ACCEPTED and this failed, looking exactly like a product regression.
+    // Measured 2026-09-03: red under DIDIT_ENVIRONMENT=sandbox, green under =live, same code.
+    // The name says "a live-expecting deployment", so the test must be the thing that establishes
+    // the deployment expects live.
+    vi.stubEnv("DIDIT_ENVIRONMENT", "live");
 
     const res = await post(
       envelope({ eventId: "evt_c24", vendorData: host, environment: "sandbox" }),
