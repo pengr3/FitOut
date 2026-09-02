@@ -444,3 +444,80 @@ E.164 / PH mobile shape. That refuses twelve nines without buying a vendor modul
 cannot tell a well-formed wrong number from a right one, so it narrows the gap rather than closing it.
 
 **Status:** OPEN — noted for a later milestone by PM decision, 2026-09-03. Not blocking 18.1.
+
+---
+
+## D7 — THREE CASES IN TWO FILES READ THE AMBIENT ENVIRONMENT INSTEAD OF STUBBING IT
+
+**Found during:** 18.1-15, gate 6 (`npm test`). ⚠ **NOT a regression from 18.1-15** — that plan
+touched neither file, neither is in its `files_modified`, and neither imports anything it changed.
+What made them visible is that the operator's `.env.local` is currently pointed at the phone-walk
+UAT stack (`BETTER_AUTH_URL` at the ngrok tunnel, `DIDIT_ENVIRONMENT` at the sandbox value), which
+18.1-15's own environment brief said to leave alone and not depend on.
+
+### What was measured
+
+The first `npm test` reported `3 failed | 213 passed` — five cases across three files:
+
+```
+tests/auth/login-reachable-after-reset.test.ts  case 6   AssertionError: expected false to be true
+tests/auth/login-reachable-after-reset.test.ts  case 6b  AssertionError: expected false to be true
+tests/auth/stale-session-selfheal.test.ts       case 3   AssertionError: expected undefined not to be undefined
+tests/verification/didit-webhook.test.ts        case 24  expected 'approved' to be 'pending'
+tests/host/verification-panel.test.tsx          (a form case, contention only — D4)
+```
+
+**Each was then isolated, and the cause is the ambient value in every case:**
+
+| Run | Result |
+|---|---|
+| `npx vitest run tests/verification/didit-webhook.test.ts` | `1 failed \| 27 passed` — reproduces ALONE |
+| `DIDIT_ENVIRONMENT=live npx vitest run tests/verification/didit-webhook.test.ts` | **`28 passed`** |
+| `npx vitest run tests/auth/login-reachable-after-reset.test.ts` | `2 failed \| 5 passed` — reproduces ALONE |
+| `BETTER_AUTH_URL=http://localhost:3000 npx vitest run` (both auth files) | **`11 passed`** |
+| `npx vitest run tests/host/verification-panel.test.tsx` | **`12 passed`** — D4's contention, not this entry |
+| `BETTER_AUTH_URL=... DIDIT_ENVIRONMENT=live npm test` | **`216 passed \| 2 skipped`, `2678 passed`** |
+
+The webhook one is mechanical and worth spelling out, because it is the sharpest of the three.
+`src/app/api/didit/webhook/route.ts`'s `environmentAccepted` ends
+`return environment === (process.env.DIDIT_ENVIRONMENT ?? "live")`, and case 24 stubs `NODE_ENV`
+to production and asserts that a `sandbox` envelope is REFUSED — but it never stubs
+`DIDIT_ENVIRONMENT`. With the deployment declaring sandbox, accepting a sandbox envelope is the
+CORRECT behaviour of the shipped code, so the case is asserting a deployment posture rather than a
+guarantee.
+
+### Why this is a real finding rather than "the operator's env is odd today"
+
+**Every other file in this phase's verification family states the opposite rule in its own header**,
+in as many words: *"NO CASE MAY DEPEND ON A REAL CREDENTIAL BEING PRESENT **OR** ABSENT … a case that
+passed only where the real key exists would be a case nobody else can run"*
+(`tests/ops/host-verification-submit.test.ts`, and `tests/verification/didit-session.test.ts` says it
+again). Those files stub with `vi.stubEnv` and obvious fakes. These three cases are the same defect
+the rule was written about, and they have been latent since they were written — green on a machine
+whose `.env.local` happened to agree with them, which is precisely the property the rule forbids.
+
+The cost of leaving it is not a red gate. It is that **case 24 stops measuring the thing it exists
+for**: a mocked sandbox verdict approving a real host (ADDENDUM A4, the inbound half of a guarantee
+whose outbound half `sandbox_scenario`-refused-on-live only partly covers). A case that agrees with
+whatever the environment says cannot notice that check being removed.
+
+### Recommended shape when someone owns it
+
+`vi.stubEnv("DIDIT_ENVIRONMENT", "live")` in `tests/verification/didit-webhook.test.ts`'s
+`beforeEach`, and the sandbox-deploy direction driven as its OWN case (stub it to the sandbox value
+and assert a `live` envelope is refused) — which is the case that is actually missing today, and it
+would turn one ambient-dependent assertion into two independent ones. The two auth files want the
+same treatment for `BETTER_AUTH_URL`; `tests/verification/didit-session.test.ts:168` already ships
+the idiom (`vi.stubEnv("BETTER_AUTH_URL", APP_ORIGIN)`).
+
+⚠ **Do NOT "fix" this by editing `.env.local`.** That file is the operator's UAT stack while the
+phone walk is live, and a test that needs it to hold a particular value is the defect rather than
+the remedy.
+
+**Recommended owner:** whichever later plan next touches the Didit webhook route or the auth
+middleware. If any of the three ever reproduces with the env vars STUBBED, it is a real finding
+rather than this entry.
+
+**Status:** OPEN — recorded by 18.1-15, not fixed by it (out of scope: three files it does not own,
+and a green gate under a stubbed env is the proof it is not this plan's).
+
