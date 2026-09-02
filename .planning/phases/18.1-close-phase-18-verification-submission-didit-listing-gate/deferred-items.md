@@ -340,3 +340,71 @@ is refused rather than replaced, so a dropped verdict is never orphaned by a fre
 `pending` panel's way back in is one new `wayOut` label in `src/lib/host/verification-signal.ts`, and
 no new refusal sentence is authored. **The executor of `18.1-15` marks this entry RESOLVED**, on D3's
 convention above.
+
+---
+
+## D6 — THE PHONE FITOUT RECORDS FOR A HOST IS SHAPE-CHECKED, NEVER VERIFIED
+
+**Found during:** 18.1-14 Task 1, the operator's sandbox walk (2026-09-03). Surfaced from the dev
+server log while watching the submission path, not by any gate.
+
+**PM decision (2026-09-03): NOTED FOR LATER, not fixed in 18.1.** Recorded so it is a decision with a
+reason rather than an oversight.
+
+### What was measured
+
+`src/app/actions/host-verification.ts`:
+
+```
+const PHONE_MIN   = 7;
+const PHONE_MAX   = 20;
+const PHONE_SHAPE = /^(?=.*[0-9])[0-9+\s-]+$/;
+phone: z.string().trim().min(PHONE_MIN).max(PHONE_MAX).regex(PHONE_SHAPE),
+```
+
+Three real submissions during the walk, with their server timings — the timing is the tell, because a
+refusal returns before any vendor call and an acceptance does not:
+
+| Submitted | Outcome | Time | Reading |
+|---|---|---|---|
+| `"558"` | refused | 32ms / 18ms | below `PHONE_MIN`; **no vendor call** |
+| `"666"` | refused | 23ms | below `PHONE_MIN`; **no vendor call** |
+| `"09555339701"` | accepted | 1086ms | a real PH mobile; vendor call made |
+| `"999999999999"` | **accepted** | 1017ms | twelve nines. Passes: ≥7, ≤20, digits only |
+
+**The guard is real and worth keeping** — a malformed value is refused in ~20ms and cannot burn a
+verification or a free-tier unit. That half works.
+
+### The gap
+
+The check is a **shape** check, not a validator, and the workflow has **no `PHONE_VERIFICATION`
+module** — deliberately omitted, on cost. So nothing anywhere confirms the number belongs to the
+host, or exists at all. A host can type twelve nines and FitOut will store it as their contact
+number.
+
+### Why it was not fixed now, and what makes it a real question later
+
+§ 21(b)(1)/(3)'s requirement is that the platform **collect** contact details, and FitOut does — so
+the legal box is arguably ticked and this is not a compliance blocker. **But OPS-06 exists so ops
+can REACH a host** (18.1-13 shipped the audited contact reveal for exactly that), and an
+unverifiable number does not deliver reaching. The two requirements point in different directions,
+and only one of them is satisfied by a shape check.
+
+⚠ **This is a business question dressed as a technical one, and it is the PM's, not the SWE's**:
+whether "we recorded a number" or "we can actually call this host" is the standard FitOut is holding
+itself to. Note that the ops contact reveal makes the weaker answer visible — an operator who
+reveals a fake number learns it is fake only by dialling it.
+
+### The option, priced
+
+Didit sells **Phone Verification at $0.04** (`POST /v3/phone/send/` + `POST /v3/phone/check/`), or it
+can be added to the workflow as a `PHONE_VERIFICATION` feature. Either way it is a per-check cost on
+top of the current composition, and ⚠ **ADDENDUM A1 applies**: the free tier is per feature, so
+adding a module changes the effective per-host cost — re-read A1 before pricing it, and re-run
+`npm run didit:verify`, whose `DECLARED_WORKFLOW` would need to change in the same commit.
+
+A cheaper middle path, if the goal is only to stop obvious nonsense: tighten `PHONE_SHAPE` toward
+E.164 / PH mobile shape. That refuses twelve nines without buying a vendor module — but it still
+cannot tell a well-formed wrong number from a right one, so it narrows the gap rather than closing it.
+
+**Status:** OPEN — noted for a later milestone by PM decision, 2026-09-03. Not blocking 18.1.
