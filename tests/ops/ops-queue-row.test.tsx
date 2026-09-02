@@ -290,9 +290,17 @@ describe("OPS-04 / D-246 — the queue row browses nowhere", () => {
     // The case above guards the raw selector; this one guards the EXEMPTION plan 18.1-13 added. A
     // filter that dropped every anchor — `() => []`, or a predicate matching `a` rather than the
     // scheme — would satisfy the zero above permanently and indistinguishably from a clean row.
+    //
+    // ⚠ THE DESTINATION HREF IS DELIBERATELY NOT A REAL ROUTE, and it is not free to "improve" it
+    // into one. `@next/next/no-html-link-for-pages` is an ERROR in this repo and matches a raw `<a>`
+    // against the route manifest, so `/listings/lst_1` here fails `npm run build` — measured, in
+    // this very commit. The shipped guard-the-guard above uses `/somewhere` for the same reason.
+    // What the fixture needs is a path-shaped href the filter must NOT swallow; whether that path
+    // resolves is irrelevant to the property being guarded.
+    const DESTINATION = "/somewhere-not-a-route";
     const { container } = render(
       <div data-testid="row-card">
-        <a href="/listings/lst_1">A destination</a>
+        <a href={DESTINATION}>A destination</a>
         <a href={`mailto:${HOST_EMAIL}`}>{HOST_EMAIL}</a>
       </div>,
     );
@@ -302,7 +310,7 @@ describe("OPS-04 / D-246 — the queue row browses nowhere", () => {
     expect(
       destinationAnchors(card).map((a) => a.getAttribute("href")),
       "the exemption filter swallowed a page destination, so assertion 1's zero means nothing",
-    ).toEqual(["/listings/lst_1"]);
+    ).toEqual([DESTINATION]);
     expect(
       card.querySelectorAll(COMPOSE_ANCHOR),
       "…and the declared scheme is not found by the exemption's own selector",
