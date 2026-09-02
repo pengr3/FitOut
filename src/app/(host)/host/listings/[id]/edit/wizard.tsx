@@ -63,7 +63,7 @@ import {
   publishListing,
   type ListingResult,
 } from "@/app/actions/listing";
-import { authClient } from "@/lib/auth-client";
+import { resendVerificationEmail } from "@/lib/host/resend-verification";
 import {
   AddressAutocomplete,
   type ResolvedAddress,
@@ -679,16 +679,20 @@ export function ListingWizard({
     router.push("/host/listings");
   }
 
+  /**
+   * D-269 — THE CALL, AND THE SENTENCES LIVE SOMEWHERE ELSE NOW.
+   *
+   * This was a local function holding the `authClient` call and both toast strings. The host
+   * verification form is a second call site for the identical behaviour, so the body moved to
+   * `src/lib/host/resend-verification.ts` and this is the call — `hosting-paused-notice.tsx:7-11`'s
+   * rule, applied at the moment it starts applying. Behaviour here is unchanged: same client method,
+   * same two sentences, same swallowed cause.
+   *
+   * `callbackURL` is THIS surface's answer and is passed as an argument: the host was on their
+   * listings, so the link brings them back to their listings. The verification form passes its own.
+   */
   async function resendVerification() {
-    try {
-      await authClient.sendVerificationEmail({
-        email: hostEmail,
-        callbackURL: "/host/listings",
-      });
-      toast.success(`Verification email sent to ${hostEmail}.`);
-    } catch {
-      toast.error("Couldn't send the email. Try again in a moment.");
-    }
+    await resendVerificationEmail({ email: hostEmail, callbackURL: "/host/listings" });
   }
 
   function applyResolvedAddress(addr: ResolvedAddress) {
