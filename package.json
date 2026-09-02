@@ -20,6 +20,8 @@
     "design:tokens": "node scripts/generate-design-tokens.mjs",
     "fixtures:images": "node scripts/generate-image-fixtures.mjs",
     "cloudinary:preset": "tsx scripts/cloudinary-preset.ts",
+    "didit:verify": "tsx scripts/didit-setup.ts verify",
+    "didit:apply": "tsx scripts/didit-setup.ts apply",
     "email:previews": "tsx scripts/send-email-previews.ts",
     "ops:alerts": "tsx scripts/ops-alerts.ts list",
     "ops:alerts:resolve": "tsx scripts/ops-alerts.ts resolve",
