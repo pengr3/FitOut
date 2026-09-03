@@ -2,6 +2,7 @@
 created: 2026-09-01T11:56:40.872Z
 title: Ops staff management surface and invite flow
 area: ops
+resolves_phase: 20
 files:
   - src/lib/ops/staff.ts
   - src/lib/ops/grant.ts
