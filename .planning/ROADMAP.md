@@ -307,7 +307,7 @@ and (ii) whether holding only a `vendorRef` satisfies § 21(c)'s "updated and ve
 and the subpoena clause. **Both are vendor-independent** — equally open under Innov8tif or PayMongo —
 so neither changes what this phase builds.
 
-**Plans:** 15/15 plans executed
+**Plans:** 15/16 plans executed
 Worktrees stay OFF, so plans run **sequentially on `dev`, one executor at a time**; the waves express
 dependency order, not concurrency. No two plans in a wave modify the same file.
 
@@ -380,7 +380,7 @@ Plans:
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified** `passed_with_concerns` — 17/17 requirements, 0 code-level blockers; **PM checkpoint ANSWERED 2026-09-01 (all 5); checkbox held until 18.1 ships the code** — ⚠ **and 18.1 HAS now shipped that code, so as of 2026-09-03 the hold has a NEW and narrower reason: PM decision D-274** (`18.1/deferred-items.md § D9`), DECIDED and unimplemented, changes the `/ops` contact surface that 18.1-14's hand-measure just recorded. The checkbox is ticked by the plan that implements D-274, not by 18.1-14 | verified 2026-09-01 |
-| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 15/15 | In Progress|  |
+| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 15/16 | In Progress|  |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
