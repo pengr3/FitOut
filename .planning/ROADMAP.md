@@ -307,7 +307,7 @@ and (ii) whether holding only a `vendorRef` satisfies § 21(c)'s "updated and ve
 and the subpoena clause. **Both are vendor-independent** — equally open under Innov8tif or PayMongo —
 so neither changes what this phase builds.
 
-**Plans:** 15/16 plans executed
+**Plans:** 16/16 plans executed
 Worktrees stay OFF, so plans run **sequentially on `dev`, one executor at a time**; the waves express
 dependency order, not concurrency. No two plans in a wave modify the same file.
 
@@ -360,7 +360,7 @@ Plans:
 - [x] 18.1-13-PLAN.md — PM-E: host contact reveal in `/ops`, audited per reveal · **resolves F-6** (wave 6)
 - [x] 18.1-14-PLAN.md — The Didit sandbox transcript, the hand-measure, and Phase 18's checkbox · **[BLOCKING] two human checkpoints** (wave 7)
 - [x] 18.1-15-PLAN.md — D5: an abandoned Didit flow no longer locks a host out for seven days — `pending` becomes a RESUME, and the queue stamp does not move (wave 8, gap)
-- [ ] 18.1-16-PLAN.md — D-274: the `/ops` revealed contact becomes plain copy-pasteable text; the queue row returns to strictly terminal and the focus-move announcement is redesigned, not deleted · **closes OPS-06** (wave 9, gap)
+- [x] 18.1-16-PLAN.md — D-274: the `/ops` revealed contact becomes plain copy-pasteable text; the queue row returns to strictly terminal and the focus-move announcement is redesigned, not deleted · **closes OPS-06** (wave 9, gap)
 
 
 ## Progress
@@ -380,7 +380,7 @@ Plans:
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified** `passed_with_concerns` — 17/17 requirements, 0 code-level blockers; **PM checkpoint ANSWERED 2026-09-01 (all 5); checkbox held until 18.1 ships the code** — ⚠ **and 18.1 HAS now shipped that code, so as of 2026-09-03 the hold has a NEW and narrower reason: PM decision D-274** (`18.1/deferred-items.md § D9`), DECIDED and unimplemented, changes the `/ops` contact surface that 18.1-14's hand-measure just recorded. The checkbox is ticked by the plan that implements D-274, not by 18.1-14 | verified 2026-09-01 |
-| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 15/16 | In Progress|  |
+| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | In Progress|  |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
