@@ -246,7 +246,15 @@ argued:
   7. The three carried PM decisions are implemented: an ops-forced cancellation refunds the **full
      charge** (D-236 flipped), **title and description are material fields** (D-231), and a suspended
      host's `/host/earnings` **names the frozen session** (F11).
-  8. Phase 18's roadmap checkbox can be ticked.
+  8. Phase 18's roadmap checkbox can be ticked. — ⚠ **NOT DISCHARGED BY 18.1-14 (2026-09-03), AND
+     THE REFUSAL IS DELIBERATE.** Criteria 1–7 are met and `18.1-VALIDATION.md` is signed off, but
+     18.1-14's own hand-measure produced **PM decision D-274** (`deferred-items.md § D9`): the
+     revealed `/ops` email and phone must become plain copy-pasteable text rather than a clickable
+     `mailto:` anchor. That is DECIDED and unimplemented. Ticking the checkbox now would file
+     `18.1-EVIDENCE.md § P2` — a phase-closing evidence record — describing a surface the PM has
+     already ruled against, which is the roadmap lying about exactly the class of thing this phase
+     exists to fix. **`OPS-06` stays open with it; `HVER-06` and `HVER-07` closed.** The plan that
+     implements D-274 discharges this criterion.
 
 **PM decisions already taken (2026-09-01) — ANSWERED, do not re-ask.** Recorded in `18-14-SUMMARY.md`
 § The five checkpoint decisions and `18-KYC-VENDOR-COMPARISON.md` § ✅ DECIDED:
@@ -369,7 +377,7 @@ Plans:
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-28 |
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
-| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified** `passed_with_concerns` — 17/17 requirements, 0 code-level blockers; **PM checkpoint ANSWERED 2026-09-01 (all 5); checkbox held until 18.1 ships the code** | verified 2026-09-01 |
+| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified** `passed_with_concerns` — 17/17 requirements, 0 code-level blockers; **PM checkpoint ANSWERED 2026-09-01 (all 5); checkbox held until 18.1 ships the code** — ⚠ **and 18.1 HAS now shipped that code, so as of 2026-09-03 the hold has a NEW and narrower reason: PM decision D-274** (`18.1/deferred-items.md § D9`), DECIDED and unimplemented, changes the `/ops` contact surface that 18.1-14's hand-measure just recorded. The checkbox is ticked by the plan that implements D-274, not by 18.1-14 | verified 2026-09-01 |
 | 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 14/15 | In Progress|  |
 
 ## Carried Forward (not v1.2 scope until promoted)
