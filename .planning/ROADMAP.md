@@ -9,13 +9,17 @@ the booking's realness enforced by a Postgres exclusion constraint rather than b
 gets, across all nine v1.0 surfaces, so locking real branding later is a token edit rather than a
 component sweep.
 
+**v1.2** takes the host-verification and ops machinery Phase 18 shipped and makes it legible to hosts
+and operable by staff: ops moves to its own `ops.` host with its own sign-in and invite flow, Didit's
+verdict stands without an operator in the loop, and a host can finally see where they stand.
+
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1–9 (shipped 2026-08-11) — 49/49 requirements
 - ✅ **v1.1 Front-End Polish & Placeholder Design System** — Phases 10–17.1 (shipped 2026-08-31) — 69/71 requirements
-- 📋 **v1.2** — not yet defined. **Phase 18 (Host Verification, Listing Review & FitOut Ops) was added
-  ahead of the milestone cycle** on 2026-09-01 by PM decision. Run `/gsd-new-milestone` when v1.2's
-  full scope is defined.
+- 🔄 **v1.2 Verification & Operations** — Phases 18–23 (opened 2026-09-03, scoped 2026-09-04) —
+  **22/47 requirements complete**. Phases 18 and 18.1 were built *ahead* of the milestone cycle by PM
+  decision; they **fold into v1.2** rather than being re-planned, and numbering continues from **19**.
 
 ## Phases
 
@@ -72,20 +76,73 @@ handoff neither Phase 13 nor Phase 15 executed — found by the milestone audit.
 
 </details>
 
-### 📋 v1.2 — not yet defined · one phase added ahead of the cycle
+### 🔄 v1.2 Verification & Operations — Phases 18–23 (IN PROGRESS)
 
-**v1.2 has not been through the milestone cycle** — no requirements doc, no research, no roadmap
-pass. **Phase 18 was added ahead of it on 2026-09-01 by PM decision**, because the hole it closes is
-live in production: *FitOut cannot tell a real host from a fraudulent one, and has no ops function to
-find out.* **Phase 18.1 was inserted the same day** — Phase 18 shipped the console that decides and
-never shipped the thing that submits to it, and the Internet Transactions Act of 2023 turns that from
-a product gap into a compliance one. Run `/gsd-new-milestone` when v1.2's full scope is defined; both
-fold into it.
+**Goal:** Make FitOut's verification loop **legible to hosts** and **operable by staff** — a host can see
+where they stand and what is left, staff sign in to their own isolated ops surface and decide with the
+full picture in front of them, and the hosting surfaces stop misreporting their own state.
 
-**Two requirements carry forward unsatisfied from v1.1**, both closed by one monitored support
-address at `src/lib/site.ts:70`: `STATE-05` and `TRUST-01`. `TRUST-01` is now **Phase 18's
-neighbour** — a monitored support address is where a report of a fake listing would land, and 999.4
-below is the queue it would feed.
+**Phases 18 and 18.1 are v1.2's first two phases, and they are already complete and verified.** Both
+were built ahead of the milestone cycle on 2026-09-01 by PM decision — the hole Phase 18 closes was live
+in production (*FitOut could not tell a real host from a fraudulent one, and had no ops function to find
+out*), and Phase 18.1 was inserted the same day because Phase 18 shipped the console that *decides* and
+never shipped the thing that *submits to it*. `/gsd-new-milestone v1.2` ran 2026-09-03 and the rest was
+scoped 2026-09-04. **Their 22 requirements are counted in this milestone rather than re-planned**, and
+phase numbering **continues from 19**.
+
+**Requirements: 47 total — 22 complete (Phases 18 · 18.1) + 25 outstanding (Phases 19–23).**
+
+- [x] **Phase 18: Host Verification, Listing Review & FitOut Ops** (14/14) — verified 2026-09-03 ·
+      17 requirements · *built ahead of the cycle, folded in*
+- [x] **Phase 18.1: Close Phase 18 — the verification path (INSERTED)** (16/16) — verified 2026-09-03 ·
+      5 requirements
+- [ ] **Phase 19: Host Listing Surfaces & Gates That Actually Run** — the host grid renders honestly,
+      creating a listing lands on the wizard, and the Playwright specs run in CI · HSURF-01, HSURF-02,
+      CI-01
+- [ ] **Phase 20: Ops Gets Its Own Front Door** — the `ops.` host, its own sign-in, and staff
+      invite/onboard without a production `DATABASE_URL` · OPS-07…OPS-12
+- [ ] **Phase 21: The Host Can See Where They Stand** — the verification roadmap, the named cause, the
+      stale-pending rescue, and the deliberate resubmit · HVER-09…HVER-14, LVER-06…LVER-09
+- [ ] **Phase 22: Ops Decides With the Whole Picture** — the manual host queue goes, enforcement gets a
+      surface, and listing detail expands in place · ENF-04, OPS-13…OPS-15
+- [ ] **Phase 23: The Support Path Becomes Reachable** — one line, blocked on a monitored address ·
+      STATE-05, TRUST-01
+
+#### ⚠ Milestone invariants — every v1.2 plan is bound by these
+
+1. **ZERO new runtime dependencies, across the whole milestone.** Measured in `research/STACK.md`:
+   every mechanism v1.2 needs — the Host rewrite, host-scoped cookies, the invite flow, Playwright in
+   CI — is already installed and paid for. **An `npm install` inside a v1.2 plan is a SCOPE ALARM to be
+   raised explicitly**, exactly as D-136 treated one in v1.1. Do not bump `next`, `better-auth` or
+   `@playwright/test` either — the CI container image tag embeds the Playwright version, and the visual
+   baselines are pinned to `next@16.2.7`.
+2. **ZERO schema migrations, across the whole milestone.** Measured item by item in
+   `research/ARCHITECTURE.md` § Migration summary — every value v1.2 renders already exists as a column.
+   **A new file under `drizzle/` inside a v1.2 plan is the same scope alarm.** ⚠ For the record,
+   `drizzle/` ends at **`0029_listing_review_cascade.sql`**, not `0026`; a plan asserting "migrations end
+   at 0026" is false on arrival, and the next generated migration would be `0030`.
+3. **The ops queue row's TERMINAL property survives.** Zero anchors of any scheme and zero
+   `[role="link"]` elements, on **both row kinds**, **before and after** expansion. D-274 re-tightened
+   this on 2026-09-03 and 18.1-16 reverted two widenings rather than emptying them. **A disclosure is a
+   `<button>`, never a link**, and D-246's one-`/ops`-page rule holds — new ops capability is a *panel*,
+   not a second page.
+4. **Deploy target is Vercel + Neon** — `vercel.json` is tracked at HEAD, committed 2026-09-01 as
+   `c6e43b0`, PM-confirmed 2026-09-04. ⚠ **Vercel preview hostnames are a live hazard for any Host-match
+   rule**: every preview gets a generated `*.vercel.app` host, so a rule naming only the two production
+   hosts either breaks previews outright or serves the ops surface from a preview host. Drive the match
+   from **configuration, never a string literal**, and **fail closed** — an unrecognised host serves the
+   public site, never ops. A *named* `ops.` subdomain suffices; no wildcard, so no Vercel nameservers.
+5. **The proxy is routing; it is NEVER authorization.** The shipped three-layer guard — `assertStaff()`
+   in the `(ops)` layout, `requireStaff()` in the page, `requireStaff()` as the first statement of every
+   ops action — stays intact and Host-agnostic. Server Functions POST to their own URL and are **not**
+   reliably matcher-covered, so a Host rewrite that also *gates* silently uncovers actions. No diff may
+   remove a `requireStaff()` and add a host condition.
+6. **Worktrees are OFF**, so plans run **sequentially on `dev`, one executor at a time**. Waves express
+   dependency order, not concurrency.
+
+**Two v1.1 carry-forwards are now IN v1.2 scope** and have moved out of § Carried Forward below:
+`STATE-05` / `TRUST-01` (Phase 23) and **D-24**'s Playwright-gates-in-CI, which is now `CI-01` in
+Phase 19.
 
 ### Phase 18: Host Verification, Listing Review & FitOut Ops
 
@@ -365,6 +422,370 @@ Plans:
 - [x] 18.1-15-PLAN.md — D5: an abandoned Didit flow no longer locks a host out for seven days — `pending` becomes a RESUME, and the queue stamp does not move (wave 8, gap)
 - [x] 18.1-16-PLAN.md — D-274: the `/ops` revealed contact becomes plain copy-pasteable text; the queue row returns to strictly terminal and the focus-move announcement is redesigned, not deleted · **closes OPS-06** (wave 9, gap)
 
+### Phase 19: Host Listing Surfaces & Gates That Actually Run
+
+**Goal**: A host's own listing grid renders honestly and creating a listing lands where it should — and
+the specs that would catch a regression run in CI instead of only by hand.
+
+**Depends on**: Nothing. This phase shares no machinery with the ops thread; it goes first because it
+is cheap, independent, and because `CI-01` makes every later phase's gates capable of running.
+**Requirements**: HSURF-01, HSURF-02, CI-01
+**UI hint**: yes — `/host/listings` card layout and its footer controls, at 320px and both grid bands.
+
+**Success Criteria** (what must be TRUE):
+
+  1. On `/host/listings`, every card in a row ends at the **same bottom edge**, and every action control
+     is fully visible and pressable **inside its own card** — at 320px, at the two-column band and at the
+     three-column band.
+  2. A host who presses *Create listing* **lands on the edit wizard for the listing they just created**,
+     not on "We couldn't find that page".
+  3. The 404's cause is **reproduced and identified before any source file is touched**: cleared
+     `.next`, restart, re-probe the ten measured URLs, then repeat under `next build && next start`. If
+     it does not survive a clean production build, no application file changes.
+  4. Opening a pull request **runs the repository's functional Playwright specs**, and a failing spec
+     turns the run red — proven by watching one fail, not by reading the workflow file.
+
+**Plans**: TBD
+
+**⚠ HSURF-01: the obvious fix is a no-op, measured.** The grid wrapper sets no `align-items`, so grid
+items with `height: auto` **already stretch** — adding `h-full` to `Card` would be a no-op dressed as a
+fix. What misaligns is the **footer band**: `Card` is `flex flex-col` with `gap-0` at the call site and
+no child declaring `flex-1`, so the children pack to the top and the stretched height lands as dead
+space *below* the tinted, top-bordered footer. The fix is `flex-1` on the growing child (or `mt-auto` on
+`CardFooter`) plus `flex-wrap` on the footer. And the controls are **clipped, not spilled** — `Card`
+carries `overflow-hidden` while `Button` carries both `shrink-0` and `whitespace-nowrap`.
+
+  - **Fix at the CALL SITE** (`src/components/listing/listing-card.tsx:352`, `:368`, `:434`), **never in
+    the vendored `src/components/ui/card.tsx`** — that forks a shadcn primitive from upstream (D-129's
+    measured argument) and changes every `Card` in the app, including the search grid.
+  - ⚠ **Order matters under `tailwind-merge`.** Phase 17's WR-04 recorded a case where hoisting a named
+    constant to the front of `cn()` deleted a padding class outright. **Append, do not prepend.**
+  - **Two guards, not one**: equal `offsetHeight` across a row **with the footer flush to the card
+    bottom**, *and* `scrollWidth == clientWidth` on `[data-slot="card-footer"]` at 320px, at the `sm`
+    band and at the `lg` band. Fixing one does not fix the other.
+
+**⚠ HSURF-02 OPENS WITH A REPRODUCTION GATE, NOT A CODE CHANGE.** The measured evidence points at the
+running dev server, not at application code. `.next/dev/server/app-paths-manifest.json` (16 entries) is
+**missing** `/(host)/host/listings/[id]/edit` and `…/availability` while the compiled artifact exists on
+disk and the **production** manifest is complete. The decisive probe: an anonymous request to
+`…/[id]/edit` returned **404**, but that module `redirect()`s to `/login` *before* its `db.select()` and
+long before its `notFound()` — an anonymous caller reaching it can only produce a 307. **No FitOut code
+runs.** The 404 body is the root not-found, which is byte-identical to what the edit page's own
+`notFound()` would render — and that collision is exactly why this looked like an application bug.
+
+  - **Three things are UNPROVEN and this phase must close them**: (a) that `rm -rf .next` + restart makes
+    it go away; (b) whether it reproduces under `next build && next start`; (c) **what removed the
+    manifest entry** — a swallowed compile error, an HMR write race, a `next build` racing `next dev` on
+    the shared `.next`, or a Turbopack bug. **Do not name one in a docblock without evidence.**
+  - ⚠ **Never patch at `edit/page.tsx:49`.** That `notFound()` is a real IDOR guard; softening it to
+    work around a dev-server routing artifact trades a shipped ownership check for a symptom. Route the
+    diagnosis through `/gsd-debug` rather than a standard plan.
+  - **A second-order defect that IS in FitOut's code, and is in scope here**:
+    `(host)/host/listings/new/page.tsx` is a **GET page with a database write as a side effect** — four
+    orphan drafts in 46 seconds on 2026-09-03 is what that costs when the destination fails. Give the
+    `!res.ok` branch a sentence (already recorded as a known silent bounce) and make creation
+    recoverable so a failed redirect cannot mint orphans. **The fate of the four existing orphan drafts
+    is a PM call, not a code call.**
+  - ⚠ `npm start` needs `PLATFORM_WALLET_NUMBER` / `PLATFORM_WALLET_NAME` passed inline or it 500s
+    before the production-build probe can run.
+
+**CI-01 is a NEW FIFTH JOB, never a widening.** D-24 is half-closed already — two of four CI jobs run
+Playwright today — so the remaining scope is the functional `e2e/*.spec.ts` set as a **new `gate-e2e`
+job**, in the **same pinned `mcr.microsoft.com/playwright:v1.60.0-noble` container** the existing jobs
+use. ⚠ **Widening the existing `gate-price-parity` job instead is an enumerated mutation
+`scripts/verify-workflows.mjs:600` is designed to catch.** The full-suite wall-clock in CI is
+**unmeasured** — measure it before deciding whether to shard.
+
+### Phase 20: Ops Gets Its Own Front Door — the `ops.` Host, Sign-In & Staff Onboarding
+
+**Goal**: Staff reach FitOut Ops at its own address, sign in there and only there, and can onboard the
+next staff member without anyone holding a production `DATABASE_URL`.
+
+**Depends on**: Phase 19 (sequencing only — no shared machinery). ⚠ **The Host partition inside this
+phase is the milestone's one hard prerequisite**: nothing ops-side in v1.2 can start before it lands.
+**Requirements**: OPS-07, OPS-08, OPS-09, OPS-10, OPS-11, OPS-12
+**UI hint**: yes — an ops sign-in surface and a staff roster / invite panel.
+
+**Success Criteria** (what must be TRUE):
+
+  1. A staff member reaches the console **at its own `ops.` address** and signs in there. On the
+     marketplace host, `/ops` answers the **same byte-identical `notFound()`** a stranger gets — never a
+     redirect, because a redirect is an existence oracle.
+  2. **The two hosts do not share a session**: an ops session presented to the marketplace host is
+     anonymous, and a marketplace session is not staff on the ops host. Signing in twice is the
+     behaviour, not a defect.
+  3. A signed-in staff member **invites a colleague by email**; the colleague confirms, sets their own
+     password and reaches the console — with **nobody holding a production `DATABASE_URL`**. The link
+     works **exactly once**, and the account it produces **cannot also be a booker or a host**.
+  4. **No sequence of ops actions can lock every human out.** Self-revoke and last-staff revoke are
+     refused with a legible reason *on screen* (not a 404), and the CLI break-glass path still runs.
+  5. **The 404 cloak reads staff `200` / non-staff `404` / signed-out `404` / nonexistent `404`, with
+     the three 404 bodies byte-identical by hash**, with **every new ops route in the probe set** — and
+     there is still no `(ops)`-scoped `not-found.tsx`.
+
+**Plans**: TBD
+
+**⚠ `src/middleware.ts` → `src/proxy.ts` FIRST, as its own commit, before any Host logic is written.**
+Next 16.0.0 deprecated the `middleware` convention in favour of `proxy`, this repo runs **16.2.7**, and
+`next`'s own build code emits the warning. Do the rename with the `/login` + `/signup` deferral
+behaviour **byte-unchanged** — the QK-IR9 `_sc` loop-guard header travels verbatim; it documents a
+measured 30-day lockout and is the most expensive comment in the file. Five test files reference the old
+path. ⚠ The matcher must widen from `["/login","/signup"]` to effectively every request, which makes the
+file's "touches no database, imports nothing from auth or db" property **more** load-bearing, not less —
+extend that header, never replace it.
+
+**Cookie scoping is FREE; origin trust is NOT.** Read out of the installed `better-auth@1.6.14`, not
+from docs: no `Domain` attribute is emitted unless `advanced.crossSubDomainCookies.enabled` is true, and
+`src/lib/auth.ts` has **no `advanced` block at all** — so FitOut's session cookies are already host-only
+and D-275's cookie-scoping clause needs zero auth change. What *does* change is `baseURL` (to the
+dynamic `{ allowedHosts, fallback }` form, so an invite email does not land the invitee on the apex) and
+`trustedOrigins` (which must gain the ops origin, or the ops sign-in POST is refused with an
+origin-validation error that reads like a credentials bug).
+
+**⚠ Two one-line "improvements" would silently delete what this phase buys, and no existing test would
+go red.** `crossSubDomainCookies` merges the two cookie scopes; `session.cookieCache` keeps a **revoked**
+staff grant working for the cache TTL. **Both need net-new build-blocking design tests** — prose is the
+only thing protecting either today. Pair the second with a grant → revoke → next-request test.
+
+**⚠ The ops sign-in page CANNOT live under `(ops)`.** `assertStaff()` in the `(ops)` layout `notFound()`s
+a signed-out caller *before any page renders a byte*, and a sign-in bounce is literally a `redirect`,
+which `FORBIDDEN_REFUSALS` bans at any `(ops)` call site. It also collides with `EXPECTED_OPS_PAGES = 1`.
+Use a **sibling route group** (e.g. `(ops-auth)`), served only on the ops host by the proxy.
+
+**The invite is an account + a role write + an audit row. NO NEW TABLE.**
+
+  - `writeRole` gets a **second caller, never a second copy**, and its `actorId` upgrades from the CLI's
+    *asserted* `--by` to an **authenticated** id from `requireStaff()`. That upgrade is the real security
+    win of this item, and it needs no column.
+  - **The grantee is derived ONLY from the invite row, never from the request body.** D-275 supersedes
+    D-217's *consequence* but not its *fear*: an accept endpoint taking `{token, email}` is an
+    arbitrary-target role-grant path. The accept schema has exactly one field.
+  - **Single-use enforced at the database**: `UPDATE … SET accepted_at = now() WHERE token_hash = $1 AND
+    accepted_at IS NULL RETURNING *`, granting only if a row comes back. **Store a hash, not the token.**
+    **Do not accept on GET** — a corporate link scanner must not burn the invite. Reuse the shipped
+    ~100-bit Crockford group-invite token shape rather than inventing one.
+  - **Acceptance is the proof of mailbox control**: set `emailVerified` from the invite at acceptance.
+    **Do NOT flip the global `requireEmailVerification`** — that is D-07 and it governs bookers and hosts.
+  - **Audit meta carries ids and enum-shaped values only** (D-72), including on the no-such-user branch,
+    where the invite row's own id is recorded and never the address.
+  - **The CLI stays** (`ops:grant` / `ops:revoke` / `ops:staff`) as first-staff bootstrap and
+    break-glass, and somebody in production must retain the ability to run it — it is the only recovery
+    from an emptied console. Write that down where the UI revoke lives, not only in a decision log.
+
+**⚠ OPS-11 is a recorded REVERSAL, not a new rule.** D-275's "a staff account may not simultaneously be
+a booker or a host" is the exact clause **PM-B declined on 2026-09-01**; the PM reversed it on
+2026-09-04, and the reversal is to be recorded as such. It costs three things, priced rather than
+discovered: an **enforcement mechanism** (nothing today stops a `staff` account holding `canBook` /
+`canHost`); **two shipped comment blocks** that argue from the declined premise — `(ops)/ops/layout.tsx`'s
+"Ops is a ROLE, not a third context" and `error.tsx`'s "`/` is a real destination for them", the latter
+making `routeOut` a genuinely open question; and **what the CLI may do** (`ops:grant` must refuse or
+downgrade an account that already books or hosts). ⚠ **The seeded UAT account `host@fitout.test` violates
+the rule today** (`role='staff'` **and** `can_host = t`) — re-seed or split it in the same plan and update
+the local-env memory, or the next UAT walk reports a phantom regression. Mark PM-B's declined line
+**superseded by D-275**, with the date.
+
+**⚠ OPS-12 is D-275's NON-NEGOTIABLE condition, and it closes here** — this is the phase after which the
+probe set is complete, so the re-measure sits **after** the new ops routes exist, never before. Take the
+reading **twice** and record both: once when the partition lands, again when sign-in and invite have
+added their routes. Probes to add beyond 18-14's set: `/ops` on **both** hosts, the sign-in route on
+**both** hosts, and `ops.host/api/auth/*` — a `403 INVALID_ORIGIN` there is itself a small oracle, so make
+that reading deliberate rather than discovered. The cloak survives the rewrite **structurally**, because
+`src/app/not-found.tsx` is prerendered static and a prerendered body cannot vary by Host — **that is the
+property to protect**; nobody may "improve" the 404 page into a dynamic one.
+
+**⚠ Every new `(ops)` route inherits the streaming trap.** A `loading.tsx` is required beside every async
+ops page by the build-blocking loading-coverage gate; `loading.tsx` is a `<Suspense>` boundary; once
+streaming starts the **200 has already been sent** and the status cannot change. Layout-level
+`assertStaff()` is a **required** companion to any new `(ops)` route, and **the status line must be
+checked separately from the body** — a 200 with a 404 body is the whole attack.
+
+**Cross-host links must be repaired in this phase, or the console's only escape hatch loops.**
+`(ops)/ops/error.tsx`'s `Back to FitOut` and the `SiteFooter` composed into the ops shell are
+root-relative and mean something different under the ops host.
+
+⚠ **Resend rejects every recipient but the account owner until a domain is verified**, and a staff invite
+that cannot be delivered is a bootstrap failure — so this sits on this phase's UAT critical path. Read
+the composed payload out of Postgres rather than trusting a seeded `@fitout.test` send.
+
+### Phase 21: The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit
+
+**Goal**: A host reads their own verification standing as a **state** rather than a sentence, follows a
+roadmap to the one action that advances them, and fixes and resubmits a rejected listing **by choosing
+to** rather than by tripping a field.
+
+**Depends on**: Phase 20 (sequencing only — this phase shares no machinery with the ops-host thread and
+is independent of it). ⚠ **It must land BEFORE Phase 22, and that ordering is the point**: D-276 removes
+the operator from the host verification loop, and this is the self-service path that replaces the human.
+Shipping the removal first leaves a window in which the host has neither.
+**Requirements**: HVER-09, HVER-10, HVER-11, HVER-12, HVER-13, HVER-14, LVER-06, LVER-07, LVER-08,
+LVER-09
+**UI hint**: yes — the host verification state, the step roadmap, the resubmit control and the review
+history.
+
+**Success Criteria** (what must be TRUE):
+
+  1. An **unverified** or **rejected** host sees their standing as a real bordered state with a heading
+     and a **button-shaped control** — not a muted paragraph with an underlined word — and every
+     verification state is named and visually distinguishable, except `grandfathered`, which stays
+     **silent to the host**. `pending` stays deliberately calm.
+  2. A host can see the **ordered steps from account to bookable** — which are done, which is current,
+     which remain — spanning every gate that actually blocks income: identity check, payout onboarding,
+     listing a space, and FitOut checking that space. **Each step reads its own server-side gate**, so no
+     step can claim a host is ready when the gate that blocks them disagrees.
+  3. A host whose check **did not pass** is told a named cause and an **absolute retry instant** read
+     from the same value the server's guarded re-submit uses; and a host whose check has sat **pending
+     beyond a stated window** is given a way forward rather than an indefinite wait.
+  4. A host with a rejected listing can **choose *fix and resubmit***, is told **before they edit** which
+     changes send a listing back to review, and is **acknowledged** when the resubmission is received and
+     re-queued.
+  5. A host can read a listing's **review history per cycle** — submitted → waiting → decided, with the
+     operator's reason — newest first and bounded.
+
+**Plans**: TBD
+
+**This is presentation over data that already exists.** `loadHostVerification` already returns
+`{ status, reason, suspended, updatedAt }` and already has five callers — the roadmap becomes the
+**sixth caller, never a second read**. `listing_review` already carries `state`, `reason`, `submittedAt`
+and `decidedAt`: exactly the submitted → waiting → decided triple, with a `reason` column that was
+host-readable *by design*, so there is no internal note to leak. `decidedByStaffId` is **never** shown to
+a host. **Zero migrations, zero new queries.**
+
+  - ⚠ **`src/lib/listing/re-review.ts` stays BYTE-UNCHANGED.** The mechanism is already built and already
+    guarded — the guarded `UPDATE`, the append-only `listing_review` insert whose `submittedAt` is
+    deliberately omitted so Postgres supplies the clock (D-249's no-line-jumping guard), and the
+    deliberate absence of any statement that clears a prior rejection reason. D-278 changes how a host
+    *reaches* it, not what it does. Do not "consistently" refactor it against the deliberately
+    **duplicated** sell-gate re-statements in `booking.ts` (D-227).
+  - **HVER-14 is the human rescue D-276 removes, restored on the host side** — it is the reason this
+    phase precedes Phase 22. Reuse the shipped resend/cooldown modules; do not invent a second clock.
+  - **HVER-13's retry instant is ABSOLUTE, never a duration**, read from the one `COOLDOWN_HOURS` /
+    `retryAllowedAt` declaration that the guarded re-submit `UPDATE`'s own `WHERE` reads — so the instant
+    on screen cannot disagree with the clause that refuses.
+  - ⚠ **Per-step copy EXTENDS the total map; it does not invent strings at the component.**
+    `VERIFICATION_SIGNAL` is total over all six states by design, and its header says a change there is a
+    **copy decision that belongs in the spec first**.
+  - **LVER-06 routes INTO the edit wizard.** A resubmit button that resubmits with **no edit** *is* an
+    appeal wearing a button (explicitly out of scope — backlog 999.6) and it produces resubmission spam.
+    **Never label the control appeal, dispute or contest.**
+  - ⚠ **Do NOT soften D-231's accepted cost.** A typo fix in a description takes the listing off the
+    market until ops re-approves it. LVER-08 makes that visible *before* the host edits, in plain language
+    sourced from the **one exported material-fields tuple** so it cannot drift from the seven fields. It
+    must not introduce a "material but still sellable" state — the sell-gate does not have one.
+  - **A host-facing history filters `deletedAt IS NULL` on the parent listing**, the way `assertOwnership`
+    and the edit page already do (the `listing_review` FK is `cascade`, D-254 / `drizzle/0029`).
+  - **Anti-features, named so a plan cannot re-add them**: a percentage progress bar (it lies while
+    waiting on a third party), a live countdown or verdict ETA (the vendor drops a webhook permanently
+    after two retries — FitOut cannot honour one), host-visible queue position (the queue re-stamps on
+    resubmission, so the number would move backwards), naming the deciding staff member, canned rejection
+    codes replacing the operator's sentence, and **any "get in touch" clause** — `SUPPORT_EMAIL` is
+    `null` until Phase 23, and every new sentence must stand alone so half a sentence never renders.
+
+### Phase 22: Ops Decides With the Whole Picture — Queue Removal, Enforcement & Expand-in-Place
+
+**Goal**: The manual host-approval queue is gone and Didit's verdict stands on its own; an operator can
+reach a host to **enforce** against them from a control on screen rather than from a POST no UI issues;
+and every fact needed to judge a listing **expands in place** on its own queue row.
+
+**Depends on**: Phase 20 (the staff-surface patterns and the moved action census) **and** Phase 21 (the
+host-side legibility that replaces the human this phase removes)
+**Requirements**: ENF-04, OPS-13, OPS-14, OPS-15
+**UI hint**: yes — a host lookup / enforcement panel and the expanded queue row.
+
+**Success Criteria** (what must be TRUE):
+
+  1. An operator can **find a host, suspend them and freeze their payouts from a surface** — a control on
+     screen, not a POST no UI issues — and can still reach that host's contact details on demand, audited
+     per reveal.
+  2. An operator can read **every fact needed to judge a listing** — photos, description, address,
+     capacity, pricing, amenities, host facts — by expanding the queue row **in place**, behind **one**
+     disclosure level, without leaving the row.
+  3. **The row is still terminal after the change**: zero anchors of any scheme and zero `[role="link"]`
+     elements, **before and after** expansion, on every row kind that survives.
+  4. **Expanding the evidence never pushes the decision controls off-screen.** The decision widget stays
+     one widget, visually separated from the evidence.
+  5. **The host's verification standing reads as a fact on the listing row** rather than a blank cell.
+
+**Plans**: TBD
+
+**⚠ ENF-04 IS BIGGER THAN IT LOOKS, and it is this milestone's most undercounted item.** `suspendHost`
+(`src/app/actions/ops-review.ts:542`) has **ZERO UI callers today** — measured, repo-wide. So D-276's
+promise to "keep enforcement in ops" is currently a promise to preserve **something unreachable**.
+**This phase BUILDS the enforcement surface ENF-01 / ENF-02 never got**; it does not merely avoid
+deleting code. Treat it as first-class work, not cleanup. Do an **action-to-UI-caller inventory before
+the host branch is deleted**, and treat any zero-caller action as a PM question — not as dead code to
+delete, and not as a working feature to preserve.
+
+**The removal and its replacement ship TOGETHER, or ENF-01, ENF-02 and OPS-06 have no reachable home.**
+`OpsContactReveal` is mounted twice and **both mounts are on queue rows**; deleting the host branch would
+leave a host with no pending listing uncontactable from ops.
+
+**Order inside the phase: remove the host branch FIRST, then widen the listing branch.** Both changes
+land in the **same two files** (`src/lib/ops/review-queue.ts`, `src/components/ops/ops-queue-row.tsx`),
+and doing the widening first means editing both twice with the second edit fighting the first. Migrating
+`u.created_at` and `u.email_verified` from the departing host branch onto the listing row is cleanest as
+one continuous move.
+
+  - **`approveHost` and `rejectHost` are REMOVED, not left as dead `"use server"` exports.** A live
+    approve-host endpoint with no UI is exactly the "two authorities on one question" D-276 exists to
+    end. `EXPECTED_OPS_ACTIONS` moves **down two** here and up by the enforcement panel's actions — pin
+    and paragraph in one commit, as the constant exists to force.
+  - **Eight named test cases go red and must be deleted DELIBERATELY, in the branch's own commit** — five
+    in `tests/ops/queue-query.test.ts` (cases 1, 3, 8, 9, 10) and three in
+    `tests/ops/ops-queue-row.test.tsx`. ⚠ **Case 8 is also the standing witness for HVER-02 / D-206 /
+    D-220 (no document column)** — confirm `tests/ops/verification-schema.test.ts`'s exact-column
+    allow-list still carries that proof **before** the case goes. ⚠ **Case 10 is the end-to-end proof that
+    the host queue fills from ordinary product use**; deleting it *is* the product decision, and it
+    should read that way in the commit.
+  - **Keep the discriminated union as a ONE-MEMBER union.** It exists so a third kind fails to *compile*
+    rather than throwing in front of an operator; keeping it costs nothing and leaves the exhaustiveness
+    machinery in place. Keep `LISTING_QUEUE_PREDICATE` a **named constant** — `queue-query.test.ts` case 2
+    reads it.
+  - **OPS-13's data gap is `l.description` plus two `LEFT JOIN LATERAL … json_agg` blocks** (amenities,
+    activity tags) on the shape of the existing photos lateral, each with the same `?? []` null-collapse
+    — `json_agg` over an empty set is NULL, not `[]`. **This is the only genuine new-data gap in the whole
+    milestone, and it is still zero migrations.** Every column named **explicitly**; there is no
+    `select()` over a whole table anywhere in that file and there must not be one now.
+  - ⚠ **Add no field that could carry a document reference**, and render no placeholder implying one is
+    coming. The listing branch **inherits** the HVER-02 / D-206 / D-220 prohibition when it inherits the
+    host facts.
+  - **The disclosure goes in the row's `children` slot**, beside or below the existing `<dl>` — never in
+    `meta` (a `<dl>` there hydrates mismatched) and never in `actions`. A wrapper around a single
+    `<dt>`/`<dd>` pair is invalid inside a `<dl>`, so the disclosure wraps the **whole** extra block.
+  - **Performance**: load the detail **on disclosure**, or in **one grouped read for the page** — the
+    `coverByListing` / `rejectionReasonByListing` idiom. **Never a query inside `rows.map`.**
+  - **One `/ops` page still (D-246).** The host lookup / enforcement panel is a **panel on the one page**,
+    not `/ops/hosts` — a second page also moves all three `loading-coverage` counts.
+  - **The accepted cost, stated rather than discovered later**: with the manual queue gone, a verdict
+    **Didit drops** (it retries twice, then drops permanently) has **no human rescue** except the Inngest
+    reconciliation sweep shipped in 18.1-09, plus HVER-14's host-side affordance from Phase 21.
+
+### Phase 23: The Support Path Becomes Reachable
+
+**Goal**: A booker who needs help can find a support path from any booking, in any payment state.
+
+**Depends on**: nothing in code. ⚠ **Blocked on a BUSINESS FACT — a monitored support address.**
+Deliberately phased last and alone so that nothing else in v1.2 waits on it; if the address arrives
+earlier, this phase can be pulled forward without disturbing any other phase.
+**Requirements**: STATE-05, TRUST-01
+
+**Success Criteria** (what must be TRUE):
+
+  1. A booker looking at a booking — **in any payment state** — can find a way to reach FitOut for help.
+  2. The same support path is reachable from the **trust surfaces** that owe one.
+  3. Until the address exists, every surface that owes a support path renders **nothing at all** rather
+     than a placeholder or half a sentence — and it fills in from **one line** at `src/lib/site.ts:70`.
+
+**Plans**: TBD
+
+  - **Code-complete since v1.1.** The support path is written, composed and guarded on every surface that
+    owes one and renders nothing while `SUPPORT_EMAIL` is `null`. `src/lib/site.ts:70` is the only line
+    that changes.
+  - ⚠ **D-64 explicitly forbids setting a placeholder to make the gate pass.** This phase does not open
+    until a real, monitored address exists.
+  - **Consequence for Phase 21**: no new v1.2 copy may carry a "get in touch" clause, because half a
+    sentence must never render.
+
+
 
 ## Progress
 
@@ -384,6 +805,11 @@ Plans:
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified & COMPLETE** — 17/17 requirements, 0 code-level blockers. The checkbox was held from 2026-09-01 until 18.1 shipped the missing submission path, then briefly re-held on PM decision D-274 (the `/ops` contact surface). **18.1-16 shipped D-274 on 2026-09-03 and phase 18.1 verified passed 9/9, so both holds are discharged.** | verified 2026-09-03 |
 | 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | Complete    | 2026-09-03 |
+| 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 0/TBD | Not started | - |
+| 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | Not started | - |
+| 21. The Host Can See Where They Stand | v1.2 | 0/TBD | Not started | - |
+| 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |
+| 23. The Support Path Becomes Reachable | v1.2 | 0/TBD | **Blocked on a business fact** — a monitored support address (D-64 forbids a placeholder) | - |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
@@ -391,9 +817,17 @@ Plans:
 - **PayMongo hosted Linked-Accounts KYC (PAY-04) has never been walked** — same gate.
 - **GCash and Maya have never been individually hand-paid** — closable today by a human with no new
   code; card and QR Ph are already proven.
-- **`SUPPORT_EMAIL`** — one line closes `STATE-05` and `TRUST-01`.
-- **~22 of Phase 17's escalate-class findings** await PM review; **D-24** leaves the milestone's own
-  Playwright gates out of CI.
+- **No v1.1 email has ever been read in a real client at its real recipient** — Resend rejects every
+  recipient but the account owner until a domain is verified. ⚠ **Now on Phase 20's critical path**: a
+  staff invite that cannot be delivered is a bootstrap failure.
+- **~22 of Phase 17's escalate-class findings** await PM review.
+- **Four orphan draft listings** created 2026-09-03 by the HSURF-02 defect are real rows a real host
+  cannot reach. Their fate is a PM call, surfaced by Phase 19.
+- ~~**`SUPPORT_EMAIL`** — one line closes `STATE-05` and `TRUST-01`.~~ **PROMOTED into v1.2 on
+  2026-09-04 as Phase 23.** Still blocked on a monitored address; D-64 forbids a placeholder.
+- ~~**D-24** leaves the milestone's own Playwright gates out of CI.~~ **PROMOTED into v1.2 on 2026-09-04
+  as `CI-01` in Phase 19** — half-closed already (two of four CI jobs run Playwright), so the remaining
+  scope is the functional `e2e/*.spec.ts` set as a new fifth job.
 
 See STATE.md § Deferred Items for the full ledger.
 

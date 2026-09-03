@@ -3,14 +3,18 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Verification & Operations
 status: planning
-last_updated: "2026-09-03T11:24:07.792Z"
-last_activity: 2026-09-03
+last_updated: "2026-09-04T00:00:00.000Z"
+last_activity: 2026-09-04
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
+  # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
+  # of 2026-09-04. The plan counters cover phases 18 + 18.1 ONLY -- phases 19-23
+  # are not yet planned, so `percent` is derived from PHASES, not from plans.
+  total_phases: 7
+  completed_phases: 2
+  total_plans: 30
+  completed_plans: 30
+  percent: 29
 ---
 
 # Project State
@@ -20,7 +24,29 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
+**Current focus:** **v1.2 IS ROADMAPPED — five new phases (19–23) carry the milestone's 25 outstanding
+requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues
+from 19; coverage is 25/25 with no orphans and no duplicates. The order is dependency-derived, not
+brief-derived: **19** (cheap independents — the `/host/listings` card fix, the reproduction-gated
+listing-creation 404, and the Playwright specs as a NEW fifth CI job) → **20** (the Host-header
+partition, `src/middleware.ts` → `src/proxy.ts`, the `ops.` host, ops sign-in and staff invite, closing
+with D-275's non-negotiable 404-cloak re-measure) → **21** (the host-facing verification roadmap, named
+cause, stale-pending rescue and deliberate resubmit — deliberately BEFORE the removal, because it is
+what replaces the human D-276 takes out of the loop) → **22** (remove the manual host queue, BUILD the
+enforcement surface `suspendHost` never had, and expand listing detail in place on the queue row) →
+**23** (`SUPPORT_EMAIL`, phased last and alone because it is blocked on a business fact). **Four
+milestone invariants bind every plan**: ZERO new runtime dependencies and ZERO schema migrations (both
+measured — an `npm install` or a new `drizzle/` file is a scope alarm to raise, as D-136 did in v1.1);
+the ops queue row stays TERMINAL, so a disclosure is a `<button>`; and the deploy target is Vercel +
+Neon, where **preview hostnames are a live hazard for any Host-match rule** — drive the match from
+config and fail closed. Standing constraints unchanged: **`deriveBookable` is OFF LIMITS**, **gates run
+ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-plan-phase 19`.**
+
+<details><summary>Previous focus (Phase 18.1 complete / v1.2 not yet roadmapped, superseded 2026-09-04)</summary>
+
 **Current focus:** **PHASE 18.1 IS COMPLETE AND VERIFIED — and Phase 18's checkbox is discharged with it.** 16/16 plans; the verifier passed 9/9 must-haves on 2026-09-03, re-running all four gates itself rather than trusting any SUMMARY (`npm test` 2679 tests, zero failures). The verification path FitOut is legally required to have is now END TO END: a host submits at `/host/verify` (18.1-07, the code path Phase 18 never wrote), Didit sits behind the provider port as a registration rather than a re-architecture (18.1-05), one shared mapper turns a vendor answer into a FitOut state change (18.1-06), one authenticated door lets the verdict in (18.1-08), an Inngest sweep recovers a verdict Didit dropped after its two retries (18.1-09), an unverified host cannot create a listing and is told why (18.1-12, closing FINDING F-2), and ops can reach a host with every reveal audited in the same call as the read (18.1-13, OPS-06). **The two most valuable findings of the phase came from a human using the product, not from any gate**: D5 — an abandoned Didit flow locked a host out for up to SEVEN DAYS, found by the PM walking away mid-flow, fixed by 18.1-15 by admitting `pending` as a RESUME whose `created_at` deliberately does NOT move (F-1 in reverse) — and D6, the host phone that is shape-checked but never verified or normalised, which the PM parked with a price. **NEXT IS THE MILESTONE BOUNDARY, NOT A NEXT PHASE**: no unticked non-backlog phase remains, and the frontmatter counters are incoherent because phases 18/18.1 are tagged v1.2 while `milestone:` still says v1.1 — see `stopped_at`. Standing constraints unchanged: **`deriveBookable` is OFF LIMITS**, **gates run ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`.
+
+</details>
 
 <details><summary>Previous focus (v1.0 shipped / no milestone active, superseded 2026-08-11)</summary>
 
@@ -42,10 +68,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 19 — Host Listing Surfaces & Gates That Actually Run (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-09-03 — Milestone v1.2 started
+Status: Roadmap complete — ready to plan Phase 19
+Last activity: 2026-09-04 — v1.2 roadmap created (Phases 19–23; 25/25 requirements mapped)
 
 ## Performance Metrics
 
@@ -1512,8 +1538,16 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-02T07:45:00.000Z
-Stopped at: Completed 18.1-10-PLAN.md — the verification copy module, the extracted email resend, the corpus at 49 strings, and deferred item D3 closed. Wave 4 continues at 18.1-11 (the panel that renders these words).
+Last session: 2026-09-04T00:00:00.000Z
+Stopped at: v1.2 ROADMAPPED. `.planning/ROADMAP.md` now carries five new phases (19–23) after the
+complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
+outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
+Next step is `/gsd-plan-phase 19`.
+
+⚠ The prior `Stopped at` (18.1-10, wave 4) was stale — 18.1 finished at 18.1-16 and verified 9/9 on
+2026-09-03. It is corrected here rather than carried forward.
+
+<details><summary>Carried-over session notes from the 16.1/18.1 plan runs (kept for provenance; superseded 2026-09-04)</summary>
 
 The client-side half of the boundary is on `<CldUploadWidget>` and every value it passes is imported
 from `upload-policy.ts`: `maxFileSize: LISTING_MAX_BYTES` (U1 — this file PROMISED a ten-megabyte
@@ -1533,6 +1567,8 @@ BOTH mandated mutations rather than trusting transcripts it had not watched. Bot
 regression; 185 files / 2128 tests passed immediately afterwards. Design suite is 63 files / 1201
 passed, and `npx vitest run tests/listing` still does not collect the new file — `npm run test:design`
 does.
+
+</details>
 
 <details><summary>Previous session (16.1-01 — the upload declaration, superseded 2026-08-27)</summary>
 
@@ -1892,4 +1928,18 @@ Resume file: None
   `.planning/todos/pending/2026-09-01-phase-18-pm-decision-follow-through.md`. **Tick the Phase 18
   checkbox and bump `completed_phases` only after those three land.**
 
-- Start the next milestone with /gsd-new-milestone
+- **NEXT: `/gsd-plan-phase 19`.** v1.2 is roadmapped (Phases 19–23, 25/25 requirements mapped,
+  2026-09-04). Phase 19 is the cheap-independents phase — the `/host/listings` card fix, the
+  reproduction-gated listing-creation 404, and D-24's Playwright specs as a **new fifth CI job**. It
+  shares no machinery with the ops thread and unblocks every later phase's verification.
+
+- ⚠ **PM, before Phase 19 plans**: decide the fate of the **four orphan draft listings** created
+  2026-09-03 by the HSURF-02 defect. They are real rows a real host created and cannot reach. That is a
+  PM call, not a code call.
+
+- ⚠ **PM, before Phase 20 plans**: `OPS-11` (a staff account may not simultaneously be a booker or a
+  host) is D-275 **reversing PM-B**, which declined exactly that clause on 2026-09-01. The reversal is
+  taken as ruled — what is owed is marking PM-B's declined line **superseded by D-275** in
+  `.planning/todos/pending/2026-09-01-ops-staff-management-surface-and-invite-flow.md`, so the next
+  reader does not follow the older ruling. Note the seeded UAT account `host@fitout.test` violates the
+  rule today (`role='staff'` **and** `can_host = t`) and must be re-seeded or split in the same plan.
