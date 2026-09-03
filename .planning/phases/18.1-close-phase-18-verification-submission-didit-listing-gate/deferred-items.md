@@ -577,3 +577,37 @@ real regression in this file will be dismissed as "that flaky one".
 green, it is this. If solo is red, it is not.
 
 **Status:** OPEN — carried with D4 as one suite-contention problem to fix together, outside 18.1.
+
+### D6 addendum (PM, 2026-09-03) — two more facts, found during the 18.1-14 hand-measure
+
+**1. The stored phone is NOT normalised, and the same number lands three ways.** Measured on the
+operator's own submissions during the pending reading — all three reached the action, and the stored
+value is simply whichever was last:
+
+```
+typed:   +639555339701   09555339701   9555339701
+stored:  9555339701      (length 10, no country code, no leading zero)
+```
+
+`src/app/actions/host-verification.ts:605` is `set({ phone: parsed.data.phone })` — the trimmed input
+verbatim, with no canonicalisation anywhere between the field and the column. ⚠ **This lands directly
+on OPS-06**: 18.1-13 shipped the audited contact reveal so ops can REACH a host, and an operator
+handed `9555339701` cannot tell whether it is missing a `0` or a `+63`. The shape check accepts all
+three, so the ambiguity is by construction, not by accident.
+
+**2. The panel does not pre-fill the field from the stored value.** The PM expected a host returning
+to a `pending` panel to see the number they already gave. It is saved — `user.phone` holds it — but
+`/host/verify`'s page passes no phone to `verification-panel.tsx`, and the input carries no
+`defaultValue`, so the field renders empty on every load. What looked like "the number does not save"
+was the field not echoing it back.
+
+**Deliberately NOT fixed as a one-off.** The pre-fill alone is ~20 minutes, but it would redisplay an
+un-normalised string as though it were canonical — so the honest version of this change needs the
+storage FORMAT decided first, which is the same decision D6 already parks. Doing them together means
+touching `host-verification.ts` and the panel once instead of twice, and it keeps the displayed value
+and the dialable value the same thing.
+
+**Sequence when D6 is picked up:** decide the format (E.164 is the obvious candidate, and Didit's own
+`contact_details.phone` requires it) → normalise on write → backfill the one existing row → then
+pre-fill the field from the normalised column. ⚠ Only ONE user in the whole dev database has a phone
+at all, so the backfill is trivial today and will not be later.
