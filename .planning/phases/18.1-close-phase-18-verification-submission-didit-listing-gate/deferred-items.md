@@ -645,6 +645,13 @@ decision does not fight the design; it restores it.
   already there. The honest replacement is to move focus to the revealed block (or announce it) and
   to say so at the site; silently dropping the assertion would remove an accessibility guarantee
   under cover of a styling change.
+  - ⚠⚠ **BOTH HALVES OF THAT BULLET WERE WRONG AND ARE CORRECTED BY 18.1-16 — see the closing note
+    at the end of this section.** `host-contact-reveal.test.ts` has **no** DOM, no `focus`, no
+    `activeElement` and no `mailto` (it is the server-action audit/authz file) and it is
+    **byte-unchanged** by the fix; the real assertion was in `tests/ops/ops-queue-row.test.tsx`.
+    And the live region was **not** "already there" for this purpose — it exists for the REFUSAL
+    path only, and `src/lib/design/live-regions.ts` **forbids** a success one. The bullet's
+    *instruction* was nevertheless right, and 18.1-16 honoured it: the behaviour was redesigned.
 - `18.1-UI-SPEC.md` § Surface 4 § The interaction states the focus-to-anchor behaviour and must be
   amended in the same commit.
 
@@ -656,8 +663,102 @@ decision does not fight the design; it restores it.
   the reveal remains an on-demand, audited fetch.
 - No support address appears anywhere (confirmed in this reading).
 
-**Status:** DECIDED — **closure plan: `18.1-16-PLAN.md` (wave 9), written 2026-09-03.** Not yet implemented. ⚠ **Phase 18's roadmap checkbox must NOT be ticked until this
-ships** — 18.1-14 was briefed accordingly. Closing the phase would otherwise file an evidence
-document describing a surface the PM has already decided against.
+**Status:** ✅ **RESOLVED in 18.1-16** (2026-09-03). Shipped, gated and re-read in a real browser.
 
-⚠ **What `18.1-16` corrects in the list above.** `tests/ops/host-contact-reveal.test.ts` does **not** assert focus — it is the server-action audit/authz file (no DOM, no `activeElement`, no `focus`, no `mailto`) and is **byte-unchanged** by the fix. The focus assertion is in `tests/ops/ops-queue-row.test.tsx:363-370`. And the live region is **not** “already there” for this purpose: the island declares exactly ONE region and it is the REFUSAL path only — `src/lib/design/live-regions.ts:1712-1718` states “⚠ SO NO SUCCESS REGION MAY BE ADDED HERE”. `18.1-16` therefore KEEPS the focus move and re-points it at the revealed VALUE (a `tabIndex={-1}` text node in the same `<dd>` the anchor occupied) rather than announcing through a region. Two further files move with the fix and D9 did not name them: `tests/design/site-contacts.test.ts` (`EXCLUDED_MAILTO` is RETURNED — it lives there, not in the row test) and `src/lib/design/live-regions.ts` (prose only; no count moves).
+**What shipped.** The revealed email is now `<span ref={emailRef} tabIndex={-1}>{contact.email}</span>`
+inside the same `<dd>` the anchor occupied. The phone is unchanged — it was already plain text, and
+the island's own header already argued it should never become a link, so **D-274 made the email match
+the phone** rather than changing direction on either. Measured in Chromium at 320 and 1280, in court
+and grove, on a host row and a listing row (8 readings, all pass): zero anchors before or after a
+reveal, `cursor: auto`, `text-decoration-line: none`, the same ink as its `<dd>`, `Enter` on the value
+leaves the URL unchanged and opens no window, and the value selects and copies to exactly its own
+text. The full transcript is in `18.1-16-SUMMARY.md`.
+
+**Which announcement replacement was chosen, and why not the other.** Chosen: **the revealed VALUE
+becomes the focus target** — every property the anchor's focus move had is carried by the target's
+POSITION (same `<dd>`, so the `<dt>` context is spoken; its text IS the address), so what was removed
+is the word "link" and not the announcement. `booking-reference.tsx:143-153` is the shipped precedent
+for a `tabIndex={-1}` value the user copies. Rejected: **announcing through a live region** — one
+line, because it is the reason that decides it: `src/lib/design/live-regions.ts` does not merely omit
+a success region for this file, it states *"⚠ SO NO SUCCESS REGION MAY BE ADDED HERE"*, and a polite
+region beside a focus move is two announcements for one outcome (GATE-03 rule 6). It would also have
+moved `LIVE_REGION_IDS`, `AUTHOR_NAMED_REGIONS` and `ops-queue-row.test.tsx`'s
+one-`[role="status"]`-per-row assertion; the shipped shape moves **no count**.
+
+⚠ **What `18.1-16` corrects in "What it touches" above.** `tests/ops/host-contact-reveal.test.ts`
+does **not** assert focus — it is the server-action audit/authz file (11 cases, no DOM) and it is
+**byte-unchanged**, gated by `git diff --exit-code`. The focus assertion was in
+`tests/ops/ops-queue-row.test.tsx:363-370`. Two files moved with the fix that D9 did not name:
+`tests/design/site-contacts.test.ts` (`EXCLUDED_MAILTO` lives **there**, not in the row test, and it
+is now **deleted** — D-26's ban is back to zero declared exemptions across all of `src/`) and
+`src/lib/design/live-regions.ts` (prose only; `LIVE_REGION_FILES` still 31).
+
+⚠ **Phase 18's roadmap checkbox is now DISCHARGEABLE and 18.1-16 deliberately did NOT tick it.** The
+reason the box was held is gone, but ticking it is the verifier's / orchestrator's call, not a plan's.
+`REQUIREMENTS.md`'s `:180` ledger line says the same thing.
+
+---
+
+## D10 — `NavDrawer` LOGS A HYDRATION MISMATCH IN THE DEV SERVER (almost certainly the `[12-08]` dev-mode class)
+
+**Found during:** 18.1-16, the four rendered readings. Logged, **not fixed** — pre-existing and
+outside this plan's surface.
+
+**Symptom.** Every one of the four Playwright runs printed the same `[WebServer]` warning, on any
+route under `(host)`:
+
+```
+Hydration failed because the server rendered HTML didn't match the client
+  at Button (src/components/ui/button.tsx:143:5)
+  at DialogTrigger (src/components/ui/dialog.tsx:19:10)
+  at ResponsiveDialog (src/components/patterns/responsive-dialog.tsx:250:18)
+  at NavDrawer (src/components/patterns/site-chrome.tsx:308:5)
+  at SiteNav (src/components/patterns/site-chrome.tsx:342:9)
+  at AmbientHostNav (src/components/patterns/ambient-notifications.tsx:176:10)
+  at HostLayout (src/app/(host)/host/layout.tsx:96:13)
+```
+
+The diff is Radix's `aria-controls="radix-_R_ad5ritulb_"` / `data-state` / `aria-expanded` on the
+drawer trigger — i.e. an id and state the client generates.
+
+**Why it is deferred, not fixed:**
+
+- **Unrelated surface.** 18.1-16 touched `ops-contact-reveal.tsx`, `live-regions.ts` (prose) and two
+  test files. None is in `site-chrome.tsx`'s import graph and none renders a `ResponsiveDialog`.
+- **`npm run build` (gate 4) is clean**, and **all four readings passed** — 17 + 2 + 2 spec results
+  plus this plan's own 6-case reading, zero failures.
+- ⚠ **This repository has already measured this exact class and named it.** STATE `[12-08]`:
+  *"was a DEV-MODE ARTEFACT, measured on a 2×2 matrix rather than a before/after… present → dev
+  `Hydration failed × 1` / prod **0**"*. Same shape (a Radix provider/trigger), same dev-only
+  visibility. Treating it as a defect without running that discriminator would repeat the mistake
+  `[12-08]` corrected.
+
+**Recommended owner + first step:** whichever later plan touches `site-chrome.tsx` or
+`responsive-dialog.tsx`. **Run the `[12-08]` discriminator FIRST** — the same seeded route under
+`npm run build && npm start` versus `npm run dev` — before believing it is real. A prod-clean reading
+closes it as the same artefact; a prod-red reading makes it a genuine finding about the drawer.
+
+---
+
+## D11 — FIVE STALE `e2e_bk_host_*` FIXTURE HOSTS IN THE DEV DATABASE (2026-08-29/30)
+
+**Found during:** 18.1-16, while confirming this plan's own Playwright teardowns were clean.
+
+**What is there.** `select … from "user" where id like 'e2e_bk_host_%'` returns five rows created
+**2026-08-29 11:35** through **2026-08-30 16:52** — days before this plan ran. 18.1-16's own fixtures
+tore down completely (its `afterAll` ran `staffTeardown()` then `seed.teardown()`, and no row from
+2026-09-03 remains), so these are residue from earlier e2e runs that ended before their `afterAll`,
+not from this one.
+
+**Why it is deferred, not fixed:** it is dev-database hygiene rather than a product defect, and
+deleting rows from the operator's dev DB is not a plan executor's call — `seedBookableListing`'s
+teardown is ORDERED against foreign keys (`listing_review.listing_id` is `ON DELETE RESTRICT`), so
+ad-hoc deletion is exactly the trap that helper's header warns about. ⚠ It is also worth knowing that
+**the Playwright specs run against the DEV database** (`playwright.config.ts`'s `webServer.env` merges
+over `process.env` without overriding `DATABASE_URL`), so this residue is visible to a hand-walk of
+`/ops` as extra queue rows.
+
+**Recommended owner:** whoever next does a dev-DB reset, or a plan that adds a `npm run e2e:sweep`
+teardown for orphaned `e2e_bk_host_%` / `e2e.staff.%` rows. ⚠ **Do not delete `host@fitout.test`** —
+that is the operator's UAT host and 18.1-16 confirmed it untouched by this plan (`pending`, live
+`vendor_ref`, `updated_at 2026-09-03 06:02:56+00`, which predates every run here).

@@ -1693,7 +1693,8 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "query that threw), or the burst guard fired. The element is absent from the document until a " +
       "refusal lands and is cleared on the next press, so a listener hears one sentence per press " +
       "and never a re-read of the last one. NOTHING on the success path: the two revealed values " +
-      "appear and FOCUS MOVES to the email anchor, which is the announcement.",
+      "appear and FOCUS MOVES onto the revealed email VALUE — a programmatically-focusable " +
+      "plain-text node, not a control (D-274) — and that move is the announcement.",
     why:
       "RULE 1, RULE 5 and RULE 6, plus RULE 7 for the half this region deliberately does NOT carry.\n" +
       "\n" +
@@ -1706,12 +1707,24 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "The success path's announcement is rule 7's *polite region + moved focus* mechanism reduced " +
       "to its second term: the outcome of a successful reveal is CONTENT APPEARING ELSEWHERE IN THE " +
       "LIST — the `Contact` fact is replaced by `Email` and `Phone` — and moving focus onto the " +
-      "email anchor speaks the value, its `<dt>` context and the operator's next action in one move. " +
-      "A second polite region saying so beside that focus move would be two announcements for one " +
-      "outcome. ⚠ SO NO SUCCESS REGION MAY BE ADDED HERE, and the reason is a mechanism rather than " +
-      "an economy: it is the third distinct reason this set has had for owing no success region (the " +
-      "ops decision row's surface disappears, the host panel's host disappears, and this one's " +
-      "outcome is audible because focus moved), which is why each is written at its own site.\n" +
+      "revealed VALUE speaks the address, its `<dt>` context and the thing the operator pressed to " +
+      "read, in one move. A second polite region saying so beside that focus move would be two " +
+      "announcements for one outcome. ⚠ SO NO SUCCESS REGION MAY BE ADDED HERE, and the reason is a " +
+      "mechanism rather than an economy: it is the third distinct reason this set has had for owing " +
+      "no success region (the ops decision row's surface disappears, the host panel's host " +
+      "disappears, and this one's outcome is audible because focus moved), which is why each is " +
+      "written at its own site.\n" +
+      "\n" +
+      "⚠ AND D-274 (2026-09-03) MADE THAT SENTENCE STRONGER RATHER THAN STALE. The focus target was " +
+      "the compose anchor plan 18.1-13 shipped; the PM ruled the revealed contact must be plain, " +
+      "copy-pasteable text, so it is now a `tabIndex={-1}` text node inside the same `<dd>` the " +
+      "anchor occupied. That is rule 7's second term reduced FURTHER STILL — an announcement carried " +
+      "by a value rather than by anything operable — and the properties it depends on are structural: " +
+      "the `<dt>` context comes from the target's POSITION and the spoken value is its own text. A " +
+      "region was weighed against it and refused on this paragraph's own terms, plus three costs the " +
+      "module can measure: `LIVE_REGION_IDS` +1, an `AUTHOR_NAMED_REGIONS` row, and " +
+      "`tests/ops/ops-queue-row.test.tsx`'s assertion that the refusal region is the ONLY " +
+      "`[role=\"status\"]` on the row. The shipped shape moves no count in this file.\n" +
       "\n" +
       "⚠ AND THE SENTENCE IS THE SERVER'S, UNALTERED. This action returns PII and refuses for " +
       "reasons an operator must be able to act on; a client re-wording would be a second account of " +
