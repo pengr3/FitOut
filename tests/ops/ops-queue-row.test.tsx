@@ -11,13 +11,18 @@
 //     rendered row is a link" are only the same statement if the container honours the absence, which
 //     is what this asserts against the output, with the router link stubbed to a plain anchor so a
 //     re-added destination shows up as one.
-//     ⚠ SINCE PLAN 18.1-13 THE CLAIM IS "ZERO DESTINATIONS", NOT "ZERO ANCHORS", and the difference
-//     is one declared scheme rather than a loosened rule. D-271's contact reveal renders a compose
-//     anchor once an operator has pressed for it; a compose anchor hands the address to a mail
-//     client and navigates this document NOWHERE, so the terminal property is untouched by it. The
-//     exemption is one scheme, capped at one per row, with `[role="link"]` still at zero — and the
-//     filter that implements it has its OWN both-directions guard, because a filter that dropped
-//     every anchor would satisfy the zero above permanently.
+//     ⚠ THE CLAIM IS "ZERO ANCHORS" AGAIN, AND IT IS A ROUND TRIP WITH TWO DATES ON IT rather than
+//     an assertion that quietly drifted back. Plan 18.1-13 (2026-09-02) WIDENED it to "zero
+//     destinations plus at most one `mailto:`" so D-271's contact reveal could render a compose
+//     anchor; plan 18.1-16 (2026-09-03) RETURNED it under PM decision D-274, which ruled that the
+//     revealed contact must be plain, copy-pasteable text rather than something you press. So this
+//     is a TIGHTENING, not a change of direction: the widening was the departure and the zero is
+//     the Phase-18 property this file's own note below says it "knows an anchor would fail".
+//     What was removed is the word "link" and NOT the announcement — focus still moves on a
+//     successful reveal, onto the revealed VALUE, which is a `tabindex="-1"` text node inside the
+//     same `<dd>` the anchor occupied. Re-admitting any scheme here is a PM DECISION and not a
+//     filter, and the two guard-the-guards below exist so that a re-introduced filter of any shape
+//     reddens rather than making the zero permanently green.
 //   • EVERYTHING NEEDED TO DECIDE IS ON THE ROW. D-231's five material fields plus the OTHER term of
 //     the sell-gate, read as `<dt>`/`<dd>` PAIRS so a re-ordered list cannot pass by position.
 //   • A HOST ROW HAS NO DOCUMENT AFFORDANCE, because no document exists (HVER-02 / D-206 / D-220).
@@ -100,23 +105,6 @@ const PRICE = "₱1,000.00/hr";
  */
 const HOST_EMAIL = "ana.reyes@example.test";
 const HOST_PHONE = "0917 555 0110";
-
-/** The one anchor shape the row may render. See the header's TERMINAL note. */
-const COMPOSE_ANCHOR = 'a[href^="mailto:"]';
-
-/** How many of them a row may render. One host, one address, one way to write to them. */
-const MAX_COMPOSE_ANCHORS = 1;
-
-/**
- * Every anchor in the row that is NOT the one declared compose exception — i.e. every DESTINATION.
- *
- * This is the amendment plan 18.1-13 made to assertion 1, and it is a filter rather than a deleted
- * clause on purpose: deleting the clause would license a detail page you click into to see the
- * photos, which is precisely what OPS-04 / D-246 forbid. Guarded in both directions below.
- */
-function destinationAnchors(card: HTMLElement): Element[] {
-  return Array.from(card.querySelectorAll("a")).filter((a) => !a.matches(COMPOSE_ANCHOR));
-}
 
 /** The accessible name the interactive-set assertions compare on — an `aria-label`, else the text. */
 function nameOf(element: Element): string | null {
@@ -247,34 +235,30 @@ function typeRoleOf(element: Element): string | null {
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("OPS-04 / D-246 — the queue row browses nowhere", () => {
-  it("renders zero DESTINATION anchors and zero link-role elements, on BOTH kinds", () => {
+  it("renders zero anchors and zero link-role elements, on BOTH kinds", () => {
     for (const row of [hostRow(), listingRow()]) {
       cleanup();
       const card = renderRow(row);
 
       expect(
-        destinationAnchors(card),
-        "a DESTINATION anchor is inside the queue row. The row is TERMINAL: a detail page you " +
-          "click into to see the photos is precisely what OPS-04 and D-246 forbid, and a second " +
-          "place carrying approve/reject is a second place that has to be kept in agreement with " +
-          "this one.\n\n" +
-          "⚠ THE ONE EXEMPTION IS ONE SCHEME, ONE COUNT, ONE REASON (plan 18.1-13 / D-271): an " +
-          "anchor whose href begins `mailto:` is a COMPOSE ACTION, not navigation — it hands the " +
-          "address to a mail client and moves this document nowhere, so the row still browses " +
-          "nowhere. Anything else here is a destination, whatever it is called. Do NOT widen the " +
-          "filter to make a new href pass; a second scheme is a second argument, and deleting the " +
-          "clause outright licenses exactly the detail page this row exists without.",
-      ).toHaveLength(0);
+        Array.from(card.querySelectorAll("a")).map((a) => a.getAttribute("href")),
+        "an anchor is inside the queue row. The row is TERMINAL: a detail page you click into to " +
+          "see the photos is precisely what OPS-04 and D-246 forbid, and a second place carrying " +
+          "approve/reject is a second place that has to be kept in agreement with this one.\n\n" +
+          "⚠ AND THE ONE SCHEME THAT WAS EXEMPT FROM 18.1-13 TO 18.1-16 IS EXEMPT NO LONGER. For " +
+          "one plan-pair this clause read 'zero destinations plus at most one `mailto:`', because " +
+          "D-271's contact reveal rendered a compose anchor. PM decision D-274 (2026-09-03) ruled " +
+          "the revealed contact must be plain, copy-pasteable text, so the count is zero again for " +
+          "EVERY scheme and the exemption is returned rather than emptied.\n\n" +
+          "Re-admitting an anchor here is a PM DECISION, not a filter. Do NOT add a predicate to " +
+          "make a new href pass — a scheme is an argument and a filter is a place to hide one — " +
+          "and do NOT delete the clause, which licenses exactly the detail page this row exists " +
+          "without.",
+      ).toEqual([]);
 
-      expect(
-        card.querySelectorAll(COMPOSE_ANCHOR).length,
-        `the row rendered more than ${MAX_COMPOSE_ANCHORS} compose anchor. One host has one ` +
-          "address; a second is either a duplicate or a value that belongs to somebody else.",
-      ).toBeLessThanOrEqual(MAX_COMPOSE_ANCHORS);
-
-      // UNCHANGED, AND IT IS THE HALF THAT DID NOT MOVE. A `role="link"` element claims to be a
-      // destination and is not exempted by anything: it is the shape a "make the row clickable"
-      // change takes when somebody already knows an anchor would be filtered.
+      // UNCHANGED, AND IT IS THE HALF THAT NEVER MOVED THROUGH EITHER PLAN. A `role="link"` element
+      // claims to be a destination: it is the shape a "make the row clickable" change takes when
+      // somebody already knows an anchor would fail the clause above it.
       expect(card.querySelectorAll('[role="link"]')).toHaveLength(0);
     }
   });
@@ -286,35 +270,40 @@ describe("OPS-04 / D-246 — the queue row browses nowhere", () => {
     expect(container.querySelectorAll("a")).toHaveLength(1);
   });
 
-  it("the compose exemption is a FILTER that still reports a destination, in both directions", () => {
-    // The case above guards the raw selector; this one guards the EXEMPTION plan 18.1-13 added. A
-    // filter that dropped every anchor — `() => []`, or a predicate matching `a` rather than the
-    // scheme — would satisfy the zero above permanently and indistinguishably from a clean row.
+  it("the anchor query reports a COMPOSE anchor TOO, so no filter can be quietly swallowing one", () => {
+    // ⚠ THIS CASE WAS NOT DELETED WITH THE ALLOWANCE IT USED TO GUARD; IT WAS REPURPOSED, and its
+    // new job is the stronger one. Plan 18.1-13 added it to prove its exemption FILTER still
+    // reported a real page destination. D-274 removed the filter, so the property worth guarding is
+    // now that the UNFILTERED query reports BOTH kinds of anchor — a page destination AND a compose
+    // link. A re-introduced exemption of ANY shape (`() => []`, a predicate on the scheme, a
+    // `.filter()` anywhere in the chain, a narrowed selector) reddens HERE rather than making
+    // assertion 1's zero permanently and indistinguishably green over a row that had grown one.
+    //
+    // The case above guards the raw selector against an absence; this one guards it against a
+    // silent exclusion. Both are needed, and neither replaces the other.
     //
     // ⚠ THE DESTINATION HREF IS DELIBERATELY NOT A REAL ROUTE, and it is not free to "improve" it
     // into one. `@next/next/no-html-link-for-pages` is an ERROR in this repo and matches a raw `<a>`
     // against the route manifest, so `/listings/lst_1` here fails `npm run build` — measured, in
-    // this very commit. The shipped guard-the-guard above uses `/somewhere` for the same reason.
-    // What the fixture needs is a path-shaped href the filter must NOT swallow; whether that path
-    // resolves is irrelevant to the property being guarded.
+    // plan 18.1-13's own commit. The shipped guard-the-guard above uses `/somewhere` for the same
+    // reason. What the fixture needs is a path-shaped href the query must NOT swallow; whether that
+    // path resolves is irrelevant to the property being guarded.
     const DESTINATION = "/somewhere-not-a-route";
+    const COMPOSE = `mailto:${HOST_EMAIL}`;
     const { container } = render(
       <div data-testid="row-card">
         <a href={DESTINATION}>A destination</a>
-        <a href={`mailto:${HOST_EMAIL}`}>{HOST_EMAIL}</a>
+        <a href={COMPOSE}>{HOST_EMAIL}</a>
       </div>,
     );
     const card = container.querySelector('[data-testid="row-card"]') as HTMLElement;
 
     expect(card.querySelectorAll("a"), "the fixture did not render two anchors").toHaveLength(2);
     expect(
-      destinationAnchors(card).map((a) => a.getAttribute("href")),
-      "the exemption filter swallowed a page destination, so assertion 1's zero means nothing",
-    ).toEqual([DESTINATION]);
-    expect(
-      card.querySelectorAll(COMPOSE_ANCHOR),
-      "…and the declared scheme is not found by the exemption's own selector",
-    ).toHaveLength(1);
+      Array.from(card.querySelectorAll("a")).map((a) => a.getAttribute("href")),
+      "the anchor query did not report BOTH anchors in the fixture. Assertion 1's zero would then " +
+        "be green over a row that had grown a destination, a re-introduced compose link, or both.",
+    ).toEqual([DESTINATION, COMPOSE]);
   });
 
   it("a host row has exactly THREE interactive descendants, in DOM order", () => {
@@ -340,7 +329,7 @@ describe("OPS-04 / D-246 — the queue row browses nowhere", () => {
     ]);
   });
 
-  it("a REVEALED host row swaps the control for the address, and stays terminal", async () => {
+  it("a REVEALED host row swaps the control for PLAIN TEXT, and stays strictly terminal", async () => {
     vi.mocked(revealHostContact).mockResolvedValue({
       ok: true,
       contact: { email: HOST_EMAIL, phone: HOST_PHONE },
@@ -348,29 +337,97 @@ describe("OPS-04 / D-246 — the queue row browses nowhere", () => {
     const card = renderRow(hostRow());
     await revealContact(card);
 
-    // The control is GONE and the address has taken its place — the same three-shaped set, one
-    // member swapped. A row that grew the anchor and KEPT the button would have four and fail.
-    expect(Array.from(card.querySelectorAll(INTERACTIVE)).map(nameOf)).toEqual([
-      HOST_EMAIL,
-      `Approve ${HOST_NAME}`,
-      `Reject ${HOST_NAME}`,
-    ]);
+    // The control is GONE and NOTHING OPERABLE took its place — the set is the two decisions again.
+    expect(
+      Array.from(card.querySelectorAll(INTERACTIVE)).map(nameOf),
+      "a revealed host row's interactive set is not the declared TWO, in DOM order.\n\n" +
+        "⚠ THIS ARRAY RETURNED TO TWO UNDER D-274 (2026-09-03), AND A THIRD MEMBER IS FORBIDDEN " +
+        "AGAIN. Plan 18.1-13 grew it to three for one named affordance with a decision behind it — " +
+        "the compose anchor D-271's reveal rendered. The PM ruled the revealed contact must be " +
+        "plain, copy-pasteable text, so a revealed row is the two decisions and nothing else.\n\n" +
+        "THE FOCUS TARGET THAT CARRIES THE ANNOUNCEMENT IS DELIBERATELY OUT OF THIS SET, and no " +
+        "assertion was widened to accommodate it: `INTERACTIVE` above excludes `[tabindex=\"-1\"]` " +
+        "by construction, so a programmatically-focusable value is not an affordance. A " +
+        "`tabIndex={0}`, a `[role=\"button\"]` or a copy control on that value would each appear " +
+        "here — which is why the `-1` is specified rather than suggested.\n\n" +
+        "On a host row in particular a new control is how a FABRICATED DOCUMENT AFFORDANCE " +
+        "arrives: a disabled button suggesting an upload is coming for a check that has no column, " +
+        "no image and no ID number (HVER-02 / D-206 / D-220).\n\n" +
+        "The ORDER is asserted and is not incidental: `RowCard` renders `children` before " +
+        "`actions`, so an operator tabbing a revealed row meets the two decisions in the order the " +
+        "row lists them, with the read already behind them.",
+    ).toEqual([`Approve ${HOST_NAME}`, `Reject ${HOST_NAME}`]);
 
-    // The one anchor is the declared exemption, and there is still no destination and no link role.
-    expect(destinationAnchors(card)).toHaveLength(0);
-    expect(card.querySelectorAll(COMPOSE_ANCHOR)).toHaveLength(1);
+    // STRICTLY TERMINAL, after a reveal exactly as before one. No scheme, no link role, no filter.
+    expect(card.querySelectorAll("a")).toHaveLength(0);
     expect(card.querySelectorAll('[role="link"]')).toHaveLength(0);
 
     // FOCUS MOVING IS THE SUCCESS ANNOUNCEMENT (GATE-03 rule 7), which is why no second live region
-    // is owed here and none may be added. Measurable in jsdom; the 320/1280 hand-walk is 18.1-14's.
+    // is owed here and none may be added. Measurable in jsdom; the 320/1280 hand-walk is 18.1-16's.
+    const active = document.activeElement;
     expect(
-      document.activeElement?.getAttribute("href"),
-      "focus did not land on the email anchor after a reveal. That move IS the announcement — " +
+      active,
+      "nothing at all is focused after a successful reveal. That move IS the announcement — " +
         "without it a screen-reader operator presses a button and hears nothing at all.",
-    ).toBe(`mailto:${HOST_EMAIL}`);
+    ).not.toBeNull();
+    expect(
+      active?.textContent,
+      "focus did not land on the revealed email VALUE after a reveal. That move IS the " +
+        "announcement — without it a screen-reader operator presses a button and hears nothing at " +
+        "all. Under D-274 the target is a PLAIN-TEXT node rather than the anchor it used to be, so " +
+        "what is asserted is the text it speaks rather than a destination it does not have.",
+    ).toBe(HOST_EMAIL);
+    expect(
+      active?.getAttribute("tabindex"),
+      "the focus target is not `tabindex=\"-1\"`. It must be programmatically focusable WITHOUT " +
+        "joining the tab order — `booking-reference.tsx:143-153`'s shipped precedent for a value " +
+        "the user copies, one surface over. A `0` would put a non-interactive text node into the " +
+        "tab order AND into the interactive set asserted above.",
+    ).toBe("-1");
+    expect(
+      valueFor(card, "Email").contains(active),
+      "the focus target is not inside the Email `<dd>`. ⚠ THIS CLAUSE IS WHAT PROVES THE `<dt>` " +
+        "CONTEXT SURVIVED THE ANCHOR'S REMOVAL — structurally, rather than by argument. A screen " +
+        "reader speaks the value together with its term because the target sits in the very `<dd>` " +
+        "the anchor occupied; a wrapper around both facts would be invalid inside a `<dl>` and " +
+        "would put the label-to-value association at risk at exactly the width where it matters.",
+    ).toBe(true);
 
     // And the action was called with the HOST's id, not the listing's and not a label.
     expect(vi.mocked(revealHostContact)).toHaveBeenCalledWith({ userId: "usr_1" });
+  });
+
+  it("a RE-MOUNTED revealed row announces AGAIN — the effect is keyed on the contact, not run once", async () => {
+    // PINS THE `[contact]` DEPENDENCY ARRAY, which is the property a "tidy this up so it only runs
+    // on mount" edit deletes silently. A queue refresh re-mounts the row; the reveal that follows
+    // has to announce itself the way the first one did, or an operator who refreshed hears nothing
+    // and has no way to know a value arrived.
+    vi.mocked(revealHostContact).mockResolvedValue({
+      ok: true,
+      contact: { email: HOST_EMAIL, phone: HOST_PHONE },
+    });
+
+    const first = renderRow(hostRow());
+    await revealContact(first);
+    expect(document.activeElement?.textContent).toBe(HOST_EMAIL);
+
+    // Unmount the whole tree and do it again from cold, which is what a refresh looks like here.
+    cleanup();
+    expect(
+      document.activeElement?.textContent,
+      "the fixture did not actually unmount, so the second reveal below would be measuring the " +
+        "first one's focus",
+    ).not.toBe(HOST_EMAIL);
+
+    const second = renderRow(hostRow());
+    await revealContact(second);
+    expect(
+      document.activeElement?.textContent,
+      "the SECOND reveal did not move focus. An announcement that fires once per document — a " +
+        "run-once effect, a latched ref, a module-level flag — passes the case above and fails " +
+        "here, which is the whole reason this case exists.",
+    ).toBe(HOST_EMAIL);
+    expect(valueFor(second, "Email").contains(document.activeElement)).toBe(true);
   });
 
   it("a LISTING row reveals the host's contact too, keyed on the host id (D-271)", async () => {
@@ -385,7 +442,7 @@ describe("OPS-04 / D-246 — the queue row browses nowhere", () => {
     // way to reach the person has to be on the row carrying the subject of the question.
     expect(vi.mocked(revealHostContact)).toHaveBeenCalledWith({ userId: "usr_1" });
     expect(valueFor(card, "Email").textContent).toBe(HOST_EMAIL);
-    expect(destinationAnchors(card)).toHaveLength(0);
+    expect(card.querySelectorAll("a")).toHaveLength(0);
   });
 });
 
@@ -531,9 +588,9 @@ describe("OPS-06 / D-271 — the contact reveal, before and after a press", () =
         "cell reads as \"fine\" rather than as \"there is nothing here to check\".",
     ).toBe("Not provided");
     expect(phone.textContent?.trim().length).toBeGreaterThan(0);
-    // The email is still there and is still the one compose anchor — a null phone is not a failure.
+    // The email is still there and is still plain text — a null phone is not a failure for it.
     expect(valueFor(card, "Email").textContent).toBe(HOST_EMAIL);
-    expect(card.querySelectorAll(COMPOSE_ANCHOR)).toHaveLength(1);
+    expect(card.querySelectorAll("a")).toHaveLength(0);
   });
 
   it("lands a refusal in ONE named region, verbatim, and returns the control to idle", async () => {
@@ -559,7 +616,7 @@ describe("OPS-06 / D-271 — the contact reveal, before and after a press", () =
     expect(
       within(card).getByRole("button", { name: `Show contact for ${HOST_NAME}` }),
     ).toBeTruthy();
-    expect(card.querySelectorAll(COMPOSE_ANCHOR)).toHaveLength(0);
+    expect(card.querySelectorAll("a")).toHaveLength(0);
     expect(within(card).queryByText("Email")).toBeNull();
   });
 });
