@@ -16,10 +16,10 @@ progress:
   # of 2026-09-04. The plan counters cover phases 18 + 18.1 ONLY -- phases 19-23
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 7
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 30
   completed_plans: 30
-  percent: 14
+  percent: 29
 ---
 
 # Project State
