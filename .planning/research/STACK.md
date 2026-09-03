@@ -382,10 +382,27 @@ These are the places where a "greenfield" plan would be wrong. Each was read at 
 
 ## Open Questions For Planning
 
-1. **Deploy target is unstated.** No `vercel.json`, `Dockerfile`, `render.yaml` or `fly.toml` at
-   HEAD, and CLAUDE.md's "What NOT to Use" argues *against* Vercel-only for the backend. The DNS
-   half of the ops subdomain cannot be specified until this is settled — the **app-side** half
-   (proxy + `allowedHosts` + cookies) is target-independent and can proceed now.
+1. ~~**Deploy target is unstated.**~~ **CORRECTED 2026-09-04 by the orchestrator — this question was
+   answered before the research ran, and the finding was wrong.** `vercel.json` IS at HEAD and IS
+   tracked: committed **2026-09-01** as `c6e43b0` by quick task `260901-0zf`
+   ("wire the repo for a Vercel + Neon deploy"), two days before this research. It pins
+   `"buildCommand": "next build"` so a deploy stops re-running the gates CI already owns. The same
+   task pointed `drizzle.config.ts` at `DIRECT_DATABASE_URL` for Neon's direct endpoint and
+   documented it in `.env.example`. **The deploy target is Vercel + Neon, confirmed by the PM
+   2026-09-04.**
+
+   Three consequences that replace the original open question:
+   - A **named** `ops.` subdomain is what is needed, NOT a wildcard — so Vercel nameservers are not
+     required (this file's own Sources table already establishes that distinction).
+   - **Vercel PREVIEW deployment hostnames become a live hazard, not a hypothetical one.** Every
+     preview gets a generated `*.vercel.app` host, so any Host-match or `allowedHosts` rule that
+     names only the two production hosts will break previews outright — or, worse, serve the ops
+     surface from a preview host. PITFALLS.md raises this; with the target now settled it is a
+     requirement rather than a caveat.
+   - CLAUDE.md's "What NOT to Use" argues against **Vercel-only for the backend** (webhooks,
+     long-lived jobs). That tension is real and pre-existing — Inngest already carries the
+     background work — but it is NOT this milestone's to resolve and must not be re-litigated
+     inside a v1.2 plan.
 2. **Does the `/ops` path stay reachable on the marketplace host?** D-275 says the subdomain is
    *"what makes the separation real"*. If the path stays live on the apex, there are two doors to
    one surface and two cookie jars that can open it. Recommendation: on the marketplace host,
