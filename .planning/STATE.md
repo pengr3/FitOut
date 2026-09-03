@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: planning
-stopped_at: Phase 19 context gathered
-last_updated: "2026-09-03T17:58:51.442Z"
+stopped_at: Phase 19 UI-SPEC approved
+last_updated: "2026-09-03T18:51:50.748Z"
 last_activity: 2026-09-04
 last_activity_desc: v1.2 roadmap created (Phases 19–23; 25/25 requirements mapped)
-state_head: 00149cde74dcea18675a7a4efc158332c4db5a44
+state_head: d3c263697d34249fa1ed4f259a0d1a9438380730
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -1543,8 +1543,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-03T17:58:50.879Z
-Stopped at: Phase 19 context gathered
+Last session: 2026-09-03T18:51:50.209Z
+Stopped at: Phase 19 UI-SPEC approved
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1697,7 +1697,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-CONTEXT.md
+Resume file: .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-UI-SPEC.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
