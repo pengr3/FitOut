@@ -341,6 +341,7 @@ dependency order, not concurrency. No two plans in a wave modify the same file.
 | 6 | 18.1-12, 18.1-13 |
 | 7 | 18.1-14 |
 | 8 | 18.1-15 |
+| 9 | 18.1-16 |
 
 Plans:
 
@@ -359,6 +360,7 @@ Plans:
 - [x] 18.1-13-PLAN.md — PM-E: host contact reveal in `/ops`, audited per reveal · **resolves F-6** (wave 6)
 - [x] 18.1-14-PLAN.md — The Didit sandbox transcript, the hand-measure, and Phase 18's checkbox · **[BLOCKING] two human checkpoints** (wave 7)
 - [x] 18.1-15-PLAN.md — D5: an abandoned Didit flow no longer locks a host out for seven days — `pending` becomes a RESUME, and the queue stamp does not move (wave 8, gap)
+- [ ] 18.1-16-PLAN.md — D-274: the `/ops` revealed contact becomes plain copy-pasteable text; the queue row returns to strictly terminal and the focus-move announcement is redesigned, not deleted · **closes OPS-06** (wave 9, gap)
 
 
 ## Progress

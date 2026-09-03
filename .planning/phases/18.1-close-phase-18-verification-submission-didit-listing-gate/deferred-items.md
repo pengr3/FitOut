@@ -656,6 +656,8 @@ decision does not fight the design; it restores it.
   the reveal remains an on-demand, audited fetch.
 - No support address appears anywhere (confirmed in this reading).
 
-**Status:** DECIDED, not implemented. ⚠ **Phase 18's roadmap checkbox must NOT be ticked until this
+**Status:** DECIDED — **closure plan: `18.1-16-PLAN.md` (wave 9), written 2026-09-03.** Not yet implemented. ⚠ **Phase 18's roadmap checkbox must NOT be ticked until this
 ships** — 18.1-14 was briefed accordingly. Closing the phase would otherwise file an evidence
 document describing a surface the PM has already decided against.
+
+⚠ **What `18.1-16` corrects in the list above.** `tests/ops/host-contact-reveal.test.ts` does **not** assert focus — it is the server-action audit/authz file (no DOM, no `activeElement`, no `focus`, no `mailto`) and is **byte-unchanged** by the fix. The focus assertion is in `tests/ops/ops-queue-row.test.tsx:363-370`. And the live region is **not** “already there” for this purpose: the island declares exactly ONE region and it is the REFUSAL path only — `src/lib/design/live-regions.ts:1712-1718` states “⚠ SO NO SUCCESS REGION MAY BE ADDED HERE”. `18.1-16` therefore KEEPS the focus move and re-points it at the revealed VALUE (a `tabIndex={-1}` text node in the same `<dd>` the anchor occupied) rather than announcing through a region. Two further files move with the fix and D9 did not name them: `tests/design/site-contacts.test.ts` (`EXCLUDED_MAILTO` is RETURNED — it lives there, not in the row test) and `src/lib/design/live-regions.ts` (prose only; no count moves).
