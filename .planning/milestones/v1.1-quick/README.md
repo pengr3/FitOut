@@ -1,0 +1,20 @@
+# Archived Quick Tasks
+
+- [20260825-wr05-harness-url-and-req-ticks](20260825-wr05-harness-url-and-req-ticks/SUMMARY.md)
+- [20260828-allowed-dev-origins](20260828-allowed-dev-origins/SUMMARY.md)
+- [260812-usm-fix-sec-01-open-redirect](260812-usm-fix-sec-01-open-redirect/260812-usm-SUMMARY.md)
+- [260813-0h2-fix-g01-scrollarea-row-overflow](260813-0h2-fix-g01-scrollarea-row-overflow/260813-0h2-SUMMARY.md)
+- [260819-vrt-local-photo-placeholders](260819-vrt-local-photo-placeholders/SUMMARY.md)
+- [260820-nested-main-landmarks](260820-nested-main-landmarks/SUMMARY.md)
+- [260823-frp-lock-coral-court-as-the-single-product-t](260823-frp-lock-coral-court-as-the-single-product-t/260823-frp-SUMMARY.md)
+- [260824-dbc-host-hours-reason-and-approve-clip](260824-dbc-host-hours-reason-and-approve-clip/260824-dbc-SUMMARY.md)
+- [260824-ej2-host-timezone-suffix-when-it-varies](260824-ej2-host-timezone-suffix-when-it-varies/260824-ej2-SUMMARY.md)
+- [260824-ght-wrap-the-space-column](260824-ght-wrap-the-space-column/260824-ght-SUMMARY.md)
+- [260826-l1o-soft-404-loading-routes](260826-l1o-soft-404-loading-routes/SUMMARY.md)
+- [260828-q1x-add-missing-transformation-source-prohib](260828-q1x-add-missing-transformation-source-prohib/260828-q1x-SUMMARY.md)
+- [260828-qd5-declare-tsx-as-a-devdependency-so-creden](260828-qd5-declare-tsx-as-a-devdependency-so-creden/260828-qd5-SUMMARY.md)
+- 260830-r4b-sticky-bar-footer-clearance
+- [260831-99f-guard-the-checkout-sticky-bar-clearance-](260831-99f-guard-the-checkout-sticky-bar-clearance-/260831-99f-SUMMARY.md)
+- [260831-9qx-stop-the-e2e-suite-sending-14-real-email](260831-9qx-stop-the-e2e-suite-sending-14-real-email/260831-9qx-SUMMARY.md)
+- [260831-ndc-availability-copy-to-all](260831-ndc-availability-copy-to-all/260831-ndc-SUMMARY.md)
+- [260831-rpt-close-trust-02-and-trust-03-the-confirma](260831-rpt-close-trust-02-and-trust-03-the-confirma/260831-rpt-SUMMARY.md)
