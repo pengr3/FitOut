@@ -611,3 +611,51 @@ and the dialable value the same thing.
 `contact_details.phone` requires it) → normalise on write → backfill the one existing row → then
 pre-fill the field from the normalised column. ⚠ Only ONE user in the whole dev database has a phone
 at all, so the backfill is trivial today and will not be later.
+
+---
+
+## D9 — D-274: OPS CONTACTS ARE COPYABLE TEXT, NOT LINKS (PM decision, 2026-09-03)
+
+**Found during:** 18.1-14 Task 2, the operator's `/ops` hand-measure. The readings otherwise passed.
+
+**PM decision, verbatim in substance:** the revealed email and phone must not be clickable and must
+not open a mail app. They are to be **plain, easily copy-pasteable text**.
+
+### Why this is a tightening rather than a change of direction
+
+18.1-13 shipped the reveal with a `mailto:` anchor, and to do that it had to **widen the queue row's
+TERMINAL assertion** — the Phase-18 property that the row renders **zero anchors and zero
+link-role elements**. Its summary records the amendment: *"zero destination anchors + at most one
+`mailto:`, with `[role="link"]` untouched at zero"*.
+
+**Removing the anchor returns the row to strictly terminal**, which is the property Phase 18
+originally asserted and the one the row's own test file says it "knows an anchor would fail". So this
+decision does not fight the design; it restores it.
+
+### What it touches
+
+- `src/components/ops/ops-contact-reveal.tsx` — the anchor becomes text.
+- `tests/ops/ops-queue-row.test.tsx` — assertion 1's `mailto:` allowance is REMOVED and the count
+  returns to zero destination anchors. ⚠ The shipped guard-the-guard must stay byte-unchanged, and
+  18.1-13's SECOND guard-the-guard (which proves the filter still reports a real page destination)
+  must keep doing so.
+- ⚠ **`tests/ops/host-contact-reveal.test.ts`** asserts **focus lands on the email anchor** after a
+  successful reveal. With no anchor there is nothing to focus. **That behaviour must be redesigned,
+  not deleted** — a reveal still has to announce itself to a screen reader, and the live region is
+  already there. The honest replacement is to move focus to the revealed block (or announce it) and
+  to say so at the site; silently dropping the assertion would remove an accessibility guarantee
+  under cover of a styling change.
+- `18.1-UI-SPEC.md` § Surface 4 § The interaction states the focus-to-anchor behaviour and must be
+  amended in the same commit.
+
+### What must NOT change
+
+- OPS-06's audit: every reveal stays on the record, written in the same call as the read.
+- The `Not Provided` rendering for a host with no phone (confirmed by hand in this same reading).
+- `review-queue.ts` stays byte-unchanged — F-6's resolution keeps contacts out of the RSC payload;
+  the reveal remains an on-demand, audited fetch.
+- No support address appears anywhere (confirmed in this reading).
+
+**Status:** DECIDED, not implemented. ⚠ **Phase 18's roadmap checkbox must NOT be ticked until this
+ships** — 18.1-14 was briefed accordingly. Closing the phase would otherwise file an evidence
+document describing a surface the PM has already decided against.
