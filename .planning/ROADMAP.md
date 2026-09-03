@@ -246,15 +246,18 @@ argued:
   7. The three carried PM decisions are implemented: an ops-forced cancellation refunds the **full
      charge** (D-236 flipped), **title and description are material fields** (D-231), and a suspended
      host's `/host/earnings` **names the frozen session** (F11).
-  8. Phase 18's roadmap checkbox can be ticked. — ⚠ **NOT DISCHARGED BY 18.1-14 (2026-09-03), AND
-     THE REFUSAL IS DELIBERATE.** Criteria 1–7 are met and `18.1-VALIDATION.md` is signed off, but
-     18.1-14's own hand-measure produced **PM decision D-274** (`deferred-items.md § D9`): the
-     revealed `/ops` email and phone must become plain copy-pasteable text rather than a clickable
-     `mailto:` anchor. That is DECIDED and unimplemented. Ticking the checkbox now would file
-     `18.1-EVIDENCE.md § P2` — a phase-closing evidence record — describing a surface the PM has
-     already ruled against, which is the roadmap lying about exactly the class of thing this phase
-     exists to fix. **`OPS-06` stays open with it; `HVER-06` and `HVER-07` closed.** The plan that
-     implements D-274 discharges this criterion.
+  8. Phase 18's roadmap checkbox can be ticked. — ✅ **DISCHARGED 2026-09-03.** It was held twice,
+     and both holds are now gone. The first: Phase 18 shipped the console that decides but not the
+     path that lets a host ask, so the checkbox waited on 18.1 shipping that path — 18.1-07 did.
+     The second: 18.1-14's own hand-measure produced **PM decision D-274** (`deferred-items.md § D9`),
+     that the revealed `/ops` contact become plain copy-pasteable text rather than a clickable
+     anchor. 18.1-14 refused to tick on that basis — ticking would have filed
+     `18.1-EVIDENCE.md § P2`, a phase-closing record, describing a surface the PM had already ruled
+     against. **18.1-16 shipped D-274** (the row is strictly terminal again, both 18.1-13 gate
+     widenings reverted rather than emptied, and the focus-move announcement redesigned rather than
+     deleted), and phase 18.1 then **verified `passed` 9/9 on 2026-09-03** — the verifier re-running
+     all four gates itself rather than trusting a SUMMARY. **`OPS-06` closed with it; `HVER-06`,
+     `HVER-07`, `HVER-08`, `LVER-03`, `LVER-05` and `ENF-03` are Complete in both representations.**
 
 **PM decisions already taken (2026-09-01) — ANSWERED, do not re-ask.** Recorded in `18-14-SUMMARY.md`
 § The five checkpoint decisions and `18-KYC-VENDOR-COMPARISON.md` § ✅ DECIDED:
@@ -307,7 +310,7 @@ and (ii) whether holding only a `vendorRef` satisfies § 21(c)'s "updated and ve
 and the subpoena clause. **Both are vendor-independent** — equally open under Innov8tif or PayMongo —
 so neither changes what this phase builds.
 
-**Plans:** 16/16 plans executed
+**Plans:** 16/16 plans complete
 Worktrees stay OFF, so plans run **sequentially on `dev`, one executor at a time**; the waves express
 dependency order, not concurrency. No two plans in a wave modify the same file.
 
@@ -379,8 +382,8 @@ Plans:
 | 16.1 Upload Hardening & Storage Economy (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-28 |
 | 17. Cross-Cutting Audit | v1.1 | 14/14 | Complete | 2026-08-30 |
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
-| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified** `passed_with_concerns` — 17/17 requirements, 0 code-level blockers; **PM checkpoint ANSWERED 2026-09-01 (all 5); checkbox held until 18.1 ships the code** — ⚠ **and 18.1 HAS now shipped that code, so as of 2026-09-03 the hold has a NEW and narrower reason: PM decision D-274** (`18.1/deferred-items.md § D9`), DECIDED and unimplemented, changes the `/ops` contact surface that 18.1-14's hand-measure just recorded. The checkbox is ticked by the plan that implements D-274, not by 18.1-14 | verified 2026-09-01 |
-| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | In Progress|  |
+| 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified & COMPLETE** — 17/17 requirements, 0 code-level blockers. The checkbox was held from 2026-09-01 until 18.1 shipped the missing submission path, then briefly re-held on PM decision D-274 (the `/ops` contact surface). **18.1-16 shipped D-274 on 2026-09-03 and phase 18.1 verified passed 9/9, so both holds are discharged.** | verified 2026-09-03 |
+| 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | Complete    | 2026-09-03 |
 
 ## Carried Forward (not v1.2 scope until promoted)
 
