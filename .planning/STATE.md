@@ -4,12 +4,12 @@ milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
-status: planning
-stopped_at: Phase 19 UI-SPEC approved
-last_updated: "2026-09-03T18:51:50.748Z"
+status: ready_to_execute
+stopped_at: "Phase 19 PLANNED — 8 plans / 8 waves, plan-checker PASSED with 0 blockers and 0 warnings; requirements 3/3 and decisions 15/15 covered. Waves are dependency order, not concurrency (worktrees OFF). ⚠ THREE PLANS ARE NOT AUTONOMOUS: 19-04 (deletes four real orphan-draft rows + a checkpoint:decision on whether a PRODUCTION database holds the same class of rows — its scope must be RE-DERIVED, never copied from the local query), 19-05 (an eight-question human gate on the 404 finding, whose honest outcome is likely NOT REPRODUCIBLE — the wedged dev server is gone, so UNPROVEN item (a) is not closeable and no cause may be named for (c)), and 19-08 (the required-check flip, plus an OPEN option: gate-e2e has NO existence assertion, because every ci invariant in verify-workflows.mjs is universally quantified and a deleted job satisfies all of them vacuously). An unattended run therefore completes waves 1-3 and stops at wave 4. Spec count goes 37 -> 39 and 39 is the wall-clock denominator."
+last_updated: "2026-09-03T19:26:18.824Z"
 last_activity: 2026-09-04
 last_activity_desc: v1.2 roadmap created (Phases 19–23; 25/25 requirements mapped)
-state_head: d3c263697d34249fa1ed4f259a0d1a9438380730
+state_head: 29fc388af06d2a159b59a09a805a57f52a4eb914
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -17,7 +17,7 @@ progress:
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 7
   completed_phases: 2
-  total_plans: 30
+  total_plans: 38
   completed_plans: 30
   percent: 29
 ---
@@ -73,7 +73,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19 — Host Listing Surfaces & Gates That Actually Run (not started)
+Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — READY TO EXECUTE
 Plan: —
 Status: Roadmap complete — ready to plan Phase 19
 Last activity: 2026-09-04 — v1.2 roadmap created (Phases 19–23; 25/25 requirements mapped)

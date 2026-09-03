@@ -238,6 +238,7 @@ TTL, and no test would go red. It is written into that module's header.
 SEQUENTIALLY on `dev`, one executor at a time — waves express dependency order, not concurrency.
 
 Plans:
+
 - [x] 18-01-PLAN.md — Staff identity: `requireStaff`/`assertStaff` + the CLI grant (wave 1)
 - [x] 18-02-PLAN.md — Schema, migrations & the grandfather backfill · **[BLOCKING] `npm run db:migrate`** (wave 2)
 - [x] 18-03-PLAN.md — The sell-gate: seven sites + the fixture/seed sweep, ONE commit (wave 3)
@@ -450,13 +451,36 @@ Order is the research's: `CI-01 → HSURF-01 → HSURF-02`, with CI-01's require
 end because it can only be justified by a watched red that needs this phase's own specs to exist.
 
 Plans:
+**Wave 1**
+
 - [ ] 19-01-PLAN.md — `gate-e2e`, the new fifth CI job, plus the fail-closed mail-credential invariant (CI-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 19-02-PLAN.md — the grid fixture and the two HSURF-01 guards, watched RED against the pre-fix tree (HSURF-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 19-03-PLAN.md — the call-site fix: footer flush, footer wraps, Delete goes icon-only; guards GREEN (HSURF-01)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
 - [ ] 19-04-PLAN.md — archive the `.next/dev` evidence, then verify and delete the four orphan drafts (HSURF-02)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
 - [ ] 19-05-PLAN.md — the eleven-URL reproduction gate, dev then production, and the written finding (HSURF-02)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
 - [ ] 19-06-PLAN.md — the route-reachability guard, and idempotent draft creation with its three cases (HSURF-02)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
 - [ ] 19-07-PLAN.md — the creation-failure sentence: copy module, query string, inline notice (HSURF-02)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
 - [ ] 19-08-PLAN.md — one green run, two watched reds, the measured wall-clock, then the required-check flip (CI-01)
 
 **⚠ HSURF-01: the obvious fix is a no-op, measured.** The grid wrapper sets no `align-items`, so grid
@@ -796,8 +820,6 @@ earlier, this phase can be pulled forward without disturbing any other phase.
     until a real, monitored address exists.
   - **Consequence for Phase 21**: no new v1.2 copy may carry a "get in touch" clause, because half a
     sentence must never render.
-
-
 
 ## Progress
 
