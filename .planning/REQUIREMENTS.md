@@ -1,17 +1,24 @@
 # FitOut — Requirements
 
-> **Scope note (2026-09-01, extended 2026-09-02).** This file was opened **ahead of the v1.2 milestone
-> cycle** and holds **Phase 18 and the inserted Phase 18.1 only**. `/gsd-new-milestone` has not been
-> run for v1.2, so there is no milestone-wide requirements pass yet; Phase 18 was added ahead of the
-> cycle by PM decision because the hole it closes is live in production, and Phase 18.1 was inserted
-> the next day to close it. When v1.2 is properly opened, these requirements fold into it.
+**Milestone:** v1.2 Verification & Operations
+**Defined:** 2026-09-04
+**Core Value:** Find & book a space — search → real availability → reserve a time slot → pay, with
+confidence the booking is real.
+
+> **Scope note (2026-09-01 · extended 2026-09-02 · FOLDED INTO v1.2 on 2026-09-04).** This file was
+> opened **ahead of** the v1.2 milestone cycle and for three days held **Phase 18 and the inserted
+> Phase 18.1 only**. `/gsd-new-milestone v1.2` has now run, and those 22 requirements are **v1.2's**
+> — they are complete and verified, and they are counted in this milestone rather than re-planned.
+> The new v1.2 requirements follow them below.
 >
 > Prior milestones' requirements are archived and are NOT restated here:
 > - `.planning/milestones/v1.0-REQUIREMENTS.md` (49/49)
 > - `.planning/milestones/v1.1-REQUIREMENTS.md` (69/71 · 8 descoped by D-141)
 >
-> Two v1.1 requirements carry forward unsatisfied and are **not** in this file's scope:
-> `STATE-05` and `TRUST-01`, both closed by one monitored support address at `src/lib/site.ts:70`.
+> **`STATE-05` and `TRUST-01` are now IN scope** (they were not, in this file's original form): both
+> carry forward unsatisfied from v1.1 and both close on one monitored support address at
+> `src/lib/site.ts:70`. They keep their original v1.1 IDs rather than being renumbered, because the
+> requirement text and the code are unchanged — only the milestone owning them moved.
 
 ---
 
@@ -144,6 +151,135 @@ earnings gap — are decisions, not new requirements. They land against the exis
 - [x] **OPS-06** — **Ops can reach a host**: email and phone revealed on demand from either queue
       row, each reveal writing an audit row carrying ids and enum-shaped values only — never the
       contact values themselves. *(SC6 · D-257, D-271, D-72, D-274)*
+
+---
+
+## v1.2 — Verification & Operations (the milestone-cycle requirements)
+
+Written 2026-09-04 by `/gsd-new-milestone`, from `.planning/research/` and PM decisions
+**D-275**–**D-278** (recorded in `.planning/PROJECT.md` § Key Decisions). Numbering continues the
+categories Phase 18/18.1 opened; `STATE-05` and `TRUST-01` keep their v1.1 IDs.
+
+### HVER — Host verification, made legible to the host
+
+- [ ] **HVER-09** — An **unverified** or **rejected** host sees their standing as a *visual state*
+      with a heading and a **button-shaped control**, not a muted paragraph with an underlined word.
+      `pending` stays deliberately calm — waiting on a checking partner is a normal lifecycle state,
+      not an alarm. The shipped `data-verification-owed` hook survives.
+- [ ] **HVER-10** — A host sees a **verification roadmap**: the ordered steps from account to
+      bookable, which are done, which is current, which remain. The honest step list spans all the
+      gates that actually block income — identity check, payout onboarding, listing a space, and
+      FitOut checking that space — because from the host's seat that is one journey, not three.
+- [ ] **HVER-11** — Each roadmap step reads its **own server-side gate**, so no step can claim a host
+      is ready when the gate that blocks them disagrees. No hand-maintained checklist; no second
+      authority on "can I sell?".
+- [ ] **HVER-12** — Every verification state is **named and visually distinguishable** —
+      not-started, waiting, passed, not-passed, paused — except `grandfathered`, which stays
+      **silent to the host** on the same argument `SILENT_REVIEW_STATES` already makes for listings.
+- [ ] **HVER-13** — A host whose check **did not pass** is told a named cause and an explicit retry
+      instant, both read from the **same** value the server's guarded re-submit `UPDATE` uses. The
+      instant is absolute, never a duration.
+- [ ] **HVER-14** — A host whose check has sat **pending beyond a stated window** is given a way
+      forward rather than an indefinite wait. *This is the human rescue D-276 removes on the ops
+      side, restored on the host side.*
+
+### OPS — Ops as its own surface, with its own identity
+
+- [ ] **OPS-07** — Staff reach FitOut Ops at its **own `ops.` host**. On the marketplace host,
+      `/ops` returns the **same byte-identical `notFound()`** a non-staff caller gets — never a
+      redirect, because a redirect is an existence oracle. One door, one cookie jar.
+- [ ] **OPS-08** — A staff member **signs in on the ops host**, and that session does not carry to
+      the marketplace host or back. Session cookies stay host-scoped.
+- [ ] **OPS-09** — A staff member can **invite and onboard another staff member** from within ops,
+      without anyone holding a production `DATABASE_URL`. The invitee confirms by email and sets
+      their own password through the shipped mechanics. The CLI (`ops:grant` / `ops:revoke` /
+      `ops:staff`) **stays** as first-staff bootstrap and break-glass.
+- [ ] **OPS-10** — **Self-revoke and last-staff revoke are refused**, so no sequence of ops actions
+      can lock every human out of the console. Enforced as a `WHERE`-clause no-op rather than a
+      branch somebody can forget.
+- [ ] **OPS-11** — A **staff account may not simultaneously be a booker or a host** (D-275,
+      reversing PM-B on the PM's 2026-09-04 ruling). Enforced at grant time; the reversal is recorded
+      as such rather than silently applied.
+- [ ] **OPS-12** — The **404 cloak is re-measured** with every new ops route in the probe set —
+      staff `200`, non-staff `404`, signed-out `404`, nonexistent `404`, with the three 404 bodies
+      byte-identical by hash — and there is still **no `(ops)`-scoped `not-found.tsx`**.
+      *D-275's non-negotiable condition.*
+- [ ] **OPS-13** — An operator can read **every fact needed to decide** about a listing — photos,
+      description, address, capacity, pricing, amenities, host facts — **expanded in place** on the
+      queue row behind **one** disclosure level. The row stays **terminal**: zero anchors of any
+      scheme and zero `[role="link"]` elements, on both row kinds, before and after expansion.
+- [ ] **OPS-14** — Expanding the evidence **does not push the decision controls off-screen**. The
+      decision widget stays one widget, visually separated from the evidence.
+- [ ] **OPS-15** — The **host's standing renders as a fact** on the listing row rather than a blank
+      cell — it is already selected fail-closed and simply never displayed.
+
+### ENF — Enforcement, reachable by a human
+
+- [ ] **ENF-04** — An operator can **suspend a host and freeze their payouts from a surface**, not
+      only by a POST no UI issues. *Measured gap: `suspendHost` has no UI caller today, so D-276's
+      promise to "keep enforcement in ops" preserves something currently unreachable.*
+
+### LVER — The rejection loop, made deliberate
+
+- [ ] **LVER-06** — A host with a rejected listing has an **explicit route to fix and resubmit it**,
+      reached by choosing it rather than by tripping one of seven material fields. The control routes
+      **into the edit wizard** — it is never a submit button that resubmits without a change, and it
+      is never labelled appeal, dispute, or contest.
+- [ ] **LVER-07** — A host can see a listing's **review history per cycle** — submitted → waiting →
+      decided, with the reason — newest first and bounded, so it never becomes an infinite list.
+- [ ] **LVER-08** — A host is told **which changes send a listing back to review before they edit**,
+      in plain language sourced from the one exported material-fields tuple so it cannot drift.
+- [ ] **LVER-09** — A host who resubmits gets an **acknowledgement that it was received and
+      re-queued**, because silence after resubmitting is what produces resubmission spam.
+
+### HSURF — Host listing surfaces that tell the truth
+
+- [ ] **HSURF-01** — On `/host/listings`, cards in a row **align**, and every action control stays
+      **inside its card** at every width from 320px up. *Measured cause: the card is `flex flex-col`
+      with no growing child, so the stretched height lands below the footer band; and the controls
+      are **clipped** by `overflow-hidden` against `shrink-0 whitespace-nowrap`, not spilled.*
+- [ ] **HSURF-02** — Creating a listing **lands the host on the edit wizard**, not on a
+      "We couldn't find that page". *Opens with a reproduction gate, not a code change: the measured
+      evidence points at a stale dev route manifest rather than application code, and the fix must
+      not be written before the cause is reproduced.*
+
+### CI — Gates that actually run
+
+- [ ] **CI-01** — The repository's **functional Playwright specs run in CI**, as a **new job**
+      rather than by widening an existing one. *D-24 is half-closed already: two of four jobs run
+      Playwright today, so the remaining scope is the functional `e2e/*.spec.ts` set.*
+
+### Carried forward from v1.1 (original IDs retained)
+
+- [ ] **STATE-05** — A booker who needs help can find a support path from any booking, in any
+      payment state. **Blocked on a business fact, not on code**: one monitored support address at
+      `src/lib/site.ts:70`. A placeholder is forbidden.
+- [ ] **TRUST-01** — The same support path is reachable from the trust surfaces that owe one. Same
+      one-line unblock as `STATE-05`.
+
+---
+
+## Out of Scope for v1.2
+
+Explicitly excluded, with the reasoning, so they are not re-added by a later plan.
+
+| Feature | Reason |
+|---------|--------|
+| **An appeals channel** (999.6) | An appeal contests a decision *without changing anything*; the only entry to re-review must remain an actual edit. `LVER-06` removes most of the demand for one. Never label the resubmit control "appeal", "dispute" or "contest". |
+| **A separate `/ops` listing-detail page or "open in new tab"** | Needs an anchor, which re-opens the zero-anchor property closed three days before this milestone opened, and breaches the one-`/ops`-page rule. `OPS-13` expands in place instead. |
+| **A resubmit button that resubmits with no edit** | It *is* an appeal wearing a button, and it produces resubmission spam. `LVER-06` routes into the wizard. |
+| **Canned rejection codes shown to the host** in place of the operator's sentence | Turns a specific, fixable instruction into a category the host must decode. Any taxonomy stays internal and additive. |
+| **A percentage progress bar on the verification roadmap** | Verification is not a wizard the host controls; a percentage lies while waiting on a third party. `HVER-10` uses discrete steps with per-step state. |
+| **A live countdown or per-item verdict ETA** | FitOut cannot honour it — the vendor drops a webhook permanently after two retries. `HVER-14` hands the host a real action instead. |
+| **Host-visible queue position** | Wrong by construction: the queue re-stamps on every resubmission, so the number would move backwards for reasons the host cannot see. Wait *age* is honest and already selected. |
+| **Showing the host which staff member decided** | An internal accountability record, not host-facing. Naming an individual on a decision that blocks income is a harassment vector. |
+| **Bulk approve / bulk reject** | Every decision here is money-bearing and each rejection owes a specific sentence. Bulk-approve is the fastest way to void the "a person at FitOut checked this" guarantee. |
+| **Verification expiry / periodic re-KYC** | Needs a new enum value, a sweep, and an unbookability cliff that can strand live listings and in-flight bookings. A milestone of its own. `HVER-14` covers the only expiry-shaped problem that exists today. |
+| **Re-adding a manual host-approval action** beside the automated verdict | Two authorities on one question — the exact thing D-276 removed. |
+| **A support "get in touch" clause in the new copy** | `SUPPORT_EMAIL` is `null` and a placeholder is forbidden. Every new sentence must stand alone so half a sentence never renders. |
+| **Reviewer hotkeys / item-passing**, a **published review window**, an **internal reason taxonomy**, and **richer waiting-on-whom pending copy** | All four are wanted and all four are cheap, but each needs a trigger v1.2 cannot supply — reviewer volume, measured decision latency, repeated rejection causes, and evidence the ambiguity is landing in support. Deferred, not rejected. |
+| **2FA / step-up re-auth / shorter staff session TTL** | Declined by the PM as accepted risk (PM-B, 2026-09-01) and not re-opened here. |
+| **Resolving Vercel-only-for-the-backend** | A real, pre-existing tension with the stack guidance; Inngest already carries the background work. Not this milestone's to settle, and not to be re-litigated inside a v1.2 plan. |
 
 ---
 
