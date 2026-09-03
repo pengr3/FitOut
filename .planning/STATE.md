@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Front-End Polish & Placeholder Design System
-status: phase_complete
-stopped_at: "PHASE 18.1 IS COMPLETE AND VERIFIED (16/16 plans, verifier passed 9/9 must-haves on 2026-09-03) — and PHASE 18'S HOLD IS DISCHARGED, which is the one thing this phase existed to earn. Phase 18 shipped the console that DECIDES on host verification but never shipped the path that lets a host ASK; 18.1 shipped that path. A host can now submit at `/host/verify`, Didit answers by signed webhook through ONE authenticated door, a dropped verdict is recovered by an Inngest sweep, an unverified host cannot create a listing (server-side), and ops can reach a host with every reveal on the record. Two gap plans were created MID-PHASE from findings a human made using the product: 18.1-15 closed D5 (an abandoned Didit flow locked a host out for up to SEVEN DAYS) and 18.1-16 shipped PM decision D-274 (the `/ops` revealed contact is plain copy-pasteable text; the queue row is strictly terminal again with both 18.1-13 gate widenings reverted rather than emptied). ⚠ OPEN BY DECISION, NOT BY OVERSIGHT — `deferred-items.md` D1, D2, D4, D6, D7, D8, D10, D11; D3/D5/D9 are RESOLVED. D6 is the PM's (the host phone is shape-checked, never verified, never normalised, and not echoed back — priced at $0.04/check, sequence recorded). D4/D8 are suite-contention flakes with a solo-re-run discriminator; D1 likewise. ⚠⚠ MILESTONE ACCOUNTING IS INCOHERENT AND PREDATES THIS PHASE: this frontmatter says `milestone: v1.1`, but the ROADMAP tags BOTH phase 18 and 18.1 as **v1.2** and records v1.1 as SHIPPED 2026-08-31. That is why `completed_plans` (184) EXCEEDS `total_plans` (179) and why `total_phases: 16` / `completed_phases: 12` / `percent: 75` describe neither milestone. These numbers were NOT guessed at during the 18.1 close — the phase-level facts above are correct and the counters need a milestone boundary run (`/gsd-complete-milestone` for v1.1, then the v1.2 section built out) rather than a hand-picked value. ⚠ `gsd-sdk query phase.complete 18.1` advanced STATE to phase **999.1** — a BACKLOG phase — and blanked this narrative; both were reverted by hand, the sixth phase running. NEXT: the milestone boundary, not a next phase — there is no unticked non-backlog phase left in the roadmap."
-last_updated: "2026-09-03T09:05:00.000Z"
+milestone: v1.2
+milestone_name: Verification & Operations
+status: planning
+last_updated: "2026-09-03T11:24:07.792Z"
 last_activity: 2026-09-03
 progress:
-  total_phases: 16
-  completed_phases: 12
-  total_plans: 179
-  completed_plans: 184
-  percent: 75
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -43,17 +42,10 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 ## Current Position
 
-Phase: 18.1 (close-phase-18-verification-submission-didit-listing-gate) — COMPLETE & VERIFIED
-Previous: 18 — Host Verification, Listing Review & FitOut Ops (executed, verified, and now **COMPLETE**: its Progress row was held from 2026-09-01 for the missing submission path, then briefly re-held on PM decision D-274, and 18.1 discharged both. Verified 2026-09-03.)
-Plan: 16 of 16 — all executed
-Status: **COMPLETE.** Verified `passed` 9/9 on 2026-09-03. Phase 18's Progress-row hold is DISCHARGED (both reasons: the missing submission path, shipped by 18.1; and PM decision D-274, shipped by 18.1-16). OPS-06, HVER-06, HVER-07, HVER-08, LVER-03, LVER-05 and ENF-03 are Complete in BOTH representations — bullet and traceability row — which this repo has shipped wrong in both directions before. Nothing is owed: the three Playwright readings owed by 18.1-14/18.1-15 were discharged by 18.1-16 (skeleton-geometry 17 passed with `OPS_QUEUE_ROW_HEIGHT` unmoved, both `/host/verify` sweeps 2 passed, plus an 8-reading `/ops` re-measure). ⚠ Eight deferred items stay OPEN BY DECISION and are listed in `stopped_at`; none blocks this phase.
-Last activity: 2026-09-03
-
-<details><summary>Previous activity (18-12, superseded)</summary>
-
-2026-09-01 — 18-10 executed: the two ops components. The queue row is TERMINAL (zero anchors, zero link-role elements, asserted on BOTH kinds), renders ONE tree at every width, reuses `PhotoGallery` verbatim so an operator can judge whether a space is real without clicking through, and shows a host row with NO document, NO image and NO disabled control suggesting one is coming. The decision controls put the wait figure at the row's lead and nothing else at that role; Approve is a neutral solid one press with no reason field; Reject always opens the one overlay primitive; and there is NO control on the row that can cancel-and-refund anything. **ENF-01 closed**: the lever is chosen per case, the lighter one is checked on every mount, the impact block is rendered unconditionally so choosing reveals nothing, and the confirm's label names the count in alarm INK rather than a solid fill. **OPS-04 stays open** — its screen half is 18-12's route. ⚠ Two things 18-12 now owes as COMPILE errors rather than notes: `loadOpsCancelImpact` per listing row, and the four server-formatted labels the row requires.
-
-</details>
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-09-03 — Milestone v1.2 started
 
 ## Performance Metrics
 
