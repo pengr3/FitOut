@@ -2131,6 +2131,309 @@ first.**
 *Phase research for: 19 — Host Listing Surfaces & Gates That Actually Run*
 *Researched: 2026-09-04*
 
+---
+
+## Validation Architecture
+
+> **Appended 2026-09-04**, after the body above was committed. `VALIDATION.md` is generated from this
+> section. It is the **requirement-by-requirement signal spec**: for each of HSURF-01, HSURF-02 and
+> CI-01, what signal proves the requirement is *genuinely* satisfied, and how it is sampled.
+>
+> Its companion is the `# Validation Architecture` block earlier in this document, which carries the
+> **frameworks, config files, run commands, the requirements→test map and the Wave-0 gap list**.
+> That block is not repeated here and is not superseded by it; read them together.
+>
+> Same tag discipline as the rest of the file: **MEASURED** (read out of this tree/machine this
+> session), **DERIVED** (follows from something measured), **UNPROVEN** (plausible, not established).
+> ⚠ **A validation approach resting on an unproven premise says so, at the approach.**
+
+### The one thing this section most needs to carry forward
+
+**For HSURF-01, the three most obvious validation signals are ALREADY GREEN against the defect.**
+MEASURED from the class strings at HEAD:
+
+| Obvious signal | Why it is green on the broken tree |
+|---|---|
+| A document-level overflow scan (`expectNoOverflow`, the `e2e/overflow-320.spec.ts` idiom) | `Card` carries `overflow-hidden` (`ui/card.tsx:15`), so the overrun is **clipped at the card's rounded edge**, never painted outside it |
+| `document.scrollWidth === document.clientWidth` at 320px | same reason — nothing escapes the card, so the document never scrolls |
+| "every card in a row reports the same `offsetHeight`" | the grid wrapper sets **no `align-items`** (`page.tsx:180`), so grid items with `height: auto` **already stretch**; the card boxes are already equal |
+
+`e2e/overflow-320.spec.ts` **passes on `/host/listings` today**, with the defect shipped. **A
+validation plan built on any of those three measures nothing and reports success.** That is the
+single most important sentence in this section: the guards in § 3.1 / § 3.2 are not "a better
+version" of the obvious assertions — they are the only ones that can distinguish the two states at
+all.
+
+---
+
+### HSURF-01 — the grid renders honestly
+
+**Requirement:** on `/host/listings`, cards in a row **align**, and every action control stays
+**inside its card** at every width from 320px up.
+
+#### Signals that actually prove it
+
+| # | Signal | Element measured | Threshold | Confidence |
+|---|---|---|---|---|
+| **A** | `card.getBoundingClientRect().bottom − footer.getBoundingClientRect().bottom` | the **card** and its `[data-slot="card-footer"]`, paired | **≤ 1px** | DERIVED — the designed gap is exactly `0`, because `Card`'s base carries `has-data-[slot=card-footer]:pb-0` (`ui/card.tsx:15`). The 1px is sub-pixel tolerance, not chosen slack. **Do not widen it.** |
+| **A′** | all cards sharing a `cardTop` (±1px) report one distinct `bottom` | the **card** boxes | exactly 1 distinct value | MEASURED-as-already-true. Kept as a **vacuity companion**, not as the proof — it goes red only if someone later adds `items-start` to the grid wrapper. |
+| **B** | `el.scrollWidth ≤ el.clientWidth` | **`[data-slot="card-footer"]` itself** | equality | DERIVED. The one signal `overflow-hidden` cannot mask: `scrollWidth` on the *overflowing element* still reports the overrun even when an ancestor clips it. |
+
+**Why two signals and not one (D-08): fixing either does not fix the other.** Disjoint causes — A is
+`justify-content: flex-start` on a stretched `flex flex-col` with no growing child; B is
+`flex-shrink: 0` + `white-space: nowrap` on every child of a `flex-wrap: nowrap` container
+(`ui/button.tsx:74`). `mt-auto` alone leaves the controls clipped; `flex-wrap` alone leaves the
+footer band floating mid-card.
+
+#### Sampling: three bands, one navigation
+
+| Band | Viewport | Columns | Signal A / A′ | Signal B |
+|---|---|---|---|---|
+| floor | `320 × 800` | 1 | A **runs**; A′ **skipped**, or asserted as `row.length === 1` — one card per row means nothing to compare | **runs** — tightest width |
+| `sm` | `700 × 900` | 2 | both run | runs |
+| `lg` | `1280 × 900` | 3 | both run | runs — second-tightest per the § 2.1 arithmetic (≈258.7px of button room) |
+
+⚠ **The viewport widths are deliberately off the breakpoints.** `640` and `1024` are the exact `sm`
+and `lg` values; a 1px rounding difference at the edge changes the column count and makes a failure
+unreadable. **UNPROVEN (A13):** that this project uses Tailwind v4's stock `sm`/`lg`. Cheap to
+confirm from `globals.css`'s `@theme`; if overridden, both chosen widths move with it.
+
+**Resize, do not re-navigate** — the grid is server-rendered and viewport-independent, so one
+navigation plus three `setViewportSize` reads is correct (the shape `host-headings.spec.ts`
+documents). ⚠ `await page.evaluate(() => document.fonts.ready)` **after each resize**: a font swap
+reflows `CardContent` and moves signal A's numbers.
+
+#### The fixture is part of the validation, not a precondition to it
+
+**The misalignment is proportional to how much the cards' `CardContent` heights differ.** MEASURED:
+`CardContent` conditionally renders a space-type line (`listing-card.tsx:377-381`), an hours notice
+(`:396-405`) and a review notice (`:418-429`). **Three cards with identical content produce identical
+heights and signal A is green on the broken tree.**
+
+**Validation requirement:** the fixture must guarantee **≥2 cards in the measured row with different
+content heights** — cheapest sources, in order: a draft with no title (renders "Untitled listing",
+no space-type line); a published listing with no weekly hours (two-line notice, driven by
+`loadPublishedListingsMissingHours`, `page.tsx:118-121`); a title long enough to wrap at 320px.
+
+**⚠ Vacuity check, mandatory rather than advisory.** Both guards **must be watched failing against
+the pre-fix tree**, and both failure messages recorded verbatim in the plan summary. **If signal A is
+green before the § 2 edit lands, the fixture is not producing height variation and the guard is
+measuring nothing** — a fixture defect, not a passing requirement. This is the repo's own standing
+rule (`e2e-email-silence.test.ts:34-53` records four watched reds and states the reason: an absence
+assertion cannot notice its own subject is gone).
+
+#### Second-order signals that must stay green (regression, not proof)
+
+- `npx playwright test e2e/overflow-320.spec.ts --project=chromium -g "/host/listings"` — its `tell`
+  is the Availability **anchor**, untouched by D-07; its `touch: []` + 24px `expectTargets` scan must
+  still hold. **MEASURED:** `size="icon-sm"` is `size-7` = 28px ≥ 24px (`ui/button.tsx:118-119`).
+- `getByRole("button", { name: "Delete" })` still resolves after D-07. **MEASURED:** no test or spec
+  locates this control by its text today, so nothing catches its loss — **which is exactly why this
+  becomes a new case** in `tests/listing/listing-card.test.tsx`. Losing the name is silent and
+  screen-reader-only.
+- `npm run test:design` (build-blocking) and `npm run build`.
+
+---
+
+### HSURF-02 — creating a listing lands where it should
+
+**Requirement:** a host who presses *Create listing* lands on the edit wizard for the listing they
+just created, not on "We couldn't find that page."
+
+#### ⚠ What "validated" can even mean now
+
+**MEASURED 2026-09-04: nothing is listening on `:3000`. The process that produced the 404 no longer
+exists.** Its `.next/dev` artefacts survive and were read (§ 1.0). This changes the shape of the
+requirement's validation, and pretending otherwise would be the confident-wrong-claim the house rules
+forbid.
+
+**HSURF-02 therefore validates as three separable things, and only two of them are assertable:**
+
+| Half | What it is | Validation |
+|---|---|---|
+| **H2a — the routing question** | does `/host/listings/{id}/edit` resolve? | **Evidence-producing protocol** (§ 1.2), not a pass/fail test. Its output is an archived probe matrix. |
+| **H2b — the second-order defect that IS in FitOut's code** | a GET page with a write side-effect, no idempotency, no recovery (D-02 / D-03) | **Fully assertable** — three vitest cases + one copy-module test + one UAT step. Stands on its own merits regardless of H2a's outcome (D-09 says so). |
+| **H2c — the standing guard** | a host-facing route that stops resolving must say so in one sentence (D-11) | **Fully assertable** — a new Playwright spec, ~2s, no fixture, no DB. |
+
+#### The three UNPROVEN items: closeable, not closeable, and reframed
+
+| # | Item | Disposition | The signal, or the sentence written instead |
+|---|---|---|---|
+| **(a)** | `rm -rf .next` + restart makes it go away | **NOT CLOSEABLE.** MEASURED: the failing process is gone. | ⚠ **A green post-clear probe is NOT evidence about (a).** It shows the current tree routes correctly; it says nothing about the old process. **Required written outcome:** *"Not closeable. The dev server that exhibited the 404 was already gone when the phase opened (measured 2026-09-04: nothing on :3000). A clean restart serving 307 shows the current tree routes correctly; it is not evidence about the old process."* **Validation of (a) is the presence of that sentence, not a green probe.** |
+| **(b)** | Does it reproduce under `next build && next start`? | **CLOSEABLE, and the phase must close it.** | § 1.2 Steps 5–6: the eleven-URL matrix against a production server, plus `grep -c 'listings/\[id\]/edit' .next/app-path-routes-manifest.json` → `1`. ⚠ Blocked-on-environment ≠ answered: if `npm start` cannot boot, record **which boot guard blocked it** and mark (b) blocked, never closed. |
+| **(c)** | What removed the manifest entry | **RECORDED REFRAMING, NEVER A CAUSE.** | The mtime evidence (artifact `15:18`, session markers `18:09`, manifest `19:33`) plus: *"Candidates not discriminated: swallowed compile error, HMR write race, `next build` racing `next dev`, Turbopack bug. A fifth is now on the list: nothing removed the entry — the 18:09 session may never have added it."* ⚠ **UNPROVEN (A4 / A5)** — the reframing rests on the dev manifest being an incremental per-session ledger, inferred from mtimes on one machine. **It must be tagged UNPROVEN wherever it is written, and no candidate may be named as the cause** (D-11's explicit ⚠). |
+
+**Validation gate for the whole of H2a:** the archived `evidence/` directory contains (1) the
+pre-clear manifest and artifact mtimes, (2) the dev-mode probe matrix, (3) the production-mode probe
+matrix, and (4) the three written dispositions above. **Absence of any of the four is the failure.**
+A "green" verdict with no archived matrix is not validation of anything.
+
+#### The discriminator, restated as a validation rule
+
+The probe is **anonymous**, and that is what makes one bit decisive. MEASURED at HEAD:
+`edit/page.tsx:30-33` `redirect("/login")` sits **before** the `db.select()` at `:43-46` and long
+before the `notFound()` at `:49-51`.
+
+- **`307 → /login`** ⇒ the module ran. Any 404 the host then sees is an application question — and it
+  would be the IDOR guard, which **D-10 forbids patching**. Next step is `/gsd-debug`, not an edit.
+- **`404`** ⇒ **no FitOut code ran**; the body is the root not-found, byte-identical to what
+  `notFound()` renders. Routing-layer failure.
+- **Confirming second observation, required in both cases:** whether the route is in the *running
+  server's* manifest. Absent ⇒ routing artifact. Present ⇒ the request reached the app.
+
+#### D-11's guard: what it must assert, and why existing coverage does not count
+
+**⚠ `e2e/axe-sweep.spec.ts:311-315` already goes red if `/host/listings/new` stops landing on the
+wizard — and it does NOT count as validation of HSURF-02.** MEASURED: `mintDraftListing` does
+`page.goto('/host/listings/new')` then `waitForURL(/\/host\/listings\/[^/]+\/edit/, { timeout:
+60_000 })`; it is called in `beforeAll` (`:1102`) and nine host rows resolve their path from its
+result, failing at `expect(path).toBeTruthy()` (`:1163`).
+
+Three reasons it is coverage without validation:
+
+1. **It goes red for the wrong reason.** Its failure message reads *"this row resolves its path from
+   the running app, and the app produced none… seed the local database (`npm run db:seed`)"* — it
+   names a **fixture** problem. A reader follows it to the seed script and away from the router.
+2. **It costs 60 seconds to say so**, via a `waitForURL` timeout — long enough to read as flake and
+   be retried rather than diagnosed.
+3. **It is an accessibility sweep.** Its subject is axe violations; the route-resolution dependency
+   is incidental, so a future refactor of that fixture could remove the signal with nobody noticing.
+
+**That gap is the measured cost D-11 exists to close — this class has been re-diagnosed from scratch
+twice on this machine.** So the D-11 guard's value is entirely in **what it asserts and what it says
+when it fails**, not in adding coverage.
+
+**The guard must assert:** an **anonymous** `request.get(path, { maxRedirects: 0 })` against
+`/host/listings`, `/host/listings/new`, `/host/listings/{literal}/edit` and
+`/host/listings/{literal}/availability` returns **307**, in ~2s, with **no fixture, no seed and no
+database** (`listing.id` is `text` at `schema.ts:202`, so an arbitrary segment routes; the anonymous
+request never reaches the DB).
+
+**Its failure message must state:** that the request carries no cookie, so a 404 is neither a missing
+listing nor an ownership refusal; that a 404 means the router never reached the module; and the two
+`grep` commands against the dev and production manifests that discriminate artifact from defect.
+
+⚠ **`maxRedirects: 0` is load-bearing and must itself be validated.** **UNPROVEN (A12):**
+Playwright's `request.get` follows redirects by default. **Required check:** delete the option and
+watch the assertion report `200` (from `/login`) instead of `307`. Without that, the guard can be
+silently vacuous — asserting `200` against a redirect chain that would also produce `200` from a
+broken route.
+
+#### H2b — the assertable half
+
+| Signal | Command | Proves |
+|---|---|---|
+| Two consecutive `createDraftListing()` calls return **one** id and the table grows by **one** row | `npx vitest run tests/listing/crud.test.ts -t "idempotent"` | D-02's headline: a human retry cannot mint an orphan |
+| A `saveListingStep`-ed draft is **NOT** reused (different id, two rows) | `… -t "not reused"` | **The unacceptable failure direction** — silently adopting a host's in-progress work. ⚠ **Watch this one red**: drop the `updated_at = created_at` conjunct, confirm it fails, restore. |
+| A draft carrying a `listing_photo` row is **NOT** reused | `… -t "photo"` | The § 5.3 loophole — MEASURED, `listing-photo.ts:294` inserts without touching the `listing` row, so `updated_at` alone does not see it |
+| The failure-copy module names state + reason + way out, and **never mentions verification** | a unit test beside `tests/listing/review-signal.ts` | Rule O7, and D-265's copy-about-a-check-that-never-ran defect |
+| The rendered sentence reaches the grid after a failed creation | **manual UAT, one step** | Justified as manual: the mechanism is a `redirect()` from a page that renders nothing into an RSC reading `searchParams`; forcing `createDraftListing` to fail inside an e2e run means breaking the database mid-suite |
+
+⚠ **D-02's contract change is itself a validation hazard.** After it lands, calling
+`/host/listings/new` twice returns the **same** id — correct by design, and a trap for any fixture
+that mints N drafts. **MEASURED:** the only e2e caller today is `axe-sweep.spec.ts:312`, which mints
+**once**, so it is safe. **§ 3.4's new HSURF-01 fixture would not be** —
+`grep -rn '/host/listings/new' e2e/` must be re-run and every caller checked before D-02 ships.
+
+---
+
+### CI-01 — the gates actually run
+
+**Requirement:** the repository's functional Playwright specs run in CI, as a **new job**, and a
+failing spec turns the run red.
+
+#### The primary signal is a watched red, not a file
+
+**⚠ Reading `ci.yml` is not validation of CI-01.** Success criterion 4 says so in as many words:
+*"proven by watching one spec fail, not by reading the workflow file."* The evidence is **two run
+URLs**: one green, one red.
+
+| # | Signal | How | Evidence |
+|---|---|---|---|
+| **1** | The workflow parses and every invariant holds with a fifth job | `node scripts/verify-workflows.mjs` exits 0 | Its `parsed values (ci)` block prints `jobs [… ,"gate-e2e"]` and `containerized [… ,"gate-e2e"]`. **That printout is the evidence the fifth job was seen** — the checker prints what it checked precisely so a green is not asked to be trusted. |
+| **2** | The job runs the whole functional set, green | one PR run | The run URL, **plus the wall-clock** (below) |
+| **3** | **A failing spec turns the run RED** | one PR with a one-character mutation to an assertion in the **new** `host-listing-grid.spec.ts` | The red run URL. ⚠ **Do NOT mutate a shipped product file** to prove the gate — that is a red for the wrong reason and teaches nothing about the gate. |
+| **4** | The job is a **required** check | branch protection flipped **after** signal 3 | ⚠ **Not a file and not committable.** Validation is a recorded note: who flipped it, when, and against which red run. Without it, the criterion has no evidence at all. |
+
+**Order is a prerequisite, not a preference (D-15):** merge non-required → green + measure → watched
+red → flip. A required check that has never been proven capable of blocking is the shape D-24 already
+left this project with, one layer up.
+
+#### The `npm run db:seed` dependency — measured, and a validation signal in its own right
+
+**MEASURED:** `grep -rn 'db:seed' e2e/` returns five specs whose own failure messages tell the reader
+to seed — `axe-sweep.spec.ts:1166`, `overflow-320.spec.ts:941`, `reduced-motion.spec.ts:259`,
+`shell.spec.ts:1131`, `skeleton-geometry.spec.ts:504`. **`gate-price-parity` does not need this
+step**, which is exactly why copying job 3 verbatim produces a first run that reads as five product
+regressions.
+
+**Validation:** the first `gate-e2e` run must be green **with no failure message containing
+"seed it (`npm run db:seed`)"**. That string appearing in CI output is the signal the step is missing
+or misordered — it must run **after** `npm run db:migrate` and **before** `playwright test`.
+`scripts/seed.ts:1-25` confirms it is standalone raw SQL, idempotent (it deletes its own `seed_*`
+rows first), `DATABASE_URL`-driven and credential-free — so it is safe on every PR.
+
+#### The fail-closed `RESEND_API_KEY` assertion as its own checkable signal
+
+**Not** folded into "the job is green" — a separate signal with its own watched red, because it
+protects against a change nobody in this phase will make.
+
+| Signal | How | Confidence |
+|---|---|---|
+| No job, step or workflow `env:` declares a mail key | `node scripts/verify-workflows.mjs --section=ci` exits 0 with the named invariant listed | MEASURED baseline: `grep -rn 'RESEND' .github/workflows/` returns **nothing** today. CI is safe **only by coincidence**; this assertion is what makes it a property. |
+| The job refuses to run with a live mail credential present | the runtime step in `gate-e2e`, before `npm ci` | DERIVED. It runs first so a violation costs seconds rather than a whole suite of real email. |
+| **Watched red** | add `env: { RESEND_API_KEY: "x" }` to any job → confirm the named failure → revert; record the message | **Mandatory.** The measured stake: `[17-D28]` counted **14** real `POST api.resend.com/emails` per suite run with the key set, and `instrumentation.ts` **deliberately does not** mock that origin (for Resend the key *is* the switch — `src/lib/email.ts:34-35` binds the client at module load — so a mock would also suppress the `[email:dev]` fallback). |
+
+⚠ **The two shapes must not collide.** The runtime step's env key is `MAIL_KEY_UNDER_TEST`, **not**
+`RESEND_API_KEY`, precisely so the parser invariant does not go red against a correct file. Renaming
+it re-introduces the collision. Say so at both sites. ⚠ **UNPROVEN (A10):** that
+`${{ env.RESEND_API_KEY }}` is not counted as a `secrets.` reference by `secretHitsIn`. Settled by
+running `--section=ci` before the push — do that rather than assume it.
+
+⚠ **Spelling `RESEND_API_KEY` inside `ci.yml`** is safe for the parser (it scans env / run / `with`
+*values*, not keys) but **breaks any future whole-file `grep -c RESEND` audit**. `ci.yml`'s header
+records this exact trap for the snapshot flag: *"prose about a forbidden token is still the token."*
+The parser names what it counts; the workflow does not.
+
+---
+
+### Negative space — what this phase deliberately does NOT validate
+
+Stated explicitly, because an un-named exclusion and a forgotten one look identical.
+
+| Not validated | Why | What is done instead |
+|---|---|---|
+| **The 404's root cause** | The failing process is gone (MEASURED). Naming a cause would be the confident-wrong-docblock the project's own rule forbids, and D-11's ⚠ bans it outright. | The reframing is **recorded as UNPROVEN**, (a) is written up as not-closeable, (b) is closed either way. A guard is left behind so the next occurrence is diagnosed in ~2 seconds instead of from scratch. |
+| **The full-suite wall-clock against a threshold** | **D-13: the number does not exist yet, and subsetting or tuning before measuring is how a gate ends up covering less than anyone believes.** | The number is **measured and recorded in the phase summary**, never asserted. `timeout-minutes: 45` is a **stop, not an estimate** (⚠ UNPROVEN A11) — a timeout expiry is a legitimate red whose correct response is D-13's sharding decision, not a silent cap raise. |
+| **Sharding** | Explicitly deferred by CONTEXT; gated on the measurement above. | Nothing. Do not decide. |
+| **Anything under `(ops)`** — the subdomain, sign-in, invites, the staff surface, the 404 cloak | Phases 20–23. This phase shares no machinery with the ops thread. | `/ops` appears in the probe set as a **regression control only**: it must stay `404` and byte-identical. If it moves, **stop and escalate** — a Phase-20 concern arriving early, not something to fix here. |
+| **`deriveBookable` / the sell gate / payments / bookings / availability** | Off limits (CONTEXT § Established Patterns; CLAUDE.md). Nothing in §§ 1–6 touches them. | Existing suites stay green as regression, not as proof of anything this phase claims. |
+| **The IDOR guard's behaviour** at `edit/page.tsx:49-51` | D-10. A **shipped control that must not be weakened**, not a subject under test. | The anonymous probe is designed so the guard is never reached — which is what makes the probe decisive. |
+| **`instrumentation.ts`'s Resend seam** | **Deferred** by CONTEXT; `[17-D28]` stays OPEN and remains the largest known un-fixed exposure in the suite. | D-14's fail-closed assertion, which is a different (weaker, cheaper) control and is described as such. |
+| **Whether a production database holds orphan drafts of the same shape** | The host id and the 2026-09-03 window are **local facts**; no deployment configuration was found in the tree. | Raised as an Open Question for the PM. D-01's scope as written is local and must not be copied to another environment unexamined. |
+| **Cross-browser / cross-platform rendering** of the card fix | The suite is `--project=chromium` only; the `visual` project is job 4's and is Linux-pinned. | The two guards run in Chromium at three widths. Any claim about other engines would be UNPROVEN. |
+
+### Phase-gate summary
+
+`/gsd-verify-work` should be reachable only when **all** of the following hold:
+
+- [ ] `npm run build` green (lint + design gate + `next build`)
+- [ ] `npm test` green against `fitout_test`, including the three new D-02 cases
+- [ ] `npx playwright test --project=chromium` green locally, including both new specs
+- [ ] `node scripts/verify-workflows.mjs` exits 0 and its printout names `gate-e2e`
+- [ ] **Both HSURF-01 guards watched RED against the pre-fix tree**, messages recorded
+- [ ] **`gate-e2e` watched RED** on a PR from a mutated new-spec assertion, run URL recorded
+- [ ] **The mail-key invariant watched RED**, message recorded
+- [ ] `evidence/` holds the pre-clear manifest + mtimes, both probe matrices, and the three written
+      UNPROVEN dispositions
+- [ ] The full-suite CI wall-clock is **recorded** (D-13) and the spec count restated (37 → 39 with
+      the two new files)
+- [ ] D-15's required-check flip recorded with who / when / against-which-red
+
+⚠ **Gates run alone**, and worktrees are OFF — plans run sequentially on `dev`. Do not schedule the
+Playwright commands concurrently: `reuseExistingServer: false` is unconditional, so two runs fight
+over `:3000` and the second fails for the wrong reason.
+
 
 
 
