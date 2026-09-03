@@ -1,20 +1,25 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.2
-milestone_name: Verification & Operations
+milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
+current_phase: 19
+current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: planning
-last_updated: "2026-09-04T00:00:00.000Z"
+stopped_at: Phase 19 context gathered
+last_updated: "2026-09-03T17:58:51.442Z"
 last_activity: 2026-09-04
+last_activity_desc: v1.2 roadmap created (Phases 19–23; 25/25 requirements mapped)
+state_head: 00149cde74dcea18675a7a4efc158332c4db5a44
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
   # of 2026-09-04. The plan counters cover phases 18 + 18.1 ONLY -- phases 19-23
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 1
   total_plans: 30
   completed_plans: 30
-  percent: 29
+  percent: 14
 ---
 
 # Project State
@@ -1538,8 +1543,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-04T00:00:00.000Z
-Stopped at: v1.2 ROADMAPPED. `.planning/ROADMAP.md` now carries five new phases (19–23) after the
+Last session: 2026-09-03T17:58:50.879Z
+Stopped at: Phase 19 context gathered
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1692,7 +1697,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/18.1-close-phase-18-verification-submission-didit-listing-gate/18.1-04-PLAN.md
+Resume file: .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-CONTEXT.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
