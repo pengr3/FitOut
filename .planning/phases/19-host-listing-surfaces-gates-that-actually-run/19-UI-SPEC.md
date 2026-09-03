@@ -491,7 +491,7 @@ so the executor knows they exist and does not rebuild one.
 
 ## UI Considerations
 
-Applicable state considerations resolved: **8 covered, 1 backstop, 0 unresolved.**
+Applicable state considerations resolved: **9 covered, 1 backstop, 0 unresolved.**
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
@@ -503,6 +503,7 @@ Applicable state considerations resolved: **8 covered, 1 backstop, 0 unresolved.
 | overflow | list-item footer control cluster | ✅ covered | `[data-slot="card-footer"]` satisfies `scrollWidth ≤ clientWidth` at all three bands (claim A3), via `flex-wrap` at the call site. ⚠ The controls are **clipped, not spilled** — a document-level overflow scan is green against the defect, so the assertion must measure the **footer's own** box. |
 | zero-one-many | list-collection | ✅ covered | 0 → `EmptyState`; 1 → single card, A1 skipped by row-grouping; 2+ → A1 runs per visual row grouped by `cardTop` within 1px, so a second row at `lg` is never compared against the first. |
 | long-text | list-item title | ✅ covered | A long title wraps to two lines at 320px and is one of the three named height-variation sources for the fixture. `TitleTag` is `font-medium leading-snug` with no truncation — unchanged. |
+| zero-one-many | list-item footer control cluster | ✅ covered | The `div.ml-auto` holds **one** control on a draft (Delete only — `Unlist` renders solely when `status === "published"`) and **two** on a published listing. The 4-control published case is the tight one and is what makes claim A3 able to fail. ⚠ **The guard fixture MUST include at least one PUBLISHED listing**: a fixture of drafts alone leaves A3 green on the broken tree, because 3 controls fit where 4 do not. Confirmed against the PM’s own screenshot — the draft card’s Delete rendered fully while the published cards clipped Unlist and Delete. Surfaced by the UI-consideration probe, 2026-09-04. |
 | a11y-name | icon-only Delete control | 🧪 backstop | `getByRole("button", { name: "Delete" })` must resolve after D-07. **No test locates this control by its text today** (measured), so nothing currently proves the name survives — a held-out assertion is required, and its absence at verify time is `insufficient_spec`, never a silent pass. |
 
 ---

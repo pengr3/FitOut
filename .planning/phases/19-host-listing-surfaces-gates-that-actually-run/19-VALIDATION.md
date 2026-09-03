@@ -125,6 +125,12 @@ Split three ways, because the failing process no longer exists:
 
 - [ ] A `/host/listings` e2e fixture guaranteeing ≥2 cards per row with **different content heights**
       (a titleless draft, a published listing with no weekly hours, and a title that wraps at 320px)
+- [ ] ⚠ **The same fixture MUST include at least one PUBLISHED listing.** A draft renders 3 footer
+      controls; a published listing renders 4 (`Unlist` is gated on `status === "published"`), and
+      **only the 4-control case can make guard B fail**. A drafts-only fixture leaves B green on the
+      broken tree — the guard-A vacuity trap repeating on the second guard. Confirmed against the
+      PM’s screenshot: the draft card’s Delete rendered fully while published cards clipped Unlist
+      and Delete. Raised by the UI-consideration probe, 2026-09-04.
 
 *Everything else is covered by existing infrastructure: Vitest, the pinned Playwright, the design
 suite, and the four existing CI jobs.*
