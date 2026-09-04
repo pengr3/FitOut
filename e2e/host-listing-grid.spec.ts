@@ -51,7 +51,26 @@
 //
 // The grid is server-rendered and its content does not depend on the viewport, so this file NAVIGATES
 // ONCE and then RESIZES — the shape `host-headings.spec.ts` documents in its own header ("28 states
-// cost 28 navigations rather than 84"). The describe is therefore SERIAL and shares one page.
+// cost 28 navigations rather than 84"). The page and the fixture are built in `beforeAll` and shared.
+//
+// ⚠ THE DESCRIBE IS **NOT** `mode: "serial"`, AND THAT IS A CORRECTNESS DECISION RATHER THAN A
+// PERFORMANCE ONE. It was serial in the first draft, and the pre-fix red proved that wrong in one
+// run: serial mode SKIPS every subsequent test once one fails, so the 320px band's guard-B red hid
+// the `sm` and `lg` bands entirely and the run reported ONE of the six measurements this file exists
+// to take. An instrument whose first finding suppresses its remaining five cannot answer "which
+// bands did each guard fail at", which is the question the phase asks of it.
+//
+// `beforeAll` is per WORKER, so both distributions are correct: if Playwright keeps all three tests
+// in one worker (the common case) there is exactly ONE sign-up, ONE seed and ONE navigation, as
+// intended; if `fullyParallel` splits them, each worker builds its own independent fixture — unique
+// email, unique listing ids, its own teardown — and no band is hidden by another band's red.
+//
+// ⚠ THE GEOMETRY CLAIMS ARE `expect.soft`, THE VACUITY GATES ARE NOT. Within a band, guard A clause
+// 2 failing must not stop guard B from being measured — they are two independent defects and a fix
+// to one does not touch the other, so a run that reports only the first tells the reader half of
+// what it measured. The vacuity gates stay HARD: a measurement over an empty grid must abort rather
+// than continue and report soft passes, because passing vacuously is the exact failure this file's
+// whole design is defending against.
 //
 // The bands are `320 × 800`, `700 × 900` and `1280 × 900`. They are NOT 640 and 1024, which are the
 // exact Tailwind `sm`/`lg` breakpoints the grid keys off (`sm:grid-cols-2 lg:grid-cols-3`): a 1px
@@ -205,7 +224,7 @@ async function measureBand(
     ).toBeGreaterThanOrEqual(2);
 
     const bottoms = row.map((g) => Math.round(g.cardBottom));
-    expect(
+    expect.soft(
       new Set(bottoms).size,
       `${where}: cards in one visual row end at different bottom edges: ${JSON.stringify(bottoms)}. ` +
         "The grid wrapper sets no `align-items`, so its items stretch to the row height and these " +
@@ -217,7 +236,7 @@ async function measureBand(
   // ── GUARD A, CLAUSE 2 — THE ONE THAT IS RED TODAY. ──────────────────────────────────────────────
   for (const [i, g] of row.entries()) {
     const gapBelowFooter = g.cardBottom - g.footerBottom;
-    expect(
+    expect.soft(
       gapBelowFooter,
       `${where}: card ${i} leaves ${gapBelowFooter.toFixed(1)}px of dead card BELOW its footer ` +
         `(card bottom ${g.cardBottom.toFixed(1)}, footer bottom ${g.footerBottom.toFixed(1)}). ` +
@@ -244,7 +263,7 @@ async function measureBand(
   ).toBeGreaterThanOrEqual(1);
 
   for (const f of footers) {
-    expect(
+    expect.soft(
       f.scrollWidth,
       `${where}: card ${f.i}'s footer overflows its own content box — scrollWidth ${f.scrollWidth} ` +
         `against clientWidth ${f.clientWidth}. THE CONTROLS ARE CLIPPED, NOT SPILLED: \`Card\` ` +
@@ -262,8 +281,9 @@ async function measureBand(
 }
 
 test.describe("HSURF-01 — the host listing grid's footer is flush and its controls are not clipped", () => {
-  // SERIAL, and it is not a performance setting: all three bands read ONE navigation's DOM, resized.
-  test.describe.configure({ mode: "serial", timeout: 240_000 });
+  // NO `mode: "serial"` — see the file header for why the first draft's serial describe reported one
+  // of six measurements. The timeout covers a sign-up, a seed and a navigation inside `beforeAll`.
+  test.describe.configure({ timeout: 240_000 });
 
   let page: Page;
   let fixture: SeededHostGrid;

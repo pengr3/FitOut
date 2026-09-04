@@ -1,0 +1,261 @@
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[33m[1m⚠[22m[39m The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 3 tests using 3 workers
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[36m[browser][39m [31mUncaught Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+[2m[WebServer] [22m
+[2m[WebServer] [22m- A server/client branch `if (typeof window !== 'undefined')`.
+[2m[WebServer] [22m- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+[2m[WebServer] [22m- Date formatting in a user's locale which doesn't match the server.
+[2m[WebServer] [22m- External changing data without sending a snapshot of it along with the HTML.
+[2m[WebServer] [22m- Invalid HTML tag nesting.
+[2m[WebServer] [22m
+[2m[WebServer] [22mIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+[2m[WebServer] [22m
+[2m[WebServer] [22mhttps://react.dev/link/hydration-mismatch
+[2m[WebServer] [22m
+[2m[WebServer] [22m  ...
+[2m[WebServer] [22m    <div className="mx-auto fl...">
+[2m[WebServer] [22m      <LinkComponent>
+[2m[WebServer] [22m      <nav data-testid="site-nav" className="flex items...">
+[2m[WebServer] [22m        <Suspense fallback={[...]}>
+[2m[WebServer] [22m          <div>
+[2m[WebServer] [22m          <div className="md:hidden">
+[2m[WebServer] [22m            <NavDrawer>
+[2m[WebServer] [22m              <ResponsiveDialog title="Menu" hideTitle={true} trigger={<button>}>
+[2m[WebServer] [22m                <Dialog open={undefined} onOpenChange={undefined}>
+[2m[WebServer] [22m                  <Dialog data-slot="dialog" open={undefined} onOpenChange={undefined}>
+[2m[WebServer] [22m                    <DialogProvider scope={undefined} triggerRef={{current:null}} contentRef={{current:null}} ...>
+[2m[WebServer] [22m                      <DialogTrigger asChild={true}>
+[2m[WebServer] [22m                        <DialogTrigger data-slot="dialog-tri..." asChild={true}>
+[2m[WebServer] [22m                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+[2m[WebServer] [22m                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+[2m[WebServer] [22m                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+[2m[WebServer] [22m+                               <button
+[2m[WebServer] [22m+                                 data-slot="button"
+[2m[WebServer] [22m+                                 data-variant="ghost"
+[2m[WebServer] [22m+                                 data-size="icon"
+[2m[WebServer] [22m+                                 className={"group/button inline-flex shrink-0 items-center justify-center rounded-l..."}
+[2m[WebServer] [22m+                                 aria-label="Menu"
+[2m[WebServer] [22m+                                 type="button"
+[2m[WebServer] [22m+                                 aria-haspopup="dialog"
+[2m[WebServer] [22m+                                 aria-expanded={false}
+[2m[WebServer] [22m+                                 aria-controls="radix-_R_ad5ritulb_"
+[2m[WebServer] [22m+                                 data-state="closed"
+[2m[WebServer] [22m+                                 onClick={function handleEvent}
+[2m[WebServer] [22m+                                 ref={function}
+[2m[WebServer] [22m+                               >
+[2m[WebServer] [22m                      ...
+[2m[WebServer] [22m      ...
+[2m[WebServer] [22m[39m
+[2m[WebServer] [22m[31m    at <unknown> (https://react.dev/link/hydration-mismatch)
+[2m[WebServer] [22m    at button (<anonymous>)
+[2m[WebServer] [22m    at Button (src\components\ui\button.tsx:143:5)
+[2m[WebServer] [22m    at DialogTrigger (src/components/ui/dialog.tsx:19:10)
+[2m[WebServer] [22m    at ResponsiveDialog (src/components/patterns/responsive-dialog.tsx:250:18)
+[2m[WebServer] [22m    at NavDrawer (src\components\patterns\site-chrome.tsx:308:5)
+[2m[WebServer] [22m    at SiteNav (src\components\patterns\site-chrome.tsx:342:9)
+[2m[WebServer] [22m    at AmbientHostNav (src\components\patterns\ambient-notifications.tsx:176:10)
+[2m[WebServer] [22m    at HostLayout (src\app\(host)\host\layout.tsx:96:13)[39m
+[2m[WebServer] [22m  141 |
+[2m[WebServer] [22m  142 |   return (
+[2m[WebServer] [22m> 143 |     <Comp
+[2m[WebServer] [22m      |     ^
+[2m[WebServer] [22m  144 |       data-slot="button"
+[2m[WebServer] [22m  145 |       data-variant={variant}
+[2m[WebServer] [22m  146 |       data-size={size}
+[2m[WebServer] [22m[36m[browser][39m [31mUncaught Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+[2m[WebServer] [22m
+[2m[WebServer] [22m- A server/client branch `if (typeof window !== 'undefined')`.
+[2m[WebServer] [22m- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+[2m[WebServer] [22m- Date formatting in a user's locale which doesn't match the server.
+[2m[WebServer] [22m- External changing data without sending a snapshot of it along with the HTML.
+[2m[WebServer] [22m- Invalid HTML tag nesting.
+[2m[WebServer] [22m
+[2m[WebServer] [22mIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+[2m[WebServer] [22m
+[2m[WebServer] [22mhttps://react.dev/link/hydration-mismatch
+[2m[WebServer] [22m
+[2m[WebServer] [22m  ...
+[2m[WebServer] [22m    <div className="mx-auto fl...">
+[2m[WebServer] [22m      <LinkComponent>
+[2m[WebServer] [22m      <nav data-testid="site-nav" className="flex items...">
+[2m[WebServer] [22m        <Suspense fallback={[...]}>
+[2m[WebServer] [22m          <div>
+[2m[WebServer] [22m          <div className="md:hidden">
+[2m[WebServer] [22m            <NavDrawer>
+[2m[WebServer] [22m              <ResponsiveDialog title="Menu" hideTitle={true} trigger={<button>}>
+[2m[WebServer] [22m                <Dialog open={undefined} onOpenChange={undefined}>
+[2m[WebServer] [22m                  <Dialog data-slot="dialog" open={undefined} onOpenChange={undefined}>
+[2m[WebServer] [22m                    <DialogProvider scope={undefined} triggerRef={{current:null}} contentRef={{current:null}} ...>
+[2m[WebServer] [22m                      <DialogTrigger asChild={true}>
+[2m[WebServer] [22m                        <DialogTrigger data-slot="dialog-tri..." asChild={true}>
+[2m[WebServer] [22m                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+[2m[WebServer] [22m                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+[2m[WebServer] [22m                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+[2m[WebServer] [22m+                               <button
+[2m[WebServer] [22m+                                 data-slot="button"
+[2m[WebServer] [22m+                                 data-variant="ghost"
+[2m[WebServer] [22m+                                 data-size="icon"
+[2m[WebServer] [22m+                                 className={"group/button inline-flex shrink-0 items-center justify-center rounded-l..."}
+[2m[WebServer] [22m+                                 aria-label="Menu"
+[2m[WebServer] [22m+                                 type="button"
+[2m[WebServer] [22m+                                 aria-haspopup="dialog"
+[2m[WebServer] [22m+                                 aria-expanded={false}
+[2m[WebServer] [22m+                                 aria-controls="radix-_R_ad5ritulb_"
+[2m[WebServer] [22m+                                 data-state="closed"
+[2m[WebServer] [22m+                                 onClick={function handleEvent}
+[2m[WebServer] [22m+                                 ref={function}
+[2m[WebServer] [22m+                               >
+[2m[WebServer] [22m                      ...
+[2m[WebServer] [22m      ...
+[2m[WebServer] [22m[39m
+[2m[WebServer] [22m[31m    at <unknown> (https://react.dev/link/hydration-mismatch)
+[2m[WebServer] [22m    at button (<anonymous>)
+[2m[WebServer] [22m    at Button (src\components\ui\button.tsx:143:5)
+[2m[WebServer] [22m    at DialogTrigger (src/components/ui/dialog.tsx:19:10)
+[2m[WebServer] [22m    at ResponsiveDialog (src/components/patterns/responsive-dialog.tsx:250:18)
+[2m[WebServer] [22m    at NavDrawer (src\components\patterns\site-chrome.tsx:308:5)
+[2m[WebServer] [22m    at SiteNav (src\components\patterns\site-chrome.tsx:342:9)
+[2m[WebServer] [22m    at AmbientHostNav (src\components\patterns\ambient-notifications.tsx:176:10)
+[2m[WebServer] [22m    at HostLayout (src\app\(host)\host\layout.tsx:96:13)[39m
+[2m[WebServer] [22m  141 |
+[2m[WebServer] [22m  142 |   return (
+[2m[WebServer] [22m> 143 |     <Comp
+[2m[WebServer] [22m      |     ^
+[2m[WebServer] [22m  144 |       data-slot="button"
+[2m[WebServer] [22m  145 |       data-variant={variant}
+[2m[WebServer] [22m  146 |       data-size={size}
+  x  1 [chromium] › e2e\host-listing-grid.spec.ts:326:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 1280x900 — inside the lg band, three columns: both guards, both clauses (172ms)
+  x  3 [chromium] › e2e\host-listing-grid.spec.ts:320:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 700x900 — inside the sm band, two columns: both guards, both clauses (195ms)
+  x  2 [chromium] › e2e\host-listing-grid.spec.ts:312:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 320x800 — the 320px floor, one column: guard A clause 2 and guard B (139ms)
+
+
+  1) [chromium] › e2e\host-listing-grid.spec.ts:312:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 320x800 — the 320px floor, one column: guard A clause 2 and guard B 
+
+    Error: 320x800: card 1's footer overflows its own content box — scrollWidth 332 against clientWidth 288. THE CONTROLS ARE CLIPPED, NOT SPILLED: `Card` carries `overflow-hidden` (src/components/ui/card.tsx:15) and `Button` carries `shrink-0` + `whitespace-nowrap` (src/components/ui/button.tsx:74), so the overrun is cut at the card's rounded edge and A DOCUMENT-LEVEL OVERFLOW SCAN REPORTS GREEN AGAINST THIS DEFECT — e2e/overflow-320.spec.ts's /host/listings row passes today with this shipped, which is why the assertion is made on the footer element ITSELF. Offenders: ["div.ml-auto flex gap-2"]. A published listing's footer holds FOUR controls where a draft holds three (`Unlist` is gated on status === 'published', listing-card.tsx:450). The fix is `flex-wrap` on CardFooter at the call site (listing-card.tsx:434) plus D-07's icon-only Delete — never a width on `Button`.
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeLessThanOrEqual[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: <= [32m288[39m
+    Received:    [31m332[39m
+
+      277 |         "fix is `flex-wrap` on CardFooter at the call site (listing-card.tsx:434) plus D-07's " +
+      278 |         "icon-only Delete — never a width on `Button`.",
+    > 279 |     ).toBeLessThanOrEqual(f.clientWidth);
+          |       ^
+      280 |   }
+      281 | }
+      282 |
+        at measureBand (C:\Users\Admin\Roaming\FitOut\e2e\host-listing-grid.spec.ts:279:7)
+        at C:\Users\Admin\Roaming\FitOut\e2e\host-listing-grid.spec.ts:317:5
+
+    Error Context: test-results\host-listing-grid-HSURF-01-de7f7-uard-A-clause-2-and-guard-B-chromium\error-context.md
+
+    Error Context: test-results\host-listing-grid-HSURF-01-de7f7-uard-A-clause-2-and-guard-B-chromium\error-context.md
+
+  2) [chromium] › e2e\host-listing-grid.spec.ts:320:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 700x900 — inside the sm band, two columns: both guards, both clauses 
+
+    Error: 700x900: card 0 leaves 108.0px of dead card BELOW its footer (card bottom 654.5, footer bottom 546.5). THE FOOTER BAND IS FLOATING MID-CARD. `Card` is `flex flex-col` with `gap-0` at the call site (src/components/listing/listing-card.tsx:352) and NO child declares `flex-1`, so the children pack to the top and the height the grid stretched this card to lands as dead space under the tinted, top-bordered footer. `Card`'s base carries `has-data-[slot=card-footer]:pb-0` (src/components/ui/card.tsx:15), so ZERO is the designed gap and the 1px here is sub-pixel tolerance, not a budget — do not widen it. THE FIX IS `mt-auto` ON CardFooter (listing-card.tsx:434), or `flex-1` on the growing child — NOT `h-full` on `Card`, which is a MEASURED no-op because src/app/(host)/host/listings/page.tsx:180 sets no `align-items` and the grid already stretches its items (D-05).
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeLessThanOrEqual[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: <= [32m1[39m
+    Received:    [31m108[39m
+
+      251 |         "src/app/(host)/host/listings/page.tsx:180 sets no `align-items` and the grid already " +
+      252 |         "stretches its items (D-05).",
+    > 253 |     ).toBeLessThanOrEqual(FLUSH_TOLERANCE_PX);
+          |       ^
+      254 |   }
+      255 |
+      256 |   // ── GUARD B — the footer's OWN content box. ─────────────────────────────────────────────────────
+        at measureBand (C:\Users\Admin\Roaming\FitOut\e2e\host-listing-grid.spec.ts:253:7)
+        at C:\Users\Admin\Roaming\FitOut\e2e\host-listing-grid.spec.ts:323:5
+
+    Error: 700x900: card 1's footer overflows its own content box — scrollWidth 332 against clientWidth 322. THE CONTROLS ARE CLIPPED, NOT SPILLED: `Card` carries `overflow-hidden` (src/components/ui/card.tsx:15) and `Button` carries `shrink-0` + `whitespace-nowrap` (src/components/ui/button.tsx:74), so the overrun is cut at the card's rounded edge and A DOCUMENT-LEVEL OVERFLOW SCAN REPORTS GREEN AGAINST THIS DEFECT — e2e/overflow-320.spec.ts's /host/listings row passes today with this shipped, which is why the assertion is made on the footer element ITSELF. Offenders: ["div.ml-auto flex gap-2"]. A published listing's footer holds FOUR controls where a draft holds three (`Unlist` is gated on status === 'published', listing-card.tsx:450). The fix is `flex-wrap` on CardFooter at the call site (listing-card.tsx:434) plus D-07's icon-only Delete — never a width on `Button`.
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeLessThanOrEqual[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: <= [32m322[39m
+    Received:    [31m332[39m
+
+      277 |         "fix is `flex-wrap` on CardFooter at the call site (listing-card.tsx:434) plus D-07's " +
+      278 |         "icon-only Delete — never a width on `Button`.",
+    > 279 |     ).toBeLessThanOrEqual(f.clientWidth);
+          |       ^
+      280 |   }
+      281 | }
+      282 |
+        at measureBand (C:\Users\Admin\Roaming\FitOut\e2e\host-listing-grid.spec.ts:279:7)
+        at C:\Users\Admin\Roaming\FitOut\e2e\host-listing-grid.spec.ts:323:5
+
+    Error Context: test-results\host-listing-grid-HSURF-01-49635-ns-both-guards-both-clauses-chromium\error-context.md
+
+    Error Context: test-results\host-listing-grid-HSURF-01-49635-ns-both-guards-both-clauses-chromium\error-context.md
+
+  3) [chromium] › e2e\host-listing-grid.spec.ts:326:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 1280x900 — inside the lg band, three columns: both guards, both clauses 
+
+    Error: 1280x900: card 0 leaves 108.0px of dead card BELOW its footer (card bottom 649.0, footer bottom 541.0). THE FOOTER BAND IS FLOATING MID-CARD. `Card` is `flex flex-col` with `gap-0` at the call site (src/components/listing/listing-card.tsx:352) and NO child declares `flex-1`, so the children pack to the top and the height the grid stretched this card to lands as dead space under the tinted, top-bordered footer. `Card`'s base carries `has-data-[slot=card-footer]:pb-0` (src/components/ui/card.tsx:15), so ZERO is the designed gap and the 1px here is sub-pixel tolerance, not a budget — do not widen it. THE FIX IS `mt-auto` ON CardFooter (listing-card.tsx:434), or `flex-1` on the growing child — NOT `h-full` on `Card`, which is a MEASURED no-op because src/app/(host)/host/listings/page.tsx:180 sets no `align-items` and the grid already stretches its items (D-05).
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeLessThanOrEqual[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: <= [32m1[39m
+    Received:    [31m108.015625[39m
+
+      251 |         "src/app/(host)/host/listings/page.tsx:180 sets no `align-items` and the grid already " +
+      252 |         "stretches its items (D-05).",
+    > 253 |     ).toBeLessThanOrEqual(FLUSH_TOLERANCE_PX);
+          |       ^
+      254 |   }
+      255 |
+      256 |   // ── GUARD B — the footer's OWN content box. ─────────────────────────────────────────────────────
+        at measureBand (C:\Users\Admin\Roaming\FitOut\e2e\host-listing-grid.spec.ts:253:7)
+        at C:\Users\Admin\Roaming\FitOut\e2e\host-listing-grid.spec.ts:329:5
+
+    Error: 1280x900: card 2 leaves 46.3px of dead card BELOW its footer (card bottom 649.0, footer bottom 602.7). THE FOOTER BAND IS FLOATING MID-CARD. `Card` is `flex flex-col` with `gap-0` at the call site (src/components/listing/listing-card.tsx:352) and NO child declares `flex-1`, so the children pack to the top and the height the grid stretched this card to lands as dead space under the tinted, top-bordered footer. `Card`'s base carries `has-data-[slot=card-footer]:pb-0` (src/components/ui/card.tsx:15), so ZERO is the designed gap and the 1px here is sub-pixel tolerance, not a budget — do not widen it. THE FIX IS `mt-auto` ON CardFooter (listing-card.tsx:434), or `flex-1` on the growing child — NOT `h-full` on `Card`, which is a MEASURED no-op because src/app/(host)/host/listings/page.tsx:180 sets no `align-items` and the grid already stretches its items (D-05).
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeLessThanOrEqual[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: <= [32m1[39m
+    Received:    [31m46.265625[39m
+
+      251 |         "src/app/(host)/host/listings/page.tsx:180 sets no `align-items` and the grid already " +
+      252 |         "stretches its items (D-05).",
+    > 253 |     ).toBeLessThanOrEqual(FLUSH_TOLERANCE_PX);
+          |       ^
+      254 |   }
+      255 |
+      256 |   // ── GUARD B — the footer's OWN content box. ─────────────────────────────────────────────────────
+        at measureBand (C:\Users\Admin\Roaming\FitOut\e2e\host-listing-grid.spec.ts:253:7)
+        at C:\Users\Admin\Roaming\FitOut\e2e\host-listing-grid.spec.ts:329:5
+
+    Error: 1280x900: card 1's footer overflows its own content box — scrollWidth 332 against clientWidth 315. THE CONTROLS ARE CLIPPED, NOT SPILLED: `Card` carries `overflow-hidden` (src/components/ui/card.tsx:15) and `Button` carries `shrink-0` + `whitespace-nowrap` (src/components/ui/button.tsx:74), so the overrun is cut at the card's rounded edge and A DOCUMENT-LEVEL OVERFLOW SCAN REPORTS GREEN AGAINST THIS DEFECT — e2e/overflow-320.spec.ts's /host/listings row passes today with this shipped, which is why the assertion is made on the footer element ITSELF. Offenders: ["div.ml-auto flex gap-2"]. A published listing's footer holds FOUR controls where a draft holds three (`Unlist` is gated on status === 'published', listing-card.tsx:450). The fix is `flex-wrap` on CardFooter at the call site (listing-card.tsx:434) plus D-07's icon-only Delete — never a width on `Button`.
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeLessThanOrEqual[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: <= [32m315[39m
+    Received:    [31m332[39m
+
+      277 |         "fix is `flex-wrap` on CardFooter at the call site (listing-card.tsx:434) plus D-07's " +
+      278 |         "icon-only Delete — never a width on `Button`.",
+    > 279 |     ).toBeLessThanOrEqual(f.clientWidth);
+          |       ^
+      280 |   }
+      281 | }
+      282 |
+        at measureBand (C:\Users\Admin\Roaming\FitOut\e2e\host-listing-grid.spec.ts:279:7)
+        at C:\Users\Admin\Roaming\FitOut\e2e\host-listing-grid.spec.ts:329:5
+
+    Error Context: test-results\host-listing-grid-HSURF-01-28293-ns-both-guards-both-clauses-chromium\error-context.md
+
+    Error Context: test-results\host-listing-grid-HSURF-01-28293-ns-both-guards-both-clauses-chromium\error-context.md
+
+  3 failed
+    [chromium] › e2e\host-listing-grid.spec.ts:312:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 320x800 — the 320px floor, one column: guard A clause 2 and guard B 
+    [chromium] › e2e\host-listing-grid.spec.ts:320:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 700x900 — inside the sm band, two columns: both guards, both clauses 
+    [chromium] › e2e\host-listing-grid.spec.ts:326:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 1280x900 — inside the lg band, three columns: both guards, both clauses 
