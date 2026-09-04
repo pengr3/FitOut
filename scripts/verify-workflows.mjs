@@ -81,6 +81,16 @@ const CI = `${WORKFLOW_DIR}/ci.yml`;
 const BASELINES_JOB = "generate-baselines";
 const CI_VISUAL_JOB = "gate-visual";
 
+// THE FUNCTIONAL-SUITE JOB, AND THE DISPLAY NAME BRANCH PROTECTION MATCHES ON (plan 19-08, D-15,
+// T-19-40). Two spellings, deliberately, because they are two different things:
+//   * `CI_E2E_JOB` is the YAML job KEY. Its absence is a hard stop below.
+//   * `CI_E2E_CONTEXT` is the job's `name:` — the string a REQUIRED STATUS CHECK is matched by.
+// GitHub matches a required check by its display name, not by the job key, so an edit to `name:`
+// alone silently detaches the gate from branch protection while every other invariant in this file
+// still holds. That is T-19-40's quieter half and it is why the name is asserted, not just the key.
+const CI_E2E_JOB = "gate-e2e";
+const CI_E2E_CONTEXT = "gate-e2e (functional Playwright suite)";
+
 // The snapshot-update flag, spelled ONCE, here. It is deliberately never spelled in `ci.yml` —
 // including in that file's comments — because the cheapest audit of "this file cannot mint a
 // baseline" is a grep for the token returning 0, and prose about a forbidden token is still the
@@ -607,6 +617,50 @@ if (sections.includes("ci")) {
     buildJobs.length > 0 && buildJobsWithServices.length === 0,
     `jobs running \`npm run build\`=[${buildJobs.map(([n]) => n).join(", ") || "(none)"}]  ` +
       `of which declare services=[${buildJobsWithServices.map(([n]) => n).join(", ") || "(none)"}]`,
+  );
+
+  // ── THE FUNCTIONAL-SUITE JOB EXISTS. ITS ABSENCE IS A HARD STOP, NOT A FAILED CHECK ───────────
+  // ADDED BY PLAN 19-08 (research Open Question 5, answered YES by the PM as option `2d`).
+  //
+  // WHY IT WAS MISSING, AND WHY THAT IS THE INTERESTING PART: every other `ci` invariant above is
+  // UNIVERSALLY QUANTIFIED — "every containerized job pins the image", "every `uses:` is
+  // first-party", "no job holds contents: write". A DELETED JOB SATISFIES ALL OF THEM VACUOUSLY.
+  // Before this stop, `gate-e2e` could have been removed from ci.yml in one commit and this script
+  // would have printed a clean green over the remaining four jobs. The gate would be gone and
+  // nothing in the repository would have said so. That is exactly the vacuity the file's header
+  // measures on substrings, one layer up: universal quantification over an empty set.
+  //
+  // ⚠ A HARD STOP IS NOT A COUNTED INVARIANT (see `hardStop` above). It deliberately does not
+  // increment the section total, so adding this did not move the printed count — the count went up
+  // by the ONE `check()` below, not by two. A stop and a check answer different questions: the stop
+  // says "the subject is absent, so every assertion is meaningless", the check says "the subject is
+  // present and wrong".
+  const e2e = doc?.jobs?.[CI_E2E_JOB];
+  if (!e2e) {
+    hardStop([
+      `job "${CI_E2E_JOB}" not found in ${CI}.`,
+      `Jobs present: [${jobs.map(([n]) => n).join(", ") || "(none)"}]`,
+      ``,
+      `This job IS the functional Playwright suite — the gate that runs the repository's e2e specs`,
+      `on every push and pull request. Deleting it removes the only check that would notice a`,
+      `broken booking flow, and it removes it INVISIBLY: every other assertion in this section is`,
+      `universally quantified over the jobs that remain, so all of them would still pass.`,
+      ``,
+      `If this job is genuinely being retired, that is a decision to record — not a deletion to`,
+      `absorb. Remove this hard stop in the same commit, and say why in it.`,
+    ]);
+  }
+
+  // THE DISPLAY NAME IS THE REQUIRED-CHECK CONTEXT. Asserted separately from the key above because
+  // GitHub matches branch protection on `name:`, so a `name:` edit detaches the gate from branch
+  // protection while leaving the job — and every invariant over it — perfectly intact. The rename
+  // is not forbidden; it is required to be DELIBERATE, because it must be paired with an edit to
+  // the repository's required-status-check list, which no file here can carry.
+  check(
+    `"${CI_E2E_JOB}" declares the exact display name branch protection matches on`,
+    String(e2e?.name ?? "") === CI_E2E_CONTEXT,
+    `name=${JSON.stringify(e2e?.name ?? null)}  expected=${JSON.stringify(CI_E2E_CONTEXT)}  ` +
+      `(a required status check is matched by this string; changing it silently unbinds the gate)`,
   );
 
   // ── THE COMPARISON JOB EXISTS. ITS ABSENCE IS A HARD STOP, NOT A FAILED CHECK ─────────────────
