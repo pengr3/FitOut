@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: executing
-stopped_at: Completed 19-09-PLAN.md — GAP 1 closed (availability_block conjunct, watched red first) and the completeness of the reuse predicate is now a build-blocking checked property; GAP 2 (D-03 try/catch) is 19-10
-last_updated: "2026-09-04T11:57:54.988Z"
+stopped_at: "Completed 19-10-PLAN.md — GAP 2 closed: createDraftListing resolves instead of throwing, the two race windows route to /host/verify and /login, and a build-blocking census keeps the refusal set and the router in agreement"
+last_updated: "2026-09-04T12:19:15.853Z"
 last_activity: 2026-09-04
 last_activity_desc: 19-09 executed — D-02 availability_block conjunct + census gate
-state_head: 95391cfc28068fe19d1e21db662598787b289db0
+state_head: 318ecf4d7486b7840b1ffc0d21c2589e98b6246f
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 41
-  completed_plans: 39
+  completed_plans: 40
   percent: 14
 ---
 
@@ -74,8 +74,8 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
-Plan: 9 of 11
-Status: Executing Phase 19 — gap closure (19-09 done; 19-10 and 19-11 outstanding)
+Plan: 10 of 11
+Status: Ready to execute
 Last activity: 2026-09-04 — 19-09 executed: D-02 availability_block conjunct + build-blocking census
 
 ## Performance Metrics
@@ -431,6 +431,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19 P07 | 43 min | 3 tasks | 5 files |
 | Phase 19 P08 | 2h 4m | 3 tasks | 3 files |
 | Phase 19 P09 | 18 min | 3 tasks | 3 files |
+| Phase 19 P10 | 20 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1400,6 +1401,9 @@ Recent decisions affecting current work:
 - [Phase 19]: 19-08: research Open Question 5 answered YES — verify-workflows.mjs gains a hard stop on the gate-e2e job KEY plus one counted invariant on its DISPLAY NAME — Every ci invariant was universally quantified, so a deleted job satisfied all of them vacuously — gate-e2e could have been removed in one commit and the checker would have printed a clean green over the four jobs left. The display name is asserted separately because GitHub matches a required status check on name:, not on the YAML key, so a name: edit alone would silently unbind a future required check. Both watched failing (exit 1, with diagnostics) then reverted byte-identical, sha256-verified. MEASURED not predicted: total 40 -> 41, ci 22 -> 23 — up by ONE, not two, because a hard stop is deliberately not a counted invariant.
 - [Phase 19]: 19-08: D-13 MEASURED — 48m 22s, 460 tests, 39 spec files, ONE worker, 135 retry executions (run 33840948047). NO sharding decision made. — The 43m suite term is an UPPER BOUND, not the cost of a green suite: 135 retry executions are a material share of it, so whoever fixes the 14 failures must re-measure rather than assume it carries over. One worker is the largest single term — workers is unset in playwright.config.ts and a 2-core runner yields exactly one — so raising workers is worth weighing before splitting across jobs, but this is an observation and not a recommendation. The cap was raised ONCE, 45 -> 90, on the first run's measured 45-minute expiry, with the arithmetic at the site in ci.yml; it must not be raised again.
 - [Phase 19]: [19-09]: **D-02's reuse predicate gains a third `NOT EXISTS` conjunct (`availability_block`) and, more importantly, its COMPLETENESS becomes a checked property.** `src/app/actions/blocks.ts`'s `addBlock` inserts a child row and performs no `db.update(listing)`, so a draft the host blocked dates on read `updated_at = created_at` and was silently adopted by the next *Create listing* — the third instance of one class, and two prose censuses had already missed it. The deliverable is therefore `tests/design/listing-reuse-predicate-census.test.ts`: DB-free (runs under `vitest.design.config.ts`, so it is build-blocking), it derives every table declaring `.references(() => listing.id` from `src/lib/db/schema.ts` AT RUNTIME (7 today) and requires each to be either covered by a conjunct or carry a written `EXEMPT` reason — an eighth child table reddens it BY NAME. It also asserts that every raw-SQL `UPDATE listing` under `src/` sets `updated_at` before its `WHERE`, over COMMENT-STRIPPED source (5 raw hits -> 2 real, both `ops-review.ts:667,751`, both already correct; the 3 stripped hits are prose in `listing.ts:136`, `schema.ts:180`, `visual-baselines.ts:867`, NONE of which sets `updated_at` — so an unstripped scan is RED against a correct tree, and the file asserts exactly that to prove the strip is load-bearing). Both reds were WATCHED: case 4 failed at `crud.test.ts:641` on `.not.toBe` (never on setup or the premise), and a throwaway eighth `pgTable` child reddened the census by name before being reverted. THE PLAN'S `listing_review` EXEMPTION REASON WAS WRONG AND WAS CORRECTED FROM SOURCE: it is the D-221 ops review-HISTORY table, not a guest review — its only writer `markForReReview` appends only after a Drizzle `update(listing)` that moved a row (so `$onUpdate` already fired), and its guard `review_state IN (approved,grandfathered,rejected)` is a 0-row no-op on a draft defaulting to `pending`. `schema.ts` is read UNSTRIPPED when deriving the child set, deliberately: `stripComments` can only REMOVE, so stripping there could only UNDER-count, which is the falsely-green direction. gsd-sdk v1.42.3 misbehaved exactly as the memory predicts — `state.advance-plan` set `Plan: 2 of 11` against NINE summaries on disk and clobbered `Status:` to "Ready to execute"; `state.update-progress` returned "Progress field not found in STATE.md" against a `progress:` block plainly present. Repaired by hand and diffed.
+- [Phase 19]: createDraftListing's try opens AFTER the session check and the verification gate return, so a deliberate refusal can never be caught and re-served as a generic infrastructure apology — The refusal carries information the host needs (that there is a check, and where to ask about it); the apology destroys it. Asserted by driving a suspended host through an injected DB failure.
+- [Phase 19]: The dead !res.id branch was made unrepresentable by narrowing createDraftListing's return type (CreateDraftListingResult), not deleted — Deleting a branch because it looks unreachable is a judgement a later edit can silently falsify; tsc proving it cannot occur is not.
+- [Phase 19]: The two live race windows (session lapse, ops suspension) route to /login and /host/verify, leaving the grid bounce for genuine infrastructure failure alone — This is what makes create-signal.ts's ban on verification wording true by CONSTRUCTION rather than by the branch being unreachable. No third message invented — the exported copy is byte-unchanged.
 
 ### Pending Todos
 
@@ -1581,8 +1585,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-04T11:57:30.244Z
-Stopped at: Completed 19-09-PLAN.md
+Last session: 2026-09-04T12:18:54.544Z
+Stopped at: Completed 19-10-PLAN.md — GAP 2 closed: createDraftListing resolves instead of throwing, the two race windows route to /host/verify and /login, and a build-blocking census keeps the refusal set and the router in agreement
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
