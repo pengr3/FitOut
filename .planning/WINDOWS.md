@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 7
+open_count: 11
 waived_count: 0
 fixed_count: 0
-total_count: 7
-last_updated: 2026-09-04T03:47:25.067Z
+total_count: 11
+last_updated: 2026-09-04T07:32:43.258Z
 ---
 
 # Broken Windows Ledger
@@ -22,6 +22,10 @@ last_updated: 2026-09-04T03:47:25.067Z
 | 5 | 19 | todo | .planning/phases/19-host-listing-surfaces-gates-that-actually-run/evidence/orphan-drafts-delete-result.txt |  | OPEN PM question, unanswered: D-01's window and host id are LOCAL facts, so a production database may hold orphan drafts this phase does not touch; if a deployed environment exists the scope must be re-derived there, not copied | open |  | 2026-09-04T02:35:40.684Z |  |
 | 6 | 19 | deviation | .planning/phases/19-host-listing-surfaces-gates-that-actually-run/evidence/probe-prod.txt |  | 19-05 Task 2: under a production build the /ops 404 body is NOT byte-identical to the root not-found (25970 vs 29644 bytes). Status control held (404 in both matrices) and no ops-identifying string leaks; /ops renders LESS shared chrome. Pre-existing (files last changed in 18-12 and 11-14), deferred not fixed — belongs to whoever owns D-219. | open |  | 2026-09-04T03:18:49.016Z |  |
 | 7 | 19 | unrun-verify | e2e/host-route-reachability.spec.ts |  | 19-06 Task 1: the new routing guard went RED ONCE (3 of 4 routes) during plan-level verification and the DISCRIMINATING STATUS WAS NOT CAPTURED — the grep filter in use did not include the 'answered' line and the run's artifacts were cleared by the next run. Six consecutive green runs before and after; not reproduced under a deliberate restage. No cause named (D-11). The next reader who sees this guard go red must capture the status, the dev-server stdout, and the manifest BEFORE re-running: that capture is verdict B and it is the only thing that closes 19-FINDING-404 items (a) and (c). | open |  | 2026-09-04T03:47:25.067Z |  |
+| 8 | 19 | unrun-verify | .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-08-PLAN.md |  | 19-08 Task 3 verify 'gh api repos/:owner/:repo/branches/main/protection' CANNOT RUN — branches/main/protection and rulesets both return 403 'Upgrade to GitHub Pro or make this repository public to enable this feature.' Repo is private, owner is a Free personal account. PREREQUISITE A for making gate-e2e a required check: branch protection is unreachable at any price except making the repo public or buying Pro. | open |  | 2026-09-04T07:32:41.478Z |  |
+| 9 | 19 | deviation | .github/workflows/ci.yml |  | gate-e2e SHIPS NON-REQUIRED and CI-01 closes with it non-required. D-15's flip was HELD by PM decision (option 2). It reports; it does not block. Two prerequisites stand: (A) branch protection unreachable, 403 Pro/public — see the unrun-verify entry; (C) there is no green run, 14 e2e tests fail reproducibly plus gate-visual on stale baselines. Blocker B (pull_request never ran) was RESOLVED on 2026-09-04 by merge commits 902aca5 (dev) and 9619f0b (ci/gate-e2e-proof-19-08). Do not read CI-01 'complete' as 'the gate blocks'. | open |  | 2026-09-04T07:32:42.081Z |  |
+| 10 | 19 | deviation | e2e |  | FOURTEEN e2e tests fail reproducibly across ~10 spec files on a real runner, plus gate-visual on baselines last regenerated 2026-08-30 — the full list with verbatim messages is in 19-08 evidence/gate-e2e-wallclock.txt. NONE was introduced by phase 19; they are what a gate nobody had ever run was hiding. Fixing them is a SEPARATE PHASE and is prerequisite C for making gate-e2e required. Whoever fixes them must RE-MEASURE the wall-clock: 48m22s includes 135 retry executions and is an upper bound, not the cost of a green suite. | open |  | 2026-09-04T07:32:42.669Z |  |
+| 11 | 19 | todo | .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-08-SUMMARY.md |  | NEW EVIDENCE FOR LEDGER ENTRY 5, WHICH STAYS OPEN. A vercel.json is in the tree and a live Vercel project (pengr3s-projects/fit-out) deploys this repository — its check appears on PR #1. This DEMONSTRATES A DEPLOYED ENVIRONMENT EXISTS, which entry 5's question was conditioned on ('if a deployed environment exists the scope must be re-derived there'). It does NOT establish that the deployment has its own database, and nobody has measured that. The PM's production-scope question from 19-04 remains UNANSWERED and entry 5 must not be closed on this evidence. | open |  | 2026-09-04T07:32:43.258Z |  |
 
 ````json
 [
@@ -107,6 +111,54 @@ last_updated: 2026-09-04T03:47:25.067Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-04T03:47:25.067Z",
+    "resolved_at": null
+  },
+  {
+    "id": 8,
+    "kind": "unrun-verify",
+    "phase": "19",
+    "file": ".planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-08-PLAN.md",
+    "line": null,
+    "description": "19-08 Task 3 verify 'gh api repos/:owner/:repo/branches/main/protection' CANNOT RUN — branches/main/protection and rulesets both return 403 'Upgrade to GitHub Pro or make this repository public to enable this feature.' Repo is private, owner is a Free personal account. PREREQUISITE A for making gate-e2e a required check: branch protection is unreachable at any price except making the repo public or buying Pro.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-04T07:32:41.478Z",
+    "resolved_at": null
+  },
+  {
+    "id": 9,
+    "kind": "deviation",
+    "phase": "19",
+    "file": ".github/workflows/ci.yml",
+    "line": null,
+    "description": "gate-e2e SHIPS NON-REQUIRED and CI-01 closes with it non-required. D-15's flip was HELD by PM decision (option 2). It reports; it does not block. Two prerequisites stand: (A) branch protection unreachable, 403 Pro/public — see the unrun-verify entry; (C) there is no green run, 14 e2e tests fail reproducibly plus gate-visual on stale baselines. Blocker B (pull_request never ran) was RESOLVED on 2026-09-04 by merge commits 902aca5 (dev) and 9619f0b (ci/gate-e2e-proof-19-08). Do not read CI-01 'complete' as 'the gate blocks'.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-04T07:32:42.081Z",
+    "resolved_at": null
+  },
+  {
+    "id": 10,
+    "kind": "deviation",
+    "phase": "19",
+    "file": "e2e",
+    "line": null,
+    "description": "FOURTEEN e2e tests fail reproducibly across ~10 spec files on a real runner, plus gate-visual on baselines last regenerated 2026-08-30 — the full list with verbatim messages is in 19-08 evidence/gate-e2e-wallclock.txt. NONE was introduced by phase 19; they are what a gate nobody had ever run was hiding. Fixing them is a SEPARATE PHASE and is prerequisite C for making gate-e2e required. Whoever fixes them must RE-MEASURE the wall-clock: 48m22s includes 135 retry executions and is an upper bound, not the cost of a green suite.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-04T07:32:42.669Z",
+    "resolved_at": null
+  },
+  {
+    "id": 11,
+    "kind": "todo",
+    "phase": "19",
+    "file": ".planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-08-SUMMARY.md",
+    "line": null,
+    "description": "NEW EVIDENCE FOR LEDGER ENTRY 5, WHICH STAYS OPEN. A vercel.json is in the tree and a live Vercel project (pengr3s-projects/fit-out) deploys this repository — its check appears on PR #1. This DEMONSTRATES A DEPLOYED ENVIRONMENT EXISTS, which entry 5's question was conditioned on ('if a deployed environment exists the scope must be re-derived there'). It does NOT establish that the deployment has its own database, and nobody has measured that. The PM's production-scope question from 19-04 remains UNANSWERED and entry 5 must not be closed on this evidence.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-04T07:32:43.258Z",
     "resolved_at": null
   }
 ]

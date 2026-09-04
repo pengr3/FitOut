@@ -446,7 +446,7 @@ is cheap, independent, and because `CI-01` makes every later phase's gates capab
   4. Opening a pull request **runs the repository's functional Playwright specs**, and a failing spec
      turns the run red — proven by watching one fail, not by reading the workflow file.
 
-**Plans**: 7/8 plans executed, 8 waves (worktrees are OFF, so waves express dependency order, not concurrency).
+**Plans**: 8/8 plans executed, 8 waves (worktrees are OFF, so waves express dependency order, not concurrency).
 Order is the research's: `CI-01 → HSURF-01 → HSURF-02`, with CI-01's required-check flip held to the
 end because it can only be justified by a watched red that needs this phase's own specs to exist.
 
@@ -481,7 +481,7 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
-- [ ] 19-08-PLAN.md — one green run, two watched reds, the measured wall-clock, then the required-check flip (CI-01)
+- [x] 19-08-PLAN.md — one green run, two watched reds, the measured wall-clock, then the required-check flip (CI-01)
 
 **⚠ HSURF-01: the obvious fix is a no-op, measured.** The grid wrapper sets no `align-items`, so grid
 items with `height: auto` **already stretch** — adding `h-full` to `Card` would be a no-op dressed as a
@@ -839,7 +839,7 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified & COMPLETE** — 17/17 requirements, 0 code-level blockers. The checkbox was held from 2026-09-01 until 18.1 shipped the missing submission path, then briefly re-held on PM decision D-274 (the `/ops` contact surface). **18.1-16 shipped D-274 on 2026-09-03 and phase 18.1 verified passed 9/9, so both holds are discharged.** | verified 2026-09-03 |
 | 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | Complete    | 2026-09-03 |
-| 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 0/TBD | In Progress|  |
+| 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 8/8 | **All plans executed — awaiting verification.** ⚠ Success criterion 4 is NOT met: `gate-e2e` ships **non-required** (19-08 held the flip). Branch protection is unreachable on a Free private repo (403), and the suite has never been green — 14 reproducible e2e failures plus stale visual baselines. | executed 2026-09-04 |
 | 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | Not started | - |
 | 21. The Host Can See Where They Stand | v1.2 | 0/TBD | Not started | - |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |

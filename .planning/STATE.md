@@ -4,12 +4,12 @@ milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
-status: executing
-stopped_at: Completed 19-07-PLAN.md
-last_updated: "2026-09-04T04:36:38.584Z"
+status: verifying
+stopped_at: Completed 19-08-PLAN.md — gate-e2e measured and watched failing; required-check flip HELD (prerequisites A and C outstanding)
+last_updated: "2026-09-04T07:36:22.056Z"
 last_activity: 2026-09-04
 last_activity_desc: Phase 19 execution started
-state_head: 4efe54c81c44e6a4f8796652bdfdf7858bf01bff
+state_head: d5a7425dc2b70d083178a9bb69e515a35fc5958f
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 38
-  completed_plans: 37
+  completed_plans: 38
   percent: 14
 ---
 
@@ -75,7 +75,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
 Plan: 8 of 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-09-04 — Phase 19 execution started
 
 ## Performance Metrics
@@ -429,6 +429,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19 P05 | 14 min | 3 tasks | 5 files |
 | Phase 19 P06 | 34 min | 3 tasks | 3 files |
 | Phase 19 P07 | 43 min | 3 tasks | 5 files |
+| Phase 19 P08 | 2h 4m | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1394,6 +1395,9 @@ Recent decisions affecting current work:
 - [Phase 19]: 19-07: the failure redirect is a CONCATENATION, not a template literal — two gates count the destination literal in new/page.tsx and a template would drive that count to zero on a correct tree
 - [Phase 19]: 19-07: LISTING_CREATE_FAILED_PARAM exports the whole key=value pair and the destination splits it once, so the origin and the destination cannot drift on the KEY either
 - [Phase 19]: 19-07: the raw searchParams value is never interpolated anywhere — not even into the comparison; the page splits the constant and indexes the params with it
+- [Phase 19]: 19-08: the gate-e2e required-check flip is HELD — it ships NON-REQUIRED and CI-01 closes that way — Two prerequisites stand and neither is producible from this repo. A: branch protection and rulesets both return 403 'Upgrade to GitHub Pro or make this repository public' — private repo, Free personal account, so the plan's own verify step cannot run. C: there is no green run — 14 e2e tests fail reproducibly across ~10 spec files (NONE introduced by phase 19) plus gate-visual on baselines last regenerated 2026-08-30. A required check that is red on arrival is a wall, not a gate. Do NOT read CI-01 complete as 'the gate blocks'. WINDOWS.md entries 8-10.
+- [Phase 19]: 19-08: research Open Question 5 answered YES — verify-workflows.mjs gains a hard stop on the gate-e2e job KEY plus one counted invariant on its DISPLAY NAME — Every ci invariant was universally quantified, so a deleted job satisfied all of them vacuously — gate-e2e could have been removed in one commit and the checker would have printed a clean green over the four jobs left. The display name is asserted separately because GitHub matches a required status check on name:, not on the YAML key, so a name: edit alone would silently unbind a future required check. Both watched failing (exit 1, with diagnostics) then reverted byte-identical, sha256-verified. MEASURED not predicted: total 40 -> 41, ci 22 -> 23 — up by ONE, not two, because a hard stop is deliberately not a counted invariant.
+- [Phase 19]: 19-08: D-13 MEASURED — 48m 22s, 460 tests, 39 spec files, ONE worker, 135 retry executions (run 33840948047). NO sharding decision made. — The 43m suite term is an UPPER BOUND, not the cost of a green suite: 135 retry executions are a material share of it, so whoever fixes the 14 failures must re-measure rather than assume it carries over. One worker is the largest single term — workers is unset in playwright.config.ts and a 2-core runner yields exactly one — so raising workers is worth weighing before splitting across jobs, but this is an observation and not a recommendation. The cap was raised ONCE, 45 -> 90, on the first run's measured 45-minute expiry, with the arithmetic at the site in ci.yml; it must not be raised again.
 
 ### Pending Todos
 
@@ -1473,6 +1477,8 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - ⚠ PM CHECKPOINT OPEN (18-14 Task 3, blocking, deferred 2026-09-01) — FIVE items, D-236 FIRST. (a) D-236: OPS_CANCEL_REFUNDS_SERVICE_FEE=false ships PM-4 as answered, but cancelBookingAsHost already refunds 100% INCLUDING the fee on the stated principle 'the booker did nothing wrong' (cancel-booking.ts:1134-1137). An ops cancel on a CONFIRMED-FAKE listing is a stronger instance of that, so FitOut is currently LESS generous to a defrauded booker than to one whose host merely flaked. One line at src/lib/payments/fees.ts:82; both branches already covered by tests/payments/ops-cancel.test.ts. (b) D-250: SUPPORT_EMAIL is null at src/lib/site.ts:70 — one line also closes carried-forward STATE-05 and TRUST-01; ⚠ supplying one INVERTS tests/design/site-contacts.test.ts, a follow-on task not a same-commit edit. (c) F11: should a suspended host be told on /host/earnings that a due session will never produce a payout row? (d) A4/D-231: 'photos' read as the photo SET with reorderPhotos excluded as non-material — confirm or overturn. (e) The KYC vendor — PayMongo / a standalone vendor / stay manual; to be recorded as a D-number so a future phase inherits it.
 - Phantom 404 reproduces on a FRESH dev process: every /host/* subroute served 404 against the surviving .next while /host served 307, with the route present in app-paths-manifest.json. Gone after rm -rf .next. No causal claim (D-11). 19-05 must read 19-02-SUMMARY Incidental finding before writing its probe protocol.
 - OPEN PM question from 19-04: D-01 window and host id are LOCAL facts, so a production database may hold orphan drafts this phase does not touch; if a deployed environment exists, the scope must be re-derived there, not copied. Put to the PM and NOT answered.
+- gate-e2e is NOT a required check and CI-01 closes with it non-required — the gate reports, it does not block. Prerequisite A: branch protection unreachable (403; needs GitHub Pro or a public repo) — a PM billing/visibility decision, not an engineering one. Prerequisite C: 14 reproducible e2e failures + visual baselines stale since 2026-08-30 need a phase of their own. WINDOWS.md entries 8-10.
+- PRODUCTION SCOPE (from 19-04) STILL UNANSWERED, with new evidence that does NOT close it: a vercel.json is in the tree and a live Vercel project (pengr3s-projects/fit-out) deploys this repo, its check appearing on PR #1 — so a deployed environment EXISTS, satisfying the antecedent of WINDOWS.md entry 5. It does NOT establish that the deployment has its own database; nobody has measured that and no deployed environment was probed. Entry 5 stays open and is the PM's to answer.
 
 ### Quick Tasks Completed
 
@@ -1573,8 +1579,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-04T04:36:18.548Z
-Stopped at: Completed 19-07-PLAN.md
+Last session: 2026-09-04T07:35:04.888Z
+Stopped at: Completed 19-08-PLAN.md — gate-e2e measured and watched failing; required-check flip HELD (prerequisites A and C outstanding)
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
