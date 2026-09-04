@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
-current_phase_name: host-listing-surfaces-gates-that-actually-run
+current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: executing
-stopped_at: "Completed 19-11-PLAN.md — WR-01 and WR-05 closed: three invariants a detached gate-e2e cannot survive (each watched red), and a ci.yml header that describes the file it is attached to"
-last_updated: "2026-09-04T14:29:17.879Z"
+stopped_at: Completed 19-12-PLAN.md
+last_updated: "2026-09-04T15:02:57.673Z"
 last_activity: 2026-09-04
-last_activity_desc: 19-10 executed — D-03 failure signal made reachable + refusal routing
-state_head: 039e0bee52078ef82c20d0e8a7427021c20a92ff
+last_activity_desc: Phase 19 execution started
+state_head: c17319532fd8caadeff2632ef5765ef870afde09
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 42
-  completed_plans: 41
+  completed_plans: 42
   percent: 14
 ---
 
@@ -73,10 +73,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19 (host-listing-surfaces-gates-that-actually-run) — READY TO EXECUTE
-Plan: 11 of 11
-Status: Ready to execute
-Last activity: 2026-09-04 — 19-09 executed: D-02 availability_block conjunct + build-blocking census
+Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
+Plan: 12 of 12 (all plans executed; 12 PLAN / 12 SUMMARY on disk)
+Status: Phase 19 plans complete — ready for re-verification
+Last activity: 2026-09-04 — Phase 19 execution started
 
 ## Performance Metrics
 
@@ -433,6 +433,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19 P09 | 18 min | 3 tasks | 3 files |
 | Phase 19 P10 | 20 min | 3 tasks | 6 files |
 | Phase 19 P11 | 3 min | 2 tasks | 2 files |
+| Phase 19 P12 | 13 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1408,6 +1409,8 @@ Recent decisions affecting current work:
 - [Phase 19]: 19-11: gate-e2e invariant 2 (unconditional) quantifies over the job's `if:` / `continue-on-error` keys, not over runsOf(e2e). The plan's acceptance criterion said all three go red on an empty run-command list, which cannot hold for a predicate over YAML keys; followed the plan's <action> text and WR-01's fix sketch and recorded the contradiction as a deviation rather than weakening the invariant.
 - [Phase 19]: 19-11: prove a documentation-only workflow edit by comparing the PARSED YAML trees, not only by grepping the diff for non-comment lines. Tree equality is the property; a comment-only line diff is only a proxy for it.
 - [Phase 19]: 19-11: WR-02's measured hole in the D-14 mail scan (container.env / services.*.env are not walked) is NAMED in ci.yml's header rather than closed. Widening the scan was outside this gap-closure run's assigned scope, and an unnamed known hole is the same defect class as the stale header this plan corrected.
+- [Phase 19]: D-14's RUNTIME half is PROMOTED to the primary assertion of the mail control: only the half that reads the job's real process environment can observe the environment the suite runs in. The PARSE half is re-described as workflow-file hygiene over env: KEYS, which protects the NEXT run, never the current one — gate-db-free and gate-e2e declare no needs:, start in parallel, and GitHub cancels neither. — The previous form tested a GitHub Actions env EXPRESSION context, built exclusively from env: maps in the workflow file, so it could fire only on the one input the parse half already rejects the file for. Real coverage was zero, and the header leaned on it to cover a container.env hole it could not see either.
+- [Phase 19]: A value shared by a checker and the thing it checks is spelled ONCE and READ, never copied: scripts/refuse-mail-credential.mjs reads MAIL_KEY_PREFIX out of scripts/verify-workflows.mjs with the same pattern an invariant asserts all three sites share, and a third conjunct asserts the reader holds no copy of the value. — A second spelling is a second source of truth wearing the costume of a constant — the drift class this phase spent three plans on. Watched red under two independent reformatting mutations.
 
 ### Pending Todos
 
@@ -1589,8 +1592,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-04T12:32:56.073Z
-Stopped at: Completed 19-11-PLAN.md — WR-01 and WR-05 closed: three invariants a detached gate-e2e cannot survive (each watched red), and a ci.yml header that describes the file it is attached to
+Last session: 2026-09-04T15:02:43.622Z
+Stopped at: Completed 19-12-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.

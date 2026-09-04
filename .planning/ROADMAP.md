@@ -446,7 +446,7 @@ is cheap, independent, and because `CI-01` makes every later phase's gates capab
   4. Opening a pull request **runs the repository's functional Playwright specs**, and a failing spec
      turns the run red — proven by watching one fail, not by reading the workflow file.
 
-**Plans**: 12 plans, 12 waves (worktrees are OFF, so waves express dependency order, not concurrency);
+**Plans**: 12/12 plans executed, 12 waves (worktrees are OFF, so waves express dependency order, not concurrency);
 11/12 executed.
 8/8 original plans executed; verification found two FAILED must-haves, so plans 19-09 … 19-11 are
 GAP CLOSURE (`gap_closure: true`) and run via `/gsd-execute-phase 19 --gaps-only`. Re-verification
@@ -502,7 +502,7 @@ Plans:
 
 **Wave 12** *(GAP CLOSURE — blocked on Wave 11 completion)*
 
-- [ ] 19-12-PLAN.md — D-14's refusal made real: it reads the job's actual process environment, sources its prefix from the checker, four watched-red invariants, and headers that name which half covers what (CI-01)
+- [x] 19-12-PLAN.md — D-14's refusal made real: it reads the job's actual process environment, sources its prefix from the checker, four watched-red invariants, and headers that name which half covers what (CI-01)
 
 **⚠ HSURF-01: the obvious fix is a no-op, measured.** The grid wrapper sets no `align-items`, so grid
 items with `height: auto` **already stretch** — adding `h-full` to `Card` would be a no-op dressed as a
@@ -860,7 +860,7 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 17.1 Close Phase 17 Escalations (INSERTED) | v1.1 | 7/7 | Complete | 2026-08-30 |
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified & COMPLETE** — 17/17 requirements, 0 code-level blockers. The checkbox was held from 2026-09-01 until 18.1 shipped the missing submission path, then briefly re-held on PM decision D-274 (the `/ops` contact surface). **18.1-16 shipped D-274 on 2026-09-03 and phase 18.1 verified passed 9/9, so both holds are discharged.** | verified 2026-09-03 |
 | 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | Complete    | 2026-09-03 |
-| 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 11/11 | **In Progress — gap closure COMPLETE, awaiting re-verification.** Verification found 2 FAILED must-haves, so 19-09…19-11 were planned as `gap_closure`. **19-09 closed GAP 1** (the D-02 `availability_block` reuse loophole, plus a build-blocking census so a FOURTH child table reddens by name). **19-10 closed GAP 2** (D-03 — `createDraftListing` had no `try`/`catch`, so its failure sentence was unreachable; it now resolves `{ ok: false }`, and the two live race windows route to `/host/verify` and `/login` instead of wearing infrastructure copy). **19-11 closed WR-01/WR-05** — three invariants a detached `gate-e2e` cannot survive (runs-the-suite BY NAME, unconditional, seeds-before-suite BY INDEX; `ci` 23→26, each watched red under a reverted mutation), and a `ci.yml` header that finally describes the file it is attached to (five jobs; D-24’s e2e-exclusion claim falsified in place; WR-02’s hole named). ⚠ Success criterion 4 is still NOT met: `gate-e2e` ships **non-required** (19-08 held the flip). Branch protection is unreachable on a Free private repo (403), and the suite has never been green — 14 reproducible e2e failures plus stale visual baselines. This plan made the gate harder to DETACH; nothing makes it BLOCKING. | 19-11 executed 2026-09-04 |
+| 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 11/11 | In Progress|  |
 | 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | Not started | - |
 | 21. The Host Can See Where They Stand | v1.2 | 0/TBD | Not started | - |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |
