@@ -460,6 +460,39 @@ if (sections.includes("ci")) {
     `jobs with contents:write=[${ciWriteJobs.join(", ") || "(none)"}]  jobs=[${jobs.map(([n]) => n).join(", ")}]`,
   );
 
+  // ── THE TRIGGER SET (T-19-15-01, review finding WR-01) ────────────────────────────────────────
+  // THE MEASUREMENT THAT BOUGHT THIS CHECK: `triggersOf(doc)` was read in this section for the
+  // `parsed values (ci)` printout at the bottom and NOWHERE ELSE — never compared in a `check()`.
+  // 19-VERIFICATION.md deleted `pull_request:` from this file's `on:` block, re-ran this checker and
+  // recorded `CHECKER-EXIT=0` with no FAIL line and the summary unchanged at all 48 invariants.
+  // ONE LINE detaches EVERY gate in `ci.yml` — `gate-e2e` included, and with it the only half of
+  // D-14 that protects the current run — from pull requests, with the checker reporting full green.
+  // CI-01's requirement text is literally "opening a pull request runs the repository's functional
+  // Playwright specs", so this is the one trigger whose absence falsifies the requirement rather
+  // than merely degrading it.
+  //
+  // ⚠ MEMBERSHIP HERE, EXACT SET IN `baselines` — THE ASYMMETRY IS DELIBERATE AND MUST NOT BE
+  // "HARMONISED". The two sections face opposite dangers, and each shape answers its own:
+  //   - `baselines.yml` is the WRITE PATH. An ADDED trigger is the single most dangerous edit in
+  //     this repository — a `push:` there turns the one job that can commit baselines into a job
+  //     that regenerates them on every push — so its set is pinned EXACTLY (see :316-324).
+  //   - `ci.yml` is the COMPARE PATH. It writes nothing. An added `workflow_dispatch` here is
+  //     harmless and a MISSING trigger is the whole danger, so membership is asserted and additions
+  //     are not. An exact set here would redden a correct file the day somebody adds a manual
+  //     dispatch, which is how a correct check gets deleted rather than fixed.
+  // A future reader who makes these two the same shape breaks one of the two properties.
+  //
+  // `triggersOf` returns `[]` for an absent or null `on:` block, so an emptied `on:` is FALSE here
+  // rather than vacuously true — absence IS the failure this check exists for.
+  const ciTriggers = triggersOf(doc);
+  check(
+    "ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull request",
+    ciTriggers.includes("push") && ciTriggers.includes("pull_request"),
+    // The document's own key order, so a red is diagnosable against the file as written. Membership
+    // is order-independent by construction; this evidence line deliberately is not.
+    `triggers=[${ciTriggers.join(", ") || "(none)"}]`,
+  );
+
   // ── THE CONCURRENCY GROUP (T-11-CANCEL) ───────────────────────────────────────────────────────
   // 11-04 measured a substring check GREEN for dropping this term, because the word survives in the
   // prose above it. Without the event term a push to `dev` cancels an in-flight baseline dispatch on
@@ -794,6 +827,41 @@ if (sections.includes("ci")) {
       `job continue-on-error=${JSON.stringify(e2e?.["continue-on-error"] ?? null)}  ` +
       `conditional/soft steps=[${conditionalSteps.join(", ") || "(none)"}]  ` +
       `(of ${stepsOf(e2e).length} steps)`,
+  );
+
+  // 2b. THE INTERPRETER, PINNED ONE LEVEL OUT (T-19-15-02, review finding CR-01, OUTER HALF).
+  //    Same family of question as the check above — what can change how this gate runs — asked one
+  //    level further out. GitHub Actions supports `defaults: { run: { shell: … } }` at WORKFLOW and
+  //    at JOB level, and a custom shell of the form `<command> {0}` writes the step's `run:` body to
+  //    a temp file and hands it to that command instead of executing it.
+  //
+  //    THE MEASUREMENT THAT BOUGHT IT: a one-line interpreter override on the refusal step left the
+  //    `run:` string byte-identical, the `env:` absent, the `if:` absent and the step's position
+  //    unmoved while the script was PRINTED instead of executed — and every invariant stayed green.
+  //    `grep -n "shell\|defaults"` across this whole file returned NO MATCHES before plan 19-15:
+  //    neither level was read anywhere in this checker.
+  //
+  //    ⚠ THIS IS THE OUTER HALF OF THAT FINDING AND `MAIL_STEP_ALLOWED_KEYS` IS THE INNER HALF.
+  //    NEITHER SUBSTITUTES FOR THE OTHER. The allow-list reads the keys ON the refusal step; a
+  //    `defaults:` block puts no key there at all, so it is invisible to the allow-list by
+  //    construction while changing that step's interpreter from outside it.
+  //
+  //    ⚠ THE WHOLE BLOCK IS FORBIDDEN, NOT ONE KEY INSIDE IT. That is the allow-list shape plan
+  //    19-14 established one level in, applied here: the failure class is "an attribute the checker
+  //    does not know about", so naming `run.shell` specifically would be the deny-list shape
+  //    reasserting itself at a new level. `undefined` is the ONLY passing value at each level, so a
+  //    present-but-EMPTY `defaults:` block is red too — a block that exists is a block a later edit
+  //    can fill, and the reviewer of that edit sees a one-line diff inside an accepted structure.
+  //
+  //    SCOPED TO THE WORKFLOW AND TO THIS JOB, DELIBERATELY. A `defaults:` block on an unrelated job
+  //    cannot change how `gate-e2e` executes, and asserting over EVERY job would redden a correct
+  //    file the day somebody legitimately sets a working directory elsewhere — which is how a
+  //    correct check gets deleted rather than narrowed.
+  check(
+    `"${CI_E2E_JOB}" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job`,
+    doc?.defaults === undefined && e2e?.defaults === undefined,
+    `workflow defaults=${JSON.stringify(doc?.defaults ?? null)}  ` +
+      `job defaults=${JSON.stringify(e2e?.defaults ?? null)}`,
   );
 
   // 3. SEED BEFORE SUITE, COMPARED BY INDEX. Presence alone is not the property: a seed that runs

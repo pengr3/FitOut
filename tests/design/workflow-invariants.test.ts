@@ -97,7 +97,7 @@ const REPO_REFUSAL = resolve(process.cwd(), "scripts/refuse-mail-credential.mjs"
  * which is the intended property rather than an inconvenience: it is what stops a future round from
  * adding a check and leaving a stale total sentence behind somewhere else.
  */
-const EXPECTED_GREEN = "All 48 invariants hold across 3 section(s) (baselines=11, ci=29, cross=8).";
+const EXPECTED_GREEN = "All 50 invariants hold across 3 section(s) (baselines=11, ci=31, cross=8).";
 
 /**
  * The refusal step's `name:`, READ from the checker that already spells it once as

@@ -222,9 +222,9 @@
 # not stop job 5 booting the app. A parse-based invariant here therefore protects the NEXT run,
 # never the current one; what protects THIS run is job 5's own first step (the D-14 bullet below).
 #
-#   * THE SEVEN `gate-e2e` INVARIANTS. The job's ABSENCE is a HARD STOP rather than a failed
+#   * THE EIGHT `gate-e2e` INVARIANTS. The job's ABSENCE is a HARD STOP rather than a failed
 #     check, because every other invariant in this file is universally quantified and a
-#     DELETED JOB SATISFIES ALL OF THEM VACUOUSLY. Above that stop, seven counted checks:
+#     DELETED JOB SATISFIES ALL OF THEM VACUOUSLY. Above that stop, eight counted checks:
 #       1. the exact DISPLAY NAME `gate-e2e (functional Playwright suite)` — GitHub matches a
 #          required status check on `name:`, never on the YAML key, so a rename would detach
 #          a required check while leaving the job and every invariant over it intact (19-08);
@@ -309,6 +309,25 @@
 #          exactly `npm ci` — each `uses:` entry matched with a trailing `@` so a longer action
 #          name merely beginning with a permitted one is NOT admitted. The invariant's name
 #          enumerates those three now instead of claiming one;
+#       8. the INTERPRETER asserted to be the runner's DEFAULT — NEW 2026-09-05, PLAN 19-15
+#          (review finding CR-01, OUTER half). Entries 5 and 7 constrain WHAT this job's refusal
+#          step runs and WHERE it runs, and 19-14 closed HOW it executes for keys written ON the
+#          step. This closes the two levels that reach into the step from OUTSIDE it: neither
+#          this workflow nor `gate-e2e` may declare a `defaults:` block AT ALL. A
+#          `defaults: { run: { shell: <command> {0} } }` at either level hands every step's
+#          `run:` body to that command instead of executing it — the refusal included — while
+#          putting no key on the step, so the allow-list of entry 5 is blind to it BY
+#          CONSTRUCTION. The measurement: a one-line interpreter override left the `run:` string
+#          byte-identical, added no `env:`, no `if:` and no soft-failure key, and did not move
+#          the step, while the script was PRINTED instead of executed; a grep for both terms
+#          across the whole checker returned NO MATCHES, so neither level was read anywhere.
+#          ⚠ THE WHOLE BLOCK IS FORBIDDEN, NOT ONE KEY INSIDE IT — the same allow-list shape
+#          entry 5 takes one level in, for the same reason: the failure class is "an attribute
+#          the checker does not know about". `undefined` is the only passing value at each level,
+#          so a present-but-EMPTY block is red as well; a block that exists is a block a later
+#          edit can fill inside an already-accepted structure. It is scoped to this workflow and
+#          to `gate-e2e` and NOT to every job, because a block on an unrelated job cannot change
+#          how this gate executes and a wider assertion would redden a correct file.
 #     2, 3 and 4 exist because 1 did not close them. Measured, not supposed: until 19-11 you
 #     could delete this job's Playwright step and EVERY assertion in this file still passed,
 #     over a job that installed npm and stopped. All three were watched RED under a deliberate
@@ -325,18 +344,42 @@
 #     ⚠ THE CHECKER'S OWN PREDICATES NOW HAVE A STANDING TEST, AND PLAN 19-14 ADDED IT.
 #     `tests/design/workflow-invariants.test.ts` mutates a COPY of this file in a throwaway
 #     directory and spawns the real checker against it, asserting a non-zero exit AND a named
-#     FAIL line — nine cases, inside `npm run build`. It exists because three consecutive
-#     verification rounds re-opened predicates that had been proven once by hand and then
+#     FAIL line — twelve cases as of plan 19-15, inside `npm run build`. It exists because three
+#     consecutive verification rounds re-opened predicates that had been proven once by hand and then
 #     reverted: a checker with no test of its own regresses silently, and round N+1 begins with
 #     no memory of round N. Its control case pins the total below as an exact string, so a count
 #     change is only possible by deliberately editing it.
-#     ⚠ THE LIST STAYS SEVEN AND THE TOTAL STAYS 48, ON PURPOSE — RE-STATED 2026-09-05 BY PLAN
-#     19-14, UNCHANGED IN SUBSTANCE. Both 19-13 changes TIGHTENED an invariant that already
-#     existed (entry 5 gained a conjunct, entry 3 gained a step quantifier), and all three 19-14
-#     changes do the same: entry 5 gained the permitted-key conjunct, entry 3's two comparisons
-#     became presence tests, and entry 7's quantifier moved from run commands to steps. So no
-#     `check()` was added and none was dropped. A reader who counts 49 should look for an
-#     invariant added out of turn, and one who counts 47 for one deleted.
+#     ⚠ THE LIST IS EIGHT AND THE TOTAL IS 50 — MOVED 2026-09-05 BY PLAN 19-15, AND MOVED IN THE
+#     SAME COMMIT THAT MOVED THE COUNT. Every 19-13 and 19-14 change TIGHTENED an invariant that
+#     already existed, which is why the total sat at 48 through both rounds. Plan 19-15's two are
+#     genuinely NEW assertions over properties that had none, so the `ci` section goes 29 → 31 and
+#     the total 48 → 50. Each traces to one named gap and nothing rode along: entry 8 above closes
+#     19-VERIFICATION.md gap 1's `missing:` bullet (review finding CR-01's outer half, the
+#     `defaults:` levels nothing read), and the trigger bullet below closes 19-VERIFICATION.md
+#     gap 2 (review finding WR-01, the trigger set nothing compared). `node scripts/verify-
+#     workflows.mjs` now ends with, exactly:
+#
+#         All 50 invariants hold across 3 section(s) (baselines=11, ci=31, cross=8).
+#
+#     That line is quoted here VERBATIM, and the standing test's control constant carries the same
+#     bytes, so the documented count and the printed count cannot drift apart silently — a stale
+#     total is a false claim of exactly the class this whole round exists to delete, and it is the
+#     cheapest one to detect. A reader who counts 51 should look for an invariant added out of
+#     turn, and one who counts 49 for one deleted.
+#
+#   * THIS FILE'S OWN TRIGGERS ARE ASSERTED — NEW 2026-09-05, PLAN 19-15 (review finding WR-01).
+#     `ci.yml` must run on BOTH `push` and `pull_request`. It is filed here beside the other
+#     file-level bullets rather than inside the `gate-e2e` list because its subject is the whole
+#     file: deleting `pull_request:` from the `on:` block detaches EVERY gate here from pull
+#     requests, `gate-e2e` included. 19-VERIFICATION.md made that one-line deletion, re-ran the
+#     checker and recorded exit 0 with no FAIL line and all 48 invariants reported holding. CI-01's
+#     requirement text is literally "opening a pull request runs the repository's functional
+#     Playwright specs", so this is the one trigger whose absence FALSIFIES the requirement rather
+#     than degrading it. MEMBERSHIP is asserted, not the exact set — deliberately the opposite
+#     shape to `baselines.yml`, where an ADDED trigger is the danger and the set is pinned exactly.
+#     This file writes nothing, so an added `workflow_dispatch` is harmless and a MISSING trigger
+#     is the whole danger. The two shapes are not drift and must not be harmonised; the reason for
+#     each is stated at its own site in the checker.
 #
 #   * ACROSS `.github/workflows/` THE MAIL-PROVIDER TOKEN APPEARS ZERO TIMES, asserted in the
 #     checker rather than by a human remembering to run a count, and over RAW TEXT so that a
