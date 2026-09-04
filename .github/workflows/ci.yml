@@ -1302,23 +1302,28 @@ jobs:
       # before anything boots so a violation costs seconds rather than a whole suite of real
       # email sent to real addresses.
       #
-      # ⚠ THE `env:` KEY BELOW IS `MAIL_KEY_UNDER_TEST`, AND THAT NAME IS DELIBERATE, NOT
-      # INCIDENTAL. The parse-based sibling of this assertion lives in
-      # `scripts/verify-workflows.mjs` and rejects any workflow, job or step `env` KEY whose name
-      # begins with the mail provider's prefix — it runs on job 1, the cheap job that always
-      # runs, so it catches a violation about a minute before any browser starts. Naming this key
-      # after the provider would make that invariant fire against a CORRECT file. The two sites
-      # are spelled differently on purpose, and each of them says so.
+      # ⚠ FALSIFIED 2026-09-04 BY PLAN 19-12 (review finding CR-01). THE CLAIM WAS: the step below
+      # carries an `env:` key whose name is deliberate, not incidental, because it is named after
+      # NEITHER the mail provider NOR its prefix — the parse-based sibling of this assertion lives
+      # in `scripts/verify-workflows.mjs` and rejects any workflow, job or step `env` KEY whose name
+      # begins with that prefix, so naming this key after the provider would make that invariant
+      # fire against a CORRECT file; the two sites were spelled differently on purpose, and each of
+      # them said so. That history is accurate and the carve-out was real. WHAT REPLACED IT: the
+      # step below has no `env:` map at all. It runs a committed script that reads the job's REAL
+      # PROCESS ENVIRONMENT and reads the provider's prefix out of the checker that owns it, so
+      # there is no second spelling here to keep apart, and nothing for the parse half to carve
+      # out. The old form tested a GitHub Actions `${{ env.… }}` EXPRESSION context, which is built
+      # exclusively from `env:` maps written in this file — never the process environment, secrets,
+      # `vars.*`, `container.env` or `services.*.env` — so it could fire on exactly the one input
+      # the parse half already rejects the whole file for, and its real coverage was ZERO.
+      #
+      # ⚠ THE PARSE HALF PROTECTS THE NEXT RUN, NEVER THIS ONE, AND THAT IS WHY THIS STEP EXISTS.
+      # `gate-db-free` and `gate-e2e` declare no `needs:`, so they start in parallel, and GitHub
+      # cancels neither when the other fails: job 1 going red does not stop this job booting the
+      # app. This step is what protects THIS run — it costs seconds, and it runs before the
+      # database is migrated, before the catalogue is seeded and before Playwright boots anything.
       - name: Refuse to run the suite with a live mail credential in the environment
-        run: |
-          if [ -n "${MAIL_KEY_UNDER_TEST:-}" ]; then
-            echo "::error::A live mail credential is present in this job's environment."
-            echo "A full e2e run with it set was measured at 14 real outbound sends per run."
-            echo "Remove it from the workflow/repository environment; do NOT weaken this check."
-            exit 1
-          fi
-        env:
-          MAIL_KEY_UNDER_TEST: ${{ env.RESEND_API_KEY }}
+        run: node scripts/refuse-mail-credential.mjs
 
       # The specs seed and tear down their own rows, but the TABLES have to exist first. Only
       # the dev database `fitout` is needed here — this job runs no vitest, so the `fitout_test`
