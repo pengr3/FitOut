@@ -690,3 +690,205 @@ export async function seedReviewQueue(seed: SeededListing): Promise<void> {
     WHERE user_id = ${seed.hostId}
   `;
 }
+
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE `/host/listings` GRID FIXTURE (phase 19, HSURF-01 / D-08)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** What `seedHostGridFixture` hands back: the host it signed up, its three cards, and one teardown. */
+export type SeededHostGrid = {
+  /** The address the sign-up form minted. Kept so a caller can name it in a failure message. */
+  readonly hostEmail: string;
+  readonly hostId: string;
+  /** Card 1 — DRAFT, `title IS NULL`, no space type, no rates. The SHORTEST card. Three controls. */
+  readonly untitledDraftId: string;
+  /** Card 2 — PUBLISHED, zero `operating_hours` rows. The two-line notice, and FOUR controls. */
+  readonly publishedNoHoursId: string;
+  /** Card 3 — DRAFT whose title wraps at every measured band. */
+  readonly longTitleDraftId: string;
+  /** Card 3's title verbatim, so a spec can assert on it without re-spelling the string. */
+  readonly longTitle: string;
+  teardown(): Promise<void>;
+};
+
+/**
+ * The long title, spelled once. Long enough to wrap at EVERY band this fixture is measured at, not
+ * only at 320px: the widest band (1280) still gives the card ~315px, and `CardContent`'s `px-4` plus
+ * the status badge beside the title leave the `TitleTag` roughly 200px of line box.
+ */
+const HOST_GRID_LONG_TITLE =
+  "The Really Rather Long Riverside Boxing And Conditioning Studio With A Name Nobody Shortened";
+
+/**
+ * Seed ONE host owning THREE `/host/listings` cards whose `CardContent` heights genuinely differ, at
+ * least one of them PUBLISHED — the fixture HSURF-01's two guards are measured against.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * WHY THE HEIGHTS MUST DIFFER, AND WHY THAT IS THE WHOLE POINT OF THIS HELPER
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * The defect guard A measures is a footer band floating MID-CARD: `Card` is `flex flex-col` with
+ * `gap-0` at the call site (`listing-card.tsx:352`) and no child declares `flex-1`, so the children
+ * pack to the top and the height the grid stretched the card to lands as dead space BELOW the tinted,
+ * top-bordered footer. That dead space is EXACTLY the difference between the tallest card in a visual
+ * row and this one. Three cards of identical content are stretched to a height they already had, the
+ * gap below every footer is zero, and THE GUARD REPORTS GREEN AGAINST THE SHIPPED DEFECT — which is
+ * the vacuity trap `19-VALIDATION` records under "Read this before writing any HSURF-01 assertion",
+ * alongside the two other obvious signals that are already green.
+ *
+ * So the three cards below are not "some listings". Each one is a named height source, and
+ * `19-RESEARCH § 3.4` lists them cheapest-first:
+ *
+ *   1. `untitledDraftId`    — DRAFT, `title IS NULL`, `primary_space_type IS NULL`, no rates. Renders
+ *                             the "Untitled listing" fallback, NO space-type line, and the "No pricing
+ *                             yet" fallback. The shortest card in the grid.
+ *   2. `publishedNoHoursId` — PUBLISHED with ZERO `operating_hours` rows, so
+ *                             `loadPublishedListingsMissingHours` (`(host)/host/listings/page.tsx:118-121`)
+ *                             reports it and the card renders the TWO-LINE hours notice. Tallest.
+ *   3. `longTitleDraftId`   — DRAFT with a title that wraps to two or more lines. Between the two.
+ *
+ * None of the three is given a cover photo, so all three render the "No photos yet" fallback. That is
+ * deliberate and it is NOT a height source: `AspectRatio ratio={4/3}` pins the media band whether an
+ * `<img>` or the fallback is inside it. It is stated here so the next reader does not add photos
+ * believing they will change a number.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * WHY ONE OF THEM MUST BE PUBLISHED — THIS IS NOT A NICETY
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * `CardFooter` renders `Unlist` only when `listing.status === "published"` (`listing-card.tsx:450`).
+ * So a DRAFT card renders THREE footer controls (Edit, Availability, Delete) and a PUBLISHED one
+ * renders FOUR (Edit, Availability, Unlist, Delete). Guard B — `scrollWidth <= clientWidth` on
+ * `[data-slot="card-footer"]` — is a width claim, and at a card width of ~288-322px the three-control
+ * cluster very nearly fits while the four-control cluster does not. A DRAFTS-ONLY FIXTURE LEAVES
+ * GUARD B GREEN AGAINST THE BROKEN TREE, which is the same vacuity trap repeating on the second
+ * guard. Confirmed against the PM's screenshot of the shipped surface: the draft card's `Delete`
+ * rendered in full while the published cards clipped `Unlist` and `Delete`.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * WHY THIS SEEDS ROWS DIRECTLY INSTEAD OF DRIVING THE WIZARD N TIMES
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * The obvious spelling is the wizard-driving draft-mint helper at `axe-sweep.spec.ts:295-315`, called three
+ * times. UNDER D-02 THAT RETURNS THE SAME ID THREE TIMES. D-02 makes `createDraftListing` idempotent
+ * by reusing the host's own untouched draft — pressing "Create listing" twice yields ONE row, on
+ * purpose, because the orphan-draft class is what D-01/D-02 exist to kill. A fixture built by
+ * repeating the mint would therefore seed ONE card, the spec's vacuity gate would fire, and the
+ * failure would read as a selector bug. The loop would have to TOUCH each draft between mints to
+ * defeat the reuse predicate — i.e. deliberately defeat a shipped guarantee in order to build a
+ * fixture. So this helper writes its rows directly, and that wizard helper is never called from here.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * THE SHAPE: UI SIGN-UP, THEN SHORT-LIVED WRITES, THEN ONE TEARDOWN
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * The host signs up through the FORM — the shipped idiom (`host-headings.spec.ts:203-223`,
+ * `signUpStaff` directly above), for the reason those sites give: email/password needs no external
+ * credentials and a per-run address never collides on the unique email constraint. The intent radio is
+ * what sets `canHost`, and `(host)/host/listings/page.tsx` re-checks it itself, so a seeded user row
+ * alone would not reach the grid.
+ *
+ * A signed-up host has NO `host_verification` row at all, which reads as `unverified`, so
+ * `seedApprovedHostVerification` runs before anything else — the same D-255 creation gate
+ * `axe-sweep.spec.ts` hits one route over.
+ *
+ * EVERY WRITE GOES THROUGH `withClient`, so this file's steady state stays at ZERO held connections.
+ * Six e2e specs already hold a long-lived single-connection client for their whole lifetime and
+ * `deferred-items.md` warns against a seventh; a spec that imported this helper and opened its own
+ * client would be that seventh. The number of client-opening call sites in this file is pinned by plan
+ * 19-02's acceptance criteria for exactly that reason.
+ *
+ * `teardown()` deletes the three listings by id (which cascades their photos, hours and tags) and then
+ * the host account, whose delete cascades the `host_verification` row this helper wrote. The account
+ * is included even though the FORM created it, because this helper is what drove that form — the same
+ * ownership `signUpStaff`'s `staffTeardown` above takes for the account its own sign-up produced.
+ */
+export async function seedHostGridFixture(page: Page): Promise<SeededHostGrid> {
+  const hostEmail = `e2e.grid.${Date.now()}.${Math.floor(Math.random() * 1e6)}@example.com`;
+
+  await page.goto(`${BASE}/signup`);
+  await page.getByRole("radio", { name: "Host a space" }).click();
+  await page.getByLabel("First name").fill("Gretel");
+  await page.getByLabel("Email").fill(hostEmail);
+  await page.getByLabel("Password").fill("averylongpassword");
+  await page.getByRole("button", { name: /sign up to host/i }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 60_000 });
+
+  // The D-255 creation gate. Also the only reason `/host/listings/new` would be reachable at all for
+  // this host — this fixture does not drive that route, but a caller that adds a case which does would
+  // otherwise land on `/host/verify` and read the redirect as a routing defect.
+  const hostId = await seedApprovedHostVerification(hostEmail);
+
+  const runId = randomUUID();
+  const untitledDraftId = `e2e_grid_untitled_${runId}`;
+  const publishedNoHoursId = `e2e_grid_published_${runId}`;
+  const longTitleDraftId = `e2e_grid_longtitle_${runId}`;
+
+  await withClient(async (sql) => {
+    // `updated_at` IS SET EXPLICITLY AND DESCENDING, because the grid orders by it
+    // (`page.tsx:154`, `.orderBy(desc(listing.updatedAt))`) and guard A measures the FIRST VISUAL ROW
+    // only. At the `sm` band that row is the first TWO cards, so the shortest card and the tallest
+    // card have to BE those two or the guard measures a row with no height variation in it. Left to
+    // `defaultNow()` all three rows would share a statement timestamp and the order would be whatever
+    // the planner happened to return.
+
+    // 1 — the title-less draft. Every fallback on the card at once: "Untitled listing", no space-type
+    // line (the `primarySpaceType &&` branch at `listing-card.tsx:377`), and "No pricing yet".
+    await sql`
+      INSERT INTO "listing" (id, host_id, title, primary_space_type, status, created_at, updated_at)
+      VALUES (
+        ${untitledDraftId}, ${hostId}, ${null}, ${null},
+        ${"draft"}::listing_status, now(), now()
+      )
+    `;
+
+    // 2 — PUBLISHED, and deliberately given NO `operating_hours` rows, which is what makes
+    // `loadPublishedListingsMissingHours` report it and the card render the two-line hours notice.
+    // `review_state` is 'approved' rather than the column's 'pending' DEFAULT so this card renders the
+    // hours notice ALONE: a pending listing would also render the review notice, which would add a
+    // second variable to the card whose job here is to be the tall one for ONE named reason.
+    await sql`
+      INSERT INTO "listing" (
+        id, host_id, title, primary_space_type, city, timezone,
+        hourly_rate_cents, day_rate_cents, status, review_state, published_at, created_at, updated_at
+      ) VALUES (
+        ${publishedNoHoursId}, ${hostId}, ${"Riverside Ring"}, ${SPACE_TYPE}::space_type,
+        ${LISTING_CITY}, ${VENUE_TZ}, ${HOURLY_RATE_CENTS}, ${DAY_RATE_CENTS},
+        ${"published"}::listing_status, ${"approved"}::listing_review_state,
+        now(), now(), now() - interval '1 minute'
+      )
+    `;
+
+    // 3 — the long title. Wraps at every band, so it sits between the other two.
+    await sql`
+      INSERT INTO "listing" (
+        id, host_id, title, primary_space_type, hourly_rate_cents, status, created_at, updated_at
+      ) VALUES (
+        ${longTitleDraftId}, ${hostId}, ${HOST_GRID_LONG_TITLE}, ${SPACE_TYPE}::space_type,
+        ${HOURLY_RATE_CENTS}, ${"draft"}::listing_status, now(), now() - interval '2 minutes'
+      )
+    `;
+  });
+
+  return {
+    hostEmail,
+    hostId,
+    untitledDraftId,
+    publishedNoHoursId,
+    longTitleDraftId,
+    longTitle: HOST_GRID_LONG_TITLE,
+    async teardown() {
+      await withClient(async (sql) => {
+        // The listings first, by id — `listing_photo`, `operating_hours` and `listing_activity_tag`
+        // are ON DELETE CASCADE from `listing`, so nothing is left behind. Then the account, whose
+        // delete cascades `host_verification`. No booking rows can exist: none of the three listings
+        // is bookable (no `host_payout` row, and the published one has no hours).
+        await sql`
+          DELETE FROM "listing"
+          WHERE id IN (${untitledDraftId}, ${publishedNoHoursId}, ${longTitleDraftId})
+        `;
+        await sql`DELETE FROM "user" WHERE id = ${hostId}`;
+      });
+    },
+  };
+}
