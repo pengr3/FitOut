@@ -446,8 +446,8 @@ is cheap, independent, and because `CI-01` makes every later phase's gates capab
   4. Opening a pull request **runs the repository's functional Playwright specs**, and a failing spec
      turns the run red — proven by watching one fail, not by reading the workflow file.
 
-**Plans**: 13/13 plans executed, 13 waves (worktrees are OFF, so waves express dependency order, not concurrency);
-12/13 executed.
+**Plans**: 15 plans, 15 waves (worktrees are OFF, so waves express dependency order, not concurrency);
+13/15 executed.
 8/8 original plans executed; verification found two FAILED must-haves, so plans 19-09 … 19-11 are
 GAP CLOSURE (`gap_closure: true`) and run via `/gsd-execute-phase 19 --gaps-only`. Re-verification
 after that closure scored 6/7 and surfaced ONE new gap — D-14's runtime mail-credential refusal is
@@ -456,6 +456,15 @@ Re-verification after 19-12 scored 6/8: the original gap is genuinely CLOSED, bu
 independently reproduced inside the code that closed it — CR-01 (argument injection defeats the
 guard, checker stays green) and CR-02 (a step-level `continue-on-error` detaches it, checker stays
 green) — so plan 19-13 is a further gap-closure plan under the same flag.
+Re-verification after 19-13 scored 7/9: both round-2 gaps are genuinely CLOSED, but a THIRD round of
+the same shape was reproduced by the reviewer and the verifier independently — a step-level `shell:`
+override and an expression-valued `continue-on-error`, plus the pre-existing fact that nothing asserts
+`ci.yml`'s trigger set. The converged root cause is that every fix so far patched a DENY-LIST against
+the one mutation that was measured, and that none left a standing instrument behind. Plans 19-14 and
+19-15 are gap-closure plans under the same flag and change the SHAPE: an allow-list on the refusal
+step's attribute surface, presence tests replacing value tests, a build-blocking mutation test that
+spawns the checker against a mutated copy, and an assertion on the trigger CI-01's text is about.
+The invariant total moves 48 → 50 in 19-15, with every count-documenting sentence in the same commit.
 Order is the research's: `CI-01 → HSURF-01 → HSURF-02`, with CI-01's required-check flip held to the
 end because it can only be justified by a watched red that needs this phase's own specs to exist.
 
@@ -511,6 +520,14 @@ Plans:
 **Wave 13** *(GAP CLOSURE — blocked on Wave 12 completion)*
 
 - [x] 19-13-PLAN.md — CR-01 and CR-02 closed: the refusal's invocation pinned exactly and its argument removed, "unconditional" promoted from the job to every step, five watched reds, and a header that claims only what fires (CI-01)
+
+**Wave 14** *(GAP CLOSURE — blocked on Wave 13 completion)*
+
+- [ ] 19-14-PLAN.md — the standing mutation test the checker never had, plus an allow-list on the refusal step's attribute surface proven against a key nothing names, presence tests replacing both `continue-on-error` value tests, and Invariant C's predecessor claim made true (CI-01)
+
+**Wave 15** *(GAP CLOSURE — blocked on Wave 14 completion)*
+
+- [ ] 19-15-PLAN.md — the trigger assertion SC4's text is literally about and the `defaults:` block nothing read, with the total moved 48 → 50 and every count sentence in the same commit; WR-03/WR-04/IN-02 folded in (CI-01)
 
 **⚠ HSURF-01: the obvious fix is a no-op, measured.** The grid wrapper sets no `align-items`, so grid
 items with `height: auto` **already stretch** — adding `h-full` to `Card` would be a no-op dressed as a
