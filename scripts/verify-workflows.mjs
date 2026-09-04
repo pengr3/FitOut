@@ -663,6 +663,56 @@ if (sections.includes("ci")) {
       `(a required status check is matched by this string; changing it silently unbinds the gate)`,
   );
 
+  // ── AND NOW THE THREE THINGS THAT MAKE IT A GATE RATHER THAN A JOB (plan 19-11, WR-01) ────────
+  // The stop above and the check above it close DELETION and RENAME of the job. They do not close
+  // the job being kept, correctly named, and made to do NOTHING. Measured, not supposed: delete the
+  // Playwright step from `gate-e2e` and every assertion in this section still holds — the job
+  // exists, the display name matches, the image is pinned, the service is declared, no `secrets.`
+  // and no mail key appear, the addressing rule passes. A required check would go green over a job
+  // that installs npm and stops. That is the same vacuity as a deleted job, one level in.
+  //
+  // All three below quantify over `e2eRuns` — the job's RUN COMMANDS — so a job whose steps are
+  // emptied makes each of them FALSE rather than vacuously true: an existential over an empty list
+  // is false, and an index comparison over an empty list has no non-negative indices to compare.
+  const e2eRuns = runsOf(e2e);
+
+  // 1. THE FUNCTIONAL PROJECT BY NAME, not "some Playwright command exists". `--project=chromium`
+  //    is what selects `testMatch: "e2e/*.spec.ts"` in playwright.config.ts, so naming the project
+  //    IS naming the whole functional set; a bare `playwright test` would ALSO collect the `visual`
+  //    project that job 4 owns and whose committed baselines this job must never touch. This is
+  //    verbatim the argument the `gate-visual` block one screen below makes for `--project=visual`
+  //    — it transfers unchanged, and is not restated at length here.
+  check(
+    `"${CI_E2E_JOB}" runs the functional project BY NAME (--project=chromium)`,
+    e2eRuns.some((r) => r.includes("playwright test") && r.includes("--project=chromium")),
+    `run commands=${JSON.stringify(e2eRuns)}`,
+  );
+
+  // 2. UNCONDITIONAL. A job-level `if:` or `continue-on-error: true` detaches the gate while
+  //    leaving every parsed invariant perfectly intact — the same failure shape as the `name:` edit
+  //    the check above was added for, and it does not even need the job to change what it runs.
+  //    ⚠ A DELIBERATE CONDITION IS A DECISION TO RECORD, NOT ONE TO ABSORB. If this job is
+  //    genuinely meant to become conditional or soft-failing, remove this invariant in the same
+  //    commit and say why in it — exactly as the hard stop above demands for a deliberate deletion.
+  check(
+    `"${CI_E2E_JOB}" is unconditional — no job-level if:, no continue-on-error: true`,
+    e2e?.if === undefined && e2e?.["continue-on-error"] !== true,
+    `if=${JSON.stringify(e2e?.if ?? null)}  ` +
+      `continue-on-error=${JSON.stringify(e2e?.["continue-on-error"] ?? null)}`,
+  );
+
+  // 3. SEED BEFORE SUITE, COMPARED BY INDEX. Presence alone is not the property: a seed that runs
+  //    after the suite is a seed that changed nothing, and this job's own step comment records that
+  //    FIVE named specs fail against an empty catalogue and say so in their own messages. Same
+  //    shape as the `gate-visual` migrate → seed → playwright ordering check below.
+  const iE2eSeed = e2eRuns.findIndex((r) => r.includes("db:seed"));
+  const iE2ePlay = e2eRuns.findIndex((r) => r.includes("playwright test"));
+  check(
+    `"${CI_E2E_JOB}" seeds the demo catalogue BEFORE it runs the suite`,
+    iE2eSeed >= 0 && iE2ePlay >= 0 && iE2eSeed < iE2ePlay,
+    `indices: db:seed=${iE2eSeed}  playwright=${iE2ePlay}  (of ${e2eRuns.length} run commands)`,
+  );
+
   // ── THE COMPARISON JOB EXISTS. ITS ABSENCE IS A HARD STOP, NOT A FAILED CHECK ─────────────────
   const visual = doc?.jobs?.[CI_VISUAL_JOB];
   if (!visual) {
