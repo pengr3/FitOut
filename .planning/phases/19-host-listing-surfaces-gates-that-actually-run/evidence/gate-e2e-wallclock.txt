@@ -1,0 +1,204 @@
+gate-e2e — D-13's WALL-CLOCK MEASUREMENT
+========================================
+Recorded by plan 19-08, 2026-09-04. This is a MEASUREMENT, not a threshold. No
+number here is asserted against a target, and NO SHARDING DECISION IS MADE — that
+is explicitly deferred (19-CONTEXT.md § Deferred Ideas) and needed this number to
+exist first. It now exists.
+
+
+THE MEASURED RUN
+----------------
+run id      33840948047
+run URL     https://github.com/pengr3/FitOut/actions/runs/33840948047
+job id      100922945974
+job URL     https://github.com/pengr3/FitOut/actions/runs/33840948047/job/100922945974
+event       push
+branch      dev
+head sha    3051985  ("chore(19-08): raise gate-e2e's cap 45 -> 90, once, on the measured expiry")
+runner      ubuntu-latest, 2 cores, in mcr.microsoft.com/playwright:v1.60.0-noble
+
+job conclusion     failure   <-- see "THE SUITE IS NOT GREEN" below. The wall-clock is
+                                 valid regardless: the suite RAN TO COMPLETION inside the
+                                 cap and reported its own totals. It did not expire.
+
+
+TOTAL WALL-CLOCK
+----------------
+job started    2026-09-04T05:33:49Z
+job completed  2026-09-04T06:22:11Z
+TOTAL          48m 22s
+
+Of which the Playwright suite itself is 43m 01s and everything else — pulling the
+container, installing dependencies, migrating and seeding — is 5m 17s. Dependency
+install alone (4m 04s) is 77% of that overhead and 8.4% of the whole job.
+
+
+PER-STEP DURATIONS
+------------------
+ #  step                                                     duration   window (UTC)
+ 1  Set up job                                                  0m 01s  05:33:50 -> 05:33:51
+ 2  Initialize containers                                       1m 01s  05:33:51 -> 05:34:52
+ 3  actions/checkout@v4                                         0m 04s  05:34:52 -> 05:34:56
+ 4  actions/setup-node@v4                                       0m 05s  05:34:56 -> 05:35:01
+ 5  npm ci                                                      4m 04s  05:35:01 -> 05:39:05
+ 6  Refuse to run the suite with a live mail credential         0m 00s  05:39:05 -> 05:39:05
+ 7  Migrate the database                                        0m 01s  05:39:05 -> 05:39:06
+ 8  Seed the demo catalogue                                     0m 01s  05:39:06 -> 05:39:07
+ 9  Playwright — the functional suite                          43m 01s  05:39:07 -> 06:22:08
+16  Post actions/setup-node@v4                                 skipped
+17  Post actions/checkout@v4                                    0m 01s  06:22:08 -> 06:22:09
+18  Stop containers                                             0m 01s  06:22:09 -> 06:22:10
+19  Complete job                                                0m 00s  06:22:10 -> 06:22:10
+
+Step 6 is D-14's mail-credential refusal. It executed, in 0s, BEFORE migrate, seed
+and the browser — which is the position its comment claims for it — and passed,
+because no RESEND-prefixed key is in this environment.
+
+
+WHAT THE RUN ACTUALLY COLLECTED
+-------------------------------
+Playwright's own header line, verbatim:
+
+    Running 460 tests using 1 worker
+
+collected spec files   39     (matches `ls e2e/*.spec.ts | wc -l` = 39 at this commit)
+collected tests        460
+workers                1
+
+39, not the 37 the research counted: this phase added e2e/host-listing-grid.spec.ts
+(19-02) and e2e/host-route-reachability.spec.ts (19-06), and both joined the chromium
+project automatically with no workflow edit — which was 19-01's stated reason for
+shipping the job before the guards.
+
+ONE WORKER IS THE LARGEST SINGLE TERM IN THE 43 MINUTES. `workers` is unset in
+playwright.config.ts, so Playwright defaults to half the logical cores; a 2-core
+ubuntu-latest runner therefore yields exactly one. The suite is fully serial here.
+Any future sharding conversation should weigh raising `workers` before splitting the
+suite across jobs — but that is a decision, and this file does not make it.
+
+
+OUTCOME COUNTS
+--------------
+Playwright's own summary block, verbatim:
+
+     14 failed
+      2 flaky
+     52 skipped
+     26 did not run
+    366 passed (43.0m)
+
+14 + 2 + 52 + 26 + 366 = 460, which reconciles against the header line.
+
+
+RETRIES
+-------
+retries configured      2   (playwright.config.ts: `retries: process.env.CI ? 2 : 0`)
+retry executions        135 (lines matching "(retry #N)" in the job log)
+result lines emitted    595 for 460 tests
+
+A retried suite costs more wall-clock than a clean one, and 135 retry executions is
+a material share of the 43 minutes. THE 43 MINUTES IS THEREFORE AN UPPER BOUND FOR A
+GREEN TREE, not the cost of the suite passing. Whoever fixes the 14 failures should
+re-measure rather than assume this number carries over.
+
+
+THE CAP WAS RAISED — ONCE
+-------------------------
+old value   timeout-minutes: 45
+new value   timeout-minutes: 90
+raised in   commit 3051985, .github/workflows/ci.yml, with the arithmetic written at
+            the site rather than in a commit message
+
+WHAT JUSTIFIED IT — the FIRST run, which expired:
+
+  run id     33837652193
+  run URL    https://github.com/pengr3/FitOut/actions/runs/33837652193
+  job id     100913340558
+  job        started 04:40:09Z, CANCELLED 05:25:17Z at the 45-minute cap
+  progress   completed 35 of 39 spec files in 40m 46s of suite time
+             (537 result lines: 383 passed, 38 failed, 116 skipped)
+  never reached: skeleton-geometry, stale-session-selfheal, tabular-figures,
+                 zero-result-relax
+  projection 40m 46s x 39/35 ~= 45m 26s of suite, + 4m 22s of setup ~= 50 minutes
+
+The measured total, 48m 22s, landed 1m 38s UNDER that projection. 90 was the
+projection with ~1.8x headroom.
+
+THE CAP HAS NOW BEEN RAISED ONCE AND MUST NOT BE RAISED AGAIN. A suite that cannot
+finish inside 90 minutes is the sharding conversation D-13 defers, not a
+configuration one. The ci.yml comment says so at the site.
+
+No spec was skipped, subsetted or filtered at any point to reach any number in this
+file. The run command is unchanged: `npx playwright test --project=chromium`, no
+spec path.
+
+
+THE SUITE IS NOT GREEN — AND THAT IS THIS MEASUREMENT'S OTHER FINDING
+---------------------------------------------------------------------
+gate-e2e had never executed on a real runner before today; every claim in 19-01 was
+over the parsed workflow tree. Its first two real executions show FOURTEEN tests
+failing for real reasons, reproducibly, across ten spec files, plus two flaky. The
+same failures appear in both runs, so they are not one-off infrastructure noise.
+
+  1  e2e/avatar-crop.spec.ts:974      Delta-3 — dismiss affordances inert
+  2  e2e/avatar-crop.spec.ts:2675     GATE-A11Y — open dialog, keyboard
+  3  e2e/avatar-crop.spec.ts:2747     GATE-A11Y — open dialog, keyboard
+  4  e2e/calendar-hit-area.spec.ts:274   AC#14 44px day cell (court)
+  5  e2e/calendar-hit-area.spec.ts:274   AC#14 44px day cell (grove)
+  6  e2e/calendar-hit-area.spec.ts:425   AC#15 month plate box (court)
+  7  e2e/calendar-hit-area.spec.ts:425   AC#15 month plate box (grove)
+  8  e2e/cancel.spec.ts:232           SC#2 previewed refund is the refund given
+  9  e2e/collision-in-place.spec.ts:240  STATE-07 lost race becomes a result
+ 10  e2e/hold-countdown.spec.ts:443   GATE-03 countdown announces exactly once
+ 11  e2e/host-headings.spec.ts:964    AC#35 one first-level heading
+ 12  e2e/overflow-320.spec.ts:3400    AC#36 host surfaces at 320px
+ 13  e2e/skeleton-geometry.spec.ts:1807  14-15 host plate draws the coming list
+ 14  e2e/tabular-figures.spec.ts:361  TRUST-02 fixed-advance-width reference
+
+  flaky (passed on retry, so green overall):
+      e2e/confirmation-decay.spec.ts:151   BFLOW-08
+      e2e/price-parity.spec.ts:270         GATE-05 / D-35
+
+A sample of the verbatim messages, which are substantive product claims rather than
+environment complaints:
+
+    court · 320px: the month grid rendered a row count this file does not expect.
+    court · 375x667: the moment is 0px tall in a 667px viewport.
+    host booking row · /host/bookings · 1280px: the resolved table measures 56.5px,
+      but this shape was measured at 36.52px when its height was declared
+    locator.click: Error: strict mode violation: locator('#search-category')
+      resolved to 2 elements
+    the avatar circle still shows initials after a successful save.
+    the notice is on screen but the grid under it has NOT caught up: the hours the
+      booker just lost are still selectable.
+
+One of them names its own provenance: "A1's BAD BRANCH IS LIVE — AND THIS IS A
+FINDING FOR PHASE 17, NOT A DEFECT IN THIS PHASE'S WORK".
+
+NONE of these was introduced by plan 19-08, which changed one numeric key in a
+workflow file. They are pre-existing, and they are exactly what a gate nobody had
+ever run was hiding. Fixing fourteen e2e failures across ten spec files is not this
+plan's scope; it is recorded here and in 19-08-SUMMARY.md so the next reader finds
+the list rather than re-deriving it.
+
+CONSEQUENCE FOR D-15: there is no green run, so the first prerequisite for making
+gate-e2e a required check is NOT satisfied.
+
+
+THE OTHER JOBS IN RUN 33840948047, FOR CONTEXT
+----------------------------------------------
+gate-db-free (lint + design + build + workflow parse)   success
+gate-db      (vitest against PostGIS 18)                success
+gate-price-parity (DB-vs-DOM price, 1 spec)             success
+gate-visual  (GATE-01 visual regression)                FAILURE — stale baselines
+gate-e2e     (functional Playwright suite)              FAILURE — the 14 above
+
+gate-visual's failure is out of this plan's scope and pre-existing: the committed
+Linux baselines were last regenerated on 2026-08-30, and 238 commits of product work
+(phases 18.1 and 19) landed on `dev` after that without CI running once. Its failing
+step is "Playwright — visual regression (GATE-01)". Regenerating baselines is
+baselines.yml's workflow_dispatch job (D-27), not this plan's.
+
+gate-db-free passing is itself a datum: it runs scripts/verify-workflows.mjs, so
+D-14's parse-based mail invariant is confirmed GREEN on a real runner, not only on a
+laptop.
