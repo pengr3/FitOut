@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: executing
-stopped_at: Completed 19-02-PLAN.md
-last_updated: "2026-09-04T01:49:20.642Z"
+stopped_at: Completed 19-03-PLAN.md
+last_updated: "2026-09-04T02:06:04.530Z"
 last_activity: 2026-09-04
 last_activity_desc: Phase 19 execution started
-state_head: 3f95b1763efc70bf82e13dff4ee60ed87825dd6f
+state_head: 6f6753c2b18efdcc3e663a068a9f52855dcd67ce
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 38
-  completed_plans: 32
+  completed_plans: 33
   percent: 14
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-09-04 — Phase 19 execution started
 
@@ -424,6 +424,7 @@ deferred walk is inconsistent rather than honest.*
 |------|----------|-------|-------|
 | Phase 19 P01 | 19 min | 2 tasks | 2 files |
 | Phase 19 P02 | 20 min | 3 tasks | 2 files |
+| Phase 19 P03 | 15 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1378,6 +1379,9 @@ Recent decisions affecting current work:
 - [Phase 19]: 19-02: host-listing-grid.spec.ts is deliberately NOT mode=serial — The first pre-fix run was serial and its 320px guard-B red skipped the other two bands, reporting one of six measurements. An instrument whose first finding suppresses the rest cannot answer which bands each guard failed at.
 - [Phase 19]: 19-02: geometry claims are expect.soft, vacuity gates stay hard — Guard A clause 2 and guard B are independent defects, so one failing must not hide the other. A measurement over an empty grid must still abort rather than report soft passes.
 - [Phase 19]: 19-02 took 19-04 Task 1's .next/dev evidence archive early — Task 3 boots a dev server via Playwright, and a fresh dev session rewrites app-paths-manifest.json. 19-04 had not run, so executing 19-02 as written would have destroyed the phase 404 investigation's primary subject.
+- [Phase 19]: HSURF-01's fix is mt-auto on CardFooter, not flex-1 on CardContent — settled by the first measurement, not by argument — The guards went green at all three bands on the first run after the edit (gap 0.000px everywhere), so assumption A1's fallback was never reached. mt-auto also touches one property on one element and is inert on the no-footer branch.
+- [Phase 19]: The icon-only Delete ships the sr-only span ALONE, with no competing aria-label — The research offered both as equally correct. One name-bearing mechanism is legible where two must be reconciled, and DOM text survives Radix cloning ConfirmDialog's trigger and any future asChild change (the photo-lightbox.tsx:370-373 idiom).
+- [Phase 19]: flex-wrap and the icon-only Delete are BOTH load-bearing, at different bands — Measured post-fix: at 320px the footer wraps to 97px (flex-wrap carries it); at 700/1280 it stays one 61px line because the icon-only Delete alone brought the intrinsic 332 under the client width. Removing either re-opens a band.
 
 ### Pending Todos
 
@@ -1556,8 +1560,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-04T01:49:19.974Z
-Stopped at: Completed 19-02-PLAN.md
+Last session: 2026-09-04T02:05:51.191Z
+Stopped at: Completed 19-03-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
