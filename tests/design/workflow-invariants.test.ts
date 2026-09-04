@@ -198,6 +198,21 @@ function withJobKey(line: string): (ci: string) => string {
 }
 
 /**
+ * Inserts a COMPLETE step, six-space `- ` indented, immediately BEFORE the refusal step's `- name:`
+ * line — so the inserted step precedes the only control that protects the CURRENT run.
+ */
+function withStepBeforeRefusal(stepLines: string[]): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const anchor = `      - name: ${MAIL_STEP_NAME}`;
+    const at = ci.indexOf(anchor);
+    if (at < 0) return ci;
+    const block = stepLines.map((l) => `      ${l}`).join(eol);
+    return `${ci.slice(0, at)}${block}${eol}${ci.slice(at)}`;
+  };
+}
+
+/**
  * Shared insertion primitive. Returns the input UNCHANGED when the anchor is absent, so a drifted
  * anchor lands on `withMutatedWorkflows`'s differs-from-input assertion rather than producing a
  * quietly-different mutation somewhere else in the file.
@@ -211,6 +226,13 @@ function insertAfterLineContaining(ci: string, anchor: string, insertion: string
   const cut = lineEnd + eol.length;
   return `${ci.slice(0, cut)}${insertion}${eol}${ci.slice(cut)}`;
 }
+
+/** A fragment of the unconditional invariant's printed name, stable across its 19-14 rename. */
+const UNCONDITIONAL = "is unconditional";
+/** A fragment of Invariant C's printed name, stable across its 19-14 rename. */
+const REFUSAL_ORDERING = "refuses a live mail credential BEFORE it migrates";
+/** A fragment of Invariant A's printed name, stable across its 19-14 rename. */
+const MAIL_REFUSAL = "mail refusal reads the REAL process environment";
 
 describe("the workflow checker's own predicates, measured against a mutated copy", () => {
   // THE CONTROL. An identity mutation is impossible by construction (the differs-from-input
@@ -237,7 +259,7 @@ describe("the workflow checker's own predicates, measured against a mutated copy
   // and the suite proceeded to migrate, seed and boot with a live mail credential in the environment.
   it("case 2: a custom-shell override on the refusal step is red", () => {
     withMutatedWorkflows(withRefusalStepKey("shell: cat {0}"), (result) => {
-      expectRed(result, "mail refusal reads the REAL process environment");
+      expectRed(result, MAIL_REFUSAL);
     });
   });
 
@@ -249,7 +271,66 @@ describe("the workflow checker's own predicates, measured against a mutated copy
   // default, which is the difference between a control and a record of the last audit.
   it("case 3: a step key the checker's source never names is red anyway", () => {
     withMutatedWorkflows(withRefusalStepKey("working-directory: ."), (result) => {
-      expectRed(result, "mail refusal reads the REAL process environment");
+      expectRed(result, MAIL_REFUSAL);
+    });
+  });
+
+  // An Actions EXPRESSION parses to a STRING, which is why a value comparison against the JavaScript
+  // boolean was green in BOTH directions (`=== true` false, `!== true` true) — and why the fix is to
+  // stop comparing values at all. `${{ matrix.experimental }}` is GitHub's own canonical example for
+  // this key, so the expression form is the documented spelling, not an exotic one.
+  it("case 4: continue-on-error as an Actions expression on the refusal step is red", () => {
+    withMutatedWorkflows(withRefusalStepKey("continue-on-error: ${{ true }}"), (result) => {
+      expectRed(result, UNCONDITIONAL);
+    });
+  });
+
+  // A SECOND SPELLING of the same defeat, kept as its own case because "the expression form" and
+  // "the quoted-string form" are different inputs, and a predicate that catches one is not proof it
+  // catches the other. That inference is exactly what cost rounds 2 and 3.
+  it("case 5: continue-on-error as a quoted string on the refusal step is red", () => {
+    withMutatedWorkflows(withRefusalStepKey('continue-on-error: "true"'), (result) => {
+      expectRed(result, UNCONDITIONAL);
+    });
+  });
+
+  // REGRESSION, plan 19-13. This is the literal-boolean mutation that round already closed, kept
+  // standing so the presence test cannot be loosened back into a value test without a red. It passed
+  // BEFORE plan 19-14's predicate change as well as after — which is the evidence that this file
+  // measures the same subject 19-13's hand-applied mutations did.
+  it("case 6 (regression, 19-13): a literal continue-on-error on the refusal step is red", () => {
+    withMutatedWorkflows(withRefusalStepKey("continue-on-error: true"), (result) => {
+      expectRed(result, UNCONDITIONAL);
+    });
+  });
+
+  // THE JOB LEVEL CARRIES THE IDENTICAL HOLE. The check claims to be a strict widening of what plan
+  // 19-11 shipped at job level, and until plan 19-14 it was weaker there too: the job read compared
+  // the same key against the same boolean.
+  it("case 7: continue-on-error as an Actions expression on the JOB is red", () => {
+    withMutatedWorkflows(withJobKey("continue-on-error: ${{ true }}"), (result) => {
+      expectRed(result, UNCONDITIONAL);
+    });
+  });
+
+  // REGRESSION, plan 19-13. `if:` was ALREADY presence-tested and already correct — this is the
+  // conjunct plan 19-14 copies for its sibling, kept standing so the shape that worked cannot be
+  // quietly reverted alongside the shape that did not.
+  it("case 8 (regression, 19-13): an if: on the refusal step is red", () => {
+    withMutatedWorkflows(withRefusalStepKey("if: false"), (result) => {
+      expectRed(result, UNCONDITIONAL);
+    });
+  });
+
+  // WR-05. Before plan 19-14 the permitted-predecessor test quantified over RUN COMMANDS
+  // (`runsOf`, which filters to steps carrying a string `run:`), so a `uses:` step was not merely
+  // permitted — it was UNREACHABLE by the predicate that claimed to restrict what may precede the
+  // refusal. Any number of them could sit ahead of the only control that protects the current run,
+  // and one first-party action alone can execute arbitrary JavaScript in the job, while the
+  // invariant's own name said only the install command may precede.
+  it("case 9: a uses: step inserted ahead of the refusal is red", () => {
+    withMutatedWorkflows(withStepBeforeRefusal(["- uses: actions/github-script@v7"]), (result) => {
+      expectRed(result, REFUSAL_ORDERING);
     });
   });
 });
