@@ -238,6 +238,9 @@ export async function createDraftListing(): Promise<ListingResult> {
         // The real gaps: neither child insert touches the listing row, so neither bumps updated_at.
         sql`NOT EXISTS (SELECT 1 FROM listing_photo WHERE listing_id = ${listing.id})`,
         sql`NOT EXISTS (SELECT 1 FROM operating_hours WHERE listing_id = ${listing.id})`,
+        // `blocks.ts`'s addBlock inserts a subtractive block and performs no update of the listing
+        // row, so a draft the host has blocked dates on still reads `updated_at = created_at`.
+        sql`NOT EXISTS (SELECT 1 FROM availability_block WHERE listing_id = ${listing.id})`,
       ),
     )
     .orderBy(desc(listing.createdAt))

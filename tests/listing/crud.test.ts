@@ -20,6 +20,7 @@ import {
   listingAmenity,
   listingActivityTag,
   listingPhoto,
+  availabilityBlock,
   hostVerification,
   type HostVerificationStatus,
 } from "@/lib/db/schema";
@@ -585,6 +586,58 @@ describe("D-02 — createDraftListing reuses the host's own UNTOUCHED empty draf
         "`NOT EXISTS (SELECT 1 FROM listing_photo …)` term — and the sibling `operating_hours` term " +
         "is there for the identical measured reason (`operating-hours.ts:165-167`). Neither is " +
         "belt-and-braces; deleting either reopens a real gap.",
+    ).not.toBe(first.id);
+
+    expect(await ownedCount(userId), "a new id was returned but no second row landed").toBe(2);
+  });
+
+  it("(D-02 · case 4) a draft with an availability_block is never reused, even though updated_at = created_at", async () => {
+    const userId = await signInHost("d02.block@example.com");
+
+    const first = await createDraftListing();
+    if (!first.ok) throw new Error("setup failed — the first create was refused");
+
+    // The block insert goes straight to the child table, which is precisely the point: this mirrors
+    // `src/app/actions/blocks.ts`'s `addBlock`, which inserts an `availability_block` row and does
+    // NOT update the `listing` row. So this draft still reads `updated_at = created_at` AND
+    // `title IS NULL` — untouched by every term except the one this case is about.
+    //
+    // ⚠ DELIBERATELY NOT ROUTED THROUGH `addBlock`. That action carries a Zod parse, an ownership
+    // read, a unit-range check and a venue-local→UTC conversion, none of which this case is about;
+    // going through it would make a red here ambiguous between the predicate and the action.
+    await testDb.db.insert(availabilityBlock).values({
+      id: "ab_d02_case4",
+      listingId: first.id!,
+      unit: null, // null = the whole listing (schema.ts's own comment, D-24)
+      startsAt: new Date("2026-10-01T09:00:00.000Z"),
+      endsAt: new Date("2026-10-01T10:00:00.000Z"),
+    });
+
+    const row = await readListing(first.id!);
+    expect(
+      row.updatedAt.getTime(),
+      "this case is only meaningful if the block insert left `updated_at` alone — that is the whole " +
+        "premise. If these differ, `blocks.ts` has started touching the listing row and this case " +
+        "is no longer testing the loophole it was written for.",
+    ).toBe(row.createdAt.getTime());
+
+    const second = await createDraftListing();
+    if (!second.ok) throw new Error("the second create was refused, which D-02 never asks for");
+
+    expect(
+      second.id,
+      "THE UNACCEPTABLE DIRECTION, VIA THE AVAILABILITY-BLOCK LOOPHOLE — this host blocked dates on " +
+        "a draft from the Availability page (reachable in TWO CLICKS from the grid, because " +
+        "`(host)/host/listings/page.tsx` passes `availabilityHref` for every listing including " +
+        "drafts), and the second `Create listing` just handed them that draft, with their blackout " +
+        "dates silently adopted into what they believe is a brand-new listing.\n" +
+        "⚠ THE TIMESTAMP TERM CANNOT CLOSE THIS GAP AND CANNOT BE MADE TO. `blocks.ts`'s `addBlock` " +
+        "writes the child row and performs NO `db.update(listing)`, so `updated_at = created_at` " +
+        "still holds and `title` is still NULL. The conjunct that closes it is the " +
+        "`NOT EXISTS (SELECT 1 FROM availability_block …)` term, and it is the THIRD instance of the " +
+        "class the `listing_photo` and `operating_hours` conjuncts already close — which is why " +
+        "`tests/design/listing-reuse-predicate-census.test.ts` now checks the completeness of that " +
+        "set rather than a comment claiming it.",
     ).not.toBe(first.id);
 
     expect(await ownedCount(userId), "a new id was returned but no second row landed").toBe(2);
