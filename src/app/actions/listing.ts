@@ -33,7 +33,10 @@
 //   - Soft-deleted rows (deletedAt IS NOT NULL) are excluded from normal reads/writes.
 
 import { randomUUID } from "node:crypto";
-import { and, eq, isNull, sql, type InferInsertModel } from "drizzle-orm";
+// `desc` is here for the D-02 reuse read's `ORDER BY created_at DESC` and nothing else — added by
+// plan 19-06. The alternative was raw SQL for the ordering clause; the helper keeps the column
+// reference type-aware, so a rename of `createdAt` reddens at compile time instead of at runtime.
+import { and, desc, eq, isNull, sql, type InferInsertModel } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
@@ -103,10 +106,73 @@ async function assertOwnership(listingId: string, userId: string) {
 }
 
 /**
- * Create an empty DRAFT owned by the signed-in user (D-01 draft-first). The wizard then autosaves
- * into it via saveListingStep. status defaults to "draft" and bookingMode to "instant" (D-62 — the
- * demand-first default flip, was "request" under D-04). This create-code default is independent of
- * (and mirrors) the DB SET DEFAULT flipped in 06-01's migration; existing listings are unaffected.
+ * Create an empty DRAFT owned by the signed-in user (D-01 draft-first) — OR HAND BACK THE HOST'S
+ * OWN UNTOUCHED EMPTY DRAFT IF THEY ALREADY HAVE ONE (D-02). The wizard then autosaves into it via
+ * saveListingStep. status defaults to "draft" and bookingMode to "instant" (D-62 — the demand-first
+ * default flip, was "request" under D-04). This create-code default is independent of (and mirrors)
+ * the DB SET DEFAULT flipped in 06-01's migration; existing listings are unaffected.
+ *
+ * ── D-02: REUSE-THEN-MINT, AND WHAT "UNTOUCHED" MEANS ─────────────────────────────────────────────
+ *
+ * WHY. Plan 19-01 measured FOUR empty drafts owned by one host, minted across 46 seconds
+ * (10:51:56 → 10:52:39) — a human pressing *Create listing*, going back, and pressing again while a
+ * redirect failed to land. Plan 19-04 deleted them. This branch is what makes that delete a genuine
+ * one-off rather than the first of many: it treats the SOURCE rather than the residue.
+ *
+ * WHAT "UNTOUCHED" IS DEFINED AS, and it is defined from the columns a freshly-minted row actually
+ * carries rather than from intent: the insert below writes exactly four values, so everything else
+ * on a fresh row is NULL or a column default. The predicate therefore asks for a row that is still
+ * in precisely that state — `deleted_at IS NULL`, `status = 'draft'`, `title IS NULL`,
+ * `updated_at = created_at`, and no child row in `listing_photo` or `operating_hours`.
+ *
+ * WHY THE TIMESTAMP COMPARISON CARRIES THE MEANING. `schema.ts:264-267` declares
+ * `updatedAt: timestamp(...).defaultNow().$onUpdate(() => new Date()).notNull()`, and Drizzle's
+ * `$onUpdate` fires on EVERY `db.update()` through this table object. Every write path in the app
+ * goes through it — `saveListingStep`, publish, unlist, soft-delete, the LVER-03 re-review flip
+ * (`grep -n 'update(listing)' src/` returns this file at four sites plus
+ * `src/lib/listing/re-review.ts:195`, and nothing else). So "the host has done literally anything to
+ * this row" collapses to ONE comparison that will not drift as the schema grows twenty more columns.
+ * ⚠ Its one real limit, stated rather than hidden: `$onUpdate` is a DRIZZLE-CLIENT HOOK, NOT A
+ * DATABASE TRIGGER. A raw-SQL `UPDATE listing SET …` bypassing Drizzle would not bump it.
+ *
+ * WHY THE TWO `NOT EXISTS` CONJUNCTS ARE NOT BELT-AND-BRACES. `listing-photo.ts:294` inserts into
+ * `listing_photo` inside a transaction and does NOT update the `listing` row; `operating-hours.ts:165-167`
+ * does the same for `operating_hours` (measured, both). So a host who minted a draft, uploaded a
+ * cover photo and abandoned it has `updated_at = created_at` AND a photo — and without these
+ * conjuncts a second *Create listing* would silently adopt that photo into what the host believes is
+ * a brand-new listing. `title IS NULL` genuinely IS belt-and-braces (the timestamp term should
+ * already imply it) and is kept anyway, because every extra conjunct can only make reuse RARER.
+ *
+ * WHY EVERY AMBIGUITY RESOLVES TOWARD TIGHTNESS — the two failure directions are NOT symmetric:
+ *   • TOO LOOSE: the host presses *Create listing* to start their SECOND space, lands in the wizard
+ *     for their FIRST one already half filled in, edits it, overwrites real work, and NEVER LEARNS a
+ *     second listing was not created. Silent data loss on a host's own content. Unacceptable.
+ *   • TOO TIGHT: one extra empty draft appears in the grid. That is TODAY's behaviour — visible,
+ *     deletable, one row. Tolerable.
+ *
+ * WHERE IT SITS, AND WHY THERE. AFTER the D-255 verification gate and BEFORE the insert. Before the
+ * gate would let an unverified host discover whether they own a reusable draft (an existence leak to
+ * an account nobody has checked); in `new/page.tsx` it would be bypassable, which is the argument
+ * that page's own header already makes about the verification gate itself.
+ *
+ * ⚠ THIS IS A CHECK-THEN-ACT AND IT MUST NOT BE DESCRIBED AS RACE-FREE. Two tabs can both find zero
+ * reusable drafts and both insert. IT MAKES CREATION IDEMPOTENT AGAINST A HUMAN RETRY, NOT AGAINST
+ * CONCURRENCY. That is accepted here, and the reason is written down rather than assumed: the
+ * residual race costs ONE SURPLUS EMPTY DRAFT AND NO DATA LOSS — not a double-booked room and not a
+ * double charge, so the domain rule `CLAUDE.md § What NOT to Use` protects when it bans
+ * query-then-insert FOR BOOKINGS (money, exclusivity) is simply absent here. The observed defect was
+ * SEQUENTIAL (four inserts across 46 seconds is a person, not a race), which is exactly what a
+ * check-then-act does fix. The correct-by-construction alternative is a partial unique index on
+ * `(host_id) WHERE status='draft' AND updated_at = created_at` — a SCHEMA MIGRATION, and zero schema
+ * migrations is a v1.2 invariant; D-02 says so in as many words ("No migration — this is a query
+ * plus a branch"). A docblock claiming idempotency without this qualifier would be the
+ * confident-wrong-claim the house rules forbid, so do not delete this paragraph to make the function
+ * sound stronger than it is.
+ *
+ * ⚠ `saveListingStep` STAYS UNGATED (D-270). This branch changes what `createDraftListing` RETURNS;
+ * nothing about what the wizard may WRITE changes. See that function's own note.
+ * PINNED BY: `tests/listing/crud.test.ts` — the three D-02 cases. Delete the timestamp conjunct and
+ * "(D-02 · case 2)" reddens by name.
  */
 export async function createDraftListing(): Promise<ListingResult> {
   const userId = await requireUserId();
@@ -149,6 +215,38 @@ export async function createDraftListing(): Promise<ListingResult> {
     // action sends all four. `HOST_VERIFICATION_NOTHING_CHANGED` carries the identical argument for
     // the identical reason one action over.
     return { ok: false, error: HOST_VERIFICATION_LISTING_REFUSED };
+  }
+
+  // ── D-02 — REUSE-THEN-MINT. The argument is in this function's docblock; this is the query. ─────
+  //
+  // Owner-scoped BY ARGUMENT FROM THE SESSION, exactly as the verification read above is: this
+  // action takes ZERO parameters, so no request value can select the row and one host can never be
+  // measured against another's. Keep the signature at zero arguments — an `id` parameter here would
+  // turn a convenience into an IDOR.
+  const [reusable] = await db
+    .select({ id: listing.id })
+    .from(listing)
+    .where(
+      and(
+        eq(listing.hostId, userId),
+        isNull(listing.deletedAt),
+        eq(listing.status, "draft"),
+        // The load-bearing term ($onUpdate, schema.ts:264-267) — see docblock.
+        sql`${listing.updatedAt} = ${listing.createdAt}`,
+        // Belt-and-braces; the term above should already imply it.
+        isNull(listing.title),
+        // The real gaps: neither child insert touches the listing row, so neither bumps updated_at.
+        sql`NOT EXISTS (SELECT 1 FROM listing_photo WHERE listing_id = ${listing.id})`,
+        sql`NOT EXISTS (SELECT 1 FROM operating_hours WHERE listing_id = ${listing.id})`,
+      ),
+    )
+    .orderBy(desc(listing.createdAt))
+    .limit(1);
+  if (reusable) {
+    // The host's most recent untouched empty draft. Returned rather than re-minted, and NOTHING is
+    // written — a reuse must not bump `updated_at`, or the second press would make the row
+    // ineligible for the third and the whole branch would fix only one repeat.
+    return { ok: true, id: reusable.id };
   }
 
   const id = randomUUID();
