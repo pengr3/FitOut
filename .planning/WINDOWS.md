@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 11
+open_count: 13
 waived_count: 0
 fixed_count: 0
-total_count: 11
-last_updated: 2026-09-04T07:32:43.258Z
+total_count: 13
+last_updated: 2026-09-04T12:34:46.969Z
 ---
 
 # Broken Windows Ledger
@@ -26,6 +26,8 @@ last_updated: 2026-09-04T07:32:43.258Z
 | 9 | 19 | deviation | .github/workflows/ci.yml |  | gate-e2e SHIPS NON-REQUIRED and CI-01 closes with it non-required. D-15's flip was HELD by PM decision (option 2). It reports; it does not block. Two prerequisites stand: (A) branch protection unreachable, 403 Pro/public — see the unrun-verify entry; (C) there is no green run, 14 e2e tests fail reproducibly plus gate-visual on stale baselines. Blocker B (pull_request never ran) was RESOLVED on 2026-09-04 by merge commits 902aca5 (dev) and 9619f0b (ci/gate-e2e-proof-19-08). Do not read CI-01 'complete' as 'the gate blocks'. | open |  | 2026-09-04T07:32:42.081Z |  |
 | 10 | 19 | deviation | e2e |  | FOURTEEN e2e tests fail reproducibly across ~10 spec files on a real runner, plus gate-visual on baselines last regenerated 2026-08-30 — the full list with verbatim messages is in 19-08 evidence/gate-e2e-wallclock.txt. NONE was introduced by phase 19; they are what a gate nobody had ever run was hiding. Fixing them is a SEPARATE PHASE and is prerequisite C for making gate-e2e required. Whoever fixes them must RE-MEASURE the wall-clock: 48m22s includes 135 retry executions and is an upper bound, not the cost of a green suite. | open |  | 2026-09-04T07:32:42.669Z |  |
 | 11 | 19 | todo | .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-08-SUMMARY.md |  | NEW EVIDENCE FOR LEDGER ENTRY 5, WHICH STAYS OPEN. A vercel.json is in the tree and a live Vercel project (pengr3s-projects/fit-out) deploys this repository — its check appears on PR #1. This DEMONSTRATES A DEPLOYED ENVIRONMENT EXISTS, which entry 5's question was conditioned on ('if a deployed environment exists the scope must be re-derived there'). It does NOT establish that the deployment has its own database, and nobody has measured that. The PM's production-scope question from 19-04 remains UNANSWERED and entry 5 must not be closed on this evidence. | open |  | 2026-09-04T07:32:43.258Z |  |
+| 12 | 19 | deviation | scripts/verify-workflows.mjs |  | 19-11: the plan's acceptance criterion required all three new gate-e2e invariants to go red on an empty run-command list, but invariant 2 (unconditional) is a predicate over the job's if:/continue-on-error keys and cannot. Implemented per the plan's <action> + WR-01 sketch; two of three go red on steps: []. | open |  | 2026-09-04T12:34:45.452Z |  |
+| 13 | 19 | unmet-truth | .github/workflows/ci.yml |  | 19-11: WR-02's hole in the D-14 mail scan (verify-workflows.mjs does not walk container.env or services.*.env) is NAMED in ci.yml's header but NOT closed. A container-level RESEND_* key would pass both halves of the assertion. | open |  | 2026-09-04T12:34:46.969Z |  |
 
 ````json
 [
@@ -159,6 +161,30 @@ last_updated: 2026-09-04T07:32:43.258Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-04T07:32:43.258Z",
+    "resolved_at": null
+  },
+  {
+    "id": 12,
+    "kind": "deviation",
+    "phase": "19",
+    "file": "scripts/verify-workflows.mjs",
+    "line": null,
+    "description": "19-11: the plan's acceptance criterion required all three new gate-e2e invariants to go red on an empty run-command list, but invariant 2 (unconditional) is a predicate over the job's if:/continue-on-error keys and cannot. Implemented per the plan's <action> + WR-01 sketch; two of three go red on steps: [].",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-04T12:34:45.452Z",
+    "resolved_at": null
+  },
+  {
+    "id": 13,
+    "kind": "unmet-truth",
+    "phase": "19",
+    "file": ".github/workflows/ci.yml",
+    "line": null,
+    "description": "19-11: WR-02's hole in the D-14 mail scan (verify-workflows.mjs does not walk container.env or services.*.env) is NAMED in ci.yml's header but NOT closed. A container-level RESEND_* key would pass both halves of the assertion.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-04T12:34:46.969Z",
     "resolved_at": null
   }
 ]

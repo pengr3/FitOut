@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: executing
-stopped_at: "Completed 19-10-PLAN.md — GAP 2 closed: createDraftListing resolves instead of throwing, the two race windows route to /host/verify and /login, and a build-blocking census keeps the refusal set and the router in agreement"
-last_updated: "2026-09-04T12:19:15.853Z"
+stopped_at: "Completed 19-11-PLAN.md — WR-01 and WR-05 closed: three invariants a detached gate-e2e cannot survive (each watched red), and a ci.yml header that describes the file it is attached to"
+last_updated: "2026-09-04T12:34:16.945Z"
 last_activity: 2026-09-04
 last_activity_desc: 19-10 executed — D-03 failure signal made reachable + refusal routing
-state_head: 318ecf4d7486b7840b1ffc0d21c2589e98b6246f
+state_head: 5bb70d05ad2faabffed0033cf5eb5149a5aa1b68
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 41
-  completed_plans: 40
+  completed_plans: 41
   percent: 14
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
-Plan: 10 of 11
+Plan: 11 of 11
 Status: Ready to execute
 Last activity: 2026-09-04 — 19-09 executed: D-02 availability_block conjunct + build-blocking census
 
@@ -432,6 +432,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19 P08 | 2h 4m | 3 tasks | 3 files |
 | Phase 19 P09 | 18 min | 3 tasks | 3 files |
 | Phase 19 P10 | 20 min | 3 tasks | 6 files |
+| Phase 19 P11 | 3 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1404,6 +1405,9 @@ Recent decisions affecting current work:
 - [Phase 19]: createDraftListing's try opens AFTER the session check and the verification gate return, so a deliberate refusal can never be caught and re-served as a generic infrastructure apology — The refusal carries information the host needs (that there is a check, and where to ask about it); the apology destroys it. Asserted by driving a suspended host through an injected DB failure.
 - [Phase 19]: The dead !res.id branch was made unrepresentable by narrowing createDraftListing's return type (CreateDraftListingResult), not deleted — Deleting a branch because it looks unreachable is a judgement a later edit can silently falsify; tsc proving it cannot occur is not.
 - [Phase 19]: The two live race windows (session lapse, ops suspension) route to /login and /host/verify, leaving the grid bounce for genuine infrastructure failure alone — This is what makes create-signal.ts's ban on verification wording true by CONSTRUCTION rather than by the branch being unreachable. No third message invented — the exported copy is byte-unchanged.
+- [Phase 19]: 19-11: gate-e2e invariant 2 (unconditional) quantifies over the job's `if:` / `continue-on-error` keys, not over runsOf(e2e). The plan's acceptance criterion said all three go red on an empty run-command list, which cannot hold for a predicate over YAML keys; followed the plan's <action> text and WR-01's fix sketch and recorded the contradiction as a deviation rather than weakening the invariant.
+- [Phase 19]: 19-11: prove a documentation-only workflow edit by comparing the PARSED YAML trees, not only by grepping the diff for non-comment lines. Tree equality is the property; a comment-only line diff is only a proxy for it.
+- [Phase 19]: 19-11: WR-02's measured hole in the D-14 mail scan (container.env / services.*.env are not walked) is NAMED in ci.yml's header rather than closed. Widening the scan was outside this gap-closure run's assigned scope, and an unnamed known hole is the same defect class as the stale header this plan corrected.
 
 ### Pending Todos
 
@@ -1585,8 +1589,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-04T12:18:54.544Z
-Stopped at: Completed 19-10-PLAN.md — GAP 2 closed: createDraftListing resolves instead of throwing, the two race windows route to /host/verify and /login, and a build-blocking census keeps the refusal set and the router in agreement
+Last session: 2026-09-04T12:32:56.073Z
+Stopped at: Completed 19-11-PLAN.md — WR-01 and WR-05 closed: three invariants a detached gate-e2e cannot survive (each watched red), and a ci.yml header that describes the file it is attached to
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
