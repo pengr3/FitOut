@@ -8,7 +8,14 @@
 # to set `CI=true` and be allowed to say no. Actions does that for free. Everything below is a
 # consequence of that one sentence.
 #
-# THE JOB SPLIT (D-24 + D-35). FOUR jobs, and the split is by DATABASE NEED, not by speed:
+# THE JOB SPLIT (D-24 + D-35). FIVE jobs, and the split is by DATABASE NEED, not by speed.
+#
+# (COUNT CORRECTION, 2026-09-04, plan 19-11 — WR-05. This line said FOUR and the list below
+# had four entries. `gate-e2e` landed as job 5 in plan 19-01 and was first executed on a real
+# runner by 19-08; this header was never updated with it, so a reader auditing D-24 from here
+# would have concluded Playwright is out of CI. Counted by PARSE, not by eye, exactly as the
+# command further down prescribes: `Object.keys(d.jobs)` returns five. Same device as the
+# `ls e2e/*.spec.ts` correction on the bullet below — the measurement wins over the memory.)
 #
 #   gate-db-free      lint + design gate + `next build`, with NO service container, and an
 #                     assertion that it needs none (see the job's own comment). It also runs the
@@ -30,6 +37,18 @@
 #                     `.github/workflows/baselines.yml`'s job step for step, because the machine
 #                     that COMPARES must be the machine that SHOT (D-27) and the compared tree
 #                     must be the tree that was captured.
+#   gate-e2e          THE FUNCTIONAL PLAYWRIGHT SUITE — a database AND a browser, which is
+#                     jobs 3 and 4's place in this taxonomy, and it is by far the largest of
+#                     the three. Runs `--project=chromium` BY NAME in the pinned container,
+#                     with no spec path: `playwright.config.ts` gives that project
+#                     `testMatch: "e2e/*.spec.ts"`, so naming it IS naming the whole
+#                     functional set. Migrates and then SEEDS the demo catalogue before the
+#                     suite — five specs fail against an empty one and say so in their own
+#                     messages. Landed by plan `19-01` under D-12/CI-01; measured on a real
+#                     runner by `19-08` at 48m 22s over 460 tests in 39 spec files on ONE
+#                     worker (run 33840948047), which is where its 90-minute cap comes from.
+#                     ⚠ IT REPORTS; IT DOES NOT BLOCK. See the closing note at the end of
+#                     this header for why, because that is a decision and not an oversight.
 #
 # WHAT IS DELIBERATELY ABSENT, SO A LATER READER FINDS THE REASON RATHER THAN THE GAP:
 #
@@ -43,11 +62,35 @@
 #     `helpers/theme.ts`, which is not a spec. `11-06` adds `price-parity.spec.ts`, so twelve
 #     specs now exist and eleven are excluded. The measurement wins over the round number —
 #     the same correction `tests/design/selector-contract.test.ts` makes about 22 vs 23.)
-#   * The ONE narrow exception is now HERE: the DB-vs-DOM price check (D-35) — the single
-#     assertion standing between a restyle and a wrong number charged to a real card — runs as
-#     job 3, `gate-price-parity`. Its whole justification is that it is ONE self-contained,
-#     secret-free spec rather than twelve; naming the spec file explicitly in the run command
-#     is what keeps that true, so do not replace it with `npm run test:e2e`.
+#
+#     ⚠ FALSIFIED 2026-09-04 BY PLAN 19-11 (review finding WR-05). THE BULLET ABOVE IS KEPT
+#     VERBATIM BECAUSE ITS ARGUMENT SURVIVED AND ONLY ITS CONCLUSION DID NOT. What is true
+#     now: the functional set RUNS HERE, as job 5 `gate-e2e`, on every push and every pull
+#     request — `--project=chromium`, which `playwright.config.ts` maps to
+#     `testMatch: "e2e/*.spec.ts"`, i.e. every spec file directly under `e2e/`, no spec path.
+#     D-24's exclusion is RETIRED. What is still not run by job 5 is the `visual` project,
+#     which job 4 `gate-visual` owns and runs by its own name.
+#
+#     THE FLAKE ARGUMENT IS NOT RETIRED WITH IT. It is precisely why this job was added LAST,
+#     shipped non-required, and MEASURED before being trusted, and why the cap on the job
+#     below is a stop rather than an estimate. D-13's wall-clock now EXISTS rather than being
+#     asserted: 48m 22s, 460 tests, 39 spec files, one worker, run 33840948047 — recorded in
+#     `.planning/phases/19-host-listing-surfaces-gates-that-actually-run/evidence/`
+#     `gate-e2e-wallclock.txt`, together with the fourteen tests that fail REPRODUCIBLY. None
+#     of those fourteen was introduced by adding the job; they are what a gate nobody had ever
+#     run was hiding, and they are the second reason it is not required yet.
+#   * Job 3 IS THE DB-vs-DOM PRICE CHECK (D-35) — the single assertion standing between a
+#     restyle and a wrong number charged to a real card — running as `gate-price-parity`. It
+#     is ONE self-contained, secret-free spec, it NAMES THAT SPEC FILE EXPLICITLY in its run
+#     command, and `scripts/verify-workflows.mjs` asserts both that name and its service-label
+#     host over the parsed tree. So do not replace it with `npm run test:e2e`.
+#
+#     ⚠ QUANTIFIER FALSIFIED 2026-09-04 BY PLAN 19-11 (WR-05). This bullet read: "The ONE
+#     narrow exception is now HERE". Job 3 is no longer an exception to anything, because the
+#     exclusion it was an exception TO is retired directly above. Its CONTENT stands unchanged;
+#     only its status as a carve-out is gone. What job 3 is now, and why it is still worth its
+#     own job rather than being folded into job 5: it is the CHEAP e2e gate — one spec, minutes
+#     — and it goes red long before the full functional suite would.
 #   * The Playwright `visual` project step LANDED on job 1 on 2026-08-17 (plan `11-22`) — this
 #     bullet used to promise it — AND LEFT JOB 1 ON 2026-08-19 (plan `12-15`). IT IS NOW ITS OWN
 #     JOB, `gate-visual`, and this is where it went and why:
@@ -171,6 +214,45 @@
 #     the guard-the-guard assertion that caught it both exist because of it). Removing it would
 #     be a second, unrelated structural change verified by nothing, whose failure mode is a
 #     SILENT GREEN — git unavailable, and D-29's rule then enforced by nothing. Out of scope.
+#
+# ⚠ THE LIST ABOVE PREDATES JOBS 4 AND 5. EXTENDED 2026-09-04 BY PLAN 19-11 (WR-05). Every
+# invariant below is asserted by `scripts/verify-workflows.mjs` today, on job 1, before any
+# browser starts.
+#
+#   * THE FOUR `gate-e2e` INVARIANTS. The job's ABSENCE is a HARD STOP rather than a failed
+#     check, because every other invariant in this file is universally quantified and a
+#     DELETED JOB SATISFIES ALL OF THEM VACUOUSLY. Above that stop, four counted checks:
+#       1. the exact DISPLAY NAME `gate-e2e (functional Playwright suite)` — GitHub matches a
+#          required status check on `name:`, never on the YAML key, so a rename would detach
+#          a required check while leaving the job and every invariant over it intact (19-08);
+#       2. the functional project asserted BY NAME (`--project=chromium`) — NOT "some
+#          Playwright command exists", because the project name is what selects the whole
+#          functional set, and a bare invocation would also collect job 4's `visual` project
+#          and its committed baselines (19-11);
+#       3. the job asserted UNCONDITIONAL — no job-level `if:`, no `continue-on-error: true`,
+#          either of which detaches the gate while every parsed invariant stays green (19-11);
+#       4. the SEED asserted to run BEFORE the suite, compared by INDEX and not by presence —
+#          a seed after the suite is a seed that changed nothing (19-11).
+#     2, 3 and 4 exist because 1 did not close them. Measured, not supposed: until 19-11 you
+#     could delete this job's Playwright step and EVERY assertion in this file still passed,
+#     over a job that installed npm and stopped. All three were watched RED under a deliberate
+#     mutation of this file, each reverted byte-identical, before being trusted.
+#
+#   * THE FAIL-CLOSED MAIL ASSERTION (D-14) HAS TWO HALVES AND BOTH ARE LIVE. A full suite run
+#     with a live key was MEASURED at FOURTEEN real outbound sends, because `src/lib/email.ts`
+#     binds its client at module load — for that provider the key IS the switch.
+#       - the RUNTIME half: job 5's FIRST step refuses to run the suite when the key is present
+#         in its environment. It reads that key through a deliberately differently-named `env:`
+#         key, `MAIL_KEY_UNDER_TEST`, so the parse half below does not fire on a CORRECT file;
+#       - the PARSE half: the script rejects any workflow, job or step `env:` KEY whose name
+#         begins with the mail provider's prefix, on job 1, about a minute into a run.
+#     ⚠ AND ONE MEASURED HOLE IN THE PARSE HALF, NAMED HERE RATHER THAN LEFT IMPLICIT (review
+#     finding WR-02, 2026-09-04): it walks workflow `env:`, job `env:` and step `env:` — but
+#     NOT `container.env` and NOT `services.*.env`. A container-level `env:` block reaches
+#     every step in the job, so a key spelled THERE passes both halves and the suite mails real
+#     addresses. Nothing in this repository sets a mail key at either level today; widening the
+#     scan was outside plan 19-11's assigned scope and is carried forward, not closed. A list
+#     that omits a known hole is the same defect as a header that omits a job.
 #
 # `11-06` RE-MEASURED THE VACUITY FINDING RATHER THAN INHERITING IT, and it is WORSE for job 3
 # than it was for jobs 1-2. Its plan prescribed the same shape of whole-file substring check,
@@ -349,6 +431,17 @@
 #   fix is job 1's `Let git operate on the checkout` step below. Worth reading alongside these
 #   two: plan 11-03 built that guard against a hypothesis, and the environment produced the
 #   hypothesis nineteen plans later.
+#
+# ── WHAT THESE GATES DO NOT DO (2026-09-04, plan 19-11) ──────────────────────────────────────
+#
+# `gate-e2e` REPORTS; IT DOES NOT BLOCK. It is not a required status check on `main`, and that
+# is a recorded decision rather than an oversight: branch protection is UNREACHABLE on this
+# repository — `gh api repos/:owner/:repo/branches/main/protection` returns
+# `403 — Upgrade to GitHub Pro or make this repository public` (probed 2026-09-04, plan 19-08),
+# and rulesets return the same. It is a visibility-or-billing decision held by the PM, recorded
+# in `19-08-SUMMARY.md` and `.planning/WINDOWS.md`. The second prerequisite stands beside it:
+# the suite has never once been green. A required check that is red on arrival is a wall, not a
+# gate. Everything above makes this gate harder to DETACH; none of it makes it BLOCKING.
 # ============================================================================================
 
 name: ci
