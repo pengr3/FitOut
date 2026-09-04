@@ -123,25 +123,64 @@ async function assertOwnership(listingId: string, userId: string) {
  * carries rather than from intent: the insert below writes exactly four values, so everything else
  * on a fresh row is NULL or a column default. The predicate therefore asks for a row that is still
  * in precisely that state — `deleted_at IS NULL`, `status = 'draft'`, `title IS NULL`,
- * `updated_at = created_at`, and no child row in `listing_photo` or `operating_hours`.
+ * `updated_at = created_at`, and no child row in `listing_photo`, `operating_hours` or
+ * `availability_block`.
  *
  * WHY THE TIMESTAMP COMPARISON CARRIES THE MEANING. `schema.ts:264-267` declares
  * `updatedAt: timestamp(...).defaultNow().$onUpdate(() => new Date()).notNull()`, and Drizzle's
  * `$onUpdate` fires on EVERY `db.update()` through this table object. Every write path in the app
- * goes through it — `saveListingStep`, publish, unlist, soft-delete, the LVER-03 re-review flip
- * (`grep -n 'update(listing)' src/` returns this file at four sites plus
- * `src/lib/listing/re-review.ts:195`, and nothing else). So "the host has done literally anything to
- * this row" collapses to ONE comparison that will not drift as the schema grows twenty more columns.
+ * goes through it — `saveListingStep`, publish, unlist, soft-delete, the LVER-03 re-review flip. So
+ * "the host has done literally anything to this row" collapses to ONE comparison that will not
+ * drift as the schema grows twenty more columns.
  * ⚠ Its one real limit, stated rather than hidden: `$onUpdate` is a DRIZZLE-CLIENT HOOK, NOT A
  * DATABASE TRIGGER. A raw-SQL `UPDATE listing SET …` bypassing Drizzle would not bump it.
  *
- * WHY THE TWO `NOT EXISTS` CONJUNCTS ARE NOT BELT-AND-BRACES. `listing-photo.ts:294` inserts into
+ * ⚠ CENSUSING THOSE WRITERS TAKES TWO PATTERNS, NOT ONE, AND THIS SENTENCE USED TO CLAIM OTHERWISE.
+ * It previously said that `grep -n 'update(listing)' src/` returns this file at four sites plus
+ * `src/lib/listing/re-review.ts`, "and nothing else". That is a true grep and a FALSE CENSUS: the
+ * Drizzle call site is only one of the two ways this row gets written, and the pattern is blind to
+ * the other. The method is (1) the Drizzle `update(listing)` call sites AND (2) raw-SQL statements
+ * against the table, which the first pattern cannot see. Run against pattern 2, the single-pattern
+ * grep was missing `src/app/actions/ops-review.ts:667` and `src/app/actions/ops-review.ts:751`, two
+ * `db.execute(sql\`UPDATE listing …\`)` statements. BOTH OF THEM SET `updated_at = now()`
+ * EXPLICITLY, so each pushes a row toward the TOLERABLE ("too tight") direction rather than the
+ * unacceptable one — which is why this correction fixes a METHOD and not a bug. The raw-SQL half is
+ * now machine-checked by `tests/design/listing-reuse-predicate-census.test.ts`, which asserts over
+ * comment-stripped source that every raw `UPDATE` of this row sets `updated_at` before its `WHERE`,
+ * so the census cannot silently go stale again the way this paragraph did.
+ *
+ * WHY THE THREE `NOT EXISTS` CONJUNCTS ARE NOT BELT-AND-BRACES. `listing-photo.ts:294` inserts into
  * `listing_photo` inside a transaction and does NOT update the `listing` row; `operating-hours.ts:165-167`
- * does the same for `operating_hours` (measured, both). So a host who minted a draft, uploaded a
- * cover photo and abandoned it has `updated_at = created_at` AND a photo — and without these
- * conjuncts a second *Create listing* would silently adopt that photo into what the host believes is
- * a brand-new listing. `title IS NULL` genuinely IS belt-and-braces (the timestamp term should
- * already imply it) and is kept anyway, because every extra conjunct can only make reuse RARER.
+ * does the same for `operating_hours`; `src/app/actions/blocks.ts`'s `addBlock` does the same for
+ * `availability_block`, inserting a subtractive block and performing no update of the listing row
+ * (measured, all three). So a host who minted a draft, uploaded a cover photo and abandoned it has
+ * `updated_at = created_at` AND a photo — and a host who blocked dates on a draft from the
+ * Availability page has `updated_at = created_at` AND a blackout — and without these conjuncts a
+ * second *Create listing* would silently adopt that work into what the host believes is a brand-new
+ * listing. `title IS NULL` genuinely IS belt-and-braces (the timestamp term should already imply it)
+ * and is kept anyway, because every extra conjunct can only make reuse RARER.
+ * ⚠ `availability_block` WAS THE THIRD INSTANCE OF ONE CLASS, AND TWO PROSE CENSUSES MISSED IT
+ * (19-VERIFICATION gap 1 / 19-REVIEW CR-02) — each of the two earlier fixes closed the instance in
+ * front of it and re-asserted completeness in a comment. A comment cannot be re-run and cannot be
+ * watched go red, which is why completeness is now a CHECKED PROPERTY; see the paragraph below.
+ *
+ * HOW A FOURTH CHILD TABLE GETS CAUGHT. `tests/design/listing-reuse-predicate-census.test.ts` is a
+ * standing, DB-free, build-blocking gate: it derives from `src/lib/db/schema.ts` at runtime every
+ * table declaring `.references(() => listing.id`, and requires each one to be EITHER covered by a
+ * `NOT EXISTS` conjunct here OR carry a written exemption reason there. An eighth child table
+ * reddens it BY NAME until someone decides which. The four exemptions and their reasons, so a reader
+ * of this function need not open the test to learn what was decided:
+ *   • `listing_amenity` — written only by `saveListingStep`, inside the SAME `db.transaction` as its
+ *     `.update(listing).set(patch)` whose `patch` sets `updatedAt` explicitly; the timestamp term
+ *     already catches it.
+ *   • `listing_activity_tag` — identical writer, identical transaction, identical reason.
+ *   • `listing_review` — the D-221 ops review-HISTORY table (not a guest review). Its only writer,
+ *     `markForReReview`, appends a row solely when its preceding Drizzle `update(listing)` moved a
+ *     row (so `$onUpdate` already fired), and that update is guarded to
+ *     `review_state IN (approved, grandfathered, rejected)` while a fresh draft defaults to
+ *     `pending` — a 0-row no-op on any draft.
+ *   • `booking` — a draft is never bookable: `deriveBookable` requires `status = 'published'` AND an
+ *     `operating_hours` row, so no draft can carry one.
  *
  * WHY EVERY AMBIGUITY RESOLVES TOWARD TIGHTNESS — the two failure directions are NOT symmetric:
  *   • TOO LOOSE: the host presses *Create listing* to start their SECOND space, lands in the wizard
@@ -171,8 +210,11 @@ async function assertOwnership(listingId: string, userId: string) {
  *
  * ⚠ `saveListingStep` STAYS UNGATED (D-270). This branch changes what `createDraftListing` RETURNS;
  * nothing about what the wizard may WRITE changes. See that function's own note.
- * PINNED BY: `tests/listing/crud.test.ts` — the three D-02 cases. Delete the timestamp conjunct and
- * "(D-02 · case 2)" reddens by name.
+ * PINNED BY: `tests/listing/crud.test.ts` — the four D-02 cases. Delete the timestamp conjunct and
+ * "(D-02 · case 2)" reddens by name; delete the `availability_block` conjunct and
+ * "(D-02 · case 4) a draft with an availability_block is never reused, even though updated_at =
+ * created_at" reddens by name. The completeness of the conjunct SET is pinned separately, by
+ * `tests/design/listing-reuse-predicate-census.test.ts`.
  */
 export async function createDraftListing(): Promise<ListingResult> {
   const userId = await requireUserId();
