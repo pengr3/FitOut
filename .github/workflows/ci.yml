@@ -1107,12 +1107,35 @@ jobs:
     runs-on: ubuntu-latest
 
     # THE FULL SUITE'S CI WALL-CLOCK IS UNMEASURED BY CONSTRUCTION (D-13) — this job is what
-    # measures it. The cap below is A STOP, NOT AN ESTIMATE: the real number does not exist yet,
-    # and without a cap a suite that wedges holds a runner for six hours. Revise it from the
-    # first green run's number, and record that number rather than guessing a new one.
+    # measures it. The cap below is A STOP, NOT AN ESTIMATE: without a cap a suite that wedges
+    # holds a runner for six hours.
+    #
+    # RAISED ONCE, 45 → 90, ON MEASURED EVIDENCE (plan 19-08, 2026-09-04). The first real run of
+    # this job — run 33837652193, job 100913340558, on the `dev` push at 04:40:09Z — EXPIRED at the
+    # 45-minute cap. It is recorded here rather than tidied away, because the expiry is the
+    # measurement:
+    #
+    #   * `Running 460 tests using 1 worker` — 460 tests across 39 spec files. `workers` is
+    #     unset in playwright.config.ts, so it defaults to half the logical cores, and a 2-core
+    #     ubuntu-latest runner gives ONE worker. The suite is therefore SERIAL here, which is the
+    #     single largest term in this number and the thing any sharding decision would attack.
+    #   * Setup to first test: 4m 22s (containers 58s, checkout 3s, setup-node 7s, `npm ci` 2m 49s,
+    #     mail refusal 0s, migrate 1s, seed 1s).
+    #   * Suite step: 04:44:11Z → cancelled 05:25:17Z, i.e. 40m 46s, in which it completed 35 of the
+    #     39 spec files (537 result lines: 383 passed, 38 failed, 116 skipped). The four it never
+    #     reached are skeleton-geometry, stale-session-selfheal, tabular-figures and
+    #     zero-result-relax.
+    #   * Linear projection: 40m 46s × 39/35 ≈ 45m 26s of suite, + 4m 22s of setup ≈ 50 minutes.
+    #
+    # 90 is that ~50-minute projection with ~1.8× headroom, and the headroom is not padding: the
+    # four unreached specs are unmeasured, and `retries: 2` means a newly-failing test costs three
+    # attempts rather than one.
+    #
+    # ⚠ THIS CAP HAS NOW BEEN RAISED ONCE AND MUST NOT BE RAISED AGAIN. A suite that cannot finish
+    # inside 90 minutes is the sharding conversation D-13 defers, not a configuration one.
     # ⚠ Once this job is a required check, an expiry here is a RED, and the correct response is
     # D-13's sharding decision — never raising the cap silently.
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     # IN the pinned Playwright image, not on the bare runner. Job 3's three arguments apply
     # unchanged:
