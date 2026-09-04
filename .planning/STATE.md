@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: executing
-stopped_at: Completed 19-12-PLAN.md
-last_updated: "2026-09-04T15:49:35.444Z"
+stopped_at: Completed 19-13-PLAN.md
+last_updated: "2026-09-04T16:11:00.969Z"
 last_activity: 2026-09-04
-last_activity_desc: Phase 19 execution started
-state_head: 31f6df503761834966d0a352fe6a410723e4c3d5
+last_activity_desc: 19-13 closed CR-01 and CR-02 (gap closure); 48 invariants green
+state_head: c9aa7908270cc562bd6fc421f215945203e2f6d8
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 43
-  completed_plans: 42
+  completed_plans: 43
   percent: 14
 ---
 
@@ -73,10 +73,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — READY TO EXECUTE
-Plan: 12 of 12 (all plans executed; 12 PLAN / 12 SUMMARY on disk)
-Status: Phase 19 plans complete — ready for re-verification
-Last activity: 2026-09-04 — Phase 19 execution started
+Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
+Plan: 13 of 13
+Status: All 13 plans executed (13 SUMMARYs on disk) — ready for re-verification
+Last activity: 2026-09-04 — 19-13 closed CR-01 and CR-02; all 48 workflow invariants green
 
 ## Performance Metrics
 
@@ -434,6 +434,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19 P10 | 20 min | 3 tasks | 6 files |
 | Phase 19 P11 | 3 min | 2 tasks | 2 files |
 | Phase 19 P12 | 13 min | 3 tasks | 5 files |
+| Phase 19 P13 | 12 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1411,6 +1412,9 @@ Recent decisions affecting current work:
 - [Phase 19]: 19-11: WR-02's measured hole in the D-14 mail scan (container.env / services.*.env are not walked) is NAMED in ci.yml's header rather than closed. Widening the scan was outside this gap-closure run's assigned scope, and an unnamed known hole is the same defect class as the stale header this plan corrected.
 - [Phase 19]: D-14's RUNTIME half is PROMOTED to the primary assertion of the mail control: only the half that reads the job's real process environment can observe the environment the suite runs in. The PARSE half is re-described as workflow-file hygiene over env: KEYS, which protects the NEXT run, never the current one — gate-db-free and gate-e2e declare no needs:, start in parallel, and GitHub cancels neither. — The previous form tested a GitHub Actions env EXPRESSION context, built exclusively from env: maps in the workflow file, so it could fire only on the one input the parse half already rejects the file for. Real coverage was zero, and the header leaned on it to cover a container.env hole it could not see either.
 - [Phase 19]: A value shared by a checker and the thing it checks is spelled ONCE and READ, never copied: scripts/refuse-mail-credential.mjs reads MAIL_KEY_PREFIX out of scripts/verify-workflows.mjs with the same pattern an invariant asserts all three sites share, and a third conjunct asserts the reader holds no copy of the value. — A second spelling is a second source of truth wearing the costume of a constant — the drift class this phase spent three plans on. Watched red under two independent reformatting mutations.
+- [Phase 19]: 19-13: the argv[2] prefix-source override was REMOVED, not gated behind an env flag — a test-only escape hatch reachable on the production path is not a harness, it is the hole. Both hard stops are now reached by running a COPY of the script from a mkdtemp directory.
+- [Phase 19]: 19-13: an invariant that pins an INVOCATION compares for EXACT equality after trim(), never containment. run.includes(script) was satisfied by every argument list; `node <script>` and `node <script> <anything>` must land on opposite sides of the check.
+- [Phase 19]: 19-13: a gate-bearing property is quantified over every unit that can carry a condition (the job AND every step), not over the unit that happened to be assumed singular. One check was WIDENED rather than a second added, holding the invariant total at 48.
 
 ### Pending Todos
 
@@ -1592,8 +1596,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-04T15:02:43.622Z
-Stopped at: Completed 19-12-PLAN.md
+Last session: 2026-09-04T16:10:47.471Z
+Stopped at: Completed 19-13-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
