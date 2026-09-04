@@ -232,15 +232,33 @@
 #          Playwright command exists", because the project name is what selects the whole
 #          functional set, and a bare invocation would also collect job 4's `visual` project
 #          and its committed baselines (19-11);
-#       3. the job asserted UNCONDITIONAL — no job-level `if:`, no `continue-on-error: true`,
-#          either of which detaches the gate while every parsed invariant stays green (19-11);
+#       3. ⚠ FALSIFIED 2026-09-04 BY PLAN 19-13 (review finding CR-02). THE CLAIM WAS: the job
+#          asserted UNCONDITIONAL — no job-level `if:`, no `continue-on-error: true`, either of
+#          which detaches the gate while every parsed invariant stays green (19-11). That was
+#          true of the JOB, and ONLY of the job. 19-VERIFICATION.md added `continue-on-error:
+#          true` as a third line under the mail-refusal step and watched all 48 invariants stay
+#          green while that step's non-zero exit could no longer fail the job — so the only half
+#          of D-14 that protects the CURRENT run was detached with every parsed invariant
+#          intact. WHAT REPLACED IT: the check quantifies over the JOB *AND EVERY STEP* of
+#          `gate-e2e`, and its evidence line names each offending step in declared order
+#          (`step[<index>]` for an unnamed one). A gate step that cannot fail the job is not a
+#          gate; it is a report;
 #       4. the SEED asserted to run BEFORE the suite, compared by INDEX and not by presence —
 #          a seed after the suite is a seed that changed nothing (19-11);
 #       5. the MAIL REFUSAL asserted to read the REAL PROCESS ENVIRONMENT — the step exists by
 #          exact name, its `run:` names the committed refusal script, it carries no Actions
-#          context expression, and it declares NO `env:` map at all. All four conjuncts,
-#          because the inert shape this replaced satisfied "the step exists and runs
-#          something" perfectly (19-12);
+#          context expression, and it declares NO `env:` map at all (19-12);
+#          ⚠ FALSIFIED 2026-09-04 BY PLAN 19-13 (review finding CR-01). THE CLAIM WAS: "All
+#          four conjuncts, because the inert shape this replaced satisfied 'the step exists and
+#          runs something' perfectly." That reasoning is right and is kept — the COUNT was the
+#          hole. The `run:` conjunct was a CONTAINMENT test, which every argument list in the
+#          world satisfies: 19-VERIFICATION.md appended a decoy prefix source to this step's
+#          `run:` and watched all 48 invariants stay green while the script read its detection
+#          prefix out of that decoy and exited 0 with a provider-named variable live in the
+#          environment. WHAT REPLACED IT: FIVE conjuncts, the load-bearing one comparing this
+#          step's `run:` for EXACT equality with the no-argument invocation, so
+#          `node <script> <anything>` is red. NO ARGUMENTS is a checked property now, not a
+#          documented intention;
 #       6. the TWO HALVES asserted UNDRIFTABLE — the provider's prefix is declared once in
 #          `scripts/verify-workflows.mjs`, that declaration still matches the shared pattern,
 #          the refusal script carries that pattern's source text verbatim, and the refusal
@@ -253,6 +271,18 @@
 #     over a job that installed npm and stopped. All three were watched RED under a deliberate
 #     mutation of this file, each reverted byte-identical, before being trusted. 5, 6 and 7 were
 #     watched RED the same way, under six mutations of this file and of the two scripts.
+#     PLAN 19-13 ADDED SIX MORE, for TWELVE observed reds in total: the argument injection on
+#     entry 5's `run:`; `continue-on-error: true` on the mail-refusal step; `if: false` on that
+#     same step; `continue-on-error: true` on the seed step, proving the quantifier reaches EVERY
+#     step and not the refusal step by name; `continue-on-error: true` at JOB level, as the
+#     regression proof that widening entry 3 did not drop what 19-11 shipped; and the same on an
+#     UNNAMED step, proving the offender report falls back to `step[<index>]` off the FULL step
+#     list. Each was applied to this file, measured against the checker, restored byte-identical,
+#     and followed by an empty `git status --porcelain .github/workflows/`.
+#     ⚠ THE LIST STAYS SEVEN AND THE TOTAL STAYS 48, ON PURPOSE. Both 19-13 changes TIGHTEN an
+#     invariant that already existed — entry 5 gained a fifth conjunct, entry 3 gained a step
+#     quantifier — so no `check()` was added and none was dropped. A reader who counts 49 should
+#     look for an invariant added out of turn, and one who counts 47 for one deleted.
 #
 #   * ACROSS `.github/workflows/` THE MAIL-PROVIDER TOKEN APPEARS ZERO TIMES, asserted in the
 #     checker rather than by a human remembering to run a count, and over RAW TEXT so that a
@@ -268,7 +298,12 @@
 #         the mail provider is present in the job's REAL PROCESS ENVIRONMENT. It runs a committed
 #         script (`scripts/refuse-mail-credential.mjs`) that reads `process.env` — the same source
 #         `env |` prints — and reads the provider's prefix out of the checker that owns it, so the
-#         two sites hold ONE spelling between them rather than two;
+#         two sites hold ONE spelling between them rather than two; AND IT TAKES NO ARGUMENTS,
+#         refusing any before it reads a file or the environment, because its prefix source is
+#         resolved from the script's own location and cannot be redirected by input — enforced on
+#         this file's side by Invariant A's exact-invocation conjunct (entry 5 above) and on the
+#         script's side by cases 7 and 8 of `tests/design/mail-credential-refusal.test.ts`, which
+#         `npm run build` runs (19-13, review finding CR-01);
 #         ⚠ FALSIFIED 2026-09-04 BY PLAN 19-12 (review finding CR-01). THE CLAIM WAS: this step
 #         reads the key through a deliberately differently-named step `env:` key, so the parse half
 #         does not fire on a CORRECT file. It did, and that carve-out was real — but the GitHub
