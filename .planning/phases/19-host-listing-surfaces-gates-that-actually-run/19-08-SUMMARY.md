@@ -458,3 +458,14 @@ known to exist; its database is not.
 ---
 *Phase: 19-host-listing-surfaces-gates-that-actually-run*
 *Completed: 2026-09-04*
+
+## Self-Check: PASSED
+
+All claimed artifacts exist on disk; all nine claimed commits resolve in this repository, plus
+`9619f0b` on PR #1's head branch. `node scripts/verify-workflows.mjs` exits **0** at **41 invariants**
+(`baselines=11, ci=23, cross=7`). `d5a7425` touches `scripts/verify-workflows.mjs` **only** — `ci.yml`
+is unmodified by it, confirming both watched-red mutations were reverted byte-identical.
+`ls e2e/*.spec.ts | wc -l` = **39**, matching the denominator D-13's number is recorded against.
+
+**One claim in this summary is deliberately NOT self-checkable and is not asserted:** the conclusion of
+`pull_request` run `33848817412`. It was in flight and was not polled.
