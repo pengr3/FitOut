@@ -446,7 +446,7 @@ is cheap, independent, and because `CI-01` makes every later phase's gates capab
   4. Opening a pull request **runs the repository's functional Playwright specs**, and a failing spec
      turns the run red — proven by watching one fail, not by reading the workflow file.
 
-**Plans**: 1/8 plans executed, 8 waves (worktrees are OFF, so waves express dependency order, not concurrency).
+**Plans**: 2/8 plans executed, 8 waves (worktrees are OFF, so waves express dependency order, not concurrency).
 Order is the research's: `CI-01 → HSURF-01 → HSURF-02`, with CI-01's required-check flip held to the
 end because it can only be justified by a watched red that needs this phase's own specs to exist.
 
@@ -457,7 +457,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 19-02-PLAN.md — the grid fixture and the two HSURF-01 guards, watched RED against the pre-fix tree (HSURF-01)
+- [x] 19-02-PLAN.md — the grid fixture and the two HSURF-01 guards, watched RED against the pre-fix tree (HSURF-01)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 

@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: executing
-stopped_at: Completed 19-01-PLAN.md
-last_updated: "2026-09-04T01:26:33.274Z"
+stopped_at: Completed 19-02-PLAN.md
+last_updated: "2026-09-04T01:49:20.642Z"
 last_activity: 2026-09-04
 last_activity_desc: Phase 19 execution started
-state_head: 1839a2f0a02ad5df5300f0aecb546d2a848aab47
+state_head: 3f95b1763efc70bf82e13dff4ee60ed87825dd6f
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 38
-  completed_plans: 31
+  completed_plans: 32
   percent: 14
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-09-04 — Phase 19 execution started
 
@@ -423,6 +423,7 @@ deferred walk is inconsistent rather than honest.*
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 19 P01 | 19 min | 2 tasks | 2 files |
+| Phase 19 P02 | 20 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1374,6 +1375,9 @@ Recent decisions affecting current work:
 - [Phase 19]: gate-e2e ships as a NEW fifth CI job, never as a widening of gate-price-parity (D-12) — Job 3's identity in the D-24 taxonomy is that it runs ONE self-contained spec; widening it silently re-opens the surface it was scoped to close. Asserted by a git diff deletion count of 0 rather than by intent.
 - [Phase 19]: D-14's mail-credential refusal is implemented in TWO places with deliberately different env-key spellings — The runtime step inside gate-e2e uses MAIL_KEY_UNDER_TEST and reads the provider key via a context expression in its VALUE; the parse invariant in verify-workflows.mjs scans env KEYS on gate-db-free, catching it a minute earlier and across all five jobs. The asymmetry is why the two halves cannot fight each other.
 - [Phase 19]: gate-e2e's timeout-minutes: 45 is a documented wall-clock STOP, not an estimate (D-13) — The real number does not exist yet and this job is what measures it. The first green run's wall-clock replaces it; once the check is required, an expiry is a RED whose correct response is D-13's sharding decision, never a silently raised cap.
+- [Phase 19]: 19-02: host-listing-grid.spec.ts is deliberately NOT mode=serial — The first pre-fix run was serial and its 320px guard-B red skipped the other two bands, reporting one of six measurements. An instrument whose first finding suppresses the rest cannot answer which bands each guard failed at.
+- [Phase 19]: 19-02: geometry claims are expect.soft, vacuity gates stay hard — Guard A clause 2 and guard B are independent defects, so one failing must not hide the other. A measurement over an empty grid must still abort rather than report soft passes.
+- [Phase 19]: 19-02 took 19-04 Task 1's .next/dev evidence archive early — Task 3 boots a dev server via Playwright, and a fresh dev session rewrites app-paths-manifest.json. 19-04 had not run, so executing 19-02 as written would have destroyed the phase 404 investigation's primary subject.
 
 ### Pending Todos
 
@@ -1451,6 +1455,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - Follow-up (out-of-scope, task chip spawned 2026-07-10): Radix Tooltip SSR hydration mismatch at src/app/listings/[id]/page.tsx:267 (the "Not bookable yet" affordance) — client-recovered, not a 500; worth a cleanup. Also low-pri from 02-UAT: currency defaults to `usd` (should be PHP for the PH launch); no landing page at `/` (deferred to Phase 4).
 - [12-02, PRE-EXISTING] notFound() on /listings/[id] answers HTTP 200 in dev — status-only, no content leak (body is the not-found boundary). e2e/public-listing.spec.ts's two 404 cases are red at 6272c8f, before plan 12-02. See deferred-items.md; discriminator is npm run build && npm start.
 - ⚠ PM CHECKPOINT OPEN (18-14 Task 3, blocking, deferred 2026-09-01) — FIVE items, D-236 FIRST. (a) D-236: OPS_CANCEL_REFUNDS_SERVICE_FEE=false ships PM-4 as answered, but cancelBookingAsHost already refunds 100% INCLUDING the fee on the stated principle 'the booker did nothing wrong' (cancel-booking.ts:1134-1137). An ops cancel on a CONFIRMED-FAKE listing is a stronger instance of that, so FitOut is currently LESS generous to a defrauded booker than to one whose host merely flaked. One line at src/lib/payments/fees.ts:82; both branches already covered by tests/payments/ops-cancel.test.ts. (b) D-250: SUPPORT_EMAIL is null at src/lib/site.ts:70 — one line also closes carried-forward STATE-05 and TRUST-01; ⚠ supplying one INVERTS tests/design/site-contacts.test.ts, a follow-on task not a same-commit edit. (c) F11: should a suspended host be told on /host/earnings that a due session will never produce a payout row? (d) A4/D-231: 'photos' read as the photo SET with reorderPhotos excluded as non-material — confirm or overturn. (e) The KYC vendor — PayMongo / a standalone vendor / stay manual; to be recorded as a D-number so a future phase inherits it.
+- Phantom 404 reproduces on a FRESH dev process: every /host/* subroute served 404 against the surviving .next while /host served 307, with the route present in app-paths-manifest.json. Gone after rm -rf .next. No causal claim (D-11). 19-05 must read 19-02-SUMMARY Incidental finding before writing its probe protocol.
 
 ### Quick Tasks Completed
 
@@ -1551,8 +1556,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-04T01:26:19.963Z
-Stopped at: Completed 19-01-PLAN.md
+Last session: 2026-09-04T01:49:19.974Z
+Stopped at: Completed 19-02-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
