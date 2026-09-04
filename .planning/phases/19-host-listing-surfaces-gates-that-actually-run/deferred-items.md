@@ -94,3 +94,39 @@ D-219's intended property, or whether the 18-14 measurement was taken under diff
 (e.g. a dev server, where this comparison is provably invalid — `/ops` fetched twice differs from
 itself in `next dev`). The security-relevant properties tested here — 404 status, identical title, no
 ops-identifying strings — all hold. This is Phase 20 / ops-surface territory.
+
+---
+
+## D3 — The new routing guard went red once, and the discriminating status was NOT captured
+
+**Recorded by:** plan 19-06, at plan-level verification
+**File:** `e2e/host-route-reachability.spec.ts`
+**Disposition:** `OPEN — evidence lost, no cause named`
+
+**What happened.** During the plan's own `<verification>` step 3, one run of the newly-shipped
+routing guard reported **3 of 4 routes failing** — `/host/listings/new`,
+`/host/listings/route-reachability/edit` and `/host/listings/route-reachability/availability` — with
+`/host/listings` passing. Every other run of that file in this plan was green: **six consecutive
+green runs** (three before, three after), plus two further attempts that deliberately restaged the
+one condition that differed (an `npx tsc --noEmit` immediately preceding, in the same shell
+invocation). **Not reproduced.**
+
+**⚠ THE STATUS WAS NOT CAPTURED, AND THAT IS THE FAILURE HERE.** The command's `grep` filter was
+`^  ok|^  x|passed|failed`, which prints the per-test result lines but NOT the guard's own
+`… answered NNN. Expected 307.` line — the single datum that discriminates a 404 (the subject of
+this whole phase) from a 500, a connection reset, or a boot race. Playwright's `test-results/`
+artifacts for that run were cleared by the next run before they were read.
+
+**No cause is named** (D-11, and 19-RESEARCH Pitfall 3). It is not recorded as a reproduction of the
+phantom 404, because nothing measured says it was one. It is recorded as **an observation whose
+discriminating value was destroyed by how it was observed** — which is, with some irony, the same
+class of loss D-11 exists to prevent, one level up: the instrument fired and the reading was not
+taken.
+
+**What the next reader must do if this guard goes red.** Read the full failure message — do not
+filter it. Then, BEFORE re-running anything: capture the status per route, `next dev`'s stdout, and
+`.next/dev/server/app-paths-manifest.json` before and after the request. Per `19-FINDING-404.md § 8`
+that capture is **verdict B**, the scarcest thing in this investigation, and the only thing that can
+close unproven items (a) and (c). A re-run destroys it.
+
+Also logged to `.planning/WINDOWS.md` (entry 7).

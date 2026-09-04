@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 6
+open_count: 7
 waived_count: 0
 fixed_count: 0
-total_count: 6
-last_updated: 2026-09-04T03:18:49.016Z
+total_count: 7
+last_updated: 2026-09-04T03:47:25.067Z
 ---
 
 # Broken Windows Ledger
@@ -21,6 +21,7 @@ last_updated: 2026-09-04T03:18:49.016Z
 | 4 | 19 | deviation | .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-RESEARCH.md |  | 19-RESEARCH 5.1 claims 'eleven other untouched drafts owned by other accounts'; measured at execution time it is 49 across 49 distinct hosts, pre-existing (earliest 2026-08-29), none from this phase | open |  | 2026-09-04T02:35:40.065Z |  |
 | 5 | 19 | todo | .planning/phases/19-host-listing-surfaces-gates-that-actually-run/evidence/orphan-drafts-delete-result.txt |  | OPEN PM question, unanswered: D-01's window and host id are LOCAL facts, so a production database may hold orphan drafts this phase does not touch; if a deployed environment exists the scope must be re-derived there, not copied | open |  | 2026-09-04T02:35:40.684Z |  |
 | 6 | 19 | deviation | .planning/phases/19-host-listing-surfaces-gates-that-actually-run/evidence/probe-prod.txt |  | 19-05 Task 2: under a production build the /ops 404 body is NOT byte-identical to the root not-found (25970 vs 29644 bytes). Status control held (404 in both matrices) and no ops-identifying string leaks; /ops renders LESS shared chrome. Pre-existing (files last changed in 18-12 and 11-14), deferred not fixed — belongs to whoever owns D-219. | open |  | 2026-09-04T03:18:49.016Z |  |
+| 7 | 19 | unrun-verify | e2e/host-route-reachability.spec.ts |  | 19-06 Task 1: the new routing guard went RED ONCE (3 of 4 routes) during plan-level verification and the DISCRIMINATING STATUS WAS NOT CAPTURED — the grep filter in use did not include the 'answered' line and the run's artifacts were cleared by the next run. Six consecutive green runs before and after; not reproduced under a deliberate restage. No cause named (D-11). The next reader who sees this guard go red must capture the status, the dev-server stdout, and the manifest BEFORE re-running: that capture is verdict B and it is the only thing that closes 19-FINDING-404 items (a) and (c). | open |  | 2026-09-04T03:47:25.067Z |  |
 
 ````json
 [
@@ -94,6 +95,18 @@ last_updated: 2026-09-04T03:18:49.016Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-04T03:18:49.016Z",
+    "resolved_at": null
+  },
+  {
+    "id": 7,
+    "kind": "unrun-verify",
+    "phase": "19",
+    "file": "e2e/host-route-reachability.spec.ts",
+    "line": null,
+    "description": "19-06 Task 1: the new routing guard went RED ONCE (3 of 4 routes) during plan-level verification and the DISCRIMINATING STATUS WAS NOT CAPTURED — the grep filter in use did not include the 'answered' line and the run's artifacts were cleared by the next run. Six consecutive green runs before and after; not reproduced under a deliberate restage. No cause named (D-11). The next reader who sees this guard go red must capture the status, the dev-server stdout, and the manifest BEFORE re-running: that capture is verdict B and it is the only thing that closes 19-FINDING-404 items (a) and (c).",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-04T03:47:25.067Z",
     "resolved_at": null
   }
 ]
