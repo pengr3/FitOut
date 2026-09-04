@@ -11,6 +11,24 @@
 // `scripts/verify-workflows.mjs` already rejects the whole file for, and its real coverage was ZERO
 // (review finding CR-01, 2026-09-04; plan 19-12 replaced it).
 //
+// ── AND THE SECOND CR-01, ONE DAY LATER: THE ARGUMENT IS REMOVED, NOT GATED ───────────────────────
+//
+// 19-VERIFICATION.md then reproduced a fail-open in that replacement. The script accepted
+// `process.argv[2]` as an override of the file it reads its detection prefix from, so the invocation
+// `<provider-named variable>=… node scripts/refuse-mail-credential.mjs <decoy source>` exited 0 and
+// reported a clean scan while a live credential sat in the environment — and `.github/workflows/ci.yml`
+// could carry that same appended argument with all 48 invariants still green, because Invariant A only
+// asked whether the `run:` string CONTAINED the script's path. Plan 19-13 REMOVED the argument rather
+// than gating it: a test-only escape hatch that the thing being guarded against can also use is not a
+// harness, it is the hole. Cases 7 and 8 below are that exact invocation, now asserting exit 1.
+//
+// Removing it costs this file its old route to the two hard stops, which used to be reached by pointing
+// the argument at a decoy. They are now reached the only way left, and the honest one: `withScriptCopy`
+// runs a COPY of the script from a temp directory whose sibling `verify-workflows.mjs` is missing
+// (case 5, the READ stop) or carries no declaration (case 4, the PARSE stop). The script resolves its
+// prefix source from `import.meta.url` and from nothing else, so moving the script is now the only way
+// to move its source.
+//
 // ── WHY THIS FILE SPAWNS THE SCRIPT RATHER THAN IMPORTING IT ──────────────────────────────────────
 //
 // The contract `.github/workflows/ci.yml` consumes is a PROCESS EXIT CODE plus what the process
@@ -42,9 +60,9 @@
 
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { readFileSync, writeFileSync, rmSync } from "node:fs";
+import { copyFileSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, join, resolve } from "node:path";
 
 const SCRIPT = resolve(process.cwd(), "scripts/refuse-mail-credential.mjs");
 const PREFIX_SOURCE = resolve(process.cwd(), "scripts/verify-workflows.mjs");
@@ -99,6 +117,58 @@ function runRefusal(env: NodeJS.ProcessEnv, args: string[] = []) {
   return spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8", env });
 }
 
+/**
+ * The decoy prefix source 19-VERIFICATION.md used to reproduce the CR-01 fail-open: a file that
+ * PARSES, so the pre-19-13 script read `ZZUNUSED` out of it, matched nothing, and exited 0 with a
+ * live credential in the environment. Cases 7 and 8 pass this exact shape, which is why they were
+ * RED (both exit 0) against the pre-change script rather than passing accidentally on a missing file.
+ * `ZZUNUSED` is not the provider's token and satisfies the declaration pattern's `[A-Z_]+`.
+ */
+const DECOY_DECLARATION = 'const MAIL_KEY_PREFIX = "ZZUNUSED";\n';
+
+/** Writes the decoy under `tmpdir()` and removes it afterwards, whatever the assertion does. */
+function withDecoySource(assert: (decoyPath: string) => void) {
+  const decoy = join(tmpdir(), `mail-prefix-decoy-${process.pid}-${Date.now()}.mjs`);
+  writeFileSync(decoy, DECOY_DECLARATION, "utf8");
+  try {
+    assert(decoy);
+  } finally {
+    rmSync(decoy, { force: true });
+  }
+}
+
+/**
+ * Runs a COPY of the refusal script from a throwaway directory, with NO arguments.
+ *
+ * This is how both hard stops are reached now that the prefix source cannot be redirected by input:
+ * the script resolves it as `./verify-workflows.mjs` relative to its OWN location, so the only way to
+ * hand it an unreadable or declaration-less source is to move the script next to one. `siblingText`
+ * of `null` writes no sibling at all (the READ stop); a string writes it (the PARSE stop when it
+ * carries no declaration). The directory is removed in a `finally` — a temp tree left behind by a
+ * design test is the same class of litter as a mutation left in the working tree.
+ */
+function withScriptCopy(
+  siblingText: string | null,
+  assert: (
+    result: ReturnType<typeof spawnSync<string>>,
+    paths: { copy: string; sibling: string },
+  ) => void,
+) {
+  const dir = mkdtempSync(join(tmpdir(), "mail-refusal-"));
+  try {
+    const copy = join(dir, basename(SCRIPT));
+    const sibling = join(dir, "verify-workflows.mjs");
+    copyFileSync(SCRIPT, copy);
+    if (siblingText !== null) writeFileSync(sibling, siblingText, "utf8");
+    assert(spawnSync(process.execPath, [copy], { encoding: "utf8", env: baseEnv() }), {
+      copy,
+      sibling,
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 describe("the mail-credential refusal reads the environment the job actually has", () => {
   it("exits 1 with an ::error:: line when a provider-named variable is in the child's environment", () => {
     const result = runRefusal({ ...baseEnv(), [VIOLATING_KEY]: SENTINEL });
@@ -127,21 +197,26 @@ describe("the mail-credential refusal reads the environment the job actually has
     expect(result.stdout).not.toContain("::error::");
   });
 
-  it("exits 1 naming the source path when the prefix declaration cannot be read", () => {
-    const decoy = join(tmpdir(), `mail-prefix-decoy-${process.pid}-${Date.now()}.mjs`);
-    writeFileSync(decoy, "// a source file that carries no prefix declaration at all\n", "utf8");
-    try {
-      const result = runRefusal(baseEnv(), [decoy]);
-
+  it("exits 1 naming the source path when the prefix declaration cannot be PARSED", () => {
+    withScriptCopy("// a source file that carries no prefix declaration at all\n", (result, paths) => {
       expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
       expect(
         result.stdout.split("\n").some((line) => line.startsWith("::error::")),
         `stdout carried no line beginning "::error::":\n${result.stdout}\n${result.stderr}`,
       ).toBe(true);
-      expect(result.stdout).toContain(decoy);
-    } finally {
-      rmSync(decoy, { force: true });
-    }
+      expect(result.stdout).toContain(paths.sibling);
+    });
+  });
+
+  it("exits 1 naming the missing path when the prefix source cannot be READ at all", () => {
+    withScriptCopy(null, (result, paths) => {
+      expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
+      expect(
+        result.stdout.split("\n").some((line) => line.startsWith("::error::")),
+        `stdout carried no line beginning "::error::":\n${result.stdout}\n${result.stderr}`,
+      ).toBe(true);
+      expect(result.stdout).toContain(paths.sibling);
+    });
   });
 
   it("prints the offending variable NAME and never its VALUE", () => {
@@ -149,5 +224,31 @@ describe("the mail-credential refusal reads the environment the job actually has
 
     expect(result.stdout).toContain(VIOLATING_KEY);
     expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
+  });
+
+  it("refuses ANY argument outright, and never reports a completed scan after one", () => {
+    withDecoySource((decoy) => {
+      const result = runRefusal(baseEnv(), [decoy]);
+
+      expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
+      expect(
+        result.stdout.split("\n").some((line) => line.startsWith("::error::")),
+        `stdout carried no line beginning "::error::":\n${result.stdout}\n${result.stderr}`,
+      ).toBe(true);
+      // The clean-scan report. A green scan of a source somebody else chose must never be
+      // mistakeable for a pass — so its absence is asserted, not merely the exit code.
+      expect(result.stdout).not.toContain("0 begin with it");
+    });
+  });
+
+  // 19-VERIFICATION.md MEASURED this exact invocation at exit 0 with a provider-named variable
+  // present in the environment and a decoy prefix source passed as `argv[2]` — the fail-open this
+  // case exists to keep closed.
+  it("exits 1 on the measured CR-01 fail-open: an argument AND a provider-named variable present", () => {
+    withDecoySource((decoy) => {
+      const result = runRefusal({ ...baseEnv(), [VIOLATING_KEY]: SENTINEL }, [decoy]);
+
+      expect(result.status, `stdout:\n${result.stdout}\nstderr:\n${result.stderr}`).toBe(1);
+    });
   });
 });
