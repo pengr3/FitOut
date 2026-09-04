@@ -8,7 +8,7 @@ status: executing
 stopped_at: "Completed 19-10-PLAN.md — GAP 2 closed: createDraftListing resolves instead of throwing, the two race windows route to /host/verify and /login, and a build-blocking census keeps the refusal set and the router in agreement"
 last_updated: "2026-09-04T12:19:15.853Z"
 last_activity: 2026-09-04
-last_activity_desc: 19-09 executed — D-02 availability_block conjunct + census gate
+last_activity_desc: 19-10 executed — D-03 failure signal made reachable + refusal routing
 state_head: 318ecf4d7486b7840b1ffc0d21c2589e98b6246f
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
