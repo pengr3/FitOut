@@ -763,17 +763,32 @@ if (sections.includes("ci")) {
   //    this job, or any step in it, is genuinely meant to become conditional or soft-failing, remove
   //    this invariant in the same commit and say why in it — exactly as the hard stop above demands
   //    for a deliberate deletion. A gate step that cannot fail the job is not a gate; it is a report.
+  //
+  //    PRESENCE, NOT VALUE, AND THE MEASUREMENT THAT BOUGHT IT (review finding CR-02, third round).
+  //    `continue-on-error` is DOCUMENTED as accepting an EXPRESSION, not only a literal boolean —
+  //    `${{ matrix.experimental }}` is GitHub's own canonical example — and an expression parses to a
+  //    STRING. So `=== true` was false and `!== true` was true for the SAME input: both directions of
+  //    the value comparison stayed green while the step's non-zero exit could no longer fail the job.
+  //    A quoted `"true"` defeats it identically. 19-VERIFICATION.md reproduced the expression form
+  //    and watched all 48 invariants hold.
+  //
+  //    Note the asymmetry that lived INSIDE this one expression until now: `if:` was tested for
+  //    PRESENCE, which is correct and expression-proof, while `continue-on-error` beside it was
+  //    tested for VALUE, which is not. THE RULE THAT REPLACES IT: a key that should never appear on a
+  //    gate has NO LEGITIMATE VALUE TO CARVE OUT, so every value comparison is one alternative
+  //    spelling away from green. `continue-on-error: false` on a gate step is noise to DELETE, not a
+  //    value to permit.
   const conditionalSteps = stepsOf(e2e)
     // Index from the FULL step list, before filtering, so `step[2]` names the third step of the job
     // rather than the third offender. Declared order is preserved and nothing is sorted or de-duped:
     // two offending steps must stay distinguishable and the line must be stable across runs.
     .map((s, i) => ({ step: s, label: String(s?.name ?? `step[${i}]`) }))
-    .filter(({ step }) => step?.if !== undefined || step?.["continue-on-error"] === true)
+    .filter(({ step }) => step?.if !== undefined || step?.["continue-on-error"] !== undefined)
     .map(({ label }) => label);
   check(
-    `"${CI_E2E_JOB}" is unconditional — no if:, no continue-on-error: true, on the JOB or on ANY STEP`,
+    `"${CI_E2E_JOB}" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP`,
     e2e?.if === undefined &&
-      e2e?.["continue-on-error"] !== true &&
+      e2e?.["continue-on-error"] === undefined &&
       conditionalSteps.length === 0,
     `job if=${JSON.stringify(e2e?.if ?? null)}  ` +
       `job continue-on-error=${JSON.stringify(e2e?.["continue-on-error"] ?? null)}  ` +
@@ -881,16 +896,44 @@ if (sections.includes("ci")) {
   // C. IT RUNS BEFORE ANYTHING BOOTS, COMPARED BY INDEX — same shape as the seed check above.
   //    Presence is not the property here either: the whole value of this control is that a violation
   //    costs SECONDS instead of a suite of real mail, and a refusal that runs after migrate, seed or
-  //    Playwright is a refusal that fires once the sends have already left. `npm ci` is allowed to
-  //    precede it — nothing can run before the dependencies are installed.
+  //    Playwright is a refusal that fires once the sends have already left. Checkout, Node setup and
+  //    `npm ci` are allowed to precede it — nothing can run before the dependencies are installed.
+  //
+  //    THE PREDECESSOR TEST MOVED FROM RUN COMMANDS TO STEPS, AND WHY (review finding WR-05). The
+  //    superseded computation ran over `runsOf(e2e)`, which filters to steps carrying a STRING `run:`
+  //    — so `uses:` steps were not permitted-by-decision, they were INVISIBLE BY CONSTRUCTION, absent
+  //    from the very list the predicate examined. Any number of them could sit ahead of the refusal
+  //    without moving its index, while this invariant's own name claimed only `npm ci` may precede.
+  //    The supply-chain invariant restricts them to first-party actions, and one first-party action
+  //    alone can run arbitrary JavaScript in the job before the only control that protects the
+  //    CURRENT run fires. The position is therefore computed over the FULL step list now, against an
+  //    explicit allow-list of the three things that may precede.
+  //
+  //    ⚠ THE TRAILING `@` IS LOAD-BEARING. A bare prefix test would also admit an action whose name
+  //    merely BEGINS with a permitted one.
+  const e2eSteps = stepsOf(e2e);
+  const E2E_PRECEDE_USES_OK = ["actions/checkout", "actions/setup-node"];
+  const E2E_PRECEDE_RUN_OK = "npm ci";
+  const iE2eStepRefuse = e2eSteps.findIndex((s) =>
+    String(s?.run ?? "").includes(MAIL_REFUSAL_SCRIPT),
+  );
+  const e2ePrecede = iE2eStepRefuse >= 0 ? e2eSteps.slice(0, iE2eStepRefuse) : [];
+  const describeStep = (s) =>
+    s?.uses !== undefined ? `uses:${String(s.uses)}` : `run:${String(s?.run ?? "").trim()}`;
+  const onlySetupBefore =
+    iE2eStepRefuse >= 0 &&
+    e2ePrecede.every(
+      (s) =>
+        String(s?.run ?? "").trim() === E2E_PRECEDE_RUN_OK ||
+        E2E_PRECEDE_USES_OK.some((u) => String(s?.uses ?? "").startsWith(`${u}@`)),
+    );
   const iE2eRefuse = e2eRuns.findIndex((r) => r.includes(MAIL_REFUSAL_SCRIPT));
   const iE2eMigrate = e2eRuns.findIndex((r) => r.includes("db:migrate"));
-  const onlyInstallBefore =
-    iE2eRefuse >= 0 && e2eRuns.slice(0, iE2eRefuse).every((r) => r.trim() === "npm ci");
   check(
-    `"${CI_E2E_JOB}" refuses a live mail credential BEFORE it migrates, seeds or boots the suite`,
+    `"${CI_E2E_JOB}" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY ${E2E_PRECEDE_USES_OK.join("@, ")}@ and \`${E2E_PRECEDE_RUN_OK}\` may precede it, over the FULL step list`,
     iE2eRefuse >= 0 &&
-      onlyInstallBefore &&
+      iE2eStepRefuse >= 0 &&
+      onlySetupBefore &&
       iE2eMigrate >= 0 &&
       iE2eSeed >= 0 &&
       iE2ePlay >= 0 &&
@@ -898,8 +941,11 @@ if (sections.includes("ci")) {
       iE2eRefuse < iE2eSeed &&
       iE2eRefuse < iE2ePlay,
     `indices: refusal=${iE2eRefuse}  db:migrate=${iE2eMigrate}  db:seed=${iE2eSeed}  ` +
-      `playwright=${iE2ePlay}  (of ${e2eRuns.length} run commands; only \`npm ci\` may precede ` +
-      `the refusal, and that holds=${onlyInstallBefore})`,
+      `playwright=${iE2ePlay}  (of ${e2eRuns.length} run commands)  ` +
+      `refusal step index=${iE2eStepRefuse} (of ${e2eSteps.length} steps)  ` +
+      `precedes=[${e2ePrecede.map(describeStep).join(", ") || "(none)"}]  ` +
+      `permitted=[${E2E_PRECEDE_USES_OK.map((u) => `${u}@…`).join(", ")}, run:${E2E_PRECEDE_RUN_OK}]  ` +
+      `and that holds=${onlySetupBefore}`,
   );
 
   // ── THE COMPARISON JOB EXISTS. ITS ABSENCE IS A HARD STOP, NOT A FAILED CHECK ─────────────────
