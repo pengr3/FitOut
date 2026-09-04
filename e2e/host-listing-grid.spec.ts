@@ -230,7 +230,7 @@ async function measureBand(
         "The grid wrapper sets no `align-items`, so its items stretch to the row height and these " +
         "must agree. An `items-start` (or `items-*` of any kind) added to " +
         "src/app/(host)/host/listings/page.tsx:180 is what breaks this.",
-    ).toBe(2);
+    ).toBe(1);
   }
 
   // ── GUARD A, CLAUSE 2 — THE ONE THAT IS RED TODAY. ──────────────────────────────────────────────
