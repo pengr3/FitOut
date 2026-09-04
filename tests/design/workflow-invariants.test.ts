@@ -189,12 +189,58 @@ function withRefusalStepKey(line: string): (ci: string) => string {
   return (ci) => insertAfterLineContaining(ci, `- name: ${MAIL_STEP_NAME}`, `        ${line}`);
 }
 
-/** Inserts `line`, indented four spaces, immediately after the `gate-e2e:` job key line. */
-function withJobKey(line: string): (ci: string) => string {
+/**
+ * Inserts one line — or a whole BLOCK of lines — indented four spaces, immediately after the
+ * `gate-e2e:` job key line. The array form exists because a `defaults:` block is three lines deep
+ * and joining them here rather than at the call site is what keeps the EOL detected from the file
+ * being mutated; a caller that joined with `\n` would write LF into a CRLF copy and make the red
+ * red for the wrong reason.
+ */
+function withJobKey(lines: string | string[]): (ci: string) => string {
   const jobKeyDecl = /^const CI_E2E_JOB = "(.+)";$/m;
   const match = jobKeyDecl.exec(readFileSync(CHECKER, "utf8").replace(/\r\n/g, "\n"));
   const jobKey = match?.[1] ?? "gate-e2e";
-  return (ci) => insertAfterLineContaining(ci, `\n  ${jobKey}:`, `    ${line}`);
+  return (ci) => {
+    const block = (Array.isArray(lines) ? lines : [lines])
+      .map((l) => `    ${l}`)
+      .join(eolOf(ci));
+    return insertAfterLineContaining(ci, `\n  ${jobKey}:`, block);
+  };
+}
+
+/**
+ * Inserts a COMPLETE zero-indented block on its own lines immediately BEFORE the `jobs:` key line —
+ * i.e. at WORKFLOW level, outside every job. This is the level a step-key allow-list structurally
+ * cannot see: nothing it inserts appears among the refusal step's own keys, yet a `defaults.run.shell`
+ * here changes the interpreter for every step in the file, the refusal included.
+ */
+function withWorkflowLevelBlock(blockLines: string[]): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const anchor = `${eol}jobs:${eol}`;
+    const at = ci.indexOf(anchor);
+    if (at < 0) return ci;
+    const cut = at + eol.length;
+    return `${ci.slice(0, cut)}${blockLines.join(eol)}${eol}${ci.slice(cut)}`;
+  };
+}
+
+/**
+ * Removes the pull-request trigger line from the `on:` block, INCLUDING its line terminator, so no
+ * blank line is left behind to change the block's shape for a reason unrelated to the property under
+ * test. The anchor is the key exactly as it appears in the file — two-space indent, nothing after the
+ * colon — and a drifted anchor returns the input unchanged, landing on `withMutatedWorkflows`'s
+ * differs-from-input assertion rather than silently deleting something else.
+ */
+function withoutPullRequestTrigger(): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const line = "  pull_request:";
+    const anchor = `${eol}${line}${eol}`;
+    const at = ci.indexOf(anchor);
+    if (at < 0) return ci;
+    return `${ci.slice(0, at + eol.length)}${ci.slice(at + eol.length + line.length + eol.length)}`;
+  };
 }
 
 /**
@@ -233,6 +279,10 @@ const UNCONDITIONAL = "is unconditional";
 const REFUSAL_ORDERING = "refuses a live mail credential BEFORE it migrates";
 /** A fragment of Invariant A's printed name, stable across its 19-14 rename. */
 const MAIL_REFUSAL = "mail refusal reads the REAL process environment";
+/** A fragment of the execution-defaults invariant's printed name (new in plan 19-15). */
+const EXECUTION_DEFAULTS = "runs its steps with the runner's DEFAULT interpreter";
+/** A fragment of the trigger invariant's printed name (new in plan 19-15). */
+const CI_TRIGGERS = "runs on BOTH push and pull_request";
 
 describe("the workflow checker's own predicates, measured against a mutated copy", () => {
   // THE CONTROL. An identity mutation is impossible by construction (the differs-from-input
@@ -331,6 +381,46 @@ describe("the workflow checker's own predicates, measured against a mutated copy
   it("case 9: a uses: step inserted ahead of the refusal is red", () => {
     withMutatedWorkflows(withStepBeforeRefusal(["- uses: actions/github-script@v7"]), (result) => {
       expectRed(result, REFUSAL_ORDERING);
+    });
+  });
+
+  // CR-01's OUTER HALF (19-REVIEW.md, and 19-VERIFICATION.md gap 1's `missing:` bullet). Plan 19-14
+  // closed the step's own attribute surface with an allow-list; this reaches into `gate-e2e` from
+  // OUTSIDE the job entirely. The allow-list reads the keys ON the step, and a workflow-level
+  // `defaults:` block puts no key there — yet it sets the interpreter for every step below it,
+  // refusal included, with exactly the effect case 2 measured. `grep -n "shell\|defaults"` over the
+  // whole checker returned no matches before plan 19-15: neither level was read anywhere.
+  it("case 10: a workflow-level defaults: block is red", () => {
+    withMutatedWorkflows(
+      withWorkflowLevelBlock(["defaults:", "  run:", "    shell: cat {0}"]),
+      (result) => {
+        expectRed(result, EXECUTION_DEFAULTS);
+      },
+    );
+  });
+
+  // THE SECOND OF THE TWO WAYS IN, kept as its own case for the same reason cases 4 and 5 are two.
+  // A check that closed the workflow level and not the job level would be the same partial answer —
+  // "the axis that was measured rather than the axis the prose claims" — that this phase has now
+  // paid for across four rounds.
+  it("case 11: a job-level defaults: block on gate-e2e is red", () => {
+    withMutatedWorkflows(
+      withJobKey(["defaults:", "  run:", "    shell: cat {0}"]),
+      (result) => {
+        expectRed(result, EXECUTION_DEFAULTS);
+      },
+    );
+  });
+
+  // WR-01, AND THE ONE MUTATION THAT FALSIFIES THE REQUIREMENT ITSELF. 19-VERIFICATION.md deleted
+  // this single line from the tracked file, re-ran the checker and recorded `CHECKER-EXIT=0` with
+  // `(NO FAIL LINE)` and the summary line unchanged at all 48 invariants — while EVERY gate in the
+  // file, `gate-e2e` included, silently detached from pull requests. CI-01's requirement text is
+  // literally "opening a pull request runs the repository's functional Playwright specs", so this
+  // is the one trigger whose absence falsifies the requirement the phase claims to have satisfied.
+  it("case 12: deleting the pull_request trigger is red", () => {
+    withMutatedWorkflows(withoutPullRequestTrigger(), (result) => {
+      expectRed(result, CI_TRIGGERS);
     });
   });
 });
