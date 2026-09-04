@@ -1059,3 +1059,172 @@ jobs:
       # nothing else.
       - name: Playwright — visual regression (GATE-01)
         run: npx playwright test --project=visual
+
+  # ------------------------------------------------------------------------------------------
+  # JOB 5 — THE FUNCTIONAL PLAYWRIGHT SUITE (CI-01 / D-24's remaining half).
+  #
+  # WHY A FIFTH JOB AND NOT A WIDER JOB 3 (D-12). This file's own header enumerates the mutation:
+  # "job 3's one spec -> the whole suite" is a change the invariant checker is built to notice,
+  # and job 3's identity in the D-24 taxonomy is that it is ONE self-contained spec. Widening it
+  # destroys that identity and silently re-opens the surface job 3 was scoped to close. A fifth
+  # job is the shape the taxonomy already had room for: a database AND a browser, like jobs 3
+  # and 4, differing only in WHICH specs it runs. `gate-price-parity` above is therefore left
+  # BYTE-UNCHANGED — its run command still names exactly one spec file — and this job was
+  # APPENDED, so the diff that introduced it deletes nothing.
+  #
+  # NO BROWSER-PROVISIONING STEP, AND THAT ABSENCE IS THE POINT. Playwright's own ci-intro guide
+  # recommends one and it is WRONG FOR THIS REPO: the pinned image ships the browsers AND their
+  # OS dependencies, and job 3's comment above (`ci.yml:770-774`) records that adding one is the
+  # most common way a container job ends up comparing against a browser nobody pinned. Follow
+  # the repo, not the quickstart.
+  #
+  # WHAT THIS JOB HOLDS: NOTHING. One environment input, DATABASE_URL, pointing at an ephemeral
+  # service container, and ZERO `secrets.` references of any kind. Playwright boots the app with
+  # `npm run dev`, and `next dev` does not set NODE_ENV=production, so none of the five
+  # module-scope boot guards job 1 documents arms here — which is why job 1's three build
+  # placeholders are not repeated. Same argument jobs 3 and 4 make. An e2e job is the largest
+  # exfiltration surface in this workflow, and the reason this one is safe is that it holds
+  # nothing.
+  #
+  # NO `permissions:` BLOCK — it inherits the workflow default `contents: read`, exactly as jobs
+  # 3 and 4 do, and `scripts/verify-workflows.mjs` asserts no job in this file holds
+  # `contents: write`. The write path is `baselines.yml` alone.
+  #
+  # NO COMPILE STEP OF ANY KIND — no `npm run build`, no `next build`, no `next start`. Two
+  # separate reasons, both load-bearing:
+  #   * A job that runs `npm run build` joins `verify-workflows.mjs`'s T-11-DBFREE set
+  #     (`:552-561`), which requires that job to declare NO `services:`. This job declares one,
+  #     so adding a build step here turns that invariant red — correctly, and the fix is to
+  #     remove the build step, never to soften the invariant.
+  #   * `playwright.config.ts`'s `webServer` is `npm run dev`, and that is load-bearing for BOTH
+  #     network seams: `instrumentation.ts`'s undici MockAgent is gated on
+  #     `NODE_ENV !== "production"` as a BUILD-TIME constant (a production build PRUNES it), and
+  #     `webServer.env`'s empty mail key only applies to the server Playwright itself boots. A
+  #     job that boots the app any other way silently re-opens both.
+  # ------------------------------------------------------------------------------------------
+  gate-e2e:
+    name: gate-e2e (functional Playwright suite)
+    runs-on: ubuntu-latest
+
+    # THE FULL SUITE'S CI WALL-CLOCK IS UNMEASURED BY CONSTRUCTION (D-13) — this job is what
+    # measures it. The cap below is A STOP, NOT AN ESTIMATE: the real number does not exist yet,
+    # and without a cap a suite that wedges holds a runner for six hours. Revise it from the
+    # first green run's number, and record that number rather than guessing a new one.
+    # ⚠ Once this job is a required check, an expiry here is a RED, and the correct response is
+    # D-13's sharding decision — never raising the cap silently.
+    timeout-minutes: 45
+
+    # IN the pinned Playwright image, not on the bare runner. Job 3's three arguments apply
+    # unchanged:
+    #   * The image ships the browsers AND their OS dependencies, so there is no provisioning
+    #     step to run, cache or get wrong.
+    #   * The tag MUST match the project's exact Playwright pin (`@playwright/test@1.60.0`).
+    #     `v1.60.0-noble` is the verified MCR tag; bump it and the package version together or
+    #     not at all. `verify-workflows.mjs`'s `cross` section additionally asserts this string
+    #     is identical across every containerized job in BOTH workflow files.
+    #   * `--ipc=host` is Playwright's documented recommendation for Chromium — without it,
+    #     Chromium can run out of memory and crash. That failure looks like a flaky test, so it
+    #     would be retried rather than fixed. It is not optional.
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
+      options: --ipc=host
+
+    services:
+      postgres:
+        # Same tag as jobs 2, 3 and 4 and `docker-compose.yml`. The bare major-only tag is a
+        # confirmed 404 on Docker Hub (probed 2026-08-13) — do not shorten it.
+        image: postgis/postgis:18-3.6
+        env:
+          POSTGRES_USER: fitout
+          POSTGRES_PASSWORD: fitout
+          POSTGRES_DB: fitout
+        # ⚠️ NO `ports:` MAPPING HERE, AND THAT ABSENCE IS DELIBERATE — see the DATABASE_URL
+        # comment below. A containerized job reaches a service by its LABEL. Publishing a port
+        # would not break this job, but it would make the `localhost` spelling appear to work
+        # and quietly invite the wrong one back.
+        options: >-
+          --health-cmd "pg_isready -U fitout -d fitout"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # THE SERVICE LABEL `postgres`, NOT `localhost` — the same case job 3 is, and the mirror
+      # image of job 2. The addressing rule (docs.github.com, Creating PostgreSQL service
+      # containers):
+      #
+      #   job runs IN a container   → reach the service by its LABEL, no port mapping needed
+      #   job runs ON the runner    → reach it at `localhost`, and `ports:` is required
+      #
+      # Getting it backwards produces a connection-refused that reads exactly like a flaky
+      # service — so it gets retried, not diagnosed, and the retry fails the same way.
+      #
+      # Both the app under test (the dev server Playwright boots) and any spec's own postgres.js
+      # client read this one variable, so they cannot drift onto different databases.
+      #
+      # ⚠ THIS IS THE ONLY ENVIRONMENT INPUT THIS JOB HAS.
+      DATABASE_URL: postgres://fitout:fitout@postgres:5432/fitout
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Node 24, matching jobs 1 through 4 rather than whatever major the Playwright image
+          # happens to ship, so every gate runs the same runtime.
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+
+      # ⚠ THE FAIL-CLOSED MAIL ASSERTION (D-14), AND IT IS FIRST ON PURPOSE (finding [17-D28]).
+      # `instrumentation.ts` takes PayMongo off the wire and DELIBERATELY does not do the same
+      # for the mail provider — its header argues the point: `src/lib/email.ts` binds the client
+      # at module load, so for that provider THE KEY IS THE SWITCH, and mocking the origin would
+      # also suppress the `[email:dev]` console fallback. A full suite run with the key set was
+      # MEASURED at FOURTEEN real outbound sends. Nothing in this workflow supplies that key
+      # today; this step is what makes that a PROPERTY instead of a COINCIDENCE, and it runs
+      # before anything boots so a violation costs seconds rather than a whole suite of real
+      # email sent to real addresses.
+      #
+      # ⚠ THE `env:` KEY BELOW IS `MAIL_KEY_UNDER_TEST`, AND THAT NAME IS DELIBERATE, NOT
+      # INCIDENTAL. The parse-based sibling of this assertion lives in
+      # `scripts/verify-workflows.mjs` and rejects any workflow, job or step `env` KEY whose name
+      # begins with the mail provider's prefix — it runs on job 1, the cheap job that always
+      # runs, so it catches a violation about a minute before any browser starts. Naming this key
+      # after the provider would make that invariant fire against a CORRECT file. The two sites
+      # are spelled differently on purpose, and each of them says so.
+      - name: Refuse to run the suite with a live mail credential in the environment
+        run: |
+          if [ -n "${MAIL_KEY_UNDER_TEST:-}" ]; then
+            echo "::error::A live mail credential is present in this job's environment."
+            echo "A full e2e run with it set was measured at 14 real outbound sends per run."
+            echo "Remove it from the workflow/repository environment; do NOT weaken this check."
+            exit 1
+          fi
+        env:
+          MAIL_KEY_UNDER_TEST: ${{ env.RESEND_API_KEY }}
+
+      # The specs seed and tear down their own rows, but the TABLES have to exist first. Only
+      # the dev database `fitout` is needed here — this job runs no vitest, so the `fitout_test`
+      # provisioning `gate-db` does is deliberately absent.
+      - name: Migrate the database
+        run: npm run db:migrate
+
+      # ⚠ NOT OPTIONAL — AND JOB 3 DOES NOT HAVE THIS STEP, so do not read its absence there as
+      # evidence that it is optional here. FIVE specs in this set fail against an empty catalogue
+      # and say so in their own failure messages: axe-sweep, overflow-320, reduced-motion, shell
+      # and skeleton-geometry. `scripts/seed.ts` is standalone raw SQL, reads DATABASE_URL, holds
+      # no credential, and is idempotent (it deletes its `seed_*` rows first).
+      - name: Seed the demo catalogue
+        run: npm run db:seed
+
+      # THE `chromium` PROJECT BY NAME, AND NO SPEC PATH AFTER IT. Not `npm run test:e2e`, which
+      # is a bare `playwright test` and on Linux therefore ALSO collects the `visual` project — a
+      # wholly different gate that job 4 owns and whose committed baselines this job must never
+      # touch. `playwright.config.ts`'s chromium project is `testMatch: "e2e/*.spec.ts"`, so
+      # naming the project IS naming the whole functional set (37 specs when this job landed).
+      # Playwright's own config boots the dev server (`webServer: npm run dev`, with
+      # `reuseExistingServer: false`, so CI always gets a fresh one), which is why there is no
+      # server step here either.
+      - name: Playwright — the functional suite
+        run: npx playwright test --project=chromium
