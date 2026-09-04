@@ -1,0 +1,673 @@
+# Phase 13: Confirmation, Bookings & Trust - Context
+
+**Gathered:** 2026-08-20
+**Status:** Ready for planning
+
+<domain>
+## Phase Boundary
+
+Everything a booker sees about a booking **after they pay**: the post-payment confirmation moment,
+the booking detail page across every status, the itemised receipt, the three payment states, and the
+group surfaces (`/invite/[token]`, `/bookings/[id]/group`).
+
+**In scope:** `/bookings/**` on the booker side, plus the two group surfaces.
+**Out of scope:** the host side of bookings (`/host/bookings/**` — Phase 14), the transactional email
+shell itself (Phase 15), anything net-new (D-136).
+
+**Requirements (9):** BFLOW-08, TRUST-01, TRUST-02, TRUST-03, TRUST-04, TRUST-05, STATE-05, STATE-06,
+STATE-08.
+
+</domain>
+
+<decisions>
+## Implementation Decisions
+
+> **Decision-ID namespace — read before citing a number.** These continue the per-phase CONTEXT
+> sequence (Phase 10 = D-01…D-22, Phase 11 = D-23…D-36, Phase 12 = D-37…D-59), so **Phase 13 runs
+> D-60…D-103** (extended from D-97 on 2026-08-21 by the four live-UAT corrections, and from D-101 on
+> 2026-08-22 by the two at the end of this section). That range **collides with PROJECT.md's own D-numbered records**, which already occupy
+> **D-62** (demand-first booking-mode default flip, cited in `src/lib/db/schema.ts:199`), **D-66** (no
+> React Email / no new email stack), **D-75** (the all-in rate never goes up) and **D-79** (what
+> actually went back to the booker, cited in `src/app/(app)/bookings/[id]/page.tsx:169`). The collision
+> is pre-existing — Phase 11's D-30/D-31 and Phase 12's D-42…D-50 collide the same way — and is
+> recorded rather than silently inherited. It now ALSO collides with the **Phase-7 sequence at D-102
+> and D-103** (the derived `completed`; the DB clock read in the same request), both cited in live
+> code. **When citing any number in D-60…D-103, say which namespace**: "13-CONTEXT D-62" or
+> "PROJECT D-62". Never a bare number.
+
+> **Governing principle carried forward, not re-decided — 12-CONTEXT D-59:** when two options both
+> satisfy a requirement, choose the one that costs the booker less. It decides everything this
+> document does not decide explicitly.
+
+### The confirmation moment (BFLOW-08)
+
+- **D-60: `?paid=1` is CONSUMED, not persisted.** The booker returns from hosted checkout to
+  `/bookings/{id}?paid=1`, sees the full confirmation moment, and the client then rewrites the URL to
+  `/bookings/{id}` (history replace) so a refresh, a bookmark or a pasted link renders the ordinary
+  booking-detail page. This is the mechanism for BFLOW-08's *"decays into the normal booking-detail
+  page on later visits"*. **A cookie and a DB column were both rejected** — the column because v1.1
+  ships ZERO schema migrations (13-CONTEXT D-80), the cookie because it is a third piece of state for
+  a marginally different result.
+  ⚠ **PROJECT D-57 is UNCHANGED and binding: `?paid=1` is a UX signal ONLY and never proof of
+  payment.** The `checkout_session.payment.paid` webhook remains the sole confirm authority. Consuming
+  the param must not move any branch off the DB status.
+  ⚠ Nothing important may live ONLY in the moment — everything it states is repeated on the ordinary
+  detail page (TRUST-01), which is what makes the decay safe.
+
+- **D-61: The moment is a full-page first screen inside the SAME route; the ordinary detail continues
+  below it.** No `/bookings/[id]/confirmation` route (a second URL for one booking costs the booker a
+  navigation — 12-CONTEXT D-59). Not a banner either: STATE-08 reserves banners/toasts for
+  NON-terminal success, and a paid booking is terminal success.
+
+- **D-62 (13-CONTEXT): "What happens next" BRANCHES ON `listing.bookingMode`.** These are genuinely
+  different situations and one shared sentence is wrong for both:
+  - `instant` → lead with arrival: venue, full address, venue-local date/time with named timezone.
+  - `request` → lead with the host's approval deadline AND the money answer: the booker has been
+    charged, and is refunded in full automatically if the host declines. A request-to-book booker's
+    real question is whether their money is at risk; answer it above the fold.
+
+- **D-63: The confirmation states the FULL email address** it was sent to ("Confirmation sent to
+  jane@example.com"). The page is behind auth and it is the booker's own booking, so exposure is nil —
+  and the full address is the only version that lets them catch a typo, which is the reason the line
+  exists. Masking rejected for defeating its own purpose.
+
+### Trust signals (TRUST-01, TRUST-04)
+
+- **D-64: The support path is BUILT COMPLETE but GUARDED. Do not fabricate a contact.**
+  `src/lib/site.ts` exports `SUPPORT_EMAIL: string | null = null` — FitOut owns no domain and has no
+  monitored inbox — and `tests/design/site-contacts.test.ts` is an **inverted gate** that asserts ZERO
+  support affordances anywhere in `src/` while it is null. TRUST-01 and STATE-05 both require a support
+  path, so the conflict is real and is resolved as follows:
+  1. Build the entire support path — the block on the booking detail page, the reversed-payment
+     escalation, the late pending-settlement escalation, the booking reference carried into the
+     subject line — behind the existing `SUPPORT_EMAIL !== null` guard, exactly as the footer already
+     does (`src/components/patterns/site-footer.tsx`).
+  2. The unfilled address is carried as a named **`human_needed`** item on phase completion — the same
+     convention 11-CONTEXT D-26 established and the roadmap already uses for the sales-gated PayMongo
+     threads.
+  3. **NEVER weaken, skip, or invert `tests/design/site-contacts.test.ts` to make a surface pass.**
+     Setting the constant is the only line that changes; the gate flips to its demanding branch
+     automatically and both requirements close with no other edit.
+  ⚠ TRUST-01 and STATE-05 are therefore **partially satisfied at phase close** — code-complete,
+  address-pending. State this plainly in the phase SUMMARY rather than marking them done.
+
+- **D-65: "Payout onboarding complete" is expressed as a PLATFORM GUARANTEE, not a host badge.**
+  The booker-facing statement is about where their money is — *"FitOut holds your payment until after
+  your session"* — which is literally the hold-until-session payout model, is a stronger trust
+  statement than any host credential, and cannot be mistaken for the invented verification TRUST-04
+  bans. `host_payout.onboarding_complete` / `payouts_enabled` keep their existing role as the
+  bookability gate, unchanged.
+
+- **D-66 (13-CONTEXT): "Host since {Month YYYY}" from `user.createdAt`, with NO newness badge.**
+  A "New host" marker would appear on effectively every listing at launch and read as a warning label
+  across the whole product; hiding the field until 90 days removes the signal exactly when a booker is
+  least sure. The plain date is factual, does not editorialise, and strengthens on its own as the
+  marketplace ages.
+
+- ~~**D-67: Full trust block on the booking detail page for EVERY status; a condensed version inside the
+  confirmation moment.**~~ ⚠ **SUPERSEDED BY D-98 (2026-08-21) — the panel is removed from every
+  surface.** The reasoning below was right about the NEED and wrong about the answer; see D-98.
+  Original text: Trust matters most when something looks wrong — a pending or reversed
+  payment — so binding it to the happy path only would remove it precisely when it is needed.
+
+- ~~**D-68: The four signals are a CLOSED set, and each maps to a real column.**~~ ⚠ **SUPERSEDED BY
+  D-98 (2026-08-21).** The half that survives unchanged is the ⚠ paragraph below: no invented signal
+  ships, ever. What is superseded is the mandate to show four. Original text: `user.createdAt` (host
+  since), `listing.publishedAt` (listing published), `host_payout.onboarding_complete` (via D-65's
+  reframing), `listing.bookingMode` (request-to-book behaviour).
+  ⚠ **There is NO response-rate or response-time column in `src/lib/db/schema.ts`.** "Responds within
+  an hour", any verification badge, any superhost/top-host chrome, and any rating or review signal are
+  **forbidden** — they are exactly the invented signals TRUST-04 exists to prevent. If a surface wants
+  a fifth signal, the answer is no, not a new column (D-80).
+
+### Payment states (STATE-05, STATE-06, STATE-08)
+
+- **D-69: The reversed state must state the MONEY TRUTH, and the shipped copy is WRONG.**
+  `src/components/booking/payment-reversed-state.tsx` currently reads *"you haven't been charged"* —
+  that is STATE-05's language for the **not-completed** state. A genuine reversal means money DID move
+  and came back, and the charge may sit visible on the booker's statement for days; telling them
+  otherwise contradicts their bank app. Replace with: the exact amount charged, that it is refunded in
+  full, roughly when it reappears per rail, the booking reference, and the support path (D-64).
+  ⚠ **The reappearance window is a FACT TO VERIFY, NOT A NUMBER TO INVENT.** Research must confirm the
+  real PayMongo refund timing per rail (QRPh / GCash / Maya / card) before any copy ships. If it cannot
+  be verified, the copy says so honestly rather than guessing a range.
+
+- **D-70: The not-completed state is NET-NEW — nothing renders for it today.** A checkout that failed
+  or was abandoned must: state plainly that the booker has not been charged, and — if the 15-minute
+  hold is still alive — let them pay again **on that same hold**, with the alternative rails (GCash,
+  Maya, card) offered inline so a failed GCash does not mean starting over. 12-CONTEXT D-59 applied
+  directly: they keep their slot and their place in the flow. Sending them back to the listing to
+  re-pick a slot they already chose is the "never make them tell us twice" failure.
+  ⚠ If the hold has already expired, this is NOT the not-completed state — `hold-expired-state.tsx`
+  already owns that landing. Do not duplicate it.
+
+- **D-71 (13-CONTEXT): Pending settlement keeps its poll and gains a promise.** The shipped
+  `pending-payment-state.tsx` (8 attempts × 2500ms ≈ 20s, then calm "taking longer" + manual refresh,
+  neutral spinner, `aria-live="polite"`) is correct and its poll discipline is preserved verbatim.
+  Add the thing it lacks: state that the booking is safe and that they will be emailed the moment it
+  confirms. Past a longer threshold, surface the support path with the reference attached (D-64).
+  ⚠ **Never an error affordance at any point** — the webhook is still the outstanding authority
+  (STATE-05), and the poller must continue to never fabricate a confirmed state client-side.
+
+- **D-72: On the reversed state the primary action stays REBOOK.** `Back to availability` remains the
+  single coral primary; the support path is the quieter secondary. Most reversals here are a lost race
+  for a slot, and the booker's actual goal is still to book a space. Support stays one click away for
+  the money question.
+
+- **D-73: STATE-06's money sentence is ONE shared, named component rendered above the fold in every
+  payment state.** A single owner makes the sentence impossible to omit and directly testable, rather
+  than three bespoke paragraphs that can drift. Each state supplies its own sentence; the component
+  owns placement and prominence.
+
+### Receipt (TRUST-05)
+
+- **D-74: A dedicated `/bookings/[id]/receipt` route, styled for screen AND print.** The browser's own
+  print dialog produces the PDF via "Save as PDF", so **no PDF dependency, no server-side render
+  pipeline, no font debugging**. A real URL also gives Phase 15 something to link from the confirmation
+  email. A print stylesheet bolted onto the 688-line detail page was rejected (cancel buttons, trust
+  block and status chrome all need suppressing, and there is no link to hand someone).
+
+- **D-75 (13-CONTEXT): This is an INFORMAL booking receipt and must never present as an official one.**
+  It itemises space cost, service fee, total, method, date paid and reference. Philippine official
+  receipts carry real legal requirements (registration, serial numbering, retention) and that is a
+  business decision for the PM and their accountant — **not something to imply by shipping a document
+  that looks official.** Do not add serial numbers, TIN fields, "Official Receipt" wording, or any BIR
+  styling. See `<deferred>` for the parked business question.
+
+- **D-76: A receipt exists wherever MONEY MOVED — including cancelled and refunded bookings**, where
+  it shows the original charge and the refund as separate lines. The refunded case is the one most
+  likely to need a document. No receipt for unpaid holds: a receipt for something nobody paid for is a
+  meaningless artefact that invites "was I charged?" confusion.
+
+- **D-77: A group receipt itemises per-head rate × confirmed headcount + service fee + total, issued
+  to the ORGANISER** — the only person who actually paid. **Attendee names are NOT listed**: it would
+  put other people's names on a printable financial document, and RSVP state can change after payment
+  so the list would not match what was charged.
+
+### Reference, and the Phase 15 seam (TRUST-02, TRUST-03)
+
+- **D-78: The booking reference is copyable, rendered in tabular figures, and present on EVERY
+  status.** TRUST-02 also requires it in the **email subject line** — the transactional email shell is
+  **Phase 15's** scope, so this phase **specifies the contract and does not reach into it**: define the
+  reference's canonical format and expose it for the email layer, then hand over. Same for TRUST-03's
+  cancellation policy in the confirmation email: this phase owns the on-screen disclosure with concrete
+  dates; Phase 15 carries it into the email body.
+  ⚠ **Do not move or add an email SEND TRIGGER in this phase.** Phase 15's SC#3 requires that not a
+  single send trigger has moved.
+
+### Cross-cutting scope
+
+- **D-79 (13-CONTEXT): The group surfaces get the DESIGN-SYSTEM PASS ONLY.** `/invite/[token]` and
+  `/bookings/[id]/group` carry zero dedicated REQ-IDs (the roadmap's own scope note). They inherit the
+  tokens, the card patterns, the state families and the trust/receipt decisions above. **No net-new
+  group capability** — that is D-136 territory and belongs in its own phase.
+
+- **D-80: ZERO schema migrations.** `drizzle/` stays at `0025_audit_resolved_by.sql`, unchanged —
+  Phase 17 SC#4 makes this a milestone-closing proof (GATE-06). Every decision above is deliverable
+  without a column. If a plan believes it needs one, that is a signal the decision was misread.
+
+### Post-research decisions (added 2026-08-20, after 13-RESEARCH.md)
+
+> These were taken by the PM **after** research surfaced three blockers. They have the same force as
+> D-60…D-80 above and supersede anything earlier that conflicts.
+
+- **D-81: QRPh is STILL not API-refundable — re-probed 2026-08-20, verbatim the same `HTTP 400`.**
+  PayMongo's published docs list QR Ph as refundable and contradict this repository's 2026-07-23 probe,
+  so the probe was re-run against the same test payment with a fresh `Idempotency-Key`. Identical
+  rail-level rejection: *"Refunds are not allowed for payments with source type qrph."* See
+  `13-RESEARCH.md` § Addendum for the verbatim method and body. **Observed behaviour is authoritative
+  over the docs row.** Do NOT widen `REFUNDABLE_RAILS` in `src/lib/payments/refund-rail.ts`. The docs
+  row remains a UAT re-verification item, nothing more.
+
+- **D-82: The refund policy SPLITS BY CAUSE, not by rail alone.** The PM's initial proposal — "QRPh
+  payments cannot be reversed once processed" — was refined after the two cases were separated, because
+  they are not the same promise:
+  1. **Booker-initiated cancellation** → rail-specific terms are legitimate and are adopted: a QRPh
+     payment is not automatically reversible, disclosed at checkout and stated in the refund policy.
+  2. **FitOut-side reversal** (the D-58 gone-slot backstop: the booker paid, the slot was already taken,
+     WE cancelled) → **the money is returned regardless of rail**, by hand where the API refuses, and the
+     copy says so plainly. The booker did nothing wrong and we did not deliver the space; keeping the
+     payment is not a policy we write down.
+  ⚠ The funds are NOT stuck — they sit on the FitOut platform wallet and a human can transfer them. The
+  accurate phrasing everywhere is *"not reversed automatically"*, never *"cannot be reversed"*.
+
+- **D-83: The reversed-state copy BRANCHES ON THE TWO MONEY TRUTHS** (research Pitfall 1):
+  - *Automatic refund issued* → name the amount, say it is refunded in full, give the verified window
+    for the rail.
+  - *Manual path* (QRPh / UBP / unknown rail / failed refund) → **never the word "refunded"**. State that
+    the booking is cancelled and the amount is flagged for return by hand, and carry the reference. Here
+    **the support path is the only route to the money, so it must be unmissable rather than decorative** —
+    D-72's coral *Back to availability* primary still stands, but support is not a quiet afterthought.
+  ⚠ **The verified refund windows (13-RESEARCH § Example 1) are the ONLY numbers permitted in this copy:**
+  card *up to 30 days*; GCash / Maya *within 24 hours*. The shipped string *"within a few days"* is
+  unsourced, appears at three call sites, and is superseded.
+
+- **D-84: The rail is recovered by a LIVE PROBE with a rail-free fallback** (coordinator's technical call;
+  research Pitfall 1 option B). `booking.payment_method` is NULL on every reversed row by construction, so
+  the reversed page widens `getCheckoutSession(booking.checkoutSessionId)` to read
+  `payments[0].source.type` and `attributes.paid_at`. **It must have a timeout and must fall back to
+  rail-free copy** (naming all rails so the booker recognises their own) rather than blocking the render.
+  The same call also supplies D-85's payment date and D-70's discriminator, so one probe pays for three
+  problems. ⚠ Do not let a third-party call fail the page: this surface exists to explain a failure.
+
+- **D-85: "Date paid" comes from the PayMongo probe's real `paid_at`** (D-84's call), not from a proxy.
+  There is no `paidAt`, no `updatedAt`, and `paymongo_event` cannot be joined to a booking. If the probe
+  falls back, the line is labelled **"Booked"** against `booking.createdAt` — truthful — and is **never**
+  labelled "Date paid". A receipt that misstates a payment date is exactly the looks-official-but-isn't
+  failure D-75 guards against.
+
+- **D-86: D-77 is NARROWED to open-capacity bookings only.** Two different things are called "group":
+  - **Open-capacity** (`booking.openCapacity = true`) → per-head itemisation is REAL.
+    `declaredPax` × `listing.perHeadPriceCents` *is* the charge. Use `declaredPax` (the granted passes,
+    frozen at payment) and **never** the live RSVP count. Render the unit line only on a **positive
+    match** (`perHead × declaredPax === spacePriceCents`), mirroring the existing `fullDay` fallback
+    idiom. **Never divide a frozen total to recover a unit.**
+  - **Exclusive group bookings** (Phase 8) → the organiser paid one whole-space price and the RSVP table
+    has **no money column**. These get the ORDINARY whole-space receipt, still with no attendee names.
+    A per-head line here would print a number that never equals what was charged, and no existing gate
+    would catch it (GATE-05's price-parity e2e stops at the reserve page).
+
+- **D-87: The reversed state must survive `?paid=1`'s removal** (research Open Question 4 — in scope).
+  It is currently gated on `status === 'cancelled' && paid === '1'`, so once D-60 consumes the param a
+  reversed booking falls through to the generic `cancelled` branch with **no money statement at all**.
+  D-60's safety argument ("everything it states is repeated on the ordinary detail page") is currently
+  FALSE for this state, and consuming the param is only safe once it is true.
+
+- **D-88: Three debts research found are IN SCOPE, not deferred.**
+  1. **Nested `<main>` landmarks** — `pending-payment-state.tsx`, `payment-reversed-state.tsx` and
+     `expired-approval-state.tsx` each open a `<main>` inside `(app)/layout.tsx`'s. The 2026-08-20 quick
+     fix converted nine *page-level* branches but not these three, and `e2e/shell.spec.ts` seeds only a
+     `confirmed` booking so none is covered. D-83/D-70/D-71 rewrite exactly these files — fix the
+     landmark while there.
+  2. **`src/lib/design/live-regions.ts`** — ten files in `LIVE_REGION_EXCLUSIONS` carry `why` fields
+     naming this phase's REQ-IDs. Discharge the handover rather than inheriting it silently.
+  3. **`loading-coverage.test.ts`** pins exact counts (28/20/8); the new receipt route moves them.
+     Update the pins in the same commit as the route.
+
+- **D-89: Consuming `?paid=1` is mounted on the CONFIRMED branch ONLY** (research Pitfall 2).
+  `PendingPaymentState` polls `router.refresh()`, which re-renders the RSC for the *current* URL — so
+  consuming the param on the pending branch makes the next poll fall into the existing
+  `redirect(…/book?hold=…)` and bounce the booker to checkout mid-webhook. Use
+  `window.history.replaceState` (officially router-integrated in Next 16.3), never `router.replace`.
+
+### Corrections found by the UI contract (2026-08-20)
+
+- **D-90: D-62's request-to-book branch is CORRECTED — the booker is never charged while a request is
+  pending, so the money reassurance it specified describes a charge that does not happen.**
+  VERIFIED in code: request-to-book is **pay-on-approval**. `bookings/[id]/page.tsx:382-386` renders a
+  *Pay now* CTA on the `approved` branch routing to the Phase-5 checkout, and both the `requested` and
+  `approved` branches carry a **no-money** cancel dialog whose own comment reads *"an approved-but-unpaid
+  hold is still an unpaid hold"*. ROADMAP § Phase 6 states the same: *"instant-book capture vs
+  request-to-book pay-on-approval"*.
+  **Consequence:** the confirmation moment fires on the `?paid=1` return from checkout, which for a
+  request booking happens **after** the host approved AND after payment — at which point the booking is
+  confirmed. There is no "charged while awaiting approval" state to reassure anyone about.
+  **The corrected rule:** the confirmation moment says what is TRUE for the state it is actually in. The
+  mode distinction does not disappear — it moves to where it belongs, the **detail page's status-meaning
+  copy** (TRUST-01) for the `requested` and `approved` statuses, where the honest and more reassuring
+  fact is that **the booker has not been charged at all yet**.
+  ⚠ Never ship copy telling a booker they were charged for an unpaid hold. It is false, and it is worse
+  than saying nothing.
+
+- **D-91: TRUST-01's full address does NOT conflict with the D-09 privacy toggle — no change to the host
+  promise is needed.** `listing.showExactAddress` defaults to `false`, but the host-facing control in
+  `host/listings/[id]/edit/wizard.tsx:878` already states: *"Off by default — guests see an approximate
+  area until they book."* Revealing the exact street to a booker **on a confirmed or completed booking**
+  is exactly what the host was already promised — not an expansion of it. Route it through one named
+  boundary (e.g. `bookedListingAddress()`) so the exception is auditable and cannot leak to a
+  pre-booking surface. ⚠ Do NOT reveal it on `requested`, `approved`-unpaid, `cancelled` or reversed
+  bookings — those are not "booked" in the sense the host was promised.
+
+- **D-92: The unsourced refund window in `src/lib/email.ts:341` is corrected HERE.** It is a copy
+  constant, **not** a send trigger, so fixing it does not violate D-78's hands-off rule for Phase 15's
+  email shell. Screen and email must not state different refund windows; the verified numbers in D-83
+  are the only permitted values.
+
+- **D-93: Scope additions accepted from the UI contract**, each a correction inside this phase's domain
+  rather than net-new capability: `/bookings/[id]/cancel` (3 named items), `bookings/[id]/not-found.tsx`
+  (explicitly deferred *to this phase* by 11-UI-SPEC), and three STATE-08 toast→alert corrections in
+  `src/components/group/**` (a refund amount or a reduced headcount must be an in-page alert, never a
+  toast). ⚠ These are corrections, not scope creep — but they are recorded so the phase's size is honest.
+
+### UI-checker flags closed (2026-08-20)
+
+The UI safety gate returned **APPROVED** (6/6 dimensions; all 8 phase-specific locked-decision checks
+compliant). Two non-blocking flags are closed HERE rather than left to an executor's judgement, because
+both are places where ambiguity would produce invented copy.
+
+- **D-94: `<MoneyStatement/>` mounts ONLY on a status that has a specified sentence — never on the
+  others, and an executor MUST NOT invent one.** The spec's shell pseudocode places it in every status
+  branch while the copy table supplies sentences for four (pending, not-completed, reversed, cancelled).
+  D-73's own scope is *"above the fold in every **payment** state"*, and VALIDATION's acceptance criterion
+  tests only the three payment states. **Resolution:** the component renders where a sentence is defined
+  and is absent elsewhere; the remaining statuses carry their money facts through the status-meaning
+  sentence and the itemised-total panel, which already own them. ⚠ If a planner or executor believes a
+  fifth status needs a money sentence, that is a question to raise, not a sentence to write.
+
+- **D-95: The pending state's manual control is labelled "Refresh status", not bare "Refresh".**
+  A single-word verb with no object fails the copy guideline the gate flagged. The `Copy` control keeps
+  its visible single word because it already carries `aria-label="Copy booking reference"`.
+
+### Found during execution (Wave 2, 2026-08-20)
+
+- **D-96 (13-CONTEXT): When the probe learns nothing, the fallback copy MUST NOT assert that a charge
+  occurred.** Plan 13-04 found and documented a residual: with no probe information, the fallback row
+  signature (`cancelled` + no `cancelled_by` + no `payment_id` + a real session id) is **shared with an
+  abandoned hold** swept to `cancelled` by `src/lib/availability/units.ts:487`/`:922`. That booker was
+  never charged, and the fallback would tell them *"You were charged ₱X."*
+  **The plan's `T-13-04-FALSEREFUND` reasoned about the wrong axis** — it chose which *refund branch*
+  (automatic vs by-hand) to show, not whether a *charge* happened at all. Those are different questions.
+  **Resolution — and it needs no migration:** when the probe returns nothing, the copy must be true under
+  BOTH readings. State that the booking was cancelled and that **if** anything was charged it is being
+  returned, carrying the reference and the support path — never a bare assertion of an amount charged.
+  A persisted signal would be the stronger fix and is correctly out of scope under D-80.
+  ⚠ **Owner: plan 13-10** (it owns the detail page's status branches). 13-04 wrote the residual at the
+  branch so it is found rather than re-derived. This closes the last place in the phase where FitOut
+  could state a money fact it has not verified — which is the whole point of D-69/D-83.
+
+- **D-97 (13-CONTEXT): The reversed status-meaning sentence is the § The Reversed State sketch**
+  — *"This time was taken before your payment landed."* — **not** the status table's near-restatement of
+  the `<h1>`. 13-UI-SPEC gives both and they disagree; 13-04 chose the sketch and shipped it. Pinned here
+  so a later plan does not silently flip it back. If the table's wording is ever preferred, that is the
+  one line to change, and it changes in the table too.
+
+### Found in live UAT (2026-08-21) — PM corrections, plan 13-19
+
+> These were taken by the PM **after using the shipped surfaces**, which is a source of evidence no
+> earlier decision in this file had. They have the same force as D-60…D-97 and **supersede anything
+> above that conflicts**. The namespace note at the top of § Implementation Decisions still applies:
+> cite these as "13-CONTEXT D-98" and never as a bare number.
+
+- **D-98: The four-row trust panel is REMOVED from every booking surface. It supersedes D-67 and D-68.**
+  The PM used it and judged it filler. The evidence is on their side:
+  1. **At launch every host and every listing reads the same month.** *Host since* and *Listing
+     published* were therefore the same two strings on every booking in the product. A date that
+     distinguishes nothing is furniture, not a signal — and D-66's own argument for the plain date
+     ("it strengthens on its own as the marketplace ages") concedes that today it carries nothing.
+  2. **On a cancelled or reversed booking the payment row was worse than useless.** *"FitOut holds
+     your payment until after your session"* is a promise about a session that is not happening.
+     D-67's reasoning — trust matters most when something looks wrong — was right about the NEED and
+     wrong about the answer: what those states need is the money truth, and `MoneyStatement` and
+     `ManualReturnNotice` already own it.
+  ⚠ **TRUST-04 IS A CONSTRAINT, NOT A MANDATE TO SHOW FOUR.** The requirement says only REAL trust
+  signals may be shown. `tests/design/trust-signals.test.ts` — twelve forbidden tokens, two-piece
+  encoding, four-part positive control — stays **byte-unchanged and green**. Removing the panel
+  removes signals; it must never remove the ban on inventing new ones.
+  ⚠ **13-09's exact-row COUNT is RETARGETED, not retired.** 13-09 measured that the token ban stayed
+  GREEN on a real fifth signal (`Trusted host`) and only the count caught it, so deleting the count
+  with the component would have dropped the one gate that worked. It now asserts the ordered `<dt>`
+  TERM SET of the whole render, per status, across all ten renders in
+  `tests/booking/detail-completeness.test.tsx` — strictly stronger than a count, because a renamed or
+  reordered row fails it too. The four state components declare `[]`, which is a CLAIM (they open no
+  definition list at all) rather than an absence.
+  **The one sentence worth keeping was kept** — the platform guarantee is D-65's reframing of the
+  hold-until-session payout model, and it moved into D-99's paid statement, on the branch where it is
+  true, instead of onto every branch where it was not.
+
+- **D-99: The confirmed page must state plainly that it is PAID.** The PM's words: *"the ticket shows
+  booking confirmed and not paid… there's no obvious key wherein it stated that it is already paid
+  for."* The page rendered a status badge, an `<h1>` reading *Booking confirmed*, and a facts row
+  labelled *Total* beside a figure — and none of those three answers whether the figure has been paid
+  or is DUE. On a screenshotted ticket `Total ₱1,050.00` reads at least as naturally as an amount
+  outstanding.
+  - The `<h1>` becomes **"Booking confirmed & paid"** on the confirmed render. Confirmed is about the
+    SLOT; paid is about the MONEY, and only the first was on the page.
+  - A named `PaidStatement` names the amount: *"Paid in full — ₱X."*, carrying the platform guarantee
+    as its second sentence.
+  ⚠ **IT MUST BE TRUE FOR THE BRANCH IT RENDERS ON, AND THE COMPLETED BRANCH IS THE TRAP.** The payout
+  sweep runs at `endsAt + PAYOUT_DELAY_HOURS`, so *"FitOut holds your payment until after your
+  session"* is FALSE once the session has happened — one unconditional sentence would be true on
+  Monday and a lie on Wednesday about the same booking. The statement takes a `phase`: `held` carries
+  the clause, `settled` **drops** it rather than rewording it, because the honest replacement would be
+  a second claim about where the money is NOW and this page has read neither the payout ledger nor the
+  sweep (D-96's rule, one correction later).
+  ⚠ **It mounts on `confirmed` and the derived `completed` and on NOTHING ELSE**, asserted per status
+  in both directions. A paid statement on `requested` or an `approved`-but-unpaid hold would tell a
+  booker they were charged for something pay-on-approval means they were not (D-90); on a reversed or
+  indeterminate cancellation it would assert a charge the D-84 probe may never have confirmed (D-96).
+  ⚠ **`MoneyStatement` is untouched (D-73 / D-94).** This is not a fifth member of its closed
+  four-status set: those four explain a payment that is unfinished, undone or returned, and this one
+  states that a payment is complete. Different sentence, different job, different branch.
+
+- **D-100: The confirmation moment must not restate the facts card, and the closing line goes.** The
+  PM found that the celebratory header plus the Space / Where / When / Host / Total card *"says the
+  same thing twice"*. It did: the moment carried the venue, the venue-local window, the named
+  timezone, the full address, the reference, the amount AND the cancellation policy — every one of
+  which renders again in the detail directly beneath it.
+  **The rule: the header carries the moment and the outcome; the facts card carries the detail.**
+  Four items survive — the success mark, the `<h1>`, the paid statement (D-99, passed as a SLOT so the
+  moment and the detail cannot state two different paid sentences), and D-63's email line.
+  ⚠ **NOTHING THAT LIVED ONLY IN THE HEADER MAY BE LOST** — that is D-60's decay-safety argument, and
+  it is the condition to re-check before compacting further. Exactly two facts live only there: the
+  email destination and the request `<h1>`'s approval fact. Both stayed. If a future compaction would
+  drop a fact that exists only in the moment, that fact moves into the facts card FIRST.
+  **The starkest duplication was the policy**: the moment was handed the IDENTICAL
+  `CancellationPolicyDisclosure` element the detail renders, so one screen carried two of it.
+  **The closing sentence is deleted, both arms** — *"This page is your confirmation — it stays here if
+  you refresh or come back later."* and its `completed` twin. A page that persists does not need to
+  announce that it persists.
+
+- **D-101: Two live defects, both real, both fixed in 13-19.**
+  1. **The pending spinner never stopped.** `pending-payment-state.tsx` rendered
+     `<Loader2Icon className="animate-spin">` UNCONDITIONALLY, so it kept turning after the poller
+     stopped at `MAX_ATTEMPTS` (~20s) — forever, under copy reading *"taking longer than usual"* and a
+     promise that an email is coming. The PM reported it as *"an infinite looping payment received"*.
+     Fixed by gating the indicator on `slow` and replacing it with a still clock (replaced, not
+     removed: deleting the glyph would reflow the heading block at the threshold).
+     ⚠ **The poller's mechanics are FROZEN and stayed frozen** (13-07's zero-changed-lines diff). This
+     is a rendering change; a filtered diff of the file for every mechanics token returns zero lines.
+     ⚠ **THE TRANSFERABLE FINDING: a test asserting text and roles cannot see a visual defect.** All
+     twenty existing cases stayed green through it, because a spinning element and a still one share
+     their text (none), their role (none), their accessible name (none — it is `aria-hidden`) and
+     their colour. The only difference is one class token, so the new cases read that token off real
+     elements with `class~=` — narrowed deliberately, since a raw markup match for a utility token is
+     satisfied by any surface whose serialised markup happens to contain it.
+  2. **The checkout's only way back was invisible.** On `/listings/[id]/book` it shipped as
+     `variant="ghost"`, which contributes hover states and nothing else. 12-CONTEXT D-59 §2 requires
+     *"one explicit, safe way back … that states the hold is kept"*, or the no-navigation checkout
+     *"reads as a dead end and the abandonment it causes is self-inflicted"*. Every clause was
+     satisfied except the one the paragraph is about: EXPLICIT is a claim about what a booker can SEE.
+     It is now `variant="outline"`, the product's neutral secondary, which does not compete with the
+     coral `Confirm & pay` (one accent per viewport).
+     ⚠ It moved into a named `WayBackLink` component, because the deeper defect was that a real
+     requirement had no owner: `e2e/shell.spec.ts` asserted its label, its href, its uniqueness and
+     its hold promise, and every one of those was green the whole time it rendered as body text.
+
+### Found in live UAT (2026-08-22) — the fourth unverified money claim, plan 13-20
+
+> Same standing as D-98…D-101: taken by the PM **after using the shipped surface**, and superseding
+> anything above that conflicts. Cite as "13-CONTEXT D-102" / "13-CONTEXT D-103" and never bare.
+> ⚠ **Both numbers collide with an existing namespace, and the collision is recorded rather than
+> silently inherited.** The Phase-7 sequence already occupies **D-102** (`completed` is DERIVED at
+> read time from a `confirmed` row whose `endsAt` has passed, never stored — cited in
+> `booking-status.ts:57`, `bookings/[id]/page.tsx` and six other files) and **D-103** (the DB clock
+> is read in the SAME request that reads the rows — cited in `bookings/page.tsx:10`). Neither is
+> touched here, and in code the two below are cited as **13-CONTEXT D-102 / D-103**, spelled out.
+
+- **D-102: The pending payment surface may not assert a payment FitOut has not verified. It
+  corrects copy inherited from plan 05-03 (`c07c804`) and never re-read since.**
+  The PM, on seeing the state after a real checkout return: *"it said Payment Received, did we
+  really receive the payment??"* The answer was **no — we did not know**. Two sentences claimed it:
+  the `<h1>` *"Payment received"* and the money statement *"Your payment reached us."* Both were
+  four phases old; plan 13-07 rewrote the whole body AROUND them and left them standing.
+  **What is actually known at that paint is one thing: a browser arrived at `/bookings/{id}?paid=1`.**
+  PROJECT D-57 is binding — the parameter is a UX signal and NEVER proof of payment; the
+  `checkout_session.payment.paid` webhook is the sole confirm authority, and the row is still
+  `pending` *precisely because* the webhook has not spoken.
+  ⚠ **THE COMMENT THAT DEFENDED THE CLAIM WAS ITSELF THE DEFECT.** It read: *"'Your payment reached
+  us.' is true from the first paint — the browser only gets here from the hosted checkout's
+  return"*. A redirect is not a payment: the URL is typable, the parameter is forgeable (that is the
+  entire premise of D-57 and of D-89), and a hosted session can redirect and still fail to capture.
+  Reasoning that terminates in a money claim has to terminate at a webhook. It was REWRITTEN rather
+  than deleted, because left in place it would have re-taught the error to the next reader — which
+  is exactly how it survived 13-07.
+  **The copy now describes FitOut's KNOWLEDGE STATE, never the money's state:**
+
+  | | Shipped (05-03) | D-102 |
+  |---|---|---|
+  | `<h1>` | *"Payment received"* | *"Confirming your payment"* |
+  | L1 | *"Your payment reached us."* | *"We're waiting on your payment provider to confirm it."* |
+  | L2 (0–20s) | *"We're waiting on the final confirmation — this page updates on its own."* | *"This page updates on its own — you don't need to refresh it."* |
+  | L2 (cap) | *"…Your payment is safe, your booking is held, and we'll email you at {x}…"* | *"It's taking longer than usual. We'll email you at {x} the moment it's confirmed."* |
+
+  ⚠ **THE SIBLING CLAIMS WENT WITH THE TWO HEADLINE ONES**, and finding them is the transferable
+  part. *"Your payment is safe"* asserts that a payment EXISTS in order to reassure about it — the
+  same presupposition, one clause further down. And **"your booking is held" was dropped even though
+  the plan's own brief sanctioned it**: on the exclusive path it is DB-verified (`pending` sits
+  inside the occupying set of the `booking_no_overlap` EXCLUDE predicate, drizzle/0022), but an OPEN
+  CAPACITY booking holds its seats through `OPEN_OCCUPYING_STATUS_SQL`, which requires
+  `expires_at > now()`. A lease that lapsed while the booker sat on the hosted page holds nothing,
+  and the component is not told which kind of listing it is rendering for. *True for most bookings*
+  is what shipped four times already.
+  ⚠ **AND IT DOES NOT SWING TO DENIAL EITHER.** STATE-05 forbids any error affordance while the
+  webhook is outstanding, and the booker very probably did pay — *"we have no record of your
+  payment"* would be as wrong as the sentence it replaced, and would be read by somebody whose money
+  is fine.
+  ⚠ **D-71 IS STRENGTHENED, NOT WEAKENED.** The reason to offer no retry was never *the money is
+  here*; it is that **nobody knows**, and a retry offered into ignorance is how a booker pays twice.
+  **THE GUARD: `tests/design/pending-copy.test.ts`** — eleven assertion forms banned over the whole
+  surface, comments included, in the two-piece encoding `reversed-copy.test.ts` established. Watched
+  RED against the shipped file (9 hits across lines 3/30/76/190/193/196/197/224/226) and again after
+  the fix, by reintroducing the real heading. `payment-states.test.tsx` case (9) runs the same forms
+  over the RENDERED tree, because a source scan cannot see copy composed from templates and this
+  component composes two of its three lines that way. **Cases (1)–(3) were green for four phases:
+  they asserted the shipped strings were PRESENT, and they were. Presence is not truth** — the same
+  blindness 13-19 measured for the spinner.
+
+- **D-103: `?paid=1` decays on every terminal branch, not only on the confirmation moment. D-89 is
+  unchanged.**
+  The PM: *"i think /?paid appears when the time of booking has already elapsed."* It did.
+  `ConsumePaidParam` mounted inside `showConfirmationMoment`, which also requires `!isCompleted`, so
+  five landings a paid checkout can reach kept the marker indefinitely on a URL a booker may
+  bookmark or paste: a swept hold that ended `cancelled`, a reversal, a lapse, a decline, and the
+  derived `completed` render one session later.
+  **The rule the fix encodes is narrower than "not pending": consume the parameter where it is
+  INERT** — no branch predicate reads it, no poller is running to re-render the RSC for the current
+  url, and no redirect can be re-entered. `confirmed` was simply the first branch that qualified.
+  ⚠ **D-89 IS NOT RELAXED BY ONE INCH, AND IS NOW ASSERTED RATHER THAN ASSERTED-ABOUT.** The element
+  is declared BELOW the pending branch, so no line above it can mount it; and
+  `detail-completeness.test.tsx` carries a `consumesParam` column over all ten renders with `?paid=1`
+  forced onto every one, **including both pending rows at zero**. The CONSEQUENCE stays with
+  `e2e/confirmation-decay.spec.ts` (a real poller, `framenavigated` counted, watched failing with the
+  mount hoisted); the mount POINT is what had no gate.
+  ⚠ **`requested` and `approved` are deliberately left alone.** Neither is terminal, and an approved
+  hold's own next step is the checkout that APPENDS this parameter — a consumer there would strip a
+  marker on the way INTO the flow that sets it. Nothing in the shipped flow can put the parameter on
+  either branch anyway: it is appended by the checkout return, and a row that has been to checkout is
+  `pending` or later, never back at `requested`.
+
+### Claude's Discretion
+
+The PM delegated all technical implementation. Explicitly at the executor's discretion:
+component decomposition, file layout, server/client boundaries (subject to GATE-05), test strategy,
+how the URL rewrite is performed, the exact poll thresholds, and print-CSS mechanics.
+
+**Not at discretion — these are locked above:** the decay mechanism (D-60), the mode branch (D-62),
+the guarded support path (D-64), the corrected reversed copy (D-69), the no-invented-refund-window rule
+(D-69), the informal-receipt boundary (D-75), zero migrations (D-80), and — since 2026-08-21 — the four
+PM corrections D-98…D-101.
+
+⚠ **The closed four-signal set (D-68) used to be on that list and is SUPERSEDED by D-98.** What remains
+locked from it is the half that was never about the number: no invented trust signal ships, ever, and
+`tests/design/trust-signals.test.ts` enforces it unmodified.
+
+</decisions>
+
+<canonical_refs>
+## Canonical References
+
+**Downstream agents MUST read these before planning or implementing.**
+
+### Phase & requirement definition
+- `.planning/ROADMAP.md` § Phase 13 — goal, the 5 success criteria, and the group-surface scope note
+- `.planning/ROADMAP.md` § Cross-Cutting Constraints (v1.1) — the five hard gates every surface must clear
+- `.planning/REQUIREMENTS.md` — BFLOW-08, TRUST-01…05, STATE-05/06/08 verbatim
+- `.planning/PROJECT.md` — core value, and the PROJECT-namespace D-numbers that collide with this file
+
+### Decisions this phase inherits and must not re-litigate
+- `.planning/phases/12-booker-path-search-listing-checkout/12-CONTEXT.md` § D-59 — the booker-cost
+  tie-breaker that governs anything undecided here; also D-37/D-38 (price continuity) and D-57
+  (`?paid=1` is never proof of payment)
+- `.planning/phases/11-quality-gates-pattern-layer-app-shell/11-CONTEXT.md` § D-26 — the inverted
+  support-contact gate and the `human_needed` convention that D-64 follows
+- `.planning/phases/10-design-system-foundation-theme-runtime/10-CONTEXT.md` — token contract, the
+  closed four-tone status vocabulary, the Sonner toast mapping, button hierarchy
+
+### Code that constrains this phase
+- `src/lib/site.ts` — `SUPPORT_EMAIL` and the D-26 block; **the only line that changes to unblock D-64**
+- `tests/design/site-contacts.test.ts` — the inverted gate; never weaken it
+- `src/app/(app)/bookings/[id]/page.tsx` — 688 lines, the existing status branching and `?paid=1` handling
+- `src/components/booking/pending-payment-state.tsx` — poll discipline to preserve (D-71)
+- `src/components/booking/payment-reversed-state.tsx` — the copy D-69 corrects
+- `src/components/booking/hold-expired-state.tsx` — the calm recovery idiom, and the state D-70 must not duplicate
+- `src/app/actions/booking.ts:967` — where `successUrl` sets `?paid=1`
+- `src/lib/db/schema.ts` — the four real trust columns; and the absence of any response-rate column
+
+</canonical_refs>
+
+<code_context>
+## Existing Code Insights
+
+### Reusable Assets
+- **`PendingPaymentState`** — a correct, careful poller (ref-held router, interval-only setState,
+  bounded attempts, neutral spinner, `aria-live`). D-71 extends its copy, not its mechanics.
+- **`PaymentReversedState`** — structurally right (calm, never `--destructive`, single coral recovery
+  CTA). D-69 replaces its copy and adds the money statement; D-72 keeps its CTA hierarchy.
+- **`HoldExpiredState`** — the established calm-recovery idiom every new state here should mirror.
+- **Phase 11 patterns** — `PanelCard` / `RowCard`, `EmptyState`, `ErrorState`, the mobile-overlay
+  (sheet) primitive, and the page header. No new card or overlay pattern should be invented.
+- **`PriceBreakdown`** and the server-computed `AllInTable` (12-CONTEXT D-38) — the receipt's
+  itemisation should reuse the real breakdown rather than a lookalike.
+- **`site-footer.tsx`** — the working example of a `SUPPORT_EMAIL !== null` guarded affordance.
+
+### Established Patterns
+- **The webhook is the only confirm authority** (PROJECT D-57). Every branch reads DB status.
+- **`server-only` + GATE-05**: no money or availability computation may cross into a client component,
+  and an e2e check asserts the DOM price equals the DB price. The receipt is a money surface — it must
+  compute server-side.
+- **Status vocabulary is a closed four-tone union** (Phase 10) — new states pick from it, not past it.
+- **Terminal success = full page; non-terminal = toast; anything that must be READ = in-page alert**
+  (STATE-08). A refund amount, a reduced headcount or a voided invite is never a toast.
+
+### Integration Points
+- `/bookings/{id}?paid=1` — the checkout return, where D-60's consume-and-rewrite happens
+- `/bookings/[id]/receipt` — the one net-new route (D-74)
+- `src/lib/site.ts` `SUPPORT_EMAIL` — the single switch that closes TRUST-01/STATE-05's support path
+- The reference format exposed for **Phase 15**'s email subject line (D-78) — a contract, not a send
+
+</code_context>
+
+<specifics>
+## Specific Ideas
+
+- The PM's framing of their own role: they own **app security, UI/UX, business-logic correctness and
+  user satisfaction**; all technical implementation is delegated. Surface product forks, scope cuts and
+  irreversible actions — not library or architecture choices.
+- **"FitOut holds your payment until after your session"** — the PM chose the platform-guarantee
+  framing over any host-credential badge. This sentence is the trust anchor of the whole phase.
+- The reversed-payment copy must survive the test of **the booker looking at their bank app**. If our
+  screen and their statement disagree, our screen is wrong.
+
+</specifics>
+
+<deferred>
+## Deferred Ideas
+
+- **Official BIR receipt** — whether FitOut must issue registered official receipts (serial numbering,
+  registration, retention) is an open **business** question for the PM and their accountant. D-75 ships
+  an explicitly informal receipt in the meantime. Recorded here so it is tracked rather than forgotten;
+  it is not Phase 13 work and likely not a UI change at all.
+- **A monitored support inbox** — the operational prerequisite for D-64. Carried as a `human_needed`
+  item, not a code task.
+- **Net-new group capability** — anything beyond the design-system pass on `/invite/[token]` and
+  `/bookings/[id]/group` is D-136 territory and needs its own phase.
+- **Host-side booking surfaces** — Phase 14.
+- **The email shell, and the reference in the subject line** — Phase 15. This phase defines the
+  contract only (D-78).
+
+</deferred>
+
+---
+
+*Phase: 13-Confirmation, Bookings & Trust*
+*Context gathered: 2026-08-20*

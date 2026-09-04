@@ -1,0 +1,554 @@
+/* THE CONTENT-SCAN ROOT (deferred item D-1). `source("../")` is relative to THIS file, so it points
+   Tailwind's automatic source detection at `src/` — and that narrowing is load-bearing, not tidiness.
+
+   By default v4 detects sources from the PROJECT ROOT, respecting `.gitignore`, and markdown is not
+   excluded — so every document under `.planning` was content, and a sentence of planning PROSE
+   emitted a real utility into the shipped stylesheet. Measured, not theorised: before this line, a
+   clean `rm -rf .next` rebuild shipped the accent recipe this phase exists to delete (770 bytes,
+   0.58%) for a class present in no component, and the provenance was a PLAN DOCUMENT instructing the
+   executor to remove it. This plan added five more of its own the moment it migrated the shadows.
+
+   (This paragraph deliberately does not write the markdown glob for `.planning`. The obvious phrasing
+   embeds a star-slash, which TERMINATES this comment — CSS has no nesting — and the file then fails
+   to parse with `Unknown word`. Observed, on the first attempt at writing it.)
+
+   Two consequences, and the second is the one that matters. (1) Dead CSS ships to users, growing with
+   every document written. (2) Any assertion of the form "utility X is / is not in the compiled
+   output" could be satisfied or broken by a markdown file — which is the vacuous-pass shape this
+   phase's guard-the-guard blocks exist to prevent, arriving through a side door.
+
+   `src/` is the whole app: `public/` holds the two generated icons and no markup, and nothing under `tests/`,
+   `e2e/`, `scripts/`, `drizzle/` or `config/` renders to a browser. A class that a user can actually
+   see is authored in `src/` by construction. If that ever stops being true — a component library
+   consumed from `node_modules` with its own class strings, say — add an explicit `@source` for it
+   rather than widening the root back to the repository.
+
+   Asserted by tests/design/elevation-z.test.ts, which is only allowed to make its strongest claim
+   (the banned default shadow ladder is absent from the COMPILED output) because of this line. */
+@import "tailwindcss" source("../");
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  /* DS-01: the sans token used to reference ITSELF. A custom property whose value is its own name is
+     invalid at computed-value time, so the browser discarded it and every screen rendered in the
+     platform fallback rather than Geist. It now points at the variable `geistSans.variable` actually
+     defines on <html> in layout.tsx. The heading token below is KEPT (D-20) as an alias of the same
+     family — the seam stays, so real branding can slot a display face in later with no call-site
+     edit. Proven against compiled output by tests/design/font-cycle.test.ts, not by reading this. */
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-geist-sans);
+  /* Removed here: the eight `--color-*` aliases for the shadcn side-nav token family and the five
+     for its data-visualisation palette. Grep-verified as zero-referenced anywhere in `src/`, and no
+     shadcn CSS reads them — carrying them meant authoring 13 grove values nobody would ever see,
+     each an unverifiable pairing. CONSEQUENCE: a future `npx shadcn add sidebar` or
+     `npx shadcn add chart` must re-add those token families to BOTH theme blocks, not just one. */
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+  /* -------------------------------------------------------------------------------------------
+     THE FOUR NAMED TYPE ROLES (DS-02 / D-01) — display, heading, body, label.
+
+     Each role is FOUR lines, not one. A step declared as a bare size loses its leading, its
+     tracking and its weight, and a role that only controls size is not a role. Verified compiled
+     shape: `.text-display` emits the size directly, plus `line-height: var(--tw-leading, <the
+     role's leading>)` and the same fallback pair for tracking and for weight.
+
+     The var() indirection below is LOAD-BEARING and must never be flattened to a literal. The word
+     `inline` on this block substitutes the value INTO the generated utility instead of emitting it
+     as a variable of its own, so the role resolves AT THE ELEMENT — which is the only reason a
+     nested themed subtree re-skins its TYPE as well as its colour. Flatten it and grove's type
+     quietly dies while the app-wide switcher keeps working: the same failure class as dropping the
+     word `inline` itself.
+
+     NEVER use the slash-modifier form on a named step. `text-display/tight` compiles to font-size
+     and line-height ONLY — letter-spacing and font-weight vanish with no warning at all. */
+  --text-display: var(--fs-display);
+  --text-display--line-height: var(--lh-display);
+  --text-display--font-weight: var(--fw-display);
+  --text-display--letter-spacing: var(--ls-display);
+  --text-heading: var(--fs-heading);
+  --text-heading--line-height: var(--lh-heading);
+  --text-heading--font-weight: var(--fw-heading);
+  --text-heading--letter-spacing: var(--ls-heading);
+  --text-body: var(--fs-body);
+  --text-body--line-height: var(--lh-body);
+  --text-body--font-weight: var(--fw-body);
+  --text-body--letter-spacing: var(--ls-body);
+  --text-label: var(--fs-label);
+  --text-label--line-height: var(--lh-label);
+  --text-label--font-weight: var(--fw-label);
+  --text-label--letter-spacing: var(--ls-label);
+  /* -------------------------------------------------------------------------------------------
+     THE THREE ELEVATION STEPS (DS-03 / D-02) — raised, overlay, sticky.
+
+     These are MANDATORY, not a naming nicety. Tailwind's default `shadow-sm` / `shadow-md` /
+     `shadow-lg` compile to LITERAL values, not var() references, so redeclaring those names in a
+     theme block does exactly nothing and a surface left on `shadow-md` is frozen against every
+     theme. Named steps behind var() are the only mechanism by which grove's pronounced elevation
+     can exist at all. Five distinct shipped values collapse into these three, so some surfaces
+     visibly gain or lose depth — that is the point of a three-step scale, not a regression.
+     `shadow-none` stays `shadow-none`. */
+  --shadow-raised: var(--elevation-raised);
+  --shadow-overlay: var(--elevation-overlay);
+  --shadow-sticky: var(--elevation-sticky);
+  /* -------------------------------------------------------------------------------------------
+     MOTION (DS-04). The two `--default-transition-*` entries are the zero-edit lever: every bare
+     `transition-*` utility in the app reads them as its fallback, so retuning the app's motion is
+     these two lines and no component edits. The named easing is exposed as `ease-standard`.
+
+     CONSUMPTION FORM — get this wrong and it fails SILENTLY. Tailwind v4 has NO duration namespace
+     and NO z-index namespace. `duration-base` and `z-dialog` compile to NOTHING; they are not
+     errors, they simply do not appear in the output. A named duration is written
+     `duration-(--motion-base)` (the CSS-variable arbitrary-value syntax), which emits
+     `--tw-duration: var(--motion-base)` and therefore stays theme- and media-aware; likewise the
+     z scale is consumed as `z-(--z-dialog)`. `tw-animate-css` honours the same variables. */
+  --ease-standard: var(--motion-ease-standard);
+  --default-transition-duration: var(--motion-fast);
+  --default-transition-timing-function: var(--motion-ease-standard);
+  /* -------------------------------------------------------------------------------------------
+     THE ONE NAMED ANIMATION THIS APP DECLARES (STATE-07 / D-55, plan 12-13).
+
+     `animate-collision-pulse` marks the hours a booker lost the moment the refreshed grid says they
+     are gone: ONE brief accent ring, ONE iteration, inside `--motion-slow`. That single beat is what
+     makes the collision notice EVIDENCE rather than an assertion — the booker sees the hours change
+     under the sentence instead of being told they did.
+
+     THREE THINGS ABOUT ITS SHAPE ARE DELIBERATE:
+       • ONE ITERATION, stated in the token rather than left to the default. A repeating pulse on a
+         normal marketplace outcome would read as an alarm, which is the calibration this whole
+         surface is written against.
+       • THE DURATION IS THE SLOWEST NAMED STEP AND NOT A LITERAL, so the 320ms budget
+         `tests/design/motion-budget.test.ts` caps applies to it by construction and needs no new
+         exemption. Retuning motion stays a two-line edit in the block above.
+       • IT ANIMATES `box-shadow` AND ENDS AT NOTHING. A statically-applied ring plus a fade would
+         leave the ring on screen after the beat; a keyframe with no fill-mode returns the element to
+         its own resting style, so the pulse is genuinely transient and the chip is left in the
+         ordinary struck-through unavailable treatment it now belongs to.
+
+     Covered by the global reduced-motion reset in `@layer base` like everything else — that rule sets
+     `animation-duration` AND `animation-iteration-count`, which is exactly why it was written with
+     both rather than as a transition-only reset. */
+  --animate-collision-pulse: collision-pulse var(--motion-slow) var(--motion-ease-standard) 1;
+}
+
+/* The keyframes for the token above, declared at the top level rather than inside `@theme` so they are
+   emitted verbatim by the pipeline and cannot be dropped by an unused-token sweep. `transparent` rather
+   than removing the shadow outright, so the ring FADES rather than blinking off at the last frame. */
+@keyframes collision-pulse {
+  from {
+    box-shadow: 0 0 0 2px var(--brand);
+  }
+  to {
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+
+/* ===========================================================================================
+   THE TWO-THEME COLOUR CONTRACT (D-04 / THEME-02 / THEME-03)
+
+   Both blocks are UNLAYERED and EQUAL SPECIFICITY (0,1,0), so SOURCE ORDER decides — grove must
+   stay second. Never prefix a theme selector with `:root` or with an element name: that raises
+   specificity but stops it matching a NESTED themed subtree, which silently kills THEME-04's
+   nested-subtree theming while the app-wide switcher keeps working. The bare attribute selector,
+   on its own, IS the mechanism.
+
+   THEME-02's rule: both blocks declare the IDENTICAL KEY SET. A key present in one and missing in
+   the other is a silent fallthrough to the other block's value, not an error — which is why
+   tests/design/theme-tokens.test.ts asserts set equality rather than trusting review.
+
+   D-03: both themes are LIGHT-BACKGROUND. `.dark` below stays dormant and is not one of them.
+   D-12: every corrected value below was DERIVED by the culori solver at AA_EPSILON = 0.05, not
+   picked by eye, and tests/design/contrast.test.ts is the authority if the two ever disagree.
+   =========================================================================================== */
+
+:root,
+[data-theme="court"] {
+  /* Surfaces and ink — the 60% and 30% of the 60/30/10 split. */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  /* Neutral controls. An un-varianted <Button> renders THIS, never the accent (D-21) — that is
+     what protects the 10% accent budget. */
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  /* Darkened from oklch(0.556 0 0), which measured 4.35:1 on --muted and failed the 4.5 text bar
+     on the repo's single most common secondary-text surface. Now 4.82:1 (D-12). */
+  --muted-foreground: oklch(0.53 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  /* FitOut Coral — the single brand accent, the 10% slot.
+     D-11: THE BRAND ITSELF is darkened rather than a second token being added. The accent visibly
+     deepens everywhere it appears and that is accepted. A second, darker "strong" brand token was
+     considered as an escape hatch and REJECTED, so no call site ever judges which coral it wants.
+     D-12: this value is DERIVED, not picked — it is the LIGHTEST coral at hue 25 that clears
+     4.5 + AA_EPSILON against --brand-foreground, at 4.57:1. The shipped oklch(0.637 0.208 25)
+     measured 3.60:1, i.e. the brand button's own label failed AA. */
+  --brand: oklch(0.58 0.208 25);
+  --brand-foreground: oklch(0.985 0 0);
+  /* Semantic success — status only, never a CTA.
+     D-14 keeps the hue IN THE ICON: status text is always --foreground ink on a neutral tint, so
+     this token only has to clear the 3:1 non-text bar. Re-derived (D-12) because the shipped
+     oklch(0.62 0.17 150) measures 3.01:1 on grove's --muted — it fails the bar the moment a second
+     theme exists, so keeping it was never viable. Global: identical in both themes. */
+  --success: oklch(0.58 0.15 150);
+  --success-foreground: oklch(0.985 0 0);
+  /* The shipped oklch(0.577 0.245 27.325) was OUTSIDE the sRGB gamut (DS-07): chroma 0.245 against
+     a ceiling of ~0.235 at that lightness and hue, so every engine silently clipped it and none had
+     to agree on what it painted. This replacement sits at the gamut ceiling AND clears its own /10
+     tint — the destructive button's rest state — in both themes (4.81 court / 4.67 grove).
+     Global: identical in both themes, because nothing in the derivation asks it to move. */
+  --destructive: oklch(0.535 0.215 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
+  /* D-132: the focus ring is a DARKENED NEUTRAL and explicitly NOT --brand. An accent-coloured ring
+     spends the 10% budget on every focusable element and makes focus indistinguishable from brand
+     emphasis. WARNING — arithmetic, not preference: this token value ALONE is insufficient. A
+     HALF-ALPHA modifier on the ring colour composites to 2.32:1 over white and NO value of --ring
+     fixes that. Removing the alpha is what fixes it, and that happened in three places: this
+     stylesheet's own outline colour (10-04), the one canonical component recipe (10-06), and the
+     remaining 14 component call sites (10-07). Written descriptively because a committed source
+     scan now asserts the literal appears nowhere under src/ — including in this comment. */
+  --ring: oklch(0.45 0 0);
+  /* DECORATIVE DIVIDERS ONLY — 1.26:1 (court) / 1.28:1 (grove) against --background. They are
+     deliberately excluded from the 3:1 bar with that reason recorded, and the exclusion is carried
+     as DATA in src/lib/design/contrast-pairs.ts rather than as a silently absent row. They may
+     never be a control's sole visible boundary or its sole focus indicator. */
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --radius: 0.625rem;
+  /* ---- Type: the four semantic roles (DS-02 / D-01) -----------------------------------------
+     Type travels per theme alongside colour and shape — that is what makes a second theme a real
+     enforcement test rather than a palette swap. Court is the tighter, smaller of the two: a 28px
+     display pulled in to -0.02em, and 600 as its single emphasis weight. */
+  --fs-display: 1.75rem;
+  --lh-display: 1.15;
+  --fw-display: 600;
+  --ls-display: -0.02em;
+  --fs-heading: 1.25rem;
+  --lh-heading: 1.3;
+  --fw-heading: 600;
+  --ls-heading: -0.01em;
+  --fs-body: 1rem;
+  --lh-body: 1.5;
+  --fw-body: 400;
+  --ls-body: 0;
+  --fs-label: 0.875rem;
+  --lh-label: 1.43;
+  --fw-label: 400;
+  --ls-label: 0;
+  /* ---- Type: Tailwind's built-in ladder, re-declared per theme ------------------------------
+     These six are var-referencing inside their generated utilities, so re-declaring them here
+     re-skins all 399 existing `text-*` call sites with ZERO component edits. This is why DS-02 is
+     not a 400-site migration. The smallest step is the sub-label size for numerals and counters —
+     it is not a fifth semantic role, and the two arbitrary 10px/11px sites migrate to it. */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  /* ---- Type: the weight, tracking and leading a CO-LOCATED utility would otherwise freeze ----
+     The trap this closes: a co-located utility BEATS a named step's fallback. `font-semibold` sets
+     --tw-font-weight, `tracking-tight` sets --tw-tracking and `leading-tight` sets --tw-leading,
+     and the repo ships 98, 34 and 24 of them respectively. A second theme that sets a display
+     weight but leaves these at Tailwind's defaults renders headings IDENTICAL to court's — the
+     exact D-01 failure this phase exists to prevent. So they travel too, and no call site changes.
+
+     The medium step is DELIBERATELY aliased onto the emphasis weight rather than kept as a third
+     step. Two weights per theme is the contract; the 70 shipped `font-medium` call sites then need
+     zero edits and simply render at their theme's emphasis weight. The resulting 500-to-600 shift
+     in court is a real, visible change, and it is accepted on the same footing as the accent
+     deepening. This is intentional — do not "fix" it back to 500. */
+  --font-weight-normal: 400;
+  --font-weight-medium: 600;
+  --font-weight-semibold: 600;
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0em;
+  --tracking-widest: 0.1em;
+  --leading-none: 1;
+  --leading-tight: 1.2;
+  --leading-snug: 1.375;
+  --leading-relaxed: 1.625;
+  /* ---- Elevation: the three named steps (DS-03) ----------------------------------------------
+     Court is shallow and close to the page: a hairline lift, a tight overlay, and an upward cast
+     for bottom-anchored bars. Pure neutral shadow, because court's neutrals carry no hue. */
+  --elevation-raised: 0 1px 2px 0 oklch(0 0 0 / 0.05);
+  --elevation-overlay: 0 8px 24px -6px oklch(0 0 0 / 0.12);
+  --elevation-sticky: 0 -1px 12px -2px oklch(0 0 0 / 0.08);
+}
+
+/* Grove — the second theme, shipped in the SAME commit as court (THEME-03). It is not a feature;
+   it is D-128's enforcement test. Court alone can pass every gate while the system is still
+   single-theme by accident, so grove exists to make a hard-coded value fail loudly.
+   The theme travels in HUE (neutrals re-tinted to hue 190, coherent with its own teal accent) and
+   in GEOMETRY (--radius doubles). Spacing and motion deliberately do NOT travel (D-05). */
+[data-theme="grove"] {
+  /* Surfaces and ink. --background is tinted while --card stays pure white, so cards lift off the
+     page without a shadow — that difference is deliberate and is why the focus ring's offset band
+     shows one shade off a card here (DS-05 accepts this: one recipe app-wide). */
+  --background: oklch(0.988 0.006 190);
+  --foreground: oklch(0.17 0.02 190);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.17 0.02 190);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.17 0.02 190);
+  /* Neutral controls, re-tinted to hue 190. Still neutral in ROLE (D-21) — a tinted near-black is
+     not an accent. */
+  --primary: oklch(0.24 0.03 190);
+  --primary-foreground: oklch(0.985 0.004 190);
+  --secondary: oklch(0.958 0.01 190);
+  --secondary-foreground: oklch(0.24 0.03 190);
+  --muted: oklch(0.958 0.01 190);
+  /* Derived against grove's own --muted, not copied from court: 5.28:1 there (D-12). */
+  --muted-foreground: oklch(0.5 0.015 190);
+  --accent: oklch(0.958 0.01 190);
+  --accent-foreground: oklch(0.24 0.03 190);
+  /* Grove's brand moves TEAL-WARD to hue 190 (UI-SPEC Resolved Question 1). That choice puts 40°
+     between the brand and --success rather than the 10° a hue-160 grove brand would have left, and
+     it means --success needs no per-theme value at all. Chroma 0.09 is the CONSTRAINT BOUNDARY, not
+     a soft choice: solving for the lightest brand at chroma 0.11/0.12/0.13 (hues 190/185/180)
+     returns no in-gamut solution at the bar. Clears --brand-foreground at 4.57:1, same as court. */
+  --brand: oklch(0.5445 0.09 190);
+  --brand-foreground: oklch(0.985 0.004 190);
+  /* Identical to court, by derivation — see the note there. */
+  --success: oklch(0.58 0.15 150);
+  --success-foreground: oklch(0.985 0.004 190);
+  /* Identical to court. Declared here anyway, and that is the point: THEME-02 asserts key-set
+     EQUALITY, so a global value still needs a row in both blocks or the set diverges. */
+  --destructive: oklch(0.535 0.215 27.325);
+  --destructive-foreground: oklch(0.985 0.004 190);
+  /* A darkened neutral, tinted — still not --brand (D-132). 7.11 / 7.36 / 6.52 on background /
+     card / muted. The /50 removal in 10-04 and 10-06 applies identically here. */
+  --ring: oklch(0.45 0.02 190);
+  /* Decorative dividers only, exactly as in court — 1.28:1. Same prohibition. */
+  --border: oklch(0.905 0.012 190);
+  --input: oklch(0.905 0.012 190);
+  /* Geometry travels (D-02): 20px against court's 10px. The seven calc()-derived --radius-* steps
+     in `@theme inline` scale off this one number, so the whole ladder doubles with no other edit. */
+  --radius: 1.25rem;
+  /* ---- Type: the four semantic roles (DS-02 / D-01) -----------------------------------------
+     Grove is DEEP AND GENEROUS (D-02) and moves UP from court's geometry, never down — a value
+     hardcoded near today's numbers cannot hide behind a theme that shrank. 34px display against
+     court's 28px, looser leading throughout, tracking relaxed almost to zero because the larger
+     face no longer needs pulling in, and 700 as its single emphasis weight. */
+  --fs-display: 2.125rem;
+  --lh-display: 1.2;
+  --fw-display: 700;
+  --ls-display: -0.005em;
+  --fs-heading: 1.5rem;
+  --lh-heading: 1.3;
+  --fw-heading: 700;
+  --ls-heading: 0;
+  --fs-body: 1.0625rem;
+  --lh-body: 1.6;
+  --fw-body: 400;
+  --ls-body: 0;
+  --fs-label: 0.9375rem;
+  --lh-label: 1.5;
+  --fw-label: 400;
+  --ls-label: 0;
+  /* Tailwind's built-in ladder — same six names, grove's sizes. See the note in the court block. */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.6875rem;
+  /* The co-located-utility tokens. These are the ones that make grove's headings actually render
+     heavier and looser than court's rather than merely being declared so — see the long note in
+     the court block for why omitting them produces two themes with identical headings. The medium
+     step is aliased onto the emphasis weight here too: two weights per theme, both 700. */
+  --font-weight-normal: 400;
+  --font-weight-medium: 700;
+  --font-weight-semibold: 700;
+  --tracking-tight: -0.005em;
+  --tracking-normal: 0em;
+  --tracking-widest: 0.1em;
+  --leading-none: 1;
+  --leading-tight: 1.25;
+  --leading-snug: 1.45;
+  --leading-relaxed: 1.7;
+  /* ---- Elevation: the three named steps (DS-03 / D-02) ---------------------------------------
+     Grove is DEEP: roughly double the blur and spread at every step, and the shadow is tinted to
+     the theme's own ink hue rather than pure black, so depth reads as part of the theme instead of
+     a grey wash laid over it. This is the half of D-02 that Tailwind's literal default shadows
+     make unreachable — see the note in the @theme block. */
+  --elevation-raised: 0 2px 6px -1px oklch(0.17 0.02 190 / 0.1);
+  --elevation-overlay: 0 16px 40px -8px oklch(0.17 0.02 190 / 0.2);
+  --elevation-sticky: 0 -2px 20px -4px oklch(0.17 0.02 190 / 0.14);
+}
+
+/* ===========================================================================================
+   THE GLOBAL TOKENS (D-05) — z-index and motion. These are GLOBAL BY DESIGN.
+
+   Colour, type, radius and elevation travel per theme. The spacing grid, the z-index scale and
+   the motion tokens do not, and that asymmetry is the contract, not an omission. A constant grid
+   and a constant depth-ordering are what keep a two-theme visual diff interpretable; and MOTION IS
+   A BUDGET RATHER THAN A BRAND EXPRESSION, so no theme is able to blow the 320ms cap — a theme
+   that could would be a theme that could make the app feel broken.
+
+   This block is deliberately a PLAIN `:root` selector, sitting outside both theme blocks. That is
+   what keeps these names invisible to THEME-02's key-set equality test, which compares only the
+   per-theme contract: a global name declared inside one theme block and not the other reads as a
+   diverged key set, and declaring it in both would be claiming it travels when it must not.
+   config/design-tokens-source.mjs reads exactly this rule and nothing else as the global block.
+   =========================================================================================== */
+:root {
+  /* Four layers, and the app scale is the arbiter. RULE THIS SCALE CARRIES FOR PHASE 18: a
+     third-party widget that ships its own internal z-index — Leaflet's control corners sit at
+     1000, its panes at 400-700 — is wrapped in a CSS stacking context (`isolate`) by the phase
+     that introduces it. The scale does NOT inflate to out-run a vendor; that is a race with no
+     end and it destroys the only useful property a four-step scale has. */
+  --z-sticky: 10;
+  /* STEP 20 HAS ZERO CALL SITES, AND THAT ZERO IS DELIBERATE (plan 11-09). RESP-01's mobile-overlay
+     primitive is `patterns/responsive-dialog.tsx` — the vendored dialog in another PRESENTATION, not
+     a second mechanism — so it renders at the dialog step at every width. The token is KEPT rather
+     than deleted because Phase 12's mobile filters and booking rail may yet need a layer strictly
+     below the dialog and above the sticky header, which is exactly the gap this step fills. The zero
+     is ASSERTED, with this reason, in `tests/design/sheet-absent.test.ts`.
+
+     PHASE 12 EXAMINED THIS STEP AND DECLINED IT (plan 12-01), which is the successor 11-09 named and
+     is recorded here so the zero is a CONTRACT rather than an accident nobody re-checked. All three
+     candidates resolve elsewhere, each for a reason rather than by default:
+       • The booking sheet IS `ResponsiveDialog` — the vendored dialog in another presentation — so
+         it renders at `--z-dialog`, exactly as 11-09 predicted.
+       • The photo lightbox is a dialog too, so it is the same answer, not a second one.
+       • Both sticky bars are `z-(--z-sticky)` and are therefore CORRECTLY beneath the sheet's scrim:
+         a bottom bar that floated above the overlay dimming the page behind it would be claiming the
+         page is still interactive while the sheet says it is not.
+     The step stays because a real gap still exists between sticky and dialog; nothing in this phase
+     needed it. A future plan reaching for it should re-argue it here, not just use it. */
+  --z-sheet: 20;
+  --z-dialog: 30;
+  --z-toast: 40;
+  /* The budget. Nothing in the app may exceed the slowest step. Cap wording, stated once so the
+     test is writable: no transition or enter/exit animation exceeds 320ms; continuous loading
+     indicators (`animate-spin`, `animate-pulse`) are exempt by design and are covered by the
+     reduced-motion reset in @layer base instead. */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  /* FitOut Coral (dark) + success (dark) — mirror :root, dark-adjusted foregrounds. */
+  --brand: oklch(0.645 0.205 25);
+  --brand-foreground: oklch(0.145 0 0);
+  --success: oklch(0.7 0.16 150);
+  --success-foreground: oklch(0.145 0 0);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  /* The side-nav and data-visualisation token families are removed here too — see the note at the
+     top of this file. This block stays dormant (D-03): nothing sets `.dark`, and it is kept only as
+     a cheap future theme. It is NOT part of the two-theme contract and the parser never reads it. */
+}
+
+@layer base {
+  /* DS-05, the stylesheet's half. This rule used to carry a 50% alpha modifier on the outline
+     colour. That looks harmless — it sets outline-color ONLY, with no width and no style, so it
+     renders nothing on its own — but it is the COLOUR SOURCE for the 3 `focus-visible:outline-1`
+     sites, and at half alpha it composites to 1.54:1 against white.
+
+     ARITHMETIC, NOT PREFERENCE: the half-alpha form compiles to
+     `color-mix(in oklab, var(--ring) 50%, transparent)`, and the lightest neutral that reaches 3:1
+     through it still fails against --muted. NO value of --ring can fix the half-alpha form, which
+     is why the alpha is removed rather than the token re-solved again. The component half is 15
+     call sites carrying a half-alpha RING colour (13 of them vendored): 1 in plan 10-06, the other
+     14 in plan 10-07. Two of those 14 were found only by widening the search beyond the bare
+     focus-visible prefix — a calendar day keyed off a data attribute, and an input group whose
+     wrapper draws the ring through a `has-` selector. Named descriptively rather than quoted,
+     because `tests/design/focus-recipe.test.ts` asserts the literal survives nowhere under src/.
+
+     A base-layer `*:focus-visible` outline fallback was CONSIDERED AND REJECTED, not overlooked:
+     shadcn's own base recipe sets `outline-none` in the utilities layer, which outranks anything
+     declared here, so the fallback would be dead code that reads like a safety net. */
+  * {
+    @apply border-border outline-ring;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* THE GLOBAL REDUCED-MOTION RESET (DS-04). ONE rule, app-wide. Never a per-component media
+     query — that is how a reset ends up covering the three surfaces somebody remembered, and it
+     turns an accessibility contract into a convention.
+
+     THE CAP THIS IS THE OTHER HALF OF, stated so the budget test is writable: no transition or
+     enter/exit animation exceeds 320ms; continuous loading indicators (`animate-spin`,
+     `animate-pulse`) are EXEMPT BY DESIGN, because a progress indicator's cycle is meant to
+     repeat, and they are covered by this reset instead. Without that exemption written down, the
+     budget test cannot be written without failing on the spinner.
+
+     THE `!important` IS LOAD-BEARING and must not be tidied away. It is the only form that also
+     neutralises the `tw-animate-css` keyframes (`animate-in` x8, `zoom-in-95` x7 and
+     `slide-in-from-*` x20) and the Radix `data-state` animations, all of which are utility-layer
+     declarations that outrank an unweighted base-layer rule. And do NOT "improve" this by
+     redefining the motion tokens inside the query instead: that reaches only utilities which read
+     those variables and misses every keyframe animation, so transitions stop while dialogs still
+     zoom and slide — a reset that passes a naive test and fails a real user. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

@@ -1,0 +1,41 @@
+-- Custom SQL migration (Phase 18, D-254) — `listing_review.listing_id` becomes ON DELETE CASCADE.
+--
+-- WHY, RESTATED HERE SO THIS FILE STANDS ALONE. 0026 shipped this FK as `ON DELETE restrict` under
+-- D-221, on the reasoning that "a review decision is an audit record and must never cascade-delete
+-- with the thing it decided about". The property that reasoning protects IS ALREADY GUARANTEED, and
+-- guaranteed better, somewhere else: D-218 makes every ops decision write an `audit` row, and
+-- `audit.actor_id` deliberately carries NO foreign key (D4) precisely so the audit trail survives the
+-- deletion of what it describes. `listing_review` is the OPERATIONAL review state the ops queue reads
+-- (`listing_review_queue_idx`), not the durable compliance record.
+--
+-- IT WAS ALSO THE ONLY `restrict` OF ITS KIND. All six other listing-child FKs cascade
+-- (`listing_photo`, `listing_amenity`, `listing_activity_tag`, and the three at schema.ts:1019/1037/1076).
+-- The two families in this schema that legitimately take `restrict` are FINANCIAL
+-- (`host_payout_ledger`, `booking` — "a financial record must never cascade-delete") and IMMUTABLE
+-- HISTORY (`booking_group`, D-115). This table is neither.
+--
+-- AND ITS ENTIRE OBSERVABLE EFFECT WAS BREAKING FIXTURE TEARDOWN. `softDeleteListing` means a listing
+-- row is never hard-deleted in production, so this constraint never fired on a real path. It fired on
+-- exactly two, both raised by 18-13's by-hand e2e sweep and both of which PASSED their assertions and
+-- failed only while deleting their own fixture host:
+--
+--   e2e/host-headings.spec.ts:313        DELETE FROM "user" WHERE email = …
+--   e2e/keyboard-composites.spec.ts:1352 DELETE FROM "user" WHERE email = …
+--     PostgresError: update or delete on table "listing" violates RESTRICT setting of foreign key
+--     constraint "listing_review_listing_id_listing_id_fk" on table "listing_review"
+--
+-- (the leaked row in both cases: `state='pending'`, `decided_at IS NULL` — 18-06's
+-- `flipToPendingOnMaterialEdit` signature and nothing else's, because both specs drive the edit wizard).
+--
+-- ⚠ NOT FOLDED INTO 0026. 0026 is a SHIPPED migration: 18-02's `SHIPPED_MIGRATION_DIGEST` gate
+-- (tests/design/money-path-invariants.test.ts) and `SHIPPED_MIGRATIONS` (tests/design/infra.test.ts)
+-- hold the 0000–0025 set byte-immutable, and D-251's rule — never edit a migration that has run
+-- anywhere — applies to 0026 too even though it post-dates the frozen digest. A new file is the only
+-- correct shape. (55P04 does not apply here: no enum value is added, so this migration may safely
+-- share a transaction with anything.)
+--
+-- Idempotent: DROP … IF EXISTS then ADD, so the isolated-schema replay in tests/helpers/db.ts (which
+-- runs every file in `drizzle/` into a fresh schema, unqualified names resolving via search_path) is a
+-- no-op-then-restate rather than a duplicate-constraint error.
+ALTER TABLE "listing_review" DROP CONSTRAINT IF EXISTS "listing_review_listing_id_listing_id_fk";--> statement-breakpoint
+ALTER TABLE "listing_review" ADD CONSTRAINT "listing_review_listing_id_listing_id_fk" FOREIGN KEY ("listing_id") REFERENCES "listing"("id") ON DELETE cascade ON UPDATE no action;

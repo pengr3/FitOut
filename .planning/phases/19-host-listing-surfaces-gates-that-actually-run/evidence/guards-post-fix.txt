@@ -1,0 +1,75 @@
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[33m[1m⚠[22m[39m The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 3 tests using 3 workers
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[36m[browser][39m [31mUncaught Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+[2m[WebServer] [22m
+[2m[WebServer] [22m- A server/client branch `if (typeof window !== 'undefined')`.
+[2m[WebServer] [22m- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+[2m[WebServer] [22m- Date formatting in a user's locale which doesn't match the server.
+[2m[WebServer] [22m- External changing data without sending a snapshot of it along with the HTML.
+[2m[WebServer] [22m- Invalid HTML tag nesting.
+[2m[WebServer] [22m
+[2m[WebServer] [22mIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+[2m[WebServer] [22m
+[2m[WebServer] [22mhttps://react.dev/link/hydration-mismatch
+[2m[WebServer] [22m
+[2m[WebServer] [22m  ...
+[2m[WebServer] [22m    <div className="mx-auto fl...">
+[2m[WebServer] [22m      <LinkComponent>
+[2m[WebServer] [22m      <nav data-testid="site-nav" className="flex items...">
+[2m[WebServer] [22m        <Suspense fallback={[...]}>
+[2m[WebServer] [22m          <div>
+[2m[WebServer] [22m          <div className="md:hidden">
+[2m[WebServer] [22m            <NavDrawer>
+[2m[WebServer] [22m              <ResponsiveDialog title="Menu" hideTitle={true} trigger={<button>}>
+[2m[WebServer] [22m                <Dialog open={undefined} onOpenChange={undefined}>
+[2m[WebServer] [22m                  <Dialog data-slot="dialog" open={undefined} onOpenChange={undefined}>
+[2m[WebServer] [22m                    <DialogProvider scope={undefined} triggerRef={{current:null}} contentRef={{current:null}} ...>
+[2m[WebServer] [22m                      <DialogTrigger asChild={true}>
+[2m[WebServer] [22m                        <DialogTrigger data-slot="dialog-tri..." asChild={true}>
+[2m[WebServer] [22m                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+[2m[WebServer] [22m                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+[2m[WebServer] [22m                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+[2m[WebServer] [22m+                               <button
+[2m[WebServer] [22m+                                 data-slot="button"
+[2m[WebServer] [22m+                                 data-variant="ghost"
+[2m[WebServer] [22m+                                 data-size="icon"
+[2m[WebServer] [22m+                                 className={"group/button inline-flex shrink-0 items-center justify-center rounded-l..."}
+[2m[WebServer] [22m+                                 aria-label="Menu"
+[2m[WebServer] [22m+                                 type="button"
+[2m[WebServer] [22m+                                 aria-haspopup="dialog"
+[2m[WebServer] [22m+                                 aria-expanded={false}
+[2m[WebServer] [22m+                                 aria-controls="radix-_R_ad5ritulb_"
+[2m[WebServer] [22m+                                 data-state="closed"
+[2m[WebServer] [22m+                                 onClick={function handleEvent}
+[2m[WebServer] [22m+                                 ref={function}
+[2m[WebServer] [22m+                               >
+[2m[WebServer] [22m                      ...
+[2m[WebServer] [22m      ...
+[2m[WebServer] [22m[39m
+[2m[WebServer] [22m[31m    at <unknown> (https://react.dev/link/hydration-mismatch)
+[2m[WebServer] [22m    at button (<anonymous>)
+[2m[WebServer] [22m    at Button (src\components\ui\button.tsx:143:5)
+[2m[WebServer] [22m    at DialogTrigger (src/components/ui/dialog.tsx:19:10)
+[2m[WebServer] [22m    at ResponsiveDialog (src/components/patterns/responsive-dialog.tsx:250:18)
+[2m[WebServer] [22m    at NavDrawer (src\components\patterns\site-chrome.tsx:308:5)
+[2m[WebServer] [22m    at SiteNav (src\components\patterns\site-chrome.tsx:342:9)
+[2m[WebServer] [22m    at AmbientHostNav (src\components\patterns\ambient-notifications.tsx:176:10)
+[2m[WebServer] [22m    at HostLayout (src\app\(host)\host\layout.tsx:96:13)[39m
+[2m[WebServer] [22m  141 |
+[2m[WebServer] [22m  142 |   return (
+[2m[WebServer] [22m> 143 |     <Comp
+[2m[WebServer] [22m      |     ^
+[2m[WebServer] [22m  144 |       data-slot="button"
+[2m[WebServer] [22m  145 |       data-variant={variant}
+[2m[WebServer] [22m  146 |       data-size={size}
+  ok 2 [chromium] › e2e\host-listing-grid.spec.ts:312:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 320x800 — the 320px floor, one column: guard A clause 2 and guard B (379ms)
+  ok 1 [chromium] › e2e\host-listing-grid.spec.ts:326:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 1280x900 — inside the lg band, three columns: both guards, both clauses (353ms)
+  ok 3 [chromium] › e2e\host-listing-grid.spec.ts:320:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 700x900 — inside the sm band, two columns: both guards, both clauses (266ms)
+
+  3 passed (24.6s)

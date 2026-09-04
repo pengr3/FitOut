@@ -1,2 +1,28 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# GENERATED ARTIFACTS ARE PINNED TO LF, and this is load-bearing rather than tidiness (DS-12/D-18).
+# scripts/generate-design-tokens.mjs writes these three files with LF newlines, and
+# tests/design/token-drift.test.ts asserts BYTE equality between the committed file and a fresh
+# render — no normalisation, on purpose, because normalising is how a drift check learns to forgive.
+# Under the `text=auto` rule above, a checkout on a machine with core.autocrlf=true rewrites them to
+# CRLF in the working tree, and the drift test then goes red on a fresh clone for a reason that has
+# nothing to do with drift. `eol=lf` makes the working-tree bytes match the committed bytes on every
+# platform. If another generated-and-byte-compared artifact is added, it belongs here too.
+src/lib/design/tokens.generated.ts text eol=lf
+public/icon-court.svg text eol=lf
+public/icon-grove.svg text eol=lf
+
+# THE IMAGE FIXTURES ARE THE SAME CONTRACT, ONE STEP MORE FRAGILE (16-04).
+# scripts/generate-image-fixtures.mjs writes eleven files under e2e/fixtures/ and
+# tests/design/image-fixtures.test.ts asserts BYTE equality against a fresh in-memory render, exactly
+# as token-drift.test.ts does for the three paths above. The difference is what `* text=auto` can do
+# to them if it guesses wrong: a PNG/JPEG/GIF that got LF->CRLF normalised is not a file with odd
+# line endings, it is a CORRUPT IMAGE — 0x0A bytes inside a DEFLATE stream or an entropy-coded scan
+# are data, not newlines. `binary` (= `-text -diff`) removes the guess entirely.
+# tiny.svg is genuinely text, so it takes the `eol=lf` pin instead, for the same reason the three
+# generated artifacts above do.
+e2e/fixtures/*.png binary
+e2e/fixtures/*.jpg binary
+e2e/fixtures/*.gif binary
+e2e/fixtures/*.svg text eol=lf

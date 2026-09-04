@@ -1,0 +1,302 @@
+================================================================================
+D-01 ORPHAN DRAFT DELETE — THE RECORD THAT MUST SURVIVE THE ROWS
+================================================================================
+
+Plan:      19-04, Task 2
+Taken:     2026-09-04 (execution time — NOT the research-time read)
+Database:  fitout-db-1 (postgis/postgis:18-3.6), database `fitout`, LOCAL
+Scope:     host_id = 'AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy'
+           AND deleted_at IS NULL
+           AND created_at BETWEEN '2026-09-03 10:51:56Z' AND '2026-09-03 10:52:40Z'
+
+WHY THIS FILE EXISTS
+--------------------
+D-01 deletes four real rows with a hard DELETE and rates the reversibility
+COSTLY. This file IS the reversal path. Section D below carries executable
+INSERT statements that reconstruct equivalent rows.
+
+D-01's own warning, honoured here: "Verify emptiness per row before deleting,
+not just by window — the window is how they were found, not proof of what they
+contain." Everything below was re-measured at execution time. Nothing is
+carried over from 19-RESEARCH § 5.1.
+
+The per-row check has TWO independent jobs:
+  1. It is what D-01 demands.
+  2. A hard DELETE cascades to listing_photo, listing_amenity,
+     listing_activity_tag, operating_hours and availability_block. That cascade
+     is harmless ONLY because section B proves every one of them is empty.
+
+RESULT: all four rows report untouched=t, empty_columns=t, and 0 in every one
+of the six child tables. Exactly 4 rows matched. The delete condition is met
+per row.
+
+=== A. PER-ROW EMPTINESS VERIFICATION (19-RESEARCH Code Examples, re-run at execution time) ===
+                  id                  |             host_id              | status | review_state |          created_at           | untouched | empty_columns | photos | amenities | bookings 
+--------------------------------------+----------------------------------+--------+--------------+-------------------------------+-----------+---------------+--------+-----------+----------
+ 3e224ec0-f015-4d18-a58b-ad08ce165d18 | AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy | draft  | pending      | 2026-09-03 10:51:56.033772+00 | t         | t             |      0 |         0 |        0
+ 3b22e548-762b-484e-a828-5d0b52b4904f | AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy | draft  | pending      | 2026-09-03 10:52:13.556143+00 | t         | t             |      0 |         0 |        0
+ 485e4843-8b5c-4059-aec0-43b30971e40c | AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy | draft  | pending      | 2026-09-03 10:52:27.302846+00 | t         | t             |      0 |         0 |        0
+ e6ca32d0-41c1-4fbf-9cee-79402b962c51 | AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy | draft  | pending      | 2026-09-03 10:52:39.933788+00 | t         | t             |      0 |         0 |        0
+(4 rows)
+
+
+=== B. ALL FIVE CASCADE CHILD TABLES, per row (a hard DELETE cascades to all of them) ===
+                  id                  | listing_photo | listing_amenity | listing_activity_tag | operating_hours | availability_block | booking 
+--------------------------------------+---------------+-----------------+----------------------+-----------------+--------------------+---------
+ 3e224ec0-f015-4d18-a58b-ad08ce165d18 |             0 |               0 |                    0 |               0 |                  0 |       0
+ 3b22e548-762b-484e-a828-5d0b52b4904f |             0 |               0 |                    0 |               0 |                  0 |       0
+ 485e4843-8b5c-4059-aec0-43b30971e40c |             0 |               0 |                    0 |               0 |                  0 |       0
+ e6ca32d0-41c1-4fbf-9cee-79402b962c51 |             0 |               0 |                    0 |               0 |                  0 |       0
+(4 rows)
+
+
+=== C. FULL COLUMN DUMP -- every column of every row. THIS IS THE REVERSAL PATH. ===
+Expanded display is on.
+-[ RECORD 1 ]--------+-------------------------------------
+id                   | 3e224ec0-f015-4d18-a58b-ad08ce165d18
+host_id              | AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy
+title                | 
+description          | 
+primary_space_type   | 
+address_line1        | 
+address_line2        | 
+city                 | 
+region               | 
+postal_code          | 
+country              | 
+neighborhood         | 
+location             | 
+show_exact_address   | f
+max_occupancy        | 
+hourly_rate_cents    | 
+day_rate_cents       | 
+currency             | php
+booking_mode         | instant
+status               | draft
+published_at         | 
+deleted_at           | 
+created_at           | 2026-09-03 10:51:56.033772+00
+updated_at           | 2026-09-03 10:51:56.033772+00
+unit_count           | 1
+timezone             | Asia/Manila
+cancellation_policy  | 
+occupancy_mode       | exclusive
+included             | 
+extra_head_fee       | 
+per_head_price_cents | 
+review_state         | pending
+-[ RECORD 2 ]--------+-------------------------------------
+id                   | 3b22e548-762b-484e-a828-5d0b52b4904f
+host_id              | AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy
+title                | 
+description          | 
+primary_space_type   | 
+address_line1        | 
+address_line2        | 
+city                 | 
+region               | 
+postal_code          | 
+country              | 
+neighborhood         | 
+location             | 
+show_exact_address   | f
+max_occupancy        | 
+hourly_rate_cents    | 
+day_rate_cents       | 
+currency             | php
+booking_mode         | instant
+status               | draft
+published_at         | 
+deleted_at           | 
+created_at           | 2026-09-03 10:52:13.556143+00
+updated_at           | 2026-09-03 10:52:13.556143+00
+unit_count           | 1
+timezone             | Asia/Manila
+cancellation_policy  | 
+occupancy_mode       | exclusive
+included             | 
+extra_head_fee       | 
+per_head_price_cents | 
+review_state         | pending
+-[ RECORD 3 ]--------+-------------------------------------
+id                   | 485e4843-8b5c-4059-aec0-43b30971e40c
+host_id              | AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy
+title                | 
+description          | 
+primary_space_type   | 
+address_line1        | 
+address_line2        | 
+city                 | 
+region               | 
+postal_code          | 
+country              | 
+neighborhood         | 
+location             | 
+show_exact_address   | f
+max_occupancy        | 
+hourly_rate_cents    | 
+day_rate_cents       | 
+currency             | php
+booking_mode         | instant
+status               | draft
+published_at         | 
+deleted_at           | 
+created_at           | 2026-09-03 10:52:27.302846+00
+updated_at           | 2026-09-03 10:52:27.302846+00
+unit_count           | 1
+timezone             | Asia/Manila
+cancellation_policy  | 
+occupancy_mode       | exclusive
+included             | 
+extra_head_fee       | 
+per_head_price_cents | 
+review_state         | pending
+-[ RECORD 4 ]--------+-------------------------------------
+id                   | e6ca32d0-41c1-4fbf-9cee-79402b962c51
+host_id              | AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy
+title                | 
+description          | 
+primary_space_type   | 
+address_line1        | 
+address_line2        | 
+city                 | 
+region               | 
+postal_code          | 
+country              | 
+neighborhood         | 
+location             | 
+show_exact_address   | f
+max_occupancy        | 
+hourly_rate_cents    | 
+day_rate_cents       | 
+currency             | php
+booking_mode         | instant
+status               | draft
+published_at         | 
+deleted_at           | 
+created_at           | 2026-09-03 10:52:39.933788+00
+updated_at           | 2026-09-03 10:52:39.933788+00
+unit_count           | 1
+timezone             | Asia/Manila
+cancellation_policy  | 
+occupancy_mode       | exclusive
+included             | 
+extra_head_fee       | 
+per_head_price_cents | 
+review_state         | pending
+
+Expanded display is off.
+
+=== D. RE-INSERT STATEMENTS (equivalent rows, should this ever be wanted) ===
+                                                                                                                                                                                               format                                                                                                                                                                                               
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ INSERT INTO listing (id, host_id, status, booking_mode, review_state, occupancy_mode, unit_count, currency, timezone, show_exact_address, created_at, updated_at) VALUES ('3e224ec0-f015-4d18-a58b-ad08ce165d18', 'AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy', 'draft', 'instant', 'pending', 'exclusive', 1, 'php', 'Asia/Manila', 'f', '2026-09-03 10:51:56.033772+00', '2026-09-03 10:51:56.033772+00');
+ INSERT INTO listing (id, host_id, status, booking_mode, review_state, occupancy_mode, unit_count, currency, timezone, show_exact_address, created_at, updated_at) VALUES ('3b22e548-762b-484e-a828-5d0b52b4904f', 'AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy', 'draft', 'instant', 'pending', 'exclusive', 1, 'php', 'Asia/Manila', 'f', '2026-09-03 10:52:13.556143+00', '2026-09-03 10:52:13.556143+00');
+ INSERT INTO listing (id, host_id, status, booking_mode, review_state, occupancy_mode, unit_count, currency, timezone, show_exact_address, created_at, updated_at) VALUES ('485e4843-8b5c-4059-aec0-43b30971e40c', 'AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy', 'draft', 'instant', 'pending', 'exclusive', 1, 'php', 'Asia/Manila', 'f', '2026-09-03 10:52:27.302846+00', '2026-09-03 10:52:27.302846+00');
+ INSERT INTO listing (id, host_id, status, booking_mode, review_state, occupancy_mode, unit_count, currency, timezone, show_exact_address, created_at, updated_at) VALUES ('e6ca32d0-41c1-4fbf-9cee-79402b962c51', 'AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy', 'draft', 'instant', 'pending', 'exclusive', 1, 'php', 'Asia/Manila', 'f', '2026-09-03 10:52:39.933788+00', '2026-09-03 10:52:39.933788+00');
+(4 rows)
+
+
+=== E. SCOPE CONTROL -- untouched empty drafts OUTSIDE D-01 scope, DELIBERATELY LEFT ALONE ===
+             host_id              | untouched_empty_drafts |           earliest            |            latest             
+----------------------------------+------------------------+-------------------------------+-------------------------------
+ h9WsVnTOxWNDfuiAgcZCt26c6hgS45g1 |                      1 | 2026-08-29 09:43:17.538479+00 | 2026-08-29 09:43:17.538479+00
+ GaSiGGUQK4OaohpLYmZUEliAZsOdioZF |                      1 | 2026-08-29 09:46:03.73141+00  | 2026-08-29 09:46:03.73141+00
+ TQyMrzejrNAUVR5vhl6qbp1ThhCjfQ9s |                      1 | 2026-08-29 09:46:31.245364+00 | 2026-08-29 09:46:31.245364+00
+ xQ8D9975AZJjVC4FtDIlJNxv6bGmyW6o |                      1 | 2026-08-29 09:46:46.221926+00 | 2026-08-29 09:46:46.221926+00
+ TnJBFjngV4GlNpWN2JXmd3psdoUttia3 |                      1 | 2026-08-29 09:47:00.208772+00 | 2026-08-29 09:47:00.208772+00
+ JtA6ZZvkBfy9Qnekt0zdm8nUKcGwMe9q |                      1 | 2026-08-29 09:51:42.670992+00 | 2026-08-29 09:51:42.670992+00
+ QroVFscerIJ1KtOQfoVziTCcVwxVxzyA |                      1 | 2026-08-29 09:51:59.865824+00 | 2026-08-29 09:51:59.865824+00
+ SqWAhVSntHDJyVE7n3GF5CU3GVAQgHH2 |                      1 | 2026-08-29 09:52:13.876034+00 | 2026-08-29 09:52:13.876034+00
+ y5jx33vvjR4tGR0DRx4P4qdKtWukYuGb |                      1 | 2026-08-29 09:57:03.134113+00 | 2026-08-29 09:57:03.134113+00
+ zwY2NBG9Y1xXJTopy7TM5emk4me2aeL1 |                      1 | 2026-08-29 09:57:17.881327+00 | 2026-08-29 09:57:17.881327+00
+ KRqT43twP9GImBK7IyyECWNwqmv6vbs9 |                      1 | 2026-08-29 09:57:57.344276+00 | 2026-08-29 09:57:57.344276+00
+ jcqRMcQJHU5Kg08qabHVh16QrAnSSllZ |                      1 | 2026-08-29 09:58:11.968396+00 | 2026-08-29 09:58:11.968396+00
+ c4QvHlPJgzON1vZBQGBmm0GGc3UH0aSH |                      1 | 2026-08-29 10:00:30.008478+00 | 2026-08-29 10:00:30.008478+00
+ 6mVzrI6vgbcSGz2WDp9aK7WJ3cUi6wU7 |                      1 | 2026-08-29 10:09:47.012726+00 | 2026-08-29 10:09:47.012726+00
+ 1V00s08dkZgyTcXoN7QwGbUYzSMC7zSJ |                      1 | 2026-08-30 07:23:45.159163+00 | 2026-08-30 07:23:45.159163+00
+ uballmQwnkJEUrV4F4v3EVjEsjVl6muc |                      1 | 2026-08-30 07:50:18.799496+00 | 2026-08-30 07:50:18.799496+00
+ 1hFuonyMnwck6zUJyyndeWOtIBfpMBTn |                      1 | 2026-08-30 08:19:01.823053+00 | 2026-08-30 08:19:01.823053+00
+ HYfBaYD63GCPwhKZuesNmVPNSvTCnpe8 |                      1 | 2026-08-30 08:21:50.598722+00 | 2026-08-30 08:21:50.598722+00
+ gHwTZmmYwrBGNYL3mMCdOFZD4fwolonb |                      1 | 2026-08-30 15:38:14.219027+00 | 2026-08-30 15:38:14.219027+00
+ 44YCMtCJinN9NhxmW6KrIfkFJfnXQB0L |                      1 | 2026-08-30 15:44:22.000551+00 | 2026-08-30 15:44:22.000551+00
+ vKs9JfVvaRM6CYD12F6x2HMmfr44vbyb |                      1 | 2026-08-30 15:56:08.414982+00 | 2026-08-30 15:56:08.414982+00
+ 6uEpDBboAkjIfvQdtoRb0dNCRqlbCwBz |                      1 | 2026-08-30 17:17:43.469433+00 | 2026-08-30 17:17:43.469433+00
+ nVssMXByYSw7MulZIw0g932ecq62GpCM |                      1 | 2026-08-30 17:30:48.906369+00 | 2026-08-30 17:30:48.906369+00
+ punO0XPYmvxgil38s0kF1oCw3osy6BP8 |                      1 | 2026-08-30 20:28:00.896616+00 | 2026-08-30 20:28:00.896616+00
+ n1SWb4hJoORm8oeVLmciPf1dLnDj4YYs |                      1 | 2026-08-30 20:31:55.086213+00 | 2026-08-30 20:31:55.086213+00
+ 1T8acUeeQvGfL6asinyBTt5eIRISHzjp |                      1 | 2026-08-30 23:18:27.289976+00 | 2026-08-30 23:18:27.289976+00
+ GIgLwr8iefF2JgBVzdMKRuOIG6qRvsxr |                      1 | 2026-08-30 23:31:38.33811+00  | 2026-08-30 23:31:38.33811+00
+ K9N165ifIVd3CALDukqLKlAgymhS9WVQ |                      1 | 2026-08-30 23:33:59.801927+00 | 2026-08-30 23:33:59.801927+00
+ ywLNHXldgJc9OhjWO5q9Hq1hmVoMAD1v |                      1 | 2026-09-01 04:15:49.579698+00 | 2026-09-01 04:15:49.579698+00
+ 0Qbe9cimTRrdl89XOEwdmTIeugZkWXyt |                      1 | 2026-09-01 04:16:25.672958+00 | 2026-09-01 04:16:25.672958+00
+ J4dm21WgUUG5btHZvd5Gxw9tRkVkU5gt |                      1 | 2026-09-01 05:27:23.481469+00 | 2026-09-01 05:27:23.481469+00
+ DVvsvzptV8PcEniap1UesbU45Pn8RESV |                      1 | 2026-09-02 08:34:03.511074+00 | 2026-09-02 08:34:03.511074+00
+ F02itMYIa9eyedxyRvrh2wpLHamVKDas |                      1 | 2026-09-02 08:34:37.433534+00 | 2026-09-02 08:34:37.433534+00
+ jCtWVHSTzdSIx0n6SLnNi0cP2Jz1wUte |                      1 | 2026-09-02 09:13:23.041952+00 | 2026-09-02 09:13:23.041952+00
+ lQ739iHKQTukLPDfJjN8vxVJLKIaiNOM |                      1 | 2026-09-02 09:16:57.63388+00  | 2026-09-02 09:16:57.63388+00
+ nQIc0bZyW4VZ4SPUhBeKIEHZCFPT48FN |                      1 | 2026-09-02 09:17:25.474081+00 | 2026-09-02 09:17:25.474081+00
+ y7SAcQ9AzuJxwAmPwge32NI5nswDnswn |                      1 | 2026-09-02 09:17:48.335522+00 | 2026-09-02 09:17:48.335522+00
+ XQjfGrH2GHrSPfWjLsK3zlPgymhPd8hA |                      1 | 2026-09-02 09:18:11.148774+00 | 2026-09-02 09:18:11.148774+00
+ Ea9MgdSrV9wUyeq2Maks15dTVLUT3Jap |                      1 | 2026-09-02 09:18:33.660211+00 | 2026-09-02 09:18:33.660211+00
+ pbaCgRAedApJdKsG03gMhyuf7GCSRjJc |                      1 | 2026-09-02 09:20:06.560091+00 | 2026-09-02 09:20:06.560091+00
+ hJyfRP6MmwNfsr8igGmC41yRVey0LVyI |                      1 | 2026-09-02 09:23:45.008597+00 | 2026-09-02 09:23:45.008597+00
+ VQrs2rOymEBODbgP1TFXI07T4g0TSpi8 |                      1 | 2026-09-02 12:17:29.949037+00 | 2026-09-02 12:17:29.949037+00
+ zL7Ry8CNP4DWOJgMxQjE9GYyBFELnHhQ |                      1 | 2026-09-02 17:41:26.240627+00 | 2026-09-02 17:41:26.240627+00
+ X5oqtmcIuudvhTenHadrx8yDgFznZ94L |                      1 | 2026-09-03 02:28:11.272492+00 | 2026-09-03 02:28:11.272492+00
+ wLGbcTo94vy5pnsFbPKc0XjS3NcHYpS8 |                      1 | 2026-09-03 02:37:20.933597+00 | 2026-09-03 02:37:20.933597+00
+ BXawIzpnIu62VJm1yXwuXHc0H6eMjJjf |                      1 | 2026-09-03 02:38:43.084812+00 | 2026-09-03 02:38:43.084812+00
+ kANnzVYRmOZAMwV5xuO8EvFRsFRc3PIC |                      1 | 2026-09-03 02:39:43.796399+00 | 2026-09-03 02:39:43.796399+00
+ t0A1LjVaVHChTvELiPZP0vvyfIBTiibJ |                      1 | 2026-09-03 02:40:22.668299+00 | 2026-09-03 02:40:22.668299+00
+ dv3R66f1NB8PRfSO8ttqKhzNoISygEaE |                      1 | 2026-09-03 07:18:00.038962+00 | 2026-09-03 07:18:00.038962+00
+(49 rows)
+
+
+================================================================================
+=== F. SCOPE PROOF — every listing owned by the D-01 host, in_window flagged ===
+================================================================================
+The delete is host-scoped AND window-scoped. This table proves the window does
+not reach any of the host's real work: three published listings with real
+titles, one titled draft ("KAI Sports Center"), one untouched draft from
+2026-08-24 that is OUTSIDE the window and therefore deliberately NOT deleted,
+and three already soft-deleted drafts excluded by `deleted_at IS NULL`.
+
+in_window = t for EXACTLY the four target rows and for nothing else.
+
+                  id                  |  status   |             title             |          created_at           | soft_deleted | in_window 
+--------------------------------------+-----------+-------------------------------+-------------------------------+--------------+-----------
+ uat_listing_bookable                 | published | Sunlit Yoga Studio (bookable) | 2026-07-13 05:29:13.841026+00 | f            | f
+ dd5b62e1-6d29-4dd6-91cc-112e11296640 | draft     | KAI Sports Center             | 2026-07-28 10:50:40.243716+00 | f            | f
+ a1298f9e-92c6-4789-aece-be84c62071b9 | published | CLMC Yoga Space               | 2026-08-18 02:36:12.269818+00 | f            | f
+ 0454c21f-4f18-44cc-9cee-5f376f1470c6 | draft     |                               | 2026-08-24 05:52:07.018103+00 | f            | f
+ e5b7c9e0-b18d-4f07-999d-d03e50a8eeea | published | CLMC Pickleball Court         | 2026-08-24 05:52:07.03759+00  | f            | f
+ f599e7ca-386b-4e0f-8e24-90708e40f761 | draft     |                               | 2026-08-27 07:55:36.678934+00 | t            | f
+ 62302f66-a117-4c8b-91d7-b886a364a8c8 | draft     |                               | 2026-08-27 07:55:38.165079+00 | t            | f
+ 1dfb1935-1d50-4053-9472-cd4212ba55ba | draft     |                               | 2026-09-01 10:09:31.799518+00 | t            | f
+ 3e224ec0-f015-4d18-a58b-ad08ce165d18 | draft     |                               | 2026-09-03 10:51:56.033772+00 | f            | t
+ 3b22e548-762b-484e-a828-5d0b52b4904f | draft     |                               | 2026-09-03 10:52:13.556143+00 | f            | t
+ 485e4843-8b5c-4059-aec0-43b30971e40c | draft     |                               | 2026-09-03 10:52:27.302846+00 | f            | t
+ e6ca32d0-41c1-4fbf-9cee-79402b962c51 | draft     |                               | 2026-09-03 10:52:39.933788+00 | f            | t
+(12 rows)
+
+
+================================================================================
+=== G. ⚠ DIFFERENCE FROM THE RESEARCH, RECORDED RATHER THAN SMOOTHED OVER ===
+================================================================================
+19-RESEARCH § 5.1 states there are "eleven other untouched drafts owned by
+other accounts". MEASURED at execution time, the count is:
+
+49 rows across 49 distinct hosts
+   — see section E above for the per-host breakdown.
+
+This is 49, not 11. It is NOT growth caused by this phase: a count of untouched
+empty drafts created on or after 2026-09-04 returns 0, and the earliest in the
+set dates to 2026-08-29. The research's "eleven" appears to have been a
+narrower read of the same pre-existing population, not a smaller population.
+
+It changes nothing about D-01's scope, which is host-scoped and window-scoped
+and touches none of them. It DOES strengthen D-02's case: the orphan class is
+larger than the phase's own framing assumed, which is an argument for killing it
+at the source rather than cleaning up after it.
+
+⚠ ALL 49 ARE DELIBERATELY LEFT ALONE. D-01's scope is not widened here.

@@ -1,0 +1,118 @@
+================================================================================
+D-01 ORPHAN DRAFT DELETE — THE RESULT
+================================================================================
+
+Plan:      19-04, Task 3 (checkpoint:decision — answered OPTION 1)
+Executed:  2026-09-04
+Database:  fitout-db-1 (postgis/postgis:18-3.6), database `fitout`, LOCAL
+Authority: `evidence/orphan-drafts-before-delete.txt` (Task 2's per-row record),
+           NOT 19-RESEARCH § 5.1's research-time table.
+
+THE DECISION THAT AUTHORISED THIS
+----------------------------------
+Task 3 is a `checkpoint:decision`. Three options were presented: (1) the scoped
+hard DELETE as D-01 is written and locked, (2) a soft delete diverging from
+D-01, (3) defer. The PM answered **OPTION 1**.
+
+=== A. PRE-DELETE RE-CONFIRMATION (re-taken immediately before the statement) ===
+
+  rows in window (host-scoped, deleted_at IS NULL)     : 4     (required: 4)
+  rows in window FAILING the emptiness condition       : 0     (required: 0)
+
+=== B. THE STATEMENT, RUN IN A TRANSACTION WITH A ROW-COUNT GATE ===
+
+  BEGIN;
+  DO $$
+  DECLARE n integer;
+  BEGIN
+    DELETE FROM listing
+     WHERE host_id = 'AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy'
+       AND deleted_at IS NULL
+       AND created_at BETWEEN '2026-09-03 10:51:56Z' AND '2026-09-03 10:52:40Z';
+    GET DIAGNOSTICS n = ROW_COUNT;
+    RAISE NOTICE 'D-01 affected_rows=%', n;
+    IF n <> 4 THEN
+      RAISE EXCEPTION 'AFFECTED ROW COUNT % IS NOT 4 - ROLLING BACK', n;
+    END IF;
+  END $$;
+  COMMIT;
+
+The gate is not decoration. Any count other than 4 raises, which aborts the
+transaction, which turns the COMMIT into a rollback — the delete could not have
+partially applied. The window literals are UTC and byte-identical to Task 2's,
+because `listing.created_at` is `timestamptz`.
+
+  psql output:
+    BEGIN
+    NOTICE:  D-01 affected_rows=4
+    DO
+    COMMIT
+
+  AFFECTED ROWS: 4   (expected exactly 4 — MATCH, committed)
+
+=== C. POST-DELETE VERIFICATION (the plan's three automated checks) ===
+
+  1. Task 2's window query, re-run                    : 0   (required 0)  PASS
+  2. count by the four literal uuids                  : 0   (required 0)  PASS
+  3. ls drizzle/*.sql | tail -1
+       → drizzle/0029_listing_review_cascade.sql       (unchanged)        PASS
+         No migration appeared. D-01 is a DELETE, not DDL — the v1.2
+         zero-schema-migrations invariant holds.
+  4. git status --porcelain package.json → (no output)  zero deps changed PASS
+
+=== D. SCOPE CONTAINMENT, PROVEN AFTER THE FACT ===
+
+Every listing still owned by the D-01 host. Section F of the "before" record
+predicted exactly these eight rows would survive, and exactly these eight did:
+
+                  id                  |  status   |          title          | soft_deleted
+--------------------------------------+-----------+-------------------------+-------------
+ uat_listing_bookable                 | published | Sunlit Yoga Studio (…)  | f
+ dd5b62e1-6d29-4dd6-91cc-112e11296640 | draft     | KAI Sports Center       | f
+ a1298f9e-92c6-4789-aece-be84c62071b9 | published | CLMC Yoga Space         | f
+ 0454c21f-4f18-44cc-9cee-5f376f1470c6 | draft     |                         | f
+ e5b7c9e0-b18d-4f07-999d-d03e50a8eeea | published | CLMC Pickleball Court   | f
+ f599e7ca-386b-4e0f-8e24-90708e40f761 | draft     |                         | t
+ 62302f66-a117-4c8b-91d7-b886a364a8c8 | draft     |                         | t
+ 1dfb1935-1d50-4053-9472-cd4212ba55ba | draft     |                         | t
+(8 rows)
+
+Three published listings with real titles, one titled draft, one UNTOUCHED
+EMPTY draft from 2026-08-24 that is outside the window and therefore correctly
+NOT deleted, and three already soft-deleted drafts excluded by
+`deleted_at IS NULL`. The 2026-08-24 row is the sharpest proof available that
+the window did its job: it satisfies every emptiness predicate and was spared
+purely because it falls outside the window.
+
+=== E. THE OUT-OF-SCOPE POPULATION, RE-COUNTED AFTER THE DELETE ===
+
+  untouched empty drafts owned by OTHER hosts: 49   (unchanged, was 49)
+
+Not 11, as 19-RESEARCH § 5.1 states. Measured 49 across 49 distinct hosts;
+none created on or after 2026-09-04, earliest 2026-08-29 — a pre-existing
+population, not growth from this phase. ALL 49 DELIBERATELY LEFT ALONE. The
+window was not widened "while we were in here".
+
+================================================================================
+=== F. ⚠ OPEN PM QUESTION — RAISED, NOT ABSORBED, NOT ANSWERED ===
+================================================================================
+
+  D-01's window and host id are LOCAL facts, so a production database may hold
+  orphan drafts this phase does not touch; if a deployed environment exists, the
+  scope must be re-derived there, not copied.
+
+This question was put to the PM alongside the option choice. The option choice
+was answered; THIS WAS NOT. That silence is recorded as silence. It is
+specifically NOT read as "no production database exists", and no search for one
+was undertaken beyond what the plan specifies — 19-RESEARCH found no deployment
+configuration in the tree and `PITFALLS.md § Pitfall 6` records the same absence
+independently, which is an absence of evidence, not evidence of absence.
+
+19-VALIDATION § Negative Space already states this phase deliberately does NOT
+validate that the delete is safe in any production database. It remains OPEN.
+
+=== G. REVERSAL PATH ===
+
+`evidence/orphan-drafts-before-delete.txt` § D carries four executable INSERT
+statements that reconstruct equivalent rows, and § C carries every column of
+every row. The record survives the rows, which is what D-01 required.

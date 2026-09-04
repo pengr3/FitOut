@@ -1,0 +1,175 @@
+HSURF-02 REPRODUCTION GATE — THE ELEVEN-URL ANONYMOUS PROBE, PRODUCTION BUILD
+Plan 19-05 Task 2. Protocol: 19-RESEARCH § 1.2 steps 5 and 6.
+Taken: 2026-09-04, local machine, `next build` + `next start` (Next.js 16.2.7).
+
+THIS IS THE ITEM THE PHASE CAN CLOSE — 19-RESEARCH § 1.3 row (b).
+
+PRECONDITION: the Task 1 dev server was STOPPED FIRST (PID 17196 terminated; :3000 back to
+000 before the build started). `next build` and `next dev` share .next, and a build racing a
+dev server is one of the FIVE named candidates for unproven item (c) — running them
+concurrently would have manufactured the very confound this phase exists to avoid.
+
+BUILD: `npm run build`  ->  EXIT 0
+  (= `npm run lint && npm run test:design && next build`; lint and the design suite both
+   passed, so the production probe below ran against a fully green build.)
+  Both subject routes appear in the build's own route table:
+      f /host/listings/[id]/availability
+      f /host/listings/[id]/edit
+
+START: the platform-wallet pair supplied INLINE, for that one command only:
+
+  PLATFORM_WALLET_NUMBER=dev-wallet-not-a-real-account \
+  PLATFORM_WALLET_NAME="FitOut Dev Platform" \
+  npm start
+
+  -> "▲ Next.js 16.2.7 / ✓ Ready in 263ms". No guard threw. No 500 on any of the 11 probes.
+
+=============================================================================
+ENVIRONMENT VARIABLES THAT HAD TO BE SUPPLIED INLINE — THE COMPLETE LIST
+=============================================================================
+ONLY THE PLATFORM-WALLET PAIR WAS NEEDED. Exactly two:
+
+  PLATFORM_WALLET_NUMBER   = dev-wallet-not-a-real-account
+  PLATFORM_WALLET_NAME     = FitOut Dev Platform
+
+Both values are VISIBLY FAKE AND SELF-DESCRIBING. They carry no secret and are recorded here
+precisely so the next reader can reproduce the probe without guessing.
+
+NONE of the other three module-scope boot guards that ci.yml:626-641 enumerates had to be
+supplied, and NONE of them fired:
+  BETTER_AUTH_SECRET       (src/lib/auth.ts:43,  NOT NEXT_PHASE-exempt)   — not needed
+  PAYMONGO_SECRET_KEY      (src/lib/paymongo.ts:27, NOT exempt)           — not needed
+  PAYMONGO_WEBHOOK_SECRET  (api/paymongo/webhook/route.ts:36, NOT exempt) — not needed
+  INNGEST_SIGNING_KEY      (build-phase exempt)                           — not needed
+This matches 19-RESEARCH § 1.2 step 5's explanation: .env.local supplies 16 keys on this
+machine and Next loads .env.local in production too, so only the wallet pair — which is
+exempt during `next build` but NOT at `next start` — was actually missing.
+
+NO BOOT GUARD WAS WEAKENED, EDITED, OR BYPASSED. Nothing was written to .env.local:
+  $ git status --porcelain .env.local
+  (no output — and .env.local is not a tracked file at all)
+
+=============================================================================
+THE MATRIX — ELEVEN ROWS, PRODUCTION BUILD
+=============================================================================
+Format: <n> <url> <status> <redirect_url>
+
+ 1 /host/listings                                       307 http://localhost:3000/login
+ 2 /host/listings/new                                   307 http://localhost:3000/login
+ 3 /host/listings/e6ca32d0-41c1-4fbf-9cee-79402b962c51/edit 307 http://localhost:3000/login
+ 4 /host/listings/e6ca32d0-41c1-4fbf-9cee-79402b962c51/availability 307 http://localhost:3000/login
+ 5 /host/listings/zzz/edit                              307 http://localhost:3000/login
+ 6 /host/listings/uat_listing_bookable/edit             307 http://localhost:3000/login
+ 7 /host                                                307 http://localhost:3000/login
+ 8 /bookings/abc                                        307 http://localhost:3000/login
+ 9 /listings/uat_listing_bookable                       200
+10 /invite/abc                                          200
+11 /ops                                                 404
+
+BYTE-FOR-BYTE THE SAME STATUS/REDIRECT MATRIX AS THE CLEAN DEV SERVER (probe-dev.txt).
+All eleven rows match the healthy expectation of 19-RESEARCH § 1.1.
+
+IT IS ELEVEN URLS, NOT TEN — the "ten" in PITFALLS.md § B5's prose (inherited by ROADMAP.md
+and 19-CONTEXT.md) is a miscount. The prose is wrong; the list is right.
+
+=============================================================================
+THE PRODUCTION MANIFEST — THE CONFIRMING OBSERVATION
+=============================================================================
+  $ grep -c 'listings/\[id\]/edit'         .next/app-path-routes-manifest.json
+  1
+  $ grep -c 'listings/\[id\]/availability' .next/app-path-routes-manifest.json
+  1
+  $ node -e "Object.keys(require('./.next/app-path-routes-manifest.json')).length"
+  46
+  mtime: 2026-09-04 10:46:22.205085500 +0800   (2352 bytes)
+
+The freshly built production manifest CONTAINS the edit route. This AGREES with the
+2026-09-04 measurement recorded in 19-RESEARCH § 1.0 (prod manifest grep -c -> 1), which is
+the one part of the archived production-manifest evidence that remained independently
+verifiable after the original file was deleted from the live tree (19-04 recorded the
+manifest's Sep 3 15:57 MTIME as no longer verifiable; its COUNT is re-confirmed here).
+
+=============================================================================
+THE VERDICT — ONE OF EXACTLY THREE (19-RESEARCH § 1.2 step 7)
+=============================================================================
+
+  ***  VERDICT A — NOT REPRODUCED IN DEV, NOT REPRODUCED IN PROD  ***
+
+The rows that determine it, quoted, per row, and NOT generalised:
+
+  ROW  URL                                  DEV    PROD   2026-09-03 (broken)
+   3   {draft-uuid}/edit                     307    307    404   <- THE SUBJECT
+   4   {draft-uuid}/availability             307    307    404   <- THE SUBJECT
+   5   zzz/edit                              307    307    404
+   6   uat_listing_bookable/edit             307    307    404
+
+All four subject rows serve 307 -> /login under BOTH a clean dev server and a real production
+build. Every one of those requests is ANONYMOUS, and an anonymous caller that reaches
+EditListingPage can only produce a 307 (redirect at edit/page.tsx:30-33, BEFORE the
+db.select() at :43 and long before the notFound() at :49-51). So the page module RAN in every
+case, which is exactly what the 2026-09-03 404s proved had NOT happened.
+
+CONSEQUENCE, per D-09: NO APPLICATION FILE CHANGES FOR HSURF-02. The idempotent creation
+(D-02) and the failure sentence (D-03) are a separate defect and stand on their own merits.
+
+This is verdict A, not verdict B — so no live reproduction existed to hand to /gsd-debug, and
+items (a) and (c) CANNOT be closed by this plan. Only verdict B could have closed them.
+
+=============================================================================
+ROW 11 — THE /ops REGRESSION CONTROL, AND A BODY OBSERVATION THAT IS OUT OF SCOPE
+=============================================================================
+STATUS: 404. UNCHANGED, in both matrices. THE CONTROL THIS PLAN ASSERTS HELD.
+
+The body comparison that was INVALID in dev mode IS valid here — production output is stable,
+so the same URL fetched twice gives the same hash:
+
+  /ops            fetch #1   sha256 537253f5a87aafb61aff4ab929a95ca2375a8a476b26e84b8360c070fbcd9a64
+  /ops            fetch #2   sha256 537253f5a87aafb61aff4ab929a95ca2375a8a476b26e84b8360c070fbcd9a64   (STABLE)
+  /zzz-nonroute-a            sha256 d4de59d19358a5cf5f2dbcaf652e184564fe664d2d5988cd40fabd92ca405032
+  /zzz-nonroute-b            sha256 d4de59d19358a5cf5f2dbcaf652e184564fe664d2d5988cd40fabd92ca405032   (STABLE, and equal to each other)
+
+  sizes: /ops 25970 bytes;  both plain non-routes 29644 bytes  (delta 3674)
+
+SO /ops IS NOT BYTE-IDENTICAL TO THE ROOT NOT-FOUND UNDER THIS PRODUCTION BUILD. Recorded
+because it was measured, and 19-RESEARCH describes D-219's cloak as having been "measured at
+18-14 with sha256 body equality".
+
+WHAT THE DIFFERENCE IS, MEASURED RATHER THAN ASSUMED:
+  - BOTH bodies carry the IDENTICAL <title>Page not found · FitOut</title>.
+  - NO ops-identifying content leaks into the /ops body. Case-insensitive counts are equal
+    across both bodies ("Ops" 1 and 1), and "ops-console", "Console", "staff", "Staff",
+    "wordmark", "Dashboard" are ZERO in both. The ops wordmark that (ops)/ops/layout.tsx's
+    own docblock warns would "tell a prober the console is real" is NOT present.
+  - The difference is that the plain-non-route body additionally renders the site chrome —
+    the "We couldn't find that page" h2 and the footer nav ("Product", "Legal & support") —
+    which the /ops 404 body does not. The /ops body is SMALLER, not larger; nothing extra is
+    disclosed, some shared chrome is absent.
+
+WHY THIS IS NOT AN ESCALATION AND NOT THIS PLAN'S TO FIX:
+  1. The halt condition this plan and T-19-22 define is a STATUS other than 404. The status is
+     404 in both matrices. The control held.
+  2. IT IS PRE-EXISTING AND NOT CAUSED BY PHASE 19. The complete set of non-.planning files
+     changed by every 19-* commit is: .github/workflows/ci.yml, e2e/helpers/booker-seed.ts,
+     e2e/host-listing-grid.spec.ts, scripts/verify-workflows.mjs,
+     src/components/listing/listing-card.tsx, tests/design/listing-card-merge-order.test.ts.
+     NONE of them renders /ops or the not-found. src/app/(ops)/ops/layout.tsx last changed in
+     18-12 (04c523f, 2026-09-01) and src/app/not-found.tsx in 11-14 (a74341c, 2026-08-14) —
+     both BEFORE this phase opened.
+  3. The SCOPE BOUNDARY forbids fixing a pre-existing condition in unrelated files here.
+
+NO CLAIM IS MADE that the cloak is broken, and none that it is intact. What is claimed is
+only what was measured: the status is 404, no ops-identifying content is present, the titles
+match, and the total bodies differ by shared site chrome. Whoever owns D-219 should decide
+whether byte-equality is still the intended property or whether the 18-14 measurement was
+taken under different conditions. Logged to deferred-items.md and the broken-windows ledger.
+
+=============================================================================
+D-10 CONTAINMENT
+=============================================================================
+  $ git status --porcelain "src/app/(host)/host/listings/[id]/"
+  (no output)
+  $ git status --porcelain .env.local
+  (no output)
+
+Nothing under the edit or availability route directory was touched at any step of this plan.
+No boot guard was softened to make the probe run.

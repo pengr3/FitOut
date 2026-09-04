@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en" data-sketch-theme="court">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch 003 — Listing page shape</title>
+<link id="theme-link" rel="stylesheet" href="../themes/court.css">
+<link rel="stylesheet" href="../themes/kit.css">
+<style>
+  .detail { display: grid; grid-template-columns: 1fr 360px; gap: 48px; align-items: start; }
+  @media (max-width: 900px) { .detail { grid-template-columns: 1fr; gap: 24px; } .rail-col { display: none; } }
+
+  /* ---- The 5-up mosaic. One hero + a 2x2, "Show all photos" overlaid bottom-right. ---- */
+  .mosaic {
+    display: grid; grid-template-columns: 2fr 1fr 1fr; grid-template-rows: 1fr 1fr;
+    gap: 8px; border-radius: var(--radius-xl); overflow: hidden;
+    aspect-ratio: 16 / 9; position: relative;
+  }
+  .mosaic > button { border: 0; padding: 0; cursor: pointer; overflow: hidden; position: relative; }
+  .mosaic > button:first-child { grid-row: span 2; }
+  .mosaic .ph { width: 100%; height: 100%; display: block; transition: transform var(--motion-base) var(--motion-ease-standard); }
+  .mosaic > button:hover .ph { transform: scale(1.03); }
+  /* Selector must out-specify `.mosaic > button` above (0,0,1,1) or `position: relative`
+     wins and this lands in the grid flow as a sixth tile. Measured, not guessed. */
+  .mosaic > button.show-all {
+    position: absolute; right: 14px; bottom: 14px; z-index: 2;
+    height: 44px; padding: 0 16px; border-radius: var(--radius-md);
+    background: var(--card); color: var(--foreground);
+    border: 1px solid var(--border); box-shadow: var(--elevation-overlay);
+    font-family: inherit; font-size: var(--text-sm); font-weight: var(--font-weight-medium); cursor: pointer;
+  }
+  /* Fallbacks — the shapes that decide whether the mosaic is safe on real supply. */
+  .mosaic[data-n="1"] { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+  .mosaic[data-n="1"] > button:first-child { grid-row: span 1; }
+  .mosaic[data-n="2"] { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+  .mosaic[data-n="2"] > button:first-child { grid-row: span 1; }
+  .mosaic[data-n="3"] { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
+  .mosaic[data-n="4"] { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
+  .mosaic[data-n="4"] > button:nth-child(4) { grid-column: 2; }
+
+  /* ---- Key-fact treatments ---- */
+  .kf-icons { display: flex; flex-wrap: wrap; gap: 20px 32px; }
+  .kf-icons > div { display: flex; gap: 10px; align-items: flex-start; }
+  .kf-icons .glyph { font-size: 20px; line-height: 1.2; width: 24px; text-align: center; }
+
+  .kf-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden;
+  }
+  .kf-strip > div { padding: 14px 16px; border-right: 1px solid var(--border); }
+  .kf-strip > div:last-child { border-right: 0; }
+  @media (max-width: 700px) {
+    .kf-strip { grid-template-columns: 1fr 1fr; }
+    .kf-strip > div:nth-child(2n) { border-right: 0; }
+    .kf-strip > div:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+  }
+
+  .kf-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+
+  .sec { padding-top: 28px; }
+  .sec + .sec { border-top: 1px solid var(--border); margin-top: 28px; }
+
+  .map-ph {
+    aspect-ratio: 16/7; border-radius: var(--radius-lg); border: 1px solid var(--border);
+    background:
+      repeating-linear-gradient(0deg, transparent 0 22px, color-mix(in oklch, var(--border) 60%, transparent) 22px 23px),
+      repeating-linear-gradient(90deg, transparent 0 22px, color-mix(in oklch, var(--border) 60%, transparent) 22px 23px),
+      var(--muted);
+    display: grid; place-items: center; position: relative;
+  }
+  .pin { width: 22px; height: 22px; border-radius: var(--radius-full); background: var(--brand);
+         box-shadow: 0 0 0 8px color-mix(in oklch, var(--brand) 22%, transparent); }
+
+  .avatar { width: 56px; height: 56px; border-radius: var(--radius-full); background: var(--muted);
+            display: grid; place-items: center; font-weight: var(--font-weight-semibold); flex-shrink: 0; }
+
+  /* ---- Lightbox ---- */
+  .lb { position: fixed; inset: 0; background: oklch(0.145 0 0 / 0.94); z-index: var(--z-dialog);
+        display: none; flex-direction: column; }
+  .lb.open { display: flex; }
+  .lb-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; color: #fff; }
+  .lb-stage { flex: 1; display: grid; place-items: center; padding: 0 12px 24px; }
+  .lb-img { width: min(92vw, 1100px); aspect-ratio: 16/10; border-radius: var(--radius-lg); }
+  .lb-nav { position: absolute; top: 50%; transform: translateY(-50%);
+            width: 48px; height: 48px; border-radius: var(--radius-full);
+            background: rgba(255,255,255,0.14); color: #fff; border: 0; font-size: 22px; cursor: pointer; }
+  .lb-nav:hover { background: rgba(255,255,255,0.26); }
+  .lb-close { background: rgba(255,255,255,0.14); color: #fff; border: 0; border-radius: var(--radius-md);
+              height: 40px; padding: 0 14px; cursor: pointer; font-family: inherit; }
+  .lb-count { font-variant-numeric: tabular-nums; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<nav id="variant-nav">
+  <span class="nav-title">003 · listing</span>
+  <button class="variant-tab" data-v="a">A: Key facts as icon row</button>
+  <button class="variant-tab active" data-v="b">B: As bordered strip ★</button>
+  <button class="variant-tab" data-v="c">C: As chips under title</button>
+  <span style="flex:1"></span>
+  <button class="variant-tab" onclick="document.getElementById('fallbacks').scrollIntoView({behavior:'smooth'})">↓ mosaic fallbacks</button>
+</nav>
+
+<div class="stage" data-vp="full">
+  <header class="appbar">
+    <span class="brandmark">FitOut</span>
+    <span style="flex:1"></span>
+    <button class="btn btn-ghost">Log in</button>
+    <button class="btn btn-outline">Sign up</button>
+  </header>
+
+  <div class="wrap" style="padding-top:20px;padding-bottom:80px">
+    <p class="note">
+      <b>What to look for.</b> The required order is <b>gallery → title → key facts → description →
+      availability → map → cancellation → host</b>. Two things move from what ships today: availability
+      rises <i>above</i> the map, and cancellation gets a section of its own while <b>keeping</b> its
+      compact line in the rail. Judge (1) whether five key facts inform or overwhelm, (2) whether the
+      mosaic survives a host who uploaded three photos — see the fallbacks at the bottom.
+    </p>
+
+    <!-- =============== GALLERY =============== -->
+    <div class="mosaic" data-n="5" id="hero-mosaic"></div>
+
+    <div class="detail" style="margin-top:28px">
+      <!-- ========== main column ========== -->
+      <div>
+        <!-- title -->
+        <div class="stack" style="--gap:6px">
+          <h1 class="t-display">Rockwell Padel &amp; Pickle — Court 2</h1>
+          <p class="t-label muted">Court · Poblacion, Makati</p>
+        </div>
+
+        <!-- ---------- KEY FACTS — three treatments ---------- -->
+        <div class="sec">
+          <div class="variant" id="variant-a">
+            <div class="kf-icons">
+              <div><span class="glyph">👥</span><div><p class="t-body semi">Up to 12 people</p><p class="t-label muted">per booking</p></div></div>
+              <div><span class="glyph">🎾</span><div><p class="t-body semi">Padel court</p><p class="t-label muted">indoor, covered</p></div></div>
+              <div><span class="glyph">⚡</span><div><p class="t-body semi">Instant book</p><p class="t-label muted">no approval needed</p></div></div>
+              <div><span class="glyph">🔢</span><div><p class="t-body semi">4 courts</p><p class="t-label muted">book one exclusively</p></div></div>
+            </div>
+          </div>
+          <div class="variant active" id="variant-b">
+            <div class="kf-strip">
+              <div><p class="t-label muted">Capacity</p><p class="t-body semi">Up to 12</p></div>
+              <div><p class="t-label muted">Space</p><p class="t-body semi">Padel court</p></div>
+              <div><p class="t-label muted">Booking</p><p class="t-body semi">Instant</p></div>
+              <div><p class="t-label muted">Units</p><p class="t-body semi">4 courts</p></div>
+            </div>
+          </div>
+          <div class="variant" id="variant-c">
+            <div class="kf-chips">
+              <span class="badge badge-outline">👥 Up to 12 people</span>
+              <span class="badge badge-outline">🎾 Padel court</span>
+              <span class="badge badge-outline">⚡ Instant book</span>
+              <span class="badge badge-outline">🔢 4 courts</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ---------- description ---------- -->
+        <section class="sec">
+          <h2 class="t-heading">About this space</h2>
+          <p class="t-body" style="margin-top:10px;max-width:64ch">
+            Two covered panoramic padel courts and two pickleball courts under one roof, five minutes
+            from Rockwell. Glass-back courts with LED lighting, so evening play is as good as morning.
+            Rackets and balls available at the desk. Shower rooms, lockers and a small café on site.
+          </p>
+        </section>
+
+        <!-- ---------- amenities ---------- -->
+        <section class="sec">
+          <h2 class="t-heading">Amenities</h2>
+          <div class="row" style="flex-wrap:wrap;margin-top:12px">
+            <span class="badge">Showers</span><span class="badge">Lockers</span>
+            <span class="badge">Parking</span><span class="badge">Air conditioning</span>
+            <span class="badge">Equipment rental</span><span class="badge">Café</span>
+          </div>
+          <div class="row" style="flex-wrap:wrap;margin-top:8px">
+            <span class="badge badge-outline">Padel</span><span class="badge badge-outline">Pickleball</span>
+          </div>
+        </section>
+
+        <!-- ---------- AVAILABILITY (now ABOVE the map) ---------- -->
+        <section class="sec">
+          <h2 class="t-heading">Availability</h2>
+          <p class="t-label muted" style="margin-top:6px">Times shown in Makati time (GMT+8)</p>
+          <div class="grid-2" style="margin-top:14px;grid-template-columns:auto 1fr;gap:24px;align-items:start">
+            <div class="card card-pad" style="border-radius:var(--radius-lg)">
+              <div class="row-between" style="margin-bottom:10px">
+                <button class="btn btn-ghost" style="height:32px;padding:0 8px">‹</button>
+                <p class="t-label semi">August 2026</p>
+                <button class="btn btn-ghost" style="height:32px;padding:0 8px">›</button>
+              </div>
+              <div id="cal" style="display:grid;grid-template-columns:repeat(7,44px);gap:2px"></div>
+            </div>
+            <div class="stack" style="--gap:10px">
+              <p class="t-label semi">Friday, Aug 21</p>
+              <div class="row" style="flex-wrap:wrap;gap:8px" id="slots"></div>
+              <p class="t-xs muted">Back-to-back hours join into one booking. Unavailable hours are struck through — someone already has them.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------- map ---------- -->
+        <section class="sec">
+          <h2 class="t-heading">Location</h2>
+          <p class="t-label muted" style="margin-top:6px">Poblacion, Makati · exact address shared after booking</p>
+          <div class="map-ph" style="margin-top:12px"><span class="pin"></span></div>
+        </section>
+
+        <!-- ---------- cancellation policy (its own section now) ---------- -->
+        <section class="sec">
+          <h2 class="t-heading">Cancellation policy</h2>
+          <div class="stack" style="--gap:10px;margin-top:12px;max-width:56ch">
+            <div class="row-between"><span class="t-body">More than 48 hours before</span><span class="t-body semi tabular">Full refund</span></div>
+            <div class="row-between"><span class="t-body">24–48 hours before</span><span class="t-body semi tabular">50% refund</span></div>
+            <div class="row-between"><span class="t-body">Less than 24 hours before</span><span class="t-body semi tabular">No refund</span></div>
+            <p class="t-xs muted" style="margin-top:4px">
+              The service fee is not refunded. You'll see the exact amount before you confirm any cancellation.
+            </p>
+          </div>
+        </section>
+
+        <!-- ---------- host ---------- -->
+        <section class="sec">
+          <h2 class="t-heading">Your host</h2>
+          <div class="row" style="align-items:flex-start;gap:16px;margin-top:14px">
+            <div class="avatar">M</div>
+            <div class="stack" style="--gap:6px">
+              <p class="t-body semi">Marco</p>
+              <p class="t-label muted">Host since June 2026 · Makati</p>
+              <p class="t-body" style="max-width:56ch">
+                Ran a racquet club for eleven years before opening this place. Happy to recommend a
+                coach if you're just starting out.
+              </p>
+            </div>
+          </div>
+          <div class="notice" style="margin-top:16px;max-width:60ch">
+            <span>⚡</span>
+            <p class="t-label">
+              This space is <b>instant book</b> — pick a time and it's yours straight away.
+            </p>
+          </div>
+          <p class="note" style="margin-top:14px">
+            <b>The request-to-book wording, for the other kind of listing:</b> "Marco reviews each request
+            before it's confirmed. <b>You are not charged when you request</b> — only if it's approved. If
+            it isn't answered in time the request expires and nothing is charged."
+            <br><b>No hour count anywhere</b>, deliberately: D-96 shortens the SLA proportionally when the
+            session is soon, so "within 24 hours" is frequently false. And no invented trust chrome —
+            TRUST-04 bans a verification badge behind which no program exists.
+          </p>
+        </section>
+      </div>
+
+      <!-- ========== rail ========== -->
+      <div class="rail-col">
+        <div class="panel panel-sticky stack" style="--gap:14px">
+          <div>
+            <p class="t-heading">₱714<span class="t-label muted" style="font-weight:var(--font-weight-normal)">/hr</span></p>
+            <p class="t-xs muted">Service fee included</p>
+          </div>
+          <hr class="sep">
+          <div class="stack" style="--gap:4px">
+            <p class="t-label semi">Fri, Aug 21</p>
+            <p class="t-label muted tabular">9:00 AM – 11:00 AM · 2 hours</p>
+          </div>
+          <div class="stack" style="--gap:8px">
+            <div class="price-row"><span class="muted tabular">₱680/hr × 2 hours</span><span class="tabular">₱1,360.00</span></div>
+            <div class="price-row"><span class="muted">Service fee</span><span class="tabular">₱68.00</span></div>
+          </div>
+          <hr class="sep">
+          <div class="price-total"><span class="t-label semi">Total</span><span class="amt">₱1,428.00</span></div>
+          <button class="btn btn-brand btn-touch btn-block">Book this time</button>
+          <p class="t-xs muted" style="text-align:center">You won't be charged until the next step</p>
+          <hr class="sep">
+          <p class="t-xs muted">Free cancellation until Wed, Aug 19 · <a href="#" onclick="event.preventDefault()">see policy</a></p>
+        </div>
+        <p class="note" style="margin-top:14px;font-size:11px">
+          The rail's breakdown is <b>sketch 004's</b> question — shown here only so the page has its real
+          weight on the right. Note it already says <b>Total</b>, not "Est.".
+        </p>
+      </div>
+    </div>
+
+    <!-- =============== MOSAIC FALLBACKS =============== -->
+    <div id="fallbacks" style="margin-top:64px;padding-top:32px;border-top:1px solid var(--border)">
+      <h2 class="t-heading">Mosaic fallbacks — what a real host actually uploaded</h2>
+      <p class="note" style="margin-top:12px">
+        The 5-up mosaic is the marketplace default and it assumes five photos. Seed listings carry
+        between one and eight. These are the shapes that decide whether the pattern is safe. <b>The one
+        to judge is 3 and 4</b> — a 2×2 with a hole in it is the failure mode.
+      </p>
+      <div class="stack" style="--gap:28px;margin-top:20px">
+        <div><p class="t-label semi" style="margin-bottom:8px">1 photo — hero only, no button</p><div class="mosaic" data-n="1" data-demo="1"></div></div>
+        <div><p class="t-label semi" style="margin-bottom:8px">2 photos — split, equal weight</p><div class="mosaic" data-n="2" data-demo="2"></div></div>
+        <div><p class="t-label semi" style="margin-bottom:8px">3 photos — hero + stacked pair</p><div class="mosaic" data-n="3" data-demo="3"></div></div>
+        <div><p class="t-label semi" style="margin-bottom:8px">4 photos — hero + three in one column <span class="muted">(the awkward one)</span></p><div class="mosaic" data-n="4" data-demo="4"></div></div>
+        <div><p class="t-label semi" style="margin-bottom:8px">8 photos — 5 shown, "Show all 8" carries the rest</p><div class="mosaic" data-n="5" data-demo="8"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============== LIGHTBOX =============== -->
+<div class="lb" id="lb" role="dialog" aria-modal="true" aria-label="Photos of Rockwell Padel &amp; Pickle">
+  <div class="lb-bar">
+    <button class="lb-close" onclick="closeLb()">✕ Close</button>
+    <span class="lb-count" id="lb-count">1 / 8</span>
+    <span style="width:88px"></span>
+  </div>
+  <div class="lb-stage" style="position:relative">
+    <button class="lb-nav" style="left:16px" onclick="stepLb(-1)" aria-label="Previous photo">‹</button>
+    <div class="lb-img" id="lb-img"></div>
+    <button class="lb-nav" style="right:16px" onclick="stepLb(1)" aria-label="Next photo">›</button>
+  </div>
+</div>
+
+<div id="sketch-tools">
+  <select id="theme-select" title="Theme"><option value="court">court</option><option value="grove">grove</option></select>
+  <button data-vp="320">320</button><button data-vp="375">375</button>
+  <button data-vp="768">768</button><button data-vp="full" class="on">full</button>
+</div>
+
+<script>
+const HUES = [28, 62, 96, 140, 186, 224, 268, 312];
+const ph = i => `<span class="ph" style="background:oklch(0.86 0.04 ${HUES[i % HUES.length]})"></span>`;
+
+/* Build a mosaic: up to five tiles, with the button only when photos exceed what is shown. */
+function mosaic(el, n) {
+  const shown = Math.min(n, 5);
+  el.innerHTML = Array.from({ length: shown },
+    (_, i) => `<button onclick="openLb(${i})" aria-label="Photo ${i + 1} of ${n}">${ph(i)}</button>`).join("")
+    + (n > 1 ? `<button class="show-all" onclick="openLb(0)">Show all ${n} photos</button>` : "");
+}
+mosaic(document.getElementById("hero-mosaic"), 8);
+document.querySelectorAll("[data-demo]").forEach(el => mosaic(el, +el.dataset.demo));
+
+/* ---- calendar: 44px day cells (BFLOW-05's hit-area debt, paid) ---- */
+const cal = document.getElementById("cal");
+["S","M","T","W","T","F","S"].forEach(d =>
+  cal.insertAdjacentHTML("beforeend", `<div class="t-xs muted" style="height:24px;display:grid;place-items:center">${d}</div>`));
+for (let i = 0; i < 6; i++) cal.insertAdjacentHTML("beforeend", `<div style="height:44px"></div>`);
+for (let d = 1; d <= 31; d++) {
+  const past = d < 17, sel = d === 21;
+  cal.insertAdjacentHTML("beforeend", `
+    <button class="slot" style="min-width:44px;width:44px;height:44px;min-height:44px;padding:0;border:0;background:${sel ? "var(--brand)" : "transparent"};color:${sel ? "var(--brand-foreground)" : past ? "var(--muted-foreground)" : "var(--foreground)"};border-radius:var(--radius-md)"
+      ${past ? "disabled" : ""} onclick="selectDay(this)">${d}</button>`);
+}
+function selectDay(b) {
+  document.querySelectorAll("#cal button").forEach(x => { x.style.background = "transparent"; x.style.color = "var(--foreground)"; });
+  b.style.background = "var(--brand)"; b.style.color = "var(--brand-foreground)";
+}
+
+/* ---- slots: 44px targets, occupancy muted+struck (never red) ---- */
+const SLOTS = [["7:00 AM",1],["8:00 AM",1],["9:00 AM",2],["10:00 AM",2],["11:00 AM",1],["12:00 PM",0],["1:00 PM",0],["2:00 PM",1],["3:00 PM",1],["4:00 PM",1]];
+document.getElementById("slots").innerHTML = SLOTS.map(([t, s]) =>
+  `<button class="slot" ${s === 0 ? "disabled" : ""} aria-pressed="${s === 2}">${t}</button>`).join("");
+document.querySelectorAll("#slots .slot").forEach(b => b.onclick = () =>
+  b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") === "true" ? "false" : "true"));
+
+/* ---- lightbox: counter, arrows, Esc, arrow keys ---- */
+let lbI = 0, lbN = 8;
+function openLb(i) { lbI = i; document.getElementById("lb").classList.add("open"); paintLb(); }
+function closeLb() { document.getElementById("lb").classList.remove("open"); }
+function stepLb(d) { lbI = (lbI + d + lbN) % lbN; paintLb(); }
+function paintLb() {
+  document.getElementById("lb-img").style.background = `oklch(0.86 0.04 ${HUES[lbI % HUES.length]})`;
+  document.getElementById("lb-count").textContent = `${lbI + 1} / ${lbN}`;
+}
+addEventListener("keydown", e => {
+  if (!document.getElementById("lb").classList.contains("open")) return;
+  if (e.key === "Escape") closeLb();
+  if (e.key === "ArrowRight") stepLb(1);
+  if (e.key === "ArrowLeft") stepLb(-1);
+});
+
+/* ---- variants + chrome ---- */
+document.querySelectorAll("#variant-nav .variant-tab[data-v]").forEach(t => t.onclick = () => {
+  document.querySelectorAll("#variant-nav .variant-tab[data-v]").forEach(x => x.classList.remove("active"));
+  t.classList.add("active");
+  document.querySelectorAll(".sec .variant").forEach(v => v.classList.remove("active"));
+  document.getElementById("variant-" + t.dataset.v).classList.add("active");
+});
+document.getElementById("theme-select").onchange = e => {
+  document.getElementById("theme-link").href = "../themes/" + e.target.value + ".css";
+  document.documentElement.dataset.sketchTheme = e.target.value;
+};
+document.querySelectorAll("#sketch-tools button[data-vp]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("#sketch-tools button[data-vp]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); document.querySelector(".stage").dataset.vp = b.dataset.vp;
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sketch 001 — Timeslot Selector</title>
+<link rel="stylesheet" href="../themes/default.css">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding-top: 92px; background: var(--color-bg);
+    font-family: var(--font-sans); color: var(--color-text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- variant tabs ---- */
+  #variant-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9998;
+    background: var(--color-surface); border-bottom: 1px solid var(--color-border);
+    padding: 10px 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    box-shadow: var(--shadow-sm);
+  }
+  #variant-nav .brandmark { font-weight: 800; letter-spacing: -.02em; margin-right: 8px; color: var(--color-primary); }
+  .variant-tab {
+    border: 1px solid var(--color-border); background: var(--color-surface);
+    color: var(--color-text); padding: 8px 14px; border-radius: var(--radius-full);
+    font: 600 var(--text-sm) var(--font-sans); cursor: pointer; transition: all .15s ease;
+  }
+  .variant-tab:hover { background: var(--color-muted); }
+  .variant-tab.active { background: var(--color-primary); color: #fff; border-color: transparent; }
+
+  .wrap { max-width: 860px; margin: 0 auto; padding: 28px 20px 96px; transition: max-width .2s ease; }
+  .variant { display: none; }
+  .variant.active { display: block; }
+
+  .lede { margin: 0 0 20px; }
+  .lede h1 { font-size: var(--text-2xl); margin: 0 0 6px; letter-spacing: -.02em; }
+  .lede p { margin: 0; color: var(--color-text-muted); font-size: var(--text-sm); max-width: 62ch; }
+
+  .stage { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
+  @media (max-width: 760px) { .stage { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg); padding: 22px; box-shadow: var(--shadow-sm);
+  }
+  .card h3 { margin: 0 0 2px; font-size: var(--text-lg); letter-spacing: -.01em; }
+  .subtle { color: var(--color-text-muted); font-size: var(--text-sm); }
+
+  .tznote {
+    display: inline-flex; align-items: center; gap: 6px; margin: 10px 0 4px;
+    color: var(--color-text-muted); font-size: var(--text-sm);
+  }
+  .tznote svg { width: 14px; height: 14px; opacity: .8; }
+
+  .helper { margin: 6px 0 14px; font-size: var(--text-sm); color: var(--color-text); }
+  .tip {
+    margin: 0 0 16px; font-size: var(--text-xs); color: var(--color-text-muted);
+    border-left: 2px dashed var(--color-ring); padding: 4px 0 4px 10px;
+  }
+
+  .controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .switch { display: inline-flex; align-items: center; gap: 8px; font-size: var(--text-sm); color: var(--color-text-muted); cursor: pointer; user-select: none; }
+  .switch input { accent-color: var(--color-primary); width: 16px; height: 16px; }
+
+  /* ---- range dropdowns (variant B) ---- */
+  .rangepick { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .rangepick .field { display: flex; flex-direction: column; gap: 4px; }
+  .rangepick label { font-size: var(--text-xs); color: var(--color-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+  select.tp {
+    min-height: 46px; min-width: 150px; border: 1px solid var(--color-border);
+    border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text);
+    font: 600 var(--text-sm) var(--font-sans); padding: 0 12px; cursor: pointer;
+  }
+  select.tp:focus { outline: 2px solid var(--color-ring); outline-offset: 1px; }
+  select.tp:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ---- slot grid ---- */
+  .grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .grid.readonly { opacity: .98; }
+  .chip {
+    min-height: 48px; min-width: 84px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2px; padding: 6px 12px;
+    border-radius: var(--radius-md); border: 1px solid var(--color-border);
+    background: var(--color-surface); color: var(--color-text);
+    font: 600 var(--text-sm)/1.1 var(--font-sans); cursor: pointer;
+    transition: all .15s ease; font-variant-numeric: tabular-nums;
+  }
+  .chip small { font-weight: 500; font-size: 11px; color: var(--color-text-muted); }
+  .chip--free:hover { background: var(--color-muted); border-color: #d8d2ca; }
+  .chip--in { background: var(--color-primary); border-color: transparent; color: #fff; box-shadow: var(--shadow-sm); }
+  .chip--in small { color: rgba(255,255,255,.85); }
+  .chip--anchor { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-ring); }
+  .chip--off {
+    background: var(--color-muted); border-color: transparent; color: var(--color-muted-foreground);
+    text-decoration: line-through; cursor: not-allowed;
+  }
+  .chip--off small { color: var(--color-muted-foreground); text-decoration: none; }
+  .grid.readonly .chip { cursor: default; }
+  .grid.readonly .chip--free:hover { background: var(--color-surface); border-color: var(--color-border); }
+
+  .gap-hint {
+    margin-top: 14px; display: flex; gap: 8px; align-items: flex-start;
+    background: var(--color-primary-tint); border: 1px solid #f3cfcb; color: #9a4d46;
+    padding: 10px 12px; border-radius: var(--radius-md); font-size: var(--text-sm);
+  }
+  .gap-hint svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
+  .gap-hint[hidden] { display: none; }
+
+  .fullday {
+    margin-top: 14px; width: 100%; min-height: 48px; border: 1px solid var(--color-border);
+    background: var(--color-surface); border-radius: var(--radius-md);
+    font: 600 var(--text-sm) var(--font-sans); cursor: pointer; transition: all .15s ease;
+  }
+  .fullday:hover { background: var(--color-muted); }
+  .fullday.on { background: var(--color-primary); color: #fff; border-color: transparent; }
+
+  /* ---- booking rail ---- */
+  .rail { position: sticky; top: 108px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-md); }
+  .rail .price { font-size: var(--text-base); }
+  .rail .price b { font-size: var(--text-xl); }
+  .rail hr { border: none; border-top: 1px solid var(--color-border); margin: 14px 0; }
+  .rail .sel-label { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); font-weight: 700; margin-bottom: 4px; }
+  .rail .sel-range { font-size: var(--text-xl); font-weight: 700; letter-spacing: -.01em; min-height: 1.4em; }
+  .rail .sel-range.empty { color: var(--color-muted-foreground); font-weight: 600; font-size: var(--text-base); }
+  .rail .sel-sub { color: var(--color-text-muted); font-size: var(--text-sm); margin-top: 2px; }
+  .book-btn {
+    margin-top: 18px; width: 100%; min-height: 50px; background: var(--color-primary);
+    color: #fff; border: none; border-radius: var(--radius-md);
+    font: 700 var(--text-base) var(--font-sans); cursor: pointer; transition: all .15s ease;
+  }
+  .book-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .book-btn:not(:disabled):hover { background: var(--color-primary-hover); }
+  .rail .fineprint { margin-top: 10px; font-size: 11px; color: var(--color-muted-foreground); text-align: center; }
+
+  /* ---- sketch toolbar ---- */
+  #sketch-tools {
+    position: fixed; bottom: 12px; right: 12px; z-index: 9999; font-family: system-ui;
+    font-size: 12px; background: rgba(0,0,0,.72); color: #fff; padding: 8px 12px;
+    border-radius: 8px; opacity: .4; transition: opacity .2s; display: flex; gap: 10px; align-items: center;
+  }
+  #sketch-tools select { font-size: 12px; border-radius: 4px; border: none; padding: 2px 4px; }
+  #sketch-tools button { font-size: 12px; background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 3px 7px; cursor: pointer; }
+  #sketch-tools button:hover { background: #555; }
+</style>
+</head>
+<body>
+
+<div id="variant-nav">
+  <span class="brandmark">FitOut ◇</span>
+  <button class="variant-tab active" onclick="showVariant('a', this)">A · Range fill ★ Selected</button>
+  <button class="variant-tab" onclick="showVariant('b', this)">B · From / To dropdowns</button>
+  <button class="variant-tab" onclick="showVariant('c', this)">C · Click each hour (current)</button>
+</div>
+
+<div class="wrap" id="wrap">
+
+  <!-- ============ VARIANT A ============ -->
+  <section id="variant-a" class="variant active">
+    <div class="lede">
+      <h1>A · Range fill</h1>
+      <p>Click a <b>start</b> hour, then an <b>end</b> hour — the block between fills in. If the range would cross a booked/blocked hour, it stops at the gap (a booking is one continuous block). Fewest clicks, and the hour grid stays as the availability map.</p>
+    </div>
+    <div class="stage" id="stage-a"></div>
+  </section>
+
+  <!-- ============ VARIANT B ============ -->
+  <section id="variant-b" class="variant">
+    <div class="lede">
+      <h1>B · From / To dropdowns</h1>
+      <p>Pick a start and end from two menus (OpenTable style). The <b>To</b> list only offers end times up to the next unavailable hour, so gaps are handled by construction. The grid below stays as a read-only availability map so unavailable hours are still visible.</p>
+    </div>
+    <div class="stage" id="stage-b"></div>
+  </section>
+
+  <!-- ============ VARIANT C ============ -->
+  <section id="variant-c" class="variant">
+    <div class="lede">
+      <h1>C · Click each hour <span class="subtle">(what's built today)</span></h1>
+      <p>Click individual hours; adjacent clicks extend the run, and unavailable hours simply can't be included. Accurate to the shipped <code>SlotPicker</code> — here for comparison.</p>
+    </div>
+    <div class="stage" id="stage-c"></div>
+  </section>
+
+</div>
+
+<div id="sketch-tools" onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='.4'">
+  <span>theme</span>
+  <select onchange="document.querySelector('link[href*=themes]').href='../themes/'+this.value+'.css'">
+    <option value="default">default</option>
+  </select>
+  <span>view</span>
+  <button onclick="setW('375px')">📱</button>
+  <button onclick="setW('768px')">▭</button>
+  <button onclick="setW('860px')">🖥</button>
+</div>
+
+<script>
+function setW(w){ document.getElementById('wrap').style.maxWidth = w; }
+function showVariant(id, btn){
+  document.querySelectorAll('.variant').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.variant-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('variant-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ---------- shared model ---------- */
+const HOURLY = 500; // ₱ per hour (listing hourlyRateCents = 50000)
+const SLOTS = [
+  { label:'6:00 AM',  end:'7:00 AM',  state:'available', free:3 },
+  { label:'7:00 AM',  end:'8:00 AM',  state:'available', free:2 },
+  { label:'8:00 AM',  end:'9:00 AM',  state:'booked',    free:0 },
+  { label:'9:00 AM',  end:'10:00 AM', state:'available', free:3 },
+  { label:'10:00 AM', end:'11:00 AM', state:'blocked',   free:0 },
+  { label:'11:00 AM', end:'12:00 PM', state:'available', free:1 },
+  { label:'12:00 PM', end:'1:00 PM',  state:'available', free:3 },
+  { label:'1:00 PM',  end:'2:00 PM',  state:'available', free:3 },
+  { label:'2:00 PM',  end:'3:00 PM',  state:'available', free:2 },
+  { label:'3:00 PM',  end:'4:00 PM',  state:'available', free:3 },
+  { label:'4:00 PM',  end:'5:00 PM',  state:'booked',    free:0 }, // gap for the range-fill demo
+  { label:'5:00 PM',  end:'6:00 PM',  state:'available', free:3 },
+  { label:'6:00 PM',  end:'7:00 PM',  state:'available', free:3 },
+  { label:'7:00 PM',  end:'8:00 PM',  state:'available', free:2 },
+  { label:'8:00 PM',  end:'9:00 PM',  state:'available', free:3 },
+];
+const isAvail = i => SLOTS[i] && SLOTS[i].state === 'available';
+const reasonFor = s => s === 'booked' ? 'Booked' : s === 'blocked' ? 'Blocked' : 'Unavailable';
+const peso = n => '₱' + n.toLocaleString('en-PH');
+const CLOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+const INFO  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>';
+
+/* last index reachable from lo (inclusive) without crossing an unavailable hour, capped at hi */
+function contiguousEnd(lo, hi){ let j = lo; while (j < hi && isAvail(j + 1)) j++; return j; }
+function firstGap(lo, hi){ for (let k = lo; k <= hi; k++) if (!isAvail(k)) return k; return -1; }
+
+/* ---------- card template ---------- */
+function cardHTML(p, mode){
+  const control = mode === 'dropdown'
+    ? `<div class="rangepick">
+         <div class="field"><label>From</label>
+           <select class="tp" id="from-${p}"><option value="">Start time…</option></select></div>
+         <div class="field"><label>To</label>
+           <select class="tp" id="to-${p}" disabled><option value="">End time…</option></select></div>
+       </div>`
+    : `<p class="helper" id="help-${p}"></p>
+       <p class="tip" id="tip-${p}"></p>`;
+  const unitRow = `<div class="controls">
+      <label class="switch"><input type="checkbox" id="unit-${p}"> Simulate a 3-court venue (show units free)</label>
+    </div>`;
+  return `
+    <div class="card">
+      <h3>Sunlit Yoga Studio</h3>
+      <div class="subtle">Makati, Metro Manila · ${peso(HOURLY)}/hour</div>
+      <div class="tznote">${CLOCK} Times shown in <b>Makati</b> time (GMT+8)</div>
+      ${control}
+      ${unitRow}
+      <div class="grid ${mode==='dropdown'?'readonly':''}" id="grid-${p}"></div>
+      <div class="gap-hint" id="hint-${p}" hidden>${INFO}<span id="hinttext-${p}"></span></div>
+      <button class="fullday" id="fd-${p}">Book the full day · 6:00 AM – 9:00 PM</button>
+    </div>
+    <aside class="rail">
+      <div class="price"><b>${peso(HOURLY)}</b> <span class="subtle">/ hour</span></div>
+      <hr>
+      <div class="sel-label">Your booking</div>
+      <div class="sel-range empty" id="range-${p}">Select your hours</div>
+      <div class="sel-sub" id="sub-${p}">&nbsp;</div>
+      <button class="book-btn" id="book-${p}" disabled>Request to book</button>
+      <div class="fineprint">You won't be charged yet — hosts confirm request-to-book.</div>
+    </aside>`;
+}
+
+/* ---------- controller ---------- */
+function makeController(p, mode){
+  document.getElementById('stage-' + p).innerHTML = cardHTML(p, mode);
+  const grid = document.getElementById('grid-' + p);
+  const hint = document.getElementById('hint-' + p);
+  const hintText = document.getElementById('hinttext-' + p);
+  const fd = document.getElementById('fd-' + p);
+  const unit = document.getElementById('unit-' + p);
+  const rangeEl = document.getElementById('range-' + p);
+  const subEl = document.getElementById('sub-' + p);
+  const bookBtn = document.getElementById('book-' + p);
+
+  const state = { run: null, fullDay: false, anchor: null };
+
+  const helpEl = document.getElementById('help-' + p);
+  const tipEl = document.getElementById('tip-' + p);
+  if (helpEl) {
+    if (mode === 'rangefill') { helpEl.innerHTML = 'Click a <b>start</b> hour, then an <b>end</b> hour.'; tipEl.textContent = 'Try it: click 3:00 PM then 6:00 PM — 4:00 PM is booked, so the block stops at the gap. Or click 5:00 PM then 8:00 PM for a clean 3-hour run.'; }
+    if (mode === 'consecutive') { helpEl.innerHTML = 'Click hours to build your block — they must be back-to-back.'; tipEl.textContent = 'Try it: click 5:00 PM, 6:00 PM, 7:00 PM to book 5–8 PM. You can’t include 8:00 AM or 10:00 AM (unavailable).'; }
+  }
+
+  // build chips
+  SLOTS.forEach((s, i) => {
+    const c = document.createElement('button');
+    c.type = 'button';
+    c.dataset.i = i;
+    c.innerHTML = `<span>${s.label}</span><small data-free></small>`;
+    if (!isAvail(i)) { c.title = reasonFor(s.state); }
+    if (mode !== 'dropdown') c.addEventListener('click', () => onClick(i));
+    grid.appendChild(c);
+  });
+
+  function paint(){
+    [...grid.children].forEach((c) => {
+      const i = +c.dataset.i, s = SLOTS[i];
+      c.className = 'chip';
+      const freeEl = c.querySelector('[data-free]');
+      freeEl.textContent = (unit.checked && isAvail(i)) ? `${s.free} of 3 free` : '';
+      if (!isAvail(i)) { c.classList.add('chip--off'); return; }
+      const inRun = state.fullDay || (state.run && i >= state.run[0] && i <= state.run[1]);
+      if (inRun) c.classList.add('chip--in');
+      else if (state.anchor === i) c.classList.add('chip--anchor');
+      else c.classList.add('chip--free');
+    });
+    // rail
+    let lo, hi, full = state.fullDay;
+    if (full) { lo = 0; hi = SLOTS.length - 1; }
+    else if (state.run) { [lo, hi] = state.run; }
+    if (full || state.run) {
+      const hours = hi - lo + 1;
+      rangeEl.classList.remove('empty');
+      rangeEl.textContent = full ? 'Full day' : `${SLOTS[lo].label} – ${SLOTS[hi].end}`;
+      subEl.textContent = `${hours} hour${hours>1?'s':''} · ${peso(hours * HOURLY)} total`;
+      bookBtn.disabled = false;
+    } else if (state.anchor !== null) {
+      rangeEl.classList.add('empty');
+      rangeEl.textContent = `${SLOTS[state.anchor].label} …`;
+      subEl.textContent = 'Now pick an end hour';
+      bookBtn.disabled = true;
+    } else {
+      rangeEl.classList.add('empty');
+      rangeEl.textContent = 'Select your hours';
+      subEl.innerHTML = '&nbsp;';
+      bookBtn.disabled = true;
+    }
+    fd.classList.toggle('on', full);
+  }
+
+  function showGap(gapIdx){
+    hintText.textContent = `${SLOTS[gapIdx].label} is ${reasonFor(SLOTS[gapIdx].state).toLowerCase()} — pick a later start for a block after it.`;
+    hint.hidden = false;
+  }
+  function clearGap(){ hint.hidden = true; }
+
+  function onClick(i){
+    if (!isAvail(i)) return;
+    if (mode === 'rangefill') {
+      if (state.fullDay) { state.fullDay = false; }
+      if (state.run) { state.run = null; state.anchor = i; clearGap(); return paint(); }   // fresh start
+      if (state.anchor === null) { state.anchor = i; clearGap(); return paint(); }          // set start
+      // second click = end
+      const lo = Math.min(state.anchor, i), hi = Math.max(state.anchor, i);
+      const end = contiguousEnd(lo, hi);
+      state.run = [lo, end]; state.anchor = null;
+      if (end < hi) showGap(firstGap(lo, hi)); else clearGap();
+      return paint();
+    }
+    if (mode === 'consecutive') {
+      if (state.fullDay) state.fullDay = false;
+      const r = state.run;
+      if (!r) { state.run = [i, i]; }
+      else if (i === r[1] + 1) { state.run = [r[0], i]; }              // extend forward
+      else if (i === r[0] - 1) { state.run = [i, r[1]]; }              // extend backward
+      else if (i >= r[0] && i <= r[1]) { state.run = i === r[0] ? null : [r[0], i - 1]; } // trim
+      else { state.run = [i, i]; }                                     // re-anchor
+      return paint();
+    }
+  }
+
+  fd.addEventListener('click', () => {
+    state.fullDay = !state.fullDay; state.run = null; state.anchor = null; clearGap();
+    if (mode === 'dropdown') { document.getElementById('from-'+p).value=''; syncTo(); }
+    paint();
+  });
+  unit.addEventListener('change', paint);
+
+  // dropdown wiring
+  function syncTo(){
+    const from = document.getElementById('from-' + p);
+    const to = document.getElementById('to-' + p);
+    const fi = from.value === '' ? null : +from.value;
+    if (fi === null) {
+      to.innerHTML = '<option value="">End time…</option>'; to.disabled = true;
+      state.run = null; state.anchor = null; clearGap(); return paint();
+    }
+    state.fullDay = false;
+    const end = contiguousEnd(fi, SLOTS.length - 1);
+    to.innerHTML = '';
+    for (let j = fi; j <= end; j++) {
+      const hrs = j - fi + 1;
+      to.insertAdjacentHTML('beforeend', `<option value="${j}">${SLOTS[j].end}  (${hrs} hr${hrs>1?'s':''})</option>`);
+    }
+    to.disabled = false;
+    state.run = [fi, +to.value];
+    // show why the To list stops where it does
+    const nextGap = end + 1;
+    if (nextGap < SLOTS.length && !isAvail(nextGap)) showGap(nextGap); else clearGap();
+    paint();
+  }
+  if (mode === 'dropdown') {
+    const from = document.getElementById('from-' + p);
+    SLOTS.forEach((s, i) => { if (isAvail(i)) from.insertAdjacentHTML('beforeend', `<option value="${i}">${s.label}</option>`); });
+    from.addEventListener('change', syncTo);
+    document.getElementById('to-' + p).addEventListener('change', (e) => {
+      if (from.value === '') return;
+      state.run = [+from.value, +e.target.value]; paint();
+    });
+  }
+
+  bookBtn.addEventListener('click', () => {
+    bookBtn.textContent = 'Sending request…';
+    setTimeout(() => { bookBtn.textContent = '✓ Request sent (demo)'; }, 650);
+    setTimeout(() => { bookBtn.textContent = 'Request to book'; }, 2100);
+  });
+
+  paint();
+}
+
+makeController('a', 'rangefill');
+makeController('b', 'dropdown');
+makeController('c', 'consecutive');
+</script>
+</body>
+</html>

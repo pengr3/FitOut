@@ -1,0 +1,85 @@
+.next/dev/server/app/(host)/host/listings:
+total 57
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 15:18:04.838171100 +0800 .
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 10:40:41.522073900 +0800 ..
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 15:18:04.839170600 +0800 [id]
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 10:28:08.464327200 +0800 new
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 10:20:23.651407000 +0800 page
+-rw-r--r-- 1 Admin 197121  6142 2026-09-03 10:20:23.675960400 +0800 page.js
+-rw-r--r-- 1 Admin 197121    53 2026-09-03 10:20:23.708932400 +0800 page.js.map
+-rw-r--r-- 1 Admin 197121 33003 2026-09-03 10:20:23.492813300 +0800 page_client-reference-manifest.js
+
+.next/dev/server/app/(host)/host/listings/[id]:
+total 4
+drwxr-xr-x 1 Admin 197121 0 2026-09-03 15:18:04.839170600 +0800 .
+drwxr-xr-x 1 Admin 197121 0 2026-09-03 15:18:04.838171100 +0800 ..
+drwxr-xr-x 1 Admin 197121 0 2026-09-03 15:18:04.984050000 +0800 edit
+
+.next/dev/server/app/(host)/host/listings/[id]/edit:
+total 45
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 15:18:04.984050000 +0800 .
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 15:18:04.839170600 +0800 ..
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 15:18:05.028049300 +0800 page
+-rw-r--r-- 1 Admin 197121  6496 2026-09-03 15:18:04.957428500 +0800 page.js
+-rw-r--r-- 1 Admin 197121    53 2026-09-03 15:18:04.984050000 +0800 page.js.map
+-rw-r--r-- 1 Admin 197121 32597 2026-09-03 15:18:04.902215100 +0800 page_client-reference-manifest.js
+
+.next/dev/server/app/(host)/host/listings/[id]/edit/page:
+total 19
+drwxr-xr-x 1 Admin 197121    0 2026-09-03 15:18:05.028049300 +0800 .
+drwxr-xr-x 1 Admin 197121    0 2026-09-03 15:18:04.984050000 +0800 ..
+-rw-r--r-- 1 Admin 197121   90 2026-09-03 15:18:04.944217300 +0800 app-paths-manifest.json
+-rw-r--r-- 1 Admin 197121  903 2026-09-03 15:18:05.028049300 +0800 build-manifest.json
+-rw-r--r-- 1 Admin 197121  290 2026-09-03 15:18:04.879214500 +0800 next-font-manifest.json
+-rw-r--r-- 1 Admin 197121    2 2026-09-03 15:18:04.913214400 +0800 react-loadable-manifest.json
+-rw-r--r-- 1 Admin 197121 7924 2026-09-03 15:18:04.840170500 +0800 server-reference-manifest.json
+
+.next/dev/server/app/(host)/host/listings/new:
+total 45
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 10:28:08.464327200 +0800 .
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 15:18:04.838171100 +0800 ..
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 10:28:08.456330500 +0800 page
+-rw-r--r-- 1 Admin 197121  6506 2026-09-03 10:28:08.444303400 +0800 page.js
+-rw-r--r-- 1 Admin 197121    53 2026-09-03 10:28:08.259546300 +0800 page.js.map
+-rw-r--r-- 1 Admin 197121 28615 2026-09-03 10:28:08.465322300 +0800 page_client-reference-manifest.js
+
+.next/dev/server/app/(host)/host/listings/new/page:
+total 19
+drwxr-xr-x 1 Admin 197121    0 2026-09-03 10:28:08.456330500 +0800 .
+drwxr-xr-x 1 Admin 197121    0 2026-09-03 10:28:08.464327200 +0800 ..
+-rw-r--r-- 1 Admin 197121   78 2026-09-03 10:28:08.442300900 +0800 app-paths-manifest.json
+-rw-r--r-- 1 Admin 197121  903 2026-09-03 10:28:08.219544400 +0800 build-manifest.json
+-rw-r--r-- 1 Admin 197121  284 2026-09-03 10:28:08.209004800 +0800 next-font-manifest.json
+-rw-r--r-- 1 Admin 197121    2 2026-09-03 10:28:08.112321000 +0800 react-loadable-manifest.json
+-rw-r--r-- 1 Admin 197121 6994 2026-09-03 10:28:08.457324800 +0800 server-reference-manifest.json
+
+.next/dev/server/app/(host)/host/listings/page:
+total 23
+drwxr-xr-x 1 Admin 197121    0 2026-09-03 10:20:23.651407000 +0800 .
+drwxr-xr-x 1 Admin 197121    0 2026-09-03 15:18:04.838171100 +0800 ..
+-rw-r--r-- 1 Admin 197121   70 2026-09-03 10:20:23.591451600 +0800 app-paths-manifest.json
+-rw-r--r-- 1 Admin 197121  903 2026-09-03 10:20:23.534544100 +0800 build-manifest.json
+-rw-r--r-- 1 Admin 197121  280 2026-09-03 10:20:23.652405800 +0800 next-font-manifest.json
+-rw-r--r-- 1 Admin 197121    2 2026-09-03 10:20:23.532544000 +0800 react-loadable-manifest.json
+-rw-r--r-- 1 Admin 197121 6922 2026-09-03 10:20:23.597515200 +0800 server-reference-manifest.json
+total 8252
+drwxr-xr-x 1 Admin 197121       0 2026-09-03 22:04:38.770981600 +0800 .
+drwxr-xr-x 1 Admin 197121       0 2026-09-03 15:58:03.100937500 +0800 ..
+drwxr-xr-x 1 Admin 197121       0 2026-09-03 02:07:41.183670900 +0800 build
+-rw-r--r-- 1 Admin 197121    1021 2026-09-03 19:33:41.385930600 +0800 build-manifest.json
+drwxr-xr-x 1 Admin 197121       0 2026-09-03 13:18:15.061178600 +0800 cache
+-rw-r--r-- 1 Admin 197121     269 2026-09-03 19:33:41.388707200 +0800 fallback-build-manifest.json
+drwxr-xr-x 1 Admin 197121       0 2026-09-03 02:07:37.126196100 +0800 logs
+-rw-r--r-- 1 Admin 197121      24 2026-09-03 18:09:29.885707800 +0800 package.json
+-rw-r--r-- 1 Admin 197121     354 2026-09-03 18:09:30.324170600 +0800 prerender-manifest.json
+-rw-r--r-- 1 Admin 197121     308 2026-09-03 18:09:30.322171800 +0800 routes-manifest.json
+drwxr-xr-x 1 Admin 197121       0 2026-09-03 19:33:43.290658900 +0800 server
+drwxr-xr-x 1 Admin 197121       0 2026-09-03 02:07:48.547210700 +0800 static
+-rw-r--r-- 1 Admin 197121 8414172 2026-09-03 19:33:45.338073200 +0800 trace
+drwxr-xr-x 1 Admin 197121       0 2026-09-03 18:09:31.072478400 +0800 types
+total 28
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 18:09:31.072478400 +0800 .
+drwxr-xr-x 1 Admin 197121     0 2026-09-03 22:04:38.770981600 +0800 ..
+-rw-r--r-- 1 Admin 197121  5854 2026-09-03 18:09:31.907687200 +0800 cache-life.d.ts
+-rw-r--r-- 1 Admin 197121  3969 2026-09-03 18:09:31.889522700 +0800 routes.d.ts
+-rw-r--r-- 1 Admin 197121 10122 2026-09-03 18:09:31.905141100 +0800 validator.ts

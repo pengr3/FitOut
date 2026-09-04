@@ -1,0 +1,240 @@
+---
+phase: quick-260810-j3z
+verified: 2026-08-10T14:45:00Z
+status: passed
+score: 11/11 must-haves verified
+overrides_applied: 0
+---
+
+# Quick 260810-j3z: Unresolved `needs_attention` money alerts reach a human — Verification Report
+
+**Task Goal:** Close the REACHABILITY half of T-08-74 — deliver an ops query, the first `resolveAlert`
+writer + CLI, a daily digest cron, an operator runbook, and honest doc updates. The QRPh rail limitation
+itself must remain OPEN in every artifact.
+
+**Verified:** 2026-08-10T14:45:00Z
+**Status:** passed
+**Re-verification:** No — initial verification
+
+**Adversarial stance taken:** every load-bearing claim in the SUMMARY was independently reproduced from a
+clean tree, not accepted from the SUMMARY's prose — including re-running the three cited mutations (M1, M2,
+M4) myself against the actual `src/`/`tests/` files and confirming `git diff --exit-code src/ tests/` was
+clean after each revert.
+
+## Goal Achievement
+
+### Observable Truths
+
+| # | Truth | Status | Evidence |
+|---|---|---|---|
+| 1 | Operator with no log/psql access can list every unresolved alert, newest-first, via one npm script | ✓ VERIFIED | Ran `npm run ops:alerts` live against the real dev DB: printed 27 real unresolved rows, no `meta` column, newest-first table. |
+| 2 | `resolveAlert(id)` is `resolved_at`'s first code writer; discharged rows leave every list/digest | ✓ VERIFIED | `src/lib/ops/alerts.ts:136-161` — guarded `UPDATE ... WHERE id=$1 AND resolved_at IS NULL`; `tests/ops/alerts.test.ts` case 4 passes; live CLI round-trip in SUMMARY corroborated by code read. |
+| 3 | Resolving an already-resolved row is idempotent and never clobbers the original timestamp | ✓ VERIFIED | `alerts.test.ts` case 5 asserts strict timestamp equality across two resolves with a `pg_sleep(0.05)` gap; passed in my own run (17/17). |
+| 4 | Resolving a non-existent id reports not-found and exits non-zero | ✓ VERIFIED | Ran `npm run ops:alerts:resolve -- no_such_audit_id_xyz` live → `No audit row with id ... Nothing was discharged.` / `exit=1`. |
+| 5 | An unresolved alert reaches a human inbox once a day, unattended | ✓ VERIFIED | `opsAlertDigest` registered in `serve()` (`route.ts:22,62-69`), cron `TZ=Asia/Manila 50 8 * * *`, singleton `concurrency:1`. |
+| 6 | Zero unresolved rows sends NO email at all, and this is measured (not assumed) by a mutation | ✓ VERIFIED | **Independently reproduced M1**: deleted the early return in `buildAndSendDigest`, re-ran `tests/ops/alert-digest.test.ts` → 2 failed / 6 passed, verbatim match to the SUMMARY's recorded RED. Reverted; `git diff --exit-code src/` clean. |
+| 7 | `meta` never leaves the system in an email body; enforced structurally and pinned by a sentinel test | ✓ VERIFIED | **Independently reproduced M2**: added `meta` to the select, `UnresolvedAlert`, `OpsDigestRow`, and interpolated it into the render. Both `alerts.test.ts` case 7 and `alert-digest.test.ts` case 3 went RED with the sentinel `bk_SENTINEL_9Z1` visibly leaking into the rendered HTML — verbatim match. Reverted cleanly. |
+| 8 | Missing `OPS_ALERT_EMAIL` logs loudly and no-ops, never throws — and the test proving this is non-vacuous | ✓ VERIFIED | Code reads env at call time (`agingHours()`/`buildAndSendDigest` read `process.env` inside the function, not at module load). **Independently reproduced M4**: removed case 5's `delete process.env.OPS_ALERT_EMAIL` (the real `.env.local` value is loaded by `tests/setup.ts:15`) → 1 failed / 7 passed, verbatim match — proving the no-recipient branch is genuinely exercised, not vacuously green. Reverted cleanly. |
+| 9 | New cron collides with none of the four existing crons | ✓ VERIFIED | `grep -rhon "TZ=Asia/Manila [0-9]* "` → five distinct minutes: 0, 15, 30, 45, 50. No duplicate. |
+| 10 | T-08-74 left accurately and permanently OPEN in every document touched | ✓ VERIFIED | `.planning/v1.0-MILESTONE-AUDIT.md` item 5: i0v's LW-01 paragraph byte-intact; new note explicitly opens "T-08-74 ITSELF REMAINS OPEN AND AR-08-01 STANDS." `AR-08-01` register entry in `08-SECURITY.md:172` unmodified. Runbook §8 states the limitation unhedged. |
+| 11 | 05-HUMAN-UAT item 3 re-assessed honestly; "no UI surfaces it" kept as still true, not flipped to passed | ✓ VERIFIED | `05-HUMAN-UAT.md` `reconciled_3` re-assesses all four reasons individually; reason 4 ("no UI") kept true; `result:` line still reads `partial`; `paging` explicitly declined as a false latency claim. `Summary` counts unchanged (`partial: 2`). |
+
+**Score:** 11/11 truths verified
+
+### Required Artifacts
+
+| Artifact | Expected | Status | Details |
+|---|---|---|---|
+| `src/lib/ops/alerts.ts` | `listUnresolvedAlerts`, `resolveAlert`, `UnresolvedAlert`, `ResolveResult`, `DEFAULT_ALERT_LIMIT`; WHERE byte-identical to index; no `meta` select | ✓ VERIFIED | All exports present; `grep meta` shows zero non-comment references; EXPLAIN confirms index usability (see Key Links). |
+| `src/inngest/functions/ops-alert-digest.ts` | daily cron + testable `buildAndSendDigest` | ✓ VERIFIED | `AGING_HOURS_DEFAULT`, `agingHours`, `DigestResult`, `buildAndSendDigest`, `opsAlertDigest` all present and match plan contract exactly. |
+| `src/lib/email.ts` (appended) | `renderOpsAlertDigest`, `sendOpsAlertDigest`, `OpsDigestRow` | ✓ VERIFIED | Pure renderer exported, `escapeHtml`'d fields, no `meta` field on `OpsDigestRow`. |
+| `scripts/ops-alerts.ts` | CLI `list`/`resolve`, own postgres client, `process.exitCode` | ✓ VERIFIED | Standalone `postgres()`/`drizzle()` client (not `@/lib/db`), `finally` block calls `sql.end()`, exit codes correct on live run. |
+| `tests/ops/alerts.test.ts` | ≥150 lines, 7 behavior cases | ✓ VERIFIED | 231 lines, 9 cases (7 required + 2 extra: 3b, 6b), all passing. |
+| `tests/ops/alert-digest.test.ts` | ≥150 lines, 6 behavior cases + mutation header | ✓ VERIFIED | 290 lines, 8 cases (6 required + 6b), mutation transcript for M1-M4 present and matches my independent reproduction. |
+| `.planning/ops/NEEDS-ATTENTION-RUNBOOK.md` | ≥90 lines, end-to-end redress procedure | ✓ VERIFIED | 217 lines; 3 unhedged non-heading occurrences of "not refundable"/"cannot be refunded"; covers all 8 required sections. |
+| `.env.example` | `OPS_ALERT_EMAIL=ops@example.com` placeholder only | ✓ VERIFIED | Present; 0 occurrences of the real address. |
+
+### Key Link Verification
+
+| From | To | Via | Status | Details |
+|---|---|---|---|---|
+| `ops-alert-digest.ts` | `alerts.ts` (`listUnresolvedAlerts`) | `step.run` → `buildAndSendDigest(db)` → `listUnresolvedAlerts(dbConn, ...)` | ✓ WIRED | Import + call confirmed; live-tested against real DB (27 rows returned). |
+| `route.ts` | `ops-alert-digest.ts` (`opsAlertDigest`) | static import + `serve({functions:[...]})` membership | ✓ WIRED | `grep -c opsAlertDigest route.ts` = 3 (import, array, comment). |
+| `ops-alert-digest.ts` | `email.ts` (`sendOpsAlertDigest`) | `step.run` → `sendOpsAlertDigest(to, digestRows, ...)` | ✓ WIRED | Import + call confirmed; exercised by `alert-digest.test.ts` cases 3, 4, 6, 6b via the real Resend mock. |
+| `scripts/ops-alerts.ts` | `alerts.ts` | `resolveAlert(db, id)` / `listUnresolvedAlerts(db)` | ✓ WIRED | Confirmed by live CLI runs (list + resolve-not-found). |
+| `alerts.ts` WHERE clause | `drizzle/0024_audit_table.sql` (`audit_needs_attention_idx`) | literal predicate `outcome = 'needs_attention' AND resolved_at IS NULL` | ✓ WIRED | **Reproduced independently**: `SET enable_seqscan=off; SET plan_cache_mode=force_generic_plan; EXPLAIN` on the literal-predicate query → `Index Scan using audit_needs_attention_idx`, no Sort. Same query rewritten with a bind parameter (`PREPARE ... $1`) under identical settings → `Seq Scan (Disabled: true) + Sort`, exactly reproducing the executor's claimed deviation rationale. Confirmed the literal is a hardcoded module constant (`sql\`outcome = 'needs_attention' AND resolved_at IS NULL\``) with zero caller-controlled input reaching it — no injection surface. |
+
+### Data-Flow Trace (Level 4)
+
+| Artifact | Data Variable | Source | Produces Real Data | Status |
+|---|---|---|---|---|
+| `scripts/ops-alerts.ts` `list()` | `rows` from `listUnresolvedAlerts(db)` | live Postgres `audit` table via own `postgres.js` client | Yes — live run returned 27 real unresolved rows from the dev DB | ✓ FLOWING |
+| `ops-alert-digest.ts` `buildAndSendDigest` | `rows`/`digestRows` | `listUnresolvedAlerts(dbConn)` against the app db singleton | Yes — integration tests insert real Postgres rows (`now() - make_interval(...)`) and assert on returned/rendered content | ✓ FLOWING |
+
+### Behavioral Spot-Checks
+
+| Behavior | Command | Result | Status |
+|---|---|---|---|
+| CLI lists unresolved alerts | `npm run ops:alerts` | Printed 27 real rows, newest-first, no `meta` column | ✓ PASS |
+| CLI resolve on unknown id exits 1 | `npm run ops:alerts:resolve -- no_such_audit_id_xyz` | `No audit row with id ... exit=1` | ✓ PASS |
+| EXPLAIN proves index usability for the literal predicate | `SET enable_seqscan=off; SET plan_cache_mode=force_generic_plan; EXPLAIN ...` | `Index Scan using audit_needs_attention_idx`, no Sort | ✓ PASS |
+| EXPLAIN proves the bind-parameter form defeats the index (the claimed deviation reason) | `PREPARE q(text) AS ...$1...; EXPLAIN EXECUTE q('needs_attention')` under same settings | `Seq Scan (Disabled:true) + Sort` | ✓ PASS |
+| Mutation M1 (zero-row early return removed) reddens cases 1 & 2 | `npx vitest run tests/ops/alert-digest.test.ts` after mutation | 2 failed / 6 passed — matches recorded verbatim | ✓ PASS |
+| Mutation M2 (`meta` re-selected + rendered) reddens both layers | `npx vitest run tests/ops` after mutation | `alerts.test.ts` case 7 + `alert-digest.test.ts` case 3 both RED, sentinel visibly leaked | ✓ PASS |
+| Mutation M4 (case 5's `delete process.env.OPS_ALERT_EMAIL` removed) reddens case 5 | `npx vitest run tests/ops/alert-digest.test.ts` after mutation | 1 failed / 7 passed — matches recorded verbatim, proving non-vacuity against the real `.env.local` address | ✓ PASS |
+| `git diff --exit-code src/ tests/` clean after all three independent mutation reverts | `git checkout -- ...` then `git diff --exit-code src/ tests/` | clean | ✓ PASS |
+| `npx vitest run tests/ops` (bare, no `DATABASE_URL` exported) | — | 17/17 passed | ✓ PASS |
+| `npx vitest run` full suite (bare) | — | 1163 passed / 4 skipped / 0 failed | ✓ PASS |
+| `npx tsc --noEmit` | — | exit 0 | ✓ PASS |
+| `npm run lint` | — | 0 errors, 9 warnings, none in files this task touched | ✓ PASS |
+| No migration | `ls drizzle/*.sql \| tail -1` | `drizzle/0024_audit_table.sql` | ✓ PASS |
+| Real address containment | grep for the real address outside `.env.local` among files this task touched | 0 occurrences in task-committed files (pre-existing unrelated mentions in other phases' UAT docs and this task's own PLAN.md, which is expected — none newly introduced) | ✓ PASS |
+| `.env.local` not staged | `git status --short` | not present | ✓ PASS |
+
+### Requirements Coverage
+
+Quick task; no corresponding entries in `.planning/REQUIREMENTS.md` for `T-08-74-REACHABILITY`, `v1.0-AUDIT-5`,
+or `UAT-05-03` (expected — quick tasks commonly self-declare requirement IDs rather than drawing from the
+phase-based REQUIREMENTS.md ledger). No orphaned requirements found.
+
+### Anti-Patterns Found
+
+None. Scanned all created/modified files (`src/lib/ops/alerts.ts`, `src/inngest/functions/ops-alert-digest.ts`,
+`scripts/ops-alerts.ts`, both `tests/ops/*.test.ts`, `src/app/api/inngest/route.ts`,
+`.planning/ops/NEEDS-ATTENTION-RUNBOOK.md`) for `TBD|FIXME|XXX|TODO|HACK|PLACEHOLDER` — zero matches.
+
+### Truthfulness Gate (weighted heaviest)
+
+- `.planning/v1.0-MILESTONE-AUDIT.md` item 5: **EXTENDED, not overwritten.** i0v's 2026-08-10 LW-01
+  revision paragraph (lines 314-324) is byte-intact; the new j3z paragraph is appended after it (lines
+  325-345) and opens by stating T-08-74 remains open before describing what shipped. No sentence implies
+  refundability or full closure when read in isolation.
+- `.planning/phases/05-payments-payouts/05-HUMAN-UAT.md` item 3: `result:` line still reads `partial`
+  (not `passed`). `reconciled_3` re-assesses all four original reasons one-by-one; reason 4 ("no UI
+  surfaces it") is explicitly kept as still true, with the CLI/email surfaces named and distinguished from
+  a UI. "Nothing pages anyone" is deliberately NOT upgraded to "paging" — the note explicitly declines
+  that framing as a false latency claim. Summary counts unchanged (`partial: 2`).
+- `AR-08-01` (in `.planning/phases/08-group-bookings/08-SECURITY.md:172`) stands, untouched by this task.
+- The runbook (`NEEDS-ATTENTION-RUNBOOK.md` §5, §8) states the QRPh rail limitation unhedged, with the
+  real 2026-07-23 PayMongo `HTTP 400` probe response quoted verbatim.
+- No sentence found anywhere in the touched documents that could be quoted out of context to imply T-08-74
+  or milestone-audit item 5 is closed.
+
+### Human Verification Required
+
+None. Every claim in this task is either mechanically verifiable (query/type structure, cron registration,
+test suite results) or was independently reproduced via live command execution and mutation testing during
+this verification pass — no UI or subjective behavior exists in this task's deliverables.
+
+### Gaps Summary
+
+No gaps found. All 11 must-have truths verified with first-hand evidence (not SUMMARY claims): 3 of the
+executor's mutation claims (M1, M2, M4) were independently reproduced from a clean tree with verbatim-matching
+RED output, then cleanly reverted; the EXPLAIN-based index-usability claim was independently reproduced with
+both the literal-predicate query (Index Scan, no Sort) and a bind-parameter equivalent under
+`force_generic_plan` (Seq Scan + Sort), confirming the stated deviation rationale; the full test suite
+(1163/4/0) and `tsc --noEmit` (exit 0) were run bare with no `DATABASE_URL` exported and matched the SUMMARY's
+claimed numbers exactly; and every doc-truthfulness claim was read first-hand and found accurate — T-08-74
+remains stated OPEN, AR-08-01 stands untouched, and 05-HUMAN-UAT item 3 was not flipped to `passed`.
+
+---
+
+_Verified: 2026-08-10T14:45:00Z_
+_Verifier: Claude (gsd-verifier)_
+
+---
+
+## Amendment — gap found after this report was written (2026-08-10)
+
+**This report's `status: passed` (11/11) stands as an assessment of the must_haves it was given. Those
+must_haves did not require an operator surface for REVIEWING resolved alerts, so their absence was not a
+miss against the contract — but it is a real gap in the delivered operator workflow, and this report should
+not be read as certifying otherwise.**
+
+**How it was found:** by the operator, during the human-verification checkpoint of the follow-on quick task
+`260810-km4` — not by any automated gate here. Asked to confirm that 27 discharged dev rows had genuinely
+been test noise rather than real failed sends, they reached for the CLI this task shipped and found no
+command for it. `npm run ops:alerts` calls `listUnresolvedAlerts`, which filters `resolved_at IS NULL` by
+definition; the instant a row is discharged it leaves the only surface the tooling provides. The
+verification had to be performed with hand-written psql:
+
+```
+docker compose exec -T db psql -U fitout -d fitout -c "SELECT id, action, created_at, meta->>'error' AS err FROM audit WHERE outcome='needs_attention' ORDER BY created_at DESC"
+```
+
+**Why it is more than a convenience gap.** `resolveAlert` is a money-path write: it records that a human
+discharged an obligation, and on the QRPh rail that obligation is real money owed to a real person that the
+PayMongo API cannot refund. Resolutions can be MADE through the CLI but only REVIEWED through ad-hoc SQL.
+`.planning/ops/NEEDS-ATTENTION-RUNBOOK.md` can tell an operator how to resolve a row; it cannot tell them
+how to check what a predecessor resolved, or on what basis.
+
+**Corrected claim.** Wherever this task is described as making the alert "reach a human and be
+dischargeable", the accurate scope is: **an alert can be discovered and discharged; a discharge cannot be
+reviewed.** `.planning/v1.0-MILESTONE-AUDIT.md` item 5 carries the same amendment.
+
+**Tracked as:** D2 in `deferred-items.md` (this directory), OPEN. Not fixed in `260810-km4` — that task's
+scope was database isolation, and the operator chose deliberately to flag it rather than have it added
+mid-checkpoint.
+
+---
+
+### Closure of the above (2026-08-11, quick task `260811-dj4`)
+
+**D2 is CLOSED.** `npm run ops:alerts:history [-- <days>]` reviews discharged rows newest-discharge-first
+over the same module — `outcome`, `created_at`, `resolved_at`, a `HELD` column (whole hours the money sat
+outstanding), and `meta->>'error'` — inside a 30-day default window capped at 200 rows. Run live against the
+dev database on closure, it printed all 27 rows of the batch this amendment was written about, with
+`error=resend 503`: the check that required hand-written psql above is now one command. Runbook §6a is the
+operator procedure. Six new pinned cases (8-13) and seven mutations; no schema change, no migration, no
+index.
+
+**The corrected claim, widened to exactly what is now true and no further.** Replacing "an alert can be
+discovered and discharged; a discharge cannot be reviewed":
+
+> **An alert can be discovered, discharged, and the discharge reviewed — what it was, when it was
+> discharged, how long the money was outstanding, and the error string it was discharged on. Still NOT
+> reviewable: BY WHOM (there is no `resolved_by` column), and not without shell + database access (there is
+> still no ops UI).**
+
+Full `meta` also remains psql-only — history surfaces exactly one key out of it, deliberately. And nothing
+here touches the underlying rail: this amendment was always about the operator workflow, not about T-08-74.
+
+**This report's `status: passed` (11/11) is unaffected in either direction.** It was correct against the
+must_haves it was given then, and those must_haves did not require a review surface. The amendment above
+stands as the record of a real gap in the delivered workflow; this note records that the gap is now closed.
+`.planning/v1.0-MILESTONE-AUDIT.md` item 5 carries the same closure.
+
+---
+
+## Further closure of the above (2026-08-11, quick task `260811-fh6`) — the BY WHOM half
+
+The corrected claim's blockquote above says *"Still NOT reviewable: BY WHOM (there is no `resolved_by`
+column)"*. **That parenthetical is now false.** The clause is narrowed here rather than edited above, so the
+sequence of what was true when stays legible.
+
+Migration `0025_audit_resolved_by.sql` added `audit.resolved_by` — nullable `text`, no foreign key, no
+index — and `resolveAlert` writes it in the same guarded UPDATE that writes `resolved_at`. The narrowed
+claim, in full:
+
+> Discharges made from 2026-08-11 onward record an **asserted discharger** (`resolved_by`, written from the
+> CLI's required `--by`); the **27 historical discharges remain unattributed forever** and render as
+> `unrecorded`; and the identity is **asserted, not authenticated** — the CLI has no session, so the column
+> records who *claims* to have discharged the row, meaningful only in combination with shell / database
+> access control, and **not proof of identity on its own**.
+
+Three things it does NOT change, stated so this is not read as more than it is:
+
+- **The other half of the original clause stands unchanged.** Review still requires shell + database access
+  — there is still no ops UI, and this added a required flag to a command line, not a screen.
+- **The 27 rows of the §4a batch are unattributed permanently.** No backfill, ever: inventing a discharger
+  for a past act would be fabricating an audit record. Verified live on the dev database before and after
+  a real CLI run — 27 total rows, 27 with `resolved_at IS NOT NULL AND resolved_by IS NULL`, 0 with a
+  non-null `resolved_by`, identical on both readings. Re-running the resolve verb against one of them with
+  a name reports `already_resolved` and stores nothing, because the `AND resolved_at IS NULL` guard
+  excludes it.
+- **Nothing here touches the rail.** A discharger name is not a refund. `T-08-74` stands and `AR-08-01`
+  stands, exactly as the paragraph above says.
+
+**This report's `status: passed` (11/11) is again unaffected in either direction**, and for the same reason:
+its must_haves did not require a discharger column any more than they required a review surface. This
+section is a record of a claim being narrowed, not of a verdict changing.

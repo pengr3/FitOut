@@ -1,0 +1,104 @@
+================================================================================
+19-04 TASK 1 — ARCHIVE VERIFICATION, NOT RE-CAPTURE
+================================================================================
+
+Taken:  2026-09-04, plan 19-04 execution
+Subject: the .next/dev evidence archive taken EARLY by plan 19-02 (commit 3f95b17)
+
+WHY THIS IS A VERIFICATION AND NOT THE COPY THE PLAN DESCRIBES
+--------------------------------------------------------------
+Plan 19-04 Task 1 specifies four `cp`/`ls` commands. Those commands ALREADY RAN,
+verbatim, during plan 19-02 — which needed the archive before it could boot a dev
+server, because booting rewrites `.next/dev/server/app-paths-manifest.json`, the
+very artifact being preserved. Re-running the copy today would OVERWRITE the
+preserved `Sep 3 19:33` capture with one produced by 19-02's and 19-03's dev
+sessions, destroying the evidence the archive exists to hold.
+
+So Task 1 verified the archive instead. The measurements below are re-taken from
+the ARCHIVE, which is now the only place they exist.
+
+⚠ MEASURED THIS SESSION — THE LIVE TREE NO LONGER HOLDS THE SUBJECT
+--------------------------------------------------------------------
+  .next/app-path-routes-manifest.json  →  No such file or directory.
+  .next/dev/*                          →  every mtime is 2026-09-04 09:37–10:02,
+                                          i.e. entirely rewritten by 19-02/19-03.
+  .next/dev/server/app-paths-manifest.json → present, but it is a NEW file from
+                                          today's sessions, not the Sep 3 capture.
+
+CONSEQUENCE: the archive is now the ONLY surviving copy of the production
+manifest anywhere on this machine. Task 1's precondition, read literally
+("both files still exist"), is UNMET — but the risk it guards against (an
+unreconstructable archive) was already retired by 19-02's early capture. The
+precondition's purpose is satisfied; its literal text is not. Recorded here
+rather than smoothed over, and it retroactively vindicates 19-02's deviation:
+had that plan followed its own text instead, this evidence would be gone.
+
+THE SEVEN MEASUREMENTS, RE-TAKEN AGAINST THE ARCHIVE
+-----------------------------------------------------
+ #  Measurement                              Expected (19-RESEARCH § 1.0)  Measured   Verdict
+ 1  dev manifest entry count                 16                            16         MATCH
+ 2  dev manifest grep -c '[id]/edit'         0                             0          MATCH
+ 3  dev manifest grep -c '[id]/availability' 0                             0          MATCH
+ 4  compiled edit/page.js present + mtime    present, Sep 3 15:18          present,   MATCH
+                                             (6496 bytes)                  6496 B,
+                                                                           15:18:04.957
+ 5  compiled availability/page.js            absent                        absent     MATCH
+                                                                           ([id]/ holds
+                                                                           only edit/)
+ 6  prod manifest grep -c '[id]/edit'        1                             1          MATCH
+    prod manifest mtime                      Sep 3 15:57                   NOT        UNVERIFIABLE
+                                                                           RE-MEASURABLE
+ 7  .next/dev session-marker mtimes:
+      package.json                           18:09                         18:09:29   MATCH
+      prerender-manifest.json                18:09                         18:09:30   MATCH
+      routes-manifest.json                   18:09                         18:09:30   MATCH
+      types/                                 18:09                         18:09:31   MATCH
+      server/                                19:33                         19:33:43   MATCH
+      build-manifest.json                    19:33                         19:33:41   MATCH
+      trace                                  19:33                         19:33:45   MATCH
+
+⚠ THE ONE ITEM THAT DIFFERS: measurement 6's MTIME (not its grep count).
+`dev-artifact-mtimes.txt` lists only `.next/dev`, so it never captured the
+production manifest's own mtime; the archived copy carries its copy time
+(Sep 4 09:34); and the live file is now deleted. The `Sep 3 15:57` value
+therefore survives ONLY as 19-RESEARCH's own MEASURED read and can no longer be
+independently confirmed. Its grep count of 1 IS confirmed, and that is the part
+the reframing rests on.
+
+THE 16 DEV-MANIFEST ENTRIES, IN FULL
+-------------------------------------
+/(app)/bookings/[id]/page
+/(app)/bookings/page
+/(app)/profile/page
+/(host)/host/bookings/page
+/(host)/host/earnings/page
+/(host)/host/listings/new/page
+/(host)/host/listings/page
+/(host)/host/page
+/(host)/host/requests/page
+/(host)/host/verify/page
+/(ops)/ops/page
+/(public)/invite/[token]/page
+/(public)/page
+/_not-found/page
+/api/inngest/route
+/listings/[id]/(detail)/page
+
+(The archived PRODUCTION manifest holds 46 entries by contrast.)
+
+TWO OBSERVATIONS HANDED TO 19-05, WHICH OWNS THE DIAGNOSIS
+-----------------------------------------------------------
+Recorded as facts. NO cause is named here — D-11 forbids it without evidence.
+
+1. `/(host)/host/listings/new/page` IS present in the stale dev manifest, yet
+   19-02 measured `/host/listings/new` returning 404 on a fresh process. Combined
+   with 19-02's own finding that every `/host/*` subroute 404'd while `/host`
+   served 307, a missing manifest entry is neither necessary nor sufficient for
+   the phantom 404.
+
+2. A PER-ROUTE manifest exists at
+   `.next/dev/server/app/(host)/host/listings/[id]/edit/page/app-paths-manifest.json`
+   (90 bytes, Sep 3 15:18:04.944) — i.e. the route's own manifest fragment was
+   written, while the top-level session manifest omits it.
+
+NOTHING WAS CLEANED, BUILT OR STARTED BY THIS TASK.

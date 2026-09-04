@@ -1,0 +1,18 @@
+{
+  "/(app)/bookings/[id]/page": "app/(app)/bookings/[id]/page.js",
+  "/(app)/bookings/page": "app/(app)/bookings/page.js",
+  "/(app)/profile/page": "app/(app)/profile/page.js",
+  "/(host)/host/bookings/page": "app/(host)/host/bookings/page.js",
+  "/(host)/host/earnings/page": "app/(host)/host/earnings/page.js",
+  "/(host)/host/listings/new/page": "app/(host)/host/listings/new/page.js",
+  "/(host)/host/listings/page": "app/(host)/host/listings/page.js",
+  "/(host)/host/page": "app/(host)/host/page.js",
+  "/(host)/host/requests/page": "app/(host)/host/requests/page.js",
+  "/(host)/host/verify/page": "app/(host)/host/verify/page.js",
+  "/(ops)/ops/page": "app/(ops)/ops/page.js",
+  "/(public)/invite/[token]/page": "app/(public)/invite/[token]/page.js",
+  "/(public)/page": "app/(public)/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/inngest/route": "app/api/inngest/route.js",
+  "/listings/[id]/(detail)/page": "app/listings/[id]/(detail)/page.js"
+}

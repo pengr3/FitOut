@@ -1,0 +1,48 @@
+<!--
+  public/vrt/photo-3.svg — VISUAL-BASELINE PHOTO PLACEHOLDER, index 3 of 7.
+
+  NOT PRODUCT ART, AND NOT A GENERATED FILE. `scripts/seed-baseline-fixtures.ts` seeds this path as a
+  listing photo url, so this is what every photo-bearing baseline — the listing mosaic, the lightbox,
+  the search card, the booking-row thumbnail — shows where a host's photograph belongs. It replaces
+  `https://example.invalid/vrt-3.jpg`, a fixed literal whose RFC 2606 reserved TLD could never
+  resolve, so the 2026-08-19 baseline set minted the browser's broken-image glyph as its reference.
+  The rule that produced this file is stated once, in that script's determinism paragraph.
+
+  PURE GEOMETRY, NO TEXT AND NO FONT. A label would drag glyph rasterisation into a byte comparison:
+  a reference minted against one font stack and compared against another diffs on the caption rather
+  than on the surface. Every colour is a LITERAL — no `currentColor`, no CSS variable — so the image
+  renders identically in both themes and cannot silently track a design token that later moves.
+
+  THE INDEX IS ENCODED THREE WAYS, AND ALL THREE SURVIVE THE CROP. The lightbox pages 1/8 → 8/8 and
+  the mosaic shows five tiles at once, so eight identical placeholders would make paging invisible in
+  the baseline and would hide a wrong-photo bug behind a green diff. The encodings are hue (153°),
+  the sun's x position (758), and 4 counter pips along the bottom.
+
+  `object-cover` CROPS, WHICH IS WHY THE LAST TWO LIVE MID-FRAME rather than in a corner. Every
+  consumer scales this 16:9 image to fill a narrower box and keeps the CENTRE: the mosaic's cells are
+  ~0.89 w/h at both the hero and the small tiles, so they show x ∈ [400, 1200]; `RESULT_CARD_MEDIA`
+  is 4/3 and shows [200, 1400]; a booking row's square 48px thumbnail shows [350, 1250]. The sun
+  (758 ± 86) and the pip row are placed inside the tightest of those bands, so the index is
+  legible in the smallest thumbnail and not only in the lightbox's `object-contain` full frame.
+
+  A muted plate, a horizon and a sun read as an INTENTIONAL placeholder. A red X would read as
+  breakage — and these images are the reference for what these surfaces are supposed to look like.
+
+  1600×900 (16:9): `object-cover` never has to upscale, and the lightbox's `object-contain` has an
+  intrinsic size large enough to fill the dialog rather than sit tiny in the middle of it.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" role="img">
+  <title>Placeholder photo 4 of 8</title>
+  <rect width="1600" height="900" fill="#cfe3da"/>
+  <circle cx="758" cy="280" r="86" fill="#edf8f3"/>
+  <polygon points="260,782 700,340 1140,782" fill="#93bdaa"/>
+  <polygon points="660,782 960,500 1260,782" fill="#6ba88d"/>
+  <rect y="780" width="1600" height="120" fill="#afcabe"/>
+  <g fill="#4d896e">
+    <rect x="705" y="812" width="34" height="34" rx="6"/>
+    <rect x="757" y="812" width="34" height="34" rx="6"/>
+    <rect x="809" y="812" width="34" height="34" rx="6"/>
+    <rect x="861" y="812" width="34" height="34" rx="6"/>
+  </g>
+  <rect x="40" y="40" width="1520" height="820" rx="28" fill="none" stroke="#a2c3b4" stroke-width="8"/>
+</svg>

@@ -1,0 +1,1671 @@
+# Phase 17 — deferred items
+
+Out-of-scope discoveries made while executing this phase's plans, logged rather than fixed. **D-199:
+findings are BATCHED — one list at phase end, no mid-phase interruptions.** Each section below names
+the plan that found it, the measurement (a number, in a named theme, at a named width, on a named
+route — never a paraphrase), the file that owns it, the reason the repair did not land in the plan
+that found it, and what the smallest correct repair would be.
+
+**D-200 sets the bar this list is written against.** For escalate-class items *the finding is the
+deliverable*, and this phase may close green around every one of them. Mechanical-class items — the
+"may fix in place" table in `17-UI-SPEC.md` § Remediation rules — are **not** closeable-around; their
+closure record is the second half of this file (`# Fixed in place`), listed per row with the plan
+that took it, so the closure is checkable rather than asserted.
+
+Assembled by plan **17-13** from the twelve `17-*-SUMMARY.md` files, `e2e-baseline-reds.md` and the
+row-level records in the specs themselves. Phase base commit: **`e439bf9`**.
+
+**APPENDED, PROMOTED AND THEN CLOSED BY PLAN 17-14: `[17-D26]`.** 17-13 assembled and machine-checked
+**25** findings. The phase's final plan — the baseline round-trip — found a **26th** by reading its
+dispatch diff against the prediction written before it, and it was the one finding here that was about
+GATE-01 itself. The PM **promoted it to in-scope at the D-199 review**; its first prescribed repair was
+**refuted by measurement** before any code was written, its second was **watched working** before it
+was trusted, and it is now **fixed and green**. It therefore lives in the `# Fixed in place` closure
+record rather than in the list below, which is back to **25**.
+
+⚠ **This paragraph deliberately does NOT spell the four part-labels, and that is not fussiness.**
+They are what the format gate COUNTS, so prose naming them inflates the very numbers it claims to
+report — the `[17-D20]` defect class, and 17-13 already inflicted it on itself once while recording
+D-198. The first draft of this note listed all four by name and took one of them from 26 to 27. Count
+them with the greps, not from a sentence: each of the four labels must equal the finding-heading
+count, and level-3 headings must stay at zero so the unanchored heading grep is unambiguous.
+
+**APPENDED BY PLAN 17.1-05, 2026-08-31 — THE LIST IS NOW 28.** Everything above stays byte-identical;
+this is the correction, dated, in the format S5 requires. Phase **17.1**'s item-3 outbound census
+(`17.1-EVIDENCE.md` § P3) drove the two spec files that touch `/host/payouts/refresh` under a
+server-side `fetch` instrument and read the result against the prediction. **Two of the measured rows
+were unpredicted**, so under D-11 each became a finding **before** the seam that will fix them exists:
+`[17-D27]` (a third PayMongo endpoint this file's own `[17-D18]` does not record) and `[17-D28]` (a
+second third-party origin, reached on a live key, that no row here records at all). The same plan's
+Task 3 then added a third, `[17-D29]`, on measuring the scope of its own approved dependency change
+instead of asserting it. All three sit at the end of the list below, in the same shape as every row
+above them. The invariants this header names still hold and were re-checked after each splice: the
+finding-heading count and each of the four part-label counts are all **28**, and the unanchored level-3
+heading grep is still **0**. This paragraph names none of the four labels, for the reason the paragraph
+above it gives.
+
+**Nothing was relocated here.** Phases 13, 14, 15 and 16 keep their own `deferred-items.md` rows;
+plans 17-06 and 17-10 annotated the ones this phase closed **in place** (`[13-15]`, `[15-12]`,
+`[16-D9]`, `[14-WR-03]`). Those ids are referenced below, never moved.
+
+---
+
+## [17-D1] — The soft-404: `loading.tsx` flushes the shell before `notFound()` runs, on ~10 routes
+
+- **Found by:** plan 17-01, `e2e-baseline-reds.md` (the declared-red triage), 2026-08-29 — inherited
+  from `[16-D6]` item 1, triaged 2026-08-26 at commit `d24b212`
+- **Owner file:** `src/app/listings/[id]/(detail)/loading.tsx`, and the ~10 sibling `loading.tsx`
+  files that sit above a `page.tsx` calling `notFound()` (21 `loading.tsx` on disk)
+- **Severity:** product/SEO behaviour — a route that answers `200` for content that does not exist
+  stays in a search index. Not an authorisation hole: the body IS the not-found document and the
+  draft listing's title is absent from the served bytes.
+
+**Measured, not inferred.** `e2e/public-listing.spec.ts:385` — *"a draft listing 404s to the
+public"* — asserts a **404** on `/listings/{draft-id}` and `[16-D6]` measured **200**. The mechanism:
+`loading.tsx` creates an implicit Suspense boundary, Next flushes the shell, and the status line is
+committed before the page body raises `notFound()`. Re-measured by 17-01 on **2026-08-29** at
+`--workers=1`, twice, alone: **8 passed** — it did **not** reproduce, and that changes nothing about
+the disposition, because neither the route directory nor the framework moved
+(`git log d24b212..HEAD -- 'src/app/listings/[id]/(detail)/'` is empty; `next` is 16.2.7 at both
+commits). A green on one machine on one day is an environment result, not a fix.
+
+⚠ **Assumption `[A6]` is UNMEASURED on this route.** `17-RESEARCH.md` A6 — *that the soft-404
+behaves the same in a production build as it does in `next dev`* — has never been driven against
+`next build && next start` for `/listings/{id}`. Every reading of this route is a `next dev` reading.
+`[17-D2]` below measured the identical mechanism in a **production** build on a different segment and
+found the soft `200` there, which raises the prior on `[A6]` sharply — it does not settle it.
+
+**Why it was not fixed here.** 17-UI-SPEC § Remediation rules: *any product copy or behaviour change*
+and *reversing a recorded decision* are must-escalate. The listing route's `(detail)/layout.tsx:25-32`
+records in as many words that the assert lives in the **layout** precisely because *"only a real 404
+removes an unpublished listing from a search index"* — so the repair is a route-file argument across
+~10 segments, not a fix. `17-RESEARCH.md` Open Question 3 classes it escalate-class, and Phase 17
+does not fix it.
+
+**Cheapest correct fix:** first, **measure `[A6]`** — one `npx next build && npx next start` probe
+with `curl -o /dev/null -w '%{http_code}'` against a draft listing id, which costs one build and
+settles whether there is anything to repair at all. If production reproduces the `200`, the repair is
+per-segment and there are only two shapes: hoist the guard above the Suspense boundary (a `layout.tsx`
+assert, which is what the listing route already did — and which produced `[17-D3]`), or drop the
+`loading.tsx` on the routes whose guard must own the status line. Both move
+`tests/design/loading-coverage.test.ts`'s pins.
+
+**Suggested owner:** the PM, as a next-milestone SEO decision. Not a phase-17 or phase-18 mechanical.
+
+**CORRECTED 2026-08-30 — plan 17.1-01, commit `cfac9c7`.** Everything above is left byte-identical.
+This row's **measurement** stands; two of its **inferences** do not, and `[A6]` is now measured rather
+than assumed. Three corrections, in the order they matter.
+
+**(a) C1 — the git-log claim above is FALSE, and the route was already fixed.** The body asserts
+*"`git log d24b212..HEAD -- 'src/app/listings/[id]/(detail)/'` is empty"*. Re-run on this tree at
+`cfac9c7`:
+
+```
+$ git log --oneline d24b212..HEAD -- "src/app/listings/[id]/(detail)/"
+4636206 fix(260830-r4b): hang the sticky-bar clearance off the listing shell, where it reaches the footer
+c7f1a1a fix(17-14): pin venue-local today for the calendar baselines via a dev-only seam
+89fb451 fix(260826-l1o): /listings/[id] answers a real 404 again
+```
+
+Three commits, not zero — and the third of them is the fix for this very defect.
+`git merge-base --is-ancestor 89fb451 d24b212` returns **non-zero**: `89fb451` is **not** an ancestor
+of `d24b212`. The timestamps say why that matters. `[16-D6]` measured the **200** at
+`d24b212`, **2026-08-26 14:51:54 +0800**; `89fb451 fix(260826-l1o): /listings/[id] answers a real 404
+again` landed at **2026-08-26 16:03:03 +0800** — **72 minutes later**.
+
+So 17-01's re-measurement on 2026-08-29 (**8 passed**, twice, alone) was reading a **REPAIRED route**,
+not a flaky environment. This row's sentence *"A green on one machine on one day is an environment
+result, not a fix"* was a correct piece of scepticism applied to the wrong tree state: there **was** a
+fix, it was already in, and the green was it. The disposition that followed from the inference — that
+the defect was live and unfixed on this route — does not hold.
+
+**(b) C2 — "Both move `tests/design/loading-coverage.test.ts`'s pins" is false for one of the two
+shapes.** The claim is true only of the shape that deletes a `loading.tsx`. The gate's four pins are
+`EXPECTED_PAGES`, `EXPECTED_QUALIFYING`, `EXPECTED_NON_QUALIFYING`, and the
+`LOADING_FILES.length === EXPECTED_QUALIFYING` clause. Its collector takes **`page.tsx` (`:502`) and
+`loading.tsx` (`:515`) only** — `layout.tsx` and `not-found.tsx` are invisible to it. Therefore:
+
+| Candidate repair | Moves a `loading-coverage` pin? |
+|---|---|
+| Hoist the guard into a `layout.tsx` (shape A) | **No.** Adds no page and no loading file; all four pins hold. |
+| Delete a `loading.tsx` from a qualifying route (shape B) | **Yes, and it goes RED** — the *"gives every async-default page a sibling loading.tsx"* clause **and** the `LOADING_FILES.length === EXPECTED_QUALIFYING` pin. This is a **build-blocking** gate (`test:design` runs inside `npm run build` and inside CI's `gate-db-free`), so shape B is a gate amendment, not a two-line change. |
+
+The practical consequence is that the *cheaper* of the two shapes is also the *free* one, which the
+row's text obscured by pricing them the same.
+
+**(c) The probe this row asked for was driven, and it settles `[A6]`.** The row's own cheapest-correct-fix
+sentence — *"first, measure `[A6]` — one `npx next build && npx next start` probe with
+`curl -o /dev/null -w '%{http_code}'` against a draft listing id"* — is discharged. Recorded in full,
+with its build provenance, its exact invocation and its teardown, at
+**`.planning/phases/17.1-close-phase-17-escalations-sticky-bar-clearance-soft-404-pro/17.1-EVIDENCE.md`
+§ P1**. Driven at `d69f1e4` under `npm run build` then
+`PLATFORM_WALLET_NUMBER=… PLATFORM_WALLET_NAME=… node ./node_modules/next/dist/bin/next start -p 3100`
+(Next.js **16.2.7**), on port 3100 rather than 3000 to avoid the `[17-D24]` adoption trap. Both listing
+ids were queried from `fitout-db-1` on that run. The three readings, verbatim:
+
+| Route | Kind | Status |
+|---|---|---|
+| `/listings/0454c21f-4f18-44cc-9cee-5f376f1470c6` | draft | **404** |
+| `/listings/a-listing-that-must-never-exist-17-1` | nonexistent id | **404** |
+| `/listings/uat_listing_notpayable` | published — the CONTROL | **200** |
+
+**404 / 404 / 200**, identical on a second pass, no 5xx on either — so this is a status-line reading and
+not the `src/lib/paymongo.ts` boot guard misread as one. The published control is what makes the two
+404s mean anything: without it they would be indistinguishable from a server that 500s on everything.
+
+**What that licenses.** `[A6]` is settled **POSITIVELY** on this route: the shipped layout-assert
+survives a production build, and `89fb451` is not regressed. **No repair on `/listings/[id]`.** This
+row's remaining live scope is the **eight** routes that `src/lib/listing/public-listing.ts`'s header
+already argues are ACCEPTED rather than overlooked — `listings/[id]/book`, reachable only by
+`redirect()` from a server action and needing an unguessable `?hold=<uuid>`, and the seven
+`bookings/[id]*` / `host/*` routes that 307 to `/login` and never render anonymously, so their status
+lines are unobservable from outside a session. Nothing in this phase touches them, and no boundary was
+restructured on the strength of an assumption.
+
+---
+
+## [17-D2] — `/host/dev-throw` answers a SOFT 404 in a PRODUCTION build; the other three groups answer a hard one
+
+- **Found by:** plan 17-12, `e2e/overflow-320.spec.ts` AC#29 rows + a `next build && next start -p 3100`
+  probe driven twice (Chromium, and `curl` with the session cookie), 2026-08-30
+- **Owner file:** `src/app/(host)/host/loading.tsx`
+- **Severity:** status-line correctness in production. **The security control is unaffected** — the
+  build-time guard fires, the throw never happens, `SENTINEL_LEAK_PROBE` appears **0** times in the
+  served bytes, and no boundary renders.
+
+**Measured, not inferred.** Against `npx next start` on port 3100, route **`/host/dev-throw`**:
+status **200**, final URL unchanged, document = the ROOT not-found. The same probe against
+`/dev-throw-app`, `/dev-throw-auth` and `/dev-throw-legal` read **404** on all three. The single
+difference is that `(host)` is the only one of the four route groups carrying a group-level
+`loading.tsx`; `(app)`, `(auth)` and `(legal)` have none. That is the whole of the delta, and it is
+the same mechanism as `[17-D1]` arriving on a different segment — this time **in a production build**,
+which is the reading `[A6]` asks for and never got on the listing route.
+
+**Why it was not fixed here.** The only repair is to delete or relocate a shipped STATE-01 loading
+fallback that has nothing to do with plan 17-12's subject — a product change made from inside an
+audit, which is the exact move D-199/D-200 exist to prevent.
+
+**Cheapest correct fix:** nothing, unless a caller depends on the status line of a route that 404s in
+production anyway. `/host/dev-throw` is `NODE_ENV`-gated out of production by construction, so the
+finding's value is entirely as **evidence for `[17-D1]`** — it is the production measurement of the
+mechanism, taken on the one segment where taking it was free. Read the two rows together.
+
+**Suggested owner:** folded into `[17-D1]`'s decision.
+
+**CORRECTED 2026-08-30 — plan 17.1-01, commit `cfac9c7`.** Folded in, as this row asks to be: it is
+now part of `[17-D1]`'s decision above, beside `§ P1`'s three status codes. Nothing measured here is
+withdrawn — this stays the production measurement of the **UNFIXED** mechanism, on `(host)`, and the
+listing route's `404 / 404 / 200` is the production measurement of the **FIXED** one. Read as a matched
+pair they isolate the variable: same mechanism, same build type, same probe shape, same port; the only
+difference is whether a guard renders above the Suspense boundary. **This row is not closed by phase
+17.1** — `src/app/(host)/host/loading.tsx` is untouched, its cheapest-correct-fix (*nothing, unless a
+caller depends on the status line of a route that 404s in production anyway*) is unchanged, and
+`/host/dev-throw` remains `NODE_ENV`-gated out of production by construction.
+
+---
+
+## [17-D3] — `src/app/listings/[id]/(detail)/not-found.tsx` is UNREACHABLE in every state, and its own header claims the opposite
+
+- **Found by:** plan 17-11, `e2e/overflow-320.spec.ts` (the AC#29 boundary row, driven at `expectReachable`), 2026-08-30
+- **Owner file:** `src/app/listings/[id]/(detail)/not-found.tsx` — and the missing
+  `src/app/listings/[id]/not-found.tsx` that would give it a segment
+- **Severity:** dead code that reads like coverage. A boundary nothing can render, with a header
+  asserting that it can.
+
+**Measured, not inferred.** Route **`/listings/a-listing-that-must-never-exist-17-11`** at **320px**,
+in **both** themes: status **404**, and the document rendered is the **ROOT** not-found — *"We
+couldn't find that page"*, **1** `empty-state`, the public header and the site footer. This
+boundary's own copy — *"This space isn't available"* — appears **0** times. Cause:
+`(detail)/layout.tsx` awaits `assertPublicListing(id)`, which calls `notFound()` at
+`src/lib/public-listing.ts:104`; a `notFound()` raised in a **layout** is handled by the **parent**
+segment's boundary, and `src/app/listings/[id]/` has none, so it falls through to the root. The
+layout and the page share ONE predicate (`isPubliclyViewable` — *"one rule, one expression, two call
+sites"*), so `(detail)/page.tsx:261`'s own `notFound()` can never fire on a listing the layout
+admitted. Plan 17-12 re-confirmed it: this is the **one** remaining unreachable row in the AC#29
+table (suite 100 passed / 9 skipped; 2 of the 9 are this row).
+
+⚠ The file's own header still says the opposite. Plan 11-19 measured it with `curl` against
+`next start` **before** the layout gained the assert, and the sentence is now false. It is left
+**byte-identical** rather than edited, because editing a source comment that describes shipped
+behaviour is a product statement under 17-UI-SPEC § Remediation; the contradiction is recorded at the
+skipped row in `e2e/overflow-320.spec.ts` and here.
+
+**Why it was not fixed here.** Every repair is a route-file change, which is escalate-class: either a
+new `not-found.tsx` at `src/app/listings/[id]/` — which adds a route state and moves
+`tests/design/loading-coverage.test.ts`'s pins — or moving the assert back below the Suspense
+boundary, which **re-opens `[17-D1]` on the highest-value public route in the product**. Neither is
+asked for by any acceptance criterion in Phase 17.
+
+**Cheapest correct fix:** decide whether the file should exist at all. If the root not-found is the
+right document for a missing listing, **delete `(detail)/not-found.tsx`** and correct nothing else —
+one deletion, and the header's false sentence goes with it. If the bespoke copy is wanted, add
+`src/app/listings/[id]/not-found.tsx` and move `loading-coverage.test.ts`'s pins in the same commit.
+The first is one line of work; the second is a product decision about copy.
+
+**Suggested owner:** the PM chooses; whichever plan next opens that route segment executes.
+
+**RESOLVED 2026-08-30 — plan 17.1-02, commit `7c3444b`.** The PM chose the first of the two fixes
+above: **`src/app/listings/[id]/(detail)/not-found.tsx` is deleted**, and the header's false sentence
+went with it. The root not-found is the right document for a missing listing — it is the document the
+route has actually been serving all along, measured at 404 — so nothing replaced the file and no
+`not-found.tsx` was added at `src/app/listings/[id]/`. (Date in UTC, this file's convention; `git log`
+prints the commit at `2026-08-31T00:10:13+08:00` Manila.)
+
+**The four instruments moved in the SAME commit as the deletion**, which is the rule
+`overflow-320.spec.ts`'s own inventory clause states in as many words (*"Delete the entry, and delete
+its rows in the tables above in the same commit"*):
+
+| Instrument | Edit | Build-blocking? |
+|---|---|---|
+| `tests/design/empty-state-adoption.test.ts` | the `ADOPTERS` row, **plus both count pins** — `EXPECTED_ADOPTER_FILES` 15 → 14 and `EXPECTED_EMPTY_STATE_SITES` 18 → 17, with a fourth movement entry in the constants' docblock | **YES** |
+| `e2e/axe-sweep.spec.ts` | the `ROWS` entry (`/listings/[id] · not found`), comment included | no |
+| `e2e/overflow-320.spec.ts` | the `SURFACE_INVENTORY` entry, its section comment `not-found (4)` → `(3)`, **and** the AC#29 named-skip row entire | no |
+| the prose corrections | **THREE, not two** — see the count correction below | no |
+
+**This row's own reference table is wrong, and is corrected rather than propagated** (the same
+treatment `[17-D9]`'s RESOLVED line gave its two bad pointers). The table names **7 references across
+4 files**; the tree carried **10 across 5**. The three it missed are `e2e/shell.spec.ts:1046` — a
+whole file the table does not list — and `e2e/overflow-320.spec.ts:639` and `:648`, two mentions
+buried *inside* the AC#29 skip paragraph rather than in its `name`. That is why the prose corrections
+were three: `bookings/[id]/not-found.tsx` (the `main`-vs-`div` contrast, re-pointed to
+`src/app/not-found.tsx`, **comment-only** — the rendered copy is a security property under
+T-04-CONFIRMIDOR and was not touched), `overflow-320.spec.ts`'s header note (a dated `[17.1:` bracket
+appended, the `[17-11:` and `[17-12:` brackets left byte-identical), and `shell.spec.ts:1046`, which
+was stale **twice over**: it named the deleted file *and* cited as its authority the very header this
+deletion removes.
+
+**This row's `loading-coverage` claim is FALSE, and the docblock correction depends on knowing it.**
+*"Why it was not fixed here"* above says a new `not-found.tsx` at `src/app/listings/[id]/` *"moves
+`tests/design/loading-coverage.test.ts`'s pins"*. It does not — RESEARCH C2, and the same correction
+already appended to `[17-D1]`. That gate's collector takes **`page.tsx` and `loading.tsx` only**;
+`not-found.tsx` and `layout.tsx` are invisible to it. All four of its pins are unmoved and the file is
+untouched by this commit (`git diff --name-only HEAD~1 HEAD -- tests/design/loading-coverage.test.ts`
+prints nothing). Recorded because a reader who expects those pins to move, and finds them still, will
+otherwise conclude the deletion did not land.
+
+**The finding uncovered while deleting: the `axe-sweep` row had been GREEN WHILE AUDITING THE WRONG
+DOCUMENT.** Its `tell` was `[data-testid="empty-state"]` — which the **ROOT** not-found renders too —
+and its `path` (`/listings/a-listing-id-that-must-never-exist-17-07`) 404s to that root boundary. So
+the row never once visited the file in its `file:` column. This was **driven, not inferred**: with the
+file already deleted from disk, `/listings/[id] · not found · court · 320px` and `· 1280px` both
+**passed**. It is this phase's own key insight arriving as a measurement — *the failure mode in this
+codebase is never "no gate", it is "a gate that reads the wrong thing and is green"* — and it is why
+deleting the row costs **zero** real coverage: the document it actually visited is still audited, by
+the `root not-found` row that legitimately owns it. Nobody should read this row's absence as lost
+coverage. Only the disk-walked AC#2 could ever have caught it, because AC#2 is the one clause that
+compares the table against reality instead of against itself.
+
+**The watched red, and its honest limit.** Verbatim transcripts of the intermediate state — the state
+between the deletion and the instrument edits, which exists whether or not anybody looks at it — are
+at `.planning/phases/17.1-close-phase-17-escalations-sticky-bar-clearance-soft-404-pro/17.1-EVIDENCE.md`
+**§ W1**. Four gates red there, two of them build-blocking: `empty-state-adoption` on **three**
+clauses (so `npm run build` cannot reach `next build`), axe-sweep AC#2 with
+`extra: ["src/app/listings/[id]/(detail)/not-found.tsx"]`, `inventory to disk` naming the stale
+surface, and `inventory to tables` as its mirror. **The limit, stated because it matters:** the
+deletion itself *cannot* be watched red from the product side — an unreachable file's presence and
+absence render identically. What § W1 proves is narrower and is the thing worth proving: the coupling
+between a deleted file and the instruments naming it is **enforced**, not remembered.
+
+**One reference survives on purpose.** `grep -rn "detail)/not-found" src tests e2e` returns **1**, not
+0: the `[17-11:` bracket in `overflow-320.spec.ts`'s header note. Plan 17.1-02 asked for both zero
+occurrences and that bracket byte-identical, which cannot both hold — freezing won, because a dated
+amendment that edits the sentence it amends is not an amendment. The `[17.1:` bracket appended beneath
+it says so. Everywhere that was not frozen history, the path is deliberately not spelled as a single
+string, per `price-breakdown.tsx`'s GREP TRIPWIRE idiom, so that count stays meaningful.
+
+The AC#29 skip paragraph's **measurement** was carried into the commit message before the paragraph
+was deleted, and is restated in this row's measured body above, which is unchanged.
+
+---
+
+## [17-D4] — `e2e/availability.spec.ts` carries THREE undeclared standing reds beyond the one that was declared
+
+- **Found by:** plan 17-01, the per-file `--workers=1` sweep of all 33 chromium specs, 2026-08-29
+- **Owner file:** `e2e/availability.spec.ts` (and its fixture setup)
+- **Severity:** a red set that is not stable run to run is a denominator nobody can use; `[260824-dbc]`
+  itself records that instability as *"its own signal"*.
+
+**Measured, not inferred.** Route **`/listings/[id]`**, the availability calendar. `[260824-dbc]`
+declared **1** standing red (`:261`). 17-01 measured **4** cases at that line-set — `:160`, `:203`,
+`:236` and `:261` — and all **4 passed, twice, alone at `--workers=1`**, so **0 of 4** reproduced on
+2026-08-29. `:261` had itself passed in the very run that first surfaced the other three. Four green
+runs on one day do not retire the instability; what they establish is that
+**`availability.spec.ts` is not in Phase 17's 10-row denominator**, which is why it sits in
+`e2e-baseline-reds.md`'s clearly-separated did-not-reproduce table rather than inside it.
+
+**Why it was not fixed here.** `:261` — *published-but-not-payable listing: calendar renders
+read-only, slots not selectable* — is explicitly **not this phase's to close**; it is a payability-gate
+assertion, and the other three are range-fill behaviour on the same fixture. Pre-excusing a passing
+line is the more dangerous of the two errors available to an audit, so 17-01 declared them **outside**
+the denominator with the contract stated in both directions.
+
+**Cheapest correct fix:** run the file alone, `--repeat-each=5`, at `--workers=1`, and classify each
+of the four as *contention* (the `[16-D2]` shared-fixture class) or *standing*. That is one command
+and produces the missing datum: whether `[260824-dbc]` is one red or four. Until it is run, treat a
+red on any of the four as **this row**, not as a Phase-17 regression.
+
+**Suggested owner:** whichever plan next owns availability behaviour; not an audit task.
+
+---
+
+## [17-D5] — `[16-D10]` / `wizard-cover-preview`: deliberately NOT unblocked, because unblocking mints a PNG
+
+- **Found by:** plan 16-15 (recorded as `[16-D10]`); re-affirmed and left blocked by plan **17-13**, 2026-08-30
+- **Owner file:** `src/lib/design/visual-baselines.ts` — the `wizard-cover-preview` row — and
+  `e2e/visual/surfaces.spec.ts`'s `EXPECTED_BLOCKED` list
+- **Severity:** scope, not conformance. Unblocking is a two-file edit with a **third-party
+  consequence**: the next dispatch mints a new committed reference image.
+
+**Measured, not inferred.** Route **`/host/listings/[id]/edit`** (the wizard's cover step).
+`VISUAL_BASELINES` declares **78** rows of which **42** are `blocked`; `EXPECTED_BLOCKED` in
+`e2e/visual/surfaces.spec.ts` names **24** entries and `EXPECTED_BASELINE_COUNT` is **78**. Unblocking
+this one row moves `EXPECTED_BLOCKED` from 24 named entries to 23 **and** adds **1** court PNG to the
+36 committed references at the next generation dispatch.
+
+**Why it was not fixed here.** 16-15 recorded that this is *"the PM's to schedule, not a side effect."*
+17-UI-SPEC § GATE-01 says *"where this phase unblocks a row it unblocks it and shoots it"* — and this
+is the one row where that rule must not be reflexive, because the shot is a **commit of new binary
+reference data**, which is a milestone artefact rather than an audit output. The row's reason in
+`visual-baselines.ts` was updated by 17-13 to say exactly this.
+
+**Cheapest correct fix:** none is owed. When the PM schedules it: flip `blocked` to `null` on the row,
+remove the name from `EXPECTED_BLOCKED` in the same commit, and run a **generation** dispatch in the
+pinned Linux image (D-27/D-29) — then read the minted PNG before committing it, per `15-11`.
+
+**Suggested owner:** the PM. Explicitly not the phase verifier and not 17-14.
+
+---
+
+## [17-D6] — D-196's `p-1.5` widens `ProfileLink` by 12px and owes a visual-baseline COMPARISON no machine here can run
+
+- **Found by:** plan 17-06, `e2e/overflow-320.spec.ts` (the AC#22 / D-196 block), 2026-08-29
+- **Owner file:** `src/components/patterns/site-chrome.tsx` (`ProfileLink`), with the exposure landing
+  on `src/lib/design/visual-baselines.ts`'s signed-in-shell rows
+- **Severity:** GATE-01 evidence. `13-16` records that *"a phase can COMPLETE with GATE-01 red, and
+  nothing notices"*, and `15-11` records ten references re-minted without anyone reading the diff.
+
+**Measured, not inferred.** Route **`/profile`** (and every signed-in composition) at **320px**, theme
+**court**: `a[Profile]` measured **16×16** before the change and **28×28** after — a **+12px** delta,
+carried at **every** width because `p-1.5` has no breakpoint. The signed-in header cluster measured
+**190.4px** (court) / **191.6px** (grove) after, against a measured **224px** available and the
+spec's stated **226px** budget. `ProfileLink` renders in all three signed-in compositions — `(app)`,
+`(host)` and `public-header`. At least one **shootable** baseline row renders that header:
+`visual-baselines.ts` says of `booking-not-found` that *"it renders no booking, no money, no date and
+no identity — an `EmptyState` inside the signed-in shell — so it is shot."* Twenty of the signed-in
+rows are `blocked` on a fixture re-point, so the exposed set is small; it is not empty.
+
+**Why it was not fixed here.** The `visual` Playwright project **is not constructed off Linux**
+(D-27/D-29) — `playwright.config.ts` prints that refusal on every local run — so on this win32 box the
+delta cannot be measured, regenerated, or even enumerated. Regenerating is also the wrong instinct:
+GATE-01's evidence is a green **comparison** run on the phase's head commit, and a green read off a
+**generation** run is `13-16` repeating itself.
+
+**Cheapest correct fix:** a **comparison** dispatch (explicitly not a generation one) on this phase's
+head commit in the pinned Linux image, and a read of the diff for every signed-in-shell surface. A
+12px-wider Profile control is the **expected** delta; anything else on any other row is a finding.
+Plan **17-14** is the checkpoint plan that owns the dispatch — this row is handed to it, and 17-13
+asserts nothing about the outcome.
+
+**Suggested owner:** plan 17-14, then the phase verifier.
+
+---
+
+## [17-D7] — `e2e/helpers/axe.ts`'s docblock states the SC 2.5.8 target rule cannot run; at axe-core 4.13.0 it does
+
+- **Found by:** plan 17-07, a throwaway probe reading `results.passes` under the shipped configuration
+  (written, run, deleted — not in git history), 2026-08-29
+- **Owner file:** `e2e/helpers/axe.ts` — the `AXE_TAGS` docblock, claim 2
+- **Severity:** a false statement in a gate's own docblock. That is the defect class this phase exists
+  to repair (AC#24 is the same defect in a different file), and the error is in the **benign**
+  direction — the scan covers slightly more than its header claims, not less.
+
+**Measured, not inferred.** The header says the rule is *"DISABLED BY DEFAULT in axe-core … and a tag
+filter does not enable a disabled rule. `wcag22aa` in this list therefore buys nothing on its own, and
+nothing here may be read as covering the 24px target floor."* The probe read `results.passes` on three
+routes: **`/terms`** (**22** passing rules), **`/`** (**26**) and the root not-found (**13**) — the
+target rule id is present in `passes` on **all 3 of 3**. A disabled rule does not appear in `passes`
+at all, so it ran and it passed on every surface probed.
+
+**Why it was not fixed here.** **The correction cannot be written in the file that needs it.** Plan
+17-01's committed acceptance criterion for that file is
+`grep -c 'withTags\|withRules\|disableRules\|target-size' e2e/helpers/axe.ts` returning **0**, so
+writing the rule id into that docblock breaks a committed gate. The file already spells three
+forbidden identifiers descriptively for exactly this reason. `helpers/axe.ts` was also outside
+17-07's declared `files_modified`. **No policy changes and none should:** `expectTargets`
+(`e2e/overflow-320.spec.ts`, `TARGET_FLOOR_PX = 24`) stays the single authority on the floor, because
+axe's rule honours SC 2.5.8's spacing and inline exceptions and reported **0** named offenders — and
+two definitions of one floor is the drift the one-import-site rule exists to stop.
+
+**Cheapest correct fix:** whichever plan next opens `e2e/helpers/axe.ts` rewrites claim 2 to say the
+rule **does** run at 4.13.0 while `expectTargets` remains the authority — spelling the rule id
+descriptively, as that file already does — **and amends 17-01's grep in the same change**, because a
+grep that forbids the true sentence is now part of the defect. The two edits are inseparable and
+neither is safe alone. Plan 17-13 did **not** take this: it opens neither file, and amending another
+plan's committed acceptance criterion from inside the phase's synthesis step would leave the amendment
+unreviewed by the gate it relaxes.
+
+**Suggested owner:** the phase verifier, or Phase 18's first plan that touches the axe helper.
+
+---
+
+## [17-D8] — A dev-only hydration mismatch on the mobile nav drawer trigger, on every signed-in route
+
+- **Found by:** plan 17-07, the browser console of every host and booker row of the first GATE-02
+  sweep (`next dev`), 2026-08-29
+- **Owner file:** `src/components/patterns/site-chrome.tsx` — the `NavDrawer` composition
+- **Severity:** a warning, not a failure. All **48** measured rows scanned clean around it and **axe
+  reported 0 violations** — the regenerated tree carries a valid `aria-controls` by the time a scan
+  reads it.
+
+**Measured, not inferred.** On **every** route that renders the signed-in shell — `/host`,
+`/host/listings`, `/bookings`, `/profile` and the rest — at both **320px** and **1280px**, theme
+**court**: *"Hydration failed because the server rendered HTML didn't match the client"*, with React's
+diff pointing at `site-nav` → `NavDrawer` → `ResponsiveDialog` → `DialogTrigger`, and the
+client-only attribute in the `+` block being `aria-controls="radix-_R_ad5ritulb_"`. Radix mints the
+controlled element's id on the client; the server render carries **no** `aria-controls` at all, so the
+two trees disagree on exactly **1** attribute and React regenerates the subtree.
+
+**Why it was not fixed here.** Pre-existing, in **no** file plan 17-07 touched, and it reproduces on
+rows that plan did not change. It is also **not an accessibility finding by measurement** — the
+sweep's whole purpose is to say what the rendered tree looks like, and the tree looks correct. The
+repair is a shell change with a blast radius across every signed-in route, which is the class D-199
+says to batch.
+
+**Cheapest correct fix:** give the drawer's `Dialog` a stable `id` so Radix derives the same
+`aria-controls` on both sides, or render the trigger's `aria-controls` server-side. One line, plus a
+re-run of the axe sweep to confirm nothing moved. The real cost being paid today is not conformance:
+it is that a subtree regenerating on hydration throws away its first paint, and a console full of
+hydration noise is how a genuine mismatch later goes unread.
+
+**Suggested owner:** whichever plan next opens `site-chrome.tsx`.
+
+---
+
+## [17-D9] — At 320px the listing page's last interactive control is a footer link ENTIRELY under the sticky booking bar
+
+- **Found by:** plan 17-04, `e2e/mobile-booker-path.spec.ts` (the RESP-03 clause-B occlusion block), 2026-08-29
+- **Owner file:** `src/app/listings/[id]/(detail)/page.tsx` (where `STICKY_BAR_CLEARANCE` is applied)
+  and `src/components/patterns/site-chrome.tsx` (`SiteFooter`, which renders outside `<main>`)
+- **Severity:** WCAG-adjacent and real — an untappable, unscrollable-to link on the product's
+  highest-intent public route. RESP-03 AC#7's literal subject on this route fails on shipped markup.
+
+**Measured, not inferred.** Route **`/listings/[id]`** at **320×568**, scrolled to the document
+bottom, **identically in both themes**:
+
+| | box |
+|---|---|
+| last focusable candidate `a("Privacy")` | `{y: 515, height: 18, bottom: 533}` |
+| `[data-testid="booking-sticky-bar"]` | `{y: 504, height: 64, bottom: 568}` |
+
+The link sits **entirely inside** the bar's 64px band. `a("Terms")` clears it by **3px**. Cause:
+`STICKY_BAR_CLEARANCE` is applied to `<main>` and `SiteFooter` renders **after** `<main>`, so the
+bottom 64px of the **document** is footer, which no clearance covers.
+
+**Why it was not fixed here.** The repair moves a clearance onto a component shared by **every**
+route — a layout change made from inside an audit, which 17-UI-SPEC § Remediation classes
+must-escalate. Suppressing the finding by narrowing the clause's subject silently was rejected
+explicitly; leaving the suite red was rejected too, because `e2e-baseline-reds.md` forbids adding a
+row to make a run read green. What shipped instead is **two** assertions: AC#7's literal shape against
+the last laid-out control **outside** the footer, plus a strictly stronger clause that no control
+anywhere may lie under the bar **except a footer one** — with the exclusion measured, argued in place,
+and pointing at this row.
+
+**Cheapest correct fix:** apply the clearance at the layout level so it covers the footer as well as
+`<main>` — one class move on the shell, plus a re-read of every 320px row. The day it lands, the named
+footer exception in `mobile-booker-path.spec.ts` is deleted and **nothing else in the clause needs
+relaxing**; that is why it was written as an exception rather than a narrower subject.
+
+**Suggested owner:** the PM (it is a layout decision), then whichever plan owns the shell.
+
+**RESOLVED 2026-08-30 — quick `260830-r4b`, commit `4636206`.** `STICKY_BAR_CLEARANCE` moved off
+`(detail)/page.tsx`'s `<main>` and onto `src/app/listings/[id]/(detail)/layout.tsx`'s
+`flex min-h-dvh flex-col` wrapper — the smallest element containing BOTH `<main>` and `SiteFooter` —
+gated `lg:pb-0`, because both bars are `lg:hidden` and 80px of unpainted background under a `bg-muted`
+footer at desktop widths would be a new defect rather than a fix. `book/page.tsx` is byte-identical:
+that route renders no footer, so there `<main>` already IS the document's bottom.
+
+The named footer exception in `e2e/mobile-booker-path.spec.ts` is **deleted** (`grep -c inFooter` → 0)
+and nothing else in the occlusion clause was relaxed — exactly as this row predicted. **DRIVE 4**
+(watched red, run and reverted, transcript in that file's header) reproduced this row's two boxes to
+the pixel from the assertion side, with the clearance deleted from the LAYOUT wrapper. Re-measured
+after the fix at 320×568, both themes: `a("Privacy")` `{y: 435, height: 18, bottom: 453}` against a bar
+at `{y: 504, height: 64, bottom: 568}` — **clears by 51px**.
+
+Two pointers in this row were wrong and are corrected rather than propagated: `SiteFooter` is in
+`src/components/patterns/site-footer.tsx`, not `site-chrome.tsx`; and the `<main>` was at `:500`, not
+`:480`. The `[17-D9]` measurement above is unchanged.
+
+---
+
+## [17-D10] — `STICKY_BAR_CLEARANCE` is INERT on `/listings/[id]` today; it is load-bearing only on `/listings/[id]/book`
+
+- **Found by:** plan 17-04, watched-red drives 2 and 3 (the knob deleted, then restored), 2026-08-29
+- **Owner file:** `src/app/listings/[id]/(detail)/page.tsx:480` (the inert site) and
+  `src/app/listings/[id]/book/page.tsx:521` (the load-bearing one)
+- **Severity:** a protection that reads as considered and is, on one of its two routes, doing nothing.
+
+**Measured, not inferred.** Route **`/listings/[id]`** at **320px**, theme **court**: deleting
+`STICKY_BAR_CLEARANCE` from `page.tsx:480` changed **nothing measurable** — both occlusion cases
+stayed **green**. What protects that route is the footer's own height, not the clearance: the last
+control **inside** `<main>` is `a("OpenStreetMap")` (the map attribution) at `{y: 243}` with the
+document at its bottom, roughly **1,700px** above the fold. On route **`/listings/[id]/book`** — which
+renders no footer — the same deletion went **RED**, verbatim: `a("Back to the listing")` at
+`{x: 16, y: 472, width: 156, height: 44, bottom: 516}` against a bar at
+`{x: 0, y: 504, width: 320, height: 64, bottom: 568}`. Restored; 10 passed.
+
+**Why it was not fixed here.** There is nothing to fix in the code — the knob is correct where it
+fires. What is wrong is the **belief** the knob encodes on the listing route: `pb-20 = 80px = 64 + 16`
+is declared to protect that route's last control and protects a control that was never at risk, while
+the control that IS at risk (`[17-D9]`'s footer link) is outside its reach. Correcting that means
+either moving the clearance (which is `[17-D9]`) or deleting it from the listing route, and deleting a
+shipped protection because it is currently inert is exactly the move that breaks the day the layout
+changes.
+
+**Cheapest correct fix:** none, standalone. Fold into `[17-D9]` — the clearance's placement is one
+decision, and the two rows are the two halves of its evidence.
+
+**Suggested owner:** folded into `[17-D9]`.
+
+**RESOLVED 2026-08-30 — quick `260830-r4b`, commit `4636206`,** as the other half of `[17-D9]`'s one
+placement decision. The belief this row was filed about is gone: the listing route no longer declares a
+sticky-bar clearance on an element the bar's victim does not live in, and `lg:pb-0` stops it declaring
+one at widths where no bar renders at all. The knob was NOT deleted from the listing route — this row
+warned against that, and the warning held — it was moved to the element that ends the document. On
+`/listings/[id]/book` it stays on `<main>` and stays load-bearing; DRIVE 2 above is still its watched
+red, and `mobile-booker-path.spec.ts` re-ran green on that half after the move.
+
+The desktop consequence is real and recorded: at `lg:` and above, `/listings/[id]` loses 80px of
+trailing whitespace it was never using for anything. That is this row's finding, spent.
+
+**THE OTHER HALF — RESOLVED 2026-08-31, plan `17.1-04`, commits `8b71b21` / `41dd74e`.** The line
+above closed the listing route. This closes `/listings/[id]/book`, and it starts by correcting this
+row's own title.
+
+**The measurement.** Route **`/listings/[id]/book`**, at **640×800 / 640×568 / 768×600 / 1023×768 /
+1023×600**, themes **court** and **grove**, on the shipped tree (`17.1-EVIDENCE.md` § P2, plan
+17.1-03): `main` computed `padding-bottom` was **48px** against a confirm bar measured at **64px** —
+**16px short of the bar's own height, against a declared 80px**. `80px` at 320px and 48px from 640px
+up, both themes, no exceptions. Cause: Tailwind v4 emits the `sm:` layer after the whole base layer,
+so `sm:py-12`'s 48px beat the unvariant `pb-20`, while both bars are `lg:hidden` and render to 1023px.
+
+No interactive control was occluded there — the last one, `a("Back to the listing")`, cleared the bar
+by **4px** in court and **5px** in grove, against **36px / 37px** at the 320px floor. But a leaf
+paragraph was under it at every band viewport where the document scrolls, in `[17-D9]`'s box format
+(court · 640×800):
+
+| | box |
+|---|---|
+| `p("We'll keep your hold — the timer keeps r")` | `{x: 16, y: 735.59, width: 608, height: 16, bottom: 751.59}` |
+| `[data-testid="checkout-sticky-bar"]` | `{x: 0, y: 736, width: 640, height: 64, bottom: 800}` |
+
+**15.6px of a 16px line behind the bar** (grove: 16.45 of 17.33). That paragraph is `HOLD_PROMISE`,
+`src/components/booking/way-back-link.tsx:78` — the sentence that component's own header calls the
+thing that makes the link above it safe to press, on the route whose only escape hatch that link is
+(`shell.spec.ts:1233` pins exactly one anchor in `<main>` on a live checkout).
+
+**The repair.** `src/app/listings/[id]/book/page.tsx:521` — `sm:pb-20` added (the term that actually
+wins the `sm:` layer, measured at seven widths in `§ P4` before it landed, not inferred), plus
+`lg:pb-12` to hand `sm:py-12`'s 48px back at the width where no bar renders. **`STICKY_BAR_CLEARANCE`
+stayed on `<main>` exactly as this row's RESOLVED line said it should** — checkout renders no footer,
+so `<main>` IS this document's bottom, and the defect was the *class*, never the *element*. The
+alternative (mirroring the listing route's wrapper move onto `book/layout.tsx`) would have reversed
+that recorded decision — must-escalate under 17-UI-SPEC § Remediation — and moved
+`checkout-320-court-visual-linux.png` by +32px. It was not taken. `src/lib/design/measurements.ts`
+gained no new value and `book/layout.tsx` was not touched.
+
+Measured after, live route, both themes (`§ P4`): **80px** at 320 / 639 / 640 / 768 / 1023 and **48px**
+at 1024 / 1280; the last control clears by **36px / 37px** across the whole band, back to the floor's
+figure; and `TEXT UNDER BAR` reads `(none)` at every viewport in both themes. Zero baseline PNGs moved
+(disk still 36; there is no `checkout-768` baseline, which is why the band was never pictured).
+
+**⚠ THE CORRECTION THIS ROW OWES THE RECORD.** This row's title says the clearance is *"load-bearing
+only on `/listings/[id]/book`"*. **Measured, it was load-bearing there only across 320–639px.** From
+640 to 1023 it was as inert on the checkout route as this row correctly says it was on the listing
+route — the same defect, on both routes, arriving from a direction nobody was watching, and hidden on
+the checkout route because the only instrument that ever drove it (plan 17-04's DRIVE 2) ran at 320px,
+inside the band where the knob does fire. The row's *finding* was right and its *scoping* was too
+generous to one of the two routes. Recorded here rather than propagated.
+
+**The instrument left behind.** `e2e/mobile-booker-path.spec.ts` — `expectDocumentEndClearsBar`
+(D-04's computed-padding clause) plus the four `expectStickyBar` clauses, driven at **640 / 768 /
+1023** in both themes inside the existing checkout case, with a **320px positive control** so a band
+red cannot be confused with a mis-pointed helper. It compares the COMPUTED padding against the
+RENDERED bar height, never against the spelling, so a later repair may reach the same box another way.
+It was committed **red** by plan 17.1-03 against the shipped tree with nothing deleted, and this plan
+made it green: `3 skipped · 11 passed`, zero failures. **Sampling rate, stated honestly:** this clause
+runs only when a human runs the file — `mobile-booker-path.spec.ts` is not in any CI gate (`[17-D24]`)
+— so the rate is "on request", not "on push". Raising it is explicitly out of scope for phase 17.1.
+
+**RESP-03: ADVANCED, NOT CLOSED.** It stays `[ ]` in `.planning/REQUIREMENTS.md:107` and this plan did
+not touch that file. What moved: the **640–1023px band on `/listings/[id]/book`** — RESP-03's literal
+subject ("every surface … **with the sticky bar present**") across a 384px-wide band that, until plan
+17.1-03, **no instrument in the suite drove at all** (`mobile-booker-path.spec.ts` ran 375 / 320 /
+1280 and nothing between 376 and 1279). What still stands: `[17-D11]`'s named skip (the sixth no-wrap
+member has no instrument without a source change), and the requirement's own word *"every"* — two
+routes at three widths is not every surface. `RESP-04`, `GATE-02` and `GATE-06` exceptions are
+untouched by this plan.
+
+**Disposal.** `e2e/tmp-checkout-band.spec.ts` — the untracked throwaway probe whose own header set its
+terms (*"Not committed. Deleted after the measurement."*) — is **deleted**. Its transcript survives
+independently as `§ P2` and its after-reading as `§ P4`'s `MEASURED AFTER THE REPAIR` table, and its
+band definition now exists as a permanent case with real assertions. It was deleted rather than
+promoted because it is `console.log`-only: it carries no `expect` on the band at all, so committing it
+would have added a spec that can never fail.
+
+**Observed in passing, NOT fixed (out of this plan's declared files):**
+`src/app/listings/[id]/book/loading.tsx:26` renders the checkout's `<main>` shell as
+`"mx-auto w-full max-w-4xl px-4 py-8 sm:py-12"` with **no clearance term at all** — the skeleton
+reserves nothing for the bar at any width. It is a skeleton, so nothing is occluded that a booker can
+press, and the shipped page replaces it within a paint; but the shell and its skeleton have now
+diverged. Whichever plan next opens that file should carry `STICKY_BAR_CLEARANCE` and both variant
+terms across.
+
+---
+
+## [17-D11] — One member of the declared no-wrap set has no instrument, and cannot get one without a source change
+
+- **Found by:** plan 17-04, `e2e/helpers/nowrap.ts` + the RESP-03 clause-C table, 2026-08-29
+- **Owner file:** `e2e/helpers/nowrap.ts` (`expectNoWrap`), and whichever component would need the
+  wrapper element
+- **Severity:** a declared set of six with **five** measurements and **one** named skip. Coverage
+  honesty, not conformance.
+
+**Measured, not inferred.** Routes **`/listings/[id]`** and **`/listings/[id]/book`** at **320px**,
+both themes: **5 of 6** members of the declared no-wrap set are measured. The sixth — *"every named
+44px action's label"* — cannot be. A `size="touch"` button renders its label as a **direct text
+child**, so the only element carrying the text **is** the 44px control, and `expectNoWrap` would
+compare a declared 44px reservation against a line box and be **red on a correct tree**. Measuring it
+honestly needs a wrapper element around the label.
+
+**Why it was not fixed here.** Adding a wrapper span inside every `size="touch"` button is a
+product-source change across the button recipe, which this audit may not make. `whitespace-nowrap` on
+both bars' columns is the shipped mitigation and it is asserted at the columns.
+
+**Cheapest correct fix:** none is owed while the mitigation holds. If the sixth member is ever wanted
+as a measurement, the wrapper goes in the CVA recipe once (not per call site), and the row replaces
+its skip string with a measurement in the same commit.
+
+**Suggested owner:** whichever plan next opens `button-variants` / the `touch` recipe.
+
+---
+
+## [17-D12] — `e2e/avatar-crop.spec.ts`'s `pick()` helper is an unguarded strict-mode locator, and it flakes
+
+- **Found by:** plan 17-05, a full-file run at `chromium --workers=1`, 2026-08-29
+- **Owner file:** `e2e/avatar-crop.spec.ts`, the `pick()` helper at `:159`
+- **Severity:** a nondeterministic red on a green tree — the worst kind, because the next person
+  spends the investigation on their own change.
+
+**Measured, not inferred.** Route **`/profile`** (the avatar crop dialog). `pick()` at `:159` is a
+bare `page.locator('input[type="file"]').setInputFiles(...)` with **no count assertion**. In **1 of 3**
+full-file runs, `corrupt.jpg is refused before the dialog` (`:742`) failed with
+*"strict mode violation: `locator('input[type="file"]')` resolved to **2** elements"* — one inside
+`main`, one outside it. The same test passes **in isolation** (`-g "corrupt.jpg is refused"`, green),
+and the same full file was **33/33 green** on the run immediately before the D-197 edit and on the run
+immediately after. It is **not** caused by D-197: a slider attribute cannot mint a second file input,
+and the failing test never opens the crop dialog. This is the `[16-D2]` shared-fixture/contention class
+that Pitfall 9 names, met at the one helper in this file with no count guard.
+
+**Why it was not fixed here.** `avatar-crop.spec.ts` was in plan 17-05's `<files>` only for the two
+zoom-state assertions, and the helper is used by roughly **30** cases across the file — restructuring
+it is not the change 17-05 was scoped to make.
+
+**Cheapest correct fix:** **one line.** Assert
+`await expect(page.locator('input[type="file"]')).toHaveCount(1)` inside `pick()` before
+`setInputFiles`. That converts a nondeterministic strict-mode error into a named failure that says
+*which* surface rendered a second input. Plan 17-13 did **not** take it despite being nominated:
+`e2e/avatar-crop.spec.ts` is not in 17-13's `files_modified`, and the fix's own value is that the next
+red **names** the second input — which needs a run of the full file to observe, i.e. the run that
+takes 33 cases and cannot be done as a drive-by inside a synthesis plan. Recorded so a later red at
+`:742` is read as this row and not as a Phase-17 regression.
+
+**Suggested owner:** whichever plan next opens `avatar-crop.spec.ts`.
+
+---
+
+## [17-D13] — `AvailabilityCalendar`'s `open_capacity` fork carries no container id, so RESP-04 AC#12 cannot be ASKED of a drop-in listing
+
+- **Found by:** plan 17-09, `e2e/one-tree.spec.ts` (the AC#12 one-instance count), 2026-08-29
+- **Owner file:** `src/components/availability/availability-calendar.tsx:551-582` (OPEN-02's Phase-9 fork)
+- **Severity:** a measurement that cannot be taken, on one of two occupancy modes. A **0** is
+  indistinguishable from a calendar that failed to render, which is why the row is a named skip rather
+  than a second measurement.
+
+**Measured, not inferred.** Route **`/listings/[id]`** at **320**, **768** and **1280**, theme
+**court**: `[data-testid="availability-calendar"]` counts **1** on an `exclusive` listing at all three
+widths, and **0** on a drop-in (`open_capacity`) one at all three. The `open_capacity` early return
+renders a **fragment** wrapping `CollisionNotice` + `DatePassPicker`; the id sits only on the
+exclusive surface's root at `:619`. Found the expensive way — the row originally drove *whichever
+listing is first in the catalogue* and went red **1 run in 3**, on the run that landed on a drop-in
+listing.
+
+**Why it was not fixed here.** The repair is not one attribute. The fragment is **deliberate** — its
+own comment records choosing it over a wrapper div *"so the drop-in tree keeps its box exactly"* — so
+hanging the id there means introducing a wrapper element into a shipped surface: a `src/` change
+outside 17-09's declared `files_modified` that also **reverses a recorded decision**, which is
+must-escalate. It would additionally want a `SELECTOR_CONTRACT` review, since one id would then name
+two structurally different subtrees.
+
+**Cheapest correct fix:** whichever plan next opens the drop-in surface adds the wrapper **and
+re-measures the box the fragment was chosen to protect** (that re-measurement is the whole cost —
+the attribute is free), then deletes the skipped row in `e2e/one-tree.spec.ts` and replaces it with a
+measurement. Until then RESP-04 AC#12 is closed for **five of six** families, and the calendar family
+is closed for the **exclusive** surface only.
+
+**Suggested owner:** whichever plan next opens `availability-calendar.tsx`.
+
+---
+
+## [17-D14] — The only navigation landmark on `/listings/[id]` is react-day-picker's, named "Navigation bar"
+
+- **Found by:** plan 17-09, `e2e/one-tree.spec.ts` (the AC#13 landmark count), 2026-08-29
+- **Owner file:** `src/components/ui/calendar.tsx` — the `components`/`classNames` override seam over
+  react-day-picker's `rdp-nav`
+- **Severity:** naming/semantics, not duplication. The tree is valid; what it announces is wrong.
+
+**Measured, not inferred.** Route **`/listings/[id]`** at **320**, **768** and **1280**:
+`getByRole("navigation")` resolves to exactly **1**, and the element is
+`<nav class="rdp-nav" aria-label="Navigation bar">` — the month grid's prev/next control inside the
+availability calendar. The app's own contribution is **0**, because the public composition passes no
+`nav` prop to `SiteChrome` (`site-chrome.tsx:205-209` renders the landmark only when there is
+navigation). So on the product's highest-intent public page, the one thing announced to a
+screen-reader user as *navigation* is a vendor's month stepper with a generic name.
+
+**Why it was not fixed here.** It is not AC#13's failure — the count is 1 and nothing is duplicated —
+so no acceptance criterion asked for it, and the repair reaches into a third-party component's markup.
+
+**Cheapest correct fix:** give the month nav a specific `aria-label` (e.g. *"Calendar months"*) through
+the existing override seam in `ui/calendar.tsx`, so the label names what it moves through — one prop.
+The larger question, worth asking once: should a month stepper be a landmark at all?
+`e2e/one-tree.spec.ts` **PINS** the current state (`landmarks: 1`, `siteNavs: 0`, with the vendor named
+in the row's reason), so the day this changes the gate says so by name rather than silently.
+
+**Suggested owner:** whichever plan next opens `ui/calendar.tsx`.
+
+---
+
+## [17-D15] — `restoreFocusToAction`'s replaced-trigger case is not exercised by any keyboard spec
+
+- **Found by:** plan 17-08, `e2e/keyboard-composites.spec.ts` under the
+  `onCloseAutoFocus={undefined}` mutation, 2026-08-29
+- **Owner file:** `src/components/booking/booking-sticky-bar.tsx` (the replaced-trigger case), with
+  the helper in `src/components/patterns/responsive-dialog.tsx`
+- **Severity:** an untested branch of the focus-restore contract on the product's core booking path.
+
+**Measured, not inferred.** Route **`/listings/[id]`** at **320px** (the sheet's only placement a
+phone user meets), theme **court**: with `onCloseAutoFocus` mutated to `undefined`, the booking-sheet
+case stayed **GREEN** — **0** of the file's 7 cases went red — because a **day-only** selection leaves
+its `DialogTrigger` in the document and **Radix's own restore** covers the close. `restoreFocusToAction`
+is therefore never the thing being measured. The case that needs it is the one where the trigger is
+**replaced**: a selected window turns the bar's trigger into `Book · {total}`, a different element, and
+Radix has nothing to restore to.
+
+**Why it was not fixed here.** Reaching the replaced trigger needs a window selected, which makes the
+subject `booking-sticky-bar.tsx`'s own — a different surface from the five composite families plan
+17-08 was scoped to, and one whose fixture is a resolved hold rather than a calendar interaction.
+
+**Cheapest correct fix:** one case in `e2e/keyboard-composites.spec.ts`: select a window, open the
+sheet from the replaced `Book · {total}` trigger, press Escape, and assert the landing descriptor
+against the trigger's `StopProbe` taken before the overlay existed — the helper
+`expectEscapableAndReturned` already exists and already does exactly this at three other call sites.
+Then re-run the mutation to confirm the new case goes red where the others did not.
+
+**Suggested owner:** whichever plan next owns the booking sticky bar.
+
+---
+
+## [17-D16] — `/host/earnings` ships ZERO interactive controls of its own, and the target-size vacuity guard asserted that was impossible
+
+- **Found by:** plan 17-11, `e2e/overflow-320.spec.ts` (`expectTargets`' vacuity guard), 2026-08-30
+- **Owner file:** `src/app/(host)/host/earnings/page.tsx` and `src/components/host/payout-row.tsx` —
+  though the interesting question is a **product** one, not a file's
+- **Severity:** a product dead end, surfaced by an instrument. The guard's sentence — *"Every Phase-13
+  and Phase-14 surface ships at least one action of its own"* — was false.
+
+**Measured, not inferred.** Route **`/host/earnings`** at **320px**, both themes: the scan polled for
+the full **15s** and found **0** non-shell controls on a **correct** tree. Three deliberate product
+decisions produce it: the fixture's `payouts_enabled` state suppresses `PayoutBanner` (whose
+`Set up payouts` button is the only control the route can render), `payout-row.tsx` takes **no**
+`href` and states in as many words that a payout row is terminal and that giving it a destination
+*"would be a product change smuggled in by a container swap"*, and the zero-ledger branch passes
+`actions={null}` with its own written argument (the next step is a guest booking the space, which the
+host cannot do). Watched red by declaring `/host/listings` control-less: **5** named controls came
+back with their measured boxes.
+
+**Why it was not fixed here.** No product change is owed **unless the surface is meant to have an
+action**, and that is a PM call an audit may not make. What 17-11 did instead is **declare rather than
+exempt**: a `Phase14Row.noOwnControls` reason that INVERTS the guard to *"exactly zero, and here is
+why"* — strictly stronger on this surface, because it now also fails when the declaration goes stale
+— while the 24px floor still runs over every control the scan found, shell included.
+
+**Cheapest correct fix:** none to the code. The decision owed is one sentence from the PM: **a host
+looking at held payouts has no route forward from this screen — is that correct?** If yes, nothing
+changes and the declaration stands. If no, the cheapest repair is a route out in the `EmptyState`'s
+`actions` slot, which is one prop and touches no payout logic.
+
+**Suggested owner:** the PM.
+
+---
+
+## [17-D17] — `expectVisibleFocus` can land in the SITE FOOTER on a control-less surface, and still report green
+
+- **Found by:** plan 17-11, `e2e/helpers/focus.ts` read against the `/host/earnings` measurement, 2026-08-30
+- **Owner file:** `e2e/helpers/focus.ts` — `readFocus`, `:60`
+- **Severity:** an assertion that is **true** and is **not about the route it names**. Vacuity in the
+  one direction a green cannot show you.
+
+**Measured, not inferred.** Route **`/host/earnings`** at **320px**: `expectVisibleFocus` walks Tab
+until `readFocus`'s `inHeader` is false, and `inHeader` is `el.closest('[data-testid="site-header"]')`
+**alone**. On the one surface with **0** controls of its own (`[17-D16]`), the "first in-surface
+control" it measures is therefore a **footer link**. The ring assertion is still made and is still
+true; what it is not is a statement about that route. Blast radius if the walk is changed: **26**
+Phase-13 cases + **22** Phase-14 cases = **48** rows change what they measure.
+
+**Why it was not fixed here.** Teaching the walk what "the surface" is changes what every row in two
+blocks measures — an instrument change with a blast radius far beyond a plan whose subject was
+coverage. It is also the class of change that must be made once and read carefully, not folded into a
+coverage plan's last task.
+
+**Cheapest correct fix:** `collectControls` already has the notion — `Control.inShell`, added by
+17-06. Give `readFocus` the same field, have the walk skip shell chrome at **both** ends rather than
+only the header, then re-run both blocks and **read the diff**. The diff is the deliverable: any row
+that changes what it focuses is a row whose previous green was about the shell.
+
+**Suggested owner:** whichever plan next opens `e2e/helpers/focus.ts`. Plan 17-13 declined it for the
+stated reason — a 48-row instrument change inside the phase's synthesis step would land unreviewed.
+
+---
+
+## [17-D18] — `/host/payouts/refresh` issues a REAL PayMongo request on every case
+
+- **Found by:** plan 17-11, reading the route's server component against its own threat model T-17-59, 2026-08-30
+- **Owner file:** `src/app/(host)/host/payouts/refresh/page.tsx` → `refreshOnboardingLink()` →
+  `startPayoutOnboarding()` → `createOnboardingLink()` in `src/lib/paymongo.ts`
+- **Severity:** the **only** assertion in this suite that leaves the machine. T-17-59 asserts the
+  payouts rows *"read the shipped pages only and issue no PayMongo call"* — that sentence is false.
+
+**Measured, not inferred.** Route **`/host/payouts/refresh`** at **320px**, driven once per theme:
+**2** outbound `POST https://api.paymongo.com/v1/linked_accounts/onboarding_links` per full run,
+carrying whatever `PAYMONGO_SECRET_KEY` the local `.env` holds; **2** `audit` rows written with
+`outcome: "error"`; **2** of `startPayoutOnboarding`'s **5-per-60s** per-identity budget consumed.
+Platforms / Linked Accounts is beta / sales-gated (`src/lib/paymongo.ts`'s own BETA NOTE), so the call
+fails and the retry sentence renders — which is the **only** document this route can produce locally.
+On success the page would `redirect()` to PayMongo and there would be no document to measure at all.
+**0** PayMongo resources are created (the gated endpoint refuses before one exists), and `afterAll`
+deletes the audit rows — verified **0** rows left after **2** full runs (the `audit` table carries no
+foreign key by design, so no cascade reaches them).
+
+**Why it was not fixed here.** Because the alternative is worse: **an audit that refuses to visit a
+route BECAUSE the route makes a call is an audit that does not measure the route.** The row is written
+so that dropping it would be visible as a D-201 absence rather than a silent gap.
+
+**Cheapest correct fix:** none today. If it ever becomes unacceptable — a live key in a CI job, which
+is D-35's boundary — the correct repair is to **intercept the route's fetch** (`page.route` on the
+PayMongo origin, returning the gated-error shape), **not** to drop the row. That keeps the document
+under measurement and takes the network out of it.
+
+**Suggested owner:** the PM decides whether it is acceptable; whoever wires CI implements the
+interception if it is not.
+
+**RESOLVED 2026-08-30 — plan 17.1-06, commits `6231f54` / `2e5080a`.** (UTC; local date 2026-08-31, this
+box is UTC+8 — the audit rows below are stamped `2026-08-30 20:26+00`.) The row's body above is left
+byte-identical: it was right about the exposure and it is the reason this was fixed at all. What follows
+is the correction to its prescription, the exposure it understated, and the seam that shipped.
+
+**⚠ THIS ROW'S OWN "CHEAPEST CORRECT FIX" CANNOT WORK, AND WAS NOT BUILT.** It prescribes
+*"`page.route` on the PayMongo origin, returning the gated-error shape"*. **`page.route` intercepts
+requests the BROWSER makes.** Every hop here is server-side — `refresh/page.tsx` →
+`refreshOnboardingLink()` → `startPayoutOnboarding()` → `paymongoFetch` → Node's global `fetch` — so a
+`page.route` handler on that origin never fires, the POST leaves the machine exactly as before, and the
+spec reports **green while measuring nothing**. That is strictly worse than the finding it claims to
+close, because it converts a known exposure into a believed-fixed one.
+
+**This is the SECOND instance of one error class in this phase family, and naming the class is the
+point.** `[17-D26]` prescribed `page.clock` against a value the RSC computes in the Node process; it was
+refuted by measurement and replaced with a server seam (`src/lib/dev/today-override.ts`). The pattern:
+**a Playwright browser-scoped API prescribed against a value produced before the HTML is sent.** Both
+prescriptions were written by reading the route rather than by driving it. Anything in this file that
+proposes a `page.*` repair for a server-side behaviour should be re-derived, not trusted.
+
+**AND THE OBVIOUS CHEAPER FIX DOES NOT WORK EITHER — unsetting `PAYMONGO_SECRET_KEY` does NOT stop the
+call.** `authHeader()` (`src/lib/paymongo.ts:58-61`) is `process.env.PAYMONGO_SECRET_KEY ?? ""`, so with
+the variable cleared the client still sends `Basic <base64 of ":">` to the same URL. That removes the
+credential, not the network — the request still leaves this machine, still spends PayMongo's rate-limit
+budget, and still fails in a way indistinguishable from the gated failure. Recorded so nobody re-derives
+it as a shortcut.
+
+**THE EXPOSURE THIS ROW UNDERSTATED — measured, not argued (`17.1-EVIDENCE.md` § P3, plan 17.1-05).**
+The row records **2** outbound requests, from one spec, on one endpoint. The census measured **10**,
+from two specs, on **three** endpoints:
+
+| spec | method | full URL | per full run |
+|---|---|---|---|
+| `overflow-320.spec.ts` | POST | `…/v1/linked_accounts/onboarding_links` | **2** — the endpoint this row names |
+| `overflow-320.spec.ts` | GET | `…/v1/checkout_sessions/{id}` (2 synthetic ids, 4 + 2) | **6** — a THIRD endpoint, from a different route entirely; filed as `[17-D27]` |
+| `axe-sweep.spec.ts` | POST | `…/v1/linked_accounts` | **2** — a resource-CREATE call carrying the host's email |
+
+**`e2e/axe-sweep.spec.ts` reaches `POST /v1/linked_accounts` with the host's email address, twice per
+run** (once per width in `WIDTHS = [320, 1280]`) — a call this row does not name at all. `signUp` is a
+bare sign-up, so there is no `host_payout` row and no `paymongo_account_id`, `ensureLinkedAccount` falls
+through to `createLinkedAccount`, the gated POST throws and the transaction rolls back.
+
+**⚠ AND THIS ROW'S "0 PayMongo resources are created" IS CONTINGENT, NOT STRUCTURAL.**
+`createLinkedAccount` keys idempotency on `linked-account:${email}` and `signUp` mints a **unique email
+per run**, so **every run presents a distinct Idempotency-Key**. The claim holds only while Platforms /
+Linked Accounts stays sales-gated. The day the platform is enabled on the account, `axe-sweep` mints a
+real Linked Account per run against whatever key `.env` holds. That is D-35's boundary, and it is why
+this was escalated rather than accepted.
+
+**THE SEAM THAT SHIPPED — seam D, `instrumentation.ts` at the repo root + undici `MockAgent`.**
+Process-level, so it catches the server's `fetch` where `page.route` cannot. Origin-level and a
+**persisted catch-all** (`path: () => true, method: () => true`) rather than one interceptor per known
+endpoint — which is what makes it cover `[17-D27]`'s third endpoint, on a route this row never mentions,
+and whatever endpoint is added next. The reply is exactly the gated-error shape (`404`,
+`content-type: application/json`, `{ errors: [{ detail }] }`). Net-connect policy is a **deny-of-one**
+`enableNetConnect` predicate, not `disableNetConnect()`: § P3 measured four outbound hosts, two of them
+Next's own and **intermittent**, and one (`api.resend.com`) reached by shipped application code — so a
+blanket block would have changed the behaviour of the very runs the audit uses to measure the product,
+which is this row's own objection to dropping it.
+
+**Two guards, and they are the protection.** `process.env.NODE_ENV === "production"` is the **first
+statement** of `register()` and a **build-time constant**, so a production build prunes the branch
+rather than skipping it; a second check returns off the `nodejs` runtime. The `undici` specifier is
+reached only through a **dynamic** `await import(...)` after both. ⚠ The inertness argument deliberately
+does **not** rest on "undici is a devDependency" — `[17-D29]` measured that it survives
+`npm ci --omit=dev` on this repo. `tests/security/paymongo-seam.test.ts` pins all of it with an
+inertness triad, a **positive control**, an unnamed-third-path clause, three comment-stripped source
+scans and an inverted blast-radius walk; both its watched reds are in `17.1-EVIDENCE.md` § W3.
+
+**SEAM A WAS REJECTED AND `src/lib/paymongo.ts` IS UNTOUCHED.** Making `PAYMONGO_BASE` settable would
+have been a one-line fix and is a **credential-exfiltration primitive**: the `Authorization: Basic
+<secret key>` header follows the base URL, so an operator-settable target on the one module holding the
+key is a way to post the key somewhere else. `git diff` on that file, on `paymongo-connect.ts` and on
+the refresh page is empty for this plan.
+
+**THE ROW'S OWN CONDITION IS MET — the rows were KEPT, in both specs.** This row argues, correctly, that
+*"an audit that refuses to visit a route BECAUSE the route makes a call is an audit that does not
+measure the route."* Measured after the seam (`17.1-EVIDENCE.md` § P3-AFTER): all four rows still green
+and still rendering `Let's pick up where you left off`; the `audit` rows read **from the database during
+the run** are byte-identical (`action: "startPayoutOnboarding"`, `outcome: "error"`,
+`meta: {"reason": "paymongo_error"}`, 2 per spec); the rate-limit accounting is unchanged at 2 of the
+5-per-60s per-identity budget with **no** `outcome: "denied"` row; and **0** of the 10 requests reached
+`api.paymongo.com`. `100 passed · 7 skipped` and `58 passed · 36 skipped`, 0 failed, no row added to
+`e2e-baseline-reds.md`.
+
+**⚠ THE SAMPLING GAP, STATED HONESTLY AND EXPLICITLY NOT CLOSED BY THIS PLAN.**
+`tests/security/paymongo-seam.test.ts` runs under `npm test` and CI's **`gate-db`** job, so the *seam* is
+sampled **per commit**. But **neither spec runs in CI at all** (`[17-D24]`), so the *spec rows* remain
+sampled at "whenever a human runs the file". Concretely: if someone deletes `instrumentation.ts`, CI
+goes red the same day; if someone adds a fourth PayMongo endpoint, the catch-all covers it silently and
+correctly, but nobody re-measures the row counts until a human drives the specs. Raising the spec rows'
+sampling rate is `[17-D24]`'s problem, not this one's.
+
+**Filed alongside, not fixed here:** `[17-D27]` (the third endpoint), `[17-D28]` (`api.resend.com` — 14
+real POSTs per run on a live key, larger by count than the PayMongo exposure and **not** covered by this
+seam by deliberate choice), `[17-D29]` (the `--omit=dev` correction).
+
+---
+
+## [17-D19] — The AC#29 block calls `expectTargets` and `expectVisibleFocus` on NO row
+
+- **Found by:** plan 17-12, reading `e2e/overflow-320.spec.ts`'s AC#29 loop against its own plan text, 2026-08-30
+- **Owner file:** `e2e/overflow-320.spec.ts` — the AC#29 block
+- **Severity:** a guarantee that is narrower than the table's own plan text assumed. Stated plainly so
+  nobody reads these rows as a target-size claim.
+
+**Measured, not inferred.** The AC#29 loop runs `seedTheme` → viewport → `goto` →
+`document.fonts.ready` → optional `open` → `expectReachable` → `expectNoOverflow` → optional
+`expectNoOverflowWithin`, and calls `expectTargets` on **0 of its rows** — that helper is called only
+from the AC#30 and AC#36 blocks. Plan 17-12's own Task 3 text instructed measuring the new rows
+*"through the block's existing chain unchanged: … `expectTargets` at `TARGET_FLOOR_PX`"*, which the
+block does not do. **The consequence:** the **4** boundary surfaces are proved not to scroll sideways
+at **320px** in both themes, and are **NOT** proved to clear the **24px** target floor or to paint a
+visible focus ring. Each renders **2** controls (the retry button and the route out), both `min-h-11`,
+and `e2e/error-leak.spec.ts` asserts both are keyboard-reachable on the root boundary.
+
+**Why it was not fixed here.** The instruction was followed **literally** (*"unchanged"*) rather than
+by adding a call the other **21** rows in the same table do not make, which would have made the
+table's guarantee inconsistent across its own rows. Adding it to the whole loop is an instrument change
+across **42** cases — 17-13's size of change, not 17-12's.
+
+**Cheapest correct fix:** add `expectTargets` (and `expectVisibleFocus`) to the AC#29 loop for the
+**whole** table and **read the diff** — the point of the change is which rows go red, not that they
+all stay green. Plan 17-13 did not take it: `e2e/overflow-320.spec.ts` is not in 17-13's
+`files_modified`, and 42 newly-asserting cases landing in the phase's synthesis commit is precisely
+the shape D-199 batches rather than absorbs.
+
+**Suggested owner:** the phase verifier, or Phase 18's first responsive plan.
+
+---
+
+## [17-D20] — 17-10's `querySelectorAll` acceptance criterion is unsatisfiable without deleting prose the same plan calls load-bearing
+
+- **Found by:** plan 17-10, running its own acceptance grep before and after its work, 2026-08-29
+- **Owner file:** none — the defect is in the **criterion**, not in `e2e/host-headings.spec.ts`
+- **Severity:** the phase verifier reading `1` where a criterion says `0` will look for a failure that
+  is not there. Recorded so the number is read as this row.
+
+**Measured, not inferred.** The instrument walks **28** host states at **320/768/1280** — route
+`/host`, route `/host/listings`, route `/host/listings/[id]/availability` and route
+`/host/listings/[id]/edit` among them — for **84** outlines in total, and the criterion is a grep over
+the file that does the walking.
+`grep -c 'querySelectorAll' e2e/host-headings.spec.ts` returns **1**, before the plan's work
+and after — it always did. The single occurrence is inside `recordHeading`'s docstring:
+*"A `document.querySelectorAll("h1")` count would report two on a responsive surface that only ever
+shows one, and 'fixing' that would mean deleting a tree the sighted layout needs"* — the exact
+sentence the plan's own `<interfaces>` block cites (`:363-368`) as why the role query is load-bearing.
+**Comment-stripped the file contains 0:**
+`grep -n 'querySelectorAll' e2e/host-headings.spec.ts | grep -vE ':\s*(\*|//|/\*)'` returns nothing.
+So the criterion's **intent** — no markup sweep in the level-reading code — holds exactly, and the
+walk reads every level through `getByRole("heading", { level })`.
+
+**Why it was not fixed here.** The prose was kept and the criterion is what is wrong. This is
+17-PATTERNS § Shared Patterns 9 stated as a grep instead of a test: *"This tree's comments quote the
+very patterns the scans forbid — an un-stripped scan is red on correct code."* Rewording the docstring
+to make a grep return 0 would delete the concrete counter-example that stops the next reader reaching
+for a selector sweep — the *"bend shipped code to satisfy a grep"* move this phase has refused three
+times now.
+
+**Cheapest correct fix:** nothing is owed to the code. Whoever restates this criterion spells it
+**comment-stripped**, as `tests/design/focus-definition.test.ts` and `tests/design/one-tree.test.ts`
+already do for their own source scans.
+
+**Suggested owner:** the phase verifier, when reading 17-10's criteria.
+
+---
+
+## [17-D21] — `open-capacity.spec.ts:407` is a date-dependent 90s timeout, new at this commit and not in `[16-D6]`'s ten
+
+- **Found by:** plan 17-01, the per-file sweep at `--workers=1`, 2026-08-29
+- **Owner file:** `e2e/open-capacity.spec.ts` — `pickDay` at `:364-371`, and the fixture-date pin at `:126-132`
+- **Severity:** a red that appears and disappears with the calendar date. This repo has already shipped
+  two date-dependent pixel time bombs; this is a third, in a spec rather than in a gate.
+
+**Measured, not inferred.** Route **`/listings/[id]`** (an open-capacity listing). Failed **twice**,
+alone, at `--workers=1`, with a **90s** timeout inside `pickDay` waiting for an enabled, in-month
+`September 1, 2026` cell. The branch that differs between the triage date and today is the calendar's
+month hop: the file computes `let offset = 3; while (dayAt(offset).month !== dayAt(offset + 2).month) offset++;`
+and `showMonthOf` navigates the grid **only** when `crossesMonth` is true. On **2026-08-26** —
+`[16-D6]`'s full-suite date, on which this file did **not** appear among the ten failures —
+`dayAt(3)` was 2026-08-29 and `crossesMonth` was **false**. On **2026-08-29** `dayAt(3)` is 2026-09-01
+and `crossesMonth` is **true**. That is the only input that moved.
+
+**Why it was not fixed here.** It is **not Phase 17's by authorship** — `open-capacity.spec.ts` was
+last touched in Phase 9, and Phase 17 changed no product code at the time the reading was taken. It is
+in `e2e-baseline-reds.md`'s **declared denominator** (row 3), so it is already excluded from being read
+as a Phase-17 regression.
+
+**Cheapest correct fix:** confirm the causation by **pinning the clock** rather than by agreeing with
+the paragraph above — `page.clock.setFixedTime` (or the fixture's own date seam) at a date where
+`crossesMonth` is false and again where it is true. Then make `pickDay` wait for the month hop it
+already knows it needs. Stated plainly so nobody over-reads it: the **correlation** is measured, the
+**causation** is inferred from the source.
+
+**Suggested owner:** whichever plan next owns open-capacity behaviour.
+
+---
+
+## [17-D22] — `e2e/one-tree.spec.ts` counts the booking sheet SHUT, never open
+
+- **Found by:** plan 17-09, `e2e/one-tree.spec.ts` (the AC#12 one-instance count), 2026-08-29
+- **Owner file:** none — `src/app/listings/[id]/(detail)/page.tsx`'s two `BookingPanel` placements are
+  RESP-02's sanctioned arrangement
+- **Severity:** none. Recorded so a later reader does not file a duplication defect.
+
+**Measured, not inferred.** Route **`/listings/[id]`** at **320**, **768** and **1280**:
+`[data-testid="booking-panel"]` counts **1** on the resting document at all three widths, and **2**
+with the sheet open. The page mounts `BookingPanel` twice — the rail placement, in the document at
+every width, and the sheet placement, inside a portal that is not in the document until the sticky bar
+is tapped.
+
+**Why it was not fixed here.** By design. One component, two placements, one provider, one fetch — the
+arrangement `e2e/mobile-booker-path.spec.ts` asserts. AC#12's claim is about the **resting** document
+and is made there.
+
+**Cheapest correct fix:** none owed unless RESP-02's arrangement changes.
+
+**Suggested owner:** nobody. This row exists to be found by a search, not acted on.
+
+---
+
+## [17-D23] — The wizard step rail has ZERO tab stops on a fresh mount
+
+- **Found by:** plan 17-08, `e2e/keyboard-composites.spec.ts` (the wizard's declared 14-stop walk), 2026-08-29
+- **Owner file:** none — `src/app/(host)/host/listings/[id]/edit/wizard.tsx:454` and `:953` are D-148's
+  literal reading, correctly implemented
+- **Severity:** none as conformance. It changes what the sentence *"the rail is a composite whose steps
+  must each be reachable"* is a statement **about**.
+
+**Measured, not inferred.** Route **`/host/listings/[id]/edit`** at **320px**, theme **court**: the
+declared walk is **14** stops on a fresh mount and **0** of them are rail markers. `wizard.tsx:454`
+seeds `visitedKeys` with step **1** only, and `:953` requires `done` **AND** visited — so on a fresh
+mount every marker is inert. One step later the count is non-zero, which is how plan 17-08 found it:
+`getByRole("button", { name: "Back" })` went strict-mode ambiguous on the advanced document, because
+**the advance is exactly what turns the first rail marker into a control**.
+
+**Why it was not fixed here.** Nothing is broken. D-148 says forward markers stay inert even once
+visited, and they do.
+
+**Cheapest correct fix:** none to the code. What was corrected is a **claim**: the file header briefly
+said the measurement *"corrects the plan's own description of this surface"*, and the header now says
+the plan's sentence is true **one step later** rather than false. The assertion that ships (c) walks
+the **advanced** document, presses Enter on the rail marker and proves the return by the advance
+action's label.
+
+**Suggested owner:** nobody. Recorded so the next reader of the 14-stop declaration knows why the rail
+is absent from it.
+
+---
+
+## [17-D24] — `.next` staleness can present as an HTTP 500, and `reuseExistingServer` adopts a wedged dev server silently
+
+- **Found by:** plan 17-08, the first run of `e2e/keyboard-composites.spec.ts`, 2026-08-29
+- **Owner file:** `playwright.config.ts` — the `webServer.reuseExistingServer` setting
+- **Severity:** an environment failure that arrives disguised as a product or fixture defect, several
+  assertions downstream of its cause.
+
+**Measured, not inferred.** Route **`/listings/[id]`**: the already-running `next dev` on **:3000**
+answered **HTTP 500** with *"Error: Jest worker encountered 2 child process exceptions, exceeding
+retry limit"*. Playwright's `reuseExistingServer` adopted it without comment, so the first run reported
+the calendar row failing on `6:00 AM` never resolving — a message that reads exactly like a fixture
+defect. A throwaway probe dumping `response.status()` and the body is what named it. After
+`rm -rf .next` and a fresh `npm run dev`: the page renders, Sept 1 2026 offers **6:00 AM–8:00 PM**, and
+**4 of 5** cases went green immediately; **3** subsequent full runs were green.
+
+**Why it was not fixed here.** It is an environment hazard, not a defect in any file this phase owns,
+and the known mitigation (kill the server, `rm -rf .next`, restart) is already in the project's
+operating notes — as a **404** symptom. The new datum is the **500**.
+
+**Cheapest correct fix:** a one-line reachability probe at the top of the seeded specs — fetch the
+base URL and fail with the status code and the first line of the body if it is not 2xx. That turns
+"a fixture assertion timed out" into "the dev server is answering 500", which is the whole distance
+between a ten-minute fix and an hour of investigation.
+
+**Suggested owner:** whichever plan next opens `playwright.config.ts` or the shared e2e bootstrap.
+
+---
+
+## [17-D25] — One intermittent in the SHIPPED no-wrap case (f): the sheet measured mid-open-animation
+
+- **Found by:** plan 17-04, one of eight full-file runs of `e2e/mobile-booker-path.spec.ts`, 2026-08-29
+- **Owner file:** `e2e/mobile-booker-path.spec.ts:839` (the sheet's pinned-action bound)
+- **Severity:** a **1-in-8** false red on an assertion this plan did not author and did not touch.
+
+**Measured, not inferred.** Route **`/listings/[id]`** at **320px**, theme **court**: the case
+`court · 320px · no wrap …` failed at `:839` with the sheet's pinned action measured at **595.5**
+against a **`<= 569`** bound — the sheet read **mid-open-animation**, on a freshly recompiled route.
+Re-run alone: **green**, and **6/6** green under `--repeat-each=3`.
+
+**Why it was not fixed here.** It is not one of plan 17-04's assertions and the file was open only for
+the clause-B and clause-C blocks. Adding a wait to somebody else's row on the strength of one
+observation is the change most likely to hide the next real one.
+
+**Cheapest correct fix:** the same shape `armWizard` uses after 17-08's stop-identity race — wait for
+the sheet's transition to settle (a stable box across two frames, or the transition-end) **before**
+the first box is read, rather than raising the bound. Raising the bound would make the assertion
+tolerate the animation permanently.
+
+**Suggested owner:** whichever plan next opens `mobile-booker-path.spec.ts`.
+
+---
+
+
+## [17-D27] — `overflow-320.spec.ts` reaches a THIRD PayMongo endpoint, `GET /v1/checkout_sessions/{id}`, and `[17-D18]` records neither it nor its count
+
+- **Found by:** plan 17.1-05, the item-3 outbound census (`17.1-EVIDENCE.md` § P3), 2026-08-31
+- **Owner file:** `src/lib/payments/checkout-probe.ts` → `probeCheckoutSession` → `getCheckoutSession`
+  (`src/lib/paymongo.ts:400`), reached from the Phase-13 payment-state surfaces; the rows that reach it
+  are `e2e/overflow-320.spec.ts`'s AC#30 / AC#22 block
+- **Severity:** `[17-D18]` is the row that says what this suite sends to PayMongo, and its number is
+  **2**. The measured number for that spec is **8**. A ledger row that under-reports the exposure it
+  exists to report is worse than no row, because it is trusted.
+
+**Measured, not inferred.** `e2e/overflow-320.spec.ts` driven **alone**, `--project=chromium
+--workers=1`, at commit `9683ad9`, under a server-side `fetch` census (§ P3):
+`GET https://api.paymongo.com/v1/checkout_sessions/cs_e2e_97af2aa2-db04-4b5c-940d-aa423e84dd60` — **4**
+per full run, and
+`GET https://api.paymongo.com/v1/checkout_sessions/cs_e2e_06ff1d29-a048-4ef7-b6c2-1f536140c2fc` — **2**
+per full run. **6 GETs on a second endpoint**, on top of the **2**
+`POST https://api.paymongo.com/v1/linked_accounts/onboarding_links` that `[17-D18]` does record. Every
+one carries `Authorization: Basic <base64 of the local PAYMONGO_SECRET_KEY + ":">` — `paymongoFetch`
+sets that header on every call, `GET` included.
+
+Attribution was **driven**, not read off the code — six `-g` drives against the same census:
+`payment state: reversed, INDETERMINATE branch (D-96)` → **4** (2 per theme visit); `the receipt` → **2**
+(1 per theme visit); `payment state: pending settlement`, `the confirmation moment`, `the confirmed
+detail, no query` and `cancel` → **0** each. 4 + 2 = 6, which reproduces the full-file count exactly.
+
+The mechanism is already documented in the spec, one layer down: `e2e/helpers/seed-payment-states.ts`
+mints synthetic `cs_e2e_${randomUUID()}` ids, and `overflow-320.spec.ts:1030` and `:1577` both explain
+that `probeCheckoutSession` returns null *"for a session PayMongo does not know — which every `cs_e2e_…`
+fixture id is"*. **What no file said is that finding that out costs a real credentialed round-trip to
+`api.paymongo.com` per visit.** The comments describe the null; nothing described the request.
+
+**Why it was not fixed here.** Plan 17.1-05's declared job is the census, and D-11 requires an
+unpredicted endpoint to be filed as a finding **before** any seam code exists — precisely so the seam's
+scope is set by the measurement rather than the measurement being absorbed into the seam's design. The
+fix is also not this row's to make: the interception is plan **17.1-06**'s, and this finding's value is
+that it arrives before that plan is written rather than after.
+
+**Cheapest correct fix:** none of its own — **plan 17.1-06's seam already covers it, and this row exists
+to make sure it is scoped that way.** D-08 chose seam **D** (`instrumentation.ts` + undici `MockAgent`)
+because it intercepts at the **origin**, not at a path; an origin-level seam captures this endpoint for
+free, and § P3 confirms the substituted gated-error shape leaves `overflow-320.spec.ts` at
+`100 passed · 7 skipped · 0 failed` — the 6 GETs' results are not load-bearing for any assertion,
+because the branch they feed is the `null` branch either way. ⚠ **What must NOT happen is a seam scoped
+to the two `linked_accounts*` paths**: that would leave this endpoint live and the row would still be
+false. Separately, `[17-D18]`'s own "2 per full run" sentence should be corrected in place (appended,
+not substituted) once the seam lands.
+
+**Suggested owner:** plan **17.1-06** (the seam), for the scoping; whichever plan next opens
+`deferred-items.md`'s `[17-D18]` row, for the correction.
+
+---
+
+## [17-D28] — The e2e suite POSTs to `api.resend.com` on a live key, 14 times across two spec files, and no ledger row records any of it
+
+- **Found by:** plan 17.1-05, the item-3 outbound census (`17.1-EVIDENCE.md` § P3), 2026-08-31
+- **Owner file:** `src/lib/email.ts:34-35` (`const key = process.env.RESEND_API_KEY; const resend = key ? new Resend(key) : null`)
+  and every `void send…` call site that reaches it
+- **Severity:** a **SECOND third-party origin** the suite reaches with a live credential — larger by
+  count than the PayMongo exposure `[17-D18]` exists to record, and completely absent from the ledger.
+  `[17-D18]`'s own headline is that these payouts rows are *"the **only** assertion in this suite that
+  leaves the machine."* That sentence is false in a second, independent way.
+
+**Measured, not inferred.** Both files driven **alone**, `--project=chromium --workers=1`, at commit
+`9683ad9`, under the § P3 census: `POST https://api.resend.com/emails` — **12** per full run of
+`e2e/overflow-320.spec.ts`, **2** per full run of `e2e/axe-sweep.spec.ts`. The census **delegated** these
+untouched (only `api.paymongo.com` was substituted), so all **14** really left this machine during those
+two runs — as they do on every run of these files on any box with the key set. On this box `.env.local`
+carries a `re_`-prefixed, 36-character `RESEND_API_KEY` (checked by prefix and length only; the value was
+never read or printed), so `src/lib/email.ts:35` binds a real client and the dev fallback at `:39-53` —
+the `[email:dev]` log-the-link path that delivers nothing — is **off**.
+
+Two consequences worth stating separately, because they have different owners:
+
+- **Deliverability.** Every verification, reset, booking-confirmation and invite the e2e fixtures
+  generate is a real send attempt to a synthetic recipient minted by `signUp`. Whether they are
+  delivered, bounced or rejected is not measured here; **that they are attempted is.** Bounces on a
+  shared sending domain are a reputational cost that accrues silently.
+- **Credential exposure.** The same argument `[17-D18]` makes about `PAYMONGO_SECRET_KEY` applies
+  verbatim to `RESEND_API_KEY`, and D-35's boundary is the same boundary: the day this suite runs in CI
+  with real secrets, it starts sending real email from CI on every push.
+
+**Why it was not fixed here.** It is outside plan 17.1-05's declared `files_modified` and outside item
+3's subject entirely — item 3 is *"intercept the PayMongo fetch"*, and this is a different origin with a
+different owner and a different correct answer. Folding it into the PayMongo seam would be the worse
+move for a specific reason recorded in § P3: `disableNetConnect()` would silence Resend as a **side
+effect** of a PayMongo decision, changing the behaviour of a shipped code path inside the very runs the
+audit uses to measure the product. Silencing Resend must be a decision taken deliberately or not at all.
+This finding exists so it can be taken deliberately.
+
+**Cheapest correct fix:** do not change `src/lib/email.ts`. The e2e environment already has the correct
+switch built into it — `RESEND_API_KEY` unset routes every send to the `[email:dev]` console fallback,
+which is the behaviour CI wants and delivers nothing. The smallest correct repair is therefore an
+**environment** change plus the assertion that pins it: unset `RESEND_API_KEY` for Playwright runs (⚠
+`playwright.config.ts`'s `webServer` has **no `env:` block** and sets `reuseExistingServer: !CI`, so an
+env var added there is silently ignored whenever a dev server is already running — the `[17-D24]`
+adoption trap, and the same trap 17.1-RESEARCH names against an env-var PayMongo seam), and pin the
+resulting **zero** outbound sends with a test rather than a comment. If a run must exercise real
+delivery, that is a named opt-in, not the default.
+
+**Suggested owner:** whichever plan next opens `playwright.config.ts` or `src/lib/email.ts`; and Phase
+18's CI work, where D-35's boundary is actually crossed.
+
+**RESOLVED 2026-08-31 — quick `260831-9qx`, commits `57a85e1` / `ef8c34a`.** **14 → 0**, measured on
+the same two spec files this row measured, at the same flags (`--project=chromium --workers=1`, each
+file driven alone), under an instrument that reproduced this row's own numbers first:
+`e2e/overflow-320.spec.ts` **12 → 0** and `e2e/axe-sweep.spec.ts` **2 → 0**
+(`260831-9qx-EVIDENCE.md` § 3-4). Both files still report **0 failed** with delivery off — 100/7 and
+58/36, unchanged in every cell — so no spec silently depended on real delivery, which this row asserted
+and the drive confirmed. **This task itself sent zero real email:** both the before and the after drives
+INTERCEPTED `api.resend.com` and counted, rather than delegating. The 14 that really left the machine
+were already paid for by § P3 and were not re-purchased.
+
+**The repair was this row's own, and `src/lib/email.ts` was not touched.** `playwright.config.ts`'s
+`webServer` gained `env: REAL_EMAIL ? {} : { RESEND_API_KEY: "" }`. ⚠ `""`, not an unset, and both
+halves of that were measured rather than assumed: `webServer.env` MERGES over `process.env` (Playwright
+1.60.0), so a key merely omitted inherits the live one; and `@next/env` re-applies a `.env.local` value
+only for keys whose initial value is `undefined`, so a DELETED variable would be re-supplied at server
+boot while `""` — a defined string — survives and shadows it. The `INSTALLED … resend_key_set=no
+resend_key_len=0` line in both after-transcripts is the direct proof it reached the booted server's own
+process env.
+
+**Where this went beyond what is written above, and why.** This row prescribed *"an environment change
+plus the assertion that pins it"* and named the trap in the same breath — `[17-D24]`'s
+`reuseExistingServer: !CI` adoption. That prescription is **not self-enforcing**: under an adopted
+server the `env` block is silently ignored, so the guarantee holds only on machines where nothing else
+happened to hold :3000, and this phase family has already been given false results by that trap twice.
+So the adoption case was **deleted rather than tolerated** — `reuseExistingServer: false`,
+unconditional — which is what lets the guarantee be a static property of the config instead of a runtime
+condition that must itself be trusted. On CI the trap never existed (`!process.env.CI` is already
+`false` there), so this changes local behaviour only, while the exposure that actually mattered — real
+secrets, every push, this row's credential paragraph — was never subject to it. The cost is stated in
+the config rather than hidden: `npx playwright test` now FAILS loudly when anything else holds :3000.
+
+**Real delivery is still reachable, by one named flag and nothing accidental:** `FITOUT_E2E_REAL_EMAIL=1`
+makes the config emit **no** `RESEND_API_KEY` entry at all, so the merge inherits the operator's own
+environment — which means the config **never reads the secret's value in either branch**. Proved rather
+than asserted: the same `axe-sweep` drive, at the same commit as its zero, returned to **2** under the
+flag with `resend_key_len=36`. That is the control that makes the zero attributable to this fix and not
+to anything else that changed.
+
+**Pinned by `tests/design/e2e-email-silence.test.ts`**, placed in the suite `npm run build` runs and NOT
+in `tests/security/`, which it does not (`instrumentation.ts:104-106` complains about exactly that gap).
+Two links, each driven RED in BOTH positions before any green was trusted — deleting the `env` line and
+restoring `!process.env.CI` each turn it red, and the mechanism is pinned as `0` captured sends on an
+empty key AND `1` on a fake key. The `1` is not decoration: `0` is equally what a capture that never
+installed reports, which is the vacuity quick `260831-99f` met head-on when a guard PASSED over a tree
+whose subject had been deleted.
+
+**One stale sentence elsewhere was corrected in the same task, not left to rot.** `instrumentation.ts`'s
+parenthetical about this row said silencing Resend was *"a separate decision on a separate finding, taken
+on purpose or not at all."* It is taken; the comment now says where, how, and why that seam is still the
+wrong tool for it — `src/lib/email.ts:34-35` binds the client at module load and `send()` returns before
+any transport exists, so for Resend the key IS the switch, the exact inverse of the PayMongo case at
+`instrumentation.ts:20-22` where clearing the credential removes the credential and not the network. Two
+same-looking findings, opposite mechanisms, different correct answers — which is the reason this row did
+not become a second interception.
+
+---
+
+## [17-D29] — `better-auth`'s optional `vitest` peer keeps a test runner, `jsdom` and `undici` in the PRODUCTION dependency tree
+
+- **Found by:** plan 17.1-05, Task 3, measuring the `undici` promotion's scope instead of asserting it, 2026-08-31
+- **Owner file:** `package.json` — the interaction between `dependencies.better-auth` and
+  `devDependencies.vitest`; visible in `package-lock.json` as three entries carrying no `dev` flag
+- **Severity:** a **stated** dependency scope that the tree does not have. Every argument of the form
+  *"it is a `devDependency`, so production never resolves it"* is unsound in this repo until this is
+  closed — and this plan's own supply-chain gate was approved with exactly that sentence in it.
+
+**Measured, not inferred.** On this machine, npm **11.8.0**, at commit `2822284` (before the `undici`
+declaration) and again at `ab7001b` (after it) — **identical both times**:
+
+```
+$ npm ls undici --omit=dev
+fitout@0.1.0
+`-- better-auth@1.6.14
+  `-- vitest@4.1.8
+    `-- jsdom@29.1.1
+      `-- undici@7.27.0
+
+$ npm ci --omit=dev --dry-run
+removed 232 packages in 3s
+$ npm ci --omit=dev --dry-run | grep -E "^remove (undici|jsdom|vitest) "
+(no output)
+```
+
+**232** packages are removed by a production install and **`vitest`, `jsdom` and `undici` are not among
+them.** Read straight off the lockfile, `node_modules/vitest`, `node_modules/jsdom` and
+`node_modules/undici` all carry **no `dev` flag** — against **264** entries that do, out of **1183**.
+
+**The mechanism, traced.** `better-auth@1.6.14` is a **production** dependency here, and declares
+`"peerDependencies": { "vitest": "^2.0.0 || ^3.0.0 || ^4.0.0" }` with
+`"peerDependenciesMeta": { "vitest": { "optional": true } }`. This repo declares `vitest` in its own
+`devDependencies`, so npm satisfies that optional peer from the hoisted root copy. **A peer edge
+originating at a production package is not a dev edge**, so the whole `vitest → jsdom → undici` chain is
+unflagged and survives `--omit=dev`. The repo's own manifest is correct in both places; the scope
+collapses at their intersection, which is why reading either file alone does not show it.
+
+**Why it was not fixed here.** Plan 17.1-05's declared `files_modified` are `package.json`,
+`package-lock.json` and two planning files, and its sanctioned manifest change was **one line** approved
+at a human gate — the smallest reviewable unit a supply-chain decision can have. Re-scoping a production
+peer edge is a different change with a different blast radius (it touches what `npm ci --omit=dev`
+installs for **every** deploy), and folding it into the same commit would have made the approved
+one-liner unreviewable. It also changes nothing this plan measured: the property is **pre-existing and
+unchanged** by the declaration, in both directions.
+
+**Cheapest correct fix:** first decide whether it is a defect at all — a deploy that ships a test runner
+is wasted image size and extra attack surface, but it is not a code path. If it is to be closed, the
+smallest correct repair is **not** to drop `vitest`: it is to stop the optional peer being satisfied from
+the production graph, either by pinning `better-auth`'s peer resolution out of the production tree
+(`overrides`, or `omit`-aware install config in the deploy job) or by asserting the intended scope with a
+test — `npm ci --omit=dev --dry-run` must not resolve `vitest`, and that assertion is what actually keeps
+it true. ⚠ **Whatever is done, do not "fix" it by deleting the `undici` declaration**: `undici` was in the
+production tree *before* the declaration and would still be after deleting it, so removing the pin would
+lose the version control and keep the exposure.
+
+**Suggested owner:** whichever plan next opens `package.json` for a dependency decision; and Phase 18's
+CI/deploy work, where the production install is actually performed. ⚠ **Plan 17.1-06 must read this
+before writing the seam's inertness argument** — the seam's safety rests on D-09's build-time `NODE_ENV`
+guard and its dynamic import, **not** on `undici` being absent from a production install, which is false.
+
+---
+
+# Fixed in place — the mechanical-class closure record (D-200)
+
+**D-200 is explicit that mechanical items are NOT closeable-around.** So each row of 17-UI-SPEC
+§ Remediation rules § *May fix in place* is listed here with the plan that took it, or with the
+measurement that says it did not arise. An unfixed mechanical item would be an incomplete phase; there
+are none.
+
+| May-fix-in-place row | Disposition in Phase 17 | Taken by | Evidence |
+|---|---|---|---|
+| Adding a missing accessible name to an icon-only control | **FIXED** — the wizard's `role="progressbar"` had no accessible name at all (`aria-progressbar-name`, serious, at 320 **and** 1280 on `/host/listings/[id]/edit`). `aria-labelledby` points at the `Step N of M` paragraph already above it, so **0** new product copy was authored. | **17-07** | `9989531`; `src/app/(host)/host/listings/[id]/edit/wizard.tsx` |
+| Adding `role="status"` + `aria-busy` + an `sr-only` label to a skeleton | **DID NOT ARISE.** `tests/design/skeleton-a11y.test.tsx` predates this phase and is green on the current tree; the axe sweep's **48** measured rows reported **0** violations of this class. No skeleton was found without the mechanism. | — | `npm run test:design` |
+| Converting a hand-rolled `h-11` `<Button>` to `size="touch"` | **FIXED at 5 sites in 4 files**, tree-wide count **5 → 0**. The declared ceiling was **6** and the tree measured **5** — the gate would have absorbed a sixth site silently, so it was flipped from `toBeLessThanOrEqual(6)` to `toBe(0)` in the same plan. The four `<SelectTrigger>` sites were deliberately left (they expose no `touch` size); `grep -c 'SelectTrigger'` is **9** before and after. | **17-05** | `baffe77`, `68b10b0`; `search-bar.tsx`, `group-refresh.tsx`, `regenerate-link-button.tsx`, `remove-attendee-button.tsx`, `tests/design/brand-recipe.test.ts` |
+| Adding `whitespace-nowrap` / `min-w-0` to satisfy the no-wrap clause | **DID NOT ARISE.** **5 of 6** members of the declared no-wrap set measured clean at 320px on both bars with the shipped `whitespace-nowrap`; the sixth has no instrument (`[17-D11]`). `expectChipNotClipped` was written to assert the **cause** — measured: deleting `whitespace-nowrap` changes nothing visible while the chip has room, so a symptom-side gate would have reported green on the very commit that removed the protection. **0** classes added to `src/`. | — | `git diff e439bf9..HEAD -- src/` adds no such class |
+| Adding padding to reach the 24px conformance floor | **FIXED.** D-196 — `p-1.5` on `ProfileLink` takes it **16×16 → 28×28**. `NAV_LINK_CLASS` byte-unchanged, `size-4` untouched, both accessibility mechanisms left unmerged. The site header's `collectControls` exclusion — written around this exact control — was **deleted** in the same plan, so the header is now inside the 24px scan on every Phase-13/14 case and all of them clear it. Visual exposure recorded as `[17-D6]`. | **17-06** | `d09e98d`, `0d3ae71`; `src/components/patterns/site-chrome.tsx` |
+| Adding a `data-testid` to a structural container the sweep must scope to | **FIXED — 2 ids**, each with a compile-enforced `SELECTOR_CONTRACT` row (`why` lengths 1511 and 1263 characters). `search-results-region` on the `<section>` present in all **6** states `SearchResults` renders; `availability-calendar` on the resolved calendar root, deliberately **not** on `skeleton-calendar`. Measured after: `e2e/` carries **304** `getByRole` and **83** `getByLabel` lines against D-32 floors of 92 and 30 — **0** accessible-name selectors traded away. | **17-03** | `b0c2245`; `selector-contract.ts`, `search-results.tsx`, `availability-calendar.tsx` |
+| Adding a measured row to `contrast-pairs.ts` for a rendered pairing axe found | **DID NOT ARISE, and this is the honest state:** `color-contrast` fired **0** times across the sweep's **48** measured rows — it is in `results.passes` on every surface that exercises it. So § Color's arbitration procedure was **never exercised** and remains untested against a real disagreement. `CONTRAST_PAIRS` stays **40** declared + **3** exclusions; the file's diff is comment-only (the D-138 narrowing, AC#24). | — | `git diff e439bf9..HEAD -- src/lib/design/contrast-pairs.ts` |
+| Fixing a heading level to close a skipped step | **FIXED.** `heading-order` (moderate) on `/host/listings` at 320 **and** 1280 — the page is its `h1` and then the grid, so `ListingCard`'s `h3` skipped a rung. Shipped as a `titleAs` **prop** (default `h3`) with the host grid passing `h2`. Tailwind's preflight resets heading size and weight to `inherit`, so **the outline moved and not one pixel did.** Independently, 17-10 walked **84** host outlines across **28** states at 3 widths and found **0** skipped levels. ⚠ **THE JUSTIFICATION THIS ROW ORIGINALLY GAVE WAS FALSE, and is corrected here rather than deleted (code review, WR-05).** It said the prop was needed *"because the same card is **correct** on `/` where the results `h2` sits between."* **`/` does not render `ListingCard` at all** — it renders `SearchResultCard` → `ResultCard`, whose title is hard-coded at `patterns/result-card.tsx:153`. `grep -rn "<ListingCard" src/` returns **one** call site for this component (`(host)/host/listings/page.tsx:160`) and it passes `h2`; the other hit is a different, locally-declared `ListingCard` in `opengraph-image.tsx:72`. The FIX above is unaffected — the skipped rung was real and is closed — but the prop's default is argued in `listing-card.tsx`'s docblock on measured grounds now, not on a page that cannot mount it. | **17-07**, corroborated by **17-10**; corrected by **17-review** | `9989531`, `e2011f3`, `WR-05`; `listing-card.tsx`, `(host)/host/listings/page.tsx` |
+| Correcting a stale comment that promises coverage this phase did not build | **FIXED in at least 6 plans.** 17-02: `gitignore-baselines.test.ts`'s stale `GREEN IS 4 PASSED` header count. 17-05: two `"h-11 clears the 44px touch target"` comments and `brand-recipe.test.ts`'s ceiling block. 17-06: three stale sentences rewritten in the **same commits as the fixes that invalidated them**, each quoting its previous text as history — including the `200px / 226px` pair that was `11-UI-SPEC` arithmetic rather than a measurement. 17-07 (AC#24): **6** stale two-theme sentences amended to court-only with the cost named, and `global-error`'s exclusion reason **corrected rather than copied** (the UI-SPEC justified it by a `best-practice`-tagged rule that the declared tag filter can never run). 17-11: `expectTargets`' vacuity sentence inverted on `/host/earnings`. 17-12: a pinned-counts test whose **own name** read `28 pages, 20 qualifying, 8 not` against constants saying 29 / 21 / 8. | **17-02, 17-05, 17-06, 17-07, 17-11, 17-12** | `ed68dea`, `68b10b0`, `d09e98d`/`0d3ae71`, `84e4270`, `e275527`, `6251c40` |
+
+**⚠ PROMOTED AND FIXED — `[17-D26]`, and it is recorded HERE RATHER THAN AS A ROW ABOVE on purpose.**
+
+The table above is the closure record for 17-UI-SPEC § *May fix in place* — a fixed, declared list.
+`[17-D26]` is not one of those rows: it is an **escalate-class** finding that the PM **promoted to
+in-scope at the D-199 review**. Filing it as a table row would quietly widen what that table claims to
+be, so it is closed here instead, in full.
+
+**The finding.** Four GATE-01 baselines encoded the WALL CLOCK. `/listings/[id]` computes venue-local
+today in the RSC and derives the calendar's opening month, its today-ring and its disabled set from it,
+so `listing-detail` ×3, `listing-sheet-375` and `collision-notice-1280` expired at every day-rollover.
+Measured: the references minted 2026-08-26 went red on 2026-08-27, and nothing noticed for four days.
+
+**The first prescribed repair was WRONG, and this row's own draft is what prescribed it.** It named
+`page.clock` on the three drives. Probed before any code was written: with the browser clock moved to
+2026-11-05 the in-page `new Date()` moved and the rendered calendar did **not** — `data-today` stayed
+30, the caption stayed August 2026, the disabled count stayed 29. `page.clock` emulates the BROWSER;
+the value is computed in the Node process before the HTML is sent. Reported back rather than
+implemented, which is how the PM came to choose a different option.
+
+**What shipped (PM's option 1) — a dev-only server seam, following D-08's `?theme=` idiom:**
+
+| Piece | Detail |
+|---|---|
+| `src/lib/dev/today-override.ts` | **new.** `?today=YYYY-MM-DD` honoured OUTSIDE production only. Guard 1 is `process.env.NODE_ENV`, a **build-time constant** the bundler prunes — not an operator-settable env var, which could be flipped on a live deploy. Guard 2 parses with the shared `parsePickedDate`, never a cast. |
+| `src/app/listings/[id]/(detail)/page.tsx` | applied at the **single origin**, so `todayStart`, `horizonEnd` and the `initialDate` fallback move together — an override that moved the ring without the disabled set would be a worse lie than the wall clock. |
+| `e2e/helpers/visual-drive.ts` | `listingUrl()` pins `&today=${VRT_COLLISION.dayIso}`, so the calendar's today, the selected day and the fixture's booked day are **one literal that cannot drift**. |
+| `tests/security/dev-today-override.test.ts` | **new, 17 assertions** — production inertness **with a positive control**, the guard's exact spelling and its position as the first statement, a single-env-read pin, the parse/reject table, and blast radius. |
+
+**Proven before it was trusted, and proven inert where it ships — both measured end-to-end on the real
+route, not asserted:**
+
+| Server | no override | `&today=2026-09-16` | honoured? |
+|---|---|---|---|
+| **dev** `:3000` | August 2026 · 29 disabled | **September 2026 · 15 disabled** | **YES** |
+| **prod build** `:3101` | August 2026 · 29 disabled | August 2026 · 29 disabled | **NO — identical in every field** |
+
+Malformed values (`2026-02-31`, `not-a-date`) fall back to the wall clock rather than throwing or 404ing.
+
+**Closed by the round-trip, and the round-trip held its prediction.** Five files predicted to change,
+five changed, **zero minted**; every row predicted unchanged passed, including `listing-lightbox` and both
+`checkout` rows whose URLs also gained the parameter. Pre-dispatch `ci` **`33295272924`** (5 failed / 38
+passed / 42 skipped, the five being the five predicted); generation **`33295540219`** → commit `bac4b62`,
+`staged 5 baseline file(s)`, all `M`; **green COMPARISON `33295755823` on `085eb07`, all four jobs,**
+**`gate-visual` 43 passed / 42 skipped / 0 failed.**
+
+**Fixed by:** `c7f1a1a` (the seam + the test), `bac4b62` (the CI-written baselines).
+
+**One coverage note left open, deliberately:** the pinned day IS the selected day, so the coral selected
+style covers the neutral today-ring and the ring is not separately visible in the new references. Pinning
+`today` a day or two earlier would show both. Not changed here — the instruction named the fixture's own
+day, and changing it now would need a third round-trip.
+
+**One stale comment was deliberately NOT corrected**, and it is the exception that proves the rule:
+`src/app/listings/[id]/(detail)/not-found.tsx`'s header (`[17-D3]`). It is left byte-identical because
+it is a **source** comment describing shipped product behaviour on a route whose disposition is
+undecided — editing it would state a product position from inside an audit. Every other stale comment
+this phase found was in an **instrument**, where the comment is the deliverable.
+
+**⚠ FOUND BY THE PHASE VERIFIER AND FIXED — the axe table's four missing rows. Recorded HERE, and the
+fact that it was not recorded ANYWHERE until the verifier ran is itself the finding.**
+
+Like `[17-D26]` above, this is not one of 17-UI-SPEC § *May fix in place*'s declared rows, so it is
+closed beneath the table rather than inside it. It is written up in full because the verification
+report's own `missing` list asks for it by name: *"this gap exists in none of the phase's 25 logged
+findings, so it was never surfaced to the PM at all."*
+
+**The finding.** `e2e/axe-sweep.spec.ts` — the one artifact this phase built to prove GATE-02's
+"automated axe pass green in court" clause — **failed its own AC#2 completeness assertion when run**,
+on `1751fb0`, deterministically, twice, at `--workers=1`. Its `declaredRouteFiles()` walk found **46**
+route files on disk; its `ROWS` table declared **42**. The four missing were plan 17-12's group-local
+throw routes. Plan 17-07 built the table in **wave 2**; 17-12 landed the routes in **wave 3** and
+reconciled every OTHER route-inventory instrument — `tests/design/loading-coverage.test.ts` (29→33 and
+8→12) and `e2e/overflow-320.spec.ts`'s D-201 table (four `coveredBy` entries) — and not this one.
+
+**Mechanical, and therefore NOT closeable-around.** D-200 is explicit; this is the rule the whole
+section above exists to enforce, applied to an item the section did not know about.
+
+**Why nothing caught it, which is the part worth escalating.** **None of this phase's Playwright specs
+run in CI (D-24, pre-existing).** 17-12 did not re-run the sibling instrument it had just invalidated;
+17-13's "closed inventory re-proof" re-proved five inventories, none of them this one; the code review
+ran two vitest invocations and no Playwright; and 17-14's closing evidence is a CI comparison run,
+which by D-24 cannot execute this file. **The assertion worked perfectly and nobody ran it.** That is a
+process gap rather than a code one, and it is the standing risk in every one of the seven specs this
+phase added: each is a one-time audit result, not an ongoing regression gate.
+
+**What was fixed, and it was larger than four rows.** Commit `64da86f`, `e2e/axe-sweep.spec.ts` only:
+
+* **Four rows added**, one per `dev-throw-*` route, each a named skip — their whole body is a
+  server-side throw, so the only document each can produce is its group's `error.tsx`. They are **not**
+  D-201 exclusions (that clause names `src/app/dev`, and these sit *inside* the route groups on
+  purpose): the same *covered, not excluded* disposition `overflow-320.spec.ts` already records.
+* **Four skips became measurements.** The (app)/(auth)/(host)/(legal) boundary rows still carried
+  *"no dev throw affordance exists inside the (app) route group"* — a sentence **17-12 made false**,
+  which would otherwise have stood directly beside four new rows citing those affordances by name. All
+  four now scan clean at 320 and 1280: **eight scans that did not exist before.**
+* **Every boundary `tell` now names its own route out** (root `Back to search`, (app) `Your bookings`,
+  (host) `Host dashboard`, (auth) `Back to log in`, (legal) `Back to FitOut`) instead of the shared
+  `error-state` hook, because all five render the same panel and the bare hook proves *"a boundary
+  rendered"*, not *"THIS boundary rendered"*.
+* **The docblock count corrected 42 → 46, re-measured** (33 `page.tsx` + 4 `not-found.tsx` + 5
+  `error.tsx` + 1 `global-error.tsx` + 3 `opengraph-image.tsx`) rather than copied from the failure
+  message — this phase found seven acceptance criteria whose stated counts were false of the tree.
+
+**Proven:** `npx playwright test e2e/axe-sweep.spec.ts --project=chromium --workers=1` → **60 passed /
+36 skipped**, whole file. `npm run build` exit 0; `npm test` (alone) exit 0, 2169 passed / 5 skipped.
+Sibling instruments **verified rather than assumed**: `overflow-320.spec.ts -g "D-201 / AC#2"` → 8
+passed, and `loading-coverage.test.ts`'s 33/21/12 pins re-measured against disk. **Zero baseline PNGs
+moved**, no `baselines.yml` dispatch, no threshold widened; green comparison run **`33300479520`** on
+`64da86f` recorded in `baseline-evidence.md` § 8.
+
+**⚠ AND TWO NUMBERS IN THE TABLE ABOVE ARE NOW HISTORY RATHER THAN CURRENT READINGS.** Two rows cite
+*"the axe sweep's **48** measured rows"* (the skeleton-mechanism row and the `color-contrast` row).
+That was 17-07's reading of its own first run and it is left byte-identical as the record of what was
+measured then; **the sweep now measures 58** (29 reachable rows × 2 widths). Both claims survive the
+change — the ten new scans reported **0** violations of either class — but the denominator moved, and
+saying so is the point of saying it.
+
+**Suggested owner:** the PM, for the *process* half only. The code half is closed. The open question is
+whether any of this phase's seven Playwright specs should join CI (D-24 currently says no), because
+without one nothing will notice the next wave-ordering gap either.
+
+---
+
+# D-199 / D-200 — the statement for the PM
+
+**This list is input to next-milestone decisions, reviewed once, at phase close. It is not a blocker
+on Phase 17's completion.** For every finding section above, the finding **is** the deliverable: each
+carries a measurement a reader can re-take, the file that owns the repair, and what the smallest
+correct repair would cost. Phase 17 may close green around all **25** that remain here. The list held **26** at its high-water
+mark: 17-13 assembled 25, plan 17-14 appended a twenty-sixth from its dispatch diff, and the PM
+**PROMOTED that one to in-scope at this review** rather than accepting it as input. It was then FIXED
+and PROVEN GREEN, so it has moved to this file's `# Fixed in place` closure record and is no longer a deferred item.
+Its first prescribed repair was refuted by measurement before any code was written; the second was
+watched working before it was trusted. **The 25 that remain are input to next-milestone decisions and
+block nothing.**
+
+**Immediate escalations that occurred — exception (a), a GATE-06 scope alarm: ZERO.** No fix in any of
+the twelve plans appeared to need a schema migration. Re-proved by command at phase close:
+`drizzle/` holds **26** `.sql` files ending `0025_audit_resolved_by.sql`, `git status --porcelain drizzle/`
+prints nothing, and `tests/design/money-path-invariants.test.ts`'s `MIGRATION_DIGEST` — which pins
+**content**, not the filename, and was red-watched by changing one character in an already-shipped
+`.sql` — is green.
+
+**Immediate escalations that occurred — exception (b), a finding that makes an acceptance criterion
+unreachable: THREE, and none interrupted a wave.** They are named here rather than being left to look
+like ordinary rows, because D-199 says (b) warrants an interruption and in practice each was found by
+a wave-parallel executor that could still close its own criterion by **measuring the truth instead**:
+
+1. **`[17-D3]`** made 17-11's `expectReachable` row unreachable on
+   `src/app/listings/[id]/(detail)/not-found.tsx`. Handled by declaring the row a **skip with the
+   measurement in it**; 17-12 re-confirmed it is the **one** remaining unreachable row in the AC#29
+   table. Escalate-class, so the phase closes around it — but the PM should read `[17-D3]` first, it
+   is the only row here proposing a **deletion**.
+2. **`[17-D20]`** made 17-10's `querySelectorAll` criterion unsatisfiable without deleting prose the
+   same plan calls load-bearing. Handled by keeping the prose and recording that the **criterion** is
+   what is wrong.
+3. **`[17-D13]`** made RESP-04 AC#12 unaskable of the drop-in calendar. Handled by a named skip row
+   carrying the `1` / `0` measurement, so RESP-04 AC#12 is closed for five of six families and for the
+   exclusive calendar surface only — declared, not silently narrowed.
+
+**Where the PM's decision is actually needed** — the rest can be routed to engineering without you:
+
+- `[17-D1]` + `[17-D2]` — is a `200` on a missing listing acceptable for SEO? One build settles `[A6]`.
+- `[17-D3]` — should `(detail)/not-found.tsx` exist at all, or is the root not-found the right document?
+- `[17-D5]` — when should `wizard-cover-preview` be unblocked and its PNG minted?
+- `[17-D9]` — the sticky bar occludes a footer link at 320px. Moving the clearance is a shell change.
+- `[17-D16]` — a host looking at held payouts has no route forward from `/host/earnings`. Correct?
+- `[17-D18]` — is a real PayMongo POST per e2e run acceptable, or should the fetch be intercepted?
+
+---
+
+# D-199 TRIAGE OUTCOME — the PM's dispositions, 2026-08-30
+
+The D-199 review above asked for one batched decision. This section records what was decided and
+where each finding went, so a later reader does not have to reconstruct it from the roadmap.
+
+⚠ **This section is deliberately level-1.** All 25 finding headings are `##` and level-3 headings are
+zero, so the unanchored heading grep is unambiguous — a `##` heading here would make
+`grep -c '^## '` disagree with `grep -c '^## \[17-D'` and break the very property the file's own
+header warns about. The `[17-D20]` class, avoided rather than re-inflicted.
+
+**Four findings were PROMOTED into `Phase 17.1` (INSERTED after Phase 17).** Each carries its
+decision and the reason it was not the alternative:
+
+| Finding | Decision | Not chosen, and why |
+|---|---|---|
+| `[17-D9]` + `[17-D10]` | **Fix in 17.1** — move the clearance so it covers the DOCUMENT, not just `<main>` | Not folded into Phase 18 (slower to land on a WCAG-adjacent defect sitting on the core booking surface) and not backlogged (reachable-above-320px is not a defence for 320px) |
+| `[17-D1]` + `[17-D2]` | **Measure first in 17.1** — a `next build && next start` probe settles assumption A6; the fix is CONDITIONAL on it reproducing | Not "fix all ~10 routes now" — every reading to date is a `next dev` reading and 17-01's re-measure did NOT reproduce, so restructuring ten boundaries would be a change made before knowing |
+| `[17-D18]` | **Intercept in 17.1** — `page.route` on the PayMongo origin, returning the gated-error shape | Not accepted as-is (D-35's live-key-in-CI boundary is exactly where this becomes unacceptable) and NOT dropped from the sweep — the finding's own argument is that an audit refusing to visit a route *because* it makes a call does not measure the route |
+| `[17-D3]` | **Delete in 17.1** — remove the file and its false header | Not "add the missing segment boundary" — the root not-found already serves this case correctly and measured clean; adding a segment would be new product behaviour introduced by an audit follow-up |
+
+**Two findings were CLOSED at triage with no work owed:**
+
+- `[17-D5]` (`wizard-cover-preview`) — **stays blocked until the PM schedules it.** Unblocking commits
+  a new binary reference image, which `16-15` called *"the PM's to schedule, not a side effect."*
+  Unchanged from the disposition the row already carries.
+- `[17-D16]` (`/host/earnings` ships zero controls of its own) — **accepted as intended product.**
+  Three deliberate decisions produce it, and `17-11` already inverted the guard to *"exactly zero, and
+  here is why"*, which is strictly stronger than an exemption because it now fails when the
+  declaration goes stale. No product change owed.
+
+**The remaining 13 stay parked, and that is a measured choice rather than an omission.** Their
+suggested owner is *"whichever plan next opens `<file>`"* — a convention with a track record **in this
+repository**: Phase 17 itself closed `[13-15]`, `[15-12]`, `[16-D9]` and `[14-WR-03]` in place, each
+annotated where it was filed rather than relocated. Manufacturing a phase for them would be busywork.
+Two are worth a reader's attention because they weaken an INSTRUMENT rather than the product —
+`[17-D17]` (`expectVisibleFocus` can land in the site footer on a control-less surface and still
+report green) and `[17-D19]` (the AC#29 block calls `expectTargets` and `expectVisibleFocus` on no
+row) — so whichever plan next opens `e2e/helpers/focus.ts` or that block should take them first.
+
+**Also carried forward, from the phase's security audit (`17-SECURITY.md`, 80/81 closed, 0 blocking):**
+three unregistered flags that are register gaps rather than code defects — the `?today=` dev seam has
+**no threat ID** (control verified, row missing; recommended as `T-18-TODAYSEAM`), `T-17-19`'s
+*"exactly one vendored file"* was overtaken by the WR-06 fix editing `ui/progress.tsx`, and
+`T-17-59`'s accept rationale is the one measured false by `[17-D18]` above. Residual **R-1** is worth
+Phase 18's attention: CI never exercises the production branch of any `NODE_ENV` guard, because
+`playwright.config.ts` boots `npm run dev` — a `next build && next start` smoke job closes it, and
+`17.1`'s `[17-D1]` probe builds exactly that capability.

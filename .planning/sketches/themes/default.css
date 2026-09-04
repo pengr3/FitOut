@@ -1,0 +1,47 @@
+/* FitOut sketch theme — warm, calm, Airbnb-like. Coral is the single accent. */
+:root {
+  /* Colors */
+  --color-bg: #f6f4f1;
+  --color-surface: #ffffff;
+  --color-surface-2: #faf8f6;
+  --color-border: #e7e2dc;
+  --color-text: #2b2724;
+  --color-text-muted: #857c73;
+
+  --color-primary: #e8635b;          /* coral brand — the ONLY accent */
+  --color-primary-hover: #d9564e;
+  --color-primary-foreground: #ffffff;
+  --color-primary-tint: #fdeeec;     /* soft coral wash for anchors/hints */
+  --color-ring: #f2b6b1;             /* coral ring for the pending start anchor */
+
+  --color-muted: #efece8;            /* unavailable chip background */
+  --color-muted-foreground: #aaa196; /* unavailable chip text */
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Shapes */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(30, 20, 10, 0.05);
+  --shadow-md: 0 6px 22px rgba(30, 20, 10, 0.08);
+  --shadow-lg: 0 14px 40px rgba(30, 20, 10, 0.12);
+}
