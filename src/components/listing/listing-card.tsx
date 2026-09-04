@@ -35,7 +35,15 @@
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { PencilIcon, CalendarClock, CheckCircle2, type LucideIcon } from "lucide-react";
+// `Trash2Icon` is HSURF-01 / D-07's icon-only Delete trigger (see the docblock at that call site).
+// Aliased in this file's established `…Icon` style, alongside `PencilIcon`.
+import {
+  PencilIcon,
+  CalendarClock,
+  CheckCircle2,
+  Trash2 as Trash2Icon,
+  type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -431,7 +439,36 @@ export function ListingCard({
       </CardContent>
 
       {hasActions && (
-        <CardFooter className="gap-2">
+        /*
+          HSURF-01 / D-05 — `mt-auto` IS THE ALIGNMENT FIX AND `h-full` IS NOT.
+          The grid wrapper (`(host)/host/listings/page.tsx:180`) sets no `align-items`, so these
+          cards ALREADY stretch to the tallest in the row — a full-height utility on `Card` would be
+          a no-op dressed as a fix. What misaligned was the FOOTER BAND: `Card` is `flex flex-col`
+          (`ui/card.tsx:15`) with a zero gap above and no child declaring `flex-1`, so the children
+          packed to the top and the stretched height landed as blank card BELOW a tinted,
+          top-bordered bar — MEASURED at 108.0px (`sm`) and 108.02px / 46.27px (`lg`) in
+          `19-02-SUMMARY.md`. `mt-auto` absorbs that free space above the footer instead, which
+          restores what `has-data-[slot=card-footer]:pb-0` on `Card`'s base already assumes: the
+          footer is flush with the card's bottom edge.
+
+          HSURF-01 / D-08 second half — `flex-wrap` is a SEPARATE fix for a SEPARATE defect, and
+          fixing either does not fix the other. `Button` carries both `shrink-0` and
+          `whitespace-nowrap` (`ui/button.tsx:74`), so the four controls of a PUBLISHED listing can
+          neither shrink nor wrap; `Card` carries `overflow-hidden`, so the overrun was CLIPPED at
+          the rounded edge rather than painted outside the card. That is why it read as a truncated
+          control and not as a spill, and why a document-level overflow scan passes against the
+          defect — `e2e/overflow-320.spec.ts`'s `/host/listings` row was green with this shipped.
+          The measured overrun was a constant scrollWidth of 332 against a clientWidth of
+          288 / 322 / 315, so the `lg` band was TIGHTER than `sm`.
+
+          ⚠ APPENDED, NEVER PREPENDED (D-06 / WR-04). `cn(base, className)` puts this string LAST
+          (`ui/card.tsx:86-91`), which is the position tailwind-merge keeps — it resolves a conflict
+          by deleting the EARLIER class. Phase 17's WR-04 measured a hoisted constant DELETING
+          `pb-20` outright, leaving a state worse than the defect being fixed. Do not reorder these
+          tokens to the front of anything; `tests/design/listing-card-merge-order.test.ts` is the
+          standing gate that says so.
+        */
+        <CardFooter className="gap-2 mt-auto flex-wrap">
           {editHref && (
             <Button asChild variant="outline" size="sm">
               <Link href={editHref}>
@@ -464,8 +501,39 @@ export function ListingCard({
             {onDelete && (
               <ConfirmDialog
                 trigger={
-                  <Button variant="ghost" size="sm" className="text-destructive">
-                    Delete
+                  /*
+                    D-07 — ICON-ONLY, AND THE ACCESSIBLE NAME SURVIVES AS `sr-only` TEXT.
+                    The visible label is what made the four-control cluster too wide on a PUBLISHED
+                    listing; dropping it buys the most space for the least change. The icon size
+                    resolves to `size-7` (`ui/button.tsx:117`) — the SAME 28px height as the
+                    `size="sm"` siblings (`h-7`), so the row's baseline does not move.
+
+                    ⚠ THE BAR HERE IS 24px, NOT 44px. `e2e/overflow-320.spec.ts:3144-3150` declares
+                    `touch: []` for this cluster in as many words, arguing that these controls are
+                    smaller than the default BY DESIGN and that "asserting 44 on any of them would
+                    be red against reviewed code". 28px clears `expectTargets`'s 24px scan with
+                    room. Do not import a 44px requirement here.
+
+                    ⚠ THE `sr-only` SPAN IS THE NAME. Delete it and
+                    `getByRole("button", { name: "Delete" })` stops resolving — silently, and only
+                    for screen-reader users, because no test locates this control by its text today
+                    (measured: zero selector matches across `tests/` and `e2e/`; the sole
+                    `/host/listings` hit is a COMMENT). This is the same shape
+                    `photo-lightbox.tsx:370-373` already ships.
+
+                    ⚠ THE CONFIRM DIALOG IS NOT OPTIONAL AND MUST NOT BE SIMPLIFIED. Icon-only is
+                    safe from mis-taps BECAUSE the destructive act stays double-gated behind the
+                    ConfirmDialog below, whose confirm label names the listing and whose confirm
+                    button paints destructive.
+
+                    ⚠ ONLY DELETE GOES ICON-ONLY. `Unlist` above keeps its visible label (D-07),
+                    and `div.ml-auto` is unchanged — `margin-left: auto` resolves to 0 once free
+                    space is negative, so it neither causes nor worsens the overflow, and with the
+                    footer wrapping it right-aligns this destructive pair on its own line.
+                  */
+                  <Button variant="ghost" size="icon-sm" className="text-destructive">
+                    <Trash2Icon aria-hidden="true" />
+                    <span className="sr-only">Delete</span>
                   </Button>
                 }
                 title="Delete this listing?"
