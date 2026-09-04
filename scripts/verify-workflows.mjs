@@ -126,6 +126,11 @@ const MAIL_KEY_PREFIX = "RESEND";
 // neither half can move without a NAMED red rather than a silent divergence.
 const MAIL_KEY_PREFIX_DECL = /^const MAIL_KEY_PREFIX = "([A-Z_]+)";$/m;
 const MAIL_REFUSAL_SCRIPT = "scripts/refuse-mail-credential.mjs";
+// The EXACT invocation `ci.yml`'s refusal step must carry — composed from the constant above so the
+// path is spelled once here too. Invariant A compares the step's `run:` against this for equality
+// rather than containment, which is what makes an appended argument red (review finding CR-01,
+// second round).
+const MAIL_REFUSAL_RUN = `node ${MAIL_REFUSAL_SCRIPT}`;
 const CI_E2E_MAIL_STEP = "Refuse to run the suite with a live mail credential in the environment";
 
 const ALL_SECTIONS = ["baselines", "ci", "cross"];
@@ -761,16 +766,29 @@ if (sections.includes("ci")) {
   const e2eMailStep = stepsOf(e2e).find((s) => String(s?.name ?? "") === CI_E2E_MAIL_STEP);
   const e2eMailRun = String(e2eMailStep?.run ?? "");
 
-  // A. IT READS THE REAL PROCESS ENVIRONMENT. All four conjuncts, because any one alone is
+  // A. IT READS THE REAL PROCESS ENVIRONMENT. All five conjuncts, because any one alone is
   //    satisfiable by the inert shape: the step existed, and it ran something.
+  //
+  //    THE FIFTH CONJUNCT, AND THE MEASUREMENT THAT BOUGHT IT (review finding CR-01, second round).
+  //    The superseded conjunct was `run.includes(MAIL_REFUSAL_SCRIPT)` — a containment test, which
+  //    EVERY argument list in the world satisfies. 19-VERIFICATION.md edited this step's `run:` to
+  //    append a decoy prefix source, ran this checker, and watched all 48 invariants stay green while
+  //    the script — which then accepted `argv[2]` as an override of the file it reads its detection
+  //    prefix from — exited 0 and reported a clean scan with a provider-named variable live in the
+  //    environment. The PRESENCE of the script's path in the run string is not the property; the
+  //    EXACT invocation is. `trim()` because a block scalar carries its trailing newline. The script
+  //    now also refuses any argument on its own (both halves, so neither is the only lock), and its
+  //    header names this conjunct by its real identity rather than claiming a coverage it lacked.
   check(
-    `"${CI_E2E_JOB}"'s mail refusal reads the REAL process environment — no \${{ }} expression, no env: map`,
+    `"${CI_E2E_JOB}"'s mail refusal reads the REAL process environment — no \${{ }} expression, no env: map, exact invocation, NO ARGUMENTS`,
     e2eMailStep !== undefined &&
+      e2eMailRun.trim() === MAIL_REFUSAL_RUN &&
       e2eMailRun.includes(MAIL_REFUSAL_SCRIPT) &&
       !e2eMailRun.includes("${{") &&
       e2eMailStep?.env === undefined,
     `step=${e2eMailStep ? `index ${stepsOf(e2e).indexOf(e2eMailStep)}` : "(ABSENT)"}  ` +
       `run=${JSON.stringify(e2eMailStep ? e2eMailRun : null)}  ` +
+      `expected-run=${JSON.stringify(MAIL_REFUSAL_RUN)}  ` +
       `env=${JSON.stringify(e2eMailStep?.env ?? null)}  expects ${MAIL_REFUSAL_SCRIPT}`,
   );
 

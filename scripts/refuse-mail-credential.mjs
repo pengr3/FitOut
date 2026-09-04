@@ -40,13 +40,41 @@
 // ⚠ THIS FILE PRINTS VARIABLE NAMES AND NEVER VARIABLE VALUES. A credential echoed into a build log
 // is a wider disclosure than the send this control exists to prevent.
 //
-// Usage:  node scripts/refuse-mail-credential.mjs [prefix-source-path]
-// The optional argument overrides where the prefix declaration is read from. It exists ONLY for
-// `tests/design/mail-credential-refusal.test.ts`'s missing-declaration case; `ci.yml` invokes this
-// script with no arguments, and Invariant A asserts that.
+// ⚠ THIS SCRIPT TAKES NO ARGUMENTS AND REFUSES ANY (review finding CR-01, 2026-09-04, second round).
+// It previously accepted an optional prefix-source path as `argv[2]`, for the design test's benefit.
+// 19-VERIFICATION.md measured what that bought an attacker: with a provider-named variable live in
+// the environment, passing a decoy source exited 0 and reported a CLEAN SCAN — and `ci.yml` could
+// carry the same appended argument with every workflow invariant still green. A test-only escape
+// hatch that the thing being guarded against can also use is not a harness, it is the hole. The
+// argument is REMOVED rather than gated, and the prefix source is derived solely from this file's own
+// location, so no input can redirect what this control reads.
+//
+// Usage:  node scripts/refuse-mail-credential.mjs
+// TWO THINGS ENFORCE THAT, AND THIS COMMENT NAMES ONLY WHAT EXISTS BESIDE IT:
+//   - `scripts/verify-workflows.mjs`'s Invariant A compares `gate-e2e`'s refusal step's `run:` for
+//     EXACT equality with `node scripts/refuse-mail-credential.mjs` after `trim()`. The superseded
+//     conjunct asked whether the `run:` string CONTAINED this path, which every argument list in the
+//     world satisfies; the exact comparison is what turns an appended argument red.
+//   - `tests/design/mail-credential-refusal.test.ts` cases 7 and 8 spawn this script WITH an argument
+//     and assert exit 1 — case 8 being the measured fail-open verbatim. That suite runs inside
+//     `npm run build`, so the refusal below is re-proven on every build.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+
+// THE ARGUMENT REFUSAL, BEFORE ANY FILE OR ENVIRONMENT READ. Nothing this script does is safe to do
+// on behalf of a caller who thinks it is configurable, so the refusal precedes the configuration.
+if (process.argv.length > 2) {
+  console.log("::error::This script takes NO ARGUMENTS, and refuses to run with any.");
+  console.log(`::error::Received: ${process.argv.slice(2).join(" ")}`);
+  console.log("::error::Its mail-provider prefix is resolved from this script's OWN location and");
+  console.log("::error::cannot be redirected by input. The override this replaces was MEASURED as a");
+  console.log("::error::fail-open: a decoy prefix source scanned for a prefix of the editor's choosing");
+  console.log("::error::reported CLEAN while a provider-named variable was live in the environment");
+  console.log("::error::(19-VERIFICATION.md, review finding CR-01).");
+  console.log("::error::Fix: remove the argument. Never restore the override.");
+  process.exit(1);
+}
 
 /**
  * The seam between D-14's two halves, spelled identically here and in `scripts/verify-workflows.mjs`.
@@ -56,9 +84,11 @@ import { fileURLToPath } from "node:url";
  */
 const MAIL_KEY_PREFIX_DECL = /^const MAIL_KEY_PREFIX = "([A-Z_]+)";$/m;
 
-// Resolved relative to THIS file, not to the working directory, so the step's `working-directory`
-// (or a developer's shell) can never change which file the prefix comes from.
-const prefixSource = process.argv[2] ?? fileURLToPath(new URL("./verify-workflows.mjs", import.meta.url));
+// Resolved relative to THIS file, not to the working directory and not to any argument, so neither
+// the step's `working-directory`, nor a developer's shell, nor an edit to `ci.yml`'s `run:` string can
+// change which file the prefix comes from. This is DERIVED, never CHOSEN — a configuration knob that
+// can redirect a security control's input is a modeling decision wearing a flag's costume.
+const prefixSource = fileURLToPath(new URL("./verify-workflows.mjs", import.meta.url));
 
 let sourceText;
 try {
@@ -66,7 +96,8 @@ try {
 } catch (error) {
   console.log(`::error::Could not READ the mail-provider prefix source at ${prefixSource}: ${error.message}`);
   console.log("::error::This refusal has no default and no fallback — it scans for a prefix it read,");
-  console.log("::error::or it does not run at all. Restore the file, or fix the path in ci.yml.");
+  console.log("::error::or it does not run at all. The path is derived from this script's own location");
+  console.log("::error::and cannot be overridden, so the fix is to restore that sibling file.");
   process.exit(1);
 }
 
