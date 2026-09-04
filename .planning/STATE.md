@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: executing
-stopped_at: Completed 19-03-PLAN.md
-last_updated: "2026-09-04T02:06:04.530Z"
+stopped_at: Completed 19-04-PLAN.md
+last_updated: "2026-09-04T02:38:00.455Z"
 last_activity: 2026-09-04
 last_activity_desc: Phase 19 execution started
-state_head: 6f6753c2b18efdcc3e663a068a9f52855dcd67ce
+state_head: 293a0fa9938578e07cc9afada2f1bf2c52c6c97b
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 38
-  completed_plans: 33
+  completed_plans: 34
   percent: 14
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-09-04 — Phase 19 execution started
 
@@ -425,6 +425,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19 P01 | 19 min | 2 tasks | 2 files |
 | Phase 19 P02 | 20 min | 3 tasks | 2 files |
 | Phase 19 P03 | 15 min | 3 tasks | 3 files |
+| Phase 19 P04 | 29 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1382,6 +1383,8 @@ Recent decisions affecting current work:
 - [Phase 19]: HSURF-01's fix is mt-auto on CardFooter, not flex-1 on CardContent — settled by the first measurement, not by argument — The guards went green at all three bands on the first run after the edit (gap 0.000px everywhere), so assumption A1's fallback was never reached. mt-auto also touches one property on one element and is inert on the no-footer branch.
 - [Phase 19]: The icon-only Delete ships the sr-only span ALONE, with no competing aria-label — The research offered both as equally correct. One name-bearing mechanism is legible where two must be reconciled, and DOM text survives Radix cloning ConfirmDialog's trigger and any future asChild change (the photo-lightbox.tsx:370-373 idiom).
 - [Phase 19]: flex-wrap and the icon-only Delete are BOTH load-bearing, at different bands — Measured post-fix: at 320px the footer wraps to 97px (flex-wrap carries it); at 700/1280 it stays one 61px line because the icon-only Delete alone brought the intrinsic 332 under the client width. Removing either re-opens a band.
+- [Phase 19]: 19-04: the four orphan drafts were HARD-deleted (D-01 option 1, PM-chosen) inside a transaction with a row-count gate; exactly 4 affected, post-delete count 0 — Per-row emptiness was re-verified at execution time across all six cascade tables, and the full column dump plus executable re-INSERTs are on disk at evidence/orphan-drafts-before-delete.txt as the reversal path
+- [Phase 19]: 19-04: Task 1 verified the pre-existing .next/dev archive rather than re-taking it — the live production manifest is gone and .next/dev was rewritten by 19-02/19-03, so re-copying would have destroyed the evidence — The precondition literal text was unmet but its purpose was already retired by 19-02 early capture; the archive is now the only surviving copy on this machine
 
 ### Pending Todos
 
@@ -1460,6 +1463,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - [12-02, PRE-EXISTING] notFound() on /listings/[id] answers HTTP 200 in dev — status-only, no content leak (body is the not-found boundary). e2e/public-listing.spec.ts's two 404 cases are red at 6272c8f, before plan 12-02. See deferred-items.md; discriminator is npm run build && npm start.
 - ⚠ PM CHECKPOINT OPEN (18-14 Task 3, blocking, deferred 2026-09-01) — FIVE items, D-236 FIRST. (a) D-236: OPS_CANCEL_REFUNDS_SERVICE_FEE=false ships PM-4 as answered, but cancelBookingAsHost already refunds 100% INCLUDING the fee on the stated principle 'the booker did nothing wrong' (cancel-booking.ts:1134-1137). An ops cancel on a CONFIRMED-FAKE listing is a stronger instance of that, so FitOut is currently LESS generous to a defrauded booker than to one whose host merely flaked. One line at src/lib/payments/fees.ts:82; both branches already covered by tests/payments/ops-cancel.test.ts. (b) D-250: SUPPORT_EMAIL is null at src/lib/site.ts:70 — one line also closes carried-forward STATE-05 and TRUST-01; ⚠ supplying one INVERTS tests/design/site-contacts.test.ts, a follow-on task not a same-commit edit. (c) F11: should a suspended host be told on /host/earnings that a due session will never produce a payout row? (d) A4/D-231: 'photos' read as the photo SET with reorderPhotos excluded as non-material — confirm or overturn. (e) The KYC vendor — PayMongo / a standalone vendor / stay manual; to be recorded as a D-number so a future phase inherits it.
 - Phantom 404 reproduces on a FRESH dev process: every /host/* subroute served 404 against the surviving .next while /host served 307, with the route present in app-paths-manifest.json. Gone after rm -rf .next. No causal claim (D-11). 19-05 must read 19-02-SUMMARY Incidental finding before writing its probe protocol.
+- OPEN PM question from 19-04: D-01 window and host id are LOCAL facts, so a production database may hold orphan drafts this phase does not touch; if a deployed environment exists, the scope must be re-derived there, not copied. Put to the PM and NOT answered.
 
 ### Quick Tasks Completed
 
@@ -1560,8 +1564,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-04T02:05:51.191Z
-Stopped at: Completed 19-03-PLAN.md
+Last session: 2026-09-04T02:37:36.236Z
+Stopped at: Completed 19-04-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
