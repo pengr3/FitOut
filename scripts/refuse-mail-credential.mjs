@@ -66,7 +66,14 @@ import { fileURLToPath } from "node:url";
 // on behalf of a caller who thinks it is configurable, so the refusal precedes the configuration.
 if (process.argv.length > 2) {
   console.log("::error::This script takes NO ARGUMENTS, and refuses to run with any.");
-  console.log(`::error::Received: ${process.argv.slice(2).join(" ")}`);
+  // THE COUNT IS THE DIAGNOSTIC; THE CONTENT IS NOT (review finding WR-04, 2026-09-05). This line
+  // used to echo the received argument strings back into the log. `argv` is unfiltered
+  // caller-controlled content and this script is invoked by hand as well as by the workflow: a
+  // developer probing the control by pasting a credential as an argument got it printed back framed
+  // as a workflow error annotation. The rule this file states about itself at its lines 40-41 binds
+  // `argv` exactly as it binds the environment, and it did not stop applying twenty-eight lines down.
+  console.log(`::error::Received ${process.argv.length - 2} argument(s). Their VALUES are deliberately`);
+  console.log("::error::not echoed — the rule this file states about variable values binds argv too.");
   console.log("::error::Its mail-provider prefix is resolved from this script's OWN location and");
   console.log("::error::cannot be redirected by input. The override this replaces was MEASURED as a");
   console.log("::error::fail-open: a decoy prefix source scanned for a prefix of the editor's choosing");
@@ -116,9 +123,21 @@ const names = Object.keys(process.env);
 const hits = names.filter((name) => name.startsWith(prefix)).sort();
 
 if (hits.length > 0) {
+  // WHAT THIS SCAN GENUINELY ADDS OVER THE PARSE HALF, AND WHAT IT CANNOT SEE (review finding
+  // WR-03, 2026-09-05). The superseded wording named repository and environment secrets as inputs
+  // that "reach here". They do not: a secret never populates a step's process environment on its
+  // own. It is reachable ONLY through an Actions expression interpolated into an `env:` or `with:`
+  // map — which is precisely the input the sentence claims this is not limited to, and precisely
+  // the input the parse half already rejects the whole file for. That was a coverage claim the code
+  // beside it does not implement, in the file whose header spends twenty lines on why that is worse
+  // than no control. The two classes below are the true ones, and are what
+  // `scripts/verify-workflows.mjs`'s own header says, correctly, one file over.
   console.log("::error::A live mail credential is present in this job's REAL PROCESS ENVIRONMENT —");
-  console.log("::error::not merely in the workflow's `env:` maps. A container-level `env:` block, a");
-  console.log("::error::repository or environment secret, or a runner variable all reach here.");
+  console.log("::error::not merely in the workflow's `env:` maps. A `container.env` block or a runner");
+  console.log("::error::variable reaches here and is invisible to the parse half.");
+  console.log("::error::⚠ A SECRET MAPPED UNDER A NON-PROVIDER-PREFIXED KEY IS INVISIBLE TO BOTH HALVES:");
+  console.log("::error::both key off the NAME. `verify-workflows.mjs`'s zero-`secrets.`-in-any-value");
+  console.log("::error::invariant is what covers that case — a different assertion, in a different file.");
   console.log(`::error::Offending variable NAME(s): ${hits.join(", ")}  (values deliberately not printed)`);
   console.log("::error::A full e2e suite run with it set was MEASURED at FOURTEEN real outbound sends");
   console.log("::error::per run (finding [17-D28]): src/lib/email.ts binds its client at module load,");

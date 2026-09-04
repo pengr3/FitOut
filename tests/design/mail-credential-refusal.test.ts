@@ -60,7 +60,14 @@
 
 import { describe, it, expect } from "vitest";
 import { spawnSync } from "node:child_process";
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
+import {
+  copyFileSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join, resolve } from "node:path";
 
@@ -154,7 +161,16 @@ function withScriptCopy(
     paths: { copy: string; sibling: string },
   ) => void,
 ) {
-  const dir = mkdtempSync(join(tmpdir(), "mail-refusal-"));
+  // ⚠ `realpathSync` IS LOAD-BEARING, NOT DECORATION (review finding IN-02). The two assertions
+  // below compare this directory's path against the string the script PRINTS, and that string comes
+  // from Node resolving the real path of the main entry module. On any platform whose temp directory
+  // is a symlink the two differ and both assertions fail for a script that behaved correctly —
+  // macOS is the concrete case (`/var` → `/private/var`). Linux CI and Windows are unaffected, so
+  // this would fire only on a contributor's machine, which is the worst place for a build-blocking
+  // test to fail for a reason unrelated to its property. Matches the idiom
+  // `tests/design/workflow-invariants.test.ts` writes next door; two spellings of the same helper in
+  // one directory is a second source of truth wearing the costume of a convention.
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "mail-refusal-")));
   try {
     const copy = join(dir, basename(SCRIPT));
     const sibling = join(dir, "verify-workflows.mjs");
