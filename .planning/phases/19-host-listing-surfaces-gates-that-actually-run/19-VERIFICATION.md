@@ -1,55 +1,58 @@
 ---
 phase: 19-host-listing-surfaces-gates-that-actually-run
-verified: 2026-09-04T15:20:00Z
+verified: 2026-09-05T00:50:00Z
 status: gaps_found
-score: 6/8 must-haves verified
+score: 7/9 must-haves verified
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
   previous_status: gaps_found
-  previous_score: 6/7
+  previous_score: 6/8
   gaps_closed:
-    - "D-14's runtime mail-credential refusal was structurally inert (read the Actions `${{ env.X }}` expression context, which can never see the process/container/service environment). Plan 19-12 replaced it with `scripts/refuse-mail-credential.mjs`, a committed Node script that reads `Object.keys(process.env)` — independently re-verified this session: `RESEND_API_KEY=fake_probe_value node scripts/refuse-mail-credential.mjs` (no arguments, matching how `ci.yml` actually invokes it) exits 1 with an `::error::` line naming the offending variable and the measured fourteen-sends-per-run finding; a clean shell exits 0. This closes the ORIGINAL gap — the guard is no longer structurally incapable of firing under the configuration actually shipped."
+    - "CR-01 (round 2, argument injection) — Invariant A now compares `gate-e2e`'s refusal step `run:` for EXACT equality (`e2eMailRun.trim() === MAIL_REFUSAL_RUN`) after `trim()`, and `scripts/refuse-mail-credential.mjs` deleted the `process.argv[2] ??` fallback and refuses any argument outright before reading a file or the environment. Independently reproduced this session: (a) `node scripts/refuse-mail-credential.mjs /tmp/decoy.mjs` now exits 1 with an `::error::` line, not 0; (b) appending an argument to `ci.yml`'s refusal `run:` and re-running `node scripts/verify-workflows.mjs` now prints a FAIL line naming Invariant A and exits 1, not the previous silent green. Reverted; tree confirmed clean."
+    - "CR-02 (round 2, literal `continue-on-error: true` on a step) — the 'unconditional' invariant now quantifies over every step of `gate-e2e`, not only the job. Independently reproduced: adding `continue-on-error: true` under the refusal step's `run:` now prints a FAIL line naming the invariant and exits 1, not the previous silent green. Reverted; tree confirmed clean."
   gaps_remaining: []
   new_gaps:
-    - "The guard shipped this round can be silently defeated by two separate single-token edits that leave `node scripts/verify-workflows.mjs`'s all-48-invariants-green report unchanged — see gaps below (CR-01, CR-02, both independently reproduced this session, not merely read from the review)."
+    - "Two NEW ways to silently defeat the same guard were found and independently reproduced this session, both leaving `node scripts/verify-workflows.mjs`'s all-48-green report unchanged: a step-level `shell: cat {0}` on the refusal step (the `run:` body never executes), and `continue-on-error: ${{ true }}` — an expression, which GitHub Actions accepts and which parses to a *string*, defeating the `=== true` / `!== true` value comparisons the widened check still uses at lines 756/761 of `scripts/verify-workflows.mjs`. A third, pre-existing hole (deleting `pull_request:` from `ci.yml`'s triggers, which nothing in the `ci` section asserts) bears directly on SC4's literal wording and was also independently reproduced."
   regressions: []
 gaps:
-  - truth: "D-14's runtime refusal, and the invariant suite built specifically to keep it undriftable, cannot be silently defeated by a single-token workflow edit (CR-01: argument injection)"
+  - truth: "The guard shipped this round, and the invariant suite built to make it undriftable, cannot be silently defeated by a single-token workflow edit (round 2 of the same property CR-01/CR-02 named)"
     status: failed
-    reason: "scripts/refuse-mail-credential.mjs:61 resolves its prefix source as `process.argv[2] ?? <verify-workflows.mjs path>`. The script's own header (lines 43-46) states, as a factual claim about the codebase: 'ci.yml invokes this script with no arguments, and Invariant A asserts that.' This is FALSE. Invariant A's four conjuncts (scripts/verify-workflows.mjs:766-775) are: the step exists, its `run` string `.includes(MAIL_REFUSAL_SCRIPT)`, its `run` contains no `${{`, and its `env` is undefined — none of these constrains the ARGUMENT LIST. Independently reproduced this session in two steps: (1) `RESEND_API_KEY=live_secret_abc node scripts/refuse-mail-credential.mjs /tmp/decoy.mjs` (decoy carrying `const MAIL_KEY_PREFIX = \"ZZUNUSED\";`) exits 0 — the live credential is present and the script reports clean. (2) Editing `ci.yml`'s refusal step to `run: node scripts/refuse-mail-credential.mjs /tmp/decoy.mjs` and running `node scripts/verify-workflows.mjs` still prints `All 48 invariants hold across 3 section(s) (baselines=11, ci=29, cross=8)` — exit 0, zero red lines. Both mutations were reverted; `git status --porcelain` was empty afterward. This is the same defect CLASS D-14 was built this round to eliminate (a control documented as covering something it structurally cannot), reproduced inside the code this same plan shipped."
-    artifacts:
-      - path: "scripts/refuse-mail-credential.mjs"
-        issue: "Accepts an unvalidated `process.argv[2]` override of the prefix-declaration source in a script that also runs unmodified in production (ci.yml); the header asserts a guarantee ('Invariant A asserts that [no arguments]') that the referenced invariant does not implement."
-      - path: "scripts/verify-workflows.mjs"
-        issue: "Invariant A (lines 766-775) checks the run string `.includes(MAIL_REFUSAL_SCRIPT)`, which is satisfied by any argument list appended after the script path; it does not check for an exact `run` string or otherwise forbid arguments."
-    missing:
-      - "Tighten Invariant A to an exact match (`e2eMailRun.trim() === \"node \" + MAIL_REFUSAL_SCRIPT`) or otherwise assert zero arguments, per 19-REVIEW.md CR-01's fix sketch, so a supported/documented override cannot reach the production step undetected."
-      - "Correct the script's header claim to match what Invariant A actually checks, or make the claim true by implementing the check — not both left in their current mismatched state."
-  - truth: "The 'gate-e2e is unconditional' invariant covers every step that carries the mail-refusal gate, not only the job (CR-02: step-level continue-on-error)"
-    status: failed
-    reason: "scripts/verify-workflows.mjs:731-736's 'is unconditional' check reads only `e2e?.if` and `e2e?.[\"continue-on-error\"]` — JOB-level fields. Invariants A and C (the two invariants 19-12 added specifically to assert the refusal step's shape and position) read the step's `name`, `run`, `env` and index, but never the step's own `if:` or `continue-on-error:`. Independently reproduced this session: adding `continue-on-error: true` as a third line under the refusal step's existing `name:`/`run:` pair, then running `node scripts/verify-workflows.mjs`, still prints `All 48 invariants hold across 3 section(s) (baselines=11, ci=29, cross=8)` — exit 0, zero red lines, despite the step's non-zero exit no longer being able to fail the job. Reverted; `git status --porcelain` was empty afterward. This is round 1's WR-02 in a materially worse position: there it detached a test runner, here it detaches the only half of D-14 that protects the CURRENT run — the exact property `ci.yml`'s own header and this plan's must_haves state is the entire reason the step exists."
+    reason: "Two new single-attribute edits to the refusal step leave `node scripts/verify-workflows.mjs` reporting all 48 invariants green while the guard's actual protection is void. (1) shell-key hole: adding `shell: cat {0}` to the refusal step (`run:` byte-identical, no `env:`/`if:`/`continue-on-error:`, step not moved) means `cat` prints the script text and exits 0 instead of executing it — the refusal never runs, and CI proceeds to migrate/seed/boot with a live mail credential in the environment, yet the checker prints `All 48 invariants hold across 3 section(s) (baselines=11, ci=29, cross=8)`. Independently reproduced this session (not read from 19-REVIEW.md): mutated `ci.yml`, ran the checker, got CHECKER-EXIT=0, `(NO FAIL LINE)`, reverted, `git status --porcelain` and a byte diff both confirmed identical to the pre-mutation file. (2) continue-on-error-expression hole: `scripts/verify-workflows.mjs:756` (`step?.[\"continue-on-error\"] === true`) and `:761` (`e2e?.[\"continue-on-error\"] !== true`) compare for the JavaScript boolean `true`, but GitHub Actions accepts an expression value for this key (`continue-on-error: ${{ true }}` is GitHub's own canonical example), which parses to a string, so both comparisons stay green. Independently reproduced: added `continue-on-error: ${{ true }}` to the refusal step, ran the checker, got CHECKER-EXIT=0, `(NO FAIL LINE)`, reverted, confirmed byte-identical. Both mutations directly confirmed at the exact source lines the review cited. This is the identical defect class 19-13 itself exists to eliminate (\"a control documented as covering something it structurally cannot\"), reproduced inside the code this same plan shipped, one day after CR-01/CR-02 were closed."
     artifacts:
       - path: "scripts/verify-workflows.mjs"
-        issue: "The unconditional check at lines 731-736 is scoped to the job (`e2`), not to `gate-e2e`'s individual steps; a step-level `continue-on-error: true` or `if:` on the mail-refusal step specifically is invisible to it and to every other invariant in the file."
+        issue: "The widened 'unconditional' check (lines 751-767) has no conjunct for a step-level `shell:` override, and its `continue-on-error` conjuncts (756, 761) test for value equality against `true` rather than presence, unlike the adjacent `if:` conjunct which correctly tests presence (`!== undefined`)."
     missing:
-      - "Quantify the unconditional check over every step in `gate-e2e` (or at minimum the mail-refusal step by name), per 19-REVIEW.md CR-02's fix sketch, so a step-level `continue-on-error`/`if:` fails the checker exactly as a job-level one already does."
+      - "Assert the refusal step's full attribute surface via an allow-list (only `name`/`run` permitted; anything else, including a future Actions attribute nobody has heard of, is red) rather than a hand-picked deny-list, per 19-REVIEW.md CR-01's fix sketch — and add the same allow-list check for `defaults.run.shell` at job/workflow level, which nothing currently reads."
+      - "Change both `continue-on-error` conjuncts from `=== true` / `!== true` to presence tests (`!== undefined`), exactly as `if:` already is tested, per 19-REVIEW.md CR-02's fix sketch. `continue-on-error: false` on a gate step is noise that should be deleted, not a value worth carving out."
+      - "Add a standing test (per 19-REVIEW.md WR-02) that mutates a copy of `ci.yml` and spawns the checker against it, so future tightenings are proven by a test in the tree rather than by a hand-applied, reverted mutation that leaves no instrument behind — the concrete mechanism by which CR-01/CR-02 (round 1) and the shell-key/expression-value holes (round 2) all survived a full verification round each."
+  - truth: "SC4's literal text ('opening a pull request runs the specs') is protected against a one-line regression by the invariant suite, not only demonstrated true of the current file"
+    status: failed
+    reason: "Nothing in `scripts/verify-workflows.mjs`'s `ci` section asserts `ci.yml`'s trigger set; `triggersOf(doc)` is read only for the printed diagnostic table, never compared in a `check()`. Independently reproduced this session: deleted `pull_request:` from `ci.yml`'s `on:` block and re-ran the checker — `All 48 invariants hold across 3 section(s) (baselines=11, ci=29, cross=8)`, unchanged; every gate in the file, including `gate-e2e`, would silently detach from pull requests. Reverted; byte-identical confirmed. This predates 19-13 (it is not in its files_modified diff) but sits in a file 19-13 reviewed and edited this round, and it bears directly on CI-01/SC4's literal wording — a one-line regression here falsifies the requirement with the checker fully green."
+    artifacts:
+      - path: "scripts/verify-workflows.mjs"
+        issue: "The `ci` section's baselines section asserts its own trigger set as an exact comparison (verify-workflows.mjs:305-310) but the mirroring assertion for `ci.yml`'s own triggers does not exist."
+    missing:
+      - "Add a `ci` section check asserting `triggersOf(doc)` includes both `push` and `pull_request`, per 19-REVIEW.md WR-01's fix sketch, and update the ci=29 count and the 'total stays 48' documentation in the same commit."
+deferred: []
+behavior_unverified_items: []
 human_verification:
-  - test: "Reconfirm with the PM whether CI-01's current closure state — `gate-e2e` runs the full functional suite and provably turns the workflow run red on a real failure (two watched, reverted mutations in real CI runs), but (a) is not a required branch-protection check because branch protection is unreachable on this GitHub plan (403 — Free private repo), and (b) the `ci` workflow run is now red on EVERY push/PR because of 14 pre-existing, reproducible e2e failures with no expected-failure boundary — is acceptable to ship as-is, or should a follow-up phase (suite repair + baseline regen, the billing/visibility decision, and either a deliberate `continue-on-error` or a checked-in known-failures allowlist) be scheduled before this milestone ships."
-    expected: "A recorded PM decision. Carried forward unchanged from the prior verification round — 19-12 did not touch this (it is explicitly out of scope in the plan's own assumptions block), and this session found no new evidence changing it."
+  - test: "Reconfirm with the PM whether CI-01's current closure state — `gate-e2e` runs the full functional suite and provably turns the workflow run red on a real failure, but (a) is not a required branch-protection check because branch protection is unreachable on this GitHub plan (403 — Free private repo), and (b) the `ci` workflow run is now red on EVERY push/PR because of 14 pre-existing, reproducible e2e failures with no expected-failure boundary — is acceptable to ship as-is, or should a follow-up phase (suite repair + baseline regen, the billing/visibility decision, and either a deliberate `continue-on-error` or a checked-in known-failures allowlist) be scheduled before this milestone ships."
+    expected: "A recorded PM decision. Carried forward unchanged across three verification rounds — 19-13 did not touch this surface (out of scope by its own assumptions block) and this session found no new evidence changing it."
     why_human: "Repository visibility/GitHub-plan spend, whether to fund a suite-repair phase now versus later, and whether a permanently-red `ci` workflow run is an acceptable interim state for the whole project are product/business/scheduling decisions no codebase check can resolve."
   - test: "Have a person read the rendered D-03 notice on `/host/listings` after a genuine creation failure (e.g. by temporarily forcing `createDraftListing`'s insert to reject in a local/staging environment) and judge whether the calm, muted copy above the grid — naming the state, the reason and the way out — actually reads as adequate and non-alarming to a host who just lost a creation attempt."
     expected: "A human confirms the notice is legible, calm, and does not imply a verification problem, matching 19-07's design intent."
-    why_human: "Carried forward unchanged from the prior verification round — reachability, routing and copy content are machine-proven, but whether the rendered sentence reads as calm and adequate is a UX judgement no assertion makes. 19-12 did not touch this surface."
+    why_human: "Carried forward unchanged across three verification rounds — reachability, routing and copy content are machine-proven, but whether the rendered sentence reads as calm and adequate is a UX judgement no assertion makes. 19-13 did not touch this surface."
 ---
 
 # Phase 19: Host Listing Surfaces & Gates That Actually Run Verification Report
 
 **Phase Goal:** A host's own listing grid renders honestly and creating a listing lands where it
 should — and the specs that would catch a regression run in CI instead of only by hand.
-**Verified:** 2026-09-04
+**Verified:** 2026-09-05
 **Status:** gaps_found
-**Re-verification:** Yes — after gap closure (plan 19-12, following the prior round's 19-09/19-10/19-11)
+**Re-verification:** Yes — after gap closure (plan 19-13, the third gap-closure round following
+19-09/19-10/19-11 and 19-12)
 
 ## Goal Achievement
 
@@ -57,155 +60,196 @@ should — and the specs that would catch a regression run in CI instead of only
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | On `/host/listings`, cards in a row end at the same bottom edge and every control stays inside its card at 320px, two-column and three-column bands (HSURF-01, SC1) | ✓ VERIFIED (regression — untouched this round) | `src/components/listing/listing-card.tsx` not in 19-12's `files_modified` (only `.github/workflows/ci.yml`, `scripts/refuse-mail-credential.mjs`, `scripts/verify-workflows.mjs`, `tests/design/mail-credential-refusal.test.ts`, `.planning/REQUIREMENTS.md`). Carried forward from the prior verification round per this round's explicit scope instruction. |
-| 2 | A host who presses *Create listing* lands on the edit wizard, not "We couldn't find that page" (HSURF-02, SC2) | ✓ VERIFIED (regression — untouched) | `19-FINDING-404.md` reproduction gate unchanged; not in 19-12's file set. |
+| 1 | On `/host/listings`, cards in a row end at the same bottom edge and every control stays inside its card at 320px, two-column and three-column bands (HSURF-01, SC1) | ✓ VERIFIED (regression — untouched this round) | `src/components/listing/listing-card.tsx` not in 19-13's diff (`git diff --stat e1ccad3^..c9aa790` shows exactly the 4 declared files). Carried forward per this round's explicit scope instruction. |
+| 2 | A host who presses *Create listing* lands on the edit wizard, not "We couldn't find that page" (HSURF-02, SC2) | ✓ VERIFIED (regression — untouched) | Not in 19-13's diff. Carried forward. |
 | 3 | The 404's cause is reproduced and identified before any source file is touched; if it does not survive a clean production build, no application file changes (HSURF-02, SC3) | ✓ VERIFIED (regression — untouched) | Unchanged this round. |
-| 4 | Opening a pull request runs the repository's functional Playwright specs, and a failing spec turns the run red — proven by watching one fail (CI-01, SC4, literal text) | ✓ VERIFIED (regression, strengthened by prior round's 19-11) | Unaffected by 19-12: `gate-e2e` still runs `npx playwright test --project=chromium` on `pull_request`/`push` (confirmed present at `.github/workflows/ci.yml:1368`+ during this session's direct reads), and two real reverted mutations already proved the run-red property in actual CI (`33843226846`, `33842567618`) per the prior round. |
-| 5 | `gate-e2e` functions as a gate that blocks a regression from merging, not only one that reports it | ⚠️ Not a literal SC4 clause — informational, human-verification (unchanged) | Still not a required branch-protection check (403 — GitHub plan/visibility). Not in 19-12's scope. See Human Verification item 1. |
-| 6 | A draft the host has genuinely started editing is NEVER reused (D-02, underpins HSURF-02) | ✓ VERIFIED (regression — untouched) | `src/app/actions/listing.ts` not in 19-12's `files_modified`. Carried forward unchanged. |
-| 7 | A host whose listing creation genuinely fails lands back on the grid with a sentence naming what happened (D-03, underpins HSURF-02) | ✓ VERIFIED (regression — untouched) | Carried forward unchanged. |
-| 8a | D-14 — `gate-e2e`'s refusal step, as actually invoked by `ci.yml` (no arguments), reads the job's REAL process environment and refuses with an `::error::` line when a live mail credential is present, before migrate/seed/Playwright | ✓ VERIFIED — ORIGINAL GAP CLOSED | Independently re-verified this session by direct invocation, not by trusting SUMMARY prose: `RESEND_API_KEY=fake_probe_value node scripts/refuse-mail-credential.mjs` (no args, matching `ci.yml:1368`'s exact invocation) → 8 `::error::` lines including the offending variable name and the `[17-D28]` fourteen-sends measurement, exit 1. Clean shell → exit 0, reports prefix, count scanned, source path. `node scripts/verify-workflows.mjs` → `All 48 invariants hold across 3 section(s) (baselines=11, ci=29, cross=8)`, re-run directly. `tests/design/mail-credential-refusal.test.ts` re-run: 5/5 passed, build-blocking via `package.json:11,33`'s `test:design` step (confirmed by direct read). This is a genuine, substantive fix — the guard is no longer structurally incapable of ever firing (the original defect: reading `${{ env.RESEND_API_KEY }}`, which can never see the process environment). |
-| 8b | D-14's guard, and the invariant suite plan 19-12 built specifically to make its two halves "undriftable" and to make tampering "watched red," in fact catches tampering — a single-token edit cannot silently disable the guard while the checker stays green | ✗ FAILED — NEW GAP | See `gaps` frontmatter (two independently reproduced mutations: CR-01 argument injection, CR-02 step-level `continue-on-error`). Both leave `node scripts/verify-workflows.mjs` reporting all 48 invariants green while the guard's actual protection is void. |
+| 4 | Opening a pull request runs the repository's functional Playwright specs, and a failing spec turns the run red — proven by watching one fail (CI-01, SC4, literal text, of the current configuration) | ✓ VERIFIED (regression) | Unaffected by 19-13's diff; `pull_request:` trigger and `gate-e2e`'s Playwright step confirmed present by direct read this session (`ci.yml:527-529`). Two real reverted mutations already proved the run-red property in actual CI (prior rounds). This truth is about the CURRENT committed file, which is correct — see truth 4b for whether that correctness is regression-protected. |
+| 4b | SC4's property is protected against a one-line regression by the invariant suite (not merely true of today's file) | ✗ FAILED | See gaps: deleting `pull_request:` leaves all 48 invariants green — independently reproduced this session. |
+| 5 | `gate-e2e` functions as a gate that blocks a regression from merging, not only one that reports it | ⚠️ Not a literal SC4 clause — informational, human-verification (unchanged) | Still not a required branch-protection check (403 — GitHub plan/visibility). See Human Verification item 1. |
+| 6 | A draft the host has genuinely started editing is NEVER reused (D-02, underpins HSURF-02) | ✓ VERIFIED (regression — untouched) | `src/app/actions/listing.ts` not in 19-13's diff. Carried forward. |
+| 7 | A host whose listing creation genuinely fails lands back on the grid with a sentence naming what happened (D-03, underpins HSURF-02) | ✓ VERIFIED (regression — untouched) | Carried forward. |
+| 8a | D-14's runtime refusal (reads real `process.env`, no arguments accepted) and the round-2 CR-01/CR-02 mutations 19-VERIFICATION reproduced are now closed | ✓ VERIFIED — BOTH CLOSED GAPS CONFIRMED CLOSED | Independently re-verified this session, not read from SUMMARY prose: (a) `node scripts/refuse-mail-credential.mjs /tmp/decoy.mjs` now exits 1 with `::error::` lines (was exit 0); (b) appending an argument to `ci.yml`'s refusal step and running the checker now FAILs on Invariant A, exit 1 (was silent green); (c) adding literal `continue-on-error: true` to the refusal step now FAILs the unconditional invariant, exit 1 (was silent green). All three mutations reverted; `git status --porcelain` empty each time. `tests/design/mail-credential-refusal.test.ts`: 8/8 passed, re-run this session. `node scripts/verify-workflows.mjs` (clean tree): `All 48 invariants hold across 3 section(s) (baselines=11, ci=29, cross=8)`. |
+| 8b | The guard, and the invariant suite built specifically to make it "undriftable" and tampering "watched red," in fact cannot be silently disabled by a single-token workflow edit | ✗ FAILED — NEW GAPS, ROUND 2 OF THE SAME FINDING | Two new independently-reproduced defeats: a step-level `shell: cat {0}` on the refusal step (the script never executes, checker stays green) and `continue-on-error: ${{ true }}` (an Actions expression that parses to a string, defeating the `=== true`/`!== true` value comparisons at `scripts/verify-workflows.mjs:756,761`). Both reproduced fresh this session against the current tree, not taken from 19-REVIEW.md's prose. See gaps frontmatter. |
 
-**Score:** 6/8 truths verified (excluding row 5, informational; row 8 split into 8a/8b because this round's central finding is that the ORIGINAL gap and a NEWLY-DISCOVERED gap are genuinely different properties of the same control — collapsing them would either hide that the inert-forever defect is truly fixed, or hide that the "undriftable" claim is not)
+**Score:** 7/9 truths verified (row 5 excluded as informational; row 4 split into 4/4b and row 8 split
+into 8a/8b for the same reason the prior round split: the property that is genuinely fixed and the
+property that is newly falsified are different claims about the same control, and collapsing them
+would hide one or the other)
 
-### Judgment on CR-01 / CR-02 vs. 19-12's declared must_haves
+### Judgment: is this round's narrow closure enough?
 
-19-12-PLAN.md's `must_haves.truths` are all technically true of the **currently committed configuration**:
-`ci.yml` invokes the script with no arguments today, the script does read `process.env` today, and
-Invariant B's prefix-drift check does hold. None of the ten quoted truth bullets literally promises
-"cannot be defeated by adding an argument" or "no step can carry `continue-on-error`". Read at the
-narrowest, most literal level, the declared must_haves are not falsified.
+19-13's declared `must_haves.truths` are all true of what they specifically targeted: the exact
+CR-01 (argument injection) and CR-02 (literal `continue-on-error: true`) mutations that
+19-VERIFICATION.md (round 2) reproduced are now caught, watched red by this session directly, not
+merely claimed. That is genuine, substantive work — the invariant total held at 48, both fixes are
+tightenings of existing conjuncts rather than new ones bolted on, and the design-test suite grew from
+5 to 8 cases with case 8 reproducing the measured fail-open verbatim. This is not a rubber stamp on a
+narrow reading; the specific defects named in the prior round's `gaps:` block are gone.
 
-**That reading is too narrow for what this phase is.** The plan's own `<objective>` states the intended
-output is invariants that make the two halves "undriftable, each watched red under a real reverted
-mutation," and the script's own header makes a specific, checkable factual claim — "Invariant A asserts
-that [ci.yml invokes with no arguments]" — that this session proved false by running the exact invariant
-and reading its four conjuncts. A comment asserting a guarantee that the code beside it does not
-implement is precisely the CR-01-round-1 defect class (a control documented as covering something it
-structurally cannot) that this entire gap-closure round exists to eliminate, reproduced inside the code
-this same plan shipped, in the same file, on the same day. CR-02 is the same shape one level out: the
-"unconditional" invariant's own inline comment says it exists so that a job "cannot fail... without every
-parsed invariant staying intact" — and a step-level `continue-on-error` does exactly that while leaving
-all 48 invariants green, which is the property the comment says cannot happen.
+**But the round's own `<objective>` claims more than that**, and the same over-claim pattern recurred:
+"Make the guard's guard real" and a header comment stating a step-level `continue-on-error` "cannot"
+detach the gate. `19-REVIEW.md` (read before this verification, and every material claim in it
+independently reproduced rather than trusted) found two further single-attribute edits — a `shell:`
+override and an expression-valued `continue-on-error` — that land in the exact same defect class:
+present, wired-looking, and defeatable while the checker prints full green. This session reproduced
+both from scratch against the working tree, confirmed the exact source lines the review cited
+(`scripts/verify-workflows.mjs:756,761` for the value-comparison asymmetry; no `shell`/`defaults`
+handling anywhere in the file, confirmed by direct read), and confirmed the tree was clean after each
+mutation.
 
-**Verdict: these are gaps, not accepted deviations.** They are freshly-introduced, fully within
-engineering control, machine-reproducible without any human judgment call, and about a security/privacy
-control whose entire subject this round is "a control that looked correct and did nothing." The
-honest-verifier standard this round was explicitly held to — "a green check is not proof a guard works —
-ask whether it could have failed" — was applied and the guard could be made to fail silently, twice,
-independently. This is scored as `gaps_found`, not `human_needed`: no human judgment is required to see
-that `All 48 invariants hold` after either mutation is not true "coverage."
+**Verdict: this is scored `gaps_found`, for the third consecutive round, on the same standard the
+prior two rounds applied.** The honest-verifier question — "a green check is not proof a guard
+works; ask whether it could have failed" — was applied and answered: yes, twice more, by two
+single-key edits that the review's own root-cause diagnosis calls out directly ("the newly-widened
+predicate was widened along the axis that was measured... rather than along the axis the prose
+claims"). This is not a manufactured gap from unread review prose — every claim relied on here was
+independently reproduced against the current tree in this session, with reversion confirmed by both
+`git status --porcelain` and a byte diff.
+
+A structural observation worth recording for whoever plans the next round: the pattern across three
+rounds (round 1: `.includes()` vs exact match, job-only unconditional check; round 2: value-vs-presence
+for `continue-on-error`, no attribute allow-list) is a deny-list chasing individually-measured mutations
+rather than a positive specification of the step's entire permitted shape. 19-REVIEW.md's WR-01
+(untested trigger set) and WR-02 (the checker's own tightenings have no standing regression test —
+only hand-applied, reverted mutations) name the same root cause from two more angles. Closing CR-01
+and CR-02 (round 2) by the same reactive method this session found two more instances of the identical
+gap it was reacting to; a structural fix (allow-list the step's attribute surface; presence-test
+`continue-on-error` everywhere `if:` already is; a standing mutation-test file replacing the
+hand-verify-and-revert idiom) is what the review's fix sketches converge on, not another single-token
+patch.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `scripts/refuse-mail-credential.mjs` | Runtime half of D-14, reads real `process.env`, no default/fallback on unreadable prefix | ⚠️ VERIFIED-BUT-DEFEATABLE | Core behavior confirmed correct and fail-closed for its two named hard-stop paths (unreadable source, unparseable declaration) and for the actual measured vector (a live credential with no argument override). But its unvalidated `argv[2]` override (present for the design test's benefit) is reachable in production and its header's claim that "Invariant A asserts" no-arguments is false — see gap CR-01. |
-| `tests/design/mail-credential-refusal.test.ts` | Build-blocking, DB-free proof of both directions | ✓ VERIFIED, WIRED | Re-run this session: 5/5 passed under `vitest.design.config.ts`, which is part of `npm run build` (`package.json:11,33`, confirmed by direct read). |
-| `scripts/verify-workflows.mjs` (4 new invariants: A, B, C, D) | Make the refusal step's shape, the prefix's undriftability, its ordering, and the workflow directory's token-count all machine-asserted | ⚠️ PARTIAL | Invariant B (prefix drift) and Invariant D (zero-token audit) hold as designed — not contested by either review finding. Invariant A (real-environment shape) and Invariant C (ordering) are correctly shaped for the properties they DO check, but neither constrains arguments or step-level `if`/`continue-on-error`, which are exactly the two properties this session found undefended — see gaps. |
-| `.github/workflows/ci.yml` header prose | Names which half covers what, deletes the false timing claim | ✓ VERIFIED | `grep -c "browser starts"` returns 0 in both files (re-run this session); `the RUNTIME half is the one that observes container.env` present at `ci.yml:288` (re-run this session); two `FALSIFIED 2026-09-04 BY PLAN 19-12` markers present in `ci.yml`, one in `verify-workflows.mjs` (re-run this session). |
-| `.planning/REQUIREMENTS.md` | HSURF-01 traceability cell corrected from "Gaps Found" to "Complete" | ✓ VERIFIED | `grep -n "^| HSURF-01 "` → `Complete`, re-run this session. CI-01's row also now reads `Complete` — see the judgment above for why this session does not consider that fully earned; flagged rather than silently accepted. |
+| `scripts/refuse-mail-credential.mjs` | Runtime half of D-14, no arguments accepted, prefix source underivable from input | ✓ VERIFIED for its declared scope | Argument guard confirmed as the first executable statement; `argv[2]` fallback confirmed removed; `grep -c "Invariant A asserts that"` returns 0 (the false claim from round 2 is gone). WR-04 from 19-REVIEW.md (raw `process.argv` echoed to the build log at line 69, against the file's own line 40-41 rule) confirmed present by direct read — a Warning, not a Blocker, and not part of this round's declared scope. |
+| `tests/design/mail-credential-refusal.test.ts` | Build-blocking, DB-free proof, 8 cases including the measured fail-open | ✓ VERIFIED, WIRED | Re-run this session: `npx vitest run --config vitest.design.config.ts tests/design/mail-credential-refusal.test.ts` → 1 file, 8 passed. `test:design` confirmed part of `npm run build` (`package.json:11,33`, direct read). |
+| `scripts/verify-workflows.mjs` (Invariant A tightened, unconditional check widened) | Exact-invocation comparison; every step of `gate-e2e` covered, not only the job | ⚠️ PARTIAL — targeted mutations closed, two new ones open | Both round-2 mutations (argument injection, literal `continue-on-error: true`) confirmed caught (FAIL line, exit 1). The `shell:` attribute surface and the `continue-on-error` value-vs-presence asymmetry remain open — see gaps. |
+| `.github/workflows/ci.yml` header prose | Falsify entries 3 and 5 of the numbered invariant list in place, per house style | ✓ VERIFIED | Two `FALSIFIED 2026-09-04 BY PLAN 19-13` markers present (`ci.yml:235`, `:251`, confirmed by direct grep), each attributing the historical claim and stating what replaced it. |
+| `.planning/REQUIREMENTS.md` | Left byte-unchanged this round (plan's own stated assumption) | ✓ CONFIRMED UNCHANGED | `git log` shows the file's last touch was `c173195` (19-12), not any 19-13 commit. HSURF-01/HSURF-02/CI-01 traceability rows unchanged from the prior round: all read `Complete`. CI-01's row is still not considered fully earned by this verification — see Requirements Coverage below. |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|-----|-----|--------|---------|
-| `scripts/refuse-mail-credential.mjs` | `MAIL_KEY_PREFIX` in `scripts/verify-workflows.mjs` | Regex-read of the declaration, not a copy | ✓ WIRED | `node -e` occurrence check (from 19-12's own acceptance criteria) re-run conceptually via direct source read: `refuse-mail-credential.mjs` contains the pattern source text and no copy of `RESEND`. |
-| `gate-e2e` refusal step | container's real process environment | `Object.keys(process.env)` | ✓ WIRED (for the deployed, no-argument invocation) | Confirmed by direct invocation matching `ci.yml`'s exact `run:` string. |
-| `gate-e2e` refusal step's arguments | Invariant A (`scripts/verify-workflows.mjs`) | `run` string `.includes()` check | ✗ NOT WIRED (new finding, CR-01) | An appended argument passes `.includes(MAIL_REFUSAL_SCRIPT)` undetected — reproduced this session by editing `ci.yml` and re-running the checker; reverted. |
-| `gate-e2e` refusal step's own `if:`/`continue-on-error:` | the "unconditional" invariant | job-level field read only | ✗ NOT WIRED (new finding, CR-02) | Reproduced this session by adding `continue-on-error: true` to the step and re-running the checker; reverted. |
-| `gate-e2e` (job) | branch protection required-check list | GitHub repository setting | ✗ NOT WIRED (regression, unchanged) | Still 403; recorded PM hold. |
+| `gate-e2e` refusal step's arguments | Invariant A (exact-invocation conjunct) | `run.trim() === MAIL_REFUSAL_RUN` | ✓ WIRED (round-2 mutation) | Confirmed: appended argument now FAILs the invariant, exit 1. |
+| `gate-e2e` refusal step's literal `continue-on-error: true` | the widened unconditional invariant | `conditionalSteps` scan over `stepsOf(e2e)` | ✓ WIRED (round-2 mutation) | Confirmed: literal boolean now FAILs, exit 1. |
+| `gate-e2e` refusal step's `shell:` key | any invariant | none | ✗ NOT WIRED (new finding, reproduced) | `grep -n "shell\|defaults" scripts/verify-workflows.mjs` returns no matches; adding `shell: cat {0}` leaves the `run:` string, `env:`, `if:` and step position all unchanged, so every existing conjunct stays green while the script never executes. |
+| `gate-e2e` refusal step's `continue-on-error: ${{ true }}` (expression, not literal) | the widened unconditional invariant | `=== true` / `!== true` value comparison | ✗ NOT WIRED (new finding, reproduced) | An expression parses to a string; the comparison at lines 756/761 is false for it in both directions, so the check stays green while the step is functionally soft-failing. |
+| `ci.yml`'s `pull_request:` trigger | any `ci` section invariant | none | ✗ NOT WIRED (pre-existing, not introduced by 19-13, reproduced) | `triggersOf(doc)` is read only for the diagnostic printout; no `check()` compares it. Deleting the trigger leaves all 48 invariants green. |
+| `gate-e2e` (job) | branch protection required-check list | GitHub repository setting | ✗ NOT WIRED (regression, unchanged across 3 rounds) | Still 403; recorded PM hold. |
 
 ### Data-Flow Trace (Level 4)
 
-Not applicable — this round is CI configuration only (a Node script, four parse invariants, two comment
-blocks, one traceability cell), not a data-rendering surface.
+Not applicable — this round is CI configuration only (a Node script, two tightened invariants, two
+comment blocks), not a data-rendering surface.
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| Design test for the mail refusal | `npx vitest run --config vitest.design.config.ts tests/design/mail-credential-refusal.test.ts` | 1 file, 5 passed | ✓ PASS |
-| Refusal script, clean environment, no arguments (matches `ci.yml`'s actual invocation) | `node scripts/refuse-mail-credential.mjs` | exit 0, reports prefix=RESEND, 83 vars scanned, source path | ✓ PASS |
-| Refusal script, live credential, no arguments | `RESEND_API_KEY=fake_probe_value node scripts/refuse-mail-credential.mjs` | exit 1, 8 `::error::` lines, offending variable named, no value printed | ✓ PASS |
+| Design test suite (8 cases) | `npx vitest run --config vitest.design.config.ts tests/design/mail-credential-refusal.test.ts` | 1 file, 8 passed | ✓ PASS |
+| Refusal script, clean environment, no arguments | `node scripts/refuse-mail-credential.mjs` | exit 0, `prefix=RESEND`, 83 vars scanned, source path | ✓ PASS |
+| Refusal script, argument passed (round-2 CR-01 vector) | `node scripts/refuse-mail-credential.mjs /tmp/decoy.mjs` | exit 1, `::error::` lines, no completed-scan report | ✓ PASS — GAP CLOSED |
 | Invariant suite, baseline | `node scripts/verify-workflows.mjs` | exit 0, `All 48 invariants hold across 3 section(s) (baselines=11, ci=29, cross=8)` | ✓ PASS |
-| CR-01 reproduction — script with a decoy prefix source and a live credential | `RESEND_API_KEY=live_secret_abc node scripts/refuse-mail-credential.mjs /tmp/decoy.mjs` | exit 0 despite live credential present | ✗ CONFIRMS DEFECT |
-| CR-01 reproduction — `ci.yml` edited to pass the decoy path as an argument | `node scripts/verify-workflows.mjs` (against mutated `ci.yml`) | exit 0, `All 48 invariants hold...` unchanged | ✗ CONFIRMS DEFECT — checker does not see the injected argument |
-| CR-02 reproduction — `continue-on-error: true` added to the refusal step only | `node scripts/verify-workflows.mjs` (against mutated `ci.yml`) | exit 0, `All 48 invariants hold...` unchanged | ✗ CONFIRMS DEFECT — checker does not see the step-level override |
-| Post-mutation cleanup | `git status --porcelain .github/workflows/ci.yml` | empty, both times | ✓ CONFIRMED REVERTED |
-| Debt markers in the five files 19-12 touched | `grep -n -E "TBD|FIXME|XXX"` across all five | no matches | ✓ CLEAN |
+| Round-2 CR-01 reproduction — argument appended to `ci.yml`'s refusal `run:` | `node scripts/verify-workflows.mjs` (mutated) | CHECKER-EXIT=1, FAIL names Invariant A | ✓ PASS — GAP CLOSED |
+| Round-2 CR-02 reproduction — literal `continue-on-error: true` on refusal step | `node scripts/verify-workflows.mjs` (mutated) | CHECKER-EXIT=1, FAIL names the unconditional invariant | ✓ PASS — GAP CLOSED |
+| NEW — `shell: cat {0}` on the refusal step | `node scripts/verify-workflows.mjs` (mutated) | CHECKER-EXIT=0, `(NO FAIL LINE)`, `All 48 invariants hold...` unchanged | ✗ CONFIRMS NEW DEFECT |
+| NEW — `continue-on-error: ${{ true }}` on the refusal step | `node scripts/verify-workflows.mjs` (mutated) | CHECKER-EXIT=0, `(NO FAIL LINE)`, `All 48 invariants hold...` unchanged | ✗ CONFIRMS NEW DEFECT |
+| NEW — `pull_request:` trigger deleted from `ci.yml` | `node scripts/verify-workflows.mjs` (mutated) | CHECKER-EXIT=0, `All 48 invariants hold...` unchanged | ✗ CONFIRMS PRE-EXISTING DEFECT, BEARS ON SC4 |
+| Post-mutation cleanup (5 mutations this session) | `git status --porcelain .github/workflows/` + byte diff against pre-mutation copy | empty / identical, every time | ✓ CONFIRMED REVERTED |
+| Debt markers in the four files 19-13 touched | `grep -n -E "TBD|FIXME|XXX"` across all four | no matches | ✓ CLEAN |
+| `TODO`/`HACK`/`PLACEHOLDER` scan | same four files | one hit: `ci.yml:778` `# ── BUILD-ONLY PLACEHOLDERS. NOT SECRETS. NEVER MAKE THEM SECRETS. ──` | ℹ️ Not a stub marker — a labeled comment about test-only env values, pre-existing, unrelated to this round |
 | Build-blocking wiring | `grep -n '"build"\|"test:design"' package.json` | `build` runs `lint && test:design && next build` | ✓ CONFIRMED |
+| WR-04 (raw argv echoed to build log) | Direct read of `scripts/refuse-mail-credential.mjs:69` | `console.log(\`::error::Received: ${process.argv.slice(2).join(" ")}\`)` present | ⚠️ CONFIRMS WARNING — not this round's declared scope, carried as anti-pattern |
 
 ### Probe Execution
 
-No `scripts/*/tests/probe-*.sh` convention found in this repository; covered under Behavioral Spot-Checks above.
+No `scripts/*/tests/probe-*.sh` convention found in this repository; covered under Behavioral
+Spot-Checks above.
 
 ### Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |-------------|-------------|--------------|--------|----------|
-| HSURF-01 | 19-02, 19-03 | Cards align, controls stay inside card at every width | ✓ SATISFIED | Truth #1. Untouched this round. `.planning/REQUIREMENTS.md`'s stale "Gaps Found" cell was bookkeeping-corrected to "Complete" this round by 19-12 (it was never actually a failed must_have in either round) — correctly closes a documentation drift, not a code gap. |
+| HSURF-01 | 19-02, 19-03 | Cards align, controls stay inside card at every width | ✓ SATISFIED | Truth #1. Untouched this round. |
 | HSURF-02 | 19-04..19-07, 19-09, 19-10 | Creating a listing lands on the wizard, not a 404 | ✓ SATISFIED | Truths #2/#3/#6/#7. Untouched this round. |
-| CI-01 | 19-01, 19-08, 19-11, 19-12 | Functional Playwright specs run in CI as a new job, with a fail-closed mail-credential refusal | ⚠️ PARTIALLY SATISFIED | SC4's literal text (truth #4) is satisfied. D-14's original inert-forever defect is genuinely closed (truth #8a). But the guard shipped this round can be silently disabled by two independently reproduced single-token edits that the invariant suite built to prevent exactly that does not catch (truth #8b, gaps CR-01/CR-02). `.planning/REQUIREMENTS.md` now marks this row "Complete" — this verification does not consider that fully earned and flags it rather than silently accepting it. |
+| CI-01 | 19-01, 19-08, 19-11, 19-12, 19-13 | Functional Playwright specs run in CI as a new job, with a fail-closed mail-credential refusal | ⚠️ PARTIALLY SATISFIED, THIRD ROUND | SC4's literal text (truth #4) is satisfied of the current file. D-14's original defect (truth #8a) and both round-2 CR-01/CR-02 defects are genuinely closed and independently reconfirmed this session. But two new single-attribute defeats of the same guard (`shell:` override, expression-valued `continue-on-error`) were independently reproduced this session, plus a pre-existing untested trigger deletion that falsifies SC4's literal requirement text with the checker fully green. `.planning/REQUIREMENTS.md` still marks this row "Complete" (byte-unchanged since 19-12) — this verification, for the third consecutive round, does not consider that fully earned and flags it rather than silently accepting it. |
 
-No orphaned requirements — all three IDs declared across the 12 plans are exactly the three
+No orphaned requirements — all three IDs declared across the 13 plans are exactly the three
 `.planning/REQUIREMENTS.md` maps to Phase 19.
+
+**REQUIREMENTS.md internal inconsistency, noted but out of this round's scope:** the HSURF-01 bullet
+in the requirement body text (`- [ ] **HSURF-01**`, line 237) is still an unchecked checkbox, while the
+traceability table (`| HSURF-01 | Phase 19 | Complete |`, line 313) reads Complete. This predates
+19-13 (the file was last touched by 19-12) and is a documentation-consistency issue, not a functional
+gap — flagged for whoever next edits that file rather than silently left.
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `scripts/refuse-mail-credential.mjs` | 43-46, 61 | Header comment makes a specific, checkable false claim about invariant coverage ("Invariant A asserts that [no arguments]"); the referenced invariant does not implement that check | 🛑 Blocker | Same defect class the whole gap-closure round exists to eliminate: a security control documented as covering something it does not. Reproduced live (exit 0 with a live credential present, via a documented input path). |
-| `scripts/verify-workflows.mjs` | 731-736 | "Unconditional" invariant is scoped to the job, not to `gate-e2e`'s individual steps; the mail-refusal step's own `if:`/`continue-on-error:` is unchecked by any of the 48 invariants | 🛑 Blocker | A one-line step-level edit silently disables the only half of D-14 that protects the current run, with the checker reporting full green. |
-| `src/components/listing/listing-card.tsx` | :186-195, :345-357 | `ConfirmDialog`'s handlers lack `try`/`catch` around the awaited server action (WR-01) | ⚠️ Warning | Untouched by 19-12; carried forward per the prior verification round, not re-derived this session. |
-| Multiple files | multiple | ~11 stale `<file>:<line>` citations in guard failure messages (WR-04) | ⚠️ Warning | Untouched by 19-12; carried forward, not re-derived this session. |
+| `scripts/verify-workflows.mjs` | 751-767 | No conjunct constrains the refusal step's `shell:` key (or `defaults.run.shell` at job/workflow level); the file has no `shell`/`defaults` handling at all | 🛑 Blocker | A one-line step-level edit silently prevents the refusal script from ever executing, with the checker reporting full green. |
+| `scripts/verify-workflows.mjs` | 756, 761 | `continue-on-error` conjuncts test for value equality (`=== true` / `!== true`) rather than presence, unlike the adjacent `if:` conjunct which correctly tests presence | 🛑 Blocker | `continue-on-error: ${{ true }}` (a documented, valid Actions expression) defeats both conjuncts while the step is functionally soft-failing. |
+| `scripts/verify-workflows.mjs` | (ci section, whole) | No `check()` asserts `ci.yml`'s trigger set includes `pull_request` | ⚠️ Warning | Pre-existing, not introduced this round. Deleting the trigger detaches every gate in the file from PRs with the checker fully green — bears directly on SC4/CI-01's literal wording. |
+| `scripts/refuse-mail-credential.mjs` | 69 | Raw `process.argv` echoed into the build log via `::error::Received: ...`, against the file's own stated rule at lines 40-41 ("PRINTS VARIABLE NAMES AND NEVER VARIABLE VALUES") | ⚠️ Warning | A developer probing the control by hand (e.g. `node scripts/refuse-mail-credential.mjs "$RESEND_API_KEY"`) gets the value echoed back with `::error::` framing. Not this round's declared scope; carried forward from 19-REVIEW.md WR-04. |
+| `scripts/verify-workflows.mjs`, `tests/design/mail-credential-refusal.test.ts` | whole | The two round-2 tightenings (exact invocation, step quantifier) have no standing regression test — only hand-applied, reverted mutations proved them this session and during execution | ⚠️ Warning | This is the concrete mechanism by which the shell-key and expression-value holes survived: a checker with no test of its own regresses silently. Carried from 19-REVIEW.md WR-02. |
+| `src/components/listing/listing-card.tsx` | :186-195, :345-357 | `ConfirmDialog`'s handlers lack `try`/`catch` around the awaited server action (WR-01, prior rounds) | ⚠️ Warning | Untouched by 19-13; carried forward, not re-derived this session. |
+| Multiple files | multiple | ~11 stale `<file>:<line>` citations in guard failure messages (WR-04, prior rounds) | ⚠️ Warning | Untouched by 19-13; carried forward, not re-derived this session. |
 
-No `TBD`/`FIXME`/`XXX` debt markers found in the five files 19-12 modified.
+No `TBD`/`FIXME`/`XXX` debt markers found in the four files 19-13 modified.
 
 ### Human Verification Required
 
-See frontmatter `human_verification` — two items, both carried forward unchanged from the prior
-verification round because 19-12 did not touch either surface: (1) the PM's reconfirmation of CI-01's
-non-required/permanently-red closure state; (2) a human read of the D-03 grid notice's copy quality.
+See frontmatter `human_verification` — two items, both carried forward unchanged across three
+verification rounds because 19-13 did not touch either surface: (1) the PM's reconfirmation of
+CI-01's non-required/permanently-red closure state; (2) a human read of the D-03 grid notice's copy
+quality.
 
 ### Gaps Summary
 
-**The gap this round set out to close is genuinely closed.** D-14's runtime mail-credential refusal
-previously shipped structurally incapable of ever firing — it tested a GitHub Actions expression context
-that is built exclusively from workflow-file `env:` maps and can never see the process environment. Plan
-19-12 replaced it with a committed Node script that reads `Object.keys(process.env)`, and this session
-independently confirmed, by direct invocation matching `ci.yml`'s exact deployed `run:` string (no
-arguments), that it correctly refuses with an `::error::` line on a live credential and passes clean on a
-clean environment. This is a real, substantive fix, not a cosmetic one.
+**19-13's declared scope — the two mutations 19-VERIFICATION.md (round 2) reproduced — is genuinely
+closed.** Both were independently re-reproduced this session, against the current committed tree, and
+confirmed caught: an appended argument now FAILs Invariant A's exact-invocation conjunct, and a literal
+`continue-on-error: true` on the refusal step now FAILs the widened unconditional invariant. The
+invariant total held at 48 as claimed (`baselines=11, ci=29, cross=8`). The design-test suite grew from
+5 to 8 build-blocking cases, all passing. This is real, substantive work, not a cosmetic patch.
 
-**Two NEW gaps were found this session, both independently reproduced rather than taken from the fresh
-code review's prose.** The review (`19-REVIEW.md`, written after 19-12's execution) flagged both as
-Critical (CR-01: unvalidated `argv[2]` prefix-source override reachable via a single-token workflow edit
-that the checker's Invariant A does not detect; CR-02: the "unconditional" invariant is job-scoped only,
-so a step-level `continue-on-error: true` on the refusal step specifically silently detaches D-14's only
-current-run protection while all 48 invariants stay green). This verification reproduced both from
-scratch:
+**Two new gaps were found and independently reproduced this session, in the same defect class the
+round exists to eliminate.** `19-REVIEW.md` (read before this verification began) flagged both as
+Critical, and every material claim relied on here was reproduced from scratch rather than trusted:
 
-1. **CR-01** — ran `RESEND_API_KEY=live_secret_abc node scripts/refuse-mail-credential.mjs
-   /tmp/decoy.mjs` and got exit 0 with a live credential present. Then edited `ci.yml`'s refusal step to
-   pass that same decoy path as an argument and re-ran `node scripts/verify-workflows.mjs`: still `All
-   48 invariants hold`. Reverted; tree confirmed clean.
-2. **CR-02** — added `continue-on-error: true` to only the refusal step in `ci.yml` and re-ran `node
-   scripts/verify-workflows.mjs`: still `All 48 invariants hold`. Reverted; tree confirmed clean.
+1. A step-level `shell: cat {0}` on the refusal step leaves the `run:` string, `env:`, `if:`,
+   `continue-on-error:` and step position all untouched — every conjunct any invariant currently checks
+   — while `cat` prints the script instead of executing it. `node scripts/verify-workflows.mjs` still
+   reports `All 48 invariants hold`.
+2. `continue-on-error: ${{ true }}` — a documented Actions expression, not merely a literal boolean —
+   defeats the `=== true` / `!== true` value comparisons at `scripts/verify-workflows.mjs:756` and
+   `:761`, which are asymmetric with the correctly presence-tested `if:` conjunct beside them. Same
+   result: all 48 invariants stay green.
 
-Both are judged as genuine gaps rather than accepted narrow-reading technicalities: they are freshly
-introduced by the plan that was supposed to close exactly this class of defect, they are fully within
-engineering control, they require no human judgment to confirm, and the script's own header makes a
-specific false claim about what the invariant suite checks. This phase's stated subject is "a control
-that looked correct and did nothing" — the same finding now applies to two properties of the control
-built to fix the first instance of it.
+A third, pre-existing hole was also reproduced: nothing in the `ci` section asserts `ci.yml`'s trigger
+set, so deleting `pull_request:` detaches every gate in the file from pull requests with the checker
+fully green — directly relevant because CI-01/SC4's literal requirement text is specifically about
+pull requests.
 
-**Everything else from the prior verification round is unaffected and re-confirmed as regression-stable**
-(truths #1-4, #6, #7; the two carried-forward human-verification items). 19-12 touched exactly five
-files and none of them intersect the listing-grid, wizard-routing, or reuse-predicate surfaces.
+**Judged as genuine gaps, on the same standard the prior two rounds applied**, not accepted as a
+narrow-reading technicality: they are fully within engineering control, require no human judgment to
+confirm (each was mechanically reproduced and reverted, with `git status --porcelain` and a byte diff
+both confirming a clean tree afterward), and they are round 3 of a pattern this phase has now
+established across three consecutive rounds — a reactive, deny-list-shaped fix for each individually
+measured mutation, rather than a positive specification of the step's permitted attribute surface. The
+review's own diagnosis (the newly-widened predicate was widened along the axis that was *measured*
+rather than the axis the prose *claims*) is the load-bearing finding for why this recurs, and it
+predicts more instances of the same shape until the checker moves to an allow-list and a standing
+mutation-test file replaces the hand-verify-and-revert idiom (19-REVIEW.md WR-01, WR-02).
+
+**Everything else from the prior two rounds is unaffected and re-confirmed as regression-stable**
+(truths #1-3, #6, #7; the two carried-forward human-verification items). 19-13 touched exactly the
+four files it declared, confirmed by `git diff --stat` against the prior round's commit range, and
+none of them intersect the listing-grid, wizard-routing, or reuse-predicate surfaces.
 
 ---
 
-_Verified: 2026-09-04_
+_Verified: 2026-09-05_
 _Verifier: Claude (gsd-verifier)_
