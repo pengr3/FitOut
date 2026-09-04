@@ -19,6 +19,7 @@ import {
   listing,
   listingAmenity,
   listingActivityTag,
+  listingPhoto,
   hostVerification,
   type HostVerificationStatus,
 } from "@/lib/db/schema";
@@ -448,5 +449,144 @@ describe("LVER-05 — createDraftListing is gated on the host's verification (D-
         "a form that cannot be left.",
     ).toBe(true);
     expect((await readListing(id)).title).toBe("Half-finished when the check lapsed");
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// D-02 — CREATION IS IDEMPOTENT AGAINST A HUMAN RETRY, AND CAN NEVER ADOPT WORK A HOST HAS STARTED
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// Plan 19-01 measured FOUR empty drafts owned by one host, minted across 46 seconds — a person
+// pressing *Create listing*, going back, and pressing again while a redirect failed to land. Plan
+// 19-04 deleted them. `createDraftListing`'s reuse-then-mint branch is what makes that delete a
+// one-off rather than the first of many, and these three cases are what pin it.
+//
+// THE TWO FAILURE DIRECTIONS ARE NOT SYMMETRIC, and every message below names which one it guards:
+//   • TOO LOOSE — reuse a draft the host has TOUCHED. The host presses Create for their second
+//     space, lands in the wizard for their first one already half filled in, edits it, overwrites
+//     real work, and never learns a second listing was not created. SILENT DATA LOSS on a host's own
+//     content. This is the unacceptable direction and cases 2 and 3 are the only things standing in
+//     front of it.
+//   • TOO TIGHT — mint when a reuse was possible. One extra empty draft in the grid: today's
+//     behaviour, visible, deletable. Tolerable. Case 1 is the only case that can catch it.
+describe("D-02 — createDraftListing reuses the host's own UNTOUCHED empty draft, and only that", () => {
+  /** How many listings this host owns right now — the number a reuse must not move. */
+  async function ownedCount(userId: string): Promise<number> {
+    return (await testDb.db.select({ id: listing.id }).from(listing).where(eq(listing.hostId, userId)))
+      .length;
+  }
+
+  it("(D-02 · case 1) two consecutive creations return the SAME id and grow the table by exactly one row", async () => {
+    const userId = await signInHost("d02.idempotent@example.com");
+
+    const first = await createDraftListing();
+    if (!first.ok) throw new Error("setup failed — the first create was refused");
+    const second = await createDraftListing();
+    if (!second.ok) throw new Error("the SECOND create was refused, which D-02 never asks for");
+
+    expect(
+      second.id,
+      "D-02's headline — pressing `Create listing` twice, or landing on `/host/listings/new` twice, " +
+        "must yield ONE listing for this host. Four empty drafts across 46 seconds is the measured " +
+        "defect this branch exists to stop; if this case is red, `createDraftListing` is minting " +
+        "again instead of reusing the host's own untouched draft, and plan 19-04's delete just " +
+        "became the first of many rather than a one-off.",
+    ).toBe(first.id);
+
+    // Asserted SEPARATELY from the id, deliberately: an id-only assertion would pass against an
+    // action that returned the first id while STILL inserting a second row — which is the exact
+    // shape of a "fix" that fixes the symptom and not the orphan.
+    expect(
+      await ownedCount(userId),
+      "the second create returned the first id but a row still landed — so the reuse read is " +
+        "returning the right answer AFTER the insert rather than instead of it. The read must sit " +
+        "BEFORE `db.insert(listing)`, and its branch must `return` rather than fall through.",
+    ).toBe(1);
+  });
+
+  it("(D-02 · case 2) a draft the host has STARTED EDITING is never reused — different id, two rows", async () => {
+    const userId = await signInHost("d02.touched@example.com");
+
+    const first = await createDraftListing();
+    if (!first.ok) throw new Error("setup failed — the first create was refused");
+
+    // ⚠ DELIBERATELY NOT A TITLE. The predicate carries `title IS NULL` as belt-and-braces, so a
+    // step that set the title would keep this case green through the `title` conjunct alone and
+    // this case would stop measuring the term it exists to measure. Writing a NON-title field
+    // leaves `title IS NULL` true, so `updated_at = created_at` is the ONLY conjunct standing
+    // between this host and having their work adopted — which is what makes the watched-red
+    // meaningful (19-RESEARCH § 5.6).
+    const saved = await saveListingStep(first.id!, {
+      description: "A calm corner room the host started describing and then walked away from.",
+    });
+    if (!saved.ok) throw new Error("setup failed — the wizard step did not save");
+
+    const second = await createDraftListing();
+    if (!second.ok) throw new Error("the second create was refused, which D-02 never asks for");
+
+    expect(
+      second.id,
+      "THE UNACCEPTABLE DIRECTION — the predicate is TOO LOOSE and just adopted a draft this host " +
+        "has already written into. In production that means: the host presses `Create listing` to " +
+        "start their SECOND space, lands in the wizard for their FIRST one already half filled in, " +
+        "edits it, OVERWRITES REAL WORK, and never learns a second listing was not created. Silent " +
+        "data loss on a host's own content, with no error and no way to notice. The conjunct that " +
+        "prevents it is `updated_at = created_at`: schema.ts:264-267's `$onUpdate` fires on every " +
+        "`db.update()` through the listing table object, so `saveListingStep` above moved " +
+        "`updated_at` off `created_at` and this row is no longer untouched. If you arrived here " +
+        "after removing that term to 'simplify' the predicate, restore it.",
+    ).not.toBe(first.id);
+
+    expect(
+      await ownedCount(userId),
+      "the second create returned a new id but no second row exists — so the ids disagree for some " +
+        "reason other than a fresh insert. Both halves must hold.",
+    ).toBe(2);
+  });
+
+  it("(D-02 · case 3) a draft with a listing_photo is never reused, even though updated_at = created_at", async () => {
+    const userId = await signInHost("d02.photo@example.com");
+
+    const first = await createDraftListing();
+    if (!first.ok) throw new Error("setup failed — the first create was refused");
+
+    // The photo insert goes straight to the child table, which is precisely the point: this mirrors
+    // `src/app/actions/listing-photo.ts:294`, which inserts inside a transaction and does NOT update
+    // the `listing` row. So this draft still reads `updated_at = created_at` AND `title IS NULL` —
+    // untouched by every term except the one this case is about.
+    await testDb.db.insert(listingPhoto).values({
+      id: "lp_d02_case3",
+      listingId: first.id!,
+      publicId: "fitout/d02-case3",
+      url: "https://example.invalid/d02-case3.jpg",
+      position: 0, // cover
+    });
+
+    const row = await readListing(first.id!);
+    expect(
+      row.updatedAt.getTime(),
+      "this case is only meaningful if the photo insert left `updated_at` alone — that is the whole " +
+        "premise. If these differ, `listing-photo.ts` has started touching the listing row and this " +
+        "case is no longer testing the loophole it was written for.",
+    ).toBe(row.createdAt.getTime());
+
+    const second = await createDraftListing();
+    if (!second.ok) throw new Error("the second create was refused, which D-02 never asks for");
+
+    expect(
+      second.id,
+      "THE UNACCEPTABLE DIRECTION, VIA THE PHOTO LOOPHOLE — this host uploaded a cover photo to a " +
+        "draft and abandoned it, and the second `Create listing` just handed them that draft, with " +
+        "their photo silently adopted into what they believe is a brand-new listing.\n" +
+        "⚠ THIS IS THE CASE THAT GOES GREEN BY ACCIDENT IF SOMEONE 'SIMPLIFIES' THE PREDICATE DOWN " +
+        "TO THE TIMESTAMP COMPARISON. `updated_at = created_at` does NOT close this gap and cannot: " +
+        "`listing-photo.ts:294` inserts the photo row inside a transaction WITHOUT updating the " +
+        "listing row, so the timestamps still match. The conjunct that closes it is the " +
+        "`NOT EXISTS (SELECT 1 FROM listing_photo …)` term — and the sibling `operating_hours` term " +
+        "is there for the identical measured reason (`operating-hours.ts:165-167`). Neither is " +
+        "belt-and-braces; deleting either reopens a real gap.",
+    ).not.toBe(first.id);
+
+    expect(await ownedCount(userId), "a new id was returned but no second row landed").toBe(2);
   });
 });
