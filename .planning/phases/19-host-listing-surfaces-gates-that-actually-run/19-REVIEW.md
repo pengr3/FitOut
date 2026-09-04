@@ -1,8 +1,8 @@
 ---
 phase: 19-host-listing-surfaces-gates-that-actually-run
-reviewed: 2026-09-04T00:00:00Z
+reviewed: 2026-09-04T12:57:13Z
 depth: standard
-files_reviewed: 14
+files_reviewed: 18
 files_reviewed_list:
   - .github/workflows/ci.yml
   - e2e/helpers/booker-seed.ts
@@ -15,369 +15,564 @@ files_reviewed_list:
   - src/components/listing/listing-card.tsx
   - src/lib/listing/create-signal.ts
   - tests/design/listing-card-merge-order.test.ts
+  - tests/design/listing-create-refusal-routing.test.ts
+  - tests/design/listing-reuse-predicate-census.test.ts
   - tests/host/verification-surface.test.ts
+  - tests/listing/create-failure.test.ts
+  - tests/listing/create-routing.test.ts
   - tests/listing/create-signal.test.ts
   - tests/listing/crud.test.ts
 findings:
   critical: 2
-  warning: 8
-  info: 4
+  warning: 6
+  info: 6
   total: 14
 status: issues_found
 ---
 
 # Phase 19: Code Review Report
 
-**Reviewed:** 2026-09-04
+**Reviewed:** 2026-09-04T12:57:13Z
 **Depth:** standard
-**Files Reviewed:** 14
+**Files Reviewed:** 18
 **Status:** issues_found
 
 ## Summary
 
-Three deliverables were reviewed against intent: the HSURF-01 call-site card fix (D-05/D-06/D-07/D-08), the D-02 reuse-then-mint branch plus the D-03 creation-failure signal, and the `gate-e2e` invariants in `scripts/verify-workflows.mjs`.
+Whole-phase review (plans 19-01..19-11), replacing the earlier review of 19-01..19-08. Findings
+already closed by the gap-closure run are **not** re-raised: `createDraftListing`'s missing
+`try`/`catch` (old CR-01) is fixed and proven by `tests/listing/create-failure.test.ts`; the
+`availability_block` conjunct (old CR-02) is present and now machine-censused; the `!res.ok` branch
+is a real three-way router pinned by two independent gates.
 
-The card fix is **correct**. I verified the mechanism rather than accepting the argument: `Card`'s base is `flex flex-col … has-data-[slot=card-footer]:pb-0` with `gap-0` supplied at the call site, no child declares `flex-1`, and `mt-auto` on the last flex child is the right absorber; `h-full` genuinely would have been a no-op. `CardFooter`'s base really does carry `p-4`, `cn()` really does put the call-site string last, and `size="icon-sm"` really does resolve to `size-7` (28px), matching the `h-7` of the `size="sm"` siblings. `tests/design/listing-card-merge-order.test.ts`'s two source readers were traced against the real files and neither regex mis-anchors (`data-slot="card-footer"` does **not** collide with `Card`'s `has-data-[slot=card-footer]:pb-0`, because that occurrence is unquoted). The `sr-only` span is the accessible name and it is present. No findings there.
+Verified live during this review:
 
-The **query-parameter handling is safe**: there is exactly one equality check, the value is never interpolated, and `tests/listing/create-signal.test.ts` proves the hostile-value case at the render site. I found no XSS or echo path.
+- `node scripts/verify-workflows.mjs` → **all 44 invariants hold** (baselines=11, ci=26, cross=7).
+- `npx vitest run --config vitest.design.config.ts` over the three new design gates → **16/16 pass**.
+- `deriveChildTables()` over `schema.ts` resolves to exactly the 7 children of `listing`
+  (3 covered by conjuncts, 4 exempted) — the census is not vacuous.
 
-The two blockers are elsewhere, and both are cases where the code's own prose asserts a property it does not have:
+The application-code half of the phase is in good shape. **The gate half is not.** Two of the
+phase's headline claims are false against the shipped tree, and both are about controls that are
+documented at length as being live:
 
-1. `createDraftListing` has **no failure path that returns `{ ok: false }` for an infrastructure failure** — a failed insert throws. So the entire D-03 signal (the copy module, the query token, the grid notice) can never fire for the case every comment in the phase says it catches.
-2. The D-02 reuse predicate covers `listing_photo` and `operating_hours` but **not `availability_block`**, which `src/app/actions/blocks.ts:130` writes without touching the listing row. That is the third instance of the exact loophole the two `NOT EXISTS` conjuncts exist for, and it is reachable in two clicks from the shipped grid.
+1. `gate-e2e`'s runtime mail-credential refusal **cannot fire** — `${{ env.RESEND_API_KEY }}` is
+   only ever populated by a workflow/job/step `env:` key, which is exactly and only what the parse
+   half already rejects. D-14's "two halves and both are live" is one half, and the hole the header
+   names as carried-forward is covered by *neither*.
+2. `gate-e2e` is described as "IT REPORTS; IT DOES NOT BLOCK", but a failing job fails the workflow
+   run. Per the phase's own evidence the job's conclusion is `failure` with **14 reproducible test
+   failures** (including a refund-parity spec and a booking-collision spec). `ci` is therefore red
+   on every push, which either voids or violates this file's own binding rule #1.
 
-`verify-workflows.mjs`'s new assertions **can pass vacuously** — job deletion was closed, step deletion was not. Several of `ci.yml`'s own header invariants have gone false now that `gate-e2e` exists.
+Alongside those: the "stale line citation" defect class flagged as WR-08 in the earlier review is
+**not closed** — 19-11 reworded one paragraph in `create-signal.ts` while leaving at least eleven
+verified-wrong citations in the phase's own files, several of them inside gate failure messages
+that tell a fixer which line to edit.
 
----
+## Structural Findings (fallow)
+
+No `<structural_findings>` block was supplied with this review request. All findings below are
+narrative.
+
+## Narrative Findings (AI reviewer)
 
 ## Critical Issues
 
-### CR-01: The D-03 creation-failure signal is unreachable for the failure it was built to catch
+### CR-01: `gate-e2e`'s runtime mail-credential refusal is inert — D-14's "two halves" is one half, and the known hole is covered by neither
 
-**File:** `src/app/actions/listing.ts:177-260`, `src/app/(host)/host/listings/new/page.tsx:83-104`, `src/lib/listing/create-signal.ts:26-35`
+**File:** `.github/workflows/ci.yml:1312-1321` (and the header claim at `:241-255`)
+**Severity:** BLOCKER
 
 **Issue:**
-`createDraftListing` returns `{ ok: false }` on exactly two paths — no session (`:179-181`) and a refusing verification status (`:205-218`). Every remaining statement is unguarded:
 
-```ts
-const [reusable] = await db.select(...)   // :226 — throws on DB error
-const id = randomUUID();
-await db.insert(listing).values({ ... }); // :253 — throws on DB error
-return { ok: true, id };                  // id is ALWAYS set when ok
+```yaml
+      - name: Refuse to run the suite with a live mail credential in the environment
+        run: |
+          if [ -n "${MAIL_KEY_UNDER_TEST:-}" ]; then
+            ...
+            exit 1
+          fi
+        env:
+          MAIL_KEY_UNDER_TEST: ${{ env.RESEND_API_KEY }}
 ```
 
-There is no `try`/`catch` anywhere in the function. Therefore:
+The GitHub Actions `env` **context** is built exclusively from `env:` maps declared at workflow,
+job and step level in the workflow file. It does not contain repository/organization secrets, does
+not contain `vars`, does not contain `container.env`, does not contain `services.*.env`, and does
+not read the runner's or the container's actual process environment. Therefore
+`${{ env.RESEND_API_KEY }}` expands to the empty string in every case *except* the one where the
+key is declared as a workflow/job/step `env:` key — which is precisely and exclusively the case
+`scripts/verify-workflows.mjs:491-510` already rejects.
 
-- `!res.id` in `new/page.tsx:84` is **dead** — `ok: true` always carries an id.
-- `!res.ok` is reachable **only** for the two guarded paths, and `new/page.tsx` redirects both of them away *before* the call (`:56-58` for no session, `:69-81` for the four refusing states).
-- "GENUINE INFRASTRUCTURE FAILURE ONLY — an insert that did not land" (`new/page.tsx:90-92`, restated in `create-signal.ts:28-29` and again in `tests/listing/create-signal.test.ts:14-17`) is the one thing that **cannot** reach this branch. A dead connection, a constraint violation, a timeout — all throw out of the page render and land on Next's error boundary. The host gets an error page, not the grid sentence. `18.1-UI-SPEC § NOT COVERED`'s blind spot is not closed; it is closed only for a case that does not occur.
+Consequences, all provable from the file:
 
-The two windows that *are* technically reachable both produce **wrong copy**, which sharpens rather than softens the finding:
+1. **The runtime half adds zero coverage.** It is 100% redundant with the parse half. There is no
+   input for which it fires and the parser does not.
+2. **The documented hole is covered by neither half.** The header at `:249-255` names the
+   `container.env` / `services.*.env` gap in the *parse* half and carries it forward — implicitly
+   leaning on the runtime half. A key spelled in `container.env` reaches every step's process
+   environment, `src/lib/email.ts` binds its client at module load, and the suite mails real
+   addresses. `${MAIL_KEY_UNDER_TEST:-}` would still be empty, because the expression that fills it
+   never sees container env. The measured cost of that path is the header's own number: **14 real
+   outbound sends per run.**
+3. **The header's ordering claim is also false.** `:246` and `scripts/verify-workflows.mjs:479-484`
+   claim the parse half "runs on job 1 ... so it fires about a minute before any browser starts."
+   `gate-e2e` declares no `needs:`, so jobs 1 and 5 start simultaneously and GitHub does not cancel
+   sibling jobs when one fails. Job 1 going red does not stop job 5 from booting the app and
+   sending mail. The parse half protects the *next* run, never the current one.
 
-- session expires between the page's `getSession` (`:55`) and the action's (`:90`) → the host is told "Something went wrong on our side" instead of being sent to `/login`;
-- an ops suspension lands between the page's `loadHostVerification` (`:68`) and the action's (`:204`) → the host reads copy that `create-signal.ts:23-35` bans by name, because the refusal *was* a verification refusal.
+This is a fail-closed privacy control that provably cannot fail closed, documented as active.
 
-No test covers the origin. `tests/listing/create-signal.test.ts` renders the destination with a hand-supplied `searchParams`; `tests/host/verification-surface.test.ts:405-421` only greps the page source for the token. Nothing asserts that `createDraftListing` can ever produce a `{ ok: false }` the branch would see.
+**Fix:** assert over the *actual process environment*, which is the only place a container-level or
+runner-level key can be observed. To keep the `grep -c RESEND .github/workflows/ == 0` audit
+intact, read the prefix from the checker that already owns it (`MAIL_KEY_PREFIX` in
+`scripts/verify-workflows.mjs`) rather than spelling it here:
 
-**Fix:** give the action the failure shape its callers already assume, and keep the two existing refusals distinguishable from it.
-
-```ts
-// src/app/actions/listing.ts — inside createDraftListing, after the verification gate
-try {
-  const [reusable] = await db.select({ id: listing.id }).from(listing).where(and(/* … */))
-    .orderBy(desc(listing.createdAt)).limit(1);
-  if (reusable) return { ok: true, id: reusable.id };
-
-  const id = randomUUID();
-  await db.insert(listing).values({ id, hostId: userId, status: "draft", bookingMode: "instant" });
-  return { ok: true, id };
-} catch (err) {
-  // The branch `new/page.tsx:84` and `create-signal.ts` were written for. Log the shape, never
-  // return it — `create-signal.ts` names no mechanism by design (T-19-32).
-  console.error("[listing:create] draft mint failed", { userId, err });
-  return { ok: false, error: LISTING_CREATE_FAILED_STATE };
-}
+```yaml
+      - name: Refuse to run the suite with a live mail credential in the environment
+        run: |
+          # The prefix is READ from scripts/verify-workflows.mjs, which is the one file allowed to
+          # spell it (see that file's MAIL_KEY_PREFIX comment). Spelling it here would make
+          # `grep -c <provider> .github/workflows/` permanently non-zero.
+          PREFIX="$(node -p "require('fs').readFileSync('scripts/verify-workflows.mjs','utf8').match(/MAIL_KEY_PREFIX = \"([A-Z_]+)\"/)[1]")"
+          if [ -z "$PREFIX" ]; then
+            echo "::error::could not read MAIL_KEY_PREFIX — the assertion would be vacuous. Hard stop."
+            exit 1
+          fi
+          if env | grep -qE "^${PREFIX}"; then
+            echo "::error::A live mail credential is present in this job's ENVIRONMENT (not merely"
+            echo "::error::in the workflow's env: maps). A full e2e run with it set was measured at"
+            echo "::error::14 real outbound sends per run. Remove it; do NOT weaken this check."
+            exit 1
+          fi
 ```
 
-Then separate the two live paths in `new/page.tsx` so the copy stays true — re-`redirect("/login")` when the action reports no session, and `redirect("/host/verify")` when it reports the verification refusal — leaving the grid bounce for the genuine infrastructure case only. Add one test that stubs `@/lib/db` to a rejecting `insert` and asserts `createDraftListing()` resolves `{ ok: false }` rather than rejecting; without it this regresses silently.
+Then correct the header at `:241-255`: the parse half's `container.env` / `services.*.env` gap is
+closed *by this step* (not carried forward), and the "fires a minute before any browser starts"
+sentence must be replaced with the truth — jobs 1 and 5 are parallel and independent.
+
+Independently worth doing: widen the parse scan to `job.container.env` and `job.services.*.env`
+keys (see WR-03) so both halves are honest.
 
 ---
 
-### CR-02: The D-02 reuse predicate can adopt a draft the host has already put availability blocks on
+### CR-02: `gate-e2e` turns `ci` permanently red, contradicting the same file's binding rule #1, with no known-failure boundary
 
-**File:** `src/app/actions/listing.ts:226-250` (predicate), `:138-144` (the completeness claim), `src/app/actions/blocks.ts:129-135` (the uncovered writer)
+**File:** `.github/workflows/ci.yml:1198-1346`; claims at `:40-51` and `:435-444`
+**Severity:** BLOCKER
 
-**Issue:**
-The predicate's stated contract is that reuse can never adopt a draft the host has touched, and its docblock names the complete set of writers that bypass the `updated_at = created_at` term:
+**Issue:** The header asserts "⚠ IT REPORTS; IT DOES NOT BLOCK" and argues it from the fact that
+branch protection is unreachable on this repository. That argument is about `main`'s required
+checks. It is **not** true of the workflow: `gate-e2e` carries no `continue-on-error` (and
+`scripts/verify-workflows.mjs:697-702` actively *forbids* one), so a failing job fails the `ci`
+workflow run, on every push to `dev`/`main` and every pull request.
 
-> "WHY THE TWO `NOT EXISTS` CONJUNCTS ARE NOT BELT-AND-BRACES … `listing-photo.ts:294` inserts into `listing_photo` … `operating-hours.ts:165-167` does the same for `operating_hours` (measured, both). **So the real gaps** …"
+The phase's own evidence file
+(`.planning/.../evidence/gate-e2e-wallclock.txt:20`, `:136-155`) records:
 
-There is a **third** one. `src/app/actions/blocks.ts:129-135`:
-
-```ts
-await db.insert(availabilityBlock).values({ id, listingId, unit, startsAt, endsAt, reason });
-revalidatePath(`/host/listings/${listingId}/availability`);
+```
+job conclusion     failure
+...
+Its first two real executions show FOURTEEN tests failing for real reasons, reproducibly,
+across ten spec files, plus two flaky. The same failures appear in both runs...
+  8  e2e/cancel.spec.ts:232           SC#2 previewed refund is the refund given
+  9  e2e/collision-in-place.spec.ts:240  STATE-07 lost race becomes a result
 ```
 
-`addBlock` writes a child row and performs **no** `db.update(listing)` — verified by reading the whole function. `availability_block` (`schema.ts:1047`) is a first-class child of `listing` and is not in the predicate.
+So as shipped:
 
-The path is reachable in two clicks from the shipped grid, and every conjunct still holds at the end of it:
+1. `ci` is red on `dev` today, and `:141` of this same file states the binding rule *"A phase cannot
+   be marked complete with CI red."* The rule is now either violated or dead. Both outcomes are
+   worse than the gate not existing, because a permanently-red check is the thing the file's own
+   flake argument (`:58`) says gets retried until green and then stops being a gate.
+2. There is **no allowlist, no `--fail-on-flaky-tests` boundary, no expected-failure file, and no
+   tracked issue** distinguishing the known 14 from a new one. A regression introduced tomorrow in
+   `gate-e2e` is indistinguishable at the workflow level from the baseline.
+3. Two of the fourteen are on the core-value path this project is defined by — a refund-preview
+   parity assertion and the collision/lost-race assertion. They were surfaced by this phase and left
+   untriaged inside it.
 
-1. Host presses *Create listing* → an empty draft (`title IS NULL`, `updated_at = created_at`, no photos, no hours).
-2. Host clicks *Availability* on that draft's card — `(host)/host/listings/page.tsx:304` passes `availabilityHref` for **every** listing including drafts, and `[id]/availability/page.tsx` has no hours prerequisite and no draft refusal.
-3. Host blocks a date. `listing.timezone` defaults to `Asia/Manila` (`schema.ts:223`), so `addBlock` succeeds on a bare draft. `updated_at` is untouched, `title` is still NULL, `listing_photo` and `operating_hours` are still empty.
-4. Host presses *Create listing* again to start their second space → **the reuse read matches** and hands back listing #1, with the host's blackout dates silently inherited into what they believe is a brand-new listing.
+**Fix:** choose one and record it, rather than leaving the contradiction in the header:
 
-That is the "TOO LOOSE" direction the docblock at `:147-151` declares unacceptable, arrived at through a table the measurement missed. It is the same class as `tests/listing/crud.test.ts` case 3 (the photo loophole), which the team judged worth a conjunct and a named test.
+- **(a) Make the claim true.** Give the job a *deliberate, single-purpose* soft-fail and amend the
+  verifier's invariant #2 in the same commit (its own comment at `:694-696` explicitly provides for
+  this: *"If this job is genuinely meant to become conditional or soft-failing, remove this
+  invariant in the same commit and say why in it"*):
 
-Secondary, in the same docblock: the claim at `:132-134` that `grep -n 'update(listing)' src/` finds "this file at four sites plus `src/lib/listing/re-review.ts:195`, and nothing else" is an incomplete census of writers to the table. `src/app/actions/ops-review.ts:667` and `:751` are raw-SQL `UPDATE listing` statements that the grep cannot see. They happen to be harmless (both set `updated_at = now()` explicitly, so they push a row toward the tolerable "too tight" side), but the stated method is what a future reader will re-run, and it will keep missing them.
+  ```yaml
+  gate-e2e:
+    name: gate-e2e (functional Playwright suite)
+    # REPORTS, DOES NOT BLOCK — until the 14 recorded failures are triaged. Paired with the
+    # removal of verify-workflows.mjs's `unconditional` invariant, same commit, D-<n>.
+    continue-on-error: true
+  ```
 
-**Fix:** add the third conjunct beside the two it belongs with, and correct the census.
+- **(b) Make the gate true.** Keep it hard-failing and land a checked-in expected-failure boundary
+  so the workflow is green over the *known* set and red over anything else — e.g. a
+  `e2e/known-failures.json` consumed by a wrapper step that diffs the JSON reporter's failure list
+  against it and exits non-zero only on a new name.
 
-```ts
-// src/app/actions/listing.ts, in the reuse read's and(...)
-sql`NOT EXISTS (SELECT 1 FROM listing_photo    WHERE listing_id = ${listing.id})`,
-sql`NOT EXISTS (SELECT 1 FROM operating_hours  WHERE listing_id = ${listing.id})`,
-// blocks.ts:129-135 inserts a subtractive block and does NOT update the listing row, so a draft
-// the host has blocked dates on still reads `updated_at = created_at`.
-sql`NOT EXISTS (SELECT 1 FROM availability_block WHERE listing_id = ${listing.id})`,
-```
-
-Add a fourth case to `tests/listing/crud.test.ts`'s D-02 describe, mirroring case 3 exactly (insert an `availability_block` directly, assert `updated_at === created_at` still holds as the premise, then assert the second create returns a different id and a second row lands). Also amend the docblock's writer census to state that the `update(listing)` grep does not see raw-SQL statements and to name `ops-review.ts:667,751`.
+Either way, file the fourteen (at minimum `cancel.spec.ts:232` and `collision-in-place.spec.ts:240`)
+as tracked work before this phase is called complete; they are the gate's first finding and the
+phase currently discards it.
 
 ---
 
 ## Warnings
 
-### WR-01: `verify-workflows.mjs`'s new `gate-e2e` invariants close job deletion but not step deletion — they can still pass over a job that runs nothing
+### WR-01: `ConfirmDialog` never releases `pending` when the action rejects — the confirm button locks on "Working…" forever
 
-**File:** `scripts/verify-workflows.mjs:622-664`
-
-**Issue:** The stated purpose of the addition is anti-vacuity:
-
-> "A DELETED JOB SATISFIES ALL OF THEM VACUOUSLY. Before this stop, `gate-e2e` could have been removed from ci.yml in one commit and this script would have printed a clean green…"
-
-Only the *job* is asserted. The two things that make it a gate are not:
-
-- **No assertion that the job runs the suite.** Delete `ci.yml:1252-1253` (`npx playwright test --project=chromium`) and every invariant here still holds: the job exists, the display name matches, the container and service are pinned, no `secrets.`, no mail key, the addressing rule passes. The required check goes green over a job that installs npm and stops. The `ci` section already knows how to assert this — it does exactly that for `gate-visual` at `:705-712` (`--project=visual` **by name**), and the same argument applies verbatim (`--project=chromium` is the name that selects `testMatch: "e2e/*.spec.ts"`).
-- **No assertion that the job is unconditional.** `if: github.event_name == 'workflow_dispatch'` on the job, or `continue-on-error: true`, silently detaches the gate while leaving every parsed invariant intact — the same failure shape as the `name:` edit the check at `:659-664` was added for.
-- The seed step (`ci.yml:1241-1242`) is likewise unasserted, and its own comment says five specs fail against an empty catalogue.
-
-**Fix:**
-
-```js
-const e2eRuns = runsOf(e2e);
-check(
-  `"${CI_E2E_JOB}" runs the functional project BY NAME (--project=chromium)`,
-  e2eRuns.some((r) => r.includes("playwright test") && r.includes("--project=chromium")),
-  `run commands=${JSON.stringify(e2eRuns)}`,
-);
-check(
-  `"${CI_E2E_JOB}" is unconditional — no job-level if:, no continue-on-error`,
-  e2e?.if === undefined && e2e?.["continue-on-error"] !== true,
-  `if=${JSON.stringify(e2e?.if ?? null)}  continue-on-error=${JSON.stringify(e2e?.["continue-on-error"] ?? null)}`,
-);
-check(
-  `"${CI_E2E_JOB}" seeds the catalogue before the suite`,
-  (() => { const s = e2eRuns.findIndex((r) => r.includes("db:seed"));
-           const p = e2eRuns.findIndex((r) => r.includes("playwright test"));
-           return s >= 0 && p >= 0 && s < p; })(),
-  `indices: db:seed=${e2eRuns.findIndex((r) => r.includes("db:seed"))} playwright=${e2eRuns.findIndex((r) => r.includes("playwright test"))}`,
-);
-```
-
----
-
-### WR-02: The D-14 mail assertion is narrower than both of its sites claim — the runtime half can only see what the parse half already forbids, and neither scans `container.env` / `services.*.env`
-
-**File:** `.github/workflows/ci.yml:1219-1228`, `scripts/verify-workflows.mjs:486-510`
-
-**Issue:** Two problems compound.
-
-1. **The runtime step is effectively vacuous.** `MAIL_KEY_UNDER_TEST: ${{ env.RESEND_API_KEY }}` reads the GitHub Actions **`env` context**, which contains only variables declared in the workflow's own `env:` / job `env:` / step `env:` blocks. It does *not* see repository or organization secrets (`secrets` context), repository variables (`vars` context), or anything present in the runner/container image environment. So the only way this step can ever fire is a workflow-declared `RESEND_*` env key — which `verify-workflows.mjs:491-510` already rejects on job 1, a minute earlier. `ci.yml:1207-1210`'s claim ("this step is what makes that a PROPERTY instead of a COINCIDENCE") and `verify-workflows.mjs:108-111`'s ("Nothing but the assertion below stands between an unrelated secret addition and mail to real addresses") both overstate the coverage.
-
-2. **The parse half has a real hole.** `mailEnvHits` walks `job.env` keys, step `env` keys and workflow `env` keys — but not `job.container.env` or `job.services.*.env`. A container-level `env:` block reaches every step in the job, so `container: { env: { RESEND_API_KEY: … } }` passes both checks and the suite mails 14 real addresses. Note `secretHitsIn` at `:196-217` *does* walk both of those maps — the mail scan simply forgot them.
-
-**Fix:** widen the key scan to the same set `secretHitsIn` already covers, and rewrite the two comments to say what the runtime step actually guards (a workflow-declared key, in case job 1 was skipped or the script deleted) rather than what it does not.
-
-```js
-for (const [name, job] of jobs) {
-  for (const k of Object.keys(job?.env ?? {})) { /* … */ }
-  for (const k of Object.keys(job?.container?.env ?? {}))
-    if (k.startsWith(MAIL_KEY_PREFIX)) mailEnvHits.push(`${name}.container.env.${k}`);
-  for (const [svc, s] of Object.entries(job?.services ?? {}))
-    for (const k of Object.keys(s?.env ?? {}))
-      if (k.startsWith(MAIL_KEY_PREFIX)) mailEnvHits.push(`${name}.services.${svc}.env.${k}`);
-  /* … steps … */
-}
-```
-
-If the runtime half is meant to be real defence in depth, it has to read the process environment rather than the `env` context — e.g. `run: if [ -n "${RESEND_API_KEY:-}" ]; then …` with no `env:` block at all, which sees anything the container or runner injected.
-
----
-
-### WR-03: The supply-chain and credential scans miss job-level `uses:` (reusable workflows) and `secrets: inherit`
-
-**File:** `scripts/verify-workflows.mjs:369-375`, `:438-447`, `:196-217`
-
-**Issue:** Both `uses:` scans are built on `stepsOf(job)`, which returns `[]` for a job written as a **reusable-workflow call**:
-
-```yaml
-jobs:
-  gate-something:
-    uses: some-org/some-repo/.github/workflows/thing.yml@main
-    secrets: inherit
-```
-
-Such a job has no `steps`, so `ciUses` is empty for it and `ciThirdParty.length === 0` reports green; `secretHitsIn` never looks at `job.uses`, `job.with` or `job.secrets`, so `secrets: inherit` — which hands the called workflow **every repository secret** — passes the T-11-CISECRET assertion untouched. This is precisely the supply-chain decision T-11-SC says must be raised rather than absorbed, and it is currently invisible to the checker in both files.
-
-**Fix:** add the job-level shapes to both scans.
-
-```js
-const jobUses = jobs.filter(([, j]) => typeof j?.uses === "string").map(([n, j]) => `${n}:${j.uses}`);
-// fold jobUses into ciUses before the first-party filter
-check(
-  "no job delegates to a reusable workflow with `secrets: inherit`",
-  jobs.every(([, j]) => j?.secrets !== "inherit"),
-  `jobs with secrets:inherit=[${jobs.filter(([, j]) => j?.secrets === "inherit").map(([n]) => n).join(", ") || "(none)"}]`,
-);
-```
-and extend `secretHitsIn` to scan `job.with.*` and `job.secrets.*` values alongside the step-level ones.
-
----
-
-### WR-04: The addressing rule is total only over jobs that set `DATABASE_URL` at **job** level — a step-level move silently drops the T-11-DBFREE pairing
-
-**File:** `scripts/verify-workflows.mjs:562-603`, `.github/workflows/ci.yml:446-458`
-
-**Issue:** The loop is `const url = job?.env?.DATABASE_URL; if (typeof url !== "string") continue;`. `ci.yml:446-458` argues at length that the variable must stay at **job** level and states the parser now "asserts the pairing structurally — this job declares no `services:` AND its `DATABASE_URL` is the unreachable sentinel — so the two halves of T-11-DBFREE can no longer drift apart quietly."
-
-They can. Move `DATABASE_URL` from `gate-db-free`'s job `env:` back onto the build step (`ci.yml:603`) — the exact mutation the comment forbids — and:
-
-- the addressing loop skips the job entirely (no job-level `DATABASE_URL`);
-- the "covered at least one job" guard at `:599-603` still passes on the other three jobs;
-- the T-11-DBFREE check at `:610-620` only asserts the build job declares no `services:` — it never asserts the sentinel.
-
-Net: the sentinel half of T-11-DBFREE becomes unasserted while the script prints a clean green, which is the vacuity class this file exists to remove.
-
-**Fix:** make the loop consider the effective value, and assert the pairing on the build job directly.
-
-```js
-const stepUrls = stepsOf(job).map((s) => s?.env?.DATABASE_URL).filter((v) => typeof v === "string");
-const url = job?.env?.DATABASE_URL ?? stepUrls[0];
-```
-plus, in the T-11-DBFREE block, `check("the job that runs \`npm run build\` points DATABASE_URL at the sentinel", …)` reading the same effective value.
-
----
-
-### WR-05: `ci.yml`'s own header is now false — it describes FOUR jobs and claims eleven of twelve e2e specs are not run
-
-**File:** `.github/workflows/ci.yml:11-50`, `:97-110`, `:148-156`
-
-**Issue:** `gate-e2e` (job 5, `:1105-1253`) runs `npx playwright test --project=chromium`, and `playwright.config.ts:118` sets that project's `testMatch: "e2e/*.spec.ts"` — i.e. the **whole** functional suite. The header still says:
-
-- `:11` — "THE JOB SPLIT (D-24 + D-35). **FOUR** jobs" followed by a four-item list that does not mention `gate-e2e`;
-- `:36-45` — "**ELEVEN of the twelve** e2e specs in `e2e/` are NOT run here, by decision, not by oversight (D-24)… A flaky gate does not get fixed; it gets retried until green";
-- `:46-50` — "The **ONE** narrow exception is now HERE: … job 3";
-- `:148-156` — an invariant list that predates jobs 4 and 5.
-
-This is the defect class the file names about itself twice ("A checker NAMED for one file that asserts invariants of two is the same defect class this repository keeps recording — a file that misstates its own subject"; "A description that outlives what it describes is the defect class this repository keeps recording"). A reader auditing D-24 from this header will conclude Playwright is out of CI, which is no longer true and which several other files still depend on being true (see WR-06).
-
-**Fix:** update the header in the same commit style the file already uses for falsified passages — keep the old text, mark it falsified, and state what replaced it. Specifically: five jobs; job 5 runs the full functional set under D-12/CI-01; D-24's "eleven of twelve excluded" is retired, and what remains excluded is the `visual` project (owned by job 4).
-
----
-
-### WR-06: `e2e/helpers/booker-seed.ts` carries two "THESE SPECS DO NOT RUN IN CI" warnings that are now false
-
-**File:** `e2e/helpers/booker-seed.ts:266-268`, `:608-609`
+**File:** `src/components/listing/listing-card.tsx:186-195` (with `runAction` at `:345-357`)
+**Severity:** WARNING
 
 **Issue:**
 
-```
-// ⚠ These specs do NOT run in CI (D-24), so nothing but a hand run can catch this.
-...
-// ⚠ THESE SPECS DO NOT RUN IN CI (D-24). Nothing but a hand run can catch a miss here — which is
-// precisely how this class of fixture gap has stayed red through three review passes before.
+```tsx
+            onClick={async () => {
+              setPending(true);
+              const ok = await onConfirm();
+              setPending(false);
+              if (ok) setOpen(false);
+            }}
 ```
 
-`gate-e2e` runs `e2e/*.spec.ts` on every push and pull request, so both statements are now inverted. The same stale premise appears in `tests/host/verification-surface.test.ts:334-336` ("PROJECT D-24 keeps Playwright OUT OF CI, so it can go red for a month without anyone learning") — which is the stated *justification* for that file existing as a source scan rather than relying on `e2e/host-verification.spec.ts`. The reasoning is still defensible (a source scan is cheaper and runs in `gate-db`), but the premise quoted for it is no longer a fact.
+`onConfirm` is `runAction(onUnlist | onDelete, …)`, whose body is `await action(listing.id)` with no
+`try`. `unlistListing` and `softDeleteListing` (`src/app/actions/listing.ts:794-899`) have no
+`try`/`catch` either, so a dead connection, a timeout or a Server-Action transport failure produces
+a **rejected** promise. The rejection propagates out of the `async` click handler:
+`setPending(false)` never runs, the confirm button stays `disabled` reading "Working…" for the life
+of the mount, no toast is shown, and the browser logs an unhandled rejection. The host is left with
+a dialog that looks like it is still working and no way to retry without a full page reload.
 
-**Fix:** correct all three comments to say what is now true — these specs run in `gate-e2e` on every push, and a fixture gap fails CI rather than waiting for a hand run. Where the old claim was load-bearing for a decision (`verification-surface.test.ts`), restate the surviving reason (cost and per-commit feedback) rather than deleting the paragraph.
+This is the exact defect class plan 19-10 spent a whole task closing for `createDraftListing`
+("CREATION FAILS BY RETURNING, NEVER BY THROWING") — the same reasoning was not applied to the two
+sibling actions this file drives.
+
+**Fix:** guard the boundary at the component (and, better, mirror 19-10 in the actions):
+
+```tsx
+            onClick={async () => {
+              setPending(true);
+              try {
+                if (await onConfirm()) setOpen(false);
+              } finally {
+                setPending(false);
+              }
+            }}
+```
+
+```ts
+  async function runAction(action, successMsg): Promise<boolean> {
+    let res: ActionResult;
+    try {
+      res = await action(listing.id);
+    } catch (err) {
+      // The operator's half; the host gets a fixed sentence, per T-19-32.
+      console.error("[listing:card] action threw", { listingId: listing.id, err });
+      toast.error("Something went wrong on our side. Nothing was changed — try again.");
+      return false;
+    }
+    ...
+  }
+```
 
 ---
 
-### WR-07: `/host/listings/new` performs a database write during a GET page render
+### WR-02: the `gate-e2e` "unconditional" invariant only inspects the JOB — a step-level `if:` or `continue-on-error:` detaches the gate with all 26 `ci` invariants green
 
-**File:** `src/app/(host)/host/listings/new/page.tsx:83`
+**File:** `scripts/verify-workflows.mjs:691-702` (and the run-command invariant at `:685-689`)
+**Severity:** WARNING
 
-**Issue:** The page's render calls `createDraftListing()`, which inserts a row. A GET that mutates is reachable by any navigation the host does not initiate — a cross-site link, a prefetch, a browser prerender hint, a bot following the `Create listing` anchor on a page the host left open. There is no CSRF token because there is no form post; the session cookie alone authorises the write.
+**Issue:** The check is:
 
-D-02's reuse branch reduces the blast radius to "at most one surplus empty draft per host" and is a genuine mitigation, but note the interaction with CR-02: once a draft is *not* reusable (the host uploaded a photo, set hours, or — per CR-02, unguarded — blocked a date), every subsequent GET of this route mints a **new** row again. The reuse branch bounds the damage only while the host's newest draft stays pristine.
+```js
+    e2e?.if === undefined && e2e?.["continue-on-error"] !== true,
+```
 
-**Fix:** this is a D-01 design decision, not a one-line change, so raise it rather than patch it. The shape that keeps draft-first without a mutating GET is to render a minimal page whose only control is a form posting to the server action, or to make `/host/listings/new` a `POST`-only route handler with the grid's button as a form. If the current shape is kept deliberately, record the CSRF reasoning in the page header alongside the D-255 argument, because right now the file argues about authorization and says nothing about the method.
+Its own comment (`:666-676`) states the property it is closing: *"they do not close the job being
+kept, correctly named, and made to do NOTHING … a required check would go green over a job that
+installs npm and stops."* But every one of the three invariants quantifies over `runsOf(e2e)` —
+the *strings* of the job's `run:` steps — and none of them looks at the step's own `if:` or
+`continue-on-error:`. So this survives all 26 checks and detaches the gate completely:
+
+```yaml
+      - name: Playwright — the functional suite
+        run: npx playwright test --project=chromium
+        continue-on-error: true        # ← job succeeds, gate is gone
+      # …or…
+        if: ${{ false }}               # ← step skipped, gate is gone
+```
+
+`continue-on-error` is also evaluated as an expression, so `continue-on-error: ${{ true }}` (a
+string after parse) already defeats the `!== true` comparison at job level too.
+
+**Fix:** make the invariant total over the step that carries the command, and treat any non-literal
+value as a violation:
+
+```js
+  const e2eSteps = stepsOf(e2e);
+  const playStep = e2eSteps.find(
+    (s) => typeof s?.run === "string" && s.run.includes("playwright test"),
+  );
+  const softJob = e2e?.["continue-on-error"];
+  const softStep = playStep?.["continue-on-error"];
+  check(
+    `"${CI_E2E_JOB}" is unconditional — no if:/continue-on-error at the JOB or on the SUITE STEP`,
+    e2e?.if === undefined &&
+      softJob !== true && softJob !== "true" && typeof softJob !== "string" &&
+      playStep != null &&
+      playStep.if === undefined &&
+      softStep !== true && softStep !== "true" && typeof softStep !== "string",
+    `job.if=${JSON.stringify(e2e?.if ?? null)} job.coe=${JSON.stringify(softJob ?? null)} ` +
+      `step.if=${JSON.stringify(playStep?.if ?? null)} step.coe=${JSON.stringify(softStep ?? null)}`,
+  );
+```
+
+(If CR-02 is closed with option (a), this invariant is removed deliberately instead — but then it
+must be removed, not left half-covering.)
 
 ---
 
-### WR-08: Systematically stale line-number citations in failure messages and docblocks across the changed files
+### WR-03: the mail-key parse scan walks only workflow/job/step `env:` — not `container.env`, not `services.*.env`, and not a differently-named key holding a mail credential
 
-**File:** multiple — see list
+**File:** `scripts/verify-workflows.mjs:491-510`
+**Severity:** WARNING
 
-**Issue:** This repo's convention is to cite `file:line` in assertion messages so a red is actionable. A large fraction of the citations added or touched in this phase point at the wrong lines, which sends a reader to unrelated code at exactly the moment they are debugging. Measured against the current files:
+**Issue:** `secretHitsIn()` at `:196-217` correctly walks `job.container.env` and
+`job.services.*.env`. The mail-key scan directly below does not:
 
-| Citation | Says | Actually at |
-|---|---|---|
-| `(host)/host/listings/page.tsx:180` (grid wrapper) — `listing-card.tsx:446`, `host-listing-grid.spec.ts:15,222,232,251` | 180 | 238 |
-| `listing-card.tsx:434` (`CardFooter` call site) — `host-listing-grid.spec.ts:141,249,262,277` | 434 | 471 |
-| `listing-card.tsx:352` (`Card` call site) — `host-listing-grid.spec.ts:243`, `booker-seed.ts:731` | 352 | 360 |
-| `listing-card.tsx:450` (`Unlist` status gate) — `host-listing-grid.spec.ts:276`, `booker-seed.ts:759` | 450 | 487 |
-| `listing-card.tsx:377` (`primarySpaceType &&`) — `booker-seed.ts:836` | 377 | 389 |
-| `(host)/host/listings/page.tsx:118-121` (missing-hours read) — `booker-seed.ts:745` | 118-121 | 159-161 |
-| `page.tsx:154` (`.orderBy(desc(updatedAt))`) — `booker-seed.ts:829` | 154 | 93 |
-| `listing-card.tsx:387-391` (muted-notice treatment) — `create-signal.ts:61` | 387-391 | 404-411 |
-| `(host)/host/listings/page.tsx:160`/`:170` (the one `<ListingCard>` call site) — `listing-card.tsx:286-287` | 160/170 | 278/296 |
-| `verify-workflows.mjs:552-561` (T-11-DBFREE set) — `ci.yml:1096` | 552-561 | 610-620 |
-| `listing-card.tsx:270-279` (the `titleAs` docblock) — `listing-card-merge-order.test.ts:99` | 270-279 | 264-313 |
+```js
+  for (const [name, job] of jobs) {
+    for (const k of Object.keys(job?.env ?? {})) { … }
+    for (const s of stepsOf(job)) { for (const k of Object.keys(s?.env ?? {})) { … } }
+  }
+  for (const k of Object.keys(doc?.env ?? {})) { … }
+```
 
-**Fix:** re-anchor these to the current lines, or — better, given how often they move — cite the *symbol* rather than the line (`listing-card.tsx`'s `<CardFooter>` call site, `page.tsx`'s grid wrapper `div`). A standing gate is possible but overkill; a single sweep plus a preference for symbol citations in new messages is enough.
+`ci.yml:249-255` names this hole and carries it forward on the reasoning that the runtime half
+still catches it. **CR-01 shows it does not** — so today this vector is covered by nothing at all.
+
+A second, unnamed gap: the scan matches on the env **key** prefix. A key called `MAILER` or
+`NOTIFY_KEY` set to `${{ vars.RESEND_API_KEY }}` passes both this check and `secretHitsIn` (which
+matches the literal `secrets.`, not `vars.`).
+
+**Fix:** reuse the walker `secretHitsIn` already has, and add a `vars.` value scan:
+
+```js
+  const mailEnvHits = [];
+  const scanKeys = (where, envObj) => {
+    for (const k of Object.keys(envObj ?? {})) {
+      if (k.startsWith(MAIL_KEY_PREFIX)) mailEnvHits.push(`${where}.${k}`);
+    }
+    for (const [k, v] of Object.entries(envObj ?? {})) {
+      // any KEY, if its VALUE reaches for the provider through vars. or secrets.
+      if (typeof v === "string" && /(?:secrets|vars)\.\s*RESEND/i.test(v))
+        mailEnvHits.push(`${where}.${k} (value)`);
+    }
+  };
+  scanKeys("workflow.env", doc?.env);
+  for (const [name, job] of jobs) {
+    scanKeys(`${name}.env`, job?.env);
+    scanKeys(`${name}.container.env`, job?.container?.env);
+    for (const [svc, s] of Object.entries(job?.services ?? {}))
+      scanKeys(`${name}.services.${svc}.env`, s?.env);
+    stepsOf(job).forEach((s, i) => scanKeys(`${name}.step[${i}].env`, s?.env));
+  }
+```
+
+---
+
+### WR-04: at least eleven verified-stale line citations in the phase's own files — several inside gate failure messages that tell a fixer which line to edit
+
+**File:** multiple; verified by resolving each citation against the file it names
+**Severity:** WARNING
+
+**Issue:** `src/lib/listing/create-signal.ts:50-53` states the rule this phase adopted:
+*"WR-08 measured eleven stale line citations in this phase's own files, and a citation that points
+at the wrong code is worse than none because it is believed."* 19-11 applied that rule to one
+paragraph. The rest of the phase's files were edited afterwards and the citations were not
+followed. Resolved against `HEAD`:
+
+| citation | cited as | line actually contains | truth |
+|---|---|---|---|
+| `listing-card.tsx:352` (e2e spec ×2) | the `<Card>` call site (`gap-0`) | `return false;` | `:360` |
+| `listing-card.tsx:434` (e2e spec ×3) | `hasActions` / the `CardFooter` call site | `</Link>` | `:322` / `:471` |
+| `listing-card.tsx:450` (e2e spec) | `Unlist` gated on `status === "published"` | a comment | `:487` |
+| `listing-card.tsx:377` (booker-seed) | the `primarySpaceType &&` branch | `<div className="flex items-start…">` | `:389` |
+| `listing-card.tsx:387-391` (create-signal) | the "calm muted text" rule | `</Badge>` / `</div>` | `:405-410` |
+| `listings/page.tsx:180` (e2e spec ×4, listing-card) | the grid wrapper | `{verification.suspended && (` | `:238` |
+| `listings/page.tsx:118-121` (booker-seed) | `loadPublishedListingsMissingHours` | comment prose | `:159-161` |
+| `listings/page.tsx:154` (booker-seed) | `.orderBy(desc(listing.updatedAt))` | a comment | `:93` |
+| `listings/page.tsx:160` / `:170` (listing-card) | the `<ListingCard>` call site / `titleAs` | the missing-hours map | `:278` / `:296` |
+| `host/page.tsx:75` (create-signal) | the `"₱300.00in"` SWC whitespace defect | an `import` line | elsewhere |
+| `button.tsx:117` (listing-card) | `icon-sm` → `size-7` | `icon-xs` → `size-6` | `:118-119` |
+
+The blast radius is not cosmetic. Four of these are inside `e2e/host-listing-grid.spec.ts`'s guard
+failure messages (`:222`, `:232`, `:249-252`, `:262`, `:276-278`) — the strings a developer reads
+*while the gate is red*, instructing them to apply `mt-auto` at `listing-card.tsx:434` (a closing
+`</Link>`) and warning them not to add `items-*` to `page.tsx:180` (an unrelated notice). The file's
+own header says *"The VALUE OF THIS FILE IS ENTIRELY IN THE FAILURE SENTENCE"*.
+
+**Fix:** either correct all eleven, or — consistent with what 19-11 already decided for
+`create-signal.ts` — cite **by role and symbol** and drop the numbers, e.g.
+`` `listing-card.tsx`'s `<CardFooter>` call site `` and
+`` `(host)/host/listings/page.tsx`'s grid wrapper (`grid sm:grid-cols-2 lg:grid-cols-3`) ``. A
+cheap standing gate is possible and would fit this repo's idiom: a design test that regex-scans
+`src/`, `e2e/` and `tests/` for `` `<path>.tsx:<n>` `` citations, resolves each, and asserts the
+named line is non-blank and not a comment.
+
+---
+
+### WR-05: `host-listing-grid.spec.ts` leaks its seeded host when the fixture throws mid-way, and never closes the page if teardown throws
+
+**File:** `e2e/host-listing-grid.spec.ts:291-310`; `e2e/helpers/booker-seed.ts:806-894`
+**Severity:** WARNING
+
+**Issue:**
+
+```ts
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    fixture = await seedHostGridFixture(page);   // ← sign-up happens FIRST, inside this call
+    ...
+  });
+
+  test.afterAll(async () => {
+    await fixture?.teardown();
+    await page?.close();
+  });
+```
+
+`seedHostGridFixture` signs a host up through the UI and writes a `host_verification` row **before**
+it returns. If anything after the sign-up throws — the `waitForURL` timing out at 60s, the
+`seedApprovedHostVerification` lookup, any of the three inserts — `fixture` is never assigned, so
+`fixture?.teardown()` is a no-op and the `user`, `session`, `account` and `host_verification` rows
+persist. `gate-e2e` now runs on every push against a single long-lived service DB per job, and
+`retries: 2` means one bad run leaks three hosts. Nothing in the suite ever collects them.
+
+Secondly, if `teardown()` rejects, `await page?.close()` is skipped and the browser page leaks for
+the worker's lifetime.
+
+**Fix:** have the helper own its own partial-failure cleanup, and make the hook's two teardown steps
+independent:
+
+```ts
+// booker-seed.ts — inside seedHostGridFixture, after the sign-up succeeds:
+  const cleanupAccount = async () => {
+    await withClient(async (sql) => {
+      await sql`DELETE FROM "user" WHERE email = ${hostEmail}`;
+    });
+  };
+  try {
+    const hostId = await seedApprovedHostVerification(hostEmail);
+    ...
+    return { …, teardown };
+  } catch (err) {
+    // The account exists whatever else failed — this helper drove the form that made it.
+    await cleanupAccount().catch(() => {});
+    throw err;
+  }
+```
+
+```ts
+// host-listing-grid.spec.ts
+  test.afterAll(async () => {
+    try {
+      await fixture?.teardown();
+    } finally {
+      await page?.close();
+    }
+  });
+```
+
+---
+
+### WR-06: `/host/listings/new` performs an unconditional database WRITE during a GET render
+
+**File:** `src/app/(host)/host/listings/new/page.tsx:102`
+**Severity:** WARNING
+
+**Issue:** `const res = await createDraftListing();` runs inside the page's render. Every GET that
+reaches this module inserts a row (or, under D-02, reuses one). There is no POST boundary, no
+idempotency key and no CSRF token: `SameSite=Lax` blocks cross-site subresource requests, but a
+top-level navigation from any third-party link — or a browser prerender, or a background-tab
+restore, or a crawler with a live session cookie — executes the write with the host's session.
+
+D-02's reuse-then-mint genuinely caps the blast radius at **one** surplus untouched draft per host,
+which is why this is a warning and not a blocker, and the file records the design intent (D-01).
+But D-02 is a *mitigation for* this shape, not a licence for it, and the same file's docblock
+already concedes the check-then-act is not race-free (`src/app/actions/listing.ts:233-245`), so two
+concurrent GETs can still produce two rows.
+
+**Fix:** no code change is required this phase, but this should be recorded as an explicit deferred
+item rather than left implicit, with the intended shape named: the wizard entry becomes a
+`<form action={createDraftListing}>` POST (or a route handler that only accepts `POST`), and
+`/host/listings/new` renders a one-click "Start a listing" surface instead of side-effecting on
+render. At minimum add `export const dynamic = "force-dynamic"` is *not* the fix — the fix is the
+method.
 
 ---
 
 ## Info
 
-### IN-01: `SeededHostGrid` returns five fields no consumer reads
+### IN-01: the two zero-import gates on `create-signal.ts` use different regexes; the always-run one is the stricter
 
-**File:** `e2e/helpers/booker-seed.ts:698-712`, `:873-893`
+**File:** `tests/listing/create-signal.test.ts:191` vs `tests/design/listing-create-refusal-routing.test.ts:207`
+**Issue:** `/^import\b/` (no leading whitespace) vs `/^\s*import\b/`. An indented `import` — inside a
+`try`, or after a prettier reflow — passes the `vitest.config.ts` copy and is caught only by the
+design copy.
+**Fix:** use `/^\s*import\b/` in both, and add a `import(` dynamic-import term:
+`/^\s*import\b|\bimport\s*\(/`.
 
-**Issue:** `hostEmail`, `hostId`, `untitledDraftId`, `publishedNoHoursId`, `longTitleDraftId` and `longTitle` are all populated and returned; `e2e/host-listing-grid.spec.ts` — the only caller — uses `teardown()` alone. Each field's docblock explains why a spec would want it, so this is plausibly intentional forward surface, but unread returns tend to drift out of sync with the rows they describe.
+### IN-02: the census's stripping proof asserts on prose in three unrelated files
 
-**Fix:** either drop the unused fields or have the spec use at least `longTitle` (asserting the wrapping card is on screen would also make the "three cards of genuinely different height" premise checkable rather than assumed).
+**File:** `tests/design/listing-reuse-predicate-census.test.ts:336-368`
+**Issue:** `expect(unstripped.length).toBeGreaterThan(stripped.length)` and
+`expect(unstrippedMissing.length).toBeGreaterThan(0)` require that `listing.ts`, `schema.ts` and
+`visual-baselines.ts` keep *discussing* a raw `UPDATE listing` in comments. An unrelated doc edit
+turns a correct tree red, and the failure message correctly says so but asks the reader to re-point
+the assertion by hand.
+**Fix:** make the fixture local — strip a string literal defined in the test file itself
+(`const PROSE = "// an UPDATE listing SET status = 'x' WHERE id = 1"`), assert `stripComments(PROSE)`
+removes it, and drop the dependency on other files' comments.
 
-### IN-02: `?create=failed` persists in the URL, so the notice re-renders on every reload and is shareable
+### IN-03: `pageConditions()` silently mis-parses the first nested-paren condition
 
-**File:** `src/app/(host)/host/listings/page.tsx:87`, `:196-205`
+**File:** `tests/design/listing-create-refusal-routing.test.ts:101-104`
+**Issue:** `/if\s*\(([^)]*)\)/g` stops at the first `)`. The docblock says "None of ours nests
+parentheses" — true today. The day one does (`if (!res.ok && isSomething(res))`), the extracted
+condition is truncated, `/^!\s*res\.ok$/` stops matching, and the red reads as a routing defect.
+**Fix:** balance the parentheses with a small scanner, or narrow the assertion to
+`code.includes("if (!res.ok)")` and note the trade.
 
-**Issue:** The signal is a plain query parameter that nothing clears. After the bounce, a refresh, a back-navigation or a bookmarked/shared URL re-renders "We couldn't start your new listing" for a host whose creation is no longer failing — a stale state claim on a management surface.
+### IN-04: `cross`-section YAML parse has no error boundary
 
-**Fix:** low priority given the notice is calm and non-blocking. If it matters, strip the parameter client-side after first paint (`history.replaceState`) or accept it and say so in the page header.
+**File:** `scripts/verify-workflows.mjs:899-906`
+**Issue:** `parse(readFileSync(...))` is called on every file in `.github/workflows/` with no `try`.
+A third workflow with a syntax error produces a raw stack and exit 1 — indistinguishable from "an
+invariant broke", which is the exact confusion the file's exit-code-3 contract (`:69-73`) exists to
+prevent.
+**Fix:** wrap in `try`/`catch` and call `hardStop([...])` naming the file and the parser message.
 
-### IN-03: `leadingSentence` gives a 500 the diagnosis written for a 404
+### IN-05: off-by-N citations in the ui primitives
 
-**File:** `e2e/host-route-reachability.spec.ts:66-81`
+**File:** `src/components/listing/listing-card.tsx:509` (`ui/button.tsx:117`);
+`tests/design/listing-card-merge-order.test.ts:116` (`src/lib/utils.ts:41-47`)
+**Issue:** `button.tsx:117` is `icon-xs`'s `size-6`; `icon-sm`'s `size-7` is `:118-119` — the
+*claim* (28px, matching `h-7`) is correct, only the pointer is wrong. `utils.ts:41` is a blank line.
+**Fix:** cite `:118-119` and `:42-47`, or cite the variant key by name.
 
-**Issue:** The function branches on `200` and returns the "THIS HOST ROUTE STOPPED RESOLVING… the ROUTER never reached the module — no application code ran" text for **everything else**. A 500 (the page module ran and threw — for instance the unguarded `createDraftListing` of CR-01) would be reported as "no application code ran", which is the wrong first sentence and the exact cost this file exists to avoid.
+### IN-06: `ci.yml`'s header calls the mail refusal "job 5's FIRST step"
 
-**Fix:** add a `status >= 500` branch pointing at the server log rather than the manifest greps.
-
-### IN-04: `verify-workflows.mjs` resolves everything relative to CWD, with none of the care its `yaml` diagnostic gets
-
-**File:** `scripts/verify-workflows.mjs:78-80`, `:221`
-
-**Issue:** `WORKFLOW_DIR` and `readFileSync("package.json")` are CWD-relative. Run from anywhere but the repo root, the `package.json` read throws an unhandled `ENOENT` with a raw stack — the opposite of the deliberate, one-line, exit-3 diagnostic the module gets one screen earlier. It is on the CI path, so any future step that runs it with a `working-directory` gets an unreadable failure.
-
-**Fix:** resolve from the script's own location, e.g. `const ROOT = fileURLToPath(new URL("..", import.meta.url));` and join from there, or catch the `package.json` read with a one-line diagnostic in the same shape as the parser's.
+**File:** `.github/workflows/ci.yml:245`
+**Issue:** It is the fourth step — `actions/checkout`, `actions/setup-node`, `npm ci` precede it.
+The step's own comment at `:1305` ("it runs before anything boots") is accurate; the header's is
+not.
+**Fix:** "job 5's first step after `npm ci`, and before anything boots".
 
 ---
 
-_Reviewed: 2026-09-04_
+_Reviewed: 2026-09-04T12:57:13Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
