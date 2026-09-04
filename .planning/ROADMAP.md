@@ -446,7 +446,7 @@ is cheap, independent, and because `CI-01` makes every later phase's gates capab
   4. Opening a pull request **runs the repository's functional Playwright specs**, and a failing spec
      turns the run red — proven by watching one fail, not by reading the workflow file.
 
-**Plans**: 15 plans, 15 waves (worktrees are OFF, so waves express dependency order, not concurrency);
+**Plans**: 14/15 plans executed, 15 waves (worktrees are OFF, so waves express dependency order, not concurrency);
 13/15 executed.
 8/8 original plans executed; verification found two FAILED must-haves, so plans 19-09 … 19-11 are
 GAP CLOSURE (`gap_closure: true`) and run via `/gsd-execute-phase 19 --gaps-only`. Re-verification
@@ -523,7 +523,7 @@ Plans:
 
 **Wave 14** *(GAP CLOSURE — blocked on Wave 13 completion)*
 
-- [ ] 19-14-PLAN.md — the standing mutation test the checker never had, plus an allow-list on the refusal step's attribute surface proven against a key nothing names, presence tests replacing both `continue-on-error` value tests, and Invariant C's predecessor claim made true (CI-01)
+- [x] 19-14-PLAN.md — the standing mutation test the checker never had, plus an allow-list on the refusal step's attribute surface proven against a key nothing names, presence tests replacing both `continue-on-error` value tests, and Invariant C's predecessor claim made true (CI-01)
 
 **Wave 15** *(GAP CLOSURE — blocked on Wave 14 completion)*
 
