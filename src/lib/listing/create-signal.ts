@@ -24,15 +24,36 @@
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // The four refusing verification states — `unverified | pending | rejected | suspended` — are routed
-// to `/host/verify` at `new/page.tsx:66-78`, BEFORE the action is ever called. So by the time control
-// reaches the branch these words are for, verification has already passed. What this branch now
-// catches is GENUINE INFRASTRUCTURE FAILURE ONLY: an insert that did not land.
+// to `/host/verify` by the VERIFICATION BLOCK in `(host)/host/listings/new/page.tsx` (the
+// `loadHostVerification` read and the redirect that follows it), BEFORE the action is ever called. So
+// by the time control reaches the branch these words are for, verification has already passed. What
+// that branch catches is GENUINE INFRASTRUCTURE FAILURE ONLY: a read or an insert that did not land.
 //
 // A sentence here that said "we couldn't verify your account" would therefore be COPY ABOUT A CHECK
 // THAT NEVER FAILED. The host would go to `/host/verify`, find nothing wrong, and lose trust in both
 // surfaces — the exact defect D-265 exists to prevent, one route over. `tests/listing/
 // create-signal.test.ts` asserts the ban against the composed constant AND against the rendered
 // output, because a ban that holds only in this module is a ban a page file can walk around.
+//
+// ⚠ THE PARAGRAPH ABOVE WAS ASPIRATIONAL WHEN IT WAS WRITTEN, AND IS NOW TRUE. Recorded here because
+// the difference is the whole reason this copy is safe. When plan 19-07 shipped these words, the
+// claim "verification has already passed by the time control reaches this branch" held only because
+// the branch was effectively unreachable: `createDraftListing` had no `try`/`catch`, so infrastructure
+// failure threw past the page entirely (19-VERIFICATION gap 2 / 19-REVIEW CR-01), and the two paths
+// that COULD reach the branch were both races that produced exactly the banned copy — a session
+// lapsing between the page's read and the action's, and an ops suspension landing between them. A
+// suspended host was told the platform broke.
+//
+// Plan 19-10 made it true by CONSTRUCTION rather than by absence, in two halves: the action now
+// RETURNS a distinct failure instead of throwing, and the page's FAILURE BLOCK routes on which
+// refusal came back — the verification refusal to the account check, no session to sign-in, and only
+// the infrastructure constant to the grid these words are rendered on. Both citations above name the
+// page's blocks by ROLE rather than by line number, which is a change from what this paragraph used
+// to do: WR-08 measured eleven stale line citations in this phase's own files, and a citation that
+// points at the wrong code is worse than none because it is believed. `tests/listing/create-routing.test.ts`
+// drives all three destinations and `tests/design/listing-create-refusal-routing.test.ts` keeps the
+// action's refusal set and that router in agreement, build-blocking, so a fourth refusal cannot
+// quietly start arriving at these words.
 //
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // THE OTHER THREE THINGS THIS COPY MUST NOT SAY, each with its evidence

@@ -30,6 +30,13 @@
 //     `Create listing` links are left enabled for the same reason (D-255): a hint on a surface has
 //     never been an authorization decision here.
 //     ⚠ Gating CREATION and not `saveListingStep` is D-270 — see that function's own note.
+//   - CREATION FAILS BY RETURNING, NEVER BY THROWING (D-03 / T-19-32, plan 19-10): createDraftListing
+//     guards its reuse read AND its insert, and resolves `{ ok: false, error: LISTING_CREATE_FAILED_STATE }`
+//     on any infrastructure failure — the guard opens AFTER the session check and the verification
+//     gate, so neither refusal can be swallowed and re-served as a generic apology. The caught error
+//     is LOGGED under `[listing:create]` and NEVER RETURNED: a host-facing sentence carries no error
+//     string, driver code or table name, because it names nothing the host can act on and leaks the
+//     shape of a system they control nothing about.
 //   - Soft-deleted rows (deletedAt IS NOT NULL) are excluded from normal reads/writes.
 
 import { randomUUID } from "node:crypto";
