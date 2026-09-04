@@ -1,0 +1,175 @@
+HSURF-02 REPRODUCTION GATE — THE ELEVEN-URL ANONYMOUS PROBE, CLEAN DEV SERVER
+Plan 19-05 Task 1. Protocol: 19-RESEARCH § 1.2 steps 2-4. Probe set: 19-RESEARCH § 1.1.
+Taken: 2026-09-04, local machine, `next dev` (Next.js 16.2.7, Turbopack).
+
+PRECONDITIONS, both checked before anything was destroyed:
+  - 19-04's archive complete: 4 archive files present and non-empty under evidence/
+    (app-paths-manifest.19-33.json, app-path-routes-manifest.prod.json,
+     dev-artifact-mtimes.txt, dev-types-routes.d.ts.halfwritten.txt).
+  - Step 2: nothing held :3000. `curl -w '%{http_code}' http://localhost:3000/` -> 000
+    (connection refused, curl exit 7). No server had to be killed.
+  - Step 3: D-09's clear ran as `rm -rf .next` — the WHOLE directory, not just .next/dev.
+  - Step 4: `npm run dev`, ready in 807ms, then the probe below.
+
+EVERY REQUEST IS ANONYMOUS — no cookie, no session. That is what makes the set decisive:
+EditListingPage redirects to /login at src/app/(host)/host/listings/[id]/edit/page.tsx:30-33,
+BEFORE the db.select() at :43 and long before the notFound() at :49-51. An anonymous caller
+that reaches that module CAN ONLY PRODUCE A 307. A 404 would prove the module never ran.
+
+=============================================================================
+THE MATRIX — ELEVEN ROWS
+=============================================================================
+Format: <n> <url> <status> <redirect_url>
+
+ 1 /host/listings                                       307 http://localhost:3000/login
+ 2 /host/listings/new                                   307 http://localhost:3000/login
+ 3 /host/listings/e6ca32d0-41c1-4fbf-9cee-79402b962c51/edit 307 http://localhost:3000/login
+ 4 /host/listings/e6ca32d0-41c1-4fbf-9cee-79402b962c51/availability 307 http://localhost:3000/login
+ 5 /host/listings/zzz/edit                              307 http://localhost:3000/login
+ 6 /host/listings/uat_listing_bookable/edit             307 http://localhost:3000/login
+ 7 /host                                                307 http://localhost:3000/login
+ 8 /bookings/abc                                        307 http://localhost:3000/login
+ 9 /listings/uat_listing_bookable                       200
+10 /invite/abc                                          200
+11 /ops                                                 404
+
+IT IS ELEVEN URLS, NOT TEN. PITFALLS.md § B5 says "the ten measured URLs" in its prose and
+then lists eleven; ROADMAP.md and 19-CONTEXT.md both inherit the wrong count. The prose is
+wrong and the list is right. There is no twelfth URL — stop looking for one.
+
+=============================================================================
+AGAINST THE EXPECTED MATRIX (19-RESEARCH § 1.1)
+=============================================================================
+ #  URL                          Recorded 2026-09-03   PASS=healthy   MEASURED    Verdict
+ 1  /host/listings               307 -> /login         307 -> /login  307 /login  PASS
+ 2  /host/listings/new           307 -> /login         307 -> /login  307 /login  PASS
+ 3  {draft-uuid}/edit            404  <- the subject   307 -> /login  307 /login  PASS
+ 4  {draft-uuid}/availability    404  <- the subject   307 -> /login  307 /login  PASS
+ 5  zzz/edit                     404                   307 -> /login  307 /login  PASS
+ 6  uat_listing_bookable/edit    404                   307 -> /login  307 /login  PASS
+ 7  /host                        307 -> /login         307 -> /login  307 /login  PASS
+ 8  /bookings/abc                307 -> /login         307 -> /login  307 /login  PASS
+ 9  /listings/uat_listing_bookable 200                 200            200         PASS
+10  /invite/abc                  200                   200            200         PASS
+11  /ops                         404                   404           404         PASS (control)
+
+ALL ELEVEN ROWS MATCH THE HEALTHY EXPECTATION.
+
+=============================================================================
+THE BRANCH RULE (19-RESEARCH § 1.2 step 4) — WHICH BRANCH THIS IS
+=============================================================================
+Rows 3, 4, 5 and 6 are ALL 307. Per the rule, stated per row and NOT generalised:
+
+  row 3  ({draft-uuid}/edit)          307  => NOT REPRODUCED
+  row 4  ({draft-uuid}/availability)  307  => NOT REPRODUCED
+  row 5  (zzz/edit)                   307  => NOT REPRODUCED
+  row 6  (uat_listing_bookable/edit)  307  => NOT REPRODUCED
+
+=> NOT REPRODUCED UNDER A CLEAN DEV SERVER. Continue to Task 2 (the production probe).
+No live reproduction was available to hand to /gsd-debug, because there was none to hand.
+
+Row 5 is the sharpest discriminator in the set and it behaved as § 1.1 predicts: `zzz` is
+not a uuid, but listing.id is `text` (schema.ts:202), so the segment matcher accepts it, the
+module runs, and an anonymous caller gets /login. A 404 here alongside 307s on rows 1/2/7
+would have been the signature of a routing-layer failure scoped to the [id] segment.
+
+NOTE ON THE UUID IN ROWS 3 AND 4. `e6ca32d0-41c1-4fbf-9cee-79402b962c51` WAS DELETED FROM THE
+DATABASE BY PLAN 19-04 (its Task 3 hard DELETE). The literal is kept unchanged anyway so this
+matrix is comparable row-for-row with the 2026-09-03 pass, and it changes NOTHING about what
+the probe measures: listing.id is text, the segment matcher accepts any string, and the
+request is anonymous so the module redirects to /login before it ever reads the database.
+THE ROW NO LONGER EXISTS IN THE DATABASE AND THE MEASUREMENT IS UNAFFECTED.
+
+=============================================================================
+THE CONFIRMING SECOND OBSERVATION — ROWS 3 AND 4 (19-RESEARCH § 1.1)
+=============================================================================
+Against the RUNNING (freshly built) dev server's own manifest:
+
+  $ grep -c 'listings/\[id\]/edit'         .next/dev/server/app-paths-manifest.json
+  1
+  $ grep -c 'listings/\[id\]/availability' .next/dev/server/app-paths-manifest.json
+  1
+  $ node -e "Object.keys(require('./.next/dev/server/app-paths-manifest.json')).length"
+  10
+  manifest mtime: 2026-09-04 10:41:23.283940300 +0800   (690 bytes)
+
+Both subject routes are PRESENT in the running server's manifest, and both served 307.
+
+The compiled artifacts, both present, both written DURING this probe:
+  .next/dev/server/app/(host)/host/listings/[id]/edit/page.js
+      6496 bytes   2026-09-04 10:40:56.187997000 +0800
+  .next/dev/server/app/(host)/host/listings/[id]/availability/page.js
+      6420 bytes   2026-09-04 10:40:59.691622700 +0800
+
+All 10 manifest keys on this clean session:
+  /(app)/bookings/[id]/page
+  /(host)/host/listings/[id]/availability/page
+  /(host)/host/listings/[id]/edit/page
+  /(host)/host/listings/new/page
+  /(host)/host/listings/page
+  /(host)/host/page
+  /(ops)/ops/page
+  /(public)/invite/[token]/page
+  /(public)/page
+  /_not-found/page
+  /listings/[id]/(detail)/page
+
+TWO OBSERVATIONS, RECORDED AS OBSERVATIONS AND NOT AS A MECHANISM (D-11):
+
+  (i) Every one of the 10 entries corresponds to a URL THIS PROBE REQUESTED, and both subject
+      artifacts carry mtimes inside the probe window (10:40:56 / 10:40:59, probe ran ~10:40-10:41).
+      This is CONSISTENT WITH — and does not prove — 19-RESEARCH § 1.0 item 2's inference that
+      the dev manifest is an incremental per-session compile ledger. That inference is
+      assumption A4 and remains UNPROVEN; one clean session on one machine does not establish it.
+
+ (ii) The freshly compiled edit/page.js is 6496 bytes — the SAME BYTE SIZE as the Sep 3 15:18
+      leftover recorded in 19-RESEARCH § 1.0. Recorded because it is a measurement. NO claim is
+      made that they are the same file, that the old one was current, or that this bears on the
+      404. Size equality is not identity and nothing here tested identity.
+
+=============================================================================
+PRE-CLEAR STATE OF .next, CAPTURED BEFORE `rm -rf` (for the record)
+=============================================================================
+  .next/                      2026-09-04 09:37:39  (only ONE child: dev/)
+  .next/dev/                  2026-09-04 10:02:16
+  .next/app-path-routes-manifest.json    ALREADY ABSENT before this plan ran
+  grep -c 'listings/\[id\]/edit' .next/dev/server/app-paths-manifest.json  -> 1
+
+  So the tree destroyed by this plan's `rm -rf .next` was ALREADY entirely the product of the
+  19-02 / 19-03 dev sessions, NOT the Sep 3 evidence. The Sep 3 evidence had already been
+  archived by 19-02 and verified by 19-04, and the production manifest was already gone from
+  the live tree before this plan started. Nothing unarchived was destroyed.
+
+=============================================================================
+ROW 11 — THE /ops REGRESSION CONTROL
+=============================================================================
+STATUS: 404. UNCHANGED. The D-219 cloak is not disturbed by this phase.
+/ops IS present in the running manifest as /(ops)/ops/page — the route module ran and
+rendered its 404; this is the cloak working, not the route being missing.
+
+A BODY-LEVEL COMPARISON WAS ATTEMPTED AND IS NOT VALID IN DEV MODE. Reported here so the
+next reader does not repeat it and misread the result:
+
+  /ops              fetch #1  sha256 eeda9e46aa49f9aac00046a6f748bd269bbca9c7608cf5a7f8aaa385c751926c
+  /ops              fetch #2  sha256 c08633c592e5817bbe3fe0ced2373826e108a7cad31b8b4cf84139bed04cb216
+  /zzz-nonroute-a             sha256 a8ad56a5e4eb7ae0a9cc381c12681aea4cf66c2572897bb27852cc91cde8be91
+  /zzz-nonroute-b             sha256 70a2c63b878dfd43d65739a938c0b4d84957c80dd7dee4b139d5eb84c131b6bc
+
+  /ops FETCHED TWICE DIFFERS FROM ITSELF. Dev-mode HTML is not stable request-to-request, so a
+  sha256 body comparison in `next dev` CANNOT replicate D-219's byte-equality measurement and
+  supports NO conclusion in either direction — not "the cloak broke" and not "the cloak holds".
+  Byte sizes were stable within a path (/ops 37274; both non-routes 37963), but that too is a
+  dev-mode figure and is recorded, not interpreted. The body check is re-run under the
+  production build in probe-prod.txt, where the output IS stable and the comparison is valid.
+
+  THE CONTROL THIS PLAN ASSERTS IS THE STATUS, AND THE STATUS HELD AT 404.
+
+=============================================================================
+D-10 CONTAINMENT
+=============================================================================
+  $ git status --porcelain "src/app/(host)/host/listings/[id]/"
+  (no output)
+
+Nothing under the edit or availability route directory was touched at any point. This plan
+read edit/page.tsx:30-33 and :43-51 and edited nothing. The notFound() at :49-51 is a shipped
+ownership check and is not a subject of this phase.
