@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
-current_phase_name: Host Listing Surfaces & Gates That Actually Run
+current_phase_name: host-listing-surfaces-gates-that-actually-run
 status: executing
 stopped_at: "Completed 19-11-PLAN.md — WR-01 and WR-05 closed: three invariants a detached gate-e2e cannot survive (each watched red), and a ci.yml header that describes the file it is attached to"
-last_updated: "2026-09-04T12:34:16.945Z"
+last_updated: "2026-09-04T14:29:17.879Z"
 last_activity: 2026-09-04
 last_activity_desc: 19-10 executed — D-03 failure signal made reachable + refusal routing
-state_head: 5bb70d05ad2faabffed0033cf5eb5149a5aa1b68
+state_head: 039e0bee52078ef82c20d0e8a7427021c20a92ff
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -17,7 +17,7 @@ progress:
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 7
   completed_phases: 1
-  total_plans: 41
+  total_plans: 42
   completed_plans: 41
   percent: 14
 ---
@@ -73,7 +73,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
+Phase: 19 (host-listing-surfaces-gates-that-actually-run) — READY TO EXECUTE
 Plan: 11 of 11
 Status: Ready to execute
 Last activity: 2026-09-04 — 19-09 executed: D-02 availability_block conjunct + build-blocking census
