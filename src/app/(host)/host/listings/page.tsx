@@ -20,6 +20,13 @@ import { listing, listingPhoto, hostPayout, listingReview } from "@/lib/db/schem
 import { deriveBookable } from "@/lib/bookability";
 import { loadHostVerification } from "@/lib/host/verification-status";
 import { loadPublishedListingsMissingHours } from "@/lib/listing/hours-signal";
+// D-03 / HSURF-02 — the words for a creation that failed, and the one query token that carries the
+// signal here from `new/page.tsx` (which renders nothing, so the sentence has to travel in the URL).
+import {
+  LISTING_CREATE_FAILED_CTA,
+  LISTING_CREATE_FAILED_PARAM,
+  composeListingCreateFailedSentence,
+} from "@/lib/listing/create-signal";
 import { HostingPausedNotice } from "@/components/host/hosting-paused-notice";
 // D-130 / GATE-05: the tile's price line is composed HERE, in the RSC, and handed to the client card as
 // finished strings. See src/lib/listing/card-price.ts for why, and src/lib/search/query.ts for the same
@@ -36,7 +43,27 @@ import { EmptyState } from "@/components/patterns/empty-state";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 
-export default async function HostListingsPage() {
+/**
+ * THE ONE TOKEN, SPLIT ONCE — D-03 / T-19-31.
+ *
+ * BOTH halves of the match come out of the single exported constant, so this page cannot drift from
+ * `new/page.tsx` on the key any more than it can on the value: there is one string in the repository
+ * that decides both ends, and changing it moves both in the same commit or moves neither.
+ *
+ * The empty-string defaults are not decoration. Without them a malformed constant would yield
+ * `undefined`, and `undefined === undefined` would render the notice on a page nobody navigated to
+ * with a parameter at all. An absent parameter reads as `undefined`, which never equals `""`.
+ */
+const [CREATE_FAILED_KEY = "", CREATE_FAILED_VALUE = ""] = LISTING_CREATE_FAILED_PARAM.split("=");
+
+export default async function HostListingsPage({
+  searchParams,
+}: {
+  // The shape Next hands a page, and the shape `(host)/host/bookings/page.tsx:196-199` already uses:
+  // a promise, awaited below. Typed as the framework types it — a repeated key arrives as an ARRAY,
+  // and pretending otherwise is how a `string` assumption becomes a runtime surprise.
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     redirect("/login");
@@ -48,6 +75,16 @@ export default async function HostListingsPage() {
   if (!u.canHost) {
     redirect("/");
   }
+
+  // D-03 — DID THE HOST ARRIVE HERE FROM A CREATION THAT FAILED?
+  //
+  // ⚠ `searchParams` IS UNTRUSTED INPUT (T-19-31). The contract is ONE equality check against the
+  // token above, after which the page renders THE COPY MODULE'S OWN STRING. The incoming value is
+  // never interpolated into the page — not to make the message more specific, not to name an id, not
+  // to echo the token back. Anything that is not this one value renders nothing at all. React would
+  // escape a reflected value anyway; the allow-list is what makes it structural rather than lucky,
+  // and `tests/listing/create-signal.test.ts` proves a hostile value appears nowhere in the output.
+  const creationFailed = (await searchParams)[CREATE_FAILED_KEY] === CREATE_FAILED_VALUE;
 
   const rows = await db
     .select()
@@ -143,6 +180,27 @@ export default async function HostListingsPage() {
       {verification.suspended && (
         <div className="mb-8">
           <HostingPausedNotice reason={verification.reason} />
+        </div>
+      )}
+
+      {/* D-03 / HSURF-02 — THE CREATION THAT FAILED, GIVEN A SENTENCE.
+          Rule O7: the state, the reason and the way out. Calm muted information, never an alert
+          variant and never red — the same treatment the shipped hours notice and review notice get on
+          the card, because nothing about the host is wrong: something went wrong on our side.
+          The way out is a TEXT LINK rather than a brand button; `brand-recipe.test.ts` pins the brand
+          call sites and a 21st reddens a build-blocking gate for a control that is not this page's
+          primary action.
+          ⚠ OUTSIDE the populated-versus-empty fork below, in the HostingPausedNotice slot and with
+          its offset, for the same reason that notice is: a host whose very FIRST creation failed has
+          no grid to hang the message on and needs it most. */}
+      {creationFailed && (
+        <div className="mb-8">
+          <p className="text-sm text-muted-foreground">
+            {composeListingCreateFailedSentence()}{" "}
+            <Link href="/host/listings/new" className="underline underline-offset-4">
+              {LISTING_CREATE_FAILED_CTA}
+            </Link>
+          </p>
         </div>
       )}
 

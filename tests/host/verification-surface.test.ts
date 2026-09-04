@@ -378,19 +378,45 @@ describe("CLAIM 4 — /host/listings/new routes a refusing host BEFORE it calls 
     ).toBe(true);
   });
 
-  it("keeps the infrastructure-failure bounce it already had — this plan does not widen into fixing it", () => {
+  it("keeps the infrastructure-failure bounce it already had — one bounce, to the same grid", () => {
     // ⚠ THE TOKEN IS ASSEMBLED FROM HALVES for `FORBIDDEN_PARAM`'s reason one claim up: 18.1-12's
     // acceptance criteria count this redirect's occurrences in the page and expect the count
     // UNCHANGED at 1, and a test file spelling it contiguously is how such a count reads a correct
     // tree as a broken one.
-    const GRID_BOUNCE = `redirect("/host/${"listings"}")`;
+    //
+    // ⚠ THIS CASE WAS NARROWED IN PLAN 19-07 (D-03), AND THE NARROWING IS THE POINT. It used to
+    // assert the CALL — `redirect("/host/…")` including its closing paren — under the heading "this
+    // plan does not widen into fixing it". 19-07 is the plan that fixed it: the bounce now appends
+    // one query token so the grid can say what happened, which is a change to the CALL and not to
+    // the DESTINATION. Asserting the destination literal is what 18.1-12 actually cared about —
+    // exactly one bounce, to exactly this grid — and it is the half that survives the fix. The
+    // sentence the token produces is pinned separately, by `tests/listing/create-signal.test.ts`.
+    const GRID_BOUNCE = `redirect("/host/${"listings"}"`;
     const occurrences = CODE.split(GRID_BOUNCE).length - 1;
     expect(
       occurrences,
       "the pre-existing bounce to the grid was removed or duplicated. It catches genuine " +
-        "infrastructure failure — an insert that did not land — and it is STILL a bounce with no " +
-        "sentence: recorded as a known blind spot in 18.1-UI-SPEC § NOT COVERED rather than quietly " +
-        "fixed here. Removing it leaves a failed create rendering a broken wizard.",
+        "infrastructure failure — an insert that did not land — and removing it leaves a failed " +
+        "create rendering a broken wizard. If you were appending something to it: append to the " +
+        "QUERY, and leave the destination literal spelled exactly as it is (two gates count it).",
     ).toBe(1);
+  });
+
+  it("that bounce now CARRIES the failure signal — D-03 closed 18.1-UI-SPEC § NOT COVERED", () => {
+    // The blind spot 18.1-12 recorded rather than fixed: the host pressed *Create listing*, landed
+    // back on the grid, and was told nothing. Plan 19-07 gave it a sentence. The token is IMPORTED at
+    // the page rather than typed, so the origin and the destination cannot drift — this case asserts
+    // the import is what the redirect uses, not a hand-spelled copy of it.
+    expect(
+      CODE.includes("LISTING_CREATE_FAILED_PARAM"),
+      "the infrastructure-failure bounce stopped carrying the D-03 signal token. Without it the " +
+        "host lands on their grid with no message at all — the silent bounce this branch had until " +
+        "plan 19-07, recorded as a known blind spot in 18.1-UI-SPEC § NOT COVERED.",
+    ).toBe(true);
+    expect(
+      /redirect\(\s*"\/host\/listings"\s*\+/.test(CODE),
+      "the bounce no longer appends its query to the UNCHANGED destination literal. The literal is " +
+        "counted by two gates; append to it, never fold it into a template string.",
+    ).toBe(true);
   });
 });

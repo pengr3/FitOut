@@ -29,10 +29,12 @@
 // reads — and its panel names the state, the reason and the way out for each. `suspended` included:
 // the page short-circuits that branch to `HostingPausedNotice`.
 //
-// ⚠ THE `!res.ok` BRANCH BELOW KEEPS ITS SILENT BOUNCE, AND THAT IS SCOPE RATHER THAN AGREEMENT.
-// With the redirect in front of it, that branch now only catches genuine infrastructure failure — an
-// insert that did not land. It is still a bounce with no sentence, it is recorded as a known blind
-// spot in 18.1-UI-SPEC § NOT COVERED, and this plan deliberately does not widen into fixing it.
+// ⚠ THE `!res.ok` BRANCH BELOW NO LONGER BOUNCES SILENTLY (D-03 / plan 19-07). With the verification
+// redirect in front of it, that branch catches genuine infrastructure failure ONLY — an insert that
+// did not land. 18.1-12 left it as a bounce with no sentence and recorded it as a known blind spot in
+// 18.1-UI-SPEC § NOT COVERED; this plan closed it. The bounce is unchanged and still goes to the
+// grid; it now carries one query token, and the grid renders the sentence. ⚠ THAT SENTENCE MUST NOT
+// IMPLY A VERIFICATION PROBLEM — see the branch's own comment and `src/lib/listing/create-signal.ts`.
 //
 // ⚠ AND THE FOUR `Create listing` LINKS ARE LEFT ENABLED (D-255): `(host)/host/listings/page.tsx` and
 // `(host)/host/page.tsx` keep their href, label and variant and gain no `disabled`, `aria-disabled`,
@@ -47,6 +49,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { loadHostVerification } from "@/lib/host/verification-status";
 import { createDraftListing } from "@/app/actions/listing";
+import { LISTING_CREATE_FAILED_PARAM } from "@/lib/listing/create-signal";
 
 export default async function NewListingPage() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -79,8 +82,25 @@ export default async function NewListingPage() {
 
   const res = await createDraftListing();
   if (!res.ok || !res.id) {
-    // Creation failed — send them back to the grid rather than a broken wizard.
-    redirect("/host/listings");
+    // Creation failed — send them back to the grid rather than a broken wizard, AND TELL THEM
+    // (D-03 / HSURF-02). Until this plan this was a bare bounce carrying no message at all: the host
+    // pressed *Create listing*, landed back where they started, and was told nothing. That blind
+    // spot is recorded by name in `18.1-UI-SPEC § NOT COVERED`; this closes it.
+    //
+    // ⚠ WHAT THIS BRANCH NOW CATCHES IS GENUINE INFRASTRUCTURE FAILURE ONLY — an insert that did not
+    // land. The four refusing verification states are routed to the account check ABOVE, before the
+    // action is ever called, so verification has already PASSED by the time control reaches here.
+    // THE SENTENCE MUST THEREFORE NOT IMPLY A VERIFICATION PROBLEM: it would be copy about a check
+    // that never failed, sending the host to a page where nothing is wrong — the D-265 defect one
+    // route over. The words, and that ban with its evidence, live in `create-signal.ts`.
+    //
+    // ⚠ AND THE DESTINATION LITERAL IS UNCHANGED, WHICH IS WHY THIS IS A CONCATENATION RATHER THAN A
+    // TEMPLATE. Two gates count that literal's occurrences in this file and expect the count
+    // unchanged at 1 (18.1-12's acceptance criteria; this plan's). Folding it into a template string
+    // would delete the token they count while changing nothing about the behaviour — a correct tree
+    // read as a broken one. Only a query string is appended, and its one token is imported so the
+    // origin and the destination cannot drift.
+    redirect("/host/listings" + "?" + LISTING_CREATE_FAILED_PARAM);
   }
 
   redirect(`/host/listings/${res.id}/edit`);
