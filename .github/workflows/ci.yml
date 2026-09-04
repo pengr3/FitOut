@@ -363,6 +363,11 @@ on:
 permissions:
   contents: read
 
+# TEMPORARY — plan 19-08 Task 2, watched red two. DUMMY VALUE, NEVER a real credential.
+# Reverted in the very next commit. See 19-08-SUMMARY.md.
+env:
+  RESEND_API_KEY: dummy-not-a-real-key-19-08
+
 # The `github.event_name` term is NOT decoration. A group of workflow+ref alone is
 # event-agnostic, so a push to `dev` would cancel a `workflow_dispatch` baseline run already
 # in flight on the same ref — killing it mid-commit and leaving a partial set of baseline PNGs
