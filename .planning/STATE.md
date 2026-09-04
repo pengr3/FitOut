@@ -4,22 +4,22 @@ milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
-status: ready_to_execute
-stopped_at: "Phase 19 PLANNED — 8 plans / 8 waves, plan-checker PASSED with 0 blockers and 0 warnings; requirements 3/3 and decisions 15/15 covered. Waves are dependency order, not concurrency (worktrees OFF). ⚠ THREE PLANS ARE NOT AUTONOMOUS: 19-04 (deletes four real orphan-draft rows + a checkpoint:decision on whether a PRODUCTION database holds the same class of rows — its scope must be RE-DERIVED, never copied from the local query), 19-05 (an eight-question human gate on the 404 finding, whose honest outcome is likely NOT REPRODUCIBLE — the wedged dev server is gone, so UNPROVEN item (a) is not closeable and no cause may be named for (c)), and 19-08 (the required-check flip, plus an OPEN option: gate-e2e has NO existence assertion, because every ci invariant in verify-workflows.mjs is universally quantified and a deleted job satisfies all of them vacuously). An unattended run therefore completes waves 1-3 and stops at wave 4. Spec count goes 37 -> 39 and 39 is the wall-clock denominator."
-last_updated: "2026-09-03T19:26:18.824Z"
+status: executing
+stopped_at: Completed 19-01-PLAN.md
+last_updated: "2026-09-04T01:26:33.274Z"
 last_activity: 2026-09-04
-last_activity_desc: v1.2 roadmap created (Phases 19–23; 25/25 requirements mapped)
-state_head: 29fc388af06d2a159b59a09a805a57f52a4eb914
+last_activity_desc: Phase 19 execution started
+state_head: 1839a2f0a02ad5df5300f0aecb546d2a848aab47
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
   # of 2026-09-04. The plan counters cover phases 18 + 18.1 ONLY -- phases 19-23
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 1
   total_plans: 38
-  completed_plans: 30
-  percent: 29
+  completed_plans: 31
+  percent: 14
 ---
 
 # Project State
@@ -29,7 +29,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** **v1.2 IS ROADMAPPED — five new phases (19–23) carry the milestone's 25 outstanding
+**Current focus:** Phase 19 — Host Listing Surfaces & Gates That Actually Run
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues
 from 19; coverage is 25/25 with no orphans and no duplicates. The order is dependency-derived, not
 brief-derived: **19** (cheap independents — the `/host/listings` card fix, the reproduction-gated
@@ -73,10 +73,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — READY TO EXECUTE
-Plan: —
-Status: Roadmap complete — ready to plan Phase 19
-Last activity: 2026-09-04 — v1.2 roadmap created (Phases 19–23; 25/25 requirements mapped)
+Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
+Plan: 2 of 8
+Status: Ready to execute
+Last activity: 2026-09-04 — Phase 19 execution started
 
 ## Performance Metrics
 
@@ -418,6 +418,11 @@ deferred walk is inconsistent rather than honest.*
 | Phase 18.1 P05 | ~35min | 3 tasks | 4 files |
 | Phase 18.1 P06 | ~30min | 3 tasks | 2 files |
 | Phase 18.1 P10 | 38min | 3 tasks | 6 files |
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 19 P01 | 19 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1366,6 +1371,9 @@ Recent decisions affecting current work:
 - [Phase ?]: D-265 discharged (18.1-06) as an ALLOW-LIST, never a translator: thirteen declared codes in refund-rail.ts's shape, `composeReason(HOST_REJECT_REASONS[0], kept.slice(0,280))`, and the shipped product sentence IS the canned fallback — no new string was invented. Three exclusion reasons are written above the list with named examples, plus a FOURTH this phase adds: per D-272 an attempts-exhausted code is off the list because the per-module caps (2 document / 3 liveness / 3 face match) bound retries WITHIN one session while the weekly allowance is seven, so 'you have no tries left' would be FALSE as the host read it.
 - [Phase ?]: MEASURED (18.1-06): adding `POSSIBLE_DUPLICATED_USER: true` to `DIDIT_SAFE_RISKS` reddens exactly TWO of 41 cases and leaves THIRTY-NINE green — the census, F-3, the bound and the canned-fallback-on-empty cases all pass under a live cross-user privacy leak, because none of them sends the offending code. That is why the unsafe codes are enumerated BY NAME rather than asserted as 'the reason looks reasonable', and why allow-list membership is asserted directly as well as through a composed string.
 - [Phase ?]: 18.1-06 did NOT tick HVER-07 or HVER-08. HVER-07's traceability row names six plans (18.1-04, -05, -06, -08, -09, -14) and this is the third; HVER-08's names five (18.1-06, -07, -08, -10, -11) and this is the first. Both bullets and both table rows were checked by hand in both directions and both correctly still read open.
+- [Phase 19]: gate-e2e ships as a NEW fifth CI job, never as a widening of gate-price-parity (D-12) — Job 3's identity in the D-24 taxonomy is that it runs ONE self-contained spec; widening it silently re-opens the surface it was scoped to close. Asserted by a git diff deletion count of 0 rather than by intent.
+- [Phase 19]: D-14's mail-credential refusal is implemented in TWO places with deliberately different env-key spellings — The runtime step inside gate-e2e uses MAIL_KEY_UNDER_TEST and reads the provider key via a context expression in its VALUE; the parse invariant in verify-workflows.mjs scans env KEYS on gate-db-free, catching it a minute earlier and across all five jobs. The asymmetry is why the two halves cannot fight each other.
+- [Phase 19]: gate-e2e's timeout-minutes: 45 is a documented wall-clock STOP, not an estimate (D-13) — The real number does not exist yet and this job is what measures it. The first green run's wall-clock replaces it; once the check is required, an expiry is a RED whose correct response is D-13's sharding decision, never a silently raised cap.
 
 ### Pending Todos
 
@@ -1543,8 +1551,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-03T18:51:50.209Z
-Stopped at: Phase 19 UI-SPEC approved
+Last session: 2026-09-04T01:26:19.963Z
+Stopped at: Completed 19-01-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1697,7 +1705,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-UI-SPEC.md
+Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered

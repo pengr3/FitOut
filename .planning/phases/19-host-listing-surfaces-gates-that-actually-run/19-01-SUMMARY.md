@@ -263,6 +263,34 @@ Carry-forward for whoever picks this up:
 - **Do not spell the snapshot-update flag anywhere in `ci.yml`**, comments included. `grep -c` for it over `ci.yml` still returns 0 and that is the cheapest audit of the rule.
 - **Spec count is 37 now, 39 at phase end.** Record it in every summary that touches it.
 
+## Self-Check: PASSED
+
+Files claimed, verified present on disk:
+
+- `FOUND: .github/workflows/ci.yml`
+- `FOUND: scripts/verify-workflows.mjs`
+- `FOUND: .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-01-SUMMARY.md`
+
+Commits claimed, verified present in `git log --oneline --all`:
+
+- `FOUND: 49529c0` (Task 1)
+- `FOUND: e208dac` (Task 2)
+- `FOUND: 1839a2f` (this summary)
+
+Plan-level `<verification>` re-run at close-out:
+
+1. `node scripts/verify-workflows.mjs` → exit 0, `All 40 invariants hold across 3 section(s) (baselines=11, ci=22, cross=7).` — PASS
+2. `parsed values (ci)` names five jobs, four containerized, four service images — PASS
+3. `git diff HEAD~2 --numstat -- .github/workflows/ci.yml` → `169  0` (additions only) — PASS
+4. The watched-red failure line is recorded verbatim above, with its revert confirmed — PASS
+
+Plan `<success_criteria>`:
+
+- `gate-e2e` exists as a fifth job and runs `npx playwright test --project=chromium` — PASS
+- `gate-price-parity` byte-unchanged (`grep -c 'e2e/price-parity.spec.ts'` → 2; 0 deletions) — PASS
+- The mail refusal exists in both the job and the parser, and the parser half was watched red — PASS
+- Zero `package.json` changes and zero `drizzle/` changes (`git diff --name-only 49529c0~1..HEAD -- package.json package-lock.json drizzle/` → 0 files) — PASS
+
 ---
 *Phase: 19-host-listing-surfaces-gates-that-actually-run*
 *Completed: 2026-09-04*
