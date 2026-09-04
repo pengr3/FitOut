@@ -727,17 +727,43 @@ if (sections.includes("ci")) {
     `run commands=${JSON.stringify(e2eRuns)}`,
   );
 
-  // 2. UNCONDITIONAL. A job-level `if:` or `continue-on-error: true` detaches the gate while
-  //    leaving every parsed invariant perfectly intact — the same failure shape as the `name:` edit
-  //    the check above was added for, and it does not even need the job to change what it runs.
-  //    ⚠ A DELIBERATE CONDITION IS A DECISION TO RECORD, NOT ONE TO ABSORB. If this job is
-  //    genuinely meant to become conditional or soft-failing, remove this invariant in the same
-  //    commit and say why in it — exactly as the hard stop above demands for a deliberate deletion.
+  // 2. UNCONDITIONAL — THE JOB *AND* EVERY STEP OF IT. A job-level `if:` or
+  //    `continue-on-error: true` detaches the gate while leaving every parsed invariant perfectly
+  //    intact — the same failure shape as the `name:` edit the check above was added for, and it
+  //    does not even need the job to change what it runs.
+  //
+  //    THE PROMOTION, AND THE MEASUREMENT THAT BOUGHT IT (review finding CR-02). The superseded
+  //    predicate read only the JOB's two fields. 19-VERIFICATION.md added `continue-on-error: true`
+  //    as a third line under the mail-refusal step, ran this checker, and watched all 48 invariants
+  //    stay green while that step's non-zero exit could no longer fail the job — so migrate, seed
+  //    and the whole suite would run on with a live mail credential present. `if:` on the step has
+  //    the same effect one level further out: Invariant C's `findIndex` is over `run` STRINGS and
+  //    does not care whether the step will ever execute. This is worse than the job-level case it
+  //    inherits from, because the detached step is the only half of D-14 that protects the CURRENT
+  //    run — the parse half runs on job 1, in parallel, and protects only the next one. The gate-
+  //    bearing unit was assumed singular and assumed to be the job; it is every unit that can carry
+  //    a condition, so the quantifier is the subject now and the job read is one element of it.
+  //
+  //    ⚠ A DELIBERATE CONDITION IS A DECISION TO RECORD, NOT ONE TO ABSORB — AT EITHER LEVEL. If
+  //    this job, or any step in it, is genuinely meant to become conditional or soft-failing, remove
+  //    this invariant in the same commit and say why in it — exactly as the hard stop above demands
+  //    for a deliberate deletion. A gate step that cannot fail the job is not a gate; it is a report.
+  const conditionalSteps = stepsOf(e2e)
+    // Index from the FULL step list, before filtering, so `step[2]` names the third step of the job
+    // rather than the third offender. Declared order is preserved and nothing is sorted or de-duped:
+    // two offending steps must stay distinguishable and the line must be stable across runs.
+    .map((s, i) => ({ step: s, label: String(s?.name ?? `step[${i}]`) }))
+    .filter(({ step }) => step?.if !== undefined || step?.["continue-on-error"] === true)
+    .map(({ label }) => label);
   check(
-    `"${CI_E2E_JOB}" is unconditional — no job-level if:, no continue-on-error: true`,
-    e2e?.if === undefined && e2e?.["continue-on-error"] !== true,
-    `if=${JSON.stringify(e2e?.if ?? null)}  ` +
-      `continue-on-error=${JSON.stringify(e2e?.["continue-on-error"] ?? null)}`,
+    `"${CI_E2E_JOB}" is unconditional — no if:, no continue-on-error: true, on the JOB or on ANY STEP`,
+    e2e?.if === undefined &&
+      e2e?.["continue-on-error"] !== true &&
+      conditionalSteps.length === 0,
+    `job if=${JSON.stringify(e2e?.if ?? null)}  ` +
+      `job continue-on-error=${JSON.stringify(e2e?.["continue-on-error"] ?? null)}  ` +
+      `conditional/soft steps=[${conditionalSteps.join(", ") || "(none)"}]  ` +
+      `(of ${stepsOf(e2e).length} steps)`,
   );
 
   // 3. SEED BEFORE SUITE, COMPARED BY INDEX. Presence alone is not the property: a seed that runs
