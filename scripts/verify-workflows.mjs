@@ -828,10 +828,19 @@ if (sections.includes("ci")) {
   const mailStepKeys = Object.keys(e2eMailStep ?? {}).sort();
   const mailStepExtraKeys = mailStepKeys.filter((k) => !MAIL_STEP_ALLOWED_KEYS.includes(k));
 
-  // A. IT READS THE REAL PROCESS ENVIRONMENT. All five conjuncts, because any one alone is
-  //    satisfiable by the inert shape: the step existed, and it ran something.
+  // A. IT READS THE REAL PROCESS ENVIRONMENT. The conjuncts assert that the step EXISTS under its
+  //    exact name, that its `run:` is exactly the no-argument invocation, that it declares no `env:`
+  //    map, and that it carries no key outside the permitted surface. They are ANDed because any one
+  //    alone is satisfiable by the inert shape: the step existed, and it ran something.
   //
-  //    THE FIFTH CONJUNCT, AND THE MEASUREMENT THAT BOUGHT IT (review finding CR-01, second round).
+  //    ⚠ THEY ARE NOT COUNTED HERE, DELIBERATELY (review finding IN-01). Two of the run-string
+  //    conjuncts are logically IMPLIED by the exact-equality one — once the string is fully
+  //    determined they can never discriminate — so a number would be a claim about coverage depth
+  //    that the code does not support. What each conjunct ASSERTS is the honest form of that claim,
+  //    and it is a number nobody has to trust.
+  //
+  //    THE EXACT-INVOCATION CONJUNCT, AND THE MEASUREMENT THAT BOUGHT IT (review finding CR-01,
+  //    second round).
   //    The superseded conjunct was `run.includes(MAIL_REFUSAL_SCRIPT)` — a containment test, which
   //    EVERY argument list in the world satisfies. 19-VERIFICATION.md edited this step's `run:` to
   //    append a decoy prefix source, ran this checker, and watched all 48 invariants stay green while

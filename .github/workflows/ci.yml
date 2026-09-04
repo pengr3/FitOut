@@ -243,6 +243,20 @@
 #          `gate-e2e`, and its evidence line names each offending step in declared order
 #          (`step[<index>]` for an unnamed one). A gate step that cannot fail the job is not a
 #          gate; it is a report;
+#          ⚠ FALSIFIED 2026-09-05 BY PLAN 19-14 (review finding CR-02). THE CLAIM WAS: the
+#          widened quantifier above reaches every step, so a soft-failing gate step is caught.
+#          The quantifier was right; the COMPARISON was the hole. Both the job read and the step
+#          filter compared the soft-failure key's VALUE against the JavaScript boolean, and that
+#          key is documented as accepting an EXPRESSION, which parses to a STRING — so `=== true`
+#          was false and `!== true` was true for the SAME input, and both directions stayed
+#          green. A quoted value defeats it identically. 19-VERIFICATION.md and 19-REVIEW.md each
+#          reproduced the expression form independently and watched all 48 invariants hold while
+#          that step's non-zero exit could no longer fail the job. WHAT REPLACED IT: both sites
+#          test for the key's PRESENCE, the same way `if:` was already tested BESIDE them inside
+#          the very same expression — an asymmetry that had been sitting in one predicate. A key
+#          that should never appear on a gate has no legitimate value to carve out, so there is
+#          no value left to spell around. The sentence above is kept because it is the governing
+#          argument and it is now true;
 #       4. the SEED asserted to run BEFORE the suite, compared by INDEX and not by presence —
 #          a seed after the suite is a seed that changed nothing (19-11);
 #       5. the MAIL REFUSAL asserted to read the REAL PROCESS ENVIRONMENT — the step exists by
@@ -255,17 +269,46 @@
 #          world satisfies: 19-VERIFICATION.md appended a decoy prefix source to this step's
 #          `run:` and watched all 48 invariants stay green while the script read its detection
 #          prefix out of that decoy and exited 0 with a provider-named variable live in the
-#          environment. WHAT REPLACED IT: FIVE conjuncts, the load-bearing one comparing this
-#          step's `run:` for EXACT equality with the no-argument invocation, so
-#          `node <script> <anything>` is red. NO ARGUMENTS is a checked property now, not a
-#          documented intention;
+#          environment. WHAT REPLACED IT: a load-bearing conjunct comparing this step's `run:`
+#          for EXACT equality with the no-argument invocation, so `node <script> <anything>` is
+#          red. NO ARGUMENTS is a checked property now, not a documented intention;
+#          ⚠ EXTENDED 2026-09-05 BY PLAN 19-14 (review finding CR-01, third round). Every
+#          conjunct listed above constrains WHAT this step runs, and entry 7 constrains WHERE it
+#          runs. NONE of them constrained HOW it executes. 19-VERIFICATION.md added ONE key to
+#          this step — leaving its `run:` byte-identical, adding no `env:`, no `if:` and no
+#          soft-failure key, and not moving the step — and watched all 48 invariants stay green
+#          while the script was PRINTED instead of executed. WHAT WAS ADDED: the step's PERMITTED
+#          KEY SURFACE is now asserted as an ALLOW-LIST, so a key outside it — including an
+#          Actions attribute that does not exist yet — is red without any predicate naming it.
+#          That shape is the point: the failure class is "an attribute the checker does not know
+#          about", and a deny-list can only ever name the ones it already knows.
+#          ⚠ AND THE CONJUNCT COUNT THAT USED TO SIT HERE IS DELETED, NOT CORRECTED (review
+#          finding IN-01). Two of the counted items were logically IMPLIED by the exact-equality
+#          one, so the number claimed a coverage depth the code did not support. What the
+#          conjuncts ASSERT is stated instead: the step exists under its exact name, its `run:`
+#          is exactly the no-argument invocation, it declares no `env:` map, and it carries no
+#          key outside the permitted surface. This file's whole discipline is that a number must
+#          be one nobody has to trust;
 #       6. the TWO HALVES asserted UNDRIFTABLE — the provider's prefix is declared once in
 #          `scripts/verify-workflows.mjs`, that declaration still matches the shared pattern,
 #          the refusal script carries that pattern's source text verbatim, and the refusal
 #          script holds NO COPY of the value (19-12);
-#       7. the REFUSAL asserted to run BEFORE migrate, seed and the suite, compared by INDEX
-#          with only `npm ci` permitted ahead of it — presence is not the property, because a
-#          refusal that fires after the suite fires after the mail has already left (19-12).
+#       7. the REFUSAL asserted to run BEFORE migrate, seed and the suite, compared by INDEX —
+#          presence is not the property, because a refusal that fires after the suite fires
+#          after the mail has already left (19-12).
+#          ⚠ FALSIFIED 2026-09-05 BY PLAN 19-14 (review finding WR-05). THE CLAIM WAS: only
+#          `npm ci` may precede the refusal. That was FALSE THE DAY IT WAS WRITTEN. The
+#          computation ran over the job's RUN COMMANDS, and the helper producing that list
+#          filters to steps carrying a string `run:` — so a step declaring `uses:` was not
+#          permitted-by-decision, it was INVISIBLE BY CONSTRUCTION, absent from the very list the
+#          predicate examined. Any number of `uses:` steps could therefore sit ahead of the only
+#          control that protects the CURRENT run without moving its index, and one first-party
+#          action alone can execute arbitrary JavaScript in the job. WHAT REPLACED IT: the
+#          position is computed over the FULL STEP LIST, with an explicit allow-list of THREE
+#          permitted predecessors — `actions/checkout@…`, `actions/setup-node@…` and a `run:` of
+#          exactly `npm ci` — each `uses:` entry matched with a trailing `@` so a longer action
+#          name merely beginning with a permitted one is NOT admitted. The invariant's name
+#          enumerates those three now instead of claiming one;
 #     2, 3 and 4 exist because 1 did not close them. Measured, not supposed: until 19-11 you
 #     could delete this job's Playwright step and EVERY assertion in this file still passed,
 #     over a job that installed npm and stopped. All three were watched RED under a deliberate
@@ -279,10 +322,21 @@
 #     UNNAMED step, proving the offender report falls back to `step[<index>]` off the FULL step
 #     list. Each was applied to this file, measured against the checker, restored byte-identical,
 #     and followed by an empty `git status --porcelain .github/workflows/`.
-#     ⚠ THE LIST STAYS SEVEN AND THE TOTAL STAYS 48, ON PURPOSE. Both 19-13 changes TIGHTEN an
-#     invariant that already existed — entry 5 gained a fifth conjunct, entry 3 gained a step
-#     quantifier — so no `check()` was added and none was dropped. A reader who counts 49 should
-#     look for an invariant added out of turn, and one who counts 47 for one deleted.
+#     ⚠ THE CHECKER'S OWN PREDICATES NOW HAVE A STANDING TEST, AND PLAN 19-14 ADDED IT.
+#     `tests/design/workflow-invariants.test.ts` mutates a COPY of this file in a throwaway
+#     directory and spawns the real checker against it, asserting a non-zero exit AND a named
+#     FAIL line — nine cases, inside `npm run build`. It exists because three consecutive
+#     verification rounds re-opened predicates that had been proven once by hand and then
+#     reverted: a checker with no test of its own regresses silently, and round N+1 begins with
+#     no memory of round N. Its control case pins the total below as an exact string, so a count
+#     change is only possible by deliberately editing it.
+#     ⚠ THE LIST STAYS SEVEN AND THE TOTAL STAYS 48, ON PURPOSE — RE-STATED 2026-09-05 BY PLAN
+#     19-14, UNCHANGED IN SUBSTANCE. Both 19-13 changes TIGHTENED an invariant that already
+#     existed (entry 5 gained a conjunct, entry 3 gained a step quantifier), and all three 19-14
+#     changes do the same: entry 5 gained the permitted-key conjunct, entry 3's two comparisons
+#     became presence tests, and entry 7's quantifier moved from run commands to steps. So no
+#     `check()` was added and none was dropped. A reader who counts 49 should look for an
+#     invariant added out of turn, and one who counts 47 for one deleted.
 #
 #   * ACROSS `.github/workflows/` THE MAIL-PROVIDER TOKEN APPEARS ZERO TIMES, asserted in the
 #     checker rather than by a human remembering to run a count, and over RAW TEXT so that a
