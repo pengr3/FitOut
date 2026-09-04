@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: executing
-stopped_at: Completed 19-04-PLAN.md
-last_updated: "2026-09-04T02:38:00.455Z"
+stopped_at: Completed 19-05-PLAN.md
+last_updated: "2026-09-04T03:21:05.268Z"
 last_activity: 2026-09-04
 last_activity_desc: Phase 19 execution started
-state_head: 293a0fa9938578e07cc9afada2f1bf2c52c6c97b
+state_head: 88309148c86c2ee3313f2642c2db31192478f7a9
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 38
-  completed_plans: 34
+  completed_plans: 35
   percent: 14
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-09-04 — Phase 19 execution started
 
@@ -426,6 +426,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19 P02 | 20 min | 3 tasks | 2 files |
 | Phase 19 P03 | 15 min | 3 tasks | 3 files |
 | Phase 19 P04 | 29 min | 3 tasks | 3 files |
+| Phase 19 P05 | 14 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1385,6 +1386,9 @@ Recent decisions affecting current work:
 - [Phase 19]: flex-wrap and the icon-only Delete are BOTH load-bearing, at different bands — Measured post-fix: at 320px the footer wraps to 97px (flex-wrap carries it); at 700/1280 it stays one 61px line because the icon-only Delete alone brought the intrinsic 332 under the client width. Removing either re-opens a band.
 - [Phase 19]: 19-04: the four orphan drafts were HARD-deleted (D-01 option 1, PM-chosen) inside a transaction with a row-count gate; exactly 4 affected, post-delete count 0 — Per-row emptiness was re-verified at execution time across all six cascade tables, and the full column dump plus executable re-INSERTs are on disk at evidence/orphan-drafts-before-delete.txt as the reversal path
 - [Phase 19]: 19-04: Task 1 verified the pre-existing .next/dev archive rather than re-taking it — the live production manifest is gone and .next/dev was rewritten by 19-02/19-03, so re-copying would have destroyed the evidence — The precondition literal text was unmet but its purpose was already retired by 19-02 early capture; the archive is now the only surviving copy on this machine
+- [Phase 19]: 19-05 VERDICT A: the listing-creation 404 reproduced neither under a clean `next dev` nor under a real `next build` + `next start`, so per D-09 no file under src/app/(host)/host/listings/[id]/ was edited — Both eleven-URL anonymous matrices served 307 -> /login on all four subject rows (3, 4, 5, 6). Row 5 (`zzz`, a non-uuid) is the sharpest discriminator and behaved correctly. An anonymous caller reaching EditListingPage can only produce a 307, so a 404 would have proved the module never ran.
+- [Phase 19]: 19-05: HSURF-02's unproven item (b) is CLOSED; items (a) and (c) are recorded permanently OPEN with their reasons, and no cause is named anywhere — (a) is NOT CLOSEABLE because the dev server that exhibited the 404 was gone before the phase opened; (c) is REFRAMED with three mtimes and five candidates, none attributed, resting on assumptions A4/A5 which are both UNPROVEN and labelled inference. A finding that names a cause is worse than no finding.
+- [Phase 19]: 19-05: 19-02's contradicting reproduction is preserved with its conditions, and the state of the `.next` directory the server booted against is named as the DISCRIMINATOR to start from - explicitly not as a cause — 19-02 reproduced the 404 incidentally on a fresh dev process booted against the surviving 2026-09-03 .next, hitting every /host/* subroute while /host itself served 307 and while the manifest entry was PRESENT. Neither result is discarded in favour of the other; section 2 of 19-FINDING-404.md carries both.
 
 ### Pending Todos
 
@@ -1564,8 +1568,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-04T02:37:36.236Z
-Stopped at: Completed 19-04-PLAN.md
+Last session: 2026-09-04T03:21:04.527Z
+Stopped at: Completed 19-05-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
