@@ -87,6 +87,21 @@ const CI_VISUAL_JOB = "gate-visual";
 // token. That rule binds `ci.yml`, not this script: a checker must name what it counts.
 const SNAPSHOT_UPDATE_FLAG = "--update-snapshots";
 
+// The MAIL CREDENTIAL, spelled ONCE, here — and deliberately never in `ci.yml`, for exactly the same
+// reason the snapshot flag above is never spelled there: the cheapest audit of "this workflow cannot
+// mail real people" is `grep -c RESEND .github/workflows/` returning 0, and prose about a forbidden
+// token is still the token. That rule binds the workflow files, not this script: a checker must name
+// what it counts.
+//
+// THIS COMMENT CARRIES A MEASUREMENT, NOT A WARNING (D-14, finding `[17-D28]`). A full e2e suite run
+// with this key set was measured at FOURTEEN real outbound sends. `instrumentation.ts` takes PayMongo
+// off the wire and DELIBERATELY does not do the same for this origin — `src/lib/email.ts` binds its
+// client at module load, so here THE KEY IS THE SWITCH, and mocking the origin would additionally
+// suppress the `[email:dev]` console fallback that makes dev sends visible. Nothing but the assertion
+// below stands between an unrelated secret addition and mail to real addresses on every pull request.
+const MAIL_KEY = "RESEND_API_KEY";
+const MAIL_KEY_PREFIX = "RESEND";
+
 const ALL_SECTIONS = ["baselines", "ci", "cross"];
 
 // ── ARGUMENTS ───────────────────────────────────────────────────────────────────────────────────
@@ -448,6 +463,40 @@ if (sections.includes("ci")) {
     ciSecretHits.length === 0
       ? "scanned workflow env, every job env, every container env, every service env, and every step run/env/with — 0 hits"
       : `hits=[${ciSecretHits.join(", ")}]`,
+  );
+
+  // ── NO MAIL CREDENTIAL REACHES ANY JOB (D-14, T-19-02) ────────────────────────────────────────
+  // The sibling of the check above, and the parse-based half of D-14. `gate-e2e` also carries a
+  // RUNTIME refusal, but this one is the stronger shape for two measured reasons: it runs on job 1 —
+  // the cheap job that always runs — so it fires about a minute before any browser starts, and it
+  // covers EVERY job rather than only the one the step happens to live in. The exposure it closes is
+  // not a hypothetical: it is somebody adding a repository- or environment-level secret and wiring it
+  // into a workflow `env:` for an unrelated reason. See MAIL_KEY's declaration for the measurement.
+  //
+  // ⚠ IT SCANS ENV *KEYS*, NOT VALUES, AND THAT IS EXACTLY WHY `gate-e2e`'s STEP DOES NOT TRIP IT.
+  // That step deliberately names its variable `MAIL_KEY_UNDER_TEST` — a key that does not begin with
+  // the prefix — while reading the provider key through a `${{ env.… }}` context expression in its
+  // VALUE. The two sites are spelled differently ON PURPOSE and each of them says so; renaming the
+  // step's key to the provider's name would make this check go red against a CORRECT file.
+  const mailEnvHits = [];
+  for (const [name, job] of jobs) {
+    for (const k of Object.keys(job?.env ?? {})) {
+      if (k.startsWith(MAIL_KEY_PREFIX)) mailEnvHits.push(`${name}.env.${k}`);
+    }
+    for (const s of stepsOf(job)) {
+      for (const k of Object.keys(s?.env ?? {})) {
+        if (k.startsWith(MAIL_KEY_PREFIX)) mailEnvHits.push(`${name}.step.env.${k}`);
+      }
+    }
+  }
+  for (const k of Object.keys(doc?.env ?? {})) {
+    if (k.startsWith(MAIL_KEY_PREFIX)) mailEnvHits.push(`workflow.env.${k}`);
+  }
+  check(
+    `no job, step or workflow env KEY declares ${MAIL_KEY} — the e2e suite must send zero real email`,
+    mailEnvHits.length === 0,
+    `hits=[${mailEnvHits.join(", ") || "(none)"}]  scanned ${jobs.length} job(s), their steps, ` +
+      `and the workflow env  prefix=${MAIL_KEY_PREFIX}`,
   );
 
   // ── EVERY CONTAINERIZED JOB PINS THE SAME IMAGE, AND KEEPS --ipc=host (T-11-VERDRIFT) ─────────
