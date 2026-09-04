@@ -74,6 +74,10 @@
 // ============================================================================================
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
+// Invariant B (plan 19-12) reads THIS file's own source text, to assert its prefix declaration still
+// matches the pattern the runtime half reads it with. Resolved from `import.meta.url` rather than
+// from the working directory, for the same reason the refusal script resolves its source that way.
+import { fileURLToPath } from "node:url";
 
 const WORKFLOW_DIR = ".github/workflows";
 const BASELINES = `${WORKFLOW_DIR}/baselines.yml`;
@@ -111,6 +115,18 @@ const SNAPSHOT_UPDATE_FLAG = "--update-snapshots";
 // below stands between an unrelated secret addition and mail to real addresses on every pull request.
 const MAIL_KEY = "RESEND_API_KEY";
 const MAIL_KEY_PREFIX = "RESEND";
+
+// THE SEAM BETWEEN D-14'S TWO HALVES, AND THE REASON IT IS A PATTERN RATHER THAN A SHARED IMPORT
+// (plan 19-12). `scripts/refuse-mail-credential.mjs` is the RUNTIME half: it runs inside `gate-e2e`'s
+// container and reads the declaration above out of THIS FILE'S SOURCE TEXT with exactly the pattern
+// below, so the prefix is spelled once and READ twice instead of being spelled twice. A copied
+// literal there would be a second source of truth wearing the costume of a constant — the drift class
+// this phase has spent three plans on. Invariants A/B/C below assert the pattern against the
+// declaration, the declaration against the script that reads it, and the script against a copy, so
+// neither half can move without a NAMED red rather than a silent divergence.
+const MAIL_KEY_PREFIX_DECL = /^const MAIL_KEY_PREFIX = "([A-Z_]+)";$/m;
+const MAIL_REFUSAL_SCRIPT = "scripts/refuse-mail-credential.mjs";
+const CI_E2E_MAIL_STEP = "Refuse to run the suite with a live mail credential in the environment";
 
 const ALL_SECTIONS = ["baselines", "ci", "cross"];
 
@@ -713,6 +729,78 @@ if (sections.includes("ci")) {
     `indices: db:seed=${iE2eSeed}  playwright=${iE2ePlay}  (of ${e2eRuns.length} run commands)`,
   );
 
+  // ── AND THE THREE THAT MAKE D-14'S RUNTIME HALF REAL (plan 19-12, review finding CR-01) ───────
+  // THE MEASURED DEFECT THESE REPLACE, STATED SO IT CANNOT BE REDISCOVERED THE EXPENSIVE WAY: this
+  // step used to read the provider key through an Actions context EXPRESSION written into its own
+  // `env:` map. The GitHub Actions `env` EXPRESSION context is built EXCLUSIVELY from `env:` maps
+  // declared at workflow, job and step level in the workflow file. It never contains the process
+  // environment, repository or organization secrets, `vars.*`, `container.env`, or `services.*.env`.
+  // So that step could fire on exactly one input — a provider-named `env:` KEY in the file — which
+  // is precisely and exclusively the input the parse scan above already rejects the whole file for.
+  // Its coverage over that scan was ZERO, and it could not observe `container.env`, the hole
+  // `ci.yml`'s header named and then leaned on this step to cover. It shipped, was documented as
+  // active, and survived a full verification round. Presence is not the property.
+  const e2eMailStep = stepsOf(e2e).find((s) => String(s?.name ?? "") === CI_E2E_MAIL_STEP);
+  const e2eMailRun = String(e2eMailStep?.run ?? "");
+
+  // A. IT READS THE REAL PROCESS ENVIRONMENT. All four conjuncts, because any one alone is
+  //    satisfiable by the inert shape: the step existed, and it ran something.
+  check(
+    `"${CI_E2E_JOB}"'s mail refusal reads the REAL process environment — no \${{ }} expression, no env: map`,
+    e2eMailStep !== undefined &&
+      e2eMailRun.includes(MAIL_REFUSAL_SCRIPT) &&
+      !e2eMailRun.includes("${{") &&
+      e2eMailStep?.env === undefined,
+    `step=${e2eMailStep ? `index ${stepsOf(e2e).indexOf(e2eMailStep)}` : "(ABSENT)"}  ` +
+      `run=${JSON.stringify(e2eMailStep ? e2eMailRun : null)}  ` +
+      `env=${JSON.stringify(e2eMailStep?.env ?? null)}  expects ${MAIL_REFUSAL_SCRIPT}`,
+  );
+
+  // B. THE TWO HALVES CANNOT DRIFT. Three conjuncts: this file's own declaration still matches the
+  //    shared pattern; the refusal script carries that pattern's source text verbatim, so it reads
+  //    the declaration the same way; and the refusal script holds NO COPY of the value. The third is
+  //    the one that matters most — a copy would keep every other assertion green while quietly
+  //    becoming a second source of truth.
+  const selfSource = readFileSync(fileURLToPath(import.meta.url), "utf8").replace(/\r\n/g, "\n");
+  const refusalSource = existsSync(MAIL_REFUSAL_SCRIPT)
+    ? readFileSync(MAIL_REFUSAL_SCRIPT, "utf8").replace(/\r\n/g, "\n")
+    : null;
+  const declMatches = MAIL_KEY_PREFIX_DECL.exec(selfSource)?.[1] === MAIL_KEY_PREFIX;
+  const sharesPattern = refusalSource !== null && refusalSource.includes(MAIL_KEY_PREFIX_DECL.source);
+  const holdsNoCopy = refusalSource !== null && !refusalSource.includes(MAIL_KEY_PREFIX);
+  check(
+    `the prefix is spelled ONCE: ${MAIL_REFUSAL_SCRIPT} reads this file's declaration and holds no copy`,
+    declMatches && sharesPattern && holdsNoCopy,
+    `declaration-matches-pattern=${declMatches}  script-shares-pattern-source=${sharesPattern}  ` +
+      `script-holds-no-copy=${holdsNoCopy}  ` +
+      `(prefix=${MAIL_KEY_PREFIX}  pattern=${MAIL_KEY_PREFIX_DECL.source}  ` +
+      `script=${refusalSource === null ? "(ABSENT)" : `${refusalSource.length} bytes`})`,
+  );
+
+  // C. IT RUNS BEFORE ANYTHING BOOTS, COMPARED BY INDEX — same shape as the seed check above.
+  //    Presence is not the property here either: the whole value of this control is that a violation
+  //    costs SECONDS instead of a suite of real mail, and a refusal that runs after migrate, seed or
+  //    Playwright is a refusal that fires once the sends have already left. `npm ci` is allowed to
+  //    precede it — nothing can run before the dependencies are installed.
+  const iE2eRefuse = e2eRuns.findIndex((r) => r.includes(MAIL_REFUSAL_SCRIPT));
+  const iE2eMigrate = e2eRuns.findIndex((r) => r.includes("db:migrate"));
+  const onlyInstallBefore =
+    iE2eRefuse >= 0 && e2eRuns.slice(0, iE2eRefuse).every((r) => r.trim() === "npm ci");
+  check(
+    `"${CI_E2E_JOB}" refuses a live mail credential BEFORE it migrates, seeds or boots the suite`,
+    iE2eRefuse >= 0 &&
+      onlyInstallBefore &&
+      iE2eMigrate >= 0 &&
+      iE2eSeed >= 0 &&
+      iE2ePlay >= 0 &&
+      iE2eRefuse < iE2eMigrate &&
+      iE2eRefuse < iE2eSeed &&
+      iE2eRefuse < iE2ePlay,
+    `indices: refusal=${iE2eRefuse}  db:migrate=${iE2eMigrate}  db:seed=${iE2eSeed}  ` +
+      `playwright=${iE2ePlay}  (of ${e2eRuns.length} run commands; only \`npm ci\` may precede ` +
+      `the refusal, and that holds=${onlyInstallBefore})`,
+  );
+
   // ── THE COMPARISON JOB EXISTS. ITS ABSENCE IS A HARD STOP, NOT A FAILED CHECK ─────────────────
   const visual = doc?.jobs?.[CI_VISUAL_JOB];
   if (!visual) {
@@ -896,8 +984,12 @@ if (sections.includes("cross")) {
   // workflow added later with the flag in it is exactly the edit this must catch.
   const workflowFiles = readdirSync(WORKFLOW_DIR).filter((f) => /\.ya?ml$/i.test(f)).sort();
   const carriers = [];
+  const mailTokenCounts = [];
   for (const file of workflowFiles) {
-    const d = parse(readFileSync(`${WORKFLOW_DIR}/${file}`, "utf8"));
+    const raw = readFileSync(`${WORKFLOW_DIR}/${file}`, "utf8");
+    const occurrences = raw.split(MAIL_KEY_PREFIX).length - 1;
+    if (occurrences > 0) mailTokenCounts.push(`${file}:${occurrences}`);
+    const d = parse(raw);
     for (const [jobName, j] of jobsOf(d)) {
       for (const r of runsOf(j)) {
         if (r.includes(SNAPSHOT_UPDATE_FLAG)) carriers.push(`${file}:${jobName}`);
@@ -908,6 +1000,30 @@ if (sections.includes("cross")) {
     `across ${WORKFLOW_DIR}/ exactly ONE run command carries ${SNAPSHOT_UPDATE_FLAG}, and it is in baselines.yml`,
     carriers.length === 1 && carriers[0].startsWith("baselines.yml:"),
     `files scanned=[${workflowFiles.join(", ")}]  carriers=[${carriers.join(", ") || "(none)"}]`,
+  );
+
+  // ── AND THE WORKFLOW DIRECTORY SPELLS NO MAIL-PROVIDER TOKEN AT ALL (D-14, plan 19-12) ────────
+  // The exact sibling of the check above, over the other token this repository refuses to let a
+  // workflow file carry. `grep -c <provider> .github/workflows/` returning 0 is this repository's
+  // OWN CHEAPEST AUDIT of "this workflow cannot mail real people", and it is the reason the prefix
+  // is spelled once in THIS file and never over there — prose about a forbidden token is still the
+  // token, so the rule binds comments too. Until now that audit was a thing a human had to remember
+  // to run; here it becomes an invariant, in the one file allowed to name what it counts.
+  //
+  // MEASURED, NOT SUPPOSED: this was RED at the start of plan 19-12. `ci.yml` carried exactly ONE
+  // occurrence, in the inert refusal step's `env:` VALUE — the same Actions context expression whose
+  // emptiness made that control incapable of firing. Removing it took the count to 0; this invariant
+  // is what stops it coming back, whether as an `env:` value or as a well-meant comment explaining
+  // why it must not appear.
+  //
+  // ⚠ RAW TEXT, NOT PARSED YAML, DELIBERATELY. A parse-based scan sees keys and values; this one
+  // must also see comments, because a comment carrying the token breaks the grep audit exactly as
+  // completely as a value does.
+  check(
+    `across ${WORKFLOW_DIR}/ the mail-provider token appears ZERO times, in values AND in comments`,
+    mailTokenCounts.length === 0,
+    `files scanned=[${workflowFiles.join(", ")}]  prefix=${MAIL_KEY_PREFIX}  ` +
+      `occurrences=[${mailTokenCounts.join(", ") || "(none)"}]`,
   );
 
   console.log(
