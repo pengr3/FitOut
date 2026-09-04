@@ -215,13 +215,16 @@
 #     be a second, unrelated structural change verified by nothing, whose failure mode is a
 #     SILENT GREEN — git unavailable, and D-29's rule then enforced by nothing. Out of scope.
 #
-# ⚠ THE LIST ABOVE PREDATES JOBS 4 AND 5. EXTENDED 2026-09-04 BY PLAN 19-11 (WR-05). Every
-# invariant below is asserted by `scripts/verify-workflows.mjs` today, on job 1, before any
-# browser starts.
+# ⚠ THE LIST ABOVE PREDATES JOBS 4 AND 5. EXTENDED 2026-09-04 BY PLAN 19-11 (WR-05), AGAIN BY
+# PLAN 19-12 (CR-01). Every invariant below is asserted by `scripts/verify-workflows.mjs` today,
+# on job 1 — which is `gate-db-free`, and `gate-db-free` and `gate-e2e` both declare no `needs:`,
+# so they start in parallel, and GitHub cancels neither when the other fails. Job 1 going red does
+# not stop job 5 booting the app. A parse-based invariant here therefore protects the NEXT run,
+# never the current one; what protects THIS run is job 5's own first step (the D-14 bullet below).
 #
-#   * THE FOUR `gate-e2e` INVARIANTS. The job's ABSENCE is a HARD STOP rather than a failed
+#   * THE SEVEN `gate-e2e` INVARIANTS. The job's ABSENCE is a HARD STOP rather than a failed
 #     check, because every other invariant in this file is universally quantified and a
-#     DELETED JOB SATISFIES ALL OF THEM VACUOUSLY. Above that stop, four counted checks:
+#     DELETED JOB SATISFIES ALL OF THEM VACUOUSLY. Above that stop, seven counted checks:
 #       1. the exact DISPLAY NAME `gate-e2e (functional Playwright suite)` — GitHub matches a
 #          required status check on `name:`, never on the YAML key, so a rename would detach
 #          a required check while leaving the job and every invariant over it intact (19-08);
@@ -232,27 +235,66 @@
 #       3. the job asserted UNCONDITIONAL — no job-level `if:`, no `continue-on-error: true`,
 #          either of which detaches the gate while every parsed invariant stays green (19-11);
 #       4. the SEED asserted to run BEFORE the suite, compared by INDEX and not by presence —
-#          a seed after the suite is a seed that changed nothing (19-11).
+#          a seed after the suite is a seed that changed nothing (19-11);
+#       5. the MAIL REFUSAL asserted to read the REAL PROCESS ENVIRONMENT — the step exists by
+#          exact name, its `run:` names the committed refusal script, it carries no Actions
+#          context expression, and it declares NO `env:` map at all. All four conjuncts,
+#          because the inert shape this replaced satisfied "the step exists and runs
+#          something" perfectly (19-12);
+#       6. the TWO HALVES asserted UNDRIFTABLE — the provider's prefix is declared once in
+#          `scripts/verify-workflows.mjs`, that declaration still matches the shared pattern,
+#          the refusal script carries that pattern's source text verbatim, and the refusal
+#          script holds NO COPY of the value (19-12);
+#       7. the REFUSAL asserted to run BEFORE migrate, seed and the suite, compared by INDEX
+#          with only `npm ci` permitted ahead of it — presence is not the property, because a
+#          refusal that fires after the suite fires after the mail has already left (19-12).
 #     2, 3 and 4 exist because 1 did not close them. Measured, not supposed: until 19-11 you
 #     could delete this job's Playwright step and EVERY assertion in this file still passed,
 #     over a job that installed npm and stopped. All three were watched RED under a deliberate
-#     mutation of this file, each reverted byte-identical, before being trusted.
+#     mutation of this file, each reverted byte-identical, before being trusted. 5, 6 and 7 were
+#     watched RED the same way, under six mutations of this file and of the two scripts.
 #
-#   * THE FAIL-CLOSED MAIL ASSERTION (D-14) HAS TWO HALVES AND BOTH ARE LIVE. A full suite run
-#     with a live key was MEASURED at FOURTEEN real outbound sends, because `src/lib/email.ts`
-#     binds its client at module load — for that provider the key IS the switch.
-#       - the RUNTIME half: job 5's FIRST step refuses to run the suite when the key is present
-#         in its environment. It reads that key through a deliberately differently-named `env:`
-#         key, `MAIL_KEY_UNDER_TEST`, so the parse half below does not fire on a CORRECT file;
+#   * ACROSS `.github/workflows/` THE MAIL-PROVIDER TOKEN APPEARS ZERO TIMES, asserted in the
+#     checker rather than by a human remembering to run a count, and over RAW TEXT so that a
+#     well-meant comment naming the token fails exactly as an `env:` value does (19-12). This
+#     was RED at plan 19-12's start: this file carried exactly one occurrence, in the inert
+#     refusal step's `env:` value. That is the cheapest audit this repository has of "this
+#     workflow cannot mail real people", and it is now a standing invariant instead of a habit.
+#
+#   * THE FAIL-CLOSED MAIL ASSERTION (D-14) HAS TWO HALVES, AND THEY ANSWER DIFFERENT QUESTIONS.
+#     A full suite run with a live key was MEASURED at FOURTEEN real outbound sends, because
+#     `src/lib/email.ts` binds its client at module load — for that provider the key IS the switch.
+#       - the RUNTIME half: job 5's FIRST step refuses to run the suite when a variable named for
+#         the mail provider is present in the job's REAL PROCESS ENVIRONMENT. It runs a committed
+#         script (`scripts/refuse-mail-credential.mjs`) that reads `process.env` — the same source
+#         `env |` prints — and reads the provider's prefix out of the checker that owns it, so the
+#         two sites hold ONE spelling between them rather than two;
+#         ⚠ FALSIFIED 2026-09-04 BY PLAN 19-12 (review finding CR-01). THE CLAIM WAS: this step
+#         reads the key through a deliberately differently-named step `env:` key, so the parse half
+#         does not fire on a CORRECT file. It did, and that carve-out was real — but the GitHub
+#         Actions `env` EXPRESSION context is built exclusively from `env:` maps written in this
+#         file, and never contains the process environment, secrets, `vars.*`, `container.env` or
+#         `services.*.env`. So the step could fire on exactly the one input the parse half already
+#         rejects the whole file for, and its coverage over that half was ZERO. It was a
+#         fail-closed control documented as active while being structurally incapable of firing.
+#         WHAT REPLACED IT is the paragraph above: no `env:` map, no context expression, a script
+#         that reads the environment the job actually has.
 #       - the PARSE half: the script rejects any workflow, job or step `env:` KEY whose name
-#         begins with the mail provider's prefix, on job 1, about a minute into a run.
-#     ⚠ AND ONE MEASURED HOLE IN THE PARSE HALF, NAMED HERE RATHER THAN LEFT IMPLICIT (review
-#     finding WR-02, 2026-09-04): it walks workflow `env:`, job `env:` and step `env:` — but
-#     NOT `container.env` and NOT `services.*.env`. A container-level `env:` block reaches
-#     every step in the job, so a key spelled THERE passes both halves and the suite mails real
-#     addresses. Nothing in this repository sets a mail key at either level today; widening the
-#     scan was outside plan 19-11's assigned scope and is carried forward, not closed. A list
-#     that omits a known hole is the same defect as a header that omits a job.
+#         begins with the mail provider's prefix. It runs on job 1, which is PARALLEL to and
+#         independent of job 5, so it protects the NEXT run, never the current one.
+#     ⚠ WHICH HALF COVERS WHAT, STATED RATHER THAN LEFT TO BE ASSUMED (review findings WR-02 and
+#     WR-03, 2026-09-04). The parse half walks workflow `env:`, job `env:` and step `env:` — but
+#     NOT `container.env` and NOT `services.*.env`. That gap is not uncovered, and here is the
+#     sentence that says so: the RUNTIME half is the one that observes container.env. A
+#     container-level `env:` block reaches every step's process environment, and the process
+#     environment is exactly what the step now reads.
+#     `services.*.env` sets variables only inside the postgres service container, which runs no
+#     application code and is therefore not a mail-send vector. WHAT GENUINELY REMAINS OPEN: the
+#     PARSE half still walks neither key — review finding WR-03, carried forward and NOT closed by
+#     plan 19-12 — so workflow-file hygiene over `env:` KEYS, which is a different question from
+#     what the job's process holds, is still blind at those two levels. A list that omits a known
+#     hole is the same defect as a header that omits a job; so is one that implies a hole is
+#     covered without saying by which half.
 #
 # `11-06` RE-MEASURED THE VACUITY FINDING RATHER THAN INHERITING IT, and it is WORSE for job 3
 # than it was for jobs 1-2. Its plan prescribed the same shape of whole-file substring check,

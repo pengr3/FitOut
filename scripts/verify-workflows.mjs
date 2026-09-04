@@ -493,17 +493,35 @@ if (sections.includes("ci")) {
 
   // ── NO MAIL CREDENTIAL REACHES ANY JOB (D-14, T-19-02) ────────────────────────────────────────
   // The sibling of the check above, and the parse-based half of D-14. `gate-e2e` also carries a
-  // RUNTIME refusal, but this one is the stronger shape for two measured reasons: it runs on job 1 —
-  // the cheap job that always runs — so it fires about a minute before any browser starts, and it
-  // covers EVERY job rather than only the one the step happens to live in. The exposure it closes is
-  // not a hypothetical: it is somebody adding a repository- or environment-level secret and wiring it
-  // into a workflow `env:` for an unrelated reason. See MAIL_KEY's declaration for the measurement.
+  // RUNTIME refusal, and the two are NOT interchangeable halves of one coverage story — they answer
+  // different questions. THIS one covers EVERY job rather than only the one the step lives in, and
+  // the exposure it closes is not a hypothetical: it is somebody adding a repository- or
+  // environment-level secret and wiring it into a workflow `env:` for an unrelated reason. See
+  // MAIL_KEY's declaration for the measurement.
   //
-  // ⚠ IT SCANS ENV *KEYS*, NOT VALUES, AND THAT IS EXACTLY WHY `gate-e2e`'s STEP DOES NOT TRIP IT.
-  // That step deliberately names its variable `MAIL_KEY_UNDER_TEST` — a key that does not begin with
-  // the prefix — while reading the provider key through a `${{ env.… }}` context expression in its
-  // VALUE. The two sites are spelled differently ON PURPOSE and each of them says so; renaming the
-  // step's key to the provider's name would make this check go red against a CORRECT file.
+  // ⚠ IT RUNS ON JOB 1, AND JOB 1 IS PARALLEL TO JOB 5. `gate-db-free` and `gate-e2e` both declare
+  // no `needs:`, so they start in parallel, and GitHub cancels neither when the other fails — job 1
+  // going red does not stop job 5 booting the app and sending mail. This scan therefore
+  // protects the NEXT run, never the current one. What protects the CURRENT run is the runtime
+  // half, which is why that half had to be able to fire at all (see below).
+  //
+  // ⚠ FALSIFIED 2026-09-04 BY PLAN 19-12 (review finding CR-01). THE CLAIM WAS: this scan reads env
+  // KEYS and not VALUES, and that is exactly why `gate-e2e`'s step does not trip it — the step
+  // deliberately named its variable after neither the provider nor its prefix while reading the
+  // provider key through an Actions context expression in its VALUE, so the two sites were spelled
+  // differently ON PURPOSE and each of them said so, and renaming the step's key to the provider's
+  // name would have made this check go red against a CORRECT file. That history is accurate and the
+  // carve-out was real. WHAT REPLACED IT: that step declares NO `env:` map at all, so there is
+  // nothing here to carve out. The expression it used could never fire — the Actions `env` context
+  // is built exclusively from `env:` maps in the workflow file — and the runtime half is now
+  // asserted by Invariants A, B and C in the `gate-e2e` block below.
+  //
+  // ⚠ WHAT THIS SCAN IS, AND WHAT IT IS NOT. It answers whether a workflow FILE declares a
+  // provider-named `env:` KEY. It does not and cannot answer what the job's PROCESS ENVIRONMENT
+  // holds — a `container.env` key, a repository secret or a runner variable are all invisible to a
+  // parse of the file. Both questions are now asked, by different assertions, and NEITHER
+  // SUBSTITUTES FOR THE OTHER. (This scan still walks neither `container.env` nor `services.*.env`
+  // keys — review finding WR-03, carried forward and not closed by plan 19-12.)
   const mailEnvHits = [];
   for (const [name, job] of jobs) {
     for (const k of Object.keys(job?.env ?? {})) {
