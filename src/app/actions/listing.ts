@@ -70,6 +70,13 @@ import { loadHostVerification } from "@/lib/host/verification-status";
 // here would be module-private and invisible to the banned-language corpus that polices every
 // host-facing sentence. Same split, same reason, as `host-verification.ts` one action over.
 import { HOST_VERIFICATION_LISTING_REFUSED } from "@/lib/host/verification-refusals";
+// D-03 / HSURF-02 — the sentence a host reads when creation genuinely failed, IMPORTED for the
+// identical reason the refusal above is: this module opens with the server-action directive, so it may
+// export only async functions, and a `const` here would be module-private and invisible to the
+// banned-language corpus that polices every host-facing sentence. Importing it also means the origin
+// (this catch) and the destination (`(host)/host/listings/page.tsx`'s notice) cannot drift — there is
+// one string in the repository and both ends read it.
+import { LISTING_CREATE_FAILED_STATE } from "@/lib/listing/create-signal";
 // LVER-03 — the guarded re-review flip. A shared WRITE helper, deliberately (its header records why
 // D-227's no-shared-helper rule governs booking.ts's sell-gate re-statements and not this).
 import { markForReReview } from "@/lib/listing/re-review";
@@ -84,6 +91,28 @@ const MIN_PHOTOS = 3; // D-02/D-04 — minimum photos to publish.
 export type ListingResult =
   | { ok: true; id?: string }
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
+
+/**
+ * `createDraftListing`'s OWN result — `ListingResult` with the success arm's `id` made REQUIRED.
+ *
+ * ⚠ THIS IS WHAT MAKES THE PAGE'S DEAD `!res.id` CHECK IMPOSSIBLE RATHER THAN MERELY DELETED, and the
+ * two are different acts. `new/page.tsx` used to test `!res.ok || !res.id`; the second half could
+ * never be true, because every `ok: true` return here carries an id. Deleting a branch because it
+ * *looks* unreachable is a judgement a later edit can silently falsify. Narrowing the TYPE makes
+ * `tsc` prove it: an `ok: true` return that omitted `id` would stop compiling here, at the origin,
+ * rather than reaching a page that no longer checks.
+ *
+ * It is a TYPE, so a `"use server"` module may export it — `ListingResult` above already is one, and
+ * the rule that bites is about VALUES (`tests/use-server-exports.test.ts`'s recorded `avatar.ts`
+ * incident). That same rule is why the failure SENTENCE is imported rather than declared here.
+ *
+ * Assignable to `ListingResult` in both arms, deliberately: `{ ok: true; id: string }` satisfies
+ * `{ ok: true; id?: string }` and the failure arm only drops an optional field. Nothing else in the
+ * tree that expects a `ListingResult` is affected — proven by `npx tsc --noEmit`, not by reasoning.
+ */
+export type CreateDraftListingResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string };
 
 /** Resolve the signed-in user's id, or null if there is no session (copied from capability.ts). */
 async function requireUserId(): Promise<string | null> {
@@ -216,7 +245,7 @@ async function assertOwnership(listingId: string, userId: string) {
  * created_at" reddens by name. The completeness of the conjunct SET is pinned separately, by
  * `tests/design/listing-reuse-predicate-census.test.ts`.
  */
-export async function createDraftListing(): Promise<ListingResult> {
+export async function createDraftListing(): Promise<CreateDraftListingResult> {
   const userId = await requireUserId();
   if (!userId) {
     return { ok: false, error: "You must be signed in to create a listing." };
@@ -259,49 +288,80 @@ export async function createDraftListing(): Promise<ListingResult> {
     return { ok: false, error: HOST_VERIFICATION_LISTING_REFUSED };
   }
 
-  // ── D-02 — REUSE-THEN-MINT. The argument is in this function's docblock; this is the query. ─────
+  // ── THE GUARDED REGION (D-03 / HSURF-02, 19-REVIEW CR-01) ──────────────────────────────────────
   //
-  // Owner-scoped BY ARGUMENT FROM THE SESSION, exactly as the verification read above is: this
-  // action takes ZERO parameters, so no request value can select the row and one host can never be
-  // measured against another's. Keep the signature at zero arguments — an `id` parameter here would
-  // turn a convenience into an IDOR.
-  const [reusable] = await db
-    .select({ id: listing.id })
-    .from(listing)
-    .where(
-      and(
-        eq(listing.hostId, userId),
-        isNull(listing.deletedAt),
-        eq(listing.status, "draft"),
-        // The load-bearing term ($onUpdate, schema.ts:264-267) — see docblock.
-        sql`${listing.updatedAt} = ${listing.createdAt}`,
-        // Belt-and-braces; the term above should already imply it.
-        isNull(listing.title),
-        // The real gaps: neither child insert touches the listing row, so neither bumps updated_at.
-        sql`NOT EXISTS (SELECT 1 FROM listing_photo WHERE listing_id = ${listing.id})`,
-        sql`NOT EXISTS (SELECT 1 FROM operating_hours WHERE listing_id = ${listing.id})`,
-        // `blocks.ts`'s addBlock inserts a subtractive block and performs no update of the listing
-        // row, so a draft the host has blocked dates on still reads `updated_at = created_at`.
-        sql`NOT EXISTS (SELECT 1 FROM availability_block WHERE listing_id = ${listing.id})`,
-      ),
-    )
-    .orderBy(desc(listing.createdAt))
-    .limit(1);
-  if (reusable) {
-    // The host's most recent untouched empty draft. Returned rather than re-minted, and NOTHING is
-    // written — a reuse must not bump `updated_at`, or the second press would make the row
-    // ineligible for the third and the whole branch would fix only one repeat.
-    return { ok: true, id: reusable.id };
-  }
+  // ⚠ THE `try` OPENS **HERE**, AFTER BOTH REFUSALS HAVE ALREADY RETURNED, AND THE PLACEMENT IS THE
+  // WHOLE PROPERTY. A catch must never convert a DELIBERATE REFUSAL into a generic infrastructure
+  // apology: the refusal carries information the host needs — that there is a check, and where to ask
+  // about it — and the apology destroys it, sending them to a grid that explains nothing. So the
+  // session check and the verification gate both return ABOVE this line and are unreachable from
+  // inside it. `tests/listing/create-failure.test.ts` drives a SUSPENDED host through an injected
+  // database failure and asserts they still receive `HOST_VERIFICATION_LISTING_REFUSED`.
+  //
+  // ⚠ AND IT WRAPS THE REUSE READ AS WELL AS THE INSERT. CR-01 names both statements and both throw;
+  // guarding only the insert would close half the gap and read as if it closed all of it.
+  //
+  // WHAT THIS FIXED. Until this wrapper existed the function had no `try`/`catch` anywhere, so a dead
+  // connection, a timeout or a constraint violation threw straight out of the page render and landed
+  // on Next's error boundary. `(host)/host/listings/new/page.tsx`'s failure branch and every constant
+  // in `src/lib/listing/create-signal.ts` were written for exactly that case — and it was the ONE case
+  // that could not reach them. The words shipped; the failure that was supposed to arrive at them
+  // could not. That is what this returns instead of throwing.
+  //
+  // ⚠ THE ERROR IS LOGGED AND NEVER RETURNED (T-19-32). `create-signal.ts` names no mechanism BY
+  // DESIGN — an error string, a component name or a status code on a host surface tells the host
+  // nothing they can act on and leaks the shape of a system they control nothing about. The operator
+  // gets the whole error under a greppable tag; the host gets a fixed constant. And the constant is
+  // IMPORTED rather than spelled, so the origin here and the destination that renders it cannot drift.
+  try {
+    // ── D-02 — REUSE-THEN-MINT. The argument is in this function's docblock; this is the query. ───
+    //
+    // Owner-scoped BY ARGUMENT FROM THE SESSION, exactly as the verification read above is: this
+    // action takes ZERO parameters, so no request value can select the row and one host can never be
+    // measured against another's. Keep the signature at zero arguments — an `id` parameter here would
+    // turn a convenience into an IDOR.
+    const [reusable] = await db
+      .select({ id: listing.id })
+      .from(listing)
+      .where(
+        and(
+          eq(listing.hostId, userId),
+          isNull(listing.deletedAt),
+          eq(listing.status, "draft"),
+          // The load-bearing term ($onUpdate, schema.ts:264-267) — see docblock.
+          sql`${listing.updatedAt} = ${listing.createdAt}`,
+          // Belt-and-braces; the term above should already imply it.
+          isNull(listing.title),
+          // The real gaps: neither child insert touches the listing row, so neither bumps updated_at.
+          sql`NOT EXISTS (SELECT 1 FROM listing_photo WHERE listing_id = ${listing.id})`,
+          sql`NOT EXISTS (SELECT 1 FROM operating_hours WHERE listing_id = ${listing.id})`,
+          // `blocks.ts`'s addBlock inserts a subtractive block and performs no update of the listing
+          // row, so a draft the host has blocked dates on still reads `updated_at = created_at`.
+          sql`NOT EXISTS (SELECT 1 FROM availability_block WHERE listing_id = ${listing.id})`,
+        ),
+      )
+      .orderBy(desc(listing.createdAt))
+      .limit(1);
+    if (reusable) {
+      // The host's most recent untouched empty draft. Returned rather than re-minted, and NOTHING is
+      // written — a reuse must not bump `updated_at`, or the second press would make the row
+      // ineligible for the third and the whole branch would fix only one repeat.
+      return { ok: true, id: reusable.id };
+    }
 
-  const id = randomUUID();
-  await db.insert(listing).values({
-    id,
-    hostId: userId,
-    status: "draft",
-    bookingMode: "instant",
-  });
-  return { ok: true, id };
+    const id = randomUUID();
+    await db.insert(listing).values({
+      id,
+      hostId: userId,
+      status: "draft",
+      bookingMode: "instant",
+    });
+    return { ok: true, id };
+  } catch (err) {
+    // The operator's half. The WHOLE error goes here and nowhere else — see the paragraph above.
+    console.error("[listing:create] draft mint failed", { userId, err });
+    return { ok: false, error: LISTING_CREATE_FAILED_STATE };
+  }
 }
 
 /**
