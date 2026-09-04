@@ -1,578 +1,355 @@
 ---
 phase: 19-host-listing-surfaces-gates-that-actually-run
-reviewed: 2026-09-04T12:57:13Z
+reviewed: 2026-09-04T15:20:00Z
 depth: standard
-files_reviewed: 18
+scope: plan 19-12 only (eac5541..HEAD)
+files_reviewed: 4
 files_reviewed_list:
   - .github/workflows/ci.yml
-  - e2e/helpers/booker-seed.ts
-  - e2e/host-listing-grid.spec.ts
-  - e2e/host-route-reachability.spec.ts
+  - scripts/refuse-mail-credential.mjs
   - scripts/verify-workflows.mjs
-  - src/app/(host)/host/listings/new/page.tsx
-  - src/app/(host)/host/listings/page.tsx
-  - src/app/actions/listing.ts
-  - src/components/listing/listing-card.tsx
-  - src/lib/listing/create-signal.ts
-  - tests/design/listing-card-merge-order.test.ts
-  - tests/design/listing-create-refusal-routing.test.ts
-  - tests/design/listing-reuse-predicate-census.test.ts
-  - tests/host/verification-surface.test.ts
-  - tests/listing/create-failure.test.ts
-  - tests/listing/create-routing.test.ts
-  - tests/listing/create-signal.test.ts
-  - tests/listing/crud.test.ts
+  - tests/design/mail-credential-refusal.test.ts
 findings:
   critical: 2
-  warning: 6
-  info: 6
-  total: 14
+  warning: 4
+  info: 4
+  total: 10
 status: issues_found
 ---
 
-# Phase 19: Code Review Report
+# Phase 19 (plan 19-12): Code Review Report
 
-**Reviewed:** 2026-09-04T12:57:13Z
+**Reviewed:** 2026-09-04
 **Depth:** standard
-**Files Reviewed:** 18
+**Files Reviewed:** 4
 **Status:** issues_found
 
 ## Summary
 
-Whole-phase review (plans 19-01..19-11), replacing the earlier review of 19-01..19-08. Findings
-already closed by the gap-closure run are **not** re-raised: `createDraftListing`'s missing
-`try`/`catch` (old CR-01) is fixed and proven by `tests/listing/create-failure.test.ts`; the
-`availability_block` conjunct (old CR-02) is present and now machine-censused; the `!res.ok` branch
-is a real three-way router pinned by two independent gates.
+Plan 19-12 replaces an inert `${{ env.RESEND_API_KEY }}` shell test with a committed Node script
+that reads `Object.keys(process.env)`, adds four parse-based invariants, and adds a build-blocking
+design test. The core mechanism is sound and, on the paths the plan named, **fails closed**: an
+unreadable prefix source exits 1, a moved/reformatted declaration exits 1, an empty capture exits 1,
+and the `run:` step's non-zero exit fails the job. `node scripts/verify-workflows.mjs` exits 0 at
+`All 48 invariants hold across 3 section(s) (baselines=11, ci=29, cross=8)`, and
+`tests/design/mail-credential-refusal.test.ts` passes 5/5 locally. `src/lib/email.ts:38`
+(`const key = process.env.RESEND_API_KEY`) confirms the chosen prefix covers the actual switch —
+`startsWith("RESEND")` is a superset of the one variable that arms the transport, so the prefix
+strictness is defensible and produces no false negative against the real mail vector.
 
-Verified live during this review:
+**The defect class being fixed is nevertheless reproduced twice, in the verification layer.** Both
+CR findings are the same shape as CR-01 round 1: a control documented as covered while a one-token
+edit to `ci.yml` disables it with all 48 invariants still green. CR-01 is **empirically
+demonstrated** (a live `RESEND_API_KEY` in the process environment, exit 0). CR-02 follows by
+inspection of what Invariants A and C read. Both are cheap to close (one conjunct each).
 
-- `node scripts/verify-workflows.mjs` → **all 44 invariants hold** (baselines=11, ci=26, cross=7).
-- `npx vitest run --config vitest.design.config.ts` over the three new design gates → **16/16 pass**.
-- `deriveChildTables()` over `schema.ts` resolves to exactly the 7 children of `listing`
-  (3 covered by conjuncts, 4 exempted) — the census is not vacuous.
-
-The application-code half of the phase is in good shape. **The gate half is not.** Two of the
-phase's headline claims are false against the shipped tree, and both are about controls that are
-documented at length as being live:
-
-1. `gate-e2e`'s runtime mail-credential refusal **cannot fire** — `${{ env.RESEND_API_KEY }}` is
-   only ever populated by a workflow/job/step `env:` key, which is exactly and only what the parse
-   half already rejects. D-14's "two halves and both are live" is one half, and the hole the header
-   names as carried-forward is covered by *neither*.
-2. `gate-e2e` is described as "IT REPORTS; IT DOES NOT BLOCK", but a failing job fails the workflow
-   run. Per the phase's own evidence the job's conclusion is `failure` with **14 reproducible test
-   failures** (including a refund-parity spec and a booking-collision spec). `ci` is therefore red
-   on every push, which either voids or violates this file's own binding rule #1.
-
-Alongside those: the "stale line citation" defect class flagged as WR-08 in the earlier review is
-**not closed** — 19-11 reworded one paragraph in `create-signal.ts` while leaving at least eleven
-verified-wrong citations in the phase's own files, several of them inside gate failure messages
-that tell a fixer which line to edit.
-
-## Structural Findings (fallow)
-
-No `<structural_findings>` block was supplied with this review request. All findings below are
-narrative.
+Findings already recorded in `evidence/19-REVIEW-round1-2026-09-04.md` as carried-forward (CR-02
+branch protection, WR-01 listing-mutation try/catch, WR-03 `container.env`/`services.*.env` parse
+blind spot, WR-04 stale citations) are **not** re-raised. Round 1's WR-02 *is* re-raised below as
+CR-02, because plan 19-12 added a new step whose entire value depends on the property WR-02 named
+as missing — the old finding is not merely still open, it now guards a privacy control instead of a
+test runner.
 
 ## Narrative Findings (AI reviewer)
 
 ## Critical Issues
 
-### CR-01: `gate-e2e`'s runtime mail-credential refusal is inert — D-14's "two halves" is one half, and the known hole is covered by neither
+### CR-01: the refusal script takes its prefix source from `argv[2]`, nothing asserts `ci.yml` passes no argument, and the script's own header claims otherwise — a one-token edit restores the inert guard with all 48 invariants green
 
-**File:** `.github/workflows/ci.yml:1312-1321` (and the header claim at `:241-255`)
-**Severity:** BLOCKER
+**File:** `scripts/refuse-mail-credential.mjs:43-46`, `scripts/refuse-mail-credential.mjs:61`,
+`scripts/verify-workflows.mjs:766-775`
 
-**Issue:**
+**Issue:** The script resolves its prefix source as
+`process.argv[2] ?? fileURLToPath(new URL("./verify-workflows.mjs", import.meta.url))`. Its header
+states, verbatim:
 
-```yaml
-      - name: Refuse to run the suite with a live mail credential in the environment
-        run: |
-          if [ -n "${MAIL_KEY_UNDER_TEST:-}" ]; then
-            ...
-            exit 1
-          fi
-        env:
-          MAIL_KEY_UNDER_TEST: ${{ env.RESEND_API_KEY }}
+> The optional argument overrides where the prefix declaration is read from. It exists ONLY for
+> `tests/design/mail-credential-refusal.test.ts`'s missing-declaration case; `ci.yml` invokes this
+> script with no arguments, **and Invariant A asserts that.**
+
+Invariant A asserts no such thing. Its four conjuncts are:
+
+```js
+e2eMailStep !== undefined &&
+  e2eMailRun.includes(MAIL_REFUSAL_SCRIPT) &&
+  !e2eMailRun.includes("${{") &&
+  e2eMailStep?.env === undefined
 ```
 
-The GitHub Actions `env` **context** is built exclusively from `env:` maps declared at workflow,
-job and step level in the workflow file. It does not contain repository/organization secrets, does
-not contain `vars`, does not contain `container.env`, does not contain `services.*.env`, and does
-not read the runner's or the container's actual process environment. Therefore
-`${{ env.RESEND_API_KEY }}` expands to the empty string in every case *except* the one where the
-key is declared as a workflow/job/step `env:` key — which is precisely and exclusively the case
-`scripts/verify-workflows.mjs:491-510` already rejects.
+`includes(MAIL_REFUSAL_SCRIPT)` is satisfied by `node scripts/refuse-mail-credential.mjs <anything>`.
+Invariant C's `e2eRuns.findIndex((r) => r.includes(MAIL_REFUSAL_SCRIPT))` is satisfied identically.
+So `ci.yml:1368` can be edited to pass any path, and the guard then scans for a prefix of the
+editor's choosing while every one of the 48 invariants — including all four added by this plan —
+stays green. Measured, not supposed:
 
-Consequences, all provable from the file:
-
-1. **The runtime half adds zero coverage.** It is 100% redundant with the parse half. There is no
-   input for which it fires and the parser does not.
-2. **The documented hole is covered by neither half.** The header at `:249-255` names the
-   `container.env` / `services.*.env` gap in the *parse* half and carries it forward — implicitly
-   leaning on the runtime half. A key spelled in `container.env` reaches every step's process
-   environment, `src/lib/email.ts` binds its client at module load, and the suite mails real
-   addresses. `${MAIL_KEY_UNDER_TEST:-}` would still be empty, because the expression that fills it
-   never sees container env. The measured cost of that path is the header's own number: **14 real
-   outbound sends per run.**
-3. **The header's ordering claim is also false.** `:246` and `scripts/verify-workflows.mjs:479-484`
-   claim the parse half "runs on job 1 ... so it fires about a minute before any browser starts."
-   `gate-e2e` declares no `needs:`, so jobs 1 and 5 start simultaneously and GitHub does not cancel
-   sibling jobs when one fails. Job 1 going red does not stop job 5 from booting the app and
-   sending mail. The parse half protects the *next* run, never the current one.
-
-This is a fail-closed privacy control that provably cannot fail closed, documented as active.
-
-**Fix:** assert over the *actual process environment*, which is the only place a container-level or
-runner-level key can be observed. To keep the `grep -c RESEND .github/workflows/ == 0` audit
-intact, read the prefix from the checker that already owns it (`MAIL_KEY_PREFIX` in
-`scripts/verify-workflows.mjs`) rather than spelling it here:
-
-```yaml
-      - name: Refuse to run the suite with a live mail credential in the environment
-        run: |
-          # The prefix is READ from scripts/verify-workflows.mjs, which is the one file allowed to
-          # spell it (see that file's MAIL_KEY_PREFIX comment). Spelling it here would make
-          # `grep -c <provider> .github/workflows/` permanently non-zero.
-          PREFIX="$(node -p "require('fs').readFileSync('scripts/verify-workflows.mjs','utf8').match(/MAIL_KEY_PREFIX = \"([A-Z_]+)\"/)[1]")"
-          if [ -z "$PREFIX" ]; then
-            echo "::error::could not read MAIL_KEY_PREFIX — the assertion would be vacuous. Hard stop."
-            exit 1
-          fi
-          if env | grep -qE "^${PREFIX}"; then
-            echo "::error::A live mail credential is present in this job's ENVIRONMENT (not merely"
-            echo "::error::in the workflow's env: maps). A full e2e run with it set was measured at"
-            echo "::error::14 real outbound sends per run. Remove it; do NOT weaken this check."
-            exit 1
-          fi
+```
+$ RESEND_API_KEY=live_secret_abc node scripts/refuse-mail-credential.mjs <decoy-with-ZZUNUSED-decl>
+refuse-mail-credential: prefix=ZZUNUSED read from …/decoy.mjs — scanned 84 environment
+variable name(s), 0 begin with it.
+EXIT=0
 ```
 
-Then correct the header at `:241-255`: the parse half's `container.env` / `services.*.env` gap is
-closed *by this step* (not carried forward), and the "fires a minute before any browser starts"
-sentence must be replaced with the truth — jobs 1 and 5 are parallel and independent.
+That is a fail-open with a live credential present, reached through a supported, documented input,
+under a comment asserting the input is machine-checked. The accidental path (a decoy with **no**
+declaration) does fail closed — but the property the header claims, and the one the phase is about,
+is not held by anything.
 
-Independently worth doing: widen the parse scan to `job.container.env` and `job.services.*.env`
-keys (see WR-03) so both halves are honest.
+**Fix:** Add the missing conjunct to Invariant A and make the argument test-only.
+
+```js
+// scripts/verify-workflows.mjs — Invariant A
+const refusalInvocation = e2eMailRun.trim();
+check(
+  `"${CI_E2E_JOB}"'s mail refusal reads the REAL process environment — no \${{ }} expression, no env: map, NO ARGUMENTS`,
+  e2eMailStep !== undefined &&
+    refusalInvocation === `node ${MAIL_REFUSAL_SCRIPT}` &&   // exact, not `includes`
+    !e2eMailRun.includes("${{") &&
+    e2eMailStep?.env === undefined,
+  …
+);
+```
+
+and, in `scripts/refuse-mail-credential.mjs`, gate the override so a production invocation cannot
+silently accept one:
+
+```js
+const override = process.argv[2];
+if (override && process.env.MAIL_REFUSAL_ALLOW_SOURCE_OVERRIDE !== "1") {
+  console.log("::error::This script takes no arguments outside its own test harness.");
+  process.exit(1);
+}
+```
+
+(or delete the argument entirely and have the test point at a temp directory containing a
+`verify-workflows.mjs` sibling). Either way, correct the header sentence — a false coverage claim in
+a comment is the exact artifact CR-01 round 1 was.
 
 ---
 
-### CR-02: `gate-e2e` turns `ci` permanently red, contradicting the same file's binding rule #1, with no known-failure boundary
+### CR-02: nothing asserts the mail-refusal STEP is unconditional — `continue-on-error: true` on it detaches D-14's only current-run half while all 48 invariants stay green
 
-**File:** `.github/workflows/ci.yml:1198-1346`; claims at `:40-51` and `:435-444`
-**Severity:** BLOCKER
+**File:** `scripts/verify-workflows.mjs:731-736`, `scripts/verify-workflows.mjs:766-775`,
+`scripts/verify-workflows.mjs:807-820`, `.github/workflows/ci.yml:1367-1368`
 
-**Issue:** The header asserts "⚠ IT REPORTS; IT DOES NOT BLOCK" and argues it from the fact that
-branch protection is unreachable on this repository. That argument is about `main`'s required
-checks. It is **not** true of the workflow: `gate-e2e` carries no `continue-on-error` (and
-`scripts/verify-workflows.mjs:697-702` actively *forbids* one), so a failing job fails the `ci`
-workflow run, on every push to `dev`/`main` and every pull request.
+**Issue:** The "unconditional" invariant is scoped to the **job**:
 
-The phase's own evidence file
-(`.planning/.../evidence/gate-e2e-wallclock.txt:20`, `:136-155`) records:
-
-```
-job conclusion     failure
-...
-Its first two real executions show FOURTEEN tests failing for real reasons, reproducibly,
-across ten spec files, plus two flaky. The same failures appear in both runs...
-  8  e2e/cancel.spec.ts:232           SC#2 previewed refund is the refund given
-  9  e2e/collision-in-place.spec.ts:240  STATE-07 lost race becomes a result
+```js
+e2e?.if === undefined && e2e?.["continue-on-error"] !== true
 ```
 
-So as shipped:
+Invariants A and C read the step's `name`, `run` and `env` and its position among `runsOf(e2e)`.
+None of them reads the step's own `if:` or `continue-on-error:`. Adding
 
-1. `ci` is red on `dev` today, and `:141` of this same file states the binding rule *"A phase cannot
-   be marked complete with CI red."* The rule is now either violated or dead. Both outcomes are
-   worse than the gate not existing, because a permanently-red check is the thing the file's own
-   flake argument (`:58`) says gets retried until green and then stops being a gate.
-2. There is **no allowlist, no `--fail-on-flaky-tests` boundary, no expected-failure file, and no
-   tracked issue** distinguishing the known 14 from a new one. A regression introduced tomorrow in
-   `gate-e2e` is indistinguishable at the workflow level from the baseline.
-3. Two of the fourteen are on the core-value path this project is defined by — a refund-preview
-   parity assertion and the collision/lost-race assertion. They were surfaced by this phase and left
-   untriaged inside it.
+```yaml
+      - name: Refuse to run the suite with a live mail credential in the environment
+        run: node scripts/refuse-mail-credential.mjs
+        continue-on-error: true
+```
 
-**Fix:** choose one and record it, rather than leaving the contradiction in the header:
+leaves the step present, correctly named, correctly ordered, expression-free and `env:`-free — all
+48 invariants green — while the script's `process.exit(1)` no longer stops the job. Migrate, seed
+and Playwright then run, and `ci.yml:264-297` is measured at fourteen real outbound sends. `if:
+false` has the same effect one step further out (Invariant C's `findIndex` is over `run` strings and
+does not care whether the step will execute).
 
-- **(a) Make the claim true.** Give the job a *deliberate, single-purpose* soft-fail and amend the
-  verifier's invariant #2 in the same commit (its own comment at `:694-696` explicitly provides for
-  this: *"If this job is genuinely meant to become conditional or soft-failing, remove this
-  invariant in the same commit and say why in it"*):
+This is round 1's WR-02 in a materially worse position. There it detached a test runner; here it
+detaches the only half of D-14 that protects the **current** run — the property `ci.yml:1362-1366`
+and `scripts/verify-workflows.mjs:502-506` both state is the entire reason the step exists.
 
-  ```yaml
-  gate-e2e:
-    name: gate-e2e (functional Playwright suite)
-    # REPORTS, DOES NOT BLOCK — until the 14 recorded failures are triaged. Paired with the
-    # removal of verify-workflows.mjs's `unconditional` invariant, same commit, D-<n>.
-    continue-on-error: true
-  ```
+**Fix:** Quantify the unconditional check over the steps that carry the gate, not just the job.
 
-- **(b) Make the gate true.** Keep it hard-failing and land a checked-in expected-failure boundary
-  so the workflow is green over the *known* set and red over anything else — e.g. a
-  `e2e/known-failures.json` consumed by a wrapper step that diffs the JSON reporter's failure list
-  against it and exits non-zero only on a new name.
+```js
+const conditionalSteps = stepsOf(e2e)
+  .filter((s) => s?.if !== undefined || s?.["continue-on-error"] === true)
+  .map((s, i) => String(s?.name ?? `step[${i}]`));
+check(
+  `"${CI_E2E_JOB}" has NO conditional or soft-failing step — a gate step that cannot fail the job is not a gate`,
+  e2e?.if === undefined && e2e?.["continue-on-error"] !== true && conditionalSteps.length === 0,
+  `job if=${JSON.stringify(e2e?.if ?? null)}  job continue-on-error=${JSON.stringify(e2e?.["continue-on-error"] ?? null)}  ` +
+    `conditional/soft steps=[${conditionalSteps.join(", ") || "(none)"}]`,
+);
+```
 
-Either way, file the fourteen (at minimum `cancel.spec.ts:232` and `collision-in-place.spec.ts:240`)
-as tracked work before this phase is called complete; they are the gate's first finding and the
-phase currently discards it.
+If a future step legitimately needs a condition, that is a decision to record — same rule the
+existing job-level comment already states.
 
 ---
 
 ## Warnings
 
-### WR-01: `ConfirmDialog` never releases `pending` when the action rejects — the confirm button locks on "Working…" forever
+### WR-01: neither half of D-14 protects the run that introduces a step-level `env:` on the Playwright step
 
-**File:** `src/components/listing/listing-card.tsx:186-195` (with `runAction` at `:345-357`)
-**Severity:** WARNING
+**File:** `.github/workflows/ci.yml:285-297`, `scripts/verify-workflows.mjs:519-544`
 
-**Issue:**
+**Issue:** `ci.yml`'s "WHICH HALF COVERS WHAT" paragraph partitions the surface into: parse half
+(workflow/job/step `env:` keys, next run only) and runtime half (`container.env`, secrets, runner
+variables, this run). A mail key added as a **step-level `env:` on the Playwright step** falls in a
+seam neither half covers *on the run that introduces it*: the refusal script runs earlier in a
+different process and cannot see a later step's `env:`, and the parse half that would catch it runs
+on `gate-db-free`, which the file itself documents as parallel and non-cancelling. The suite boots
+with the key and mails real addresses; the red arrives on job 1 of the same run, too late.
 
-```tsx
-            onClick={async () => {
-              setPending(true);
-              const ok = await onConfirm();
-              setPending(false);
-              if (ok) setOpen(false);
-            }}
-```
+The paragraph is written to be exhaustive about known holes ("A list that omits a known hole is the
+same defect as a header that omits a job") and this one is not in it.
 
-`onConfirm` is `runAction(onUnlist | onDelete, …)`, whose body is `await action(listing.id)` with no
-`try`. `unlistListing` and `softDeleteListing` (`src/app/actions/listing.ts:794-899`) have no
-`try`/`catch` either, so a dead connection, a timeout or a Server-Action transport failure produces
-a **rejected** promise. The rejection propagates out of the `async` click handler:
-`setPending(false)` never runs, the confirm button stays `disabled` reading "Working…" for the life
-of the mount, no toast is shown, and the browser logs an unhandled rejection. The host is left with
-a dialog that looks like it is still working and no way to retry without a full page reload.
-
-This is the exact defect class plan 19-10 spent a whole task closing for `createDraftListing`
-("CREATION FAILS BY RETURNING, NEVER BY THROWING") — the same reasoning was not applied to the two
-sibling actions this file drives.
-
-**Fix:** guard the boundary at the component (and, better, mirror 19-10 in the actions):
-
-```tsx
-            onClick={async () => {
-              setPending(true);
-              try {
-                if (await onConfirm()) setOpen(false);
-              } finally {
-                setPending(false);
-              }
-            }}
-```
-
-```ts
-  async function runAction(action, successMsg): Promise<boolean> {
-    let res: ActionResult;
-    try {
-      res = await action(listing.id);
-    } catch (err) {
-      // The operator's half; the host gets a fixed sentence, per T-19-32.
-      console.error("[listing:card] action threw", { listingId: listing.id, err });
-      toast.error("Something went wrong on our side. Nothing was changed — try again.");
-      return false;
-    }
-    ...
-  }
-```
-
----
-
-### WR-02: the `gate-e2e` "unconditional" invariant only inspects the JOB — a step-level `if:` or `continue-on-error:` detaches the gate with all 26 `ci` invariants green
-
-**File:** `scripts/verify-workflows.mjs:691-702` (and the run-command invariant at `:685-689`)
-**Severity:** WARNING
-
-**Issue:** The check is:
+**Fix:** Either state the seam in the same paragraph, or close it — a cheap closure is to assert
+that no step in `gate-e2e` declares an `env:` map at all (today none does), which makes the runtime
+half total over that job:
 
 ```js
-    e2e?.if === undefined && e2e?.["continue-on-error"] !== true,
+const e2eStepEnvs = stepsOf(e2e).filter((s) => s?.env !== undefined).map((s, i) => String(s?.name ?? `step[${i}]`));
+check(
+  `no step in "${CI_E2E_JOB}" declares its own env: — the refusal reads the job's process environment, and a step env: is invisible to it`,
+  e2eStepEnvs.length === 0,
+  `steps with env:=[${e2eStepEnvs.join(", ") || "(none)"}]`,
+);
 ```
 
-Its own comment (`:666-676`) states the property it is closing: *"they do not close the job being
-kept, correctly named, and made to do NOTHING … a required check would go green over a job that
-installs npm and stops."* But every one of the three invariants quantifies over `runsOf(e2e)` —
-the *strings* of the job's `run:` steps — and none of them looks at the step's own `if:` or
-`continue-on-error:`. So this survives all 26 checks and detaches the gate completely:
+---
 
-```yaml
-      - name: Playwright — the functional suite
-        run: npx playwright test --project=chromium
-        continue-on-error: true        # ← job succeeds, gate is gone
-      # …or…
-        if: ${{ false }}               # ← step skipped, gate is gone
-```
+### WR-02: `process.exit()` immediately after `console.log` can truncate the `::error::` annotations and flake a build-blocking test
 
-`continue-on-error` is also evaluated as an expression, so `continue-on-error: ${{ true }}` (a
-string after parse) already defeats the `!== true` comparison at job level too.
+**File:** `scripts/refuse-mail-credential.mjs:70`, `:81`, `:97`, `:104`
 
-**Fix:** make the invariant total over the step that carries the command, and treat any non-literal
-value as a violation:
+**Issue:** Every exit path is `console.log(...)` followed synchronously by `process.exit(n)`.
+`process.stdout` writes are only guaranteed synchronous for pipes on Linux and Windows; on macOS a
+pipe write is asynchronous, and `process.exit()` discards anything still buffered. The consequences
+are ordered by severity: the exit code (the property CI consumes) is always correct, so the control
+stays fail-closed; but the `::error::` annotations that tell the operator *which variable* tripped
+it can be lost, and `tests/design/mail-credential-refusal.test.ts:107-110`/`:136-141` assert on
+`result.stdout` through a pipe — so on a macOS contributor's machine this becomes a flaky
+**build-blocking** gate. A flaky gate gets retried until green, which is the failure mode this whole
+phase exists to remove.
+
+**Fix:** Set the exit code and let the process drain, or flush explicitly.
 
 ```js
-  const e2eSteps = stepsOf(e2e);
-  const playStep = e2eSteps.find(
-    (s) => typeof s?.run === "string" && s.run.includes("playwright test"),
-  );
-  const softJob = e2e?.["continue-on-error"];
-  const softStep = playStep?.["continue-on-error"];
-  check(
-    `"${CI_E2E_JOB}" is unconditional — no if:/continue-on-error at the JOB or on the SUITE STEP`,
-    e2e?.if === undefined &&
-      softJob !== true && softJob !== "true" && typeof softJob !== "string" &&
-      playStep != null &&
-      playStep.if === undefined &&
-      softStep !== true && softStep !== "true" && typeof softStep !== "string",
-    `job.if=${JSON.stringify(e2e?.if ?? null)} job.coe=${JSON.stringify(softJob ?? null)} ` +
-      `step.if=${JSON.stringify(playStep?.if ?? null)} step.coe=${JSON.stringify(softStep ?? null)}`,
-  );
+process.exitCode = 1;
+return;            // top-level ESM module: falls off the end, stdout flushes, exit code 1 stands
 ```
 
-(If CR-02 is closed with option (a), this invariant is removed deliberately instead — but then it
-must be removed, not left half-covering.)
+Apply to all four exits (the trailing `process.exit(0)` is redundant and can be deleted outright).
 
 ---
 
-### WR-03: the mail-key parse scan walks only workflow/job/step `env:` — not `container.env`, not `services.*.env`, and not a differently-named key holding a mail credential
+### WR-03: the unreadable-source hard stop — one of the two the script names — has no test
 
-**File:** `scripts/verify-workflows.mjs:491-510`
-**Severity:** WARNING
+**File:** `scripts/refuse-mail-credential.mjs:64-71`, `tests/design/mail-credential-refusal.test.ts:130-145`
 
-**Issue:** `secretHitsIn()` at `:196-217` correctly walks `job.container.env` and
-`job.services.*.env`. The mail-key scan directly below does not:
+**Issue:** The header declares two hard stops: the source cannot be **read**, and the declaration
+cannot be **parsed**. The design suite instruments only the second (a decoy file that exists and
+carries no declaration). The `catch` on `readFileSync` — the branch that fires when
+`verify-workflows.mjs` is deleted, renamed, or unreadable — is never executed by any test, and it is
+the branch where a fail-open would be most expensive. It is currently correct; it is simply not
+proven, in a file whose stated purpose is that "a fail-closed control that is only ever exercised by
+the thing it is supposed to protect has no instrument at all".
+
+**Fix:** Add the missing direction, using a path that is guaranteed not to exist:
+
+```ts
+it("exits 1 naming the source path when the prefix source cannot be READ at all", () => {
+  const absent = join(tmpdir(), `mail-prefix-absent-${process.pid}-${Date.now()}.mjs`);
+  const result = runRefusal({ ...baseEnv(), [VIOLATING_KEY]: SENTINEL }, [absent]);
+  expect(result.status).toBe(1);
+  expect(result.stdout).toContain(absent);
+  expect(`${result.stdout}${result.stderr}`).not.toContain(SENTINEL);
+});
+```
+
+Note the violating key is set deliberately: it proves the read failure stops the scan rather than
+being papered over by a hit.
+
+---
+
+### WR-04: Invariant B's "shares the pattern" conjunct only checks the pattern's TEXT is present, not that the script uses it
+
+**File:** `scripts/verify-workflows.mjs:782-796`
+
+**Issue:** `sharesPattern = refusalSource.includes(MAIL_KEY_PREFIX_DECL.source)` is a substring test
+over the whole file — comments included. A refusal script that keeps the pattern text in a comment
+(or in dead code) while matching with a *different* regex satisfies it. `holdsNoCopy` has the mirror
+weakness in the other direction: it is `!refusalSource.includes("RESEND")` over raw text, so it also
+fires on an unrelated word containing the prefix, and it does not fire on an obfuscated copy
+(`"RES" + "END"`). This is the weakest of the three conjuncts backing the header's "the TWO HALVES
+asserted UNDRIFTABLE" claim (`ci.yml:244-247`), and the same substring-on-a-documented-file vacuity
+this script's own header (lines 6-32) argues against — reproduced inside the checker.
+
+**Fix:** Assert the *behaviour* instead of the text. The script is spawnable and cheap; run it with
+a fixture whose declaration carries a known-distinct prefix and assert the reported prefix comes
+back:
 
 ```js
-  for (const [name, job] of jobs) {
-    for (const k of Object.keys(job?.env ?? {})) { … }
-    for (const s of stepsOf(job)) { for (const k of Object.keys(s?.env ?? {})) { … } }
-  }
-  for (const k of Object.keys(doc?.env ?? {})) { … }
+const probe = spawnSync(process.execPath, [MAIL_REFUSAL_SCRIPT, PROBE_FIXTURE], { encoding: "utf8", env: { PATH: process.env.PATH } });
+const readsDeclaration = probe.status === 0 && probe.stdout.includes("prefix=ZZPROBE");
 ```
 
-`ci.yml:249-255` names this hole and carries it forward on the reasoning that the runtime half
-still catches it. **CR-01 shows it does not** — so today this vector is covered by nothing at all.
-
-A second, unnamed gap: the scan matches on the env **key** prefix. A key called `MAILER` or
-`NOTIFY_KEY` set to `${{ vars.RESEND_API_KEY }}` passes both this check and `secretHitsIn` (which
-matches the literal `secrets.`, not `vars.`).
-
-**Fix:** reuse the walker `secretHitsIn` already has, and add a `vars.` value scan:
-
-```js
-  const mailEnvHits = [];
-  const scanKeys = (where, envObj) => {
-    for (const k of Object.keys(envObj ?? {})) {
-      if (k.startsWith(MAIL_KEY_PREFIX)) mailEnvHits.push(`${where}.${k}`);
-    }
-    for (const [k, v] of Object.entries(envObj ?? {})) {
-      // any KEY, if its VALUE reaches for the provider through vars. or secrets.
-      if (typeof v === "string" && /(?:secrets|vars)\.\s*RESEND/i.test(v))
-        mailEnvHits.push(`${where}.${k} (value)`);
-    }
-  };
-  scanKeys("workflow.env", doc?.env);
-  for (const [name, job] of jobs) {
-    scanKeys(`${name}.env`, job?.env);
-    scanKeys(`${name}.container.env`, job?.container?.env);
-    for (const [svc, s] of Object.entries(job?.services ?? {}))
-      scanKeys(`${name}.services.${svc}.env`, s?.env);
-    stepsOf(job).forEach((s, i) => scanKeys(`${name}.step[${i}].env`, s?.env));
-  }
-```
-
----
-
-### WR-04: at least eleven verified-stale line citations in the phase's own files — several inside gate failure messages that tell a fixer which line to edit
-
-**File:** multiple; verified by resolving each citation against the file it names
-**Severity:** WARNING
-
-**Issue:** `src/lib/listing/create-signal.ts:50-53` states the rule this phase adopted:
-*"WR-08 measured eleven stale line citations in this phase's own files, and a citation that points
-at the wrong code is worse than none because it is believed."* 19-11 applied that rule to one
-paragraph. The rest of the phase's files were edited afterwards and the citations were not
-followed. Resolved against `HEAD`:
-
-| citation | cited as | line actually contains | truth |
-|---|---|---|---|
-| `listing-card.tsx:352` (e2e spec ×2) | the `<Card>` call site (`gap-0`) | `return false;` | `:360` |
-| `listing-card.tsx:434` (e2e spec ×3) | `hasActions` / the `CardFooter` call site | `</Link>` | `:322` / `:471` |
-| `listing-card.tsx:450` (e2e spec) | `Unlist` gated on `status === "published"` | a comment | `:487` |
-| `listing-card.tsx:377` (booker-seed) | the `primarySpaceType &&` branch | `<div className="flex items-start…">` | `:389` |
-| `listing-card.tsx:387-391` (create-signal) | the "calm muted text" rule | `</Badge>` / `</div>` | `:405-410` |
-| `listings/page.tsx:180` (e2e spec ×4, listing-card) | the grid wrapper | `{verification.suspended && (` | `:238` |
-| `listings/page.tsx:118-121` (booker-seed) | `loadPublishedListingsMissingHours` | comment prose | `:159-161` |
-| `listings/page.tsx:154` (booker-seed) | `.orderBy(desc(listing.updatedAt))` | a comment | `:93` |
-| `listings/page.tsx:160` / `:170` (listing-card) | the `<ListingCard>` call site / `titleAs` | the missing-hours map | `:278` / `:296` |
-| `host/page.tsx:75` (create-signal) | the `"₱300.00in"` SWC whitespace defect | an `import` line | elsewhere |
-| `button.tsx:117` (listing-card) | `icon-sm` → `size-7` | `icon-xs` → `size-6` | `:118-119` |
-
-The blast radius is not cosmetic. Four of these are inside `e2e/host-listing-grid.spec.ts`'s guard
-failure messages (`:222`, `:232`, `:249-252`, `:262`, `:276-278`) — the strings a developer reads
-*while the gate is red*, instructing them to apply `mt-auto` at `listing-card.tsx:434` (a closing
-`</Link>`) and warning them not to add `items-*` to `page.tsx:180` (an unrelated notice). The file's
-own header says *"The VALUE OF THIS FILE IS ENTIRELY IN THE FAILURE SENTENCE"*.
-
-**Fix:** either correct all eleven, or — consistent with what 19-11 already decided for
-`create-signal.ts` — cite **by role and symbol** and drop the numbers, e.g.
-`` `listing-card.tsx`'s `<CardFooter>` call site `` and
-`` `(host)/host/listings/page.tsx`'s grid wrapper (`grid sm:grid-cols-2 lg:grid-cols-3`) ``. A
-cheap standing gate is possible and would fit this repo's idiom: a design test that regex-scans
-`src/`, `e2e/` and `tests/` for `` `<path>.tsx:<n>` `` citations, resolves each, and asserts the
-named line is non-blank and not a comment.
-
----
-
-### WR-05: `host-listing-grid.spec.ts` leaks its seeded host when the fixture throws mid-way, and never closes the page if teardown throws
-
-**File:** `e2e/host-listing-grid.spec.ts:291-310`; `e2e/helpers/booker-seed.ts:806-894`
-**Severity:** WARNING
-
-**Issue:**
-
-```ts
-  test.beforeAll(async ({ browser }) => {
-    page = await browser.newPage();
-    fixture = await seedHostGridFixture(page);   // ← sign-up happens FIRST, inside this call
-    ...
-  });
-
-  test.afterAll(async () => {
-    await fixture?.teardown();
-    await page?.close();
-  });
-```
-
-`seedHostGridFixture` signs a host up through the UI and writes a `host_verification` row **before**
-it returns. If anything after the sign-up throws — the `waitForURL` timing out at 60s, the
-`seedApprovedHostVerification` lookup, any of the three inserts — `fixture` is never assigned, so
-`fixture?.teardown()` is a no-op and the `user`, `session`, `account` and `host_verification` rows
-persist. `gate-e2e` now runs on every push against a single long-lived service DB per job, and
-`retries: 2` means one bad run leaks three hosts. Nothing in the suite ever collects them.
-
-Secondly, if `teardown()` rejects, `await page?.close()` is skipped and the browser page leaks for
-the worker's lifetime.
-
-**Fix:** have the helper own its own partial-failure cleanup, and make the hook's two teardown steps
-independent:
-
-```ts
-// booker-seed.ts — inside seedHostGridFixture, after the sign-up succeeds:
-  const cleanupAccount = async () => {
-    await withClient(async (sql) => {
-      await sql`DELETE FROM "user" WHERE email = ${hostEmail}`;
-    });
-  };
-  try {
-    const hostId = await seedApprovedHostVerification(hostEmail);
-    ...
-    return { …, teardown };
-  } catch (err) {
-    // The account exists whatever else failed — this helper drove the form that made it.
-    await cleanupAccount().catch(() => {});
-    throw err;
-  }
-```
-
-```ts
-// host-listing-grid.spec.ts
-  test.afterAll(async () => {
-    try {
-      await fixture?.teardown();
-    } finally {
-      await page?.close();
-    }
-  });
-```
-
----
-
-### WR-06: `/host/listings/new` performs an unconditional database WRITE during a GET render
-
-**File:** `src/app/(host)/host/listings/new/page.tsx:102`
-**Severity:** WARNING
-
-**Issue:** `const res = await createDraftListing();` runs inside the page's render. Every GET that
-reaches this module inserts a row (or, under D-02, reuses one). There is no POST boundary, no
-idempotency key and no CSRF token: `SameSite=Lax` blocks cross-site subresource requests, but a
-top-level navigation from any third-party link — or a browser prerender, or a background-tab
-restore, or a crawler with a live session cookie — executes the write with the host's session.
-
-D-02's reuse-then-mint genuinely caps the blast radius at **one** surplus untouched draft per host,
-which is why this is a warning and not a blocker, and the file records the design intent (D-01).
-But D-02 is a *mitigation for* this shape, not a licence for it, and the same file's docblock
-already concedes the check-then-act is not race-free (`src/app/actions/listing.ts:233-245`), so two
-concurrent GETs can still produce two rows.
-
-**Fix:** no code change is required this phase, but this should be recorded as an explicit deferred
-item rather than left implicit, with the intended shape named: the wizard entry becomes a
-`<form action={createDraftListing}>` POST (or a route handler that only accepts `POST`), and
-`/host/listings/new` renders a one-click "Start a listing" surface instead of side-effecting on
-render. At minimum add `export const dynamic = "force-dynamic"` is *not* the fix — the fix is the
-method.
+If a spawn inside the checker is unwanted, at minimum note in the comment that `sharesPattern` is a
+text check and that `tests/design/mail-credential-refusal.test.ts` is what proves the pattern is
+actually used.
 
 ---
 
 ## Info
 
-### IN-01: the two zero-import gates on `create-signal.ts` use different regexes; the always-run one is the stricter
+### IN-01: `expect(result.stdout).toMatch(/\b\d+\b/)` is close to vacuous
 
-**File:** `tests/listing/create-signal.test.ts:191` vs `tests/design/listing-create-refusal-routing.test.ts:207`
-**Issue:** `/^import\b/` (no leading whitespace) vs `/^\s*import\b/`. An indented `import` — inside a
-`try`, or after a prettier reflow — passes the `vitest.config.ts` copy and is caught only by the
-design copy.
-**Fix:** use `/^\s*import\b/` in both, and add a `import(` dynamic-import term:
-`/^\s*import\b|\bimport\s*\(/`.
+**File:** `tests/design/mail-credential-refusal.test.ts:118`
 
-### IN-02: the census's stripping proof asserts on prose in three unrelated files
+**Issue:** The test's name promises it "reports the prefix, the count scanned and its source", but
+`/\b\d+\b/` matches any digit anywhere in the output — including a digit inside a path, or inside a
+future unrelated line. It cannot distinguish "reported a count" from "printed something numeric".
 
-**File:** `tests/design/listing-reuse-predicate-census.test.ts:336-368`
-**Issue:** `expect(unstripped.length).toBeGreaterThan(stripped.length)` and
-`expect(unstrippedMissing.length).toBeGreaterThan(0)` require that `listing.ts`, `schema.ts` and
-`visual-baselines.ts` keep *discussing* a raw `UPDATE listing` in comments. An unrelated doc edit
-turns a correct tree red, and the failure message correctly says so but asks the reader to re-point
-the assertion by hand.
-**Fix:** make the fixture local — strip a string literal defined in the test file itself
-(`const PROSE = "// an UPDATE listing SET status = 'x' WHERE id = 1"`), assert `stripComments(PROSE)`
-removes it, and drop the dependency on other files' comments.
-
-### IN-03: `pageConditions()` silently mis-parses the first nested-paren condition
-
-**File:** `tests/design/listing-create-refusal-routing.test.ts:101-104`
-**Issue:** `/if\s*\(([^)]*)\)/g` stops at the first `)`. The docblock says "None of ours nests
-parentheses" — true today. The day one does (`if (!res.ok && isSomething(res))`), the extracted
-condition is truncated, `/^!\s*res\.ok$/` stops matching, and the red reads as a routing defect.
-**Fix:** balance the parentheses with a small scanner, or narrow the assertion to
-`code.includes("if (!res.ok)")` and note the trade.
-
-### IN-04: `cross`-section YAML parse has no error boundary
-
-**File:** `scripts/verify-workflows.mjs:899-906`
-**Issue:** `parse(readFileSync(...))` is called on every file in `.github/workflows/` with no `try`.
-A third workflow with a syntax error produces a raw stack and exit 1 — indistinguishable from "an
-invariant broke", which is the exact confusion the file's exit-code-3 contract (`:69-73`) exists to
-prevent.
-**Fix:** wrap in `try`/`catch` and call `hardStop([...])` naming the file and the parser message.
-
-### IN-05: off-by-N citations in the ui primitives
-
-**File:** `src/components/listing/listing-card.tsx:509` (`ui/button.tsx:117`);
-`tests/design/listing-card-merge-order.test.ts:116` (`src/lib/utils.ts:41-47`)
-**Issue:** `button.tsx:117` is `icon-xs`'s `size-6`; `icon-sm`'s `size-7` is `:118-119` — the
-*claim* (28px, matching `h-7`) is correct, only the pointer is wrong. `utils.ts:41` is a blank line.
-**Fix:** cite `:118-119` and `:42-47`, or cite the variant key by name.
-
-### IN-06: `ci.yml`'s header calls the mail refusal "job 5's FIRST step"
-
-**File:** `.github/workflows/ci.yml:245`
-**Issue:** It is the fourth step — `actions/checkout`, `actions/setup-node`, `npm ci` precede it.
-The step's own comment at `:1305` ("it runs before anything boots") is accurate; the header's is
-not.
-**Fix:** "job 5's first step after `npm ci`, and before anything boots".
+**Fix:** `expect(result.stdout).toMatch(/scanned \d+ environment variable name\(s\)/)`.
 
 ---
 
-_Reviewed: 2026-09-04T12:57:13Z_
+### IN-02: `spawnSync` failure is never asserted, and produces a confusing `TypeError`
+
+**File:** `tests/design/mail-credential-refusal.test.ts:98-100`, `:108`, `:138`
+
+**Issue:** If the spawn itself fails (bad `execPath`, missing script, EACCES), `result.status` is
+`null` and `result.stdout` is `null`; `result.stdout.split("\n")` then throws
+`TypeError: Cannot read properties of null` rather than naming the real failure. Cheap to make
+legible in a file whose whole idiom is "a diagnostic that cannot be misread".
+
+**Fix:** In `runRefusal`, add
+`if (result.error) throw new Error(\`could not spawn ${SCRIPT}: ${result.error.message}\`);`
+before returning.
+
+---
+
+### IN-03: error output goes to stdout, diverging from the sibling checker, and the tests now pin it
+
+**File:** `scripts/refuse-mail-credential.mjs:67-69`, `:76-80`, `:88-96`
+
+**Issue:** All `::error::` lines use `console.log`. `scripts/verify-workflows.mjs` writes every fatal
+and every failure list to `console.error` (`:138-152`, `:167-178`, `:1075-1077`). GitHub picks up
+workflow commands from both, so this is not a functional defect — but the two halves of one control
+now disagree on their stream, and `mail-credential-refusal.test.ts` asserts specifically on
+`result.stdout`, which silently makes the choice load-bearing.
+
+**Fix:** Either move the `::error::` lines to `console.error` and assert on
+`${result.stdout}${result.stderr}` in the test, or add one sentence to the script header recording
+that stdout is deliberate and why.
+
+---
+
+### IN-04: `ci.yml` still calls the refusal "job 5's FIRST step" in a paragraph this plan rewrote
+
+**File:** `.github/workflows/ci.yml:267`, `.github/workflows/ci.yml:1337`
+
+**Issue:** The step is fourth (`checkout`, `setup-node`, `npm ci`, refusal). Round 1 recorded this as
+IN-06; plan 19-12 re-authored both sentences and kept the inaccuracy, while
+`scripts/refuse-mail-credential.mjs:3` and `tests/design/mail-credential-refusal.test.ts:2` state it
+correctly ("first step after `npm ci`" / "runs first, before the database is migrated"). Three sites
+describing one step, two of them right. The invariant itself (C) is precise — only `npm ci` may
+precede — so the prose is the only thing out of step.
+
+**Fix:** "job 5's FIRST `run:` step after `npm ci`" in both places, matching Invariant C's wording.
+
+---
+
+_Reviewed: 2026-09-04_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+_Scope: plan 19-12 source changes only (eac5541..HEAD)_
