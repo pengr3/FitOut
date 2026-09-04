@@ -446,7 +446,7 @@ is cheap, independent, and because `CI-01` makes every later phase's gates capab
   4. Opening a pull request **runs the repository's functional Playwright specs**, and a failing spec
      turns the run red — proven by watching one fail, not by reading the workflow file.
 
-**Plans**: 14/15 plans executed, 15 waves (worktrees are OFF, so waves express dependency order, not concurrency);
+**Plans**: 15/15 plans executed, 15 waves (worktrees are OFF, so waves express dependency order, not concurrency);
 13/15 executed.
 8/8 original plans executed; verification found two FAILED must-haves, so plans 19-09 … 19-11 are
 GAP CLOSURE (`gap_closure: true`) and run via `/gsd-execute-phase 19 --gaps-only`. Re-verification
@@ -527,7 +527,7 @@ Plans:
 
 **Wave 15** *(GAP CLOSURE — blocked on Wave 14 completion)*
 
-- [ ] 19-15-PLAN.md — the trigger assertion SC4's text is literally about and the `defaults:` block nothing read, with the total moved 48 → 50 and every count sentence in the same commit; WR-03/WR-04/IN-02 folded in (CI-01)
+- [x] 19-15-PLAN.md — the trigger assertion SC4's text is literally about and the `defaults:` block nothing read, with the total moved 48 → 50 and every count sentence in the same commit; WR-03/WR-04/IN-02 folded in (CI-01)
 
 **⚠ HSURF-01: the obvious fix is a no-op, measured.** The grid wrapper sets no `align-items`, so grid
 items with `height: auto` **already stretch** — adding `h-full` to `Card` would be a no-op dressed as a

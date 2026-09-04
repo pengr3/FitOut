@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: executing
-stopped_at: Completed 19-14-PLAN.md
-last_updated: "2026-09-04T17:27:58.549Z"
+stopped_at: Completed 19-15-PLAN.md
+last_updated: "2026-09-04T17:41:27.369Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 19 execution started
-state_head: 2f8209ea01c1eca896a8abc3c1813b7e739964d5
+state_head: 23261a52a0d09ebb4e4e0b6dc4ba2d142a718d72
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 45
-  completed_plans: 44
+  completed_plans: 45
   percent: 14
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
-Plan: 2 of 15
+Plan: 3 of 15
 Status: Ready to execute
 Last activity: 2026-09-05 — Phase 19 execution started
 
@@ -436,6 +436,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19 P12 | 13 min | 3 tasks | 5 files |
 | Phase 19 P13 | 12 min | 3 tasks | 4 files |
 | Phase 19 P14 | 41 min | 3 tasks | 3 files |
+| Phase 19 P15 | 24 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1420,6 +1421,9 @@ Recent decisions affecting current work:
 - [Phase 19]: The checker is spawned by its standing test with a different cwd, NOT a --workflow-dir= flag — a test-only input to a security control would need a further invariant pinning its absence on the production path (19-12's argv[2] mistake restated)
 - [Phase 19]: Both continue-on-error comparisons became PRESENCE tests: a key that should never appear on a gate has no legitimate value to carve out, and every value comparison is one alternative spelling away from green
 - [Phase 19]: IN-01's conjunct COUNT was deleted rather than corrected in both files — two counted items are logically implied by a third, so a number claims a coverage depth the code does not support
+- [Phase 19]: The trigger check on ci.yml asserts MEMBERSHIP while baselines.yml's asserts the EXACT set — deliberately opposite shapes, with the reason for each stated at its own site and an explicit instruction not to harmonise them. baselines.yml is the write path where an ADDED trigger regenerates the baselines it gates; ci.yml writes nothing, so a MISSING trigger is the whole danger.
+- [Phase 19]: The execution-defaults check forbids the WHOLE defaults: block at workflow and gate-e2e level rather than naming run.shell inside it — allow-list shape against a failure class defined as "an attribute the checker does not know about". undefined is the only passing value, so a present-but-empty block is red.
+- [Phase 19]: A documented invariant COUNT and the count that produces it are made the SAME BYTES across every file stating either — the checker's output, ci.yml's count paragraph (which quotes the summary line verbatim) and the design test's EXPECTED_GREEN — so drift is a build-blocking red rather than a sentence nobody re-reads.
 
 ### Pending Todos
 
@@ -1601,8 +1605,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-04T17:27:43.146Z
-Stopped at: Completed 19-14-PLAN.md
+Last session: 2026-09-04T17:41:00.572Z
+Stopped at: Completed 19-15-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
