@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: executing
-stopped_at: Completed 19-06-PLAN.md
-last_updated: "2026-09-04T03:50:35.918Z"
+stopped_at: Completed 19-07-PLAN.md
+last_updated: "2026-09-04T04:36:38.584Z"
 last_activity: 2026-09-04
 last_activity_desc: Phase 19 execution started
-state_head: f8c412fd2900ba52f2ccc3362bcf5fd383a373a3
+state_head: 4efe54c81c44e6a4f8796652bdfdf7858bf01bff
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 7
   completed_phases: 1
   total_plans: 38
-  completed_plans: 36
+  completed_plans: 37
   percent: 14
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-09-04 — Phase 19 execution started
 
@@ -428,6 +428,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19 P04 | 29 min | 3 tasks | 3 files |
 | Phase 19 P05 | 14 min | 3 tasks | 5 files |
 | Phase 19 P06 | 34 min | 3 tasks | 3 files |
+| Phase 19 P07 | 43 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1390,6 +1391,9 @@ Recent decisions affecting current work:
 - [Phase 19]: 19-05 VERDICT A: the listing-creation 404 reproduced neither under a clean `next dev` nor under a real `next build` + `next start`, so per D-09 no file under src/app/(host)/host/listings/[id]/ was edited — Both eleven-URL anonymous matrices served 307 -> /login on all four subject rows (3, 4, 5, 6). Row 5 (`zzz`, a non-uuid) is the sharpest discriminator and behaved correctly. An anonymous caller reaching EditListingPage can only produce a 307, so a 404 would have proved the module never ran.
 - [Phase 19]: 19-05: HSURF-02's unproven item (b) is CLOSED; items (a) and (c) are recorded permanently OPEN with their reasons, and no cause is named anywhere — (a) is NOT CLOSEABLE because the dev server that exhibited the 404 was gone before the phase opened; (c) is REFRAMED with three mtimes and five candidates, none attributed, resting on assumptions A4/A5 which are both UNPROVEN and labelled inference. A finding that names a cause is worse than no finding.
 - [Phase 19]: 19-05: 19-02's contradicting reproduction is preserved with its conditions, and the state of the `.next` directory the server booted against is named as the DISCRIMINATOR to start from - explicitly not as a cause — 19-02 reproduced the 404 incidentally on a fresh dev process booted against the surviving 2026-09-03 .next, hitting every /host/* subroute while /host itself served 307 and while the manifest entry was PRESENT. Neither result is discarded in favour of the other; section 2 of 19-FINDING-404.md carries both.
+- [Phase 19]: 19-07: the failure redirect is a CONCATENATION, not a template literal — two gates count the destination literal in new/page.tsx and a template would drive that count to zero on a correct tree
+- [Phase 19]: 19-07: LISTING_CREATE_FAILED_PARAM exports the whole key=value pair and the destination splits it once, so the origin and the destination cannot drift on the KEY either
+- [Phase 19]: 19-07: the raw searchParams value is never interpolated anywhere — not even into the comparison; the page splits the constant and indexes the params with it
 
 ### Pending Todos
 
@@ -1569,8 +1573,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-04T03:50:35.256Z
-Stopped at: Completed 19-06-PLAN.md
+Last session: 2026-09-04T04:36:18.548Z
+Stopped at: Completed 19-07-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
