@@ -133,6 +133,21 @@ const MAIL_REFUSAL_SCRIPT = "scripts/refuse-mail-credential.mjs";
 const MAIL_REFUSAL_RUN = `node ${MAIL_REFUSAL_SCRIPT}`;
 const CI_E2E_MAIL_STEP = "Refuse to run the suite with a live mail credential in the environment";
 
+// THE REFUSAL STEP'S PERMITTED KEY SURFACE, STATED POSITIVELY (review finding CR-01, third round).
+// Only these two keys may appear on that step. Anything else — an override of the interpreter its
+// `run:` body is handed to, a working directory, a per-step timeout, or an Actions attribute nobody
+// here has heard of — is a change to HOW the step executes, and a change to how a gate executes is a
+// decision to record, not one to absorb.
+//
+// ⚠ THIS IS AN ALLOW-LIST AND NOT A DENY-LIST, AND THAT IS THE WHOLE POINT. The failure class is "an
+// attribute the checker does not know about", and a deny-list can only ever name the ones it already
+// knows. The attack surface is every key the platform accepts times every value form each key
+// permits — an open set — so enumerating against it loses by construction. Three consecutive
+// verification rounds each found one more key or one more spelling; the fourth was going to as well.
+// Stating what is PERMITTED makes the unknown red by default, which is the only shape that closes an
+// open set.
+const MAIL_STEP_ALLOWED_KEYS = ["name", "run"];
+
 const ALL_SECTIONS = ["baselines", "ci", "cross"];
 
 // ── ARGUMENTS ───────────────────────────────────────────────────────────────────────────────────
@@ -791,6 +806,12 @@ if (sections.includes("ci")) {
   // active, and survived a full verification round. Presence is not the property.
   const e2eMailStep = stepsOf(e2e).find((s) => String(s?.name ?? "") === CI_E2E_MAIL_STEP);
   const e2eMailRun = String(e2eMailStep?.run ?? "");
+  // Sorted, because YAML mapping order is an authoring accident and a diagnostic that changes with it
+  // is not stable across runs. Membership below is EXACT string equality, so a differently-cased or
+  // differently-suffixed spelling of a permitted key lands OUTSIDE the allow-list and is red — which
+  // is the correct direction: the boundary is drawn by what is permitted, never by what was noticed.
+  const mailStepKeys = Object.keys(e2eMailStep ?? {}).sort();
+  const mailStepExtraKeys = mailStepKeys.filter((k) => !MAIL_STEP_ALLOWED_KEYS.includes(k));
 
   // A. IT READS THE REAL PROCESS ENVIRONMENT. All five conjuncts, because any one alone is
   //    satisfiable by the inert shape: the step existed, and it ran something.
@@ -805,17 +826,35 @@ if (sections.includes("ci")) {
   //    EXACT invocation is. `trim()` because a block scalar carries its trailing newline. The script
   //    now also refuses any argument on its own (both halves, so neither is the only lock), and its
   //    header names this conjunct by its real identity rather than claiming a coverage it lacked.
+  //
+  //    THE PERMITTED-KEY CONJUNCT, AND THE MEASUREMENT THAT BOUGHT IT (review finding CR-01, third
+  //    round). Every conjunct above constrains WHAT the step runs — its `run:` string, its `env:`
+  //    map — and, with Invariant C, WHERE it runs. None of them constrained HOW it executes.
+  //    19-VERIFICATION.md added ONE key to this step, leaving the `run:` string byte-identical,
+  //    adding no `env:`, no `if:` and no `continue-on-error:`, and not moving the step — and watched
+  //    all 48 invariants stay green while the script was PRINTED instead of executed and the suite
+  //    proceeded to migrate, seed and boot with a live mail credential in the environment. The
+  //    property is NOT "these named attributes are absent"; it is "no attribute outside the permitted
+  //    set is present". See `MAIL_STEP_ALLOWED_KEYS` above for why that is an allow-list.
+  //
+  //    ⚠ THE SUBSET TEST IS ANDed WITH THE STEP-PRESENCE CONJUNCT AND MUST NEVER STAND ALONE. Over
+  //    an ABSENT step the key list is empty and the subset test holds VACUOUSLY — the same vacuity
+  //    class the hard stops above exist to remove.
   check(
-    `"${CI_E2E_JOB}"'s mail refusal reads the REAL process environment — no \${{ }} expression, no env: map, exact invocation, NO ARGUMENTS`,
+    `"${CI_E2E_JOB}"'s mail refusal reads the REAL process environment — no \${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [${MAIL_STEP_ALLOWED_KEYS.join(", ")}]`,
     e2eMailStep !== undefined &&
       e2eMailRun.trim() === MAIL_REFUSAL_RUN &&
       e2eMailRun.includes(MAIL_REFUSAL_SCRIPT) &&
       !e2eMailRun.includes("${{") &&
-      e2eMailStep?.env === undefined,
+      e2eMailStep?.env === undefined &&
+      mailStepExtraKeys.length === 0,
     `step=${e2eMailStep ? `index ${stepsOf(e2e).indexOf(e2eMailStep)}` : "(ABSENT)"}  ` +
       `run=${JSON.stringify(e2eMailStep ? e2eMailRun : null)}  ` +
       `expected-run=${JSON.stringify(MAIL_REFUSAL_RUN)}  ` +
-      `env=${JSON.stringify(e2eMailStep?.env ?? null)}  expects ${MAIL_REFUSAL_SCRIPT}`,
+      `env=${JSON.stringify(e2eMailStep?.env ?? null)}  ` +
+      `keys=[${mailStepKeys.join(", ") || "(none)"}]  ` +
+      `permitted=[${MAIL_STEP_ALLOWED_KEYS.join(", ")}]  ` +
+      `unexpected=[${mailStepExtraKeys.join(", ") || "(none)"}]  expects ${MAIL_REFUSAL_SCRIPT}`,
   );
 
   // B. THE TWO HALVES CANNOT DRIFT. Three conjuncts: this file's own declaration still matches the
