@@ -446,9 +446,12 @@ is cheap, independent, and because `CI-01` makes every later phase's gates capab
   4. Opening a pull request **runs the repository's functional Playwright specs**, and a failing spec
      turns the run red — proven by watching one fail, not by reading the workflow file.
 
-**Plans**: 11/11 plans executed, 11 waves (worktrees are OFF, so waves express dependency order, not concurrency).
+**Plans**: 12 plans, 12 waves (worktrees are OFF, so waves express dependency order, not concurrency);
+11/12 executed.
 8/8 original plans executed; verification found two FAILED must-haves, so plans 19-09 … 19-11 are
-GAP CLOSURE (`gap_closure: true`) and run via `/gsd-execute-phase 19 --gaps-only`.
+GAP CLOSURE (`gap_closure: true`) and run via `/gsd-execute-phase 19 --gaps-only`. Re-verification
+after that closure scored 6/7 and surfaced ONE new gap — D-14's runtime mail-credential refusal is
+inert (19-REVIEW CR-01) — so plan 19-12 is a further gap-closure plan under the same flag.
 Order is the research's: `CI-01 → HSURF-01 → HSURF-02`, with CI-01's required-check flip held to the
 end because it can only be justified by a watched red that needs this phase's own specs to exist.
 
@@ -496,6 +499,10 @@ Plans:
 **Wave 11** *(GAP CLOSURE — blocked on Wave 10 completion)*
 
 - [x] 19-11-PLAN.md — WR-01's three `gate-e2e` invariants, each watched red, and WR-05's truthful `ci.yml` header (CI-01)
+
+**Wave 12** *(GAP CLOSURE — blocked on Wave 11 completion)*
+
+- [ ] 19-12-PLAN.md — D-14's refusal made real: it reads the job's actual process environment, sources its prefix from the checker, four watched-red invariants, and headers that name which half covers what (CI-01)
 
 **⚠ HSURF-01: the obvious fix is a no-op, measured.** The grid wrapper sets no `align-items`, so grid
 items with `height: auto` **already stretch** — adding `h-full` to `Card` would be a no-op dressed as a
