@@ -1,412 +1,508 @@
 ---
 phase: 19-host-listing-surfaces-gates-that-actually-run
-reviewed: 2026-09-05T00:35:00Z
+reviewed: 2026-09-05T02:05:00Z
 depth: standard
-files_reviewed: 4
+files_reviewed: 5
 files_reviewed_list:
-  - scripts/refuse-mail-credential.mjs
   - scripts/verify-workflows.mjs
+  - scripts/refuse-mail-credential.mjs
+  - tests/design/workflow-invariants.test.ts
   - tests/design/mail-credential-refusal.test.ts
   - .github/workflows/ci.yml
 findings:
-  critical: 2
-  warning: 5
-  info: 4
+  critical: 3
+  warning: 3
+  info: 5
   total: 11
 status: issues_found
 ---
 
-# Phase 19 (plan 19-13): Code Review Report
+# Phase 19 (plans 19-14 / 19-15): Code Review Report
 
 **Reviewed:** 2026-09-05
 **Depth:** standard
-**Files Reviewed:** 4
+**Files Reviewed:** 5
 **Status:** issues_found
 
 ## Summary
 
-Plan 19-13 closed the two defects it set out to close, and it closed them properly. Both were
-re-tested against the working tree during this review:
+### What this round genuinely got right, verified by experiment rather than by reading the prose
 
-- Appending any argument to `gate-e2e`'s refusal `run:` now turns Invariant A red, and the script
-  itself refuses arguments before it touches a file or the environment. The `argv` override is gone,
-  not gated. Design-test cases 7 and 8 are genuine red-before/green-after cases (case 8 reproduces
-  the measured exit-0 fail-open verbatim); all 8 cases pass (`vitest run --config
-  vitest.design.config.ts` → 8 passed).
-- A step-level literal `continue-on-error: true` is now caught by the widened quantifier, and the
-  invariant total is genuinely still 48 (`baselines=11, ci=29, cross=8`, re-run).
-- The prefix-decoy vector the review brief asked about is genuinely closed: both the refusal script
-  and Invariant B take the **first** `/^const MAIL_KEY_PREFIX = "…";$/m` match in
-  `verify-workflows.mjs`, so a decoy declaration inserted ahead of the real one (even inside a
-  template literal, where `^` still matches) makes Invariant B's `declMatches` false and goes red.
-  That seam holds.
+**The allow-list is a real positive specification, not a renamed deny-list.**
+`MAIL_STEP_ALLOWED_KEYS` (`verify-workflows.mjs:149`) enumerates the permitted keys and rejects the
+complement (`:896-897`), using exact string equality so a differently-cased or suffixed spelling of a
+permitted key lands outside it. It is ANDed with `e2eMailStep !== undefined` (`:936`), so an absent or
+renamed step is red rather than vacuously green — confirmed by reading, and the vacuity is called out
+at `:928-930`. Case 3 (`working-directory`) is genuine evidence for the unknown-unknown claim.
 
-**But the third vector the brief asked for exists, and there are two of them.** Both were
-reproduced by mutating `.github/workflows/ci.yml`, running `node scripts/verify-workflows.mjs`,
-and observing `All 48 invariants hold`. Both mutations were reverted and `git status --porcelain`
-is back to its pre-review state (three pre-existing untracked `.planning/` files only).
+**The standing test genuinely constrains the shipped checker.** I verified this destructively rather
+than accepting it: neutering the allow-list conjunct to `true` (`verify-workflows.mjs:939`) turned
+cases 2 and 3 red (`2 failed | 10 passed`), i.e. the mutated copy really is the subject and a weakened
+predicate really is caught. `expectRed` asserts both a non-zero exit *and* a `FAIL` line naming the
+invariant, so a hard stop or a crash cannot satisfy it, and `EXPECTED_GREEN` pins the whole summary
+sentence including per-section counts.
 
-The shape of both is identical to CR-02: the newly-widened predicate was widened along the
-*axis that was measured* (`if:` and literal `continue-on-error: true` on a step) rather than along
-the axis the prose claims (`A gate step that cannot fail the job is not a gate; it is a report`).
-Two other single-key step attributes still neutralize the refusal step with every invariant green.
+**The refusal script has no new fail-open.** Every branch was traced: argument present → exit 1
+(before any read); source unreadable → exit 1; declaration absent, empty or reshaped (trailing
+whitespace defeats the `;$` anchor) → exit 1; any prefixed name in `process.env` → exit 1. The only
+`exit 0` is the genuine clean-scan path. WR-03's and WR-04's replacements are accurate: the failure
+message now names only `container.env` and the runner environment (both true), explicitly disclaims
+the non-prefixed-key case, and the argument diagnostic prints `process.argv.length - 2` and no
+content. Prior IN-03 (argument-guard ordering unpinned) and IN-04 (case-sensitive prefix vs. Windows
+`process.env`) are unchanged and are not restated as new findings — I found no evidence they are worse
+than described.
+
+**The count documentation is correct.** Every surviving `48` is a past-tense measurement record
+(`ci.yml:239,253,270,279,375`; `verify-workflows.mjs:467,785,806,914,927`;
+`mail-credential-refusal.test.ts:20`; `workflow-invariants.test.ts:417`). The only two present-tense
+counts are `ci.yml:362` and `workflow-invariants.test.ts:100`, byte-identical to the checker's actual
+output. `ci.yml` changed in comments only this round (`git diff 07b9977..HEAD` over
+non-`#` lines is empty). The eight-entry `gate-e2e` list matches the eight counted `check()` calls.
+
+### The standing question: yes, a fourth round of vectors exists — three of them
+
+The brief asked what single-token edit still defeats the guard while `node scripts/verify-workflows.mjs`
+prints all 50 green. I found three, each reproduced by mutating `.github/workflows/ci.yml`, running the
+checker, and observing `All 50 invariants hold across 3 section(s) (baselines=11, ci=31, cross=8)` with
+exit 0 and zero `FAIL` lines. All three are the *same shape as every previous round*: the new predicate
+was written along the axis that was measured (a deleted trigger key, a `uses:` step in the run list, a
+key on the refusal step) rather than along the property the prose beside it claims.
+
+1. **CR-01** — a `branches:`/`paths-ignore:` filter under `pull_request:`. The trigger check asks for
+   key membership; a filter leaves the key.
+2. **CR-02** — one decoy `run:` line whose text merely *contains* the refusal script's path. It
+   relocates the anchor Invariant C computes its predecessor allow-list from, making `every([])`
+   vacuously true while an arbitrary `uses:` action runs ahead of the real refusal.
+3. **CR-03** — nothing constrains `gate-db-free`, the job that *executes the checker* and the whole
+   design suite. Deleting its two-line checker step, or adding one `continue-on-error: true` to it,
+   leaves 50 green.
+
+Every mutation was reverted. `git status --porcelain` shows only the three pre-existing untracked
+`.planning/` entries; `git diff --stat` is empty; the checker reports 50 green and both design suites
+pass 20/20 against the restored tree.
 
 ## Critical Issues
 
-### CR-01: A step-level `shell:` key neutralizes the mail refusal with all 48 invariants green
+### CR-01: A trigger *filter* detaches every gate from pull requests with all 50 invariants green
 
-**File:** `scripts/verify-workflows.mjs:751-767` (the widened "unconditional" check),
-`scripts/verify-workflows.mjs:808-819` (Invariant A), `.github/workflows/ci.yml:1402-1403`
+**File:** `scripts/verify-workflows.mjs:487-494`, `.github/workflows/ci.yml:623-626`
 
-**Issue:** GitHub Actions supports a custom shell of the form `shell: <command> [args] {0}`, where
-the step's `run:` body is written to a temp file and handed to that command. Adding one line to the
-refusal step:
+**Issue:** The new trigger invariant (plan 19-15's answer to WR-01) tests key membership only:
+
+```js
+const ciTriggers = triggersOf(doc);   // Object.keys(doc.on)
+check("ci.yml runs on BOTH push and pull_request — …", ciTriggers.includes("push") && ciTriggers.includes("pull_request"), …);
+```
+
+`push:` and `pull_request:` are event *maps*, not flags. A filter inside the map decides whether the
+event ever fires, and the key survives every filter. **Reproduced against the working tree:**
 
 ```yaml
-      - name: Refuse to run the suite with a live mail credential in the environment
-        shell: cat {0}
-        run: node scripts/refuse-mail-credential.mjs
+on:
+  push:
+    branches: [dev, main]
+  pull_request:
+    branches: [does-not-exist]
 ```
 
-leaves the `run:` string byte-identical (so Invariant A's new exact-equality conjunct passes), adds
-no `env:`, no `if:` and no `continue-on-error:` (so the widened quantifier at :751-767 passes) and
-does not move the step (so Invariant C passes). `cat` prints the script and exits 0 — the refusal
-never executes, and the suite proceeds to migrate, seed and boot the app with a live mail credential
-in the environment. **Reproduced:** applied to `ci.yml`, `node scripts/verify-workflows.mjs` printed
-`All 48 invariants hold across 3 section(s) (baselines=11, ci=29, cross=8)`, exit 0, zero red lines.
-Reverted; tree clean.
+→ `All 50 invariants hold across 3 section(s) (baselines=11, ci=31, cross=8).`, `CHECKER-EXIT=0`, no
+`FAIL` line. Reverted; `md5sum` back to `b655c2d8…`.
 
-The same hole exists one level out via `defaults: { run: { shell: … } }` at job or workflow level —
-`grep -n "shell\|defaults" scripts/verify-workflows.mjs` returns no matches at all, so neither is
-read anywhere in the checker.
+`paths-ignore: ['**']` and `types: [labeled]` do the same. The realistic spelling is not even
+adversarial: `pull_request: branches: [main]` looks like a tidy narrowing and silently exempts every
+pull request into `dev` — which is this repository's working branch and half of the `push:` filter one
+line above.
 
-This is not a hypothetical distinction from the two closed vectors: the prose the same commit
-added at `scripts/verify-workflows.mjs:750` and `.github/workflows/ci.yml:244-245` states the
-property as "a gate step that cannot fail the job is not a gate", and a `shell:` override is
-precisely a step that cannot fail the job.
+This is exactly the failure WR-01 was raised for, one token deeper, and it falsifies the same
+sentence: CI-01's requirement text is *"opening a pull request runs the repository's functional
+Playwright specs"*. `ci.yml:370-383` states the property as "`ci.yml` must run on BOTH `push` and
+`pull_request`" and "deleting `pull_request:` … detaches EVERY gate here from pull requests" — the
+first sentence is the claim, the second is the only thing the code implements. `tests/design/
+workflow-invariants.test.ts` case 12 tests only the deletion, so the test suite records the measured
+axis too.
 
-**Fix:** Assert the refusal step's full attribute surface, not a hand-picked subset. The cheapest
-correct form is an allow-list of keys on that step, added as conjuncts of Invariant A:
+**Fix:** Assert the event is unfiltered, not merely present. Absence of a filter is the property; a
+deliberate filter is a decision to record, exactly as the `defaults:` block one screen above is
+treated:
 
 ```js
-// Only these keys may appear on the refusal step. Anything else — `shell:`, `working-directory:`,
-// `timeout-minutes:`, a future Actions attribute nobody here has heard of — is a change to how the
-// step executes, and a change to how a gate executes is a decision to record, not one to absorb.
-const MAIL_STEP_ALLOWED_KEYS = ["name", "run"];
-const mailStepKeys = Object.keys(e2eMailStep ?? {}).sort();
-const mailStepExtraKeys = mailStepKeys.filter((k) => !MAIL_STEP_ALLOWED_KEYS.includes(k));
-// …and add `mailStepExtraKeys.length === 0` to Invariant A's predicate, with
-// `keys=[${mailStepKeys.join(", ")}]  unexpected=[${mailStepExtraKeys.join(", ")}]` in the evidence.
-```
-
-Add, in the same commit, a conjunct to the "unconditional" check that no `defaults` block exists at
-workflow level or on `gate-e2e`:
-
-```js
-const shellDefaults =
-  doc?.defaults?.run?.shell !== undefined || e2e?.defaults?.run?.shell !== undefined;
-```
-
-An allow-list is the right shape here rather than a deny-list of `shell`, because the failure class
-is "an attribute the checker does not know about", and a deny-list can only ever name the ones it
-already knows.
-
----
-
-### CR-02: `continue-on-error` with an expression or quoted value defeats the check that was just widened for exactly this
-
-**File:** `scripts/verify-workflows.mjs:756`, `scripts/verify-workflows.mjs:760-762`
-
-**Issue:** Both the job read and the new step filter test for the JavaScript boolean `true`:
-
-```js
-.filter(({ step }) => step?.if !== undefined || step?.["continue-on-error"] === true)
-…
-e2e?.if === undefined &&
-  e2e?.["continue-on-error"] !== true &&
-  conditionalSteps.length === 0,
-```
-
-`continue-on-error` is documented as accepting an **expression**, not only a literal boolean
-(`continue-on-error: ${{ matrix.experimental }}` is the canonical example in GitHub's own docs).
-An expression parses to a *string*, so `=== true` is false and `!== true` is true — the predicate
-stays green:
-
-```
-node -e "parse('continue-on-error: ${{ true }}')" → {"continue-on-error":"${{ true }}"}   === true? false
-node -e "parse('continue-on-error: \"true\"')"    → {"continue-on-error":"true"}          === true? false
-```
-
-**Reproduced:** adding `continue-on-error: ${{ true }}` as a third line under the refusal step's
-`name:`/`run:` pair and running the checker printed `All 48 invariants hold across 3 section(s)
-(baselines=11, ci=29, cross=8)`, exit 0. This is CR-02 from `19-VERIFICATION.md` re-opened by a
-one-token change to the mutation the verifier happened to write, with the step's non-zero exit again
-unable to fail the job. The job-level read at :761 carries the identical hole, so the check is also
-weaker than the 19-11 predicate it claims to be a strict widening of.
-
-Note the asymmetry inside the same expression: `if:` is tested for *presence*
-(`step?.if !== undefined`), which is correct and expression-proof. `continue-on-error` is tested for
-*value*, which is not.
-
-**Fix:** Test for presence on both, at both levels, exactly as `if:` already is. `continue-on-error:
-false` on a gate step is noise that should be deleted anyway, so there is no legitimate value to
-carve out:
-
-```js
-.filter(({ step }) => step?.if !== undefined || step?.["continue-on-error"] !== undefined)
-…
-e2e?.if === undefined &&
-  e2e?.["continue-on-error"] === undefined &&
-  conditionalSteps.length === 0,
-```
-
-and rename the invariant string from `no continue-on-error: true` to `no continue-on-error: AT ALL`
-so the printed line stops describing the weaker property.
-
-## Warnings
-
-### WR-01: Nothing asserts `ci.yml`'s triggers — deleting `pull_request:` detaches the whole gate with 48 green
-
-**File:** `scripts/verify-workflows.mjs:428-863` (the entire `ci` section), `.github/workflows/ci.yml:526-529`
-
-**Issue:** The `baselines` section asserts its trigger set as an exact comparison
-(`verify-workflows.mjs:305-310`) precisely because a substring check was measured green for an added
-`push:`. The `ci` section does the opposite: `triggersOf(doc)` appears there only inside the
-`parsed values (ci)` printout at :929. Deleting `pull_request:` from `ci.yml:529` — a one-line edit —
-removes every gate in this file from pull requests while the checker reports all 48 invariants hold.
-CI-01's requirement text is literally *"Opening a pull request runs the repository's functional
-Playwright specs"*, so this is the one trigger whose absence falsifies the requirement the phase
-claims.
-
-This predates 19-13 rather than being introduced by it, but it is the same defeat class the round
-exists to close and it lives in a file that was reviewed and edited this round.
-
-**Fix:** Mirror the baselines assertion, as a superset test rather than an exact one (a future
-`workflow_dispatch` addition is harmless):
-
-```js
-const ciTriggers = triggersOf(doc);
+// The event MAP, not just the key. A `branches:`/`branches-ignore:`/`paths:`/`paths-ignore:`/`types:`
+// filter leaves the key in place while deciding the event never fires — the same open set the step
+// allow-list closes one level in, so close it the same way: `null` (a bare `pull_request:`) is the
+// only passing value, and a deliberate filter is removed here in the same commit that adds it.
+const prFilter = doc?.on?.pull_request;
 check(
-  "ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about pull requests",
-  ciTriggers.includes("push") && ciTriggers.includes("pull_request"),
-  `triggers=[${ciTriggers.join(", ")}]`,
+  "ci.yml runs on push and on EVERY pull_request — the pull_request trigger carries no filter",
+  ciTriggers.includes("push") &&
+    ciTriggers.includes("pull_request") &&
+    (prFilter === null || prFilter === undefined),
+  `triggers=[${ciTriggers.join(", ")}]  pull_request=${JSON.stringify(prFilter ?? null)}`,
 );
 ```
 
-Note this adds a 30th `ci` invariant, so the "the total stays 48" paragraph at `ci.yml:281-284`
-must be updated in the same commit.
+Add a case to `workflow-invariants.test.ts` alongside case 12 that inserts `branches: [does-not-exist]`
+rather than deleting the key — otherwise the next round re-measures the same axis a third time.
 
 ---
 
-### WR-02: The two workflow-side tightenings have no standing test — only reverted manual mutations
+### CR-02: One decoy `run:` line makes Invariant C's predecessor allow-list vacuous, with all 50 green
 
-**File:** `tests/design/mail-credential-refusal.test.ts` (whole file), `scripts/verify-workflows.mjs:808-819`, `:751-767`
+**File:** `scripts/verify-workflows.mjs:994-1006` (anchor + `onlySetupBefore`), contrast `:890`
+(Invariant A's anchor)
 
-**Issue:** The script half of D-14 has eight build-blocking cases. The checker half — the part that
-actually caught nothing for a full verification round — has zero. Both 19-13 tightenings were proven
-only by "twelve observed reds" applied by hand and reverted (`ci.yml:275-280`). Nothing in the tree
-would notice if a future edit reverted `e2eMailRun.trim() === MAIL_REFUSAL_RUN` back to a
-containment test, or dropped `conditionalSteps.length === 0` from the predicate: the checker would
-go green, the design suite would go green, and CI would go green. The file's own governing argument
-— *"a fail-closed control that is only ever exercised by the thing it is supposed to protect has no
-instrument at all — which is exactly how CR-01 survived a whole verification round"*
-(`mail-credential-refusal.test.ts:50-52`) — applies verbatim to the checker, and is not acted on.
-That both CR-01 and CR-02 of this review are re-openings of predicates that were hand-verified once
-is the concrete cost.
+**Issue:** Invariant A identifies the refusal step by **exact `name:`** (`:890`). Invariant C
+identifies *the same step* by **substring of a run string** (`:994-996`):
 
-**Fix:** Add a `tests/design/workflow-invariants.test.ts` that mutates a **copy** of `ci.yml` in a
-`mkdtemp` directory (never the tracked file) and spawns the checker against it, asserting exit 1 and
-a named FAIL line — the same `spawnSync`-plus-temp-copy idiom `withScriptCopy` already establishes.
-Minimum cases: appended argument on the refusal `run:`; `continue-on-error` on the refusal step;
-`continue-on-error` on the job; a `shell:` key on the refusal step (CR-01); an expression-valued
-`continue-on-error` (CR-02). This requires the checker to accept the workflow directory as a
-parameter — do that via an **environment variable read only when `NODE_ENV === "test"` is not the
-mechanism**; prefer a second exported entry point or a `--workflow-dir=` flag that the `ci.yml`
-invocation provably never carries, and pin *that* invocation with the same exact-equality conjunct
-Invariant A already uses on the refusal step. Do not repeat 19-12's mistake of adding a test-only
-input to a security control with no invariant pinning its absence on the production path.
+```js
+const iE2eStepRefuse = e2eSteps.findIndex((s) => String(s?.run ?? "").includes(MAIL_REFUSAL_SCRIPT));
+const e2ePrecede = iE2eStepRefuse >= 0 ? e2eSteps.slice(0, iE2eStepRefuse) : [];
+const onlySetupBefore = iE2eStepRefuse >= 0 && e2ePrecede.every(…);
+```
+
+Two identities for one step, and `findIndex` takes the first. Any step whose `run:` *mentions* the
+path — including in an `echo` or a `#` comment — becomes the anchor, and everything the real refusal
+was supposed to follow moves behind it. **Reproduced**, inserting two lines as `gate-e2e`'s first
+steps:
+
+```yaml
+    steps:
+      - run: echo node scripts/refuse-mail-credential.mjs
+      - uses: actions/github-script@v7
+      - uses: actions/checkout@v4
+      …
+```
+
+→ `All 50 invariants hold…`, `CHECKER-EXIT=0`, and the invariant's own evidence line reads:
+
+```
+indices: refusal=0  db:migrate=3  db:seed=4  playwright=5  (of 6 run commands)
+refusal step index=0 (of 9 steps)  precedes=[(none)]
+permitted=[actions/checkout@…, actions/setup-node@…, run:npm ci]  and that holds=true
+```
+
+`precedes=[(none)]` and `holds=true` while `actions/github-script@v7` executes arbitrary JavaScript at
+step index 1 and the real refusal sits at index 5. `every` over an empty list is true — the identical
+vacuity class the file's hard stops exist to remove (`:280-282`, `:709-724`), reintroduced by the fix
+for WR-05. A second reproduction with the decoy placed just before the real refusal (so the
+`github-script` step sits between them) is green too.
+
+The invariant's printed name — *"ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede
+it, over the FULL step list"* — and `ci.yml:301-315`'s "WHAT REPLACED IT" paragraph both assert a
+property the predicate does not hold. `⚠ THE TRAILING @ IS LOAD-BEARING` (`:990-991`) closes a
+narrower hole while the anchor itself is open.
+
+**Fix:** Anchor Invariant C on the step Invariant A already identified, so one step has one identity,
+and make the empty-prefix case explicit rather than incidentally true:
+
+```js
+// The SAME step object Invariant A pinned by exact name — never "the first step whose run text
+// mentions the path". A decoy `run: echo <path>` earlier in the list otherwise becomes the anchor and
+// `every([])` reports the allow-list holding over nothing.
+const iE2eStepRefuse = e2eMailStep === undefined ? -1 : e2eSteps.indexOf(e2eMailStep);
+```
+
+and add `e2ePrecede.length > 0` to the conjunct list (checkout, setup-node and `npm ci` must in fact
+precede it — an empty prefix means the anchor moved, not that the job is clean). Add two cases to
+`workflow-invariants.test.ts`: a decoy `run:` step inserted first, and a decoy plus a `uses:` step
+inserted before the real refusal, both asserting a `FAIL` line naming Invariant C.
 
 ---
 
-### WR-03: The refusal's failure message claims coverage of repository/environment secrets that the control cannot see
+### CR-03: Nothing constrains `gate-db-free` — the job that actually executes the checker and the design suite
 
-**File:** `scripts/refuse-mail-credential.mjs:119-121`
+**File:** `.github/workflows/ci.yml:678-680` (job), `:865-866` (the checker step),
+`scripts/verify-workflows.mjs:41-44` (the claim), `:814-830` and `:859-865` (both scoped to
+`CI_E2E_JOB` only)
+
+**Issue:** `verify-workflows.mjs`'s own header states as settled fact:
+
+> `2. NOTHING RAN IT. … ci.yml`'s `gate-db-free` now runs this script on every push and pull request,
+> so an added `push:` trigger on `baselines.yml` fails `ci` instead of waiting to be noticed."
+
+No invariant enforces any part of that sentence. Three reproduced defeats, each leaving
+`All 50 invariants hold…` and `CHECKER-EXIT=0`:
+
+1. **Delete the checker step.** Removing the two tracked lines
+   `- name: Verify the workflow invariants (parse, not grep)` / `run: node scripts/verify-workflows.mjs`
+   from `gate-db-free` → 50 green, 0 `FAIL` lines. The checker never runs in CI again, and nothing
+   anywhere would say so: `grep -rn "verify-workflows" tests/ package.json` finds no assertion over
+   `ci.yml`'s invocation of it, and `workflow-invariants.test.ts` case 1 (the control) passes over a
+   copy that no longer contains the step.
+2. **`continue-on-error: true` on `gate-db-free`.** One line → 50 green. That job runs `npm run build`
+   = `lint && test:design && next build`, so the same line simultaneously makes non-blocking: the
+   workflow checker, `tests/design/mail-credential-refusal.test.ts` (D-14's runtime half), the new
+   `tests/design/workflow-invariants.test.ts` (D-14's checker half), ESLint and `next build`. The
+   entire verification apparatus this phase has spent four rounds building turns into a report.
+3. **A job-level `defaults: { run: { shell: cat {0} } }` on `gate-db-free`.** The new execution-defaults
+   invariant is `doc?.defaults === undefined && e2e?.defaults === undefined` (`:862`) — workflow level
+   and `gate-e2e` only — so the same override that is red on `gate-e2e` is green on the job that runs
+   the checker, with the same effect (`npm run build` and the checker printed, not executed).
+
+The scoping rationale at `ci.yml:328-331` and `verify-workflows.mjs:855-858` — *"a `defaults:` block
+on an unrelated job cannot change how `gate-e2e` executes"* — is true and irrelevant here:
+`gate-db-free` is not an unrelated job, it is the job that decides whether any of this is enforced.
+Likewise the doctrine at `:795-798` (*"A gate step that cannot fail the job is not a gate; it is a
+report"*) is applied to `gate-e2e` and to no other job in the file, including the one whose whole
+purpose is to run gates.
+
+**Fix:** Give the checker-executing job the same treatment `gate-e2e` already has — its own hard stop,
+its own invocation pin, and the unconditional/defaults predicates extended to it:
+
+```js
+const CI_CHECKER_JOB = "gate-db-free";
+const CHECKER_SCRIPT = "scripts/verify-workflows.mjs";
+const CHECKER_RUN = `node ${CHECKER_SCRIPT}`;
+const checker = doc?.jobs?.[CI_CHECKER_JOB];
+if (!checker) hardStop([`job "${CI_CHECKER_JOB}" not found in ${CI}.`, …]);
+
+// A checker nothing invokes is the hole this script's own header records as its reason to exist.
+const checkerStep = stepsOf(checker).find((s) => String(s?.run ?? "").trim() === CHECKER_RUN);
+check(
+  `"${CI_CHECKER_JOB}" runs this checker, unconditionally, with the exact no-argument invocation`,
+  checkerStep !== undefined &&
+    checker?.if === undefined &&
+    checker?.["continue-on-error"] === undefined &&
+    checker?.defaults === undefined &&
+    stepsOf(checker).every((s) => s?.if === undefined && s?.["continue-on-error"] === undefined),
+  `step=${checkerStep ? "present" : "(ABSENT)"}  job if=${JSON.stringify(checker?.if ?? null)}  ` +
+    `job continue-on-error=${JSON.stringify(checker?.["continue-on-error"] ?? null)}  ` +
+    `job defaults=${JSON.stringify(checker?.defaults ?? null)}`,
+);
+```
+
+Do the same for the step that runs `npm run build` (which is what carries `test:design`), and add
+matching cases to `workflow-invariants.test.ts`. Note this moves the `ci` count 31 → 32 (or → 33), so
+`ci.yml:352-366` and `workflow-invariants.test.ts:100` must move in the same commit.
+
+## Warnings
+
+### WR-01: The exact-invocation conjunct — round 2's whole fix — has no case in the standing test
+
+**File:** `tests/design/workflow-invariants.test.ts` (case list), `scripts/verify-workflows.mjs:938`
+
+**Issue:** The prior review's WR-02 named its minimum case list explicitly: *"appended argument on the
+refusal `run:`; `continue-on-error` on the refusal step; `continue-on-error` on the job; a `shell:`
+key on the refusal step; an expression-valued `continue-on-error`."* Four of the five shipped as cases
+2/4/5/6/7. The first — the one that closes round 2's CR-01 — did not.
+
+**Measured:** reverting `:938` from `e2eMailRun.trim() === MAIL_REFUSAL_RUN` back to
+`e2eMailRun.includes(MAIL_REFUSAL_RUN)` — the exact regression WR-02 was raised to prevent — leaves the
+new suite at **12 passed / 12**. The allow-list cannot cover it, because `run` is a *permitted* key and
+only its value changed. So the file whose thesis is "the checker half had zero regression coverage"
+ships with zero coverage of the one predicate the previous round's Critical rests on.
+
+Not Critical because the defence is genuinely layered: `refuse-mail-credential.mjs:67-84` refuses any
+argument itself, and `mail-credential-refusal.test.ts` cases 7 and 8 do have standing coverage of that
+half. The checker half does not.
+
+**Fix:** Add a case using the existing harness — no new machinery is needed:
+
+```ts
+/** Round 2's CR-01. `run` is a PERMITTED key, so the allow-list is blind here by construction:
+ *  only the exact-equality conjunct can see an appended argument. */
+it("case 13 (regression, 19-13): an argument appended to the refusal run: is red", () => {
+  withMutatedWorkflows(
+    (ci) => ci.replace("run: node scripts/refuse-mail-credential.mjs", "run: node scripts/refuse-mail-credential.mjs /tmp/decoy.mjs"),
+    (result) => expectRed(result, MAIL_REFUSAL),
+  );
+});
+```
+
+---
+
+### WR-02: `triggersOf` mis-reads the documented sequence form, so both trigger invariants go red against a correct file
+
+**File:** `scripts/verify-workflows.mjs:217-218`, used at `:320-325` and `:487-494`
 
 **Issue:**
 
 ```js
-console.log("::error::A live mail credential is present in this job's REAL PROCESS ENVIRONMENT —");
-console.log("::error::not merely in the workflow's `env:` maps. A container-level `env:` block, a");
-console.log("::error::repository or environment secret, or a runner variable all reach here.");
+const triggersOf = (doc) =>
+  doc?.on == null ? [] : typeof doc.on === "string" ? [doc.on] : Object.keys(doc.on);
 ```
 
-Repository, organization and environment secrets do **not** populate a step's process environment in
-GitHub Actions. They are only reachable through `${{ secrets.* }}` interpolated into an `env:` or
-`with:` map — i.e. exactly "the workflow's `env:` maps" the sentence says this is *not* limited to.
-A secret that is never mapped is invisible to `Object.keys(process.env)`; a secret that *is* mapped
-under a non-provider-prefixed key (e.g. `MAILER_KEY: ${{ secrets.RESEND_API_KEY }}`) is invisible to
-both halves of D-14, because both key off the name. The only inputs this scan genuinely adds over
-the parse half are `container.env` and the runner environment — which is what
-`verify-workflows.mjs:22-23` says, correctly, one file over.
+The scalar form (`on: push`) and the mapping form are handled; the **sequence** form is not.
+`on: [push, pull_request]` is a documented GitHub Actions spelling, and `Object.keys` on an array
+returns its indices. Measured with the same parser the checker loads:
 
-This is the review focus's first category: a sentence describing a guarantee the adjacent code does
-not implement, in the file whose header devotes twenty lines to why that is worse than no control.
+```
+parse('on: [push, pull_request]')            → {"on":["push","pull_request"]}
+Object.keys(parse('on: [push, pull_request]').on) → ["0","1"]
+```
 
-**Fix:** State the two input classes this actually adds and name the one it cannot see:
+So a correct `ci.yml` rewritten to the sequence form fails the brand-new trigger invariant, and a
+correct `baselines.yml` rewritten to `on: [workflow_dispatch]` fails the exact-set invariant at
+`:320-325` — the one guarding the most dangerous file in the repository. The checker's own doctrine
+(`:479-482`) is that *"an exact set here would redden a correct file the day somebody adds a manual
+dispatch, which is how a correct check gets deleted rather than fixed."* This is that failure mode,
+introduced by the helper rather than by the predicate shape.
+
+**Fix:**
 
 ```js
-console.log("::error::not merely in the workflow's `env:` maps. A `container.env` block or a runner");
-console.log("::error::variable reaches here and is invisible to the parse half.");
-console.log("::error::⚠ A SECRET MAPPED UNDER A NON-PROVIDER-PREFIXED KEY IS INVISIBLE TO BOTH HALVES:");
-console.log("::error::both key off the NAME. `verify-workflows.mjs`'s zero-`secrets.` invariant is");
-console.log("::error::what covers that case, and it is a different assertion in a different file.");
+const triggersOf = (doc) =>
+  doc?.on == null
+    ? []
+    : typeof doc.on === "string"
+      ? [doc.on]
+      : Array.isArray(doc.on)
+        ? doc.on.map(String)      // `on: [push, pull_request]` — a documented spelling; Object.keys
+        : Object.keys(doc.on);    //   over an array yields indices, reddening a CORRECT file.
 ```
+
+(The CR-01 fix must then read the filter through a form-aware accessor: an array entry carries no
+filter, which is the safe reading.)
 
 ---
 
-### WR-04: The argument refusal echoes raw `process.argv` into the build log, against the file's own stated rule
+### WR-03: Three of the four line citations in the new test file's load-bearing rationale point at unrelated code
 
-**File:** `scripts/refuse-mail-credential.mjs:69`, rule stated at `:40-41`
+**File:** `tests/design/workflow-invariants.test.ts:41-43`
 
-**Issue:** `:40-41` states the file's governing rule: *"THIS FILE PRINTS VARIABLE NAMES AND NEVER
-VARIABLE VALUES. A credential echoed into a build log is a wider disclosure than the send this
-control exists to prevent."* Twenty-eight lines later:
+**Issue:** The paragraph that justifies this round's single most consequential design decision — no
+`--workflow-dir=` flag, `cwd` only — grounds itself on four citations:
 
-```js
-console.log(`::error::Received: ${process.argv.slice(2).join(" ")}`);
-```
+> "`WORKFLOW_DIR`, `package.json` and the refusal script's path are ALREADY cwd-relative in the
+> shipped checker (`scripts/verify-workflows.mjs:82-84`, `:188-197`, `:242`, `:826-832`)"
 
-`argv` is unfiltered caller-controlled content. Invariant A prevents `ci.yml` from ever passing one,
-but the script is also invoked by hand — the verifier's own reproduction was
-`RESEND_API_KEY=… node scripts/refuse-mail-credential.mjs /tmp/decoy.mjs`, and a developer probing
-this control by pasting a value (`node scripts/refuse-mail-credential.mjs "$RESEND_API_KEY"`) gets
-it printed back with `::error::` framing. The count is the diagnostic; the content is not.
+Checked line by line against the shipped file:
 
-**Fix:** Print the count and the shape, never the content:
+| cited | what is actually there | the real site |
+|---|---|---|
+| `:82-84` | `WORKFLOW_DIR` / `BASELINES` / `CI` — correct | — |
+| `:188-197` | the `yaml`-could-not-load FATAL diagnostic | `package.json` is read at `:257` |
+| `:242` | the `services.*.env` loop inside `secretHitsIn` | — |
+| `:826-832` | the unconditional check's evidence line and the start of block 2b | the refusal script is read at `:958-959` |
 
-```js
-console.log(`::error::Received ${process.argv.length - 2} argument(s). Their VALUES are deliberately`);
-console.log("::error::not echoed — the rule this file states about variable values binds argv too.");
-```
+The underlying claim is true — I verified all three reads are cwd-relative, and that `import.meta.url`
+is used only for the `yaml` import and Invariant B's `selfSource`. But a reader who follows the
+citations to check the claim lands on the parser diagnostic and a secrets scan, which is the "citation
+that outlives what it describes" anti-pattern `19-VERIFICATION.md` already carries as a standing
+warning (~11 stale `<file>:<line>` citations), now reproduced in a file created this round.
 
----
-
-### WR-05: Invariant C's "only `npm ci` may precede" quantifies over `run` steps only
-
-**File:** `scripts/verify-workflows.mjs:847-863`
-
-**Issue:** `onlyInstallBefore` is computed over `e2eRuns` — `runsOf(e2e)`, which
-(`verify-workflows.mjs:201`) filters to steps with a **string `run`**. Steps declaring `uses:` are
-absent from the list entirely, so any number of them may be inserted ahead of the refusal without
-moving `iE2eRefuse`. The supply-chain invariant restricts them to `actions/*`, but
-`actions/github-script` alone can run arbitrary JavaScript in the job before the refusal fires. The
-invariant string says "*only* `npm ci` may precede the refusal", and the evidence line repeats it —
-a stronger claim than the code makes.
-
-**Fix:** Compute the position over the full step list rather than the run-command list, and allow
-only `actions/checkout`, `actions/setup-node` and a `run: npm ci`:
-
-```js
-const e2eSteps = stepsOf(e2e);
-const iStepRefuse = e2eSteps.findIndex((s) => String(s?.run ?? "").includes(MAIL_REFUSAL_SCRIPT));
-const PRECEDE_OK = ["actions/checkout", "actions/setup-node"];
-const onlySetupBefore =
-  iStepRefuse >= 0 &&
-  e2eSteps.slice(0, iStepRefuse).every((s) =>
-    String(s?.run ?? "").trim() === "npm ci" ||
-    PRECEDE_OK.some((u) => String(s?.uses ?? "").startsWith(`${u}@`)),
-  );
-```
+**Fix:** Cite `:82-84` (`WORKFLOW_DIR`), `:257` (`package.json`), `:128` + `:958-959`
+(`MAIL_REFUSAL_SCRIPT`), and say plainly that `import.meta.url` is used at `:957` and `:185` and is
+therefore *not* redirected by `cwd` — which is the fact the next reader actually needs (see IN-01).
 
 ## Info
 
-### IN-01: Two of Invariant A's five conjuncts are logically implied by a third
+### IN-01: One third of Invariant B is unreachable through the `cwd`-only harness, and the header does not say so
 
-**File:** `scripts/verify-workflows.mjs:811-813`
+**File:** `tests/design/workflow-invariants.test.ts:39-52`, `scripts/verify-workflows.mjs:957`
 
-**Issue:** Once `e2eMailRun.trim() === MAIL_REFUSAL_RUN` holds, `e2eMailRun.includes(MAIL_REFUSAL_SCRIPT)`
-and `!e2eMailRun.includes("${{")` are unfalsifiable — the string is fully determined. They can never
-discriminate, so the "five conjuncts" the comment at :798 and `ci.yml:249` count is really three
-independent ones (step present, exact run, no `env:`). The count is used rhetorically in both files
-as evidence of coverage depth, which makes the dead conjuncts more than cosmetic.
+**Issue:** Invariant B's `declMatches` conjunct reads `fileURLToPath(import.meta.url)` — the **shipped**
+checker — while `sharesPattern` and `holdsNoCopy` read the cwd-relative copy. The harness copies the
+refusal script but not the checker, so no mutation it can express reaches `declMatches`. That is a
+correct consequence of the no-flag decision, not a bug, but the header's "ONLY `cwd` differs" framing
+reads as though the whole checker were pointed at the temp tree.
 
-**Fix:** Delete the two implied conjuncts and correct "FIVE conjuncts" to "THREE" in both
-`verify-workflows.mjs:798` and `.github/workflows/ci.yml:247-250` — or keep them and stop counting
-them as independent coverage. Spending the freed line on CR-01's key allow-list would make the count
-honest and higher at the same time.
+**Fix:** One sentence in the header naming the boundary: mutations reach `WORKFLOW_DIR`,
+`package.json` and the refusal script; they cannot reach the checker's own source, so Invariant B's
+declaration conjunct has no case and is out of this instrument's reach by construction.
 
 ---
 
-### IN-02: `withScriptCopy` compares a `tmpdir()`-built path against a realpath-derived one
+### IN-02: `withJobKey` silently falls back to a hard-coded `"gate-e2e"`, against the file's own stated rule
 
-**File:** `tests/design/mail-credential-refusal.test.ts:157`, `:207`, `:218`
+**File:** `tests/design/workflow-invariants.test.ts:200-202`
 
-**Issue:** `paths.sibling` is `join(mkdtempSync(join(tmpdir(), …)), "verify-workflows.mjs")`, while
-the string the script prints comes from `fileURLToPath(new URL("./verify-workflows.mjs",
-import.meta.url))`. Node resolves the real path of the main entry module, so on any platform where
-the temp directory is a symlink the two differ and `expect(result.stdout).toContain(paths.sibling)`
-fails for a script that behaved correctly. macOS is the concrete case (`/var` → `/private/var`).
-Linux CI and Windows are unaffected, so this will not fire in `gate-db-free`, but it is a
-build-blocking test that can fail on a contributor's machine for a reason unrelated to the property.
+**Issue:** `MAIL_STEP_NAME` (`:107-118`) throws when its declaration cannot be read, with the argument
+that guessing "would make every red case below a green that means nothing." Ninety lines later:
 
-**Fix:** `realpathSync` the temp directory immediately after `mkdtempSync`:
-
-```js
-const dir = realpathSync(mkdtempSync(join(tmpdir(), "mail-refusal-")));
+```ts
+const match = jobKeyDecl.exec(readFileSync(CHECKER, "utf8").replace(/\r\n/g, "\n"));
+const jobKey = match?.[1] ?? "gate-e2e";
 ```
 
----
+That is the second spelling the file's own comment at `:103-106` forbids. It fails closed in practice
+(a drifted key means the anchor is absent, the mutation is a no-op, and the differs-from-input
+assertion fires), so the consequence is contained — but the two helpers state opposite rules five
+screens apart.
 
-### IN-03: Nothing pins that the argument refusal precedes the file and environment reads
-
-**File:** `scripts/refuse-mail-credential.mjs:65-66`, `tests/design/mail-credential-refusal.test.ts:229-254`
-
-**Issue:** `:65-66` states the ordering as a property — *"THE ARGUMENT REFUSAL, BEFORE ANY FILE OR
-ENVIRONMENT READ. Nothing this script does is safe to do on behalf of a caller who thinks it is
-configurable, so the refusal precedes the configuration."* Moving the `argv` block below
-`readFileSync` and below the scan leaves all eight cases green: case 7 (clean env + argument) and
-case 8 (violating env + argument) both still reach exit 1, just by a different route. The stated
-ordering is documented intention, not a checked property — the same distinction the round's own
-patterns block insists on.
-
-**Fix:** Give case 7 a positive assertion that no scan output precedes the refusal, e.g.
-`expect(result.stdout).not.toContain("read from")` alongside the existing
-`not.toContain("0 begin with it")`; and add a case running the copy from a directory with **no**
-sibling AND an argument, asserting the output names the argument refusal rather than the READ stop.
+**Fix:** Throw, with the same message shape as `MAIL_STEP_NAME`.
 
 ---
 
-### IN-04: Prefix matching is case-sensitive against a `process.env` that is case-insensitive on Windows
+### IN-03: Cases 4, 5, 6 and 8 do not isolate the predicate they name
 
-**File:** `scripts/refuse-mail-credential.mjs:115-116`
+**File:** `tests/design/workflow-invariants.test.ts:332-373`
 
-**Issue:** `Object.keys(process.env).filter((name) => name.startsWith(prefix))` is case-sensitive.
-On Windows, `process.env` lookups are case-insensitive while `Object.keys` returns the environment's
-own casing, so a variable set as `resend_api_key` is readable by application code as
-`process.env.RESEND_API_KEY` and invisible to this scan. On the deployed platform (Linux container)
-the two spellings are genuinely different variables and `src/lib/email.ts` reads only the uppercase
-one, so there is no exposure in CI — but the design suite exercises this script on Windows, where
-its semantics differ from the platform it guards.
+**Issue:** `continue-on-error` and `if` are both outside `MAIL_STEP_ALLOWED_KEYS`, so inserting either
+on the refusal step trips Invariant A as well as the unconditional invariant. The named-`FAIL`-line
+assertion keeps the cases honest about *which* predicate they measure (this is the failure mode 19-14
+recorded), but none of them can distinguish "the unconditional predicate caught it" from "the
+unconditional predicate caught it *and* the allow-list would have anyway." Case 7 (job level) is the
+only unconditional case the allow-list cannot reach.
 
-**Fix:** Match case-insensitively; there is no legitimate variable whose name differs from the
-provider prefix only by case:
+**Fix:** Cheap, if it is worth having: add one case placing `continue-on-error: ${{ true }}` on a step
+the allow-list does not govern (e.g. the seed step), which isolates the quantifier — 19-13 proved
+exactly that by hand and left no instrument behind.
 
-```js
-const upperPrefix = prefix.toUpperCase();
-const hits = names.filter((name) => name.toUpperCase().startsWith(upperPrefix)).sort();
-```
+---
+
+### IN-04: The mail env-key scan still walks neither `container.env` nor `services.*.env` keys
+
+**File:** `scripts/verify-workflows.mjs:578-597`, self-documented at `:575-577`
+
+**Issue:** Carried forward from the prior round, honestly labelled in the code, and genuinely
+mitigated for these two files by the `cross` section's raw-text token scan (`:1216-1226`), which sees
+comments and every nesting level. Recorded so the mitigation stays visible: it is the raw scan and not
+the parse scan that closes `container.env`, and the raw scan is case-sensitive
+(`raw.split(MAIL_KEY_PREFIX)`), matching prior IN-04's observation about the runtime half. Neither
+gap is exploitable on the deployed platform, where `src/lib/email.ts` reads only the upper-case name.
+
+---
+
+### IN-05: `REQUIREMENTS.md` flipped CI-01 to `Complete` this round, and CR-01 falsifies the standard that flip was made against
+
+**File:** `.planning/REQUIREMENTS.md:248`, `:315` (outside the reviewed file set; recorded because it
+is a claim about the reviewed files)
+
+**Issue:** 19-15-SUMMARY records marking CI-01 complete after finding the plan's premise stale.
+`19-VERIFICATION.md` withheld that status for three rounds on one stated ground: SC4's literal text
+must be *regression-protected by the invariant suite*, not merely true of today's file. CR-01 shows it
+is not — a `branches:` filter falsifies the requirement with the checker fully green.
+
+**Fix:** Revert the row to its prior state until CR-01 is closed, or record the residual explicitly.
 
 ---
 
 ## Working-tree note
 
-Two `ci.yml` mutations were applied during this review to reproduce CR-01 and CR-02, then restored
-from a byte-copy taken beforehand. `git status --porcelain` afterwards shows only the three
-pre-existing untracked `.planning/` entries that were present when the review began, and
-`node scripts/verify-workflows.mjs` reports `All 48 invariants hold` against the restored file.
+Six `.github/workflows/ci.yml` mutations and two `scripts/verify-workflows.mjs` mutations were applied
+during this review to reproduce CR-01, CR-02, CR-03 and WR-01, each restored from a byte-copy taken
+beforehand. `md5sum .github/workflows/ci.yml` is back to `b655c2d87b03dd324d867218c6484f3f`,
+`git diff --stat` is empty, and `git status --porcelain` shows only the three pre-existing untracked
+`.planning/` entries. `node scripts/verify-workflows.mjs` reports
+`All 50 invariants hold across 3 section(s) (baselines=11, ci=31, cross=8).` and
+`npx vitest run --config vitest.design.config.ts tests/design/workflow-invariants.test.ts
+tests/design/mail-credential-refusal.test.ts` reports 2 files / 20 passed against the restored tree.
+
+## What I tried and could not defeat
+
+Recorded so the next round does not re-spend the effort:
+
+- **Every attribute on the refusal step.** The allow-list is genuinely closed; `working-directory`,
+  `shell`, `timeout-minutes`, `env`, `uses`, `id` and `with` are all red, and so is any key not yet
+  invented. Renaming or deleting the step is red via the presence conjunct.
+- **The refusal script itself.** No branch reaches `exit 0` with a prefixed variable present.
+  A decoy `const MAIL_KEY_PREFIX = …` inserted *above* the real one in `verify-workflows.mjs` reddens
+  Invariant B's `declMatches` (both sites take the first match); inserted below, it is inert. Gutting
+  the script body reddens `mail-credential-refusal.test.ts` case 1 — provided `gate-db-free` still
+  blocks, which is CR-03.
+- **Mapping a credential into `gate-e2e`.** Any spelling of the provider token anywhere in
+  `.github/workflows/` (values *or* comments, any nesting level including `container.env` and
+  `services.*.env`) is red via the `cross` raw-text scan; any `secrets.` interpolation under a
+  non-provider key is red via `secretHitsIn`, which does walk `container.env` and `services.*.env`
+  values.
+- **A duplicate refusal step.** Placed before the real one it is caught by the allow-list; placed
+  after, the real one still executes.
+- **`runs-on`, `timeout-minutes` and `container.options` on `gate-e2e`.** Unconstrained, but I could
+  not turn any of them into a *silent green*: a bad `runs-on` leaves the run queued and eventually
+  failed rather than passing, and Actions does not use the image entrypoint for container jobs.
 
 ---
 
-_Reviewed: 2026-09-05T00:35:00Z_
+_Reviewed: 2026-09-05T02:05:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
