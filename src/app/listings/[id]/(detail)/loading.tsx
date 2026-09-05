@@ -80,7 +80,7 @@
 // by this repair, and unfixable from here: it would need the fallback to see the request, which is
 // what a `loading.tsx` is defined not to do.
 
-import { TZDate } from "@date-fns/tz";
+import { tz } from "@date-fns/tz";
 import { format } from "date-fns";
 
 import { CalendarMonthSkeleton } from "@/components/availability/availability-calendar";
@@ -91,11 +91,21 @@ import { MOSAIC_ASPECT } from "@/lib/design/measurements";
 const PLATE_MONTH_TZ = "Asia/Manila";
 
 export default function ListingDetailLoading() {
-  // THE ONE CLOCK READ. Everything downstream of it is a serialized number.
-  const nowInLaunchTz = new TZDate(Date.now(), PLATE_MONTH_TZ);
+  // THE ONE CLOCK READ, in `(detail)/page.tsx:437-455`'s own idiom — `new Date()` formatted `{ in: tz }`
+  // — so the two files answer "what month is it in the venue's zone" the same way. Everything
+  // downstream of it is a serialized number.
+  //
+  // ⚠ `new Date()` AND NOT `Date.now()`, AND THE DIFFERENCE IS ENFORCED. `react-hooks/purity` rejects
+  // `Date.now()` inside a component body ("Cannot call impure function during render") and `npm run
+  // lint` is part of `npm run build`, so the tidier-looking spelling does not compile. The rule is
+  // right about client components and merely blunt here: this one renders on the server, once per
+  // request, and the value it produces is serialized rather than re-derived. Recorded because
+  // "simplify to Date.now()" is a plausible edit that turns the build red.
+  const nowInLaunchTz = tz(PLATE_MONTH_TZ);
+  const now = new Date(); // ONE read, bound once — two reads could straddle the boundary this repair is about
   const plateMonth = {
-    year: Number(format(nowInLaunchTz, "yyyy")),
-    month: Number(format(nowInLaunchTz, "M")),
+    year: Number(format(now, "yyyy", { in: nowInLaunchTz })),
+    month: Number(format(now, "M", { in: nowInLaunchTz })),
   };
 
   return (
