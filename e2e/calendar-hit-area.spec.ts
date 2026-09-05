@@ -57,8 +57,8 @@ import { seedTheme } from "./helpers/theme";
 //
 // A FOURTH OVERRIDE WAS FOUND BY THE SAME MEASUREMENT and is recorded at its call site:
 // `ui/calendar.tsx:106` puts `aspect-square` on the day `<td>` as well as on the button, so with the
-// button at `h-11` the cell measured 25.08 tall while the button inside it measured 44 — six week rows
-// each overlapping the next by 19px. `[&_td]:aspect-auto` on the root is the fix.
+// button at `h-11` the cell measured 25.08 tall while the button inside it measured 44 — every week
+// row overlapping the next by 19px (six of them, in the six-row month that measurement was taken in). `[&_td]:aspect-auto` on the root is the fix.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // THE 38.58px FLOOR — A DECLARED CONSEQUENCE, AND A CORRECTION TO 12-UI-SPEC's OWN FIGURE
@@ -168,7 +168,9 @@ const TOLERANCE_PX = 1;
  * The ±2px band the skeleton comparison uses, and it is `skeleton-geometry.spec.ts`'s number rather
  * than a second opinion. Wider than `TOLERANCE_PX` above because that one bounds a single derived
  * figure and this one bounds a SUM: the plate reproduces the resolved calendar's caption, weekday row
- * and six week rows, and the weekday row's line box is 19.19px against the plate's `h-5`.
+ * and THE MONTH'S week rows, and the weekday row's line box is 19.19px against the plate's `h-5`. That
+ * 0.81 does not grow with the row count (19.1 · D-A2), so this band is a fact about the weekday row
+ * rather than about a month.
  */
 const SKELETON_TOLERANCE_PX = 2;
 
@@ -387,17 +389,33 @@ test.describe("AC#14 — a calendar day cell is 44px tall at every width, in bot
 // the marker sits at byte 13,786. So "the month's availability is in flight" is not simulated here,
 // it is the state the page is genuinely in while that read runs.
 //
-// THE MEASURED PAIR — 18 August 2026, court (grove is identical; both are asserted):
+// THE MEASURED PAIR — AND IT MOVES WITH THE MONTH, which is the thing this table used to hide.
 //
-//   width   plate (pending)   calendar (resolved)   Δ
-//   ─────   ───────────────   ───────────────────   ────
-//   320     288 × 410         288 × 409.19          0.81
-//   768     326 × 410         326 × 409.19          0.81
-//   1280    326 × 410         326 × 409.19          0.81
+// The 18 August 2026 table was taken in a SIX-row month and read as if its numbers were constants.
+// They are not: both sides are `chrome + rows × (44 + 8)`, so the pair slides 52px per week row. What
+// is constant is the Δ. Measured 5 September 2026 (19.1 · D-A2), court and grove, with the six-row
+// rows taken against a dev server whose clock was shifted 127 days forward so that the plate AND the
+// grid were both standing in January 2027:
+//
+//   rows   width   plate (pending)   calendar (resolved)   Δ
+//   ────   ─────   ───────────────   ───────────────────   ────
+//   5      320     288 × 358         288 × 357.19          0.81
+//   5      768     326 × 358         326 × 357.19          0.81
+//   5      1280    326 × 358         326 × 357.19          0.81
+//   6      320     288 × 410         288 × 409.19          0.81
+//   6      768     326 × 410         326 × 409.19          0.81
+//   6      1280    326 × 410         326 × 409.19          0.81
+//
+// ⚠ THE SIX-ROW ROWS ARE WHERE THE DEFECT HID, AND THAT WAS MEASURED TOO. With the plate's row count
+// put back to a hard-coded six, this case is **2 passed** against the faked January clock and
+// **2 failed at Δ52.81** against the real September one. A repair verified only in the month it was
+// written in is a repair verified in the one month its own bug is invisible — which is how the six
+// survived from August 2026 to September 2026 in two files at once.
 //
 // The 0.81 is the whole of the plate's approximation and it is spent in one place: the weekday row is
-// an `h-5` (20px) bar where the resolved row's `text-[0.8rem]` line box is 19.19px. The width is EXACT
-// at every step, because both sides read the same two strings.
+// an `h-5` (20px) bar where the resolved row's `text-[0.8rem]` line box is 19.19px. It does NOT grow
+// with the row count, which is why the ±2px band did not have to move. The width is EXACT at every
+// step, because both sides read the same two strings.
 //
 // WHY THE ABSOLUTE FIGURE IS ASSERTED TOO, in the shape `skeleton-geometry.spec.ts` and the block
 // above both use: two boxes that agree at 340px are exactly as "equal" as two that agree at 409, and
@@ -424,10 +442,29 @@ test.describe("AC#14 — a calendar day cell is 44px tall at every width, in bot
 //       count reddens the height only, which is the blast radius that says this is measuring the
 //       composition rather than the wrapper. Reverted; 2 passed.
 //
+// ── WATCHED RED, run and reverted, 5 September 2026 (19.1 · D-A2) ────────────────────────────────
+//
+//   (d) THE PLATE STOPS ASKING THE MONTH. `CalendarMonthSkeleton`'s `weekRows` put back to the literal
+//       `6` — the pre-repair shape, not a synthetic mutation — against the real September clock:
+//
+//         Error: month plate · court · 320px: the skeleton and its resolved twin differ by more than
+//         2px. skeleton {"width":288,"height":410} resolved {"width":288,"height":357.1875} —
+//         Δwidth 0, Δheight 52.81
+//         Received: 52.8125
+//
+//       **2 failed / 0 passed**, both themes. It is (c) with the sign reversed — the plate too TALL
+//       rather than too short. Reverted; 2 passed. The SAME mutation is **2 passed** under the faked
+//       January clock, which is the finding rather than a footnote.
+//
 // ── NOT COVERED ──────────────────────────────────────────────────────────────────────────────────
 //   • THE PENDING DOCUMENT DOES NOT HYDRATE (`served-document.ts` property 1). Correct for geometry —
 //     it is the pre-hydration paint, which is exactly when a layout shift is visible — and it means
-//     this says nothing about a plate mounted INSIDE an already-hydrated page (12-10's sheet).
+//     this says nothing about a plate mounted INSIDE an already-hydrated page (12-10's sheet). It also
+//     means this file cannot see the hazard the D-A2 repair had to avoid: a plate whose row count came
+//     from a clock EACH SIDE READ FOR ITSELF would mismatch at hydration, and this case would stay
+//     green while the console filled with React errors. That property is proved one layer down, in
+//     `tests/design/calendar-plate-month.test.tsx`, by a real `renderToString` → `hydrateRoot` across
+//     a month boundary carrying a deliberately clock-reading control required to FAIL.
 //   • It compares the plate to the calendar's OUTER box. Two boxes can agree while the caption and the
 //     grid inside them sit at different offsets.
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
