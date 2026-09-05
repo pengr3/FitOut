@@ -344,7 +344,8 @@
 #     ⚠ THE CHECKER'S OWN PREDICATES NOW HAVE A STANDING TEST, AND PLAN 19-14 ADDED IT.
 #     `tests/design/workflow-invariants.test.ts` mutates a COPY of this file in a throwaway
 #     directory and spawns the real checker against it, asserting a non-zero exit AND a named
-#     FAIL line — fourteen cases as of plan 19.1-01, inside `npm run build`. It exists because three
+#     FAIL line — sixteen cases as of plan 19.1-01, of which TWO assert GREEN and say why in their
+#     own docblocks, inside `npm run build`. It exists because three
 #     consecutive verification rounds re-opened predicates that had been proven once by hand and then
 #     reverted: a checker with no test of its own regresses silently, and round N+1 begins with
 #     no memory of round N. Its control case pins the total below as an exact string, so a count

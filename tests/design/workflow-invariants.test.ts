@@ -307,6 +307,53 @@ function withoutCheckerStep(): (ci: string) => string {
 }
 
 /**
+ * Appends `argument` to the checker step's `run:` line, leaving everything else byte-identical: same
+ * step, same name, same position, no new key. The step still runs the checker — with an argument.
+ *
+ * ⚠ THE ALLOW-LIST CANNOT SEE THIS, BY CONSTRUCTION. `run` is a PERMITTED key on that step, so the
+ * key-set conjunct is satisfied before and after; only the exact-equality comparison of the `run`
+ * VALUE puts the two commands on opposite sides. That is the property this builder exists to
+ * measure, and it is the one a containment test would silently lose.
+ *
+ * Returns the input unchanged when the anchor is absent, so a drifted anchor lands on
+ * `withMutatedWorkflows`'s differs-from-input assertion.
+ */
+function withAppendedCheckerArgument(argument: string): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const anchor = `      - name: ${CHECKER_STEP_NAME}${eol}`;
+    const at = ci.indexOf(anchor);
+    if (at < 0) return ci;
+    const runEnd = ci.indexOf(eol, at + anchor.length);
+    if (runEnd < 0) return ci;
+    return `${ci.slice(0, runEnd)} ${argument}${ci.slice(runEnd)}`;
+  };
+}
+
+/**
+ * Inserts a COMPLETE step at the TOP of `gate-db-free`'s step list — ahead of everything, including
+ * the checker step. The job key is located first and the `steps:` key is found FROM THERE, because
+ * `    steps:` on its own appears in every job in the file and an unscoped anchor would insert into
+ * whichever job happens to come first.
+ *
+ * Returns the input unchanged when either anchor is absent, so a drifted anchor lands on
+ * `withMutatedWorkflows`'s differs-from-input assertion.
+ */
+function withStepFirstInCheckerJob(stepLines: string[]): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const jobAt = ci.indexOf(`${eol}  ${CHECKER_JOB}:${eol}`);
+    if (jobAt < 0) return ci;
+    const stepsAnchor = `${eol}    steps:${eol}`;
+    const stepsAt = ci.indexOf(stepsAnchor, jobAt);
+    if (stepsAt < 0) return ci;
+    const cut = stepsAt + stepsAnchor.length;
+    const block = stepLines.map((l) => `      ${l}`).join(eol);
+    return `${ci.slice(0, cut)}${block}${eol}${ci.slice(cut)}`;
+  };
+}
+
+/**
  * Renames `gate-db-free`'s `name:` — and NOTHING else. The job key does not move, the steps do not
  * move, the checker invocation does not move: this is the edit that leaves the job perfectly intact
  * and detaches it from the required-status-check list SC5 installs on `main`. Returns the input
@@ -522,5 +569,57 @@ describe("the workflow checker's own predicates, measured against a mutated copy
     withMutatedWorkflows(withRenamedCheckerJobName(), (result) => {
       expectRed(result, CHECKER_DISPLAY_NAME);
     });
+  });
+
+  // WHAT WAS MEASURED: `run` is a PERMITTED key on the checker step, so the allow-list conjunct is
+  // satisfied identically before and after this mutation — it compares KEY SETS, and no key moved.
+  // The step still exists, still carries its exact `name:`, still sits in the same position, and
+  // still runs this checker. The ONLY conjunct that can discriminate here is the exact-equality
+  // comparison of the `run` value after `.trim()`, which is why that conjunct is an equality and not
+  // a containment test. Written as containment — which every argument list in the world satisfies —
+  // this case would be GREEN, and that is review finding WR-01's defect, asserted here for
+  // `gate-db-free` on the day it is repaired for `gate-e2e`.
+  it("case 15 (WR-01): appending an argument to gate-db-free's checker invocation is red", () => {
+    withMutatedWorkflows(withAppendedCheckerArgument("/tmp/decoy.mjs"), (result) => {
+      expectRed(result, CHECKER_STEP);
+    });
+  });
+
+  // ⚠ THE ONLY CASE IN PLAN 19.1-01 THAT ASSERTS GREEN, AND IT CARRIES ITS OWN JUSTIFICATION.
+  //
+  // A file of red cases can only ever show that the checker is capable of failing. It cannot show
+  // that a defect class is CLOSED rather than MOVED — for that you need a mutation that SHOULD stay
+  // green and does. This is that mutation: a step inserted FIRST in `gate-db-free`, ahead of the
+  // checker step, whose `run:` merely MENTIONS this checker's path. Against a predicate that located
+  // its subject by a substring of a `run:` body (19-REVIEW.md CR-02's defect, still live one job
+  // over at the time of writing) this decoy CAPTURES THE ANCHOR: the real checker step is never
+  // examined, and every conjunct is then evaluated against an `echo`. Against an anchor that selects
+  // by the step's EXACT `name:`, it cannot — so the checker stays green and its summary line is
+  // unchanged.
+  //
+  // ⚠ AND THE DECOY IS NOT HYPOTHETICAL IN THIS JOB. `gate-db-free`'s own FIRST step already carries
+  // a multi-line `run:` of free text — `git config` lines, `echo`s and a shell control block — so a
+  // substring anchor here would have been capturable on the day it was written, by a step that was
+  // already in the file. That is why the anchor rule was applied to this job on arrival instead of
+  // being retrofitted after something defeated it.
+  //
+  // The GREEN is asserted in BOTH halves, the case-1 shape: exit 0 AND the pinned summary line
+  // present. Exit 0 alone would also be satisfied by a checker that did nothing at all.
+  it("case 16 (anchor control): a decoy step mentioning the checker path stays green", () => {
+    withMutatedWorkflows(
+      withStepFirstInCheckerJob([
+        "- name: Decoy step inserted by the anchor control case",
+        '  run: echo "this step merely mentions scripts/verify-workflows.mjs"',
+      ]),
+      (result) => {
+        expect(
+          result.status,
+          `the anchor control did not go green — a decoy step whose \`run:\` merely MENTIONS the ` +
+            `checker path captured an anchor that is supposed to select by exact \`name:\`.\n` +
+            `--- stdout ---\n${result.stdout}\n--- stderr ---\n${result.stderr}`,
+        ).toBe(0);
+        expect(String(result.stdout)).toContain(EXPECTED_GREEN);
+      },
+    );
   });
 });
