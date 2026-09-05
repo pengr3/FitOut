@@ -560,3 +560,32 @@ EOL-agnostic, so there is no known instance; it is a gap in coverage, not a susp
   change between two captures taken either side of a boundary — which would make this a third
   instance of the clock-dependence `D-19.1-D` records, on a surface nobody suspected. Confirm or
   refute before reaching for a timeout.
+
+---
+
+## D-19.1-F — the secret scanner is BLIND to this project's transactional-mail key prefix
+
+- **Found during:** plan 19.1-14, Task 1's positive control for the pre-public secret scan.
+- **Observed, on a throwaway repository, with the same image and the same command shape:** a control
+  file carrying three canaries — a payment-provider LIVE secret key, a transactional-mail key with
+  this project's `re_` prefix, and an AWS access key id — was committed and then deleted. gitleaks
+  `v8.30.1` reported **one** finding (`stripe-access-token`). It did not fire on the mail-provider
+  prefix, and it did not fire on the bare AWS key id.
+- **Why this is not a finding about the scan that just ran.** That scan is fine: plan 19.1-14 ran a
+  second, independent, project-specific pass precisely because a generic detector tuned to limit
+  false positives can miss a project-specific spelling, and the control turned that reasoning from a
+  precaution into a measurement. Patterns for the payment and mail key shapes both read ZERO across
+  all 2,244 commits. Nothing was missed **this time**.
+- **What is open:** the blind spot itself, for anyone who reaches for gitleaks NEXT. A pre-commit
+  secret hook, a scheduled scan, or a CI secret-scanning job built on the default ruleset would report
+  green over a committed mail-provider key. That is this phase's own subject wearing a different hat —
+  an instrument whose green is satisfiable without the property holding — and it would be discovered
+  the same way every such green in this project has been: too late.
+- **Why it is not fixed here:** plan 19.1-14 owns three evidence files and a checkpoint. Adding a
+  custom gitleaks rule set, or wiring a scanning job into `ci.yml`, is neither in its `files_modified`
+  nor in the phase boundary (§Out of scope: "no new CI jobs beyond what the five criteria require").
+- **Suggested disposition:** if a secret-scanning control is ever added to this repository, it must
+  carry a `.gitleaks.toml` with explicit rules for `re_` (Resend) and for the payment provider's
+  `sk_test_` / `sk_live_` prefixes, AND a watched-red case proving each rule fires — the same
+  discipline `tests/design/workflow-invariants.test.ts` applies to the workflow checker. The measured
+  control transcript is in `evidence/secret-scan-pre-public.txt` §"POSITIVE CONTROL".
