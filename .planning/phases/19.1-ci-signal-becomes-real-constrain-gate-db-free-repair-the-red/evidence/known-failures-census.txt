@@ -273,3 +273,108 @@ The three throwaway container files (`.probe-linux-forward.mjs`, `.probe-linux-r
     $ npx tsc --noEmit | grep -c "error TS"
       7                                 ← the pre-existing baseline (19.1-09 §13 recorded the same 7,
                                           all in tests/design/, none in a file this plan touches)
+
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+TASK 2 — THE CENSUS: tests/design/e2e-known-failures.test.ts
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+── 2a. THE FINAL ENTRY TABLE ───────────────────────────────────────────────────────────────────────
+
+An ENTRY is a `test.fail(` or `test.fixme(` call under `e2e/`. `test.skip(condition, reason)` is NOT
+an entry — this repository uses it for rows a fixture cannot reach, each throwing its own reason into
+the run's output, and counting those would make the pinned total move for reasons that have nothing to
+do with D-03. On the FORBIDDEN files the rule is stricter and covers all three forms, because D-01's
+prohibition is written that way.
+
+  # | spec : line                     | form        | condition           | reason, in one clause
+  --+---------------------------------+-------------+---------------------+--------------------------
+  1 | e2e/avatar-crop.spec.ts:1125    | test.fail   | !!process.env.CI    | needs a live Cloudinary
+    |                                 |             |                     | credential in the SERVER
+    |                                 |             |                     | process; ci.yml cannot
+    |                                 |             |                     | carry one (zero-`secrets.`
+    |                                 |             |                     | invariant, verify-
+    |                                 |             |                     | workflows.mjs:813); only
+    |                                 |             |                     | the round-trip assertion
+    |                                 |             |                     | is unreachable and it is
+    |                                 |             |                     | covered by two vitest
+    |                                 |             |                     | tests. [19.1-10]
+  2 | e2e/tabular-figures.spec.ts:416 | test.fail   | !!process.env.CI    | tabular-nums equalises the
+    |                                 |             |                     | digit advances exactly on
+    |                                 |             |                     | a developer machine and
+    |                                 |             |                     | leaves exactly 1px per
+    |                                 |             |                     | digit in the pinned CI
+    |                                 |             |                     | container, measured with
+    |                                 |             |                     | the identical asset served
+    |                                 |             |                     | by ONE dev server to both
+    |                                 |             |                     | renderers. [19.1-11, §1]
+
+── 2b. THE SUM'S DERIVATION — a sum of what earlier plans recorded, NOT a survey run here ──────────
+
+  RESEARCH.md's starting census                                                     14 failures
+    − 19.1-03: 2 closed by repair, 2 that were an open PRODUCT finding (D-A2),        −4
+      repaired between waves — write-offs in neither case
+    − 19.1-08: e2e/host-headings.spec.ts — SPEC DEFECT, REPAIRED. A repaired defect   −1
+      is not an annotation candidate (19.1-08's rule, inherited verbatim)
+    − 19.1-08: e2e/hold-countdown.spec.ts:443 — NOT REPRODUCIBLE locally; two          −1
+      hypotheses retired and a third refuted; helper post-conditions added. Left
+      standing, NOT annotated. (Had it been, it would have needed the raised-timeout
+      shape too: `test.fail()` covers an ASSERTION failure and NOT a TIMEOUT.)
+    − 19.1-09: e2e/skeleton-geometry.spec.ts:1807 — FIXTURE DRIFT, REPAIRED in the     −2
+      container; the same one-line change closed a SECOND red the same run uncovered
+    − 19.1-10: e2e/overflow-320.spec.ts:3400 — REPAIRED with a PUBLIC identifier       −1
+      (NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME), which the zero-`secrets.` invariant
+      does not forbid; never an allowlist candidate
+    − 19.1-10: e2e/avatar-crop.spec.ts:2675 and :2747 — SEEDED from a committed        −2
+      local asset, green under CI's exact credential shape; not annotated
+    − 19.1-11: e2e/tabular-figures.spec.ts "(2) grove" — measured PASSING in the        −1
+      container; an entry would have been an unexpected pass (§1e)
+    ──────────────────────────────────────────────────────────────────────────────────────
+    remaining, and each one an ANNOTATION with a written reason:                       2
+
+  ⚠ 12 of the 14 were closed by REPAIR, MEASUREMENT or a route that was never a quarantine. The
+    allowlist is what is left after that work, not a bucket the work was poured into. Two of the four
+    subtractions above (19.1-08's host-headings, 19.1-10's three upload cases) would each have been a
+    FALSE entry if this plan had worked from RESEARCH.md's list rather than from the SUMMARY files.
+
+  ⚠ AND THE PLAN'S OWN ARITHMETIC WAS WRONG IN THE OTHER DIRECTION TOO. The plan's frontmatter
+    describes the fixed-advance-width spec as "the one clear annotation candidate" and expects the
+    total to be a sum of 19.1-08's and 19.1-10's entries. 19.1-08 recorded NO entry, and 19.1-10
+    recorded exactly ONE. The census's 2 is the tree's number and it was derived from the tree.
+
+── 2c. THE CENSUS ON THE UNMUTATED TREE ────────────────────────────────────────────────────────────
+
+  $ npx vitest run --config vitest.design.config.ts tests/design/e2e-known-failures.test.ts
+
+     RUN  v4.1.8 C:/Users/Admin/Roaming/FitOut
+
+     Test Files  1 passed (1)
+          Tests  7 passed (7)
+       Duration  1.45s
+
+  The seven are: the two-part non-vacuity guard; the pinned count (plus the docblock/number interlock
+  and the deterministic-order check); the reason-is-a-string-literal-and-long-enough rule; the
+  condition rule; the D-01 forbidden-file rule (in both its entry form and its stricter all-three-forms
+  form); the path-resolution rule; and the comment-stripping load-bearing case (which also asserts the
+  local line-preserving blanker removes exactly what the shared `stripComments` removes).
+
+  $ grep -c 'D-01' tests/design/e2e-known-failures.test.ts
+    10
+
+  $ git diff --stat -- vitest.design.config.ts
+    (no output)                    ← the design config was NOT edited; a new file in that directory is
+                                     collected automatically, and adding a setup key is what would
+                                     reintroduce the database dependency it exists to exclude
+
+  $ npm run test:design
+     Test Files  81 passed (81)
+          Tests  1413 passed | 3 skipped (1416)
+
+  $ npm run build
+    ✓ Compiled successfully in 26.7s      … Route table printed … $ echo $? → 0
+
+    ⚠ ONE FALSE RED ON THE WAY, RECORDED SO THE NEXT READER DOES NOT CHASE IT. The first `npm run
+    build` failed in `Running TypeScript` on `.next/dev/types/routes.d.ts:116:6 Type error: Expression
+    expected` — a STALE `.next/dev` artefact left by the dev server this plan booted for the container
+    reproduction, not a defect in any tracked file. `rm -rf .next` and rebuild; green. (Same trap the
+    project memory records for route 404s.)

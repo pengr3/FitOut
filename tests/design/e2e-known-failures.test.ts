@@ -1,0 +1,575 @@
+// D-03 — THE KNOWN-FAILURES ALLOWLIST IS CHECKED IN, EVERY ENTRY CARRIES A WRITTEN REASON, AND IT
+// CANNOT SILENTLY GROW.
+//
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// WHAT THIS FILE IS FOR — the growth guard, not the entries
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// An allowlist without a growth guard is a quarantine queue. Playwright already fails closed in ONE
+// direction for free: a `test.fail`-marked case that STARTS PASSING is reported as `Expected to fail,
+// but passed` and exits non-zero (MEASURED 19.1-02, `evidence/testfail-behaviour.txt` Q2 — and it
+// costs all three CI attempts, so a stale entry is not free either). Nothing in the runner fails
+// closed in the OTHER direction: nothing stops a new entry being added. That direction is what this
+// file builds, by pinning the entry TOTAL to a named constant that only a deliberate edit can move.
+//
+// ── WHY A PINNED COUNT IN A DESIGN TEST RATHER THAN A CUSTOM REPORTER ─────────────────────────────
+//
+// The interlock, and it is the whole argument (19.1-RESEARCH.md § D-03, options A vs D):
+//
+//   1. this census runs in the design suite            `vitest.design.config.ts`
+//   2. the design suite runs inside the build          `package.json` → `"build"` runs `test:design`
+//   3. the build runs as a step of `gate-db-free`      `.github/workflows/ci.yml`
+//   4. `gate-db-free` becomes a required status check  19.1-15
+//
+// So the guard inherits every protection this phase built — the constrained job, the workflow
+// invariants, the required check — and adds ZERO new machinery to the gate that carries the
+// money-path specs. A reporter would be ~120 lines of new code on exactly that gate.
+//
+// ── WHY IT IS BUILD-BLOCKING AND DB-FREE, AND WHY NO CONFIG EDIT WAS MADE ─────────────────────────
+//
+// `vitest.design.config.ts` collects `tests/design/**/*.test.ts`, declares no `globalSetup` and no
+// `setupFiles`. A new file in this directory is collected AUTOMATICALLY: no config edit is needed for
+// this one, and none is permitted — adding either of those two keys is what would reintroduce the
+// Docker dependency that config exists to exclude. (Same rule stated at
+// `tests/design/workflow-invariants.test.ts:63-70` and `tests/design/e2e-email-silence.test.ts:24-31`.)
+//
+// ── WHAT AN ENTRY IS, SPELLED OUT SO THE COUNT IS UNAMBIGUOUS ─────────────────────────────────────
+//
+// An ENTRY is a call to `test.fail(` or `test.fixme(` in a file under `e2e/` — the two annotations
+// that make a red test stop failing the run. `test.skip(condition, reason)` is deliberately NOT an
+// entry: this repository uses it for rows a fixture cannot reach (`e2e/overflow-320.spec.ts:925`,
+// `e2e/one-tree.spec.ts:734`, `e2e/visual/surfaces.spec.ts:414`), each throwing its own reason into
+// the run's output. Counting those would conflate a documented unreachable row with a quarantined
+// failure and would make the pinned total move for reasons that have nothing to do with D-03.
+// ⚠ On the FORBIDDEN files below the rule is stricter and covers all three forms, because D-01's
+// prohibition is written that way.
+//
+// ── THE FOUR WATCHED REDS ─────────────────────────────────────────────────────────────────────────
+//
+// An absence assertion cannot notice that its own subject is gone, so each assertion here was driven
+// red before it was trusted. Each mutation was applied alone to the TRACKED tree, observed, and
+// reverted with a checksum pair; the full transcripts, with the revert proofs, are in
+// `.planning/phases/19.1-…/evidence/known-failures-census.txt`.
+//
+//   (a) ADD an annotation to a spec without moving the pinned constant → RED on the count assertion.
+//   (b) REMOVE the reason from an existing annotation / replace it with an indirection → RED on the
+//       reason assertion.
+//   (c) ADD an annotation to the file on the forbidden list → RED on the forbidden-file assertion,
+//       with D-01 named in the output.
+//   (d) BREAK the scan (point the walk at a directory with no spec files) → RED on the non-vacuity
+//       assertion, proving a broken scan cannot report a clean tree.
+//
+// (Observed results are filled in beneath each letter by the run that produced them — see the
+// evidence file for the unedited output.)
+
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+import { stripComments } from "../helpers/source-text";
+
+/** The directory the walk covers. Every Playwright spec in this repository lives under it. */
+const SPEC_ROOT = "e2e";
+
+/**
+ * THE PINNED ENTRY TOTAL. The list can only grow by a deliberate edit to THIS NUMBER, inside a test
+ * the build runs — and the entry's reason is written at its call site BEFORE the number moves, never
+ * after. The number is a record of a decision, not the mechanism for making one.
+ *
+ * ⚠ IT IS A SUM OF WHAT EARLIER PLANS RECORDED, NOT A SURVEY. 19.1-08, 19.1-10 and 19.1-11 each
+ * decided a route per failure and wrote the surviving annotations down; this is their total. If the
+ * census and the sum ever disagree, the census is right about the tree and the discrepancy is
+ * investigated rather than reconciled by editing this constant.
+ *
+ * THE ENTRIES, EACH WITH ITS REASON IN ONE CLAUSE (line numbers are as of 19.1-11 and are indicative
+ * only — they move, and nothing here asserts them):
+ *
+ *   1. `e2e/avatar-crop.spec.ts:1125` — "Escape, the overlay click and the close control all do
+ *      nothing while a save is in flight". Needs a live Cloudinary credential in the SERVER process
+ *      for the save to land; `ci.yml` cannot carry one, because a shipped invariant
+ *      (`scripts/verify-workflows.mjs:813`) asserts zero `secrets.` references in any job and the
+ *      repository is being published (D-07/D-08). Only the round-trip assertion is unreachable; it is
+ *      covered by `tests/profile/avatar.test.ts:137` and `tests/profile/avatar-field.test.tsx:309`.
+ *      Recorded by 19.1-10, `evidence/triage-upload-capability.txt`.
+ *
+ *   2. `e2e/tabular-figures.spec.ts:416` — "(1) court — the reference lines up, and the money pair is
+ *      measured". `tabular-nums` equalises the digit advances exactly on a developer machine and
+ *      leaves exactly 1px per digit in `mcr.microsoft.com/playwright:v1.60.0-noble`, measured with the
+ *      identical tree, CSS and font asset served by ONE dev server to both renderers — a RENDERER
+ *      capability gap, not a product property. Recorded by 19.1-11,
+ *      `evidence/known-failures-census.txt`; corroborated by 19.1-09,
+ *      `evidence/triage-skeleton-geometry.txt` §5 (the same image quantising glyph advances).
+ *
+ * ⚠ TWO FAILURES THAT ARE DELIBERATELY NOT HERE, because "it was on the fourteen-failure list" is not
+ * the same claim as "it is an entry":
+ *   • `e2e/host-headings.spec.ts` — a SPEC DEFECT, REPAIRED by 19.1-08. A repaired defect is not an
+ *     annotation candidate, and this list does not grow for it.
+ *   • `e2e/tabular-figures.spec.ts`'s "(2) grove" case — MEASURED PASSING in the container (19.1-11,
+ *     `evidence/known-failures-census.txt` §1e). An entry for it would have been a false reason AND an
+ *     unexpected pass, which fails the run by name and burns all three attempts.
+ */
+const PINNED_ENTRY_TOTAL = 2;
+
+/**
+ * The same two entries as data, so the docblock above and the number above cannot drift apart
+ * silently: a test below asserts this table's length equals `PINNED_ENTRY_TOTAL`, and another asserts
+ * every path in it resolves.
+ *
+ * Paths only — NOT line numbers. Line numbers move on any edit above them (19.1-08, 19.1-10 and this
+ * plan each found a cited `:NNN` had drifted), and a guard that reddens on an unrelated edit is a
+ * guard people delete.
+ */
+const PINNED_ENTRY_SPECS = [
+  "e2e/avatar-crop.spec.ts",
+  "e2e/tabular-figures.spec.ts",
+] as const;
+
+/**
+ * D-01 — FILES THAT MAY NEVER CARRY AN ALLOWLIST ENTRY, WITH THE DECISION BESIDE THEM.
+ *
+ * Quoted from 19.1-07, `evidence/triage-cancel-refund.txt`'s `PROHIBITION` line, which is the recorded
+ * source rather than a recollection of a conversation:
+ *
+ *   "`e2e/cancel.spec.ts` is PERMANENTLY INELIGIBLE for the known-failures allowlist, by D-01. It sits
+ *    on the refund path, and D-01 names it as the specific test whose quarantine was rejected: a green
+ *    badge sitting on top of an unverified refund behaviour is the exact failure mode this phase exists
+ *    to prevent. A failure in this file is repaired or left red — never annotated with `test.fail`,
+ *    never `test.fixme`, never `test.skip`, never grep-excluded from `gate-e2e`, and never recorded in
+ *    any allowlist entry."
+ *
+ * ⚠ THE PROHIBITION IS ENCODED HERE PRECISELY BECAUSE IT ALSO LIVES IN THAT FILE. 19.1-07 added a
+ * docblock to `e2e/cancel.spec.ts` citing D-01 four times; if a future round strips that docblock, the
+ * citation goes with it. A prohibition that lives only in the file it protects is deleted by the same
+ * edit it was meant to stop — so it is ALSO asserted from out here, against a PATH rather than a
+ * comment.
+ */
+const FORBIDDEN_ENTRY_FILES = [
+  {
+    spec: "e2e/cancel.spec.ts",
+    decision: "D-01",
+    why: "it sits on the refund path",
+  },
+] as const;
+
+/**
+ * The floor a reason must clear. A reason is read AT THE CALL SITE by whoever is deciding whether the
+ * entry still deserves to exist, and "flaky" or "fails in CI" tells that reader nothing. 120
+ * characters is roughly one sentence plus one citation, which is the shortest thing that can carry
+ * both the capability that is missing and where the evidence for it lives.
+ */
+const MIN_REASON_LENGTH = 120;
+
+/**
+ * A KNOWN fixture with a KNOWN entry count, so the pattern itself is proved to still match. Without
+ * this, a pattern that stopped matching would report a clean tree and every assertion below would pass
+ * over nothing.
+ *
+ * Three annotation calls, one of them inside a comment: the stripped scan must find TWO and the raw
+ * scan THREE.
+ */
+const PATTERN_FIXTURE = [
+  'test.fail(!!process.env.CI, "a fixture entry, with a condition and a reason long enough to be a real one");',
+  '  // test.fixme(!!process.env.CI, "a fixture entry that lives in a COMMENT and must not be counted");',
+  'test.fixme(!!process.env.CI, "a second fixture entry, written in the other annotation form");',
+].join("\n");
+const PATTERN_FIXTURE_STRIPPED_ENTRIES = 2;
+const PATTERN_FIXTURE_RAW_ENTRIES = 3;
+
+/** The two annotations that make a red test stop failing the run. See the header for why not `skip`. */
+const ENTRY_PATTERN = /\btest\.(fail|fixme)\s*\(/g;
+
+/** All three forms, for the forbidden files only — D-01's prohibition names each of them. */
+const ANY_ANNOTATION_PATTERN = /\btest\.(fail|fixme|skip)\s*\(/g;
+
+/** Read a repo-relative file as text. */
+function readSource(relativePath: string): string {
+  return readFileSync(resolve(process.cwd(), relativePath), "utf8");
+}
+
+/** Repo-relative path with forward slashes, so a comparison means the same thing on both platforms. */
+function normalise(relativePath: string): string {
+  return relativePath.split("\\").join("/");
+}
+
+/**
+ * Comment removal that PRESERVES LINE STRUCTURE, by blanking each comment character rather than
+ * deleting it.
+ *
+ * ⚠ WHY THIS EXISTS ALONGSIDE THE SHARED HELPER RATHER THAN INSTEAD OF IT. `stripComments`
+ * (`tests/helpers/source-text.ts:57`) DELETES block comments, newlines included, so every line number
+ * after the first docblock would be wrong — and this census reports entries BY LINE. The shared helper
+ * therefore stays the authority on what counts as code, and a test below asserts that this function
+ * removes exactly the same content it does (identical text once whitespace is discarded). If the two
+ * ever disagree, that assertion is red and this local variant is the one that is wrong.
+ */
+function blankComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
+}
+
+/** Every `*.spec.ts` under `e2e/`, recursively, as normalised repo-relative paths. */
+function specFiles(dir: string = SPEC_ROOT, out: string[] = []): string[] {
+  const absolute = resolve(process.cwd(), dir);
+  if (!existsSync(absolute)) return out;
+  for (const entry of readdirSync(absolute, { withFileTypes: true })) {
+    const rel = join(dir, entry.name);
+    if (entry.isDirectory()) specFiles(rel, out);
+    else if (entry.name.endsWith(".spec.ts")) out.push(normalise(rel));
+  }
+  return out.sort();
+}
+
+type Entry = {
+  spec: string;
+  line: number;
+  form: string;
+  condition: string;
+  reason: string;
+  reasonIsStringLiteral: boolean;
+};
+
+/**
+ * The argument expressions of a call whose `(` is at `open`, split at the TOP level only — so a
+ * comma inside a nested call, an object, an array or a string does not split an argument. Returns
+ * `null` if the call is unterminated, which a syntactically valid file cannot produce.
+ */
+function callArguments(source: string, open: number): string[] | null {
+  const args: string[] = [];
+  let current = "";
+  let depth = 0;
+  let quote: string | null = null;
+  let escaped = false;
+
+  for (let i = open; i < source.length; i++) {
+    const ch = source[i];
+
+    if (quote !== null) {
+      current += ch;
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      quote = ch;
+      current += ch;
+      continue;
+    }
+    if (ch === "(" || ch === "[" || ch === "{") {
+      depth += 1;
+      if (depth > 1) current += ch;
+      continue;
+    }
+    if (ch === ")" || ch === "]" || ch === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        args.push(current);
+        return args.map((a) => a.trim());
+      }
+      current += ch;
+      continue;
+    }
+    if (ch === "," && depth === 1) {
+      args.push(current);
+      current = "";
+      continue;
+    }
+    current += ch;
+  }
+  return null;
+}
+
+/**
+ * The text of an expression that is a concatenation of STRING LITERALS ONLY, and whether it is one.
+ *
+ * The residue test is the sharp half: once every `"…"`/`'…'` literal is removed, nothing may remain
+ * but whitespace and `+`. A template literal leaves its backticks, a variable leaves its identifier
+ * and a call leaves its parentheses — so all three are rejected, which is what "the reason is readable
+ * at the call site" requires.
+ */
+function stringLiteralConcatenation(expression: string): {
+  ok: boolean;
+  text: string;
+} {
+  const literal = /"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'/g;
+  let text = "";
+  for (const match of expression.matchAll(literal))
+    text += match[1] ?? match[2] ?? "";
+  const residue = expression.replace(literal, "");
+  return { ok: text.length > 0 && /^[\s+]*$/.test(residue), text };
+}
+
+/** Every allowlist entry in one file's text, in line order. `code` must be line-preserving. */
+function entriesIn(spec: string, code: string): Entry[] {
+  const found: Entry[] = [];
+  for (const match of code.matchAll(ENTRY_PATTERN)) {
+    const at = match.index ?? 0;
+    const open = at + match[0].length - 1;
+    const args = callArguments(code, open) ?? [];
+    const reasonExpression = args[1] ?? "";
+    const literal = stringLiteralConcatenation(reasonExpression);
+    found.push({
+      spec,
+      line: code.slice(0, at).split("\n").length,
+      form: `test.${match[1]}`,
+      condition: (args[0] ?? "").trim(),
+      reason: literal.ok ? literal.text : reasonExpression,
+      reasonIsStringLiteral: literal.ok,
+    });
+  }
+  return found;
+}
+
+/**
+ * The whole allowlist, sorted by spec path then by line so the reported order is DETERMINISTIC — a
+ * diff of this file's failure output between two runs then reflects a real change in the allowlist
+ * rather than filesystem enumeration order.
+ *
+ * @param strip pass `false` to scan the raw text, which is how the stripping is proved load-bearing.
+ */
+function collectEntries(strip = true): Entry[] {
+  const entries: Entry[] = [];
+  for (const spec of specFiles()) {
+    const source = readSource(spec);
+    entries.push(...entriesIn(spec, strip ? blankComments(source) : source));
+  }
+  return entries.sort((a, b) =>
+    a.spec === b.spec ? a.line - b.line : a.spec < b.spec ? -1 : 1,
+  );
+}
+
+/** `spec:line` — the form every failure message below reports an entry in. */
+function locate(entry: Entry): string {
+  return `${entry.spec}:${entry.line}`;
+}
+
+describe("D-03 — the known-failures allowlist cannot silently grow", () => {
+  it("the scan reached real spec files AND the entry pattern still matches (non-vacuity, both halves)", () => {
+    const files = specFiles();
+
+    expect(
+      files.length,
+      `The walk over \`${SPEC_ROOT}/\` found ZERO spec files. That is not a clean tree — it is a ` +
+        "BROKEN SCAN, and a broken scan reports an empty allowlist that looks exactly like a genuinely " +
+        "empty one. Every assertion below would then be passing over nothing. Fix the walk (or the " +
+        "directory constant) rather than trusting the green.",
+    ).toBeGreaterThan(0);
+
+    // The sharper half of the same guard: the two files that DO carry entries must be among the walked
+    // files. A walk that reached a non-zero number of the WRONG files would clear the count above.
+    const missing = PINNED_ENTRY_SPECS.filter((spec) => !files.includes(spec));
+    expect(
+      missing,
+      `The walk did not reach ${missing.join(", ")}, which the pinned docblock names as carrying an ` +
+        "entry. Either the walk stopped covering part of `e2e/`, or those specs were moved or deleted " +
+        "without this file's constants moving with them. Both are silent no-ops otherwise.",
+    ).toEqual([]);
+
+    const fixtureStripped = entriesIn(
+      "fixture.spec.ts",
+      blankComments(PATTERN_FIXTURE),
+    );
+    expect(
+      fixtureStripped.length,
+      "The entry pattern matched a different number of entries in the KNOWN fixture than the fixture " +
+        `contains (${PATTERN_FIXTURE_STRIPPED_ENTRIES} outside comments). The pattern has stopped ` +
+        "recognising an annotation, so a real allowlist could grow without this file noticing. This " +
+        "assertion is the only thing standing between a broken pattern and a clean-looking tree.",
+    ).toBe(PATTERN_FIXTURE_STRIPPED_ENTRIES);
+
+    expect(
+      entriesIn("fixture.spec.ts", PATTERN_FIXTURE).length,
+      "The RAW scan of the known fixture found a different number of annotation calls than the " +
+        `fixture contains (${PATTERN_FIXTURE_RAW_ENTRIES} including the one inside a comment). The ` +
+        "fixture's third call is what makes the stripping check below meaningful, so this number and " +
+        "the one above must differ by exactly the commented-out call.",
+    ).toBe(PATTERN_FIXTURE_RAW_ENTRIES);
+  });
+
+  it("the entry total equals the pinned constant, and the entries are reported in a deterministic order", () => {
+    const entries = collectEntries();
+
+    expect(
+      entries.map(locate),
+      `The allowlist holds ${entries.length} entr${entries.length === 1 ? "y" : "ies"} ` +
+        `(${entries.map(locate).join(", ") || "none"}) but \`PINNED_ENTRY_TOTAL\` in this file is ` +
+        `${PINNED_ENTRY_TOTAL}.\n` +
+        "THE LIST CAN ONLY GROW BY A DELIBERATE EDIT TO THAT NUMBER, and the order matters: write the " +
+        "new entry's REASON at its call site first, then move the number, then add its clause to the " +
+        "constant's docblock. The number is the RECORD of a decision, not the mechanism for making " +
+        "one. If the count went DOWN, an entry was repaired or removed — delete its docblock clause in " +
+        "the same commit, or the next reader inherits a list that claims a quarantine that no longer " +
+        "exists.\n" +
+        "⚠ If the entry you are adding lives on a money path, read `FORBIDDEN_ENTRY_FILES` before you " +
+        "touch this number at all.",
+    ).toHaveLength(PINNED_ENTRY_TOTAL);
+
+    // The docblock and the number are two records of one fact; this is what stops them drifting.
+    expect(
+      PINNED_ENTRY_SPECS.length,
+      "`PINNED_ENTRY_SPECS` and `PINNED_ENTRY_TOTAL` disagree. They are two records of the same list — " +
+        "the number the census asserts and the paths its docblock names — so a change to one without " +
+        "the other means the docblock no longer describes the count.",
+    ).toBe(PINNED_ENTRY_TOTAL);
+
+    const sorted = [...entries].sort((a, b) =>
+      a.spec === b.spec ? a.line - b.line : a.spec < b.spec ? -1 : 1,
+    );
+    expect(
+      entries.map(locate),
+      "The collected entries are not in path-then-line order, so this file's failure output would " +
+        "depend on filesystem enumeration order and a diff between two runs would not mean a change " +
+        "in the allowlist.",
+    ).toEqual(sorted.map(locate));
+  });
+
+  it("every entry carries a reason that is a STRING LITERAL and long enough to be read", () => {
+    const entries = collectEntries();
+
+    const notLiteral = entries.filter((e) => !e.reasonIsStringLiteral);
+    expect(
+      notLiteral.map(locate),
+      `Entr${notLiteral.length === 1 ? "y" : "ies"} whose reason is not a plain string literal: ` +
+        `${notLiteral.map((e) => `${locate(e)} → \`${e.reason}\``).join("; ")}.\n` +
+        "THE REASON IS READ AT THE CALL SITE by whoever is deciding whether this entry still deserves " +
+        "to exist, so an indirection — a variable, a template literal, a helper call, a constant " +
+        "imported from elsewhere — defeats the only thing the reason is for. Concatenated literals " +
+        '(`"…" + "…"`) are fine and are what the existing entries use; anything that has to be ' +
+        "resolved by reading a second file is not.",
+    ).toEqual([]);
+
+    const tooShort = entries.filter(
+      (e) =>
+        e.reasonIsStringLiteral && e.reason.trim().length < MIN_REASON_LENGTH,
+    );
+    expect(
+      tooShort.map((e) => `${locate(e)} (${e.reason.trim().length} chars)`),
+      `Entr${tooShort.length === 1 ? "y" : "ies"} whose reason is shorter than ` +
+        `${MIN_REASON_LENGTH} characters.\n` +
+        "A reason must name the CAPABILITY, INVARIANT or MEASUREMENT that makes the failure expected, " +
+        'and where the evidence for it lives. "flaky", "fails in CI" and "known issue" are the ' +
+        "shapes this floor exists to reject: they turn the allowlist into a quarantine queue that " +
+        "nobody can ever empty, because nobody can tell what would have to change.",
+    ).toEqual([]);
+  });
+
+  it("every entry carries a CONDITION, so the test still runs and still asserts locally", () => {
+    const entries = collectEntries();
+
+    const unconditional = entries.filter(
+      (e) =>
+        e.condition === "" ||
+        /^true$/i.test(e.condition) ||
+        /^["'`]/.test(e.condition),
+    );
+    expect(
+      unconditional.map(locate),
+      `Bare or unconditional annotation(s): ${unconditional.map(locate).join(", ")}.\n` +
+        "A BARE ANNOTATION HIDES THE BEHAVIOUR EVERYWHERE, including on the developer machine where " +
+        "the missing capability is PRESENT and the assertion is meaningful. Every entry in this " +
+        "allowlist exists because something is absent in ONE environment; the annotation must be " +
+        "false exactly where that thing exists. Pass a condition — `!!process.env.CI` is what the " +
+        "existing entries use, and 19.1-10 recorded why the condition is `CI` rather than a probe for " +
+        "the credential itself.",
+    ).toEqual([]);
+  });
+
+  it("no entry lives in a file D-01 forbids, and none of those files carries any annotation at all", () => {
+    const entries = collectEntries();
+
+    for (const forbidden of FORBIDDEN_ENTRY_FILES) {
+      const offending = entries.filter((e) => e.spec === forbidden.spec);
+      expect(
+        offending.map(locate),
+        `${forbidden.spec} carries an allowlist entry, and ${forbidden.decision} forbids it ` +
+          `PERMANENTLY: ${forbidden.why}, and a green badge sitting on top of an unverified refund ` +
+          "behaviour is the exact failure mode this phase exists to prevent. A failure in this file " +
+          "is REPAIRED or LEFT RED — never annotated, never grep-excluded, never allowlisted. Remove " +
+          "the annotation; do not move `PINNED_ENTRY_TOTAL` to accommodate it.",
+      ).toEqual([]);
+
+      // Stricter than the entry rule, because D-01 names all three forms by hand.
+      const source = blankComments(readSource(forbidden.spec));
+      const anyAnnotation = [...source.matchAll(ANY_ANNOTATION_PATTERN)].map(
+        (m) =>
+          `${forbidden.spec}:${source.slice(0, m.index ?? 0).split("\n").length} (${m[0]})`,
+      );
+      expect(
+        anyAnnotation,
+        `${forbidden.spec} carries a test annotation. ${forbidden.decision} names each form it ` +
+          'forbids: "never annotated with `test.fail`, never `test.fixme`, never `test.skip`, never ' +
+          'grep-excluded from `gate-e2e`, and never recorded in any allowlist entry". `test.skip` is ' +
+          "included here — and only here — because on this file a skipped case and a quarantined one " +
+          "buy the same false green over the same refund path.",
+      ).toEqual([]);
+    }
+  });
+
+  it("every path this file names resolves to a real file — a stale path is a silent no-op", () => {
+    const walked = specFiles();
+
+    const unresolved: string[] = [];
+    for (const spec of [
+      ...PINNED_ENTRY_SPECS,
+      ...FORBIDDEN_ENTRY_FILES.map((f) => f.spec),
+      ...collectEntries().map((e) => e.spec),
+    ]) {
+      const absolute = resolve(process.cwd(), spec);
+      if (!existsSync(absolute) || !statSync(absolute).isFile())
+        unresolved.push(spec);
+    }
+    expect(
+      [...new Set(unresolved)],
+      `Path(s) named in this file that do not resolve: ${[...new Set(unresolved)].join(", ")}.\n` +
+        "A STALE PATH IS A SILENT NO-OP: the forbidden-file assertion would pass over a file that no " +
+        "longer exists at that name, and the pinned docblock would describe entries nobody can find. " +
+        "If a spec was renamed or moved, move its path here in the same commit.",
+    ).toEqual([]);
+
+    const forbiddenOutsideWalk = FORBIDDEN_ENTRY_FILES.map(
+      (f) => f.spec,
+    ).filter((spec) => !walked.includes(spec));
+    expect(
+      forbiddenOutsideWalk,
+      `Forbidden file(s) outside the walk: ${forbiddenOutsideWalk.join(", ")}. The prohibition is ` +
+        "enforced against the collected entries, so a forbidden file the walk never visits is a " +
+        "prohibition that cannot fire.",
+    ).toEqual([]);
+  });
+
+  it("comment-stripping is LOAD-BEARING here, not decorative — and it agrees with the shared helper", () => {
+    const stripped = collectEntries();
+    const raw = collectEntries(false);
+
+    // Direction 1: the strip must actually remove something, or the whole file could be counting prose.
+    expect(
+      raw.length,
+      "The stripped and the raw scans found the SAME number of entries, so comment removal is " +
+        "currently proving nothing and this file's central claim — that it counts CODE and not the " +
+        "docblocks discussing the code — is unproven. The tree today contains at least one annotation " +
+        "call written INSIDE a comment (`e2e/avatar-crop.spec.ts` discusses `test.fail()` in prose " +
+        "above its own entry). If that prose has been edited away, re-point this assertion at whatever " +
+        "prose remains, or delete it deliberately rather than letting it quietly stop proving " +
+        "anything. Without the strip, the allowlist could GROW INSIDE A COMMENT.",
+    ).toBeGreaterThan(stripped.length);
+
+    // Direction 2, and it is the sharp one: this local blanker preserves line numbers, which the shared
+    // helper cannot. It must remove EXACTLY what the shared helper removes, or "we strip with the
+    // repository's helper" would be a claim about a function this file does not actually use.
+    const disagreements = specFiles().filter((spec) => {
+      const source = readSource(spec);
+      const compact = (text: string) => text.replace(/\s+/g, "");
+      return compact(blankComments(source)) !== compact(stripComments(source));
+    });
+    expect(
+      disagreements,
+      `\`blankComments\` and the shared \`stripComments\` disagree on: ${disagreements.join(", ")}.\n` +
+        "The shared helper (`tests/helpers/source-text.ts:57`) is the AUTHORITY on what counts as " +
+        "code in this repository; the local variant exists only because the shared one deletes " +
+        "newlines and this census reports entries BY LINE. When they disagree, the local one is the " +
+        "one that is wrong — fix it here, do not fork the definition of a comment.",
+    ).toEqual([]);
+  });
+});
