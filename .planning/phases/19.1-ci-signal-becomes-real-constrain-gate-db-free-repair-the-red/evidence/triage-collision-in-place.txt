@@ -1,0 +1,235 @@
+================================================================================
+TRIAGE — e2e/collision-in-place.spec.ts  (Cause D1 + the court variant, 19.1-04)
+Machine: this box (win32), Git Bash, 2026-09-05.
+Bring-up: plan 02's evidence/triage-harness.md section (a), run verbatim —
+  npm run db:up ; npm run db:migrate ; npm run db:seed ; rm -rf .next ;
+  netstat -ano | grep -E ':3000[[:space:]]'  ->  "port 3000 is free"
+FITOUT_E2E_REAL_EMAIL was NOT set (harness warning 3).
+docker ps -> fitout-db-1  postgis/postgis:18-3.6  Up 15 hours
+================================================================================
+
+RESEARCH.md section "Cause D — real product bugs" instructs that this spec be
+triaged TWICE, because two CI observations recorded two DIFFERENT messages for
+`collision-in-place.spec.ts:240`. Both are triaged below, and each one gets its
+own verdict line in section 5 at the foot of this file.
+
+  DEFECT 1  the duplicated DOM id `availability-tz-note`, surfacing as a
+            Playwright strict-mode violation on the tz-note locator.
+  DEFECT 2  the court variant's stale grid — "the notice is on screen but the
+            grid under it has NOT caught up: the hours the booker just lost are
+            still selectable."
+
+################################################################################
+# 1. PRE-REPAIR — the spec UNMODIFIED at HEAD, with CI's retry shape
+#    git status --porcelain -- src/components/availability \
+#        e2e/collision-in-place.spec.ts   ->  (no output)
+################################################################################
+
+$ npx playwright test e2e/collision-in-place.spec.ts --project=chromium --retries=2 --reporter=list
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[WebServer] ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 2 tests using 1 worker
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  ok 1 [chromium] › e2e\collision-in-place.spec.ts:240:9 › STATE-07 — a lost race becomes a result, in place › the collision lands in place · court (17.7s)
+  ok 2 [chromium] › e2e\collision-in-place.spec.ts:240:9 › STATE-07 — a lost race becomes a result, in place › the collision lands in place · grove (9.2s)
+
+  2 passed (41.2s)
+
+--------------------------------------------------------------------------------
+BOTH VARIANTS PASSED. That is a measurement, not a licence to move on: the CI
+failure does NOT reproduce on this box in the shape the spec is run in. Repeated
+so the absence is worth something — 3 repeats x 2 themes, up to 3 attempts each,
+serialised the way CI serialises (--workers=1, harness warning 2):
+--------------------------------------------------------------------------------
+
+$ npx playwright test e2e/collision-in-place.spec.ts --project=chromium --retries=2 --repeat-each=3 --workers=1 --reporter=list
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[WebServer] ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 6 tests using 1 worker
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  ok 1 [chromium] › e2e\collision-in-place.spec.ts:240:9 › STATE-07 — a lost race becomes a result, in place › the collision lands in place · court (12.4s)
+  ok 2 [chromium] › e2e\collision-in-place.spec.ts:240:9 › STATE-07 — a lost race becomes a result, in place › the collision lands in place · grove (9.9s)
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  ok 3 [chromium] › e2e\collision-in-place.spec.ts:240:9 › STATE-07 — a lost race becomes a result, in place › the collision lands in place · court (9.3s)
+  ok 4 [chromium] › e2e\collision-in-place.spec.ts:240:9 › STATE-07 — a lost race becomes a result, in place › the collision lands in place · grove (9.2s)
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  ok 5 [chromium] › e2e\collision-in-place.spec.ts:240:9 › STATE-07 — a lost race becomes a result, in place › the collision lands in place · court (9.5s)
+  ok 6 [chromium] › e2e\collision-in-place.spec.ts:240:9 › STATE-07 — a lost race becomes a result, in place › the collision lands in place · grove (9.1s)
+
+  6 passed (1.1m)
+
+8 invocations of each variant across the two runs above. ZERO failures. ZERO
+occurrences of the string "strict mode violation". ZERO occurrences of the
+stale-grid message.
+
+################################################################################
+# 2. WHAT THE CI EVIDENCE ACTUALLY RECORDS FOR THIS SPEC
+#    (read this session from
+#     .planning/phases/19-host-listing-surfaces-gates-that-actually-run/
+#     evidence/gate-e2e-wallclock.txt)
+################################################################################
+
+The wallclock evidence lists this spec at line 151 as failure 9 of 14:
+
+     9  e2e/collision-in-place.spec.ts:240  STATE-07 lost race becomes a result
+
+and the only quoted message that belongs to this spec is DEFECT 2's:
+
+    the notice is on screen but the grid under it has NOT caught up: the hours
+    the booker just lost are still selectable.
+
+The ONLY strict-mode violation gate-e2e-wallclock.txt records is a DIFFERENT id
+on a DIFFERENT route (line 169):
+
+    locator.click: Error: strict mode violation: locator('#search-category')
+      resolved to 2 elements
+
+RESEARCH.md section Cause D1 quotes a tz-note strict-mode violation transcript.
+That transcript is NOT in gate-e2e-wallclock.txt and carries no [VERIFIED] or
+[CITED] tag of its own — the [VERIFIED] tag at that site covers the READ OF THE
+TWO COMPONENT FILES beneath it, not the transcript above it. So the transcript
+is unsourced and could not be taken on trust. The defect it names was
+reproduced from first principles instead — section 3.
+
+################################################################################
+# 3. DEFECT 1 — REPRODUCED, under the mechanism that produces it
+################################################################################
+
+The reason section 1 is green is mechanical rather than lucky. `pickWindow`
+(e2e/helpers/booker-seed.ts:175) asserts on the tz note with an UNSCOPED text
+locator, and `collision-in-place.spec.ts` runs at the config's default 1280px
+viewport. At 1280px the responsive booking sheet is never opened: its trigger
+lives in `BookingStickyBar`, which is `lg:hidden`, and the sheet's
+`<BookingPanel placement="sheet">` subtree is mounted by the Radix dialog only
+while the sheet is open. One booking surface in the document -> one tz note ->
+no ambiguity.
+
+Below `lg:` a booker CAN open it, and that is the state
+`e2e/helpers/booker-seed.ts:86-88` already describes:
+
+    "THE SCOPE PARAMETER IS NOT CONVENIENCE. RESP-02 mounts a SECOND booking
+     view inside a sheet on `/listings/[id]`, so while that sheet is open the
+     document holds two month grids."
+
+A throwaway probe was written to measure exactly that state and then DELETED
+(it is not committed; `git status --porcelain -- e2e` is empty). It navigates to
+a seeded listing at 375x812, counts the id before and after opening the sheet
+through the shared `openBookingSheet` helper, and then runs `pickWindow`'s
+tz-note locator VERBATIM:
+
+$ npx playwright test e2e/__tznote-probe.spec.ts --project=chromium --reporter=list
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[WebServer] ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 1 test using 1 worker
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+PROBE BEFORE sheet open: #availability-tz-note=1 tz-note <p>=1
+PROBE AFTER sheet open: #availability-tz-note=2 tz-note <p>=2
+  x  1 [chromium] › e2e\__tznote-probe.spec.ts:10:5 › probe: the tz-note id census with the responsive sheet open (3.4s)
+
+
+  1) [chromium] › e2e\__tznote-probe.spec.ts:10:5 › probe: the tz-note id census with the responsive sheet open
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)
+    Expected: visible
+    Error: strict mode violation: getByText(/Times shown in .*Makati.*\(GMT\+8\)/i) resolved to 2 elements:
+        1) <p aria-hidden="true" data-aria-hidden="true" id="availability-tz-note" class="text-sm text-muted-foreground">…</p> aka getByRole('main').getByText('Times shown in Makati time (')
+        2) <p id="availability-tz-note" class="text-sm text-muted-foreground">Times shown in Makati time (GMT+8)</p> aka getByTestId('responsive-dialog').getByText('Times shown in Makati time (')
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)
+
+
+      33 |
+      34 |   // `pickWindow`'s first line, verbatim (e2e/helpers/booker-seed.ts:175).
+    > 35 |   await expect(page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)).toBeVisible();
+         |                                                                        ^
+      36 | });
+      37 |
+        at C:\Users\Admin\Roaming\FitOut\e2e\__tznote-probe.spec.ts:35:72
+
+  1 failed
+    [chromium] › e2e\__tznote-probe.spec.ts:10:5 › probe: the tz-note id census with the responsive sheet open
+
+Read three things off that transcript:
+
+  * BEFORE the sheet opens: `#availability-tz-note=1`. AFTER: `=2`. The id is
+    duplicated by the act of opening the sheet, and by nothing else.
+  * The two resolved elements are quoted by Playwright itself, and BOTH carry
+    `id="availability-tz-note"`:
+      1) <p aria-hidden="true" data-aria-hidden="true" id="availability-tz-note" ...>
+         aka getByRole('main').getByText('Times shown in Makati time (')
+      2) <p id="availability-tz-note" ...>Times shown in Makati time (GMT+8)</p>
+         aka getByTestId('responsive-dialog').getByText('Times shown in Makati time (')
+    One is the main column's `AvailabilityCalendar`; the other is the SAME
+    component mounted a second time inside the sheet. Radix has marked the
+    outside copy `aria-hidden="true"` — which is exactly why the ROLE queries in
+    `selectTargetDayIn` are unambiguous and this TEXT query is not.
+  * The failure is the shape RESEARCH.md quotes, to the character:
+      "strict mode violation: getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)
+       resolved to 2 elements"
+
+The declaration sites, read at HEAD:
+
+  src/components/availability/availability-calendar.tsx:470
+      const TZ_NOTE_ID = "availability-tz-note";
+  src/components/availability/date-pass-picker.tsx:73
+      const TZ_NOTE_ID = "availability-tz-note";
+
+and `date-pass-picker.tsx:71-72` carries the claim the measurement falsifies:
+
+    // The same id the hourly calendar uses for its tz note. Exactly one of the
+    // two surfaces renders per listing (a listing is exactly one mode), so the
+    // id can never appear twice in one document.
+
+THE COMMENT IS FALSIFIED, AND NOT ONLY IN THE WAY IT ANTICIPATES. Its premise —
+one surface per listing — is a claim about the two COMPONENTS. The measurement
+above duplicates the id WITHOUT the second component being involved at all: the
+same component is mounted twice, once in the main column and once in the sheet.
+So the comment is wrong twice over, and the mechanism that makes it wrong is the
+one `e2e/helpers/booker-seed.ts:86-88` already records. A module-level id literal
+is unsafe in ANY component that can be mounted more than once in a document,
+which on this route is every client component.
+
+################################################################################
+# 4. DEFECT 2 — the court variant's stale grid
+################################################################################
+
+NOT REPRODUCED. 8 invocations of the court variant across the two runs in
+section 1 (1 run + 3 repeats, up to 3 attempts each, --workers=1 matching CI's
+serialisation), all green, with the stale-grid message absent from every
+transcript.
+
+That is consistent with what is recorded about it: RESEARCH.md section Cause D1
+notes the court variant "was flaky (passed on retry)". A message that appears on
+one attempt and not the next is a RACE, and the spec's own header already names
+the race it is exposed to — `router.refresh()` merges the RSC payload without
+losing client `useState`, and the day's slots ARE that state (12-RESEARCH
+Pitfall 3, watched red R1). The spec asserts against it deliberately, in ONE
+`page.evaluate` at :319, precisely so a notice arriving a beat before the grid
+cannot be papered over by a retrying expectation.
+
+An absence over 8 attempts is not proof the race cannot occur; it is proof it
+does not occur on this box under this ordering. It is recorded as such and NOT
+as a closure. It is not eligible for the known-failures allowlist either: D-01
+makes eligibility conditional on genuine drift or flake that is not repairable
+here, and this one has no failing transcript on this machine to attach an
+annotation's reason to.
+
+################################################################################
+# 5. VERDICTS
+################################################################################
+
+VERDICT DEFECT 1 (duplicate id `availability-tz-note`) — REAL PRODUCT BUG, REPRODUCED, REPAIRABLE HERE. Read from the section 3 transcript: "PROBE BEFORE sheet open: #availability-tz-note=1 tz-note <p>=1" then "PROBE AFTER sheet open: #availability-tz-note=2 tz-note <p>=2", and "strict mode violation: getByText(/Times shown in .*Makati.*\(GMT\+8\)/i) resolved to 2 elements:" with both quoted elements carrying id="availability-tz-note". It is a module-level id literal in a component mounted twice on one route, so it is an HTML-validity and aria-describedby defect independent of any test. NOT an allowlist candidate (D-01) — repaired by this plan's Task 2.
+VERDICT DEFECT 2 (the court variant's stale grid) — NOT REPRODUCED ON THIS BOX; CARRIED, NOT CLOSED. Read from the section 1 transcripts: "2 passed (41.2s)" and "6 passed (1.1m)", with zero occurrences of "the notice is on screen but the grid under it has NOT caught up" in either. CI recorded it once and RESEARCH.md records the court variant as flaky (passed on retry), so it is a race against `router.refresh()` (12-RESEARCH Pitfall 3), not a deterministic defect this box can settle. No settle is added to the spec: a wait added to an assertion that has never failed here would be a hedge against a failure nobody measured, which is the one thing Task 3 forbids. NOT an allowlist candidate and NOT closed — carried forward as an open, unreproduced flake.
