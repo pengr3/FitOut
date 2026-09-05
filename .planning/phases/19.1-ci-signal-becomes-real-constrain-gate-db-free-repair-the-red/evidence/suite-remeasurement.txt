@@ -1,0 +1,299 @@
+19.1-13 — THE RE-MEASUREMENT
+===========================
+
+WHY THIS FILE EXISTS
+  Every plan before this one repaired, annotated or constrained something. This file records what is
+  ACTUALLY true now, against a real run of all five jobs. Where a prior plan's claim and this
+  measurement disagree, the measurement wins and the delta is recorded by name.
+
+  Nothing below is arithmetic. Every number carries the run it was read from.
+
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+TASK 1 — THE RUN, AND THE COMPARISON
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(1a) THE RUN'S IDENTITY
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+$ gh run view 33972688199 --json databaseId,headBranch,headSha,event,createdAt,updatedAt,conclusion,url
+{"conclusion":"failure","createdAt":"2026-09-05T14:44:10Z","databaseId":33972688199,"event":"push","headBranch":"dev","headSha":"832927eccc6c522f5557971785f246f9e78a85cf","updatedAt":"2026-09-05T15:11:01Z","url":"https://github.com/pengr3/FitOut/actions/runs/33972688199"}
+
+  RUN            33972688199
+  BRANCH         dev
+  HEAD SHA       832927eccc6c522f5557971785f246f9e78a85cf
+  TRIGGER        push
+  WALL           2026-09-05T14:44:10Z -> 2026-09-05T15:11:01Z  (26m51s)
+  CONCLUSION     failure
+
+⚠ THIS RUN WAS NOT TRIGGERED BY A COMMIT OF THIS PLAN'S OWN, AND THAT IS DELIBERATE.
+  The task says "push to the development branch and let the whole workflow run". At the moment this
+  plan started, `git log --oneline origin/dev..HEAD` was EMPTY and run 33972688199 was already
+  in_progress on exactly that HEAD, with all five jobs live. Pushing again would have (a) added
+  nothing to the tree being measured and (b) CANCELLED this run through the workflow's concurrency
+  group — which is precisely how runs 33971557439 and 33971883942 above it died. The two prior
+  measurement attempts in this phase were both lost that way.
+
+  The tree the run measured is asserted, not assumed:
+
+$ git status --porcelain -- e2e src tests
+(no output)
+
+$ git diff --name-only 832927e 4ee6c99 -- e2e src tests .github scripts | wc -l
+0
+
+  4ee6c99 is the local commit that landed while this run was executing (a docs-only close-out of plan
+  19.1-12). It touches four files, all under `.planning/`. No spec, source, test, workflow or script
+  file differs between the SHA the runner checked out and the tree this plan triages.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(1b) THE FIVE JOBS, EACH BY ITS DISPLAY NAME
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+$ gh run view 33972688199 --json jobs --jq '.jobs[] | "\(.name)|\(.conclusion)|\(.startedAt)|\(.completedAt)"'
+gate-db-free (lint + design + build + workflow parse)|success|2026-09-05T14:44:22Z|2026-09-05T14:48:15Z
+gate-visual (GATE-01 visual regression)|failure|2026-09-05T14:44:22Z|2026-09-05T14:49:26Z
+gate-price-parity (DB-vs-DOM price, 1 spec)|success|2026-09-05T14:44:22Z|2026-09-05T14:46:46Z
+gate-e2e (functional Playwright suite)|failure|2026-09-05T14:44:23Z|2026-09-05T15:11:00Z
+gate-db (vitest against PostGIS 18)|success|2026-09-05T14:44:22Z|2026-09-05T14:52:16Z
+
+  | # | display name                                          | conclusion | duration |
+  |---|-------------------------------------------------------|------------|----------|
+  | 1 | gate-db-free (lint + design + build + workflow parse)  | success    |  3m 53s  |
+  | 2 | gate-visual (GATE-01 visual regression)                | FAILURE    |  5m 04s  |
+  | 3 | gate-price-parity (DB-vs-DOM price, 1 spec)            | success    |  2m 24s  |
+  | 4 | gate-e2e (functional Playwright suite)                 | FAILURE    | 26m 37s  |
+  | 5 | gate-db (vitest against PostGIS 18)                    | success    |  7m 54s  |
+
+  Three of five green. Two red. The RUN is red.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(1c) THE FUNCTIONAL JOB'S SUMMARY BLOCK, VERBATIM
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+$ gh run view --job 101323904089 --log        # gate-e2e (functional Playwright suite), run 33972688199
+
+Running 460 tests using 1 worker
+
+...
+
+  3 failed
+    [chromium] › e2e/hold-countdown.spec.ts:292:9 › SHELL-03 — the checkout header does not reflow once per session › court · the header and countdown boxes are identical in all four states
+    [chromium] › e2e/host-headings.spec.ts:1052:7 › AC#35 — one first-level heading per document, one size across five surfaces › wizard · whole space, every step
+    [chromium] › e2e/overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · court
+  3 flaky
+    [chromium] › e2e/avatar-crop.spec.ts:1558:7 › CROP-01 / DS-05 — the focused stage draws a visible, undiluted indicator › the stage draws an indicator on keyboard focus, and its colour carries no alpha
+    [chromium] › e2e/confirmation-decay.spec.ts:151:7 › BFLOW-08 — the confirmation moment fills the first screen and then decays › the moment is a full screen, the detail starts below the fold, and a reload shows the ordinary page
+    [chromium] › e2e/price-parity.spec.ts:270:5 › the total rendered on the reserve page IS the total the database froze (GATE-05 · D-35)
+  52 skipped
+  22 did not run
+  380 passed (24.4m)
+##[error]Process completed with exit code 1.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(1d) THE RETRY EXECUTIONS, READ FROM THE LOG
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+$ grep -cE '^  [^ ]+ +[0-9]+ \[chromium\] .*\(retry #[0-9]+\)' new.log
+94
+$ grep -oE '\(retry #[0-9]+\)' new.log | sort | uniq -c
+     50 (retry #1)
+     44 (retry #2)
+
+$ grep -cE '^  [^ ]+ +[0-9]+ \[chromium\] .*\(retry #[0-9]+\)' prior.log        # run 33848750657
+134
+
+  RETRIES  134 -> 94  (delta -40).
+  ⚠ 19.1-RESEARCH.md:437 records ONE HUNDRED AND THIRTY-FIVE for the prior run. Counting the same log
+    by attempt lines carrying `(retry #N)` gives 134. A one-line difference in counting method, not a
+    difference in the run. This file uses its own count for both sides so the two are commensurable.
+
+  ⚠ THE RETRY COUNT DID NOT FALL AS FAR AS THE FAILURE COUNT. 14 -> 3 failures is a 79% reduction;
+    134 -> 94 retry executions is 30%. The reason is measured, not guessed: a failure inside a
+    `describe.serial` group retries the WHOLE GROUP, so three failures sitting at the head of three
+    large serial groups (`hold-countdown`, `host-headings`, `overflow-320`) drag their entire tails
+    through all three attempts. `overflow-320`'s AC#36 group alone accounts for 24 tests × 2 retries.
+
+  BOTH ALLOWLIST ENTRIES BEHAVED EXACTLY AS 19.1-02 PREDICTED — measured in CI for the first time:
+
+    ✘   26 [chromium] › e2e/avatar-crop.spec.ts:1109:7 › … all do nothing while a save is in flight (32.8s)
+    ✘  545 [chromium] › e2e/tabular-figures.spec.ts:412:7 › … (1) court — the reference lines up, and the money pair is measured (4.5s)
+
+    Each appears EXACTLY ONCE in the attempt list, with no `(retry #N)` line for either, and neither
+    appears under `3 failed`. That is 19.1-02 Q1 (an expected failure consumes no retries) and its
+    delta D1 (an expected failure is counted under `passed`) both confirmed against the real job
+    rather than a scratch spec. `✘` markers reconcile exactly: 3 failed × 3 attempts + 3 flaky first
+    attempts + 2 expected failures = 14, and `grep -cE '^  ✘ '` = 14.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(1e) THE COMPARISON — ONE ROW PER TERM OF THE SUMMARY BLOCK
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  PRIOR = run 33848750657, job 100946562712, branch dev, 2026-09-04, quoted at 19.1-RESEARCH.md:415-427.
+  NEW   = run 33972688199, job 101323904089, branch dev, 2026-09-05.
+
+  | term                        | prior (33848750657) | new (33972688199) | delta      |
+  |-----------------------------|---------------------|-------------------|------------|
+  | failed                      |                  14 |                 3 |    -11     |
+  | flaky                       |                   2 |                 3 |     +1     |
+  | skipped                     |                  52 |                52 |      0     |
+  | did not run                 |                  25 |                22 |     -3     |
+  | passed                      |                 367 |               380 |    +13     |
+  | TOTAL (sum of the five)     |                 460 |               460 |      0     |
+  | suite wall-clock (Playwright)|             44.1m  |            24.4m  |  -19.7m    |
+  | job wall-clock (GitHub)     |            50m 29s  |           26m 37s |  -23m 52s  |
+  | retry executions            |                 134 |                94 |    -40     |
+  | workers                     |                   1 |                 1 |      0     |
+
+  The prior block, verbatim from 19.1-RESEARCH.md:420-426, for the reader who wants the source:
+
+      14 failed
+      2 flaky
+      52 skipped
+      25 did not run
+      367 passed (44.1m)
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(1f) THE THREE EXPLICIT CHECKS
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+$ grep -E 'Running [0-9]+ tests using' prior.log new.log
+prior.log:Running 460 tests using 1 worker
+new.log:Running 460 tests using 1 worker
+
+COLLECTED 460 collected in the new run against 460 in the prior run — delta 0, NO SHORTFALL. The two
+COLLECTED runs also agree term-by-term on the sum (3+3+52+22+380 = 460 = 14+2+52+25+367), so no test
+COLLECTED left the suite and no test was silently reclassified out of the total. The 460 is also the
+COLLECTED number `npx playwright test --project=chromium --list` reported locally on 2026-09-05
+COLLECTED (evidence/testfail-behaviour.txt, "Total: 460 tests in 39 files"). This check is the reason
+COLLECTED the -11 on `failed` may be read as tests passing rather than tests disappearing.
+
+  Method for the two lines below: a test "never ran" in a run when it carries only `-` markers across
+  every attempt and never a `✓` or `✘`. Comparing the two runs' never-ran sets keyed on FILE + FULL
+  TITLE (never on `file:line`, which drifted in six specs this phase) gives the released and the
+  regressed sets exactly. Reconciliation for the new run is exact: ran 386 (= 3 + 3 + 380) + never-ran
+  74 (= 52 + 22) = 460.
+
+RELEASED 5 tests that never ran in 33848750657 executed in 33972688199, and ALL FIVE PASSED ON THEIR
+RELEASED FIRST ATTEMPT. Two serial groups released them:
+RELEASED
+RELEASED   (i) `e2e/skeleton-geometry.spec.ts` group `14-15 — every host plate draws the list that is
+RELEASED       actually coming` — released by 19.1-09's repair of the head case (formerly `:1807`,
+RELEASED       now `:1913` "(host booking row · /host/bookings)"). Four tests, in this run order:
+RELEASED
+RELEASED         ✓  535  :1814  (0) the fixture: one host, two listings, seven bookings, one booker each
+RELEASED         ✓  536  :1913  (agenda row · /host) …
+RELEASED         ✓  537  :1913  (request row · /host/requests) …
+RELEASED         ✓  538  :1913  (host booking row · /host/bookings) …      <- the repaired head
+RELEASED         ✓  539  :2130  (wrap) the host booking row has exactly ONE height at 320 …   <- RELEASED
+RELEASED         ✓  540  :2211  (step) one wrapped meta line costs 20px — measured, not assumed <- RELEASED
+RELEASED         ✓  541  :2288  (title) the Space cell wraps and the When cell does not …      <- RELEASED
+RELEASED         ✓  542  :2500  (deviation) a still-pending booking over-runs the bookings plate's bar <- RELEASED
+RELEASED
+RELEASED  (ii) `e2e/tabular-figures.spec.ts` group `TRUST-02` — released by 19.1-11's annotation of
+RELEASED       case (1), exactly as 19.1-11-SUMMARY.md predicted ("now lets its serial sibling RUN
+RELEASED       where it previously did not"). One test, immediately after its annotated sibling:
+RELEASED
+RELEASED         ✘  545  :412  (1) court — …                        <- the allowlist entry, expected
+RELEASED         ✓  546  :450  (2) grove — the same measurements, the other theme   <- RELEASED
+RELEASED
+RELEASED ORDERING CHECK (the `ordering` edge probe): every released test ran AFTER the case that had
+RELEASED been blocking it, in the group's declaration order, on attempt 1, with no reordering and no
+RELEASED dependency on a retry. None of the five is an ordering-dependent pass.
+RELEASED
+RELEASED ⚠ REGRESSED, THE OTHER DIRECTION, AND IT IS NOT OPTIONAL READING: 2 tests that RAN in the
+RELEASED prior run never run now, because the new failure in `e2e/hold-countdown.spec.ts` sits EARLIER
+RELEASED in that file's file-scoped serial group than the prior one did:
+RELEASED         e2e/hold-countdown.spec.ts › SHELL-03 … › grove · the header and countdown boxes are identical in all four states
+RELEASED         e2e/hold-countdown.spec.ts › GATE-03 … › the sr-only region's text changes ONCE across the hold, and not at expiry
+RELEASED (`:552` D-49 was already in the prior tail and remains there.) Net: -5 released +2 regressed
+RELEASED = the -3 on `did not run`. Never-ran per file, prior -> new: skeleton-geometry 4 -> 0,
+RELEASED tabular-figures 1 -> 0, hold-countdown 1 -> 3, everything else unchanged.
+RELEASED
+RELEASED ⚠ THE PLAN'S PREMISE IS CONTRADICTED BY THE MEASUREMENT, AND THE MEASUREMENT WINS. The plan
+RELEASED and 19.1-RESEARCH.md:438-440 both budget for "the twenty-five tests that never executed are
+RELEASED executed for the first time". FIVE were. Twenty of the twenty-five are still not executing,
+RELEASED and they were never blocked by the fourteen: 38 of the never-run 74 are `axe-sweep`
+RELEASED declared-unreachable rows, 24 are the `overflow-320` AC#36 tail (still blocked, by a failure
+RELEASED that is one of the original fourteen and was believed repaired — see VERDICT 3), and the rest
+RELEASED are declared-unreachable rows in `mobile-booker-path`, `one-tree`, `shell` and
+RELEASED `host-verification`. Open Question 2 ("how many of the twenty-five fail once unblocked") has a
+RELEASED measured answer: of the five actually released, ZERO failed.
+
+WALLCLOCK gate-e2e ran 26m 37s (job) / 24.4m (Playwright's own figure) against the 90-minute cap at
+WALLCLOCK `.github/workflows/ci.yml:1602`. HEADROOM 63m 23s — the job used 29.6% of its cap. The run
+WALLCLOCK does NOT approach the cap and the cap is NOT touched by this plan. Prior figures for the
+WALLCLOCK same job were 50m 29s / 44.1m, so the merge wait fell by 23m 52s (47%).
+WALLCLOCK
+WALLCLOCK ⚠ 19.1-08 LOGGED AN `unrun-verify` FOR THIS PLAN TO MEASURE, AND HERE IS THE MEASUREMENT.
+WALLCLOCK 19.1-08 removed a ceiling (180000ms -> ~2s on the day-selection post-condition; 30s -> 15s)
+WALLCLOCK but neither failure reproduced on the developer box, so no wall-clock had ever been OBSERVED
+WALLCLOCK returned. It is now observed: 23m 52s of job time. It is NOT attributable to 19.1-08 alone —
+WALLCLOCK 40 fewer retry executions across eleven repaired failures is the larger term — but 19.1-08's
+WALLCLOCK instrument is directly visible in the log: the same `hold-countdown` defect that previously
+WALLCLOCK consumed ~3 minutes per attempt waiting on an unrelated hour-button locator now fails in
+WALLCLOCK about 2 seconds at `booker-seed.ts:148`, by name, at the line that caused it (see VERDICT 1).
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(1g) NEWLY SURFACED FAILURES — the set Task 2 triages
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  A failure is NEWLY SURFACED if it failed in 33972688199 and is not one of the fourteen recorded at
+  19.1-RESEARCH.md § "Triage of the 14". Matched on FILE + TITLE, never on `file:line`: six specs moved
+  their line numbers this phase, and matching on the number would have reported two of the original
+  fourteen as new.
+
+  NEWLY SURFACED FAILURES: 1
+
+    N1  e2e/hold-countdown.spec.ts:292:9
+        SHELL-03 — the checkout header does not reflow once per session
+        › court · the header and countdown boxes are identical in all four states
+        Prior status: PASSED (run 33848750657). Not in the fourteen.
+
+  NEWLY SURFACED FLAKY: 2
+
+    N2  e2e/avatar-crop.spec.ts:1558:7
+        CROP-01 / DS-05 › the stage draws an indicator on keyboard focus, and its colour carries no alpha
+        Prior status: PASSED cleanly at `:1399` in 3.3s (run 33848750657). Not in the fourteen,
+        not in the prior two flaky.
+
+    N3  e2e/price-parity.spec.ts:270:5
+        the total rendered on the reserve page IS the total the database froze (GATE-05 · D-35)
+        Prior status: PASSED cleanly in 7.7s (run 33848750657). Not in the fourteen,
+        not in the prior two flaky. ⚠ THIS IS A MONEY-PATH SPEC.
+
+  STILL FAILING, FROM THE ORIGINAL FOURTEEN: 2
+
+    O11 e2e/host-headings.spec.ts:1052:7 (was `:964`) › wizard · whole space, every step
+        Item #11 of the fourteen. RESEARCH.md's verdict was "unresolved". Still unresolved, and the
+        failure message is byte-for-byte the one RESEARCH.md quoted.
+
+    O12 e2e/overflow-320.spec.ts:3434:11 (was `:3400`) › /host/listings/[id]/edit · photos step · court
+        Item #12 of the fourteen. ⚠ 19.1-11-SUMMARY.md's derivation of the pinned 2 subtracts this
+        item as "-1 (19.1-10 `overflow-320:3400`, repaired with a **public** identifier)". THE
+        MEASUREMENT DISAGREES: it is red in CI. See VERDICT 3 for what actually changed and what did
+        not.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(1h) gate-visual, FOR COMPLETENESS — the other red job
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+$ gh run view --job 101323904048 --log        # gate-visual (GATE-01 visual regression), run 33972688199
+Running 85 tests using 1 worker
+  4 failed
+  1 flaky
+  42 skipped
+  38 passed (3.4m)
+
+  The four, read from the attempt lines rather than from a summary sentence:
+    e2e/visual/surfaces.spec.ts › collision-notice-1280-court.png
+    e2e/visual/surfaces.spec.ts › listing-detail-320-court.png
+    e2e/visual/surfaces.spec.ts › listing-detail-768-court.png
+    e2e/visual/surfaces.spec.ts › listing-detail-1280-court.png
+  The one flaky: `dev-theme-320-court.png` (passed on retry).
+
+  These are exactly the four 19.1-12 deliberately left red under D-19.1-D (their references encode the
+  calendar day and the seed month) plus the D-19.1-E stability flake. NOT in this plan's scope: 19.1-12
+  settled them and `e2e/visual/` baselines are out of scope here. They are stated because SC4 is a
+  property of the RUN, and this job is why the run is red independently of `gate-e2e`.
