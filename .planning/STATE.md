@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: Completed 19.1-03-PLAN.md — 2 of 4 Cause A failures closed; FINDING D-A2 open (product decision)
-last_updated: "2026-09-05T06:05:02.563Z"
+stopped_at: Completed 19.1-04-PLAN.md — collision-in-place closed (duplicate id + missing settle); DEFECT 3 handed to plan 08
+last_updated: "2026-09-05T06:39:19.397Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 19.1 plan 02 complete — Wave 0 measurement
-state_head: 17913307934af5a7664cdbb583a89d09a3898ba6
+state_head: 0eba9c99d0db3afe3d32b3811433e90942b891c4
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 60
-  completed_plans: 49
+  completed_plans: 50
   percent: 13
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19.1 (CI signal becomes real) — EXECUTING
-Plan: 5 of 15
+Plan: 6 of 15
 Status: Ready to execute
 Last activity: 2026-09-05 — Phase 19.1 plan 02 complete (Wave 0 measurement)
 
@@ -441,6 +441,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P02 | 16 min | 3 tasks | 3 files |
 | Phase 19.1 P05 | 25 min | 3 tasks | 6 files |
 | Phase 19.1 P03 | 22min | 3 tasks | 3 files |
+| Phase 19.1 P04 | 42 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -1441,6 +1442,9 @@ Recent decisions affecting current work:
 - [Phase 19.1]: MEASURED CORRECTION: deleting gate-db-free's build step was NOT green before this plan — T-11-DBFREE's substring-anchored predicate catches it for a different property; the softening vectors on that step WERE green — Recorded rather than papered over; the substring anchor is logged as D-19.1-C for plan 06's audit
 - [Phase 19.1]: 19.1-03: Cause A is spec drift closed by repair, not an allowlist candidate — reachableCalendar now READS the week-row count off the grid; the only constant left is the legal shape {4,5,6}
 - [Phase 19.1]: 19.1-03 FINDING D-A2 (OPEN, needs operator decision): CalendarMonthSkeleton reserves six week rows against a five-row grid — a 52.81px layout shift on /listings/[id], live 10 of the next 12 months. Fork: derive the plate's rows (hydration/timezone hazard) vs fixedWeeks on the DayPicker. Two Playwright tests legitimately RED until decided.
+- [Phase 19.1]: 19.1-04: the availability timezone-note id is derived per instance with React.useId() in BOTH booking surfaces, not declared as a module-level literal; a module literal is only safe for a component mounted at most once per document, which on a streaming route is no component
+- [Phase 19.1]: 19.1-04: collision-in-place's court failure is a MISSING SETTLE, not the stale-grid defect — the spec's own watched red R1 carries found:true on both sides of its diff while the observed failure carried found:false; closed with a presence-only post-condition, 10/10 green
+- [Phase 19.1]: 19.1-04: DEFECT 3 (pickWindow's tz-note assertion is strict-mode ambiguous on TEXT, so an id-only repair cannot close it) is handed to plan 08 rather than repaired here — booker-seed.ts is outside this plan's files and 19.1-PATTERNS section 7 charters plan 08 to harden it
 
 ### Pending Todos
 
@@ -1523,6 +1527,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - gate-e2e is NOT a required check and CI-01 closes with it non-required — the gate reports, it does not block. Prerequisite A: branch protection unreachable (403; needs GitHub Pro or a public repo) — a PM billing/visibility decision, not an engineering one. Prerequisite C: 14 reproducible e2e failures + visual baselines stale since 2026-08-30 need a phase of their own. WINDOWS.md entries 8-10.
 - PRODUCTION SCOPE (from 19-04) STILL UNANSWERED, with new evidence that does NOT close it: a vercel.json is in the tree and a live Vercel project (pengr3s-projects/fit-out) deploys this repo, its check appearing on PR #1 — so a deployed environment EXISTS, satisfying the antecedent of WINDOWS.md entry 5. It does NOT establish that the deployment has its own database; nobody has measured that and no deployed environment was probed. Entry 5 stays open and is the PM's to answer.
 - 19.1-03 D-A2: CalendarMonthSkeleton's six hard-coded week rows vs a five-row grid (52.81px shift). Blocks calendar-hit-area.spec.ts:455 (court+grove) going green; needs an operator choice between deriving the plate's row count and fixedWeeks on the grid.
+- 19.1-04 DEFECT 3 — e2e/helpers/booker-seed.ts:180 pickWindow's unscoped getByText on the timezone note resolves to 2 elements whenever two booking surfaces are in the document (responsive sheet, or the served-shell/resolved-content streaming overlap). A flake, green under CI's --retries=2. Owned by plan 08; brief in evidence/triage-collision-in-place.txt VERDICT DEFECT 3.
 
 ### Quick Tasks Completed
 
@@ -1623,8 +1628,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-05T06:04:50.476Z
-Stopped at: Completed 19.1-03-PLAN.md — 2 of 4 Cause A failures closed; FINDING D-A2 open (product decision)
+Last session: 2026-09-05T06:39:18.728Z
+Stopped at: Completed 19.1-04-PLAN.md — collision-in-place closed (duplicate id + missing settle); DEFECT 3 handed to plan 08
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.

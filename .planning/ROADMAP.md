@@ -627,7 +627,7 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 4/15 plans executed (7 waves)
+**Plans:** 5/15 plans executed (7 waves)
 
 Plans:
 **Wave 1**
@@ -638,7 +638,7 @@ Plans:
 
 - [x] 19.1-02-PLAN.md — Wave 0: the two expected-failure behaviours, the local-repro recipe, the Phase-17 tabular-figure verdict, the avatar local run
 - [x] 19.1-03-PLAN.md — Cause A: the five-row month — derive calendar geometry from the rendered grid (4 of the 14)
-- [ ] 19.1-04-PLAN.md — Cause D1: the duplicated `availability-tz-note` id — per-instance ids in both components + a census
+- [x] 19.1-04-PLAN.md — Cause D1: the duplicated `availability-tz-note` id — per-instance ids in both components + a census
 - [x] 19.1-05-PLAN.md — Harness memory (`constFromChecker`, `withJobKey`/IN-02) + SC1 completion + SC3's dropped case
 
 **Wave 3** *(blocked on Wave 2 completion)*
