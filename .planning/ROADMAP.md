@@ -683,19 +683,23 @@ Plans:
 **Wave 8** *(gap closure — the SC4 route out)*
 
 - [ ] 19.1-16-PLAN.md — TRACER · the `(host)` layout hydration: reproduce cold and in the pinned image,
-      repair the streamed nav slot, settle `host-headings` + `overflow-320` and the blocked `AC#36` tail
+      repair the streamed nav slot, settle `host-headings` + `overflow-320` and the blocked `AC#36` tail,
+      then read both owned specs absent from `gate-e2e` on a real push-triggered `ci` run joined by head SHA
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
 - [ ] 19.1-17-PLAN.md — two of the same element in one document on the booker surfaces
       (`confirmation-decay`, `avatar-crop`): read the second copy's provenance, answer the shared-cause
-      question 19.1-13 left open, repair, and prove both instruments can still fail
+      question 19.1-13 left open, repair, prove both instruments can still fail, then read its own real
+      push-triggered `ci` run — both booker specs absent, and 19.1-16's two still absent
 
 **Wave 10** *(blocked on Wave 9 completion)*
 
 - [ ] 19.1-18-PLAN.md — the day click that does not select on the checkout path: reproduce in
       `mcr.microsoft.com/playwright:v1.60.0-noble` first (19.1-08's refusal to retry without an OBSERVED
-      lost click is inherited), then account for the siblings the file-scoped serial group blocked
+      lost click is inherited), account for the siblings the file-scoped serial group blocked, then CLOSE
+      SC4's functional half — `gate-e2e (functional Playwright suite)` reads `success` on a real
+      push-triggered `ci` run, with all five specs the three e2e plans own absent from its failure list
 
 **Wave 11** *(blocked on Wave 10 completion)*
 
@@ -715,9 +719,12 @@ which is what lifts the publication hold, which is what unblocks 19.1-15.
 ⚠ **Each is its own wave deliberately, and it is not conservatism.** Every one of the four closes by
 reading a real `ci` run or a `baselines` dispatch, and the workflow's concurrency group cancels an
 in-flight run on the next push — which is how runs `33971557439` and `33971883942` already died inside
-this phase. Two of these plans executing at once would destroy each other's measurement. 19.1-17
-additionally depends on 19.1-16 by construction (its first instruction is to test whether the two are one
-defect), and 19.1-19's dispatch commits back to the branch.
+this phase. Two of these plans executing at once would destroy each other's measurement. Each of
+19.1-16/-17/-18 therefore takes exactly ONE push as its terminal task, joins the run to the **pushed head
+SHA** rather than to recency, and discards a `cancelled` conclusion by identity instead of reading it as
+green or red; each also re-verifies the specs the earlier waves closed, so a repair that reopens an earlier
+one cannot net to zero unnoticed. 19.1-17 additionally depends on 19.1-16 by construction (its first
+instruction is to test whether the two are one defect), and 19.1-19's dispatch commits back to the branch.
 
 ### Phase 20: Ops Gets Its Own Front Door — the `ops.` Host, Sign-In & Staff Onboarding
 
