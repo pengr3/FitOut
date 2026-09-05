@@ -1,0 +1,286 @@
+GUARDS — PRE-FIX MEASUREMENT for 19.1-REVIEW.md WR-03, WR-05, WR-01 and WR-02
+Captured: 2026-09-06   node v24.13.0   vitest 4.1.8   win32   working tree = dev @ 5ee557b
+
+WHAT THIS FILE IS. The green-BEFORE half of a pair. Every vector below is applied to the TRACKED
+working tree, run, and reverted; the revert is proved by a sha256 pair and an empty
+`git status --porcelain` at the foot of each section. The four findings are all "a check that cannot
+fail", so a repair that merely looks stricter is not evidence — each one is DEMONSTRATED green here
+over the exact mutation the new assertion is meant to catch, and DEMONSTRATED red in
+`guards-review-wr01-02-03-05-post-fix.txt` over the same mutation.
+
+⚠ THE REVERT IS FROM BYTE COPIES, NEVER `git checkout --`, AND THAT IS A MEASURED REQUIREMENT RATHER
+THAN A PREFERENCE. This working tree is MIXED-EOL: 24 of the `e2e/*.spec.ts` files and most of
+`tests/design/` are LF while the rest are CRLF, under `* text=auto` + `core.autocrlf=true`. The first
+run of the WR-03 script reverted with `git checkout --` and silently rewrote `e2e/price-parity.spec.ts`
+from LF to CRLF — 388 CR bytes where there had been none — while `git status` still read clean, because
+the clean filter normalises both spellings to the same blob. The file was restored to its original
+bytes (sha256 cc7b8acb…, confirmed identical) and every script since restores from a byte copy taken
+before the first mutation. A `git status` that reads clean is NOT a proof of a byte-exact revert on
+this tree.
+
+⚠ EVERY MUTATION PRINTS AN APPLIED COUNT, and nothing in the mutation helper hardcodes a newline —
+`eolOf` derives the terminator from the text being edited and a zero applied-count exits non-zero
+before the run. This exists because the previous repair's one-to-one probe spelled a line break as
+`\n` against a CRLF checkout, the loosening silently did not apply, and the suite reported 47/47 green
+— a transcript that read as "the case survives its own conjunct being deleted"
+(19.1-REVIEW.md WR-04's resolution block records it).
+
+ELISION RULE: for each run the transcript prints the exit code, the runner's own summary line(s)
+verbatim, and every failing case name. Nothing else is printed, so an absent failure list means there
+were no failures rather than that they were selected out.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+SECTION 1 — WR-03: the known-failures pin counts entries but never locates them
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+SUBJECT: tests/design/e2e-known-failures.test.ts
+CLAIM UNDER TEST: `PINNED_ENTRY_TOTAL = 2` is enforced, but nothing asserts WHERE the two entries
+live, so a SUBSTITUTION at an unchanged total is green.
+
+THE THREE VECTORS, all with `PINNED_ENTRY_TOTAL` untouched at 2, both pinned paths still present and
+still walked, and both planted entries well-formed (a `!!process.env.CI` condition and a plain
+string-literal reason over the 120-character floor, so the reason/condition assertions cannot be what
+fires):
+
+  S — SUBSTITUTION. The entry leaves `e2e/tabular-figures.spec.ts` (its `test.fail(` renamed so the
+      census pattern no longer matches) and an equivalent one appears in `e2e/price-parity.spec.ts`,
+      which is neither a pinned path nor a forbidden one.
+  C — COLLAPSE. The same entry moves instead into `e2e/avatar-crop.spec.ts` — the OTHER pinned spec —
+      so both entries end up in one file and containment alone would still hold.
+  G — POSITIVE CONTROL, which must stay GREEN in both halves of the pair. The entry moves to a
+      DIFFERENT LINE of the same spec. The pin is over PATHS on purpose, and an allow-list with no
+      legitimate member is a red-only instrument that gets widened by the first person it inconveniences.
+
+--- transcript ---
+
+--- sha256 BEFORE ---
+563330e5b97394e809ad78eb15713d4ad4f5bd20af0dcbbe975b9e48ad3a1395 *e2e/tabular-figures.spec.ts
+cc7b8acb9984a88ebf0d4f92a80e1bd4efe19dcbd45a3e2bfa16d7b2540cc6c9 *e2e/price-parity.spec.ts
+5f0f866c8a191eb73ec9c057a59412f7b136a2c517772c3b0f13b67ce1ed8058 *e2e/avatar-crop.spec.ts
+023fec1c9045ad9d9a0746b9205257148c8c81eb90d2ac68f746a8399a0e8075 *tests/design/e2e-known-failures.test.ts
+
+=== CONTROL — unmutated tracked tree (must be GREEN) ===
+exit=0
+Test Files  1 passed (1)
+Tests  7 passed (7)
+
+=== VECTOR S — SUBSTITUTION: the entry leaves tabular-figures and reappears in price-parity (TOTAL STAYS 2) ===
+APPLIED=1  file=e2e/tabular-figures.spec.ts  eol=CRLF
+APPLIED=1  file=e2e/price-parity.spec.ts  eol=LF
+exit=0
+Test Files  1 passed (1)
+Tests  7 passed (7)
+
+=== VECTOR C — COLLAPSE: the entry leaves tabular-figures and reappears in the OTHER PINNED spec (TOTAL STAYS 2 and containment still holds) ===
+APPLIED=1  file=e2e/tabular-figures.spec.ts  eol=CRLF
+APPLIED=1  file=e2e/avatar-crop.spec.ts  eol=CRLF
+exit=0
+Test Files  1 passed (1)
+Tests  7 passed (7)
+
+=== POSITIVE CONTROL G — the entry moves to a DIFFERENT LINE OF THE SAME SPEC (must stay GREEN: the pin is over PATHS, not line numbers) ===
+APPLIED=1  file=e2e/tabular-figures.spec.ts  eol=CRLF
+APPLIED=1  file=e2e/tabular-figures.spec.ts  eol=CRLF
+exit=0
+Test Files  1 passed (1)
+Tests  7 passed (7)
+
+--- sha256 AFTER (equals the block above) ---
+563330e5b97394e809ad78eb15713d4ad4f5bd20af0dcbbe975b9e48ad3a1395 *e2e/tabular-figures.spec.ts
+cc7b8acb9984a88ebf0d4f92a80e1bd4efe19dcbd45a3e2bfa16d7b2540cc6c9 *e2e/price-parity.spec.ts
+5f0f866c8a191eb73ec9c057a59412f7b136a2c517772c3b0f13b67ce1ed8058 *e2e/avatar-crop.spec.ts
+023fec1c9045ad9d9a0746b9205257148c8c81eb90d2ac68f746a8399a0e8075 *tests/design/e2e-known-failures.test.ts
+--- git status --porcelain -- e2e tests ---
+(empty)
+
+VERDICT: WR-03 REPRODUCED. Two different quarantine moves are green at 7 passed with the total
+unchanged at 2. The guard's own name — "the allowlist cannot silently grow" — is satisfied while a
+quarantine has moved.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+SECTION 2 — WR-05: the D-A2 repair's month VALUE is never asserted, only the prop's presence
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+SUBJECT: tests/design/calendar-plate-month.test.tsx, against src/app/listings/[id]/(detail)/loading.tsx
+CLAIM UNDER TEST: the mount-site census asserts `/<CalendarMonthSkeleton\s+month=\{/`, which ANY
+expression satisfies, so the arithmetic that produces the month is unguarded.
+
+VECTOR M1 — a 0-based slip: ` - 1` on the month expression, the edit someone applying `Date`'s
+convention makes in a file whose prop is 1-based. Today is 2026-09-06, so in the launch zone the
+derivation answers 9 and the mutation answers 8:
+
+    weekRowsForMonth({year: 2026, month: 9}) = 5      ← September 2026, what the grid renders
+    weekRowsForMonth({year: 2026, month: 8}) = 6      ← August 2026, what the mutated plate reserves
+
+That is a one-row plate-versus-grid disagreement — D-A2's 52.81px layout shift, restored. (In January
+the same slip produces `month: 0`, which `weekRowsForMonth` does not reject: `Date.UTC(2027, -1, 1)`
+resolves to December 2026 and returns a plausible 5.)
+
+--- transcript ---
+
+--- sha256 (pre-fix pair) ---
+026178e057852246f28bed66939f01f53f0e5e7c7e878c2f5217d2c4f28da6b0 *src/app/listings/[id]/(detail)/loading.tsx
+4894a4eb635692fa14a1aa8341cbf485f76f9a9578e5f56ab35a996d4df17ca4 *tests/design/calendar-plate-month.test.tsx
+
+=== PRE-FIX CONTROL — whole design suite, unmutated ===
+exit=0
+Test Files  81 passed (81)
+Tests  1426 passed | 3 skipped (1429)
+
+=== PRE-FIX VECTOR M1 — a 0-based slip: ` - 1` on the month expression (WHOLE SUITE) ===
+APPLIED=1  file=src/app/listings/[id]/(detail)/loading.tsx  eol=CRLF
+exit=0
+Test Files  81 passed (81)
+Tests  1426 passed | 3 skipped (1429)
+
+(The control's 1426 rather than the phase brief's 1424 is this repair's own WR-03 pair, already in the
+tree when this section was captured. Both runs above are at the same tree state except for the ` - 1`,
+so the pair is a like-for-like comparison; the WR-03 fix touches nothing this section measures.)
+
+VERDICT: WR-05 REPRODUCED. D-A2 is reproducible under a fully green suite. The two
+`CalendarMonthSkeleton` render suites pass their own literal months, the hydration harness passes
+`SIX_ROW_MONTH`, and the purity census only forbids clock reads — none of them looks at the number the
+mount site computes.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+SECTION 3 — WR-01: the two refund sentences are jointly exhaustive but never mutually exclusive
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+SUBJECT: e2e/cancel.spec.ts, run against the real app and the real dev Postgres
+        (`npx playwright test e2e/cancel.spec.ts --project=chromium`; `reuseExistingServer: false`, so
+        each run boots its own `npm run dev`).
+
+WHICH BRANCH THIS MACHINE TAKES, MEASURED RATHER THAN ASSUMED. The audit rows the spec's teardown does
+not delete record it: every `e2e_cx_booking_*` cancellation on this box writes
+`action='refund_dispatch_failed', outcome='needs_attention'`, so `refundNeedsManualReturn` is TRUE and
+branch 1 (the manual-return notice) is the local branch — the same branch CI takes, and for the same
+reason. Both halves of every vector below are therefore read on the branch the finding is about.
+
+VECTOR B — BOTH sentences render. The product's fork is a ternary, so "both" is not reachable today;
+the mutation splits it into two independent renders:
+
+    -          ) : refundLine ? (
+    +          ) : null}{refundLine ? (
+
+⚠ THE PROOF THAT THIS MUTATION APPLIED AS INTENDED IS IN THE POST-FIX FILE, NOT HERE. A green run
+cannot distinguish "both sentences rendered and the assertion passed anyway" from "only the
+manual-return sentence rendered". The post-fix run of the identical mutation fails with
+`Received string: "both (1 manual-return, 1 in-transit)"` — a count read off the page — which is what
+establishes that both were on screen for the green below.
+
+VECTOR N — NEITHER sentence renders (`false &&` on the first arm, `false ?` on the second). This is the
+CONTROL for the repair: the pre-fix assertion did catch a genuine absence, and the post-fix one must
+still.
+
+--- transcript ---
+
+--- sha256 BEFORE ---
+3f8c153fd2bd0c5ce625fe452fb6563a8a19ce0e94b76e412fa728d8d2876e16 *e2e/cancel.spec.ts   (post-fix; the pre-fix bytes were restored for this section)
+26ad17e7421294eba3359ac30e98cf0ea0edd26d31b83f93ae67cdf4292ea3e6 *src/app/(app)/bookings/[id]/page.tsx
+
+=== PRE-FIX CONTROL — unmutated product (must be GREEN) ===
+exit=0
+ok 1 ... bookings list → cancel review → exact itemised refund → confirm → same amount persisted (11.7s)
+ok 2 ... re-opening the review screen for an already-cancelled booking redirects, never re-refunds (2.6s)
+2 passed (23.0s)
+
+=== PRE-FIX VECTOR B — BOTH sentences render (the ternary split into two renders) ===
+APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF
+exit=0
+ok 1 ... (12.7s)
+ok 2 ... re-opening the review screen for an already-cancelled booking redirects, never re-refunds (2.1s)
+2 passed (26.7s)
+
+=== PRE-FIX VECTOR N — NEITHER sentence renders (a genuine money defect; must be RED) ===
+APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF
+APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF
+exit=1
+ok 1 ... (11.9s)
+1 failed
+1 passed (24.4s)
+Error: NEITHER money sentence rendered on a cancelled booking with a positive refund, and exactly one of them must. The two are:
+They are mutually exclusive and jointly exhaustive for refund_cents > 0, so a page showing neither means the cancelled branch did not render its money statement at all — the booker was told nothing about their money.
+
+VERDICT: WR-01 REPRODUCED. A page telling the booker BOTH that their money is on its way AND that a
+person will hand it back passes, on the money path, in the one file D-01 forbids quarantining. The
+`else` arm catches "neither" (vector N, correctly red); nothing catches "both".
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+SECTION 4 — WR-02: the branch selector reads the page with two non-retrying `count()` calls
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+SUBJECT: e2e/cancel.spec.ts:295-296 (pre-fix line numbers).
+
+⚠ THE FINDING'S STATED MECHANISM DOES NOT REPRODUCE, AND THAT IS RECORDED RATHER THAN TIDIED AWAY.
+WR-02 argues that `waitForURL` resolves on navigation commit and that the two `toHaveCount(0)`
+assertions above are satisfied by a still-streaming pending shell, so both `count()` calls can read
+zero on a slow render. VECTOR T tested exactly that: a 6-second `await` inserted into the CANCELLED
+branch of `src/app/(app)/bookings/[id]/page.tsx`, immediately above `const manualReturn = …`, so the
+render sits behind the route's own `loading.tsx` boundary for six seconds.
+
+    === PRE-FIX VECTOR T — the cancelled render is 6s behind its own loading.tsx boundary ===
+    APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF
+    exit=0
+    ok 1 ... (12.3s)
+    ok 2 ... re-opening the review screen ... (7.6s)     ← 2.6s unmutated: the delay DID take effect
+    2 passed (30.9s)
+
+The delay is measurably present (test 2 goes 2.6s → 7.6s) and the spec stays GREEN. The reason is that
+test 2 arrives by `page.goto`, which waits for `load`, and Next holds the streaming HTTP response open
+until every Suspense boundary resolves — so `goto` absorbs the whole six seconds and the two bare
+reads happen AFTER the money statement is in the DOM. A slow SERVER render cannot produce the state
+the finding describes on this navigation.
+
+WHAT DOES PRODUCE IT — VECTOR T2, which is the honest reproduction of the same failure CLASS. The one
+way a money sentence can be absent at the instant `goto` returns is for it to arrive after `load`,
+i.e. from the client. T2 wraps the fork in a temporary `"use client"` component that renders its
+children 3 seconds after hydration (created and deleted inside the probe; it is never committed):
+
+    src/components/booking/wr02-late-mount.tsx      ← temporary, deleted at the end of the run
+    +import { LateMount } from "@/components/booking/wr02-late-mount";
+    -          {manualReturn && amountLabel !== null ? (
+    +          <LateMount>{manualReturn && amountLabel !== null ? (
+    -          ) : null}
+    +          ) : null}</LateMount>
+
+--- transcript (T2) ---
+
+=== VECTOR T2 · PRE-FIX — the money statement arrives 3s AFTER load (two bare count() reads) ===
+APPLIED=1  file=src/components/booking/wr02-late-mount.tsx  (temporary client component created)
+APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF     ← the import
+APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF     ← <LateMount> opened
+APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF     ← </LateMount> closed
+exit=1
+ok 1 ... bookings list → cancel review → exact itemised refund → confirm → same amount persisted
+1 failed
+1 passed (25.1s)
+Error: NEITHER money sentence rendered on a cancelled booking with a positive refund, and exactly one of them must. The two are:
+328 |         `NEITHER money sentence rendered on a cancelled booking with a positive refund, and exactly ` +
+
+(The post-fix half of this same vector — the identical page, polled — is GREEN at 2 passed. The pair
+is what makes this a false red rather than a real one.)
+
+VERDICT: WR-02 REPRODUCED IN ITS CONSEQUENCE, NOT IN ITS STATED CAUSE. The two bare `count()` reads
+report a money defect — *"the booker was told nothing about their money"* — against a page whose money
+statement is present three seconds later and whose product is not broken at all. The failure names
+`src/app/(app)/bookings/[id]/page.tsx` and `manual-return-notice.tsx` and sends the next reader after
+a bug that is not there, on the one file D-01 protects from quarantine. The finding's own mechanism
+(a still-streaming shell surviving `waitForURL`) is REFUTED above; the fragility it names is real, and
+it is that the assertion's correctness rests on an unstated invariant — that `page.goto` fully settled
+the document — which no line of the spec asserts and which a later edit to the navigation would remove
+silently.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+FOOT — the tree after this file's measurements
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+--- sha256 AFTER (equals each section's BEFORE block) ---
+3f8c153fd2bd0c5ce625fe452fb6563a8a19ce0e94b76e412fa728d8d2876e16 *e2e/cancel.spec.ts
+26ad17e7421294eba3359ac30e98cf0ea0edd26d31b83f93ae67cdf4292ea3e6 *src/app/(app)/bookings/[id]/page.tsx
+--- git status --porcelain -- e2e src tests ---
+ M e2e/cancel.spec.ts                                   ← this repair's own WR-01/WR-02 fix
+ M src/app/listings/[id]/(detail)/loading.tsx           ← this repair's own WR-05 fix
+ M tests/design/e2e-known-failures.test.ts              ← this repair's own WR-03 fix
+ M tests/design/calendar-plate-month.test.tsx           ← this repair's own WR-05 fix
+(no product file and no unrelated spec is modified; `src/components/booking/wr02-late-mount.tsx` is
+ absent, which is the proof the temporary client component was deleted)

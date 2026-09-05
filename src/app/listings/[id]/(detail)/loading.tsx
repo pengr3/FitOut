@@ -83,12 +83,46 @@
 import { tz } from "@date-fns/tz";
 import { format } from "date-fns";
 
-import { CalendarMonthSkeleton } from "@/components/availability/availability-calendar";
+import {
+  CalendarMonthSkeleton,
+  type MonthLocal,
+} from "@/components/availability/availability-calendar";
 import { PanelSkeleton } from "@/components/patterns/panel-skeleton";
 import { MOSAIC_ASPECT } from "@/lib/design/measurements";
 
 /** The launch region — `src/lib/db/schema.ts:223`'s `timezone` default, and the reason above. */
 const PLATE_MONTH_TZ = "Asia/Manila";
+
+/**
+ * THE PLATE'S MONTH AS A FUNCTION OF ONE INSTANT — exported so its VALUE can be asserted rather than
+ * its shape (19.1-REVIEW.md WR-05).
+ *
+ * ⚠ WHY THIS IS A NAMED EXPORT AND NOT THREE LINES IN THE COMPONENT BODY, WHICH IS WHERE IT LIVED.
+ * The mount-site census below in `tests/design/calendar-plate-month.test.tsx` could only reach the
+ * component's SOURCE, so all it could assert was `/<CalendarMonthSkeleton\s+month=\{/` — a regex ANY
+ * expression satisfies. The whole correctness of the D-A2 repair was in the arithmetic that regex did
+ * not look at, and it was MEASURED silently undoable: adding `- 1` here (the slip someone applying
+ * `Date`'s 0-based convention makes) reserves AUGUST's six rows against SEPTEMBER's five-row grid —
+ * D-A2's 52.81px shift, verbatim — with the design suite green at 81 files / 1426 passed. The
+ * evidence pair is `evidence/guards-review-wr01-02-03-05-{pre,post}-fix.txt` § WR-05.
+ *
+ * ⚠ `month` IS 1-BASED, which is `MonthLocal`'s declared convention and NOT `Date`'s.
+ * `weekRowsForMonth` validates nothing, so `{year: 2027, month: 0}` does not throw — it resolves
+ * through `Date.UTC(2027, -1, 1)` to December 2026 and returns a plausible 5. That is why the value
+ * is asserted at three named instants (a 0-based slip, a UTC-instead-of-Manila slip and a
+ * year-rollover slip each redden a different one) rather than range-checked here.
+ *
+ * The instant is a PARAMETER rather than a clock read for the reason the whole block above states:
+ * this file reads the clock exactly once, at the mount, and everything downstream of that read is a
+ * serialized number.
+ */
+export function plateMonthAt(now: Date): MonthLocal {
+  const inLaunchTz = tz(PLATE_MONTH_TZ);
+  return {
+    year: Number(format(now, "yyyy", { in: inLaunchTz })),
+    month: Number(format(now, "M", { in: inLaunchTz })),
+  };
+}
 
 export default function ListingDetailLoading() {
   // THE ONE CLOCK READ, in `(detail)/page.tsx:437-455`'s own idiom — `new Date()` formatted `{ in: tz }`
@@ -101,12 +135,12 @@ export default function ListingDetailLoading() {
   // right about client components and merely blunt here: this one renders on the server, once per
   // request, and the value it produces is serialized rather than re-derived. Recorded because
   // "simplify to Date.now()" is a plausible edit that turns the build red.
-  const nowInLaunchTz = tz(PLATE_MONTH_TZ);
-  const now = new Date(); // ONE read, bound once — two reads could straddle the boundary this repair is about
-  const plateMonth = {
-    year: Number(format(now, "yyyy", { in: nowInLaunchTz })),
-    month: Number(format(now, "M", { in: nowInLaunchTz })),
-  };
+  //
+  // ⚠ THE DERIVATION IS `plateMonthAt`, AND THE MOUNT-SITE CENSUS ASSERTS THAT IT STILL IS. Inlining
+  // the arithmetic back into this body — the plausible "tidy-up" — leaves the exported helper correct
+  // and unused, which the value cases above cannot see. `calendar-plate-month.test.tsx` reads the
+  // identifier out of the `month={…}` prop and requires it to be bound to a call to this function.
+  const plateMonth = plateMonthAt(new Date()); // ONE read, bound once — two reads could straddle the boundary this repair is about
 
   return (
     // Container is `listings/[id]/(detail)/page.tsx`'s own, verbatim.

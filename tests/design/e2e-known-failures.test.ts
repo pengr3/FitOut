@@ -73,6 +73,31 @@
 //
 // Each mutation was reverted with a `git hash-object` pair and a `git status --porcelain` proof, and
 // the file was green (7 passed) after each.
+//
+// ── THE TWO ADDED BY 19.1-REVIEW.md WR-03, AND THE ONE THAT MUST STAY GREEN ───────────────────────
+//
+// WR-03's measurement: the four reds above are all about the TOTAL, and a total is only half a pin.
+// Both vectors below were run against the TRACKED tree with `PINNED_ENTRY_TOTAL` untouched at 2 and
+// with both pinned paths still present and still walked, and BOTH were GREEN at 7 passed before the
+// two assertions named below existed — a guard whose name is "the allowlist cannot silently grow"
+// passing over a quarantine that had MOVED. Transcripts, with the applied-count beside every
+// mutation and a sha256 revert pair: `evidence/guards-review-wr01-02-03-05-{pre,post}-fix.txt`.
+//
+//   (e) SUBSTITUTION — the entry leaves `e2e/tabular-figures.spec.ts` and an equally well-formed one
+//       appears in `e2e/price-parity.spec.ts`, which is not a pinned path and not a forbidden one.
+//       Count unchanged at 2. Caught by the CONTAINMENT test ("every allowlist entry lives in a spec
+//       `PINNED_ENTRY_SPECS` names") — and, because the vacated spec is also a pinned one, by the
+//       OCCUPANCY test beside it. Each was proved to catch it ALONE by loosening the other.
+//   (f) COLLAPSE — the same entry moves into `e2e/avatar-crop.spec.ts`, the OTHER pinned spec, so
+//       both entries now live in one file. Count unchanged at 2 and containment still holds, because
+//       every entry is in a pinned path. Caught by the OCCUPANCY test only. It is why containment
+//       alone is not the whole repair: `PINNED_ENTRY_SPECS` is a list of WHERE, and a `⊆` assertion
+//       cannot notice that one of the wheres is now empty.
+//   (g) POSITIVE CONTROL, WHICH MUST STAY GREEN — the entry moves to a DIFFERENT LINE of the same
+//       spec. Verified green at 7 passed. The pin is over PATHS on purpose (see
+//       `PINNED_ENTRY_SPECS`' docblock), and a guard that reddened on an unrelated edit above an
+//       entry is a guard people delete. An allow-list with no legitimate member is a red-only
+//       instrument, and a red-only instrument gets widened by the first person it inconveniences.
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -131,6 +156,26 @@ const PINNED_ENTRY_TOTAL = 2;
  * Paths only — NOT line numbers. Line numbers move on any edit above them (19.1-08, 19.1-10 and this
  * plan each found a cited `:NNN` had drifted), and a guard that reddens on an unrelated edit is a
  * guard people delete.
+ *
+ * ⚠ THIS TABLE IS ASSERTED IN BOTH DIRECTIONS, AND THAT IS WHAT MAKES IT A LOCATION PIN RATHER THAN A
+ * SECOND COPY OF THE COUNT (19.1-REVIEW.md WR-03). Three assertions run over it, and together they
+ * are a BIJECTION rather than three separate softer claims:
+ *
+ *   • `PINNED_ENTRY_SPECS.length === PINNED_ENTRY_TOTAL`   — this table and that number agree;
+ *   • every collected entry's spec IS in this table         — CONTAINMENT, so an entry cannot appear
+ *                                                             anywhere this table does not name;
+ *   • every path in this table CARRIES an entry             — OCCUPANCY, so an entry cannot quietly
+ *                                                             vacate a named path either.
+ *
+ * With the total pinned at 2 and the table holding 2 paths, those three force exactly one entry per
+ * listed path. Drop either of the last two and a SUBSTITUTION at an unchanged total goes green: that
+ * was WR-03's measurement, reproduced against the tracked tree before the two tests were written
+ * (header, watched reds (e) and (f)).
+ *
+ * ⚠ IF A FUTURE ENTRY LEGITIMATELY SHARES A FILE WITH AN EXISTING ONE, the bijection is what will go
+ * red, and the correct response is to say so here — this table becomes a list of paths with a stated
+ * multiplicity, and the length assertion above changes with it. The wrong response is to delete the
+ * occupancy test, which is the only thing standing between this list and a quarantine that has moved.
  */
 const PINNED_ENTRY_SPECS = [
   "e2e/avatar-crop.spec.ts",
@@ -435,6 +480,59 @@ describe("D-03 — the known-failures allowlist cannot silently grow", () => {
         "depend on filesystem enumeration order and a diff between two runs would not mean a change " +
         "in the allowlist.",
     ).toEqual(sorted.map(locate));
+  });
+
+  // ── WHERE THE ENTRIES ARE, WHICH THE TOTAL ABOVE CANNOT SEE (19.1-REVIEW.md WR-03) ──────────────
+  //
+  // These two are deliberately SEPARATE `it` blocks rather than two more `expect`s inside the count
+  // test, and the reason is the one-to-one proof: a conjunct that shares a case with another cannot
+  // be shown to be the thing that caught a given mutation. Loosening either one alone leaves the
+  // substitution vector caught by exactly one named case (header, (e) and (f)).
+
+  it("every allowlist entry lives in a spec `PINNED_ENTRY_SPECS` NAMES — a substitution at an unchanged total is red", () => {
+    const entries = collectEntries();
+
+    const unpinned = [...new Set(entries.map((e) => e.spec))].filter(
+      (spec) => !(PINNED_ENTRY_SPECS as readonly string[]).includes(spec),
+    );
+    expect(
+      unpinned,
+      `Allowlist entr${unpinned.length === 1 ? "y lives" : "ies live"} in ${unpinned.join(", ") || "(none)"}, ` +
+        "which `PINNED_ENTRY_SPECS` does not name.\n" +
+        `THE TOTAL IS ONLY HALF THE PIN. An entry deleted from one spec and added to another keeps the ` +
+        `count at ${PINNED_ENTRY_TOTAL}, keeps both pinned paths resolvable, and keeps them walked — ` +
+        "so every other assertion in this file stays green while the docblock above describes a " +
+        "quarantine that has MOVED. That is a guard whose name (\"the allowlist cannot silently " +
+        "grow\") is satisfiable by a silent SUBSTITUTION, which is the same defect shape one level up " +
+        "from the count.\n" +
+        "THE CORRECT RESPONSE: write the new entry's clause into `PINNED_ENTRY_TOTAL`'s docblock and " +
+        "add its path to `PINNED_ENTRY_SPECS`, in the same commit as the annotation itself. If the " +
+        "entry moved because a spec was RENAMED, move the path here instead — same commit, same rule. " +
+        "⚠ If the spec named above sits on a money path, read `FORBIDDEN_ENTRY_FILES` before you add " +
+        "anything at all.",
+    ).toEqual([]);
+  });
+
+  it("every spec `PINNED_ENTRY_SPECS` names STILL CARRIES an entry — a pinned path cannot quietly empty", () => {
+    const entries = collectEntries();
+
+    const carrying = new Set(entries.map((e) => e.spec));
+    const vacated = PINNED_ENTRY_SPECS.filter((spec) => !carrying.has(spec));
+    expect(
+      vacated,
+      `\`PINNED_ENTRY_SPECS\` names ${vacated.join(", ") || "(none)"}, which carr${vacated.length === 1 ? "ies" : "y"} ` +
+        "no allowlist entry at all.\n" +
+        "THE OTHER HALF OF THE LOCATION PIN, and containment cannot see it: if BOTH entries end up in " +
+        "ONE of the two pinned specs, every entry is still in a named path, the count is still " +
+        `${PINNED_ENTRY_TOTAL}, and a quarantine has still moved. Containment is \`⊆\`; this is the ` +
+        "`⊇` that turns the pair into an identity.\n" +
+        "THE CORRECT RESPONSE, and it depends on WHY the path emptied. If the failure was REPAIRED — " +
+        "which is the outcome this phase wants — delete its clause from `PINNED_ENTRY_TOTAL`'s " +
+        "docblock, remove its path here, and move the number DOWN, all in the same commit; the next " +
+        "reader must not inherit a list claiming a quarantine that no longer exists. If the entry " +
+        "merely MOVED, put it back or record where it went. Never satisfy this by adding a fresh " +
+        "annotation to the vacated file.",
+    ).toEqual([]);
   });
 
   it("every entry carries a reason that is a STRING LITERAL and long enough to be read", () => {

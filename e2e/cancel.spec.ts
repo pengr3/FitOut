@@ -288,14 +288,87 @@ test.describe("booker cancellation — the previewed refund is the refund given 
     const manualReturnSentence = page.getByText(/coming back to you/i);
     const inTransitSentence = page.getByText(/refund on its way/i);
 
-    // A NON-THROWING COUNT, DELIBERATELY. A visibility assertion cannot select a branch — it can only
-    // end the test — and selecting the branch is the whole point of the repair. `count()` resolves to a
-    // number for both an absent and a present locator, so the fork below is decided by a measurement
-    // rather than by a caught exception.
-    const manualReturnCount = await manualReturnSentence.count();
-    const inTransitCount = await inTransitSentence.count();
+    // ══ THE BRANCH IS SELECTED BY A POLL, NOT BY TWO POINT-IN-TIME READS (19.1-REVIEW.md WR-01/WR-02)
+    //
+    // A NON-THROWING MEASUREMENT, DELIBERATELY, AND THAT PART WAS ALWAYS RIGHT. A visibility assertion
+    // cannot select a branch — it can only end the test — and selecting the branch is the whole point
+    // of the repair 19.1-07 made. `count()` resolves to a number for both an absent and a present
+    // locator, so the fork below is decided by a measurement rather than by a caught exception.
+    //
+    // ⚠ WHAT WAS WRONG WITH DOING IT IN TWO BARE `await …count()` READS, AND BOTH HALVES ARE MEASURED
+    // (`evidence/guards-review-wr01-02-03-05-{pre,post}-fix.txt` § WR-01/WR-02):
+    //
+    //   • WR-02 — `locator.count()` HAS NO AUTO-WAIT AND NO RETRY, unlike the `expect(...).toBeVisible()`
+    //     it replaced, which polled. Nothing above settles this page either: `waitForURL` resolves on
+    //     navigation COMMIT, and the two `toHaveCount(0)` assertions at :251-255 are satisfied
+    //     IMMEDIATELY by a still-streaming pending shell — a locator that has not rendered yet also has
+    //     count 0. Both counts therefore read zero on a slow render and the `else` arm below threw
+    //     *"the booker was told nothing about their money"*: a timing flake wearing the costume of a
+    //     money defect, on the one file D-01 forbids quarantining, whose message sends the next reader
+    //     into `bookings/[id]/page.tsx` and `manual-return-notice.tsx` after a bug that is not there.
+    //     REPRODUCED by delaying the cancelled render 6s behind its own `loading.tsx` boundary: the
+    //     two bare reads failed by name, this poll passes, and NOTHING WAS SCOPED OR RELAXED to get
+    //     there — the genuinely-absent case below still goes red, which is the whole test of a fix
+    //     like this one (plan 13 flagged exactly the opposite move on `confirmation-decay`: scoping a
+    //     locator to restore green deleted the only instrument that had named a real bug).
+    //
+    //   • WR-01 — the fork's own prose states the property twice ("mutually exclusive and jointly
+    //     exhaustive for refund_cents > 0") and the two bare reads enforced only the second half. The
+    //     `else` arm catches "neither"; NOTHING caught "both". A page rendering both told the booker
+    //     two contradictory things about the same money — *"a refund is on its way"* AND *"a person
+    //     will return this by hand"* — and the old `if (manualReturnCount > 0)` took branch 1 and
+    //     PASSED, because the audit row branch 1 demands was present. REPRODUCED by splitting the
+    //     product's ternary into two independent renders: green before, red here.
+    //
+    // The poll subsumes both. `both` and `neither` are values it can never match, so a page in either
+    // state fails by name after waiting — and a page that is merely SLOW is waited for instead of
+    // being reported as a money failure. Read the received value first: it names the state that lost.
+    const MONEY_SENTENCE_TIMEOUT_MS = 15_000;
+    let branch = "neither";
+    await expect
+      .poll(
+        async () => {
+          const manual = await manualReturnSentence.count();
+          const inTransit = await inTransitSentence.count();
+          branch =
+            manual > 0 && inTransit > 0
+              ? `both (${manual} manual-return, ${inTransit} in-transit)`
+              : manual > 0
+                ? "manual-return"
+                : inTransit > 0
+                  ? "in-transit"
+                  : "neither";
+          return branch;
+        },
+        {
+          timeout: MONEY_SENTENCE_TIMEOUT_MS,
+          message:
+            `EXACTLY ONE money sentence must render on a cancelled booking with a positive refund, and ` +
+            `after ${MONEY_SENTENCE_TIMEOUT_MS}ms none did — read the received value above before anything ` +
+            `else, because the three ways to fail here mean three different things. The two sentences are:\n` +
+            `  • the IN-TRANSIT sentence, /refund on its way/i — composed at ` +
+            `src/app/(app)/bookings/[id]/page.tsx:1095-1100 and rendered by the second arm of the fork ` +
+            `at :1173-1177, when the refund dispatch was accepted;\n` +
+            `  • the MANUAL-RETURN notice, /coming back to you/i — ` +
+            `src/components/booking/manual-return-notice.tsx:111, rendered by the first arm of that same ` +
+            `fork when refundNeedsManualReturn(bk.id) is true.\n` +
+            `RECEIVED "neither": the cancelled branch never rendered its money statement at all — the ` +
+            `booker was told nothing about their money. This is now a WAITED result, not a snapshot, so ` +
+            `it is no longer a slow render; investigate which branch the dispatch took and why the ` +
+            `statement is missing.\n` +
+            `RECEIVED "both (…)": WORSE, and it is the failure the fork's own comment calls a "false ` +
+            `half". The booker is being told two contradictory things about the same figure — money is ` +
+            `on its way AND a person will hand it back — and the in-transit sentence is the false one ` +
+            `whenever the dispatch did not happen. The fork at :1173-1177 is a ternary precisely so this ` +
+            `cannot happen; something has split it. Repair the PRODUCT, never this assertion.\n` +
+            `THE CORRECT RESPONSE IS NEVER: widening this regex, scoping either locator to make the red ` +
+            `go away, raising this timeout past a real render, or allowlisting this test (D-01 — ` +
+            `permanently ineligible, it sits on the refund path).`,
+        },
+      )
+      .toMatch(/^(manual-return|in-transit)$/);
 
-    if (manualReturnCount > 0) {
+    if (branch === "manual-return") {
       // BRANCH 1 — the dispatch did not happen. This is the branch CI is always in.
       await expect(manualReturnSentence.first()).toBeVisible();
 
@@ -319,25 +392,21 @@ test.describe("booker cancellation — the previewed refund is the refund given 
           `meta->>'bookingId'=${bookingId} — so a visible notice with zero matching rows means the two ` +
           `have come apart. Find out which write was lost. Never relax this to a row-optional check.`,
       ).toBeGreaterThan(0);
-    } else if (inTransitCount > 0) {
+    } else if (branch === "in-transit") {
       // BRANCH 2 — the dispatch was accepted, so the in-transit sentence is the true one. Today's
       // behaviour, unchanged, and the branch a machine holding a working payments credential takes.
       await expect(inTransitSentence.first()).toBeVisible();
     } else {
+      // UNREACHABLE BY CONSTRUCTION, AND KEPT ANYWAY — a guard on the guard. The poll above only
+      // returns for "manual-return" or "in-transit", so arriving here means the poll's vocabulary and
+      // this fork have come apart: a value was added to one and not the other, and the test would
+      // otherwise assert NOTHING while reporting green. That is the exact defect shape this phase
+      // exists to remove, so it is a hard failure rather than a silent fall-through.
       throw new Error(
-        `NEITHER money sentence rendered on a cancelled booking with a positive refund, and exactly ` +
-          `one of them must. The two are:\n` +
-          `  • the IN-TRANSIT sentence, /refund on its way/i — composed at ` +
-          `src/app/(app)/bookings/[id]/page.tsx:1095-1100 and rendered by the second arm of the fork ` +
-          `at :1168-1176, when the refund dispatch was accepted;\n` +
-          `  • the MANUAL-RETURN notice, /coming back to you/i — ` +
-          `src/components/booking/manual-return-notice.tsx:111, rendered by the first arm of that same ` +
-          `fork when refundNeedsManualReturn(bk.id) is true.\n` +
-          `They are mutually exclusive and jointly exhaustive for refund_cents > 0, so a page showing ` +
-          `neither means the cancelled branch did not render its money statement at all — the booker ` +
-          `was told nothing about their money.\n` +
-          `THE CORRECT RESPONSE: investigate which branch the dispatch took and why the statement is ` +
-          `missing. Never relax this assertion, and never allowlist this test (D-01).`,
+        `The money-sentence poll passed with branch="${branch}", which this fork does not handle. ` +
+          `The poll's accepted set (/^(manual-return|in-transit)$/) and the branches below it are two ` +
+          `records of one decision and they have DRIFTED — nothing in this test asserted anything ` +
+          `about the booker's money on this run. Move them together, in the same commit.`,
       );
     }
 

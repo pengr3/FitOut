@@ -86,6 +86,10 @@ import {
   type MonthLocal,
 } from "@/components/availability/availability-calendar";
 import { Calendar } from "@/components/ui/calendar";
+// The mount site's own derivation, imported rather than reimplemented — see the WR-05 block at the
+// foot of this file. If the export is renamed this file stops compiling, which is the strongest form
+// the link can take (the idiom `e2e/cancel.spec.ts:31-39` states the rule for).
+import { plateMonthAt } from "@/app/listings/[id]/(detail)/loading";
 
 afterEach(() => {
   cleanup();
@@ -407,13 +411,20 @@ describe("server render and client hydration cannot disagree about the month", (
 describe("the mount site computes the month once, on the server", () => {
   const LOADING_PATH = "src/app/listings/[id]/(detail)/loading.tsx";
 
-  it("is a Server Component and passes the plate an explicit month", () => {
-    const source = readFileSync(resolve(process.cwd(), LOADING_PATH), "utf8");
+  /** The derivation's name READ from the export, never copied — PATTERNS §B. */
+  const DERIVATION = plateMonthAt.name;
 
+  /** `loading.tsx`'s code with comments blanked. Its prose names every string asserted below. */
+  function mountSiteCode(): string {
+    const source = readFileSync(resolve(process.cwd(), LOADING_PATH), "utf8");
     // Comments in this file DISCUSS `"use client"` by name — the whole hazard note is about why it
     // must not be there — so the directive census reads code only. Same trick, same reason, as
     // `tests/design/availability-tz-note-id.test.ts`.
-    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+    return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  }
+
+  it("is a Server Component and passes the plate an explicit month", () => {
+    const code = mountSiteCode();
     expect(
       code.includes("CalendarMonthSkeleton"),
       "the comment-stripping left nothing to search, so both assertions below would pass over an " +
@@ -430,6 +441,111 @@ describe("the mount site computes the month once, on the server", () => {
     expect(
       /<CalendarMonthSkeleton\s+month=\{/.test(code),
       `${LOADING_PATH} mounts CalendarMonthSkeleton without an explicit \`month\` prop.`,
+    ).toBe(true);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // 19.1-REVIEW.md WR-05 — THE MONTH'S *VALUE*, WHICH THE THREE ASSERTIONS ABOVE CANNOT SEE
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // `/<CalendarMonthSkeleton\s+month=\{/` is satisfied by ANY expression, so the whole correctness of
+  // the D-A2 repair lived in arithmetic nothing looked at. MEASURED, on the tracked tree, before the
+  // cases below existed: adding `- 1` to the month expression — the slip someone applying `Date`'s
+  // 0-based convention makes, in a file whose own prop is 1-based — left the design suite GREEN at
+  // 81 files / 1426 passed, while the plate reserved AUGUST 2026's six rows against SEPTEMBER's
+  // five-row grid. That is D-A2's 52.81px shift restored under a fully green suite. The two
+  // `CalendarMonthSkeleton` render suites above pass their own literal months, the hydration harness
+  // passes `SIX_ROW_MONTH`, and the purity census only forbids clock reads, so none of them is
+  // looking at the number the mount site actually computes.
+  // Transcript: `evidence/guards-review-wr01-02-03-05-{pre,post}-fix.txt` § WR-05.
+  //
+  // TWO CONJUNCTS, BOUND ONE-TO-ONE:
+  //   • the VALUE cases assert what `plateMonthAt` returns at three named instants;
+  //   • the BINDING case asserts the mount site still USES it — because a helper that is correct and
+  //     unused is exactly what "tidying the arithmetic back inline" produces, and the value cases
+  //     cannot see that.
+
+  describe("the derivation returns the LAUNCH-ZONE month, at the value level", () => {
+    // The three instants are chosen so that each slip reddens a DIFFERENT named case rather than all
+    // three at once: a 0-based slip moves every month, a UTC-instead-of-Manila slip only shows up
+    // within +08 of a date boundary, and a year-rollover slip only shows up across 31 December.
+    it.each([
+      {
+        at: "2026-08-31T16:30:00.000Z",
+        want: { year: 2026, month: 9 },
+        why: "00:30 on 1 September in Manila while UTC is still 31 August — a UTC read answers 8",
+      },
+      {
+        at: "2026-09-30T15:59:00.000Z",
+        want: { year: 2026, month: 9 },
+        why: "23:59 on 30 September in Manila — still September, and a 0-based slip answers 8",
+      },
+      {
+        at: "2026-12-31T16:30:00.000Z",
+        want: { year: 2027, month: 1 },
+        why: "00:30 on 1 January 2027 in Manila — the YEAR rolls with the month, and a 0-based slip " +
+          "answers month 0, which `weekRowsForMonth` does not reject: it resolves through " +
+          "Date.UTC(2027, -1, 1) to December 2026 and returns a plausible 5",
+      },
+    ])("derives $at as $want", ({ at, want, why }) => {
+      expect(
+        plateMonthAt(new Date(at)),
+        `${DERIVATION}(new Date("${at}")) must be ${JSON.stringify(want)} — ${why}.\n` +
+          "`MonthLocal.month` is 1-BASED, which is `DayLocal`'s convention throughout " +
+          "availability-calendar.tsx and NOT `Date`'s, and `weekRowsForMonth` VALIDATES NOTHING: a " +
+          "month of 0 or 13 returns a plausible row count for the wrong month instead of throwing. " +
+          "That is why this is asserted as a value rather than range-checked.\n" +
+          "THE CORRECT RESPONSE: fix the arithmetic in `plateMonthAt`. Never adjust the expectations " +
+          "here to match — these three instants ARE the contract, and D-A2 is what the plate " +
+          "reserving another month's rows looks like on screen (52.81px, ten months in twelve).",
+      ).toEqual(want);
+    });
+
+    it("gives two months in different zones-of-the-boundary different answers (non-vacuity)", () => {
+      // Guard-the-guard: if `plateMonthAt` returned a constant, every case above could still be
+      // satisfied by three separately-wrong-but-equal answers only if they agreed — they do not, and
+      // this states that they do not, so the sweep cannot degenerate.
+      const answers = new Set(
+        ["2026-08-31T16:30:00.000Z", "2026-09-30T15:59:00.000Z", "2026-12-31T16:30:00.000Z"].map(
+          (at) => JSON.stringify(plateMonthAt(new Date(at))),
+        ),
+      );
+      expect(
+        answers.size,
+        "the three instants above collapsed to fewer than two distinct months, so the case list " +
+          "could be satisfied by a derivation that ignores its argument",
+      ).toBeGreaterThan(1);
+    });
+  });
+
+  it(`the mount site's \`month\` prop is DERIVED FROM ${plateMonthAt.name}, not computed inline`, () => {
+    const code = mountSiteCode();
+
+    const propExpression = /<CalendarMonthSkeleton\s+month=\{([^}]*)\}/.exec(code)?.[1]?.trim();
+    expect(
+      propExpression,
+      `${LOADING_PATH} mounts CalendarMonthSkeleton with no readable \`month={…}\` expression.`,
+    ).toBeTruthy();
+
+    const identifier = /^[A-Za-z_$][\w$]*$/.test(propExpression!) ? propExpression! : null;
+    const derived =
+      propExpression!.startsWith(`${DERIVATION}(`) ||
+      (identifier !== null &&
+        new RegExp(`\\b(const|let|var)\\s+${identifier}\\s*=\\s*${DERIVATION}\\(`).test(code));
+
+    expect(
+      derived,
+      `${LOADING_PATH} passes \`month={${propExpression}}\`, which is not a call to \`${DERIVATION}\` ` +
+        `and is not an identifier bound to one.\n` +
+        `THE VALUE CASES ABOVE TEST ${DERIVATION}; THIS ONE TESTS THAT THE PAGE STILL USES IT. ` +
+        "Inlining the year/month arithmetic back into the component body — the plausible 'tidy-up', " +
+        "and the shape this file was repaired away from — leaves the helper correct, exported and " +
+        "UNUSED, with every value case still green over arithmetic the page no longer runs. That is " +
+        "the same defect one level up: a check satisfied by something other than what it claims to " +
+        "measure.\n" +
+        "THE CORRECT RESPONSE: pass `month={plateMonth}` with `const plateMonth = " +
+        `${DERIVATION}(new Date())\`, or call it inline. If the derivation genuinely has to change, ` +
+        "change it INSIDE the helper so the three instants above still judge it.",
     ).toBe(true);
   });
 });

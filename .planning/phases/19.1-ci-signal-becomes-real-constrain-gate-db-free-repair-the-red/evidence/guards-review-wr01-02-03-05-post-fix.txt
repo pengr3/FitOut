@@ -1,0 +1,365 @@
+GUARDS — POST-FIX MEASUREMENT for 19.1-REVIEW.md WR-03, WR-05, WR-01 and WR-02
+Captured: 2026-09-06   node v24.13.0   vitest 4.1.8   win32
+
+WHAT THIS FILE IS. The red-AFTER half of the pair opened by
+`guards-review-wr01-02-03-05-pre-fix.txt`. Every vector below is the SAME mutation that file recorded
+green, re-run against the repaired tree, plus a one-to-one probe per new conjunct and a green positive
+control wherever an allow-list or an exact-identity check was added.
+
+⚠ EVERY MUTATION PRINTS AN APPLIED COUNT, AND SO DOES EVERY LOOSENING. Reverts are from byte copies
+taken before the first mutation, never `git checkout --` (the pre-fix file records why: this tree is
+mixed-EOL and `git checkout --` silently rewrote an LF spec to CRLF while `git status` read clean).
+
+THE ONE-TO-ONE RULE USED THROUGHOUT: a conjunct is LOOSENED ALONE — by a single-line, newline-free
+substitution with a printed applied count — and the suite is re-run against each vector. A conjunct is
+proved to be the thing that caught a vector when loosening it makes that vector green while every
+other named case is unchanged.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+SECTION 1 — WR-03, RESOLVED: two new tests, and together with the existing length check they are a
+            BIJECTION between the entry census and `PINNED_ENTRY_SPECS`
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+WHAT SHIPPED, in `tests/design/e2e-known-failures.test.ts`:
+
+  • CONTAINMENT — "every allowlist entry lives in a spec `PINNED_ENTRY_SPECS` NAMES". `⊆`.
+  • OCCUPANCY  — "every spec `PINNED_ENTRY_SPECS` names STILL CARRIES an entry". `⊇`.
+
+They are deliberately two `it` blocks rather than two more `expect`s inside the count test: a conjunct
+that shares a case with another cannot be shown to be the thing that caught a given mutation. With the
+pre-existing `PINNED_ENTRY_SPECS.length === PINNED_ENTRY_TOTAL` beside them, the three force exactly
+one entry per listed path.
+
+⚠ CONTAINMENT ALONE WOULD NOT HAVE BEEN THE REPAIR, and vector C is why: with both entries collapsed
+into ONE pinned spec, every entry is still in a named path and `⊆` still holds while a quarantine has
+moved. The review's proposed fix is the `⊆` half; the `⊇` half was added after measuring that gap.
+
+--- transcript ---
+
+--- sha256 BEFORE ---
+563330e5b97394e809ad78eb15713d4ad4f5bd20af0dcbbe975b9e48ad3a1395 *e2e/tabular-figures.spec.ts
+cc7b8acb9984a88ebf0d4f92a80e1bd4efe19dcbd45a3e2bfa16d7b2540cc6c9 *e2e/price-parity.spec.ts
+5f0f866c8a191eb73ec9c057a59412f7b136a2c517772c3b0f13b67ce1ed8058 *e2e/avatar-crop.spec.ts
+4852b7acf8b3859cb8c8fd728d0d143b5eb78ab21a6dfdd604aa45d37b135f2b *tests/design/e2e-known-failures.test.ts
+
+=== CONTROL — unmutated tree, fix in place (must be GREEN) ===
+exit=0
+Test Files  1 passed (1)
+Tests  9 passed (9)
+
+=== VECTOR S — SUBSTITUTION, total unchanged at 2 (was GREEN at 7 passed pre-fix) ===
+APPLIED=1  file=e2e/tabular-figures.spec.ts  eol=CRLF
+APPLIED=1  file=e2e/price-parity.spec.ts  eol=LF
+exit=1
+Test Files  1 failed (1)
+Tests  2 failed | 7 passed (9)
+× every allowlist entry lives in a spec `PINNED_ENTRY_SPECS` NAMES — a substitution at an unchanged total is red
+× every spec `PINNED_ENTRY_SPECS` names STILL CARRIES an entry — a pinned path cannot quietly empty
+
+=== VECTOR C — COLLAPSE into the other pinned spec, total unchanged at 2 (was GREEN at 7 passed pre-fix) ===
+APPLIED=1  file=e2e/tabular-figures.spec.ts  eol=CRLF
+APPLIED=1  file=e2e/avatar-crop.spec.ts  eol=CRLF
+exit=1
+Test Files  1 failed (1)
+Tests  1 failed | 8 passed (9)
+× every spec `PINNED_ENTRY_SPECS` names STILL CARRIES an entry — a pinned path cannot quietly empty
+
+=== POSITIVE CONTROL G — same spec, different line (must stay GREEN) ===
+APPLIED=1  file=e2e/tabular-figures.spec.ts  eol=CRLF
+APPLIED=1  file=e2e/tabular-figures.spec.ts  eol=CRLF
+exit=0
+Test Files  1 passed (1)
+Tests  9 passed (9)
+
+=== ONE-TO-ONE 1 — CONTAINMENT loosened ALONE, unmutated tree (loosening alone must not redden) ===
+APPLIED=1  file=tests/design/e2e-known-failures.test.ts  eol=LF
+exit=0
+Test Files  1 passed (1)
+Tests  9 passed (9)
+
+=== ONE-TO-ONE 2 — CONTAINMENT loosened ALONE + VECTOR S (only the OCCUPANCY case may fail) ===
+APPLIED=1  file=tests/design/e2e-known-failures.test.ts  eol=LF
+APPLIED=1  file=e2e/tabular-figures.spec.ts  eol=CRLF
+APPLIED=1  file=e2e/price-parity.spec.ts  eol=LF
+exit=1
+Tests  1 failed | 8 passed (9)
+× every spec `PINNED_ENTRY_SPECS` names STILL CARRIES an entry — a pinned path cannot quietly empty
+
+=== ONE-TO-ONE 3 — OCCUPANCY loosened ALONE + VECTOR S (only the CONTAINMENT case may fail) ===
+APPLIED=1  file=tests/design/e2e-known-failures.test.ts  eol=LF
+APPLIED=1  file=e2e/tabular-figures.spec.ts  eol=CRLF
+APPLIED=1  file=e2e/price-parity.spec.ts  eol=LF
+exit=1
+Tests  1 failed | 8 passed (9)
+× every allowlist entry lives in a spec `PINNED_ENTRY_SPECS` NAMES — a substitution at an unchanged total is red
+
+=== ONE-TO-ONE 4 — OCCUPANCY loosened ALONE + VECTOR C (nothing may fail: C is occupancy's alone) ===
+APPLIED=1  file=tests/design/e2e-known-failures.test.ts  eol=LF
+APPLIED=1  file=e2e/tabular-figures.spec.ts  eol=CRLF
+APPLIED=1  file=e2e/avatar-crop.spec.ts  eol=CRLF
+exit=0
+Tests  9 passed (9)
+
+=== ONE-TO-ONE 5 — BOTH loosened + VECTOR S = THE FINDING, REPRODUCED (must be GREEN at 9) ===
+APPLIED=1  file=tests/design/e2e-known-failures.test.ts  eol=LF
+APPLIED=1  file=tests/design/e2e-known-failures.test.ts  eol=LF
+APPLIED=1  file=e2e/tabular-figures.spec.ts  eol=CRLF
+APPLIED=1  file=e2e/price-parity.spec.ts  eol=LF
+exit=0
+Tests  9 passed (9)
+
+--- sha256 AFTER (equals the block above) ---
+563330e5b97394e809ad78eb15713d4ad4f5bd20af0dcbbe975b9e48ad3a1395 *e2e/tabular-figures.spec.ts
+cc7b8acb9984a88ebf0d4f92a80e1bd4efe19dcbd45a3e2bfa16d7b2540cc6c9 *e2e/price-parity.spec.ts
+5f0f866c8a191eb73ec9c057a59412f7b136a2c517772c3b0f13b67ce1ed8058 *e2e/avatar-crop.spec.ts
+4852b7acf8b3859cb8c8fd728d0d143b5eb78ab21a6dfdd604aa45d37b135f2b *tests/design/e2e-known-failures.test.ts
+
+THE LOOSENINGS, VERBATIM (single-line, no newline in the needle, each with a printed applied count):
+  containment: `const unpinned = [...new Set(entries.map((e) => e.spec))].filter(`
+            →  `const unpinned: string[] = []; const _u1 = [...new Set(entries.map((e) => e.spec))].filter(`
+  occupancy:   `const vacated = PINNED_ENTRY_SPECS.filter((spec) => !carrying.has(spec));`
+            →  `const vacated: string[] = []; const _u2 = PINNED_ENTRY_SPECS.filter((spec) => !carrying.has(spec));`
+
+VERDICT: WR-03 CLOSED. Each conjunct catches vector S ALONE (probes 2 and 3); occupancy alone catches
+vector C (probe 4 green under its loosening, red without it in the vector-C run above); neither
+loosening reddens on its own (probe 1); removing both restores the finding exactly (probe 5). The
+positive control stays green, so the pin is a location check and not a line pin.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+SECTION 2 — WR-05, RESOLVED: the month is asserted as a VALUE, and the mount site is held to using it
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+WHAT SHIPPED:
+  • `src/app/listings/[id]/(detail)/loading.tsx` now exports `plateMonthAt(now: Date): MonthLocal` and
+    the component calls it. The clock is still read exactly once, at the mount, and the instant is a
+    parameter — so the extraction does not touch the single-source property the D-A2 repair rests on.
+  • `tests/design/calendar-plate-month.test.tsx` gains a VALUE block (three named instants) and a
+    BINDING case. The derivation's NAME is read from the export (`plateMonthAt.name`, PATTERNS §B), so
+    a rename stops this file compiling rather than silently unhooking the assertion.
+
+THE THREE INSTANTS ARE CHOSEN SO A DIFFERENT SLIP REDDENS A DIFFERENT NAMED CASE — measured below,
+not asserted: the 0-based slip (M1) reddens all three; the zone slip (M2) reddens only the two that
+straddle a Manila/UTC date boundary and leaves 2026-09-30T15:59Z green.
+
+⚠ THE BINDING CASE GUARDS A HOLE THIS REPAIR ITSELF OPENED, AND THAT IS STATED RATHER THAN IMPLIED.
+Before the extraction there was no way for the page to "stop using the helper", because there was no
+helper. Vector M3 is therefore not a reproduction of a pre-existing green — it is the new failure mode
+the extraction creates (a helper that is correct, exported and unused, with every value case still
+green over arithmetic the page no longer runs), closed in the same commit that creates it.
+
+--- transcript ---
+
+--- sha256 (pre-fix pair) ---
+026178e057852246f28bed66939f01f53f0e5e7c7e878c2f5217d2c4f28da6b0 *src/app/listings/[id]/(detail)/loading.tsx
+4894a4eb635692fa14a1aa8341cbf485f76f9a9578e5f56ab35a996d4df17ca4 *tests/design/calendar-plate-month.test.tsx
+--- sha256 (post-fix pair) ---
+9b3defbd0501084af2a2c7576fb6310c672fa0eb0ffa14628d8c217c907bdf66 *src/app/listings/[id]/(detail)/loading.tsx
+d15c3cbf554cbb3642a97b5da0ff2c2f4b3f4d076f2f39eb1a3a7cbc67f408f2 *tests/design/calendar-plate-month.test.tsx
+
+=== POST-FIX CONTROL — the repaired file, unmutated (must be GREEN) ===
+exit=0
+Test Files  1 passed (1)
+Tests  15 passed (15)
+
+=== VECTOR M1 — the SAME 0-based slip that was green over the whole suite pre-fix ===
+APPLIED=1  file=src/app/listings/[id]/(detail)/loading.tsx  eol=CRLF
+exit=1
+Tests  3 failed | 12 passed (15)
+× derives '2026-08-31T16:30:00.000Z' as { year: 2026, month: 9 }
+× derives '2026-09-30T15:59:00.000Z' as { year: 2026, month: 9 }
+× derives '2026-12-31T16:30:00.000Z' as { year: 2027, month: 1 }
+
+=== VECTOR M2 — the zone slip: the launch zone replaced by UTC ===
+APPLIED=1  file=src/app/listings/[id]/(detail)/loading.tsx  eol=CRLF
+exit=1
+Tests  2 failed | 13 passed (15)
+× derives '2026-08-31T16:30:00.000Z' as { year: 2026, month: 9 }
+× derives '2026-12-31T16:30:00.000Z' as { year: 2027, month: 1 }
+    ↑ 2026-09-30T15:59Z stays GREEN — the two instants that straddle a Manila/UTC date boundary are
+      the ones that discriminate a zone slip, which is why they are three cases and not one.
+
+=== VECTOR M3 — the helper is left correct and UNUSED: the arithmetic is inlined back ===
+APPLIED=1  file=src/app/listings/[id]/(detail)/loading.tsx  eol=CRLF
+exit=1
+Tests  1 failed | 14 passed (15)
+× the mount site's `month` prop is DERIVED FROM plateMonthAt, not computed inline
+
+=== ONE-TO-ONE 1 — VALUE conjunct loosened ALONE + M1 (nothing may fail) ===
+APPLIED=1  file=tests/design/calendar-plate-month.test.tsx  eol=LF
+APPLIED=1  file=src/app/listings/[id]/(detail)/loading.tsx  eol=CRLF
+exit=0
+Tests  15 passed (15)
+
+=== ONE-TO-ONE 2 — BINDING conjunct loosened ALONE + M3 (nothing may fail) ===
+APPLIED=1  file=tests/design/calendar-plate-month.test.tsx  eol=LF
+APPLIED=1  file=src/app/listings/[id]/(detail)/loading.tsx  eol=CRLF
+exit=0
+Tests  15 passed (15)
+
+=== ONE-TO-ONE 3 — VALUE conjunct loosened ALONE + M3 (only the BINDING case may fail) ===
+exit=1
+Tests  1 failed | 14 passed (15)
+× the mount site's `month` prop is DERIVED FROM plateMonthAt, not computed inline
+
+=== ONE-TO-ONE 4 — BINDING conjunct loosened ALONE + M1 (only the VALUE cases may fail) ===
+exit=1
+Tests  3 failed | 12 passed (15)
+× derives '2026-08-31T16:30:00.000Z' as { year: 2026, month: 9 }
+× derives '2026-09-30T15:59:00.000Z' as { year: 2026, month: 9 }
+× derives '2026-12-31T16:30:00.000Z' as { year: 2027, month: 1 }
+
+--- sha256 AFTER (equals the post-fix pair above) ---
+9b3defbd0501084af2a2c7576fb6310c672fa0eb0ffa14628d8c217c907bdf66 *src/app/listings/[id]/(detail)/loading.tsx
+d15c3cbf554cbb3642a97b5da0ff2c2f4b3f4d076f2f39eb1a3a7cbc67f408f2 *tests/design/calendar-plate-month.test.tsx
+
+THE LOOSENINGS, VERBATIM:
+  value:   `      ).toEqual(want);` → `      ).toEqual(plateMonthAt(new Date(at)));`   (a tautology)
+  binding: `    const derived =`    → `    const derived: boolean = true; const _u3 =`
+
+VERDICT: WR-05 CLOSED. The `- 1` that was green over 81 files / 1426 passed now reddens three named
+cases, and D-A2 can no longer be silently undone. Each conjunct is bound one-to-one (probes 1-4).
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+SECTION 3 — WR-01 and WR-02, RESOLVED: one polled, exclusive branch selection
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+WHAT SHIPPED, in `e2e/cancel.spec.ts`: the two bare `await …count()` reads are replaced by ONE
+`expect.poll` that classifies the page into `manual-return` / `in-transit` / `both (n, m)` / `neither`
+and requires `/^(manual-return|in-transit)$/`. The captured value then selects the branch, and the two
+branch bodies are unchanged — including the audit-row assertion the manual-return branch owes.
+
+  • WR-01's conjunct is that `both` is NOT in the accepted set.
+  • WR-02's conjunct is that the classification is POLLED rather than sampled once.
+
+The `else` arm is kept, re-aimed at the one thing that is now reachable: the poll's vocabulary and the
+fork drifting apart. Four D-01 citations survive the rewrite (`grep -c D-01` = 4), one of them in the
+failure text, which `evidence/triage-cancel-refund.txt` specifically asked a later round to preserve.
+
+--- transcript ---
+
+--- sha256 BEFORE / AFTER (identical; the product file is restored between every vector) ---
+3f8c153fd2bd0c5ce625fe452fb6563a8a19ce0e94b76e412fa728d8d2876e16 *e2e/cancel.spec.ts
+26ad17e7421294eba3359ac30e98cf0ea0edd26d31b83f93ae67cdf4292ea3e6 *src/app/(app)/bookings/[id]/page.tsx
+
+=== POST-FIX CONTROL — unmutated product (must be GREEN) ===
+exit=0
+ok 1 ... (12.2s)
+ok 2 ... re-opening the review screen for an already-cancelled booking redirects, never re-refunds (1.9s)
+2 passed (25.1s)
+
+=== VECTOR B — BOTH sentences render (was GREEN at 2 passed pre-fix) ===
+APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF
+exit=1
+1 failed
+1 passed (38.3s)
+Expected pattern: /^(manual-return|in-transit)$/
+Received string:  "both (1 manual-return, 1 in-transit)"
+    ↑ THIS IS ALSO THE APPLIED-PROOF FOR THE PRE-FIX GREEN. The counts are read off the page, so this
+      line is what establishes that both sentences were on screen for the run the pre-fix file records
+      as passing. A green run alone could not have told "both rendered" from "only one did".
+
+=== VECTOR T2 — the money statement arrives 3s AFTER load (was RED pre-fix, on the NEITHER message) ===
+APPLIED=1  file=src/components/booking/wr02-late-mount.tsx  (temporary client component created)
+APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF   ← the import
+APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF   ← <LateMount> opened
+APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF   ← </LateMount> closed
+exit=0
+2 passed (26.6s)
+
+=== VECTOR T — a 6s SERVER delay behind the route's own loading.tsx (GREEN pre-fix AND post-fix) ===
+exit=0
+ok 2 ... re-opening the review screen ... (7.9s)
+2 passed (28.7s)
+    ↑ RECORDED BECAUSE IT REFUTES THE FINDING'S STATED MECHANISM. `page.goto` waits for `load` and
+      Next holds the streaming response open until every boundary resolves, so a slow SERVER render
+      never produces the zero-count read WR-02 describes. See the pre-fix file, Section 4.
+
+=== VECTOR N — NEITHER sentence renders (a genuine money defect; must STILL be RED) ===
+APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF
+APPLIED=1  file=src/app/(app)/bookings/[id]/page.tsx  eol=LF
+exit=1
+1 failed
+1 passed (37.8s)
+Expected pattern: /^(manual-return|in-transit)$/
+Received string:  "neither"
+    ↑ THE SIGNAL WAS NOT BOUGHT WITH STABILITY. Nothing was scoped, no locator narrowed, no
+      expectation lowered: a page that genuinely tells the booker nothing about their money is still
+      red, and the failure text still names both sentences and both source sites. This is the check
+      plan 13 asked for after `confirmation-decay`, where scoping a locator to restore green would
+      have deleted the only instrument that had named a real bug.
+
+--- the one-to-one probe ---
+
+⚠ THE FIRST LOOSENING INSTRUMENT WAS BROKEN, AND IT IS RECORDED RATHER THAN QUIETLY REPLACED.
+`timeout: MONEY_SENTENCE_TIMEOUT_MS` → `timeout: 1` was intended to reduce the poll to a single bare
+read. Run against a CLEAN product it went RED (1 failed / 1 passed) — a `count()` round trip already
+exceeds 1ms, so a 1ms deadline removes the READ rather than the WAITING, and every result taken under
+it is uninformative. Four probes were discarded for this reason. The faithful loosening is a deadline
+long enough for one sample and too short for a late arrival: `timeout: 500`.
+
+=== CONTROL A' — AUTO-WAIT loosened to 500ms, CLEAN product (the loosening alone must not redden) ===
+APPLIED=1  file=e2e/cancel.spec.ts  eol=CRLF
+exit=0
+2 passed (21.9s)
+
+=== AUTO-WAIT loosened ALONE (500ms) + T2 (must go RED: the poll's DURATION is the only catcher) ===
+exit=1
+1 failed
+1 passed (25.6s)
+Expected pattern: /^(manual-return|in-transit)$/
+Received string:  "neither"
+
+=== AUTO-WAIT loosened ALONE (500ms) + VECTOR B (must stay RED: WR-01's conjunct is untouched) ===
+exit=1
+1 failed
+1 passed (25.8s)
+Expected pattern: /^(manual-return|in-transit)$/
+Received string:  "both (1 manual-return, 1 in-transit)"
+
+=== EXCLUSIVITY loosened ALONE + VECTOR B (must go GREEN: WR-01's conjunct is B's only catcher) ===
+APPLIED=1  file=e2e/cancel.spec.ts  eol=CRLF
+exit=0
+2 passed (23.4s)
+
+=== EXCLUSIVITY loosened ALONE + T2 (must stay GREEN: WR-01's conjunct is not what catches T2) ===
+exit=0
+2 passed (27.3s)
+
+THE LOOSENINGS, VERBATIM:
+  exclusivity: '              ? `both (${manual} manual-return, ${inTransit} in-transit)`'
+            →  '              ? "manual-return"'
+  auto-wait:   '          timeout: MONEY_SENTENCE_TIMEOUT_MS,' → '          timeout: 500,'
+
+VERDICT: WR-01 and WR-02 CLOSED, with WR-02's stated CAUSE refuted and its CONSEQUENCE reproduced.
+Exclusivity is the sole catcher of "both" and is untouched by lateness; the poll's duration is the
+sole catcher of a late arrival and is untouched by "both"; neither loosening reddens on its own; and
+a genuinely absent money sentence is still red.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+FOOT — the gates, on the final tree
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+node scripts/verify-workflows.mjs
+  exit=0   All 57 invariants hold across 3 section(s) (baselines=11, ci=38, cross=8).
+  ↑ UNMOVED. This repair adds no counted `check()`, so none of the three spellings of the total moves.
+
+npm run test:design      81 files passed | 1431 passed | 3 skipped   (1424 → +2 WR-03, +5 WR-05)
+npm test                 219 files passed | 2 skipped | 2721 passed | 5 skipped   (unchanged)
+npx tsc --noEmit         7 `error TS` lines, all pre-existing, all in tests/design/
+                         (mail-credential-refusal.test.ts × 5, workflow-invariants.test.ts × 2). ZERO new.
+npm run lint             0 errors, 30 warnings; none in any of the four repaired files.
+npx playwright test e2e/cancel.spec.ts --project=chromium      2 passed
+
+  ok 1 [chromium] › e2e\cancel.spec.ts:169:7 › … exact itemised refund → confirm → same amount persisted (15.1s)
+  ok 2 [chromium] › e2e\cancel.spec.ts:243:7 › … already-cancelled booking redirects, never re-refunds (2.0s)
+  2 passed (26.7s)
+
+--- git status --porcelain ---
+ M e2e/cancel.spec.ts
+ M src/app/listings/[id]/(detail)/loading.tsx
+ M tests/design/calendar-plate-month.test.tsx
+ M tests/design/e2e-known-failures.test.ts
+(plus this repair's own .planning artefacts. `src/components/booking/wr02-late-mount.tsx` is ABSENT,
+ which is the proof the temporary client component used by vector T2 was deleted; no product file
+ other than `loading.tsx` is modified, and `src/app/(app)/bookings/[id]/page.tsx` is byte-identical
+ to its pre-measurement sha256 26ad17e7….)

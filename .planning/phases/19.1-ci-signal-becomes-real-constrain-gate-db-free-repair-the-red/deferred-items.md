@@ -622,25 +622,25 @@ EOL-agnostic, so there is no known instance; it is a gap in coverage, not a susp
   `must name db:migrate` conjunct, case 46), and IN-01 (the third spelling of the invariant total,
   case 47 — taken on because that repair MOVED the total 55 → 57 and had to touch all three
   spellings by hand, which is precisely when the unenforced one gets missed).
-- **What is still OPEN, and where it lives.** All six remain written up in full, with their proposed
+- **What is still OPEN, and where it lives.** All six remained written up in full, with their proposed
   fixes, in `19.1-REVIEW.md`; this entry exists so the phase's own carry-forward register names them
   rather than leaving them only in a review document a later phase may not read.
 
-  | # | File | One line |
-  |---|---|---|
-  | WR-01 | `e2e/cancel.spec.ts:288-340` | the two refund sentences are asserted jointly exhaustive, never mutually exclusive — "both rendered" takes branch 1 and passes, on the money path |
-  | WR-02 | `e2e/cancel.spec.ts:295-296` | the branch selector uses two non-retrying `count()` reads, so a slow render throws a money-defect error message at a timing flake |
-  | WR-03 | `tests/design/e2e-known-failures.test.ts` | the pin counts the two allowlist entries but never asserts WHERE they are — a quarantine can move while the total stays 2 |
-  | WR-05 | `tests/design/calendar-plate-month.test.tsx:410-434` | the D-A2 repair's month VALUE is never asserted, only that the prop is present; a 0-based slip stays green |
-  | IN-02 | `tests/design/calendar-plate-month.test.tsx` | fake timers are never restored, so everything after the hydration describe sees a clock pinned in 2027 |
-  | IN-03 | `tests/design/e2e-known-failures.test.ts:207-222` | the comment stripper is applied outside its own helper's stated contract — fail-CLOSED, so a false-red risk only |
+  | # | File | One line | State |
+  |---|---|---|---|
+  | WR-01 | `e2e/cancel.spec.ts:288-340` | the two refund sentences are asserted jointly exhaustive, never mutually exclusive — "both rendered" takes branch 1 and passes, on the money path | ✅ **CLOSED 2026-09-06** |
+  | WR-02 | `e2e/cancel.spec.ts:295-296` | the branch selector uses two non-retrying `count()` reads, so a slow render throws a money-defect error message at a timing flake | ✅ **CLOSED 2026-09-06** (cause refuted, consequence reproduced) |
+  | WR-03 | `tests/design/e2e-known-failures.test.ts` | the pin counts the two allowlist entries but never asserts WHERE they are — a quarantine can move while the total stays 2 | ✅ **CLOSED 2026-09-06** |
+  | WR-05 | `tests/design/calendar-plate-month.test.tsx:410-434` | the D-A2 repair's month VALUE is never asserted, only that the prop is present; a 0-based slip stays green | ✅ **CLOSED 2026-09-06** |
+  | IN-02 | `tests/design/calendar-plate-month.test.tsx` | fake timers are never restored, so everything after the hydration describe sees a clock pinned in 2027 | ⛔ **DOES NOT REPRODUCE** |
+  | IN-03 | `tests/design/e2e-known-failures.test.ts:207-222` | the comment stripper is applied outside its own helper's stated contract — fail-CLOSED, so a false-red risk only | **OPEN — needs nothing today** |
 
-- **Why they were not fixed here.** WR-01 and WR-02 are in `e2e/`, which the repair's brief put out
-  of scope. WR-05 and IN-02 are in `tests/design/calendar-plate-month.test.tsx`, which the brief
-  excluded by name — "a separate repair follows this one". WR-03 and IN-03 are in
-  `tests/design/e2e-known-failures.test.ts`, whose `PINNED_ENTRY_TOTAL = 2` the brief pinned as
-  out of scope. Widening the repair into any of them would have made a one-to-one proof of the two
-  findings it WAS chartered for impossible to read.
+- **Why they were not fixed by the CR-01/WR-04 pass.** WR-01 and WR-02 are in `e2e/`, which that
+  repair's brief put out of scope. WR-05 and IN-02 are in
+  `tests/design/calendar-plate-month.test.tsx`, which the brief excluded by name — "a separate repair
+  follows this one". WR-03 and IN-03 are in `tests/design/e2e-known-failures.test.ts`, whose
+  `PINNED_ENTRY_TOTAL = 2` the brief pinned as out of scope. Widening it into any of them would have
+  made a one-to-one proof of the two findings it WAS chartered for impossible to read.
 - **⚠ Suggested disposition, and the priority order is not the severity order.** **WR-03 first**:
   it is the only one of the six that is a false-GREEN in the same class as CR-01 — a guard whose
   name ("the allowlist cannot silently grow") is satisfiable while a silent substitution has
@@ -648,3 +648,62 @@ EOL-agnostic, so there is no known instance; it is a gap in coverage, not a susp
   and in that order, because WR-02's `expect.poll` form subsumes WR-01. **WR-05 with the
   calendar-plate repair** that already follows. IN-02 is one `afterEach`. IN-03 needs nothing today
   and is recorded so the next reader does not re-derive it.
+
+#### CLOSED — second repair pass, 2026-09-06, orchestrator-directed (not a numbered plan)
+
+**Four of the six are closed in the order this entry recommended: WR-03, WR-05, WR-01, WR-02.** Full
+measurement: `evidence/guards-review-wr01-02-03-05-pre-fix.txt` (a green-before per finding, over the
+exact mutation each new assertion is meant to catch) and `…-post-fix.txt` (red-after over the identical
+mutation, a one-to-one loosening of every new conjunct, and a green positive control wherever an
+allow-list or an exact-identity check was added). Every mutation prints an APPLIED COUNT and no needle
+hardcodes a newline — the discipline the WR-04 pass's own instrument failure bought.
+
+| finding | the mutation that was GREEN before | what it does now |
+|---|---|---|
+| WR-03 | an allowlist entry moves from `tabular-figures` to `price-parity`, TOTAL unchanged at 2 | `2 failed / 7 passed` — CONTAINMENT and OCCUPANCY, two new cases |
+| WR-03 | both entries collapse into ONE pinned spec (containment alone still holds) | `1 failed / 8 passed` — OCCUPANCY alone. This is why the review's proposed `⊆` was not the whole repair |
+| WR-05 | ` - 1` on the plate's month: 81 files, **1426 passed**, D-A2's 52.81px shift restored | `3 failed / 12 passed` — three named instants |
+| WR-01 | the product ternary split so BOTH money sentences render: **2 passed** | RED, `Received string: "both (1 manual-return, 1 in-transit)"` |
+| WR-02 | (see below — the finding's stated cause does not reproduce) | RED under a late arrival, GREEN under a slow SERVER render |
+
+**Two things a later reader should not have to re-derive.**
+
+1. **WR-02's stated CAUSE is refuted.** A 6-second delay in the cancelled render, behind the route's
+   own `loading.tsx`, does NOT make the bare `count()` reads see zero: `page.goto` waits for `load`
+   and Next holds the streaming response open until every boundary resolves, so `goto` absorbs the
+   whole delay (test 2 goes 2.6s → 7.6s and stays green). The consequence the finding describes was
+   reproduced another way — a money sentence arriving 3s AFTER `load`, from the client — where the
+   bare reads report *"the booker was told nothing about their money"* against a product that is not
+   broken. The poll is green there and **still RED** when the sentence is genuinely absent, which is
+   the check that separates this from the `confirmation-decay` move plan 13 flagged.
+2. **IN-02 does not reproduce at all.** `calendar-plate-month.test.tsx:90-93` has carried
+   `afterEach(() => { cleanup(); vi.useRealTimers(); })` since `0a28eea`, the same commit that
+   introduced the fake timers. Exercised with a temporary probe appended after the hydration
+   describe: a later case sees a REAL clock (16 passed), and the probe was removed. **It is not owed
+   work and should not be scheduled.**
+
+**Still open: IN-03 alone, and it needs no change today.** It is a fail-CLOSED false-red risk
+(`blankComments`/`stripComments` are both string-literal-naive, so a URL inside a reason would be
+reported as "not a plain string literal" rather than silently accepted). The review records the
+`blankStrings` shape to reach for IF a future entry's reason ever carries a URL, and the note that the
+same pass would then have to be applied to the agreement assertion's other side.
+
+**⚠ ONE THING THE SECOND PASS ADDED THAT NOBODY ASKED FOR, stated so it is not mistaken for scope
+creep.** Extracting `plateMonthAt` created a NEW way to be silently wrong — the helper can be left
+correct, exported and unused while the page inlines the arithmetic again — so a BINDING case was added
+in the same commit that creates the hole. It is bound one-to-one like the rest.
+
+**Gates on the final tree:** `verify-workflows.mjs` exit 0, still
+`All 57 invariants hold across 3 section(s) (baselines=11, ci=38, cross=8)` — **the total did not
+move**, because no counted `check()` was added. `npm run test:design` 81 files / **1431 passed** |
+3 skipped (1424 + 2 + 5). `npm test` 219 files / **2721 passed** | 5 skipped, unchanged.
+`npx tsc --noEmit` still exactly the seven pre-existing `error TS` lines, zero new. `npm run lint`
+0 errors / 30 warnings, none in any repaired file. `npx playwright test e2e/cancel.spec.ts` **2 passed**.
+
+**⚠ AND ONE OPERATIONAL FACT THIS TREE WILL BITE THE NEXT PERSON WITH.** The working tree is
+**MIXED-EOL** — 24 of the `e2e/*.spec.ts` files and most of `tests/design/` are LF, the rest CRLF,
+under `* text=auto` + `core.autocrlf=true`. `git checkout -- <file>` on an LF file **rewrites it to
+CRLF** while `git status` still reads clean, because the clean filter normalises both spellings to the
+same blob. It happened once here, to `e2e/price-parity.spec.ts` (388 CR bytes where there had been
+none); the file was restored to its original bytes and every probe since reverts from a byte copy. **A
+clean `git status` is not a proof of a byte-exact revert on this tree — use a sha256 pair.**
