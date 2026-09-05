@@ -90,7 +90,9 @@ const targetDayLabel = new RegExp(
  * unscoped intersection would silently match zero elements. Passing the sheet as the scope makes both
  * halves address the same subtree.
  */
-// VERBATIM from price-parity.spec.ts:171-183 — see the header's copy note.
+// VERBATIM from price-parity.spec.ts:171-183 — see the header's copy note. The POST-CONDITION below is
+// this file's own addition (plan 19.1-08) and is deliberately NOT copied back into that spec, which is
+// byte-frozen for the reason this file's header gives.
 export async function selectTargetDayIn(scope: Page | Locator): Promise<void> {
   if (crossesMonth) {
     await scope.getByRole("button", { name: /next month/i }).click();
@@ -101,6 +103,49 @@ export async function selectTargetDayIn(scope: Page | Locator): Promise<void> {
     .and(scope.locator("td:not([data-outside='true']) button"))
     .and(scope.locator("button:not([disabled])"));
   await day.first().click();
+
+  // ⚠ THE POST-CONDITION IS A MEASURED REQUIREMENT, NOT A HEDGE, AND IT IS `openBookingSheet`'s FINDING
+  // ON THE OTHER CONTROL OF THE SAME PAGE. Measured 2026-09-05 against this fixture
+  // (evidence/triage-hold-countdown.txt, probe F): when this function returned, the day's hour chips
+  // were NOT yet in the document — `2:00 PM` resolved to 0 — and 683 ms elapsed before the chip
+  // existed. This function asserted nothing about its own effect, so a click that never registered and
+  // a click whose effect had not landed yet were the SAME observation to every caller.
+  //
+  // The cost of that silence is on record. `hold-countdown.spec.ts:443` spent 3.0 minutes per attempt,
+  // three attempts, ~9 minutes of gate-e2e's 44, waiting in `pickWindow` below for a `2:00 PM` button
+  // that a grid with no selected day never renders — a timeout on an unrelated locator, in a different
+  // helper, three minutes after the actual failure. This assertion turns that into a named failure in
+  // about a second, at the line that caused it.
+  //
+  // The mechanism is the one `openBookingSheet` documents at :118-160 for the sticky bar's trigger, on
+  // this same route: the control EXISTS in the server-rendered document and is then replaced while
+  // React finishes with it, so under load the click lands on a node on its way out and the event goes
+  // with it — the click is LOST, not queued. Plan 19.1-04 measured `/listings/[id]` streaming a pending
+  // shell and a resolved copy of this very booking surface concurrently, which is the same subtree the
+  // day button lives in.
+  //
+  // ⚠ NO RETRY, DELIBERATELY, AND THE SIBLING'S PRECEDENT IS WHY. `openBookingSheet` retries because
+  // its lost click was OBSERVED, with Playwright's own call log naming the detachment. This one was
+  // not: the plan authorising this change gated the retry on a trace showing the click genuinely lost,
+  // and the canonical run did not reproduce the failure at all
+  // (evidence/triage-hold-countdown.txt, VERDICT). A retry added on the strength of a mechanism that
+  // fits rather than one that was seen would be a hedge, and would make the next red unreadable. The
+  // assertion below is justified independently of that diagnosis; the retry is not, yet.
+  //
+  // THE ATTRIBUTE IS READ OFF THE COMPONENT, NOT GUESSED. react-day-picker v9 emits NO `aria-selected`
+  // and NO `data-selected` on these buttons — the selected day carries `data-selected-single="true"`
+  // (33 day buttons dumped from the live document, exactly one carrying it) and `availability-calendar
+  // .tsx:690` styles on that same attribute (`data-[selected-single=true]:bg-brand`). The aria-label
+  // also gains a ", selected" suffix, which `targetDayLabel` still matches because it is unanchored.
+  const selectedDay = day.and(scope.locator('button[data-selected-single="true"]'));
+  await expect(
+    selectedDay,
+    `the calendar has no day carrying \`data-selected-single="true"\` matching ${targetDayLabel} ` +
+      `after this helper clicked it. The click did not register — see this function's note: on this ` +
+      `route the day button is replaced while React finishes with the streamed page, and a click on a ` +
+      `departing node is LOST rather than queued. Without this line the next thing to fail would be ` +
+      `the caller's hour-button click, three minutes later, on a grid that never rendered any hours.`,
+  ).toHaveCount(1, { timeout: 2_000 });
 }
 
 /** Navigate the venue-tz calendar to the seeded target day (advancing one month if it's next month). */
