@@ -68,7 +68,7 @@ rather than fixed, per the executor scope boundary.
 
 ---
 
-### D-A2 — `CalendarMonthSkeleton` reserves six week rows against a five-row grid (PRODUCT defect, needs an operator decision)
+### D-A2 — `CalendarMonthSkeleton` reserved six week rows against a five-row grid — **CLOSED BY REPAIR (2026-09-05)**
 
 - **Found during:** plan 19.1-03, Task 2 — after `reachableCalendar` stopped pinning six, the two
   AC#15 cases got past the guard and failed 52.81px LATER, at `expectSameBox`.
@@ -96,10 +96,79 @@ rather than fixed, per the executor scope boundary.
      then renders a trailing week of the next month.
   Both ripple into `e2e/skeleton-geometry.spec.ts`, `tests/design/skeleton-a11y.test.tsx`,
   `src/lib/design/selector-contract.ts` and the component's own 409px docblock arithmetic.
-- **Suggested disposition:** an operator decision between (1) and (2), then its own plan. Until then
-  `e2e/calendar-hit-area.spec.ts:455` (court + grove) stays RED and is an **open product finding**,
-  NOT one of the fourteen written off and NOT a known-failures-allowlist candidate. Full triage in
-  `evidence/triage-calendar-hit-area.txt` §2 (FINDING D-A2) and the VERDICT.
+- ~~**Suggested disposition:** an operator decision between (1) and (2), then its own plan.~~
+
+#### CLOSED — repair 2026-09-05, orchestrator-directed between waves 2 and 3
+
+**The decision:** the operator chose **(1) derive the plate's row count**. **(2) `fixedWeeks` was
+REJECTED** — it renders a trailing week of the next month *every* month, a permanent visible UX
+change. It was not implemented and must not be proposed back.
+
+**What shipped.** `CalendarMonthSkeleton` now takes a **required** `month` prop and renders
+`weekRowsForMonth(month)` week rows. `weekRowsForMonth` is `ceil((leadingBlanks + daysInMonth) / 7)`
+over `Date.UTC` — pure, no clock. The Sunday week start is **measured, not assumed**: a design test
+mounts this repository's own `ui/calendar.tsx` for 24 consecutive months and requires the helper to
+match the `tbody tr` it renders, and the sweep includes **November 2026** (a Sunday 1st), the only
+month shape where a Sunday-start and a Monday-start calendar disagree.
+
+**How the hydration condition was met.** The condition attached to the decision was that the plate is
+the pre-hydration paint, so a month re-derived from `new Date()` on each side is a hydration mismatch
+near a month boundary. It is met **by construction**: `src/app/listings/[id]/(detail)/loading.tsx` is
+a Server Component, reads the clock **once**, binds it to one `const`, and passes `{year, month}` as a
+serialized prop. The client derives nothing, so there is no second derivation to disagree with the
+first. Exercised rather than asserted in `tests/design/calendar-plate-month.test.tsx` (build-blocking)
+by a real `renderToString` → `hydrateRoot` across a month boundary — **carrying a deliberately
+clock-reading control that is required to FAIL**, plus a behavioural purity test and a source census.
+That control earned its keep twice: it caught `vi.useFakeTimers()` stalling React's scheduler, and a
+control that was silently a function of this box's own timezone. Both would have been a green that
+measured nothing.
+
+**What was MEASURED.** Reproduced first, from scratch: `skeleton {"width":288,"height":410}` vs
+`resolved {"width":288,"height":357.1875}`, **Δ52.8125** — 19.1-03's numbers confirmed to the last
+digit. After the repair, on **both** month shapes, every figure a printed box:
+
+| rows | plate | resolved | Δ |
+| --- | --- | --- | --- |
+| 5 (2026-09, real clock) | 288/326 × 358 | 288/326 × 357.19 | **0.81** |
+| 6 (2027-01, dev-server clock shifted +127 days) | 288/326 × 410 | 288/326 × 409.19 | **0.81** |
+
+Δ0.81 at *both* counts — the plate's own declared weekday-row approximation, which does not grow with
+the row count. **No tolerance was widened, no assertion deleted, no test annotated.**
+
+**The trap, also measured.** With the row count put back to the hard-coded six, AC#15 is **2 PASSED**
+under the faked January clock and **2 FAILED at Δ52.81** under the real September one. The month the
+bug is invisible in is the month it was written in — which is why this was verified on a six-row month
+as well as a five-row one.
+
+**Tests closed.** `e2e/calendar-hit-area.spec.ts` AC#15 (court + grove) is **GREEN**. Those two are no
+longer among the fourteen and were never allowlist candidates. ⚠ **For plan 11: the cases have MOVED —
+AC#15 `:455` → `:492`, AC#14 `:302` → `:304`.** Comments only; no assertion moved.
+
+**Ripple list, verified against the code rather than inherited.** Real: the component (+ its 409px
+docblock, now `98 + r × 52` with both measured rows), `e2e/calendar-hit-area.spec.ts` (comments only),
+`tests/design/skeleton-a11y.test.tsx` (the `7 * 6 + 7 + 1` literal is now two month cases). **NOT
+ripples, contrary to 19.1-03's list:** `e2e/skeleton-geometry.spec.ts` (drives `/dev/theme`, which
+renders no calendar at all) and `src/lib/design/selector-contract.ts` (declares the hook, encodes no
+geometry). **The site 19.1-03 did not name is the one the repair needed:**
+`src/app/listings/[id]/(detail)/loading.tsx`, the only mount.
+
+**Gates:** `npm run build` exit 0; `npm run test:design` 80 files / 1394 passed; `npx tsc --noEmit`
+still exactly the nine pre-existing `tests/design/` errors, zero in any file touched.
+
+**Residuals, stated not closed** (neither is a regression, and neither reintroduces the hydration
+hazard — both are about *which* month the single source names, never about the two sides naming
+different ones):
+1. `loading.tsx` cannot know the *listing's* zone (no params, no DB), so it uses the launch region
+   (`schema.ts:223`'s `Asia/Manila` default). A listing elsewhere can be one row out for the few hours
+   a year when its date, Manila's date, and the two months' row counts all differ.
+2. `?date=` can open the resolved grid on a month that is not the current one (D-59 #1) and a
+   `loading.tsx` cannot read search params. Unchanged by this repair; unfixable from a fallback.
+3. No real-browser hydration test across a real month boundary exists. The property is proved at the
+   jsdom layer with a control; section 3 of the evidence names the harness that would prove it through
+   Next.js.
+
+Full triage: `evidence/triage-plate-month.txt` (10 sections + VERDICT). The finding's original
+discovery record stays in `evidence/triage-calendar-hit-area.txt` §2.
 
 ---
 
