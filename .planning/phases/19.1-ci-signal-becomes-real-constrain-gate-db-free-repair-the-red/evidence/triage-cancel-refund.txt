@@ -270,3 +270,475 @@ a STRONGER assertion than the one it replaces, because in the manual-return bran
 requires the audit row that branch is derived from. The database assertion beneath it
 (`row.refund_cents === EXPECTED_REFUND_CENTS`) already passes in both environments and stays byte-
 unchanged; this repair adds a second truth beside it rather than trading one for another.
+
+
+================================================================================
+POST-REPAIR — the spec as repaired, commit 552b5a3
+================================================================================
+
+  $ npx playwright test e2e/cancel.spec.ts --project=chromium --reporter=list
+
+--- unedited transcript, exit code 0 -------------------------------------------
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[33m[1m⚠[22m[39m The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 2 tests using 1 worker
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[CANCEL_ALERT] refund_dispatch_failed {
+[2m[WebServer] [22m  bookingId: [32m'e2e_cx_booking_7374a5ab-6f85-4329-bbf6-9115396ab0dc'[39m,
+[2m[WebServer] [22m  err: Error: PayMongo POST /v1/refunds failed (404): intercepted by instrumentation.ts, the dev-only PayMongo seam (plan 17.1-06, 17-D18) — no request left this machine
+[2m[WebServer] [22m      at paymongoFetch (src\lib\paymongo.ts:109:11)
+[2m[WebServer] [22m      at async createRefund (src\lib\paymongo.ts:451:16)
+[2m[WebServer] [22m      at async cancelBookingAsBooker (src\app\actions\cancel-booking.ts:722:7)
+[2m[WebServer] [22m    [90m107 |[0m       (json [36mas[0m { errors?: [33mArray[0m<{ detail?: string }> })?.errors?.[[35m0[0m]?.detail ??
+[2m[WebServer] [22m    [90m108 |[0m       res.statusText;
+[2m[WebServer] [22m  [31m[1m>[0m [90m109 |[0m     [36mthrow[0m [36mnew[0m [33mError[0m([32m`PayMongo [0m${method[32m} [0m${path[32m} failed ([0m${res.status[32m}): [0m${detail[32m}`[0m);
+[2m[WebServer] [22m    [90m    |[0m           [31m[1m^[0m
+[2m[WebServer] [22m    [90m110 |[0m   }
+[2m[WebServer] [22m    [90m111 |[0m   [36mreturn[0m json [36mas[0m [33mT[0m;
+[2m[WebServer] [22m    [90m112 |[0m }
+[2m[WebServer] [22m}
+[2m[WebServer] [22m[notify] enqueue_failed {
+[2m[WebServer] [22m  type: [32m'booking_cancelled_by_booker'[39m,
+[2m[WebServer] [22m  bookingId: [32m'e2e_cx_booking_7374a5ab-6f85-4329-bbf6-9115396ab0dc'[39m,
+[2m[WebServer] [22m  err: TypeError: fetch failed
+[2m[WebServer] [22m      at async emitNotify (src\lib\notifications.ts:118:5)
+[2m[WebServer] [22m      at async notifyCancellation (src\app\actions\cancel-booking.ts:381:3)
+[2m[WebServer] [22m      at async cancelBookingAsBooker (src\app\actions\cancel-booking.ts:839:3)
+[2m[WebServer] [22m    [90m116 |[0m [36mexport[0m [36masync[0m [36mfunction[0m emitNotify(event: [33mNotifyEvent[0m): [33mPromise[0m<[36mvoid[0m> {
+[2m[WebServer] [22m    [90m117 |[0m   [36mtry[0m {
+[2m[WebServer] [22m  [31m[1m>[0m [90m118 |[0m     [36mawait[0m inngest.send({ name: [33mNOTIFY_EVENT[0m, data: event });
+[2m[WebServer] [22m    [90m    |[0m     [31m[1m^[0m
+[2m[WebServer] [22m    [90m119 |[0m   } [36mcatch[0m (err) {
+[2m[WebServer] [22m    [90m120 |[0m     [90m// A notification-transport failure must NEVER fail a money/state action whose durabl...[0m
+[2m[WebServer] [22m    [90m121 |[0m     [90m// succeeded (MANAGE-03) — the same discipline as request-expiry.ts's self-swallowing.[0m.. {
+[2m[WebServer] [22m    [cause]: AggregateError: 
+[2m[WebServer] [22m        at [3mignore-listed frames[23m {
+[2m[WebServer] [22m      code: [32m'ECONNREFUSED'[39m,
+[2m[WebServer] [22m      [errors]: [36m[Array][39m
+[2m[WebServer] [22m    }
+[2m[WebServer] [22m  }
+[2m[WebServer] [22m}
+[2m[WebServer] [22m[notify] enqueue_failed {
+[2m[WebServer] [22m  type: [32m'refund_issued'[39m,
+[2m[WebServer] [22m  bookingId: [32m'e2e_cx_booking_7374a5ab-6f85-4329-bbf6-9115396ab0dc'[39m,
+[2m[WebServer] [22m  err: TypeError: fetch failed
+[2m[WebServer] [22m      at async emitNotify (src\lib\notifications.ts:118:5)
+[2m[WebServer] [22m      at async notifyCancellation (src\app\actions\cancel-booking.ts:401:5)
+[2m[WebServer] [22m      at async cancelBookingAsBooker (src\app\actions\cancel-booking.ts:839:3)
+[2m[WebServer] [22m    [90m116 |[0m [36mexport[0m [36masync[0m [36mfunction[0m emitNotify(event: [33mNotifyEvent[0m): [33mPromise[0m<[36mvoid[0m> {
+[2m[WebServer] [22m    [90m117 |[0m   [36mtry[0m {
+[2m[WebServer] [22m  [31m[1m>[0m [90m118 |[0m     [36mawait[0m inngest.send({ name: [33mNOTIFY_EVENT[0m, data: event });
+[2m[WebServer] [22m    [90m    |[0m     [31m[1m^[0m
+[2m[WebServer] [22m    [90m119 |[0m   } [36mcatch[0m (err) {
+[2m[WebServer] [22m    [90m120 |[0m     [90m// A notification-transport failure must NEVER fail a money/state action whose durabl...[0m
+[2m[WebServer] [22m    [90m121 |[0m     [90m// succeeded (MANAGE-03) — the same discipline as request-expiry.ts's self-swallowing.[0m.. {
+[2m[WebServer] [22m    [cause]: AggregateError: 
+[2m[WebServer] [22m        at [3mignore-listed frames[23m {
+[2m[WebServer] [22m      code: [32m'ECONNREFUSED'[39m,
+[2m[WebServer] [22m      [errors]: [36m[Array][39m
+[2m[WebServer] [22m    }
+[2m[WebServer] [22m  }
+[2m[WebServer] [22m}
+  ok 1 [chromium] › e2e\cancel.spec.ts:169:7 › booker cancellation — the previewed refund is the refund given (SC#2) › bookings list → cancel review → exact itemised refund → confirm → same amount persisted (20.2s)
+  ok 2 [chromium] › e2e\cancel.spec.ts:243:7 › booker cancellation — the previewed refund is the refund given (SC#2) › re-opening the review screen for an already-cancelled booking redirects, never re-refunds (3.8s)
+
+  2 passed (44.1s)
+--- end of unedited transcript -------------------------------------------------
+
+WHICH BRANCH THIS MACHINE TOOK: **THE MANUAL-RETURN BRANCH** — branch 1, the same branch CI takes.
+
+That is asserted from a measurement, not inferred from the green. The proof is narrowing (b) below: it
+mutates an assertion that is REACHABLE ONLY FROM INSIDE BRANCH 1, and the run went red on it. A run that
+had taken branch 2 (the in-transit sentence) would have skipped that statement entirely and stayed
+green. Corroborating the same fact from the database, for this run's booking:
+
+  $ docker exec fitout-db-1 psql -U fitout -d fitout -c \
+      "SELECT action, outcome, meta->>'bookingId' AS booking_ref FROM audit \
+       WHERE meta->>'bookingId' = 'e2e_cx_booking_7374a5ab-6f85-4329-bbf6-9115396ab0dc' \
+       ORDER BY created_at;"
+
+         action         |     outcome     |                     booking_ref
+  ------------------------+-----------------+-----------------------------------------------------
+   cancel_booking         | ok              | e2e_cx_booking_7374a5ab-6f85-4329-bbf6-9115396ab0dc
+   refund_dispatch_failed | needs_attention | e2e_cx_booking_7374a5ab-6f85-4329-bbf6-9115396ab0dc
+  (2 rows)
+
+⚠ THE SPEC IS NOT PROVED ON BRANCH 2 BY A RUN ON THIS BOX, AND THAT IS STATED RATHER THAN GLOSSED.
+Branch 2 is today's shipped assertion, moved unchanged into the `else if` arm — a machine whose refund
+POST is accepted takes it and asserts exactly what the spec asserted before this repair. Reaching it
+here would require removing the dev-only PayMongo interception in `instrumentation.ts`, which would put
+a real credentialed POST on api.paymongo.com from a triage run; `[17-D18]` exists because that used to
+happen. The cost of proving branch 2 locally is higher than the risk it retires.
+
+
+================================================================================
+WATCHED RED (a) — NEITHER BRANCH RECOGNISED
+================================================================================
+
+The convention is `.planning/phases/19-host-listing-surfaces-gates-that-actually-run/evidence/
+guards-post-fix.txt`'s: mutate the TRACKED file, capture, revert, prove the revert. A guard that has
+never been seen red is a guard nobody has checked is connected to anything.
+
+THE MUTATION — narrow the branch-selection check so neither branch can be recognised. Note what is
+mutated: the RECOGNISER, not the assertions. The `count()` calls still run, the fork is still evaluated,
+and the page still renders its manual-return notice — the spec is simply made unable to see it, which is
+exactly the state a renamed or restyled sentence would produce.
+
+  $ sha256sum e2e/cancel.spec.ts            # BEFORE
+  97c7f18c2c55f77308cc699ca2c2bf58f93bfd9cc0c55683f97b8c2076d81b83 *e2e/cancel.spec.ts
+
+  -    const manualReturnSentence = page.getByText(/coming back to you/i);
+  -    const inTransitSentence = page.getByText(/refund on its way/i);
+  +    const manualReturnSentence = page.getByText(/coming back to you ZZZ-NARROWING-A/i);
+  +    const inTransitSentence = page.getByText(/refund on its way ZZZ-NARROWING-A/i);
+
+  $ sha256sum e2e/cancel.spec.ts            # MUTATED
+  2c79f33ea392affc98c88ba27939ae2929cc5854245a22fbb46941f273c57e73 *e2e/cancel.spec.ts
+
+  $ npx playwright test e2e/cancel.spec.ts --project=chromium --reporter=list
+
+--- unedited transcript, exit code 1 -------------------------------------------
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[33m[1m⚠[22m[39m The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 2 tests using 1 worker
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[CANCEL_ALERT] refund_dispatch_failed {
+[2m[WebServer] [22m  bookingId: [32m'e2e_cx_booking_1abbade0-e16f-402e-9b5d-a0f90eb86e8c'[39m,
+[2m[WebServer] [22m  err: Error: PayMongo POST /v1/refunds failed (404): intercepted by instrumentation.ts, the dev-only PayMongo seam (plan 17.1-06, 17-D18) — no request left this machine
+[2m[WebServer] [22m      at paymongoFetch (src\lib\paymongo.ts:109:11)
+[2m[WebServer] [22m      at async createRefund (src\lib\paymongo.ts:451:16)
+[2m[WebServer] [22m      at async cancelBookingAsBooker (src\app\actions\cancel-booking.ts:722:7)
+[2m[WebServer] [22m    [90m107 |[0m       (json [36mas[0m { errors?: [33mArray[0m<{ detail?: string }> })?.errors?.[[35m0[0m]?.detail ??
+[2m[WebServer] [22m    [90m108 |[0m       res.statusText;
+[2m[WebServer] [22m  [31m[1m>[0m [90m109 |[0m     [36mthrow[0m [36mnew[0m [33mError[0m([32m`PayMongo [0m${method[32m} [0m${path[32m} failed ([0m${res.status[32m}): [0m${detail[32m}`[0m);
+[2m[WebServer] [22m    [90m    |[0m           [31m[1m^[0m
+[2m[WebServer] [22m    [90m110 |[0m   }
+[2m[WebServer] [22m    [90m111 |[0m   [36mreturn[0m json [36mas[0m [33mT[0m;
+[2m[WebServer] [22m    [90m112 |[0m }
+[2m[WebServer] [22m}
+[2m[WebServer] [22m[notify] enqueue_failed {
+[2m[WebServer] [22m  type: [32m'booking_cancelled_by_booker'[39m,
+[2m[WebServer] [22m  bookingId: [32m'e2e_cx_booking_1abbade0-e16f-402e-9b5d-a0f90eb86e8c'[39m,
+[2m[WebServer] [22m  err: TypeError: fetch failed
+[2m[WebServer] [22m      at async emitNotify (src\lib\notifications.ts:118:5)
+[2m[WebServer] [22m      at async notifyCancellation (src\app\actions\cancel-booking.ts:381:3)
+[2m[WebServer] [22m      at async cancelBookingAsBooker (src\app\actions\cancel-booking.ts:839:3)
+[2m[WebServer] [22m    [90m116 |[0m [36mexport[0m [36masync[0m [36mfunction[0m emitNotify(event: [33mNotifyEvent[0m): [33mPromise[0m<[36mvoid[0m> {
+[2m[WebServer] [22m    [90m117 |[0m   [36mtry[0m {
+[2m[WebServer] [22m  [31m[1m>[0m [90m118 |[0m     [36mawait[0m inngest.send({ name: [33mNOTIFY_EVENT[0m, data: event });
+[2m[WebServer] [22m    [90m    |[0m     [31m[1m^[0m
+[2m[WebServer] [22m    [90m119 |[0m   } [36mcatch[0m (err) {
+[2m[WebServer] [22m    [90m120 |[0m     [90m// A notification-transport failure must NEVER fail a money/state action whose durabl...[0m
+[2m[WebServer] [22m    [90m121 |[0m     [90m// succeeded (MANAGE-03) — the same discipline as request-expiry.ts's self-swallowing.[0m.. {
+[2m[WebServer] [22m    [cause]: AggregateError: 
+[2m[WebServer] [22m        at [3mignore-listed frames[23m {
+[2m[WebServer] [22m      code: [32m'ECONNREFUSED'[39m,
+[2m[WebServer] [22m      [errors]: [36m[Array][39m
+[2m[WebServer] [22m    }
+[2m[WebServer] [22m  }
+[2m[WebServer] [22m}
+[2m[WebServer] [22m[notify] enqueue_failed {
+[2m[WebServer] [22m  type: [32m'refund_issued'[39m,
+[2m[WebServer] [22m  bookingId: [32m'e2e_cx_booking_1abbade0-e16f-402e-9b5d-a0f90eb86e8c'[39m,
+[2m[WebServer] [22m  err: TypeError: fetch failed
+[2m[WebServer] [22m      at async emitNotify (src\lib\notifications.ts:118:5)
+[2m[WebServer] [22m      at async notifyCancellation (src\app\actions\cancel-booking.ts:401:5)
+[2m[WebServer] [22m      at async cancelBookingAsBooker (src\app\actions\cancel-booking.ts:839:3)
+[2m[WebServer] [22m    [90m116 |[0m [36mexport[0m [36masync[0m [36mfunction[0m emitNotify(event: [33mNotifyEvent[0m): [33mPromise[0m<[36mvoid[0m> {
+[2m[WebServer] [22m    [90m117 |[0m   [36mtry[0m {
+[2m[WebServer] [22m  [31m[1m>[0m [90m118 |[0m     [36mawait[0m inngest.send({ name: [33mNOTIFY_EVENT[0m, data: event });
+[2m[WebServer] [22m    [90m    |[0m     [31m[1m^[0m
+[2m[WebServer] [22m    [90m119 |[0m   } [36mcatch[0m (err) {
+[2m[WebServer] [22m    [90m120 |[0m     [90m// A notification-transport failure must NEVER fail a money/state action whose durabl...[0m
+[2m[WebServer] [22m    [90m121 |[0m     [90m// succeeded (MANAGE-03) — the same discipline as request-expiry.ts's self-swallowing.[0m.. {
+[2m[WebServer] [22m    [cause]: AggregateError: 
+[2m[WebServer] [22m        at [3mignore-listed frames[23m {
+[2m[WebServer] [22m      code: [32m'ECONNREFUSED'[39m,
+[2m[WebServer] [22m      [errors]: [36m[Array][39m
+[2m[WebServer] [22m    }
+[2m[WebServer] [22m  }
+[2m[WebServer] [22m}
+  ok 1 [chromium] › e2e\cancel.spec.ts:169:7 › booker cancellation — the previewed refund is the refund given (SC#2) › bookings list → cancel review → exact itemised refund → confirm → same amount persisted (20.0s)
+  x  2 [chromium] › e2e\cancel.spec.ts:243:7 › booker cancellation — the previewed refund is the refund given (SC#2) › re-opening the review screen for an already-cancelled booking redirects, never re-refunds (3.6s)
+
+
+  1) [chromium] › e2e\cancel.spec.ts:243:7 › booker cancellation — the previewed refund is the refund given (SC#2) › re-opening the review screen for an already-cancelled booking redirects, never re-refunds 
+
+    Error: NEITHER money sentence rendered on a cancelled booking with a positive refund, and exactly one of them must. The two are:
+      • the IN-TRANSIT sentence, /refund on its way/i — composed at src/app/(app)/bookings/[id]/page.tsx:1095-1100 and rendered by the second arm of the fork at :1168-1176, when the refund dispatch was accepted;
+      • the MANUAL-RETURN notice, /coming back to you/i — src/components/booking/manual-return-notice.tsx:111, rendered by the first arm of that same fork when refundNeedsManualReturn(bk.id) is true.
+    They are mutually exclusive and jointly exhaustive for refund_cents > 0, so a page showing neither means the cancelled branch did not render its money statement at all — the booker was told nothing about their money.
+    THE CORRECT RESPONSE: investigate which branch the dispatch took and why the statement is missing. Never relax this assertion, and never allowlist this test (D-01).
+
+      325 |       await expect(inTransitSentence.first()).toBeVisible();
+      326 |     } else {
+    > 327 |       throw new Error(
+          |             ^
+      328 |         `NEITHER money sentence rendered on a cancelled booking with a positive refund, and exactly ` +
+      329 |           `one of them must. The two are:\n` +
+      330 |           `  • the IN-TRANSIT sentence, /refund on its way/i — composed at ` +
+        at C:\Users\Admin\Roaming\FitOut\e2e\cancel.spec.ts:327:13
+
+    Error Context: test-results\cancel-booker-cancellation-77e97--redirects-never-re-refunds-chromium\error-context.md
+
+    Error Context: test-results\cancel-booker-cancellation-77e97--redirects-never-re-refunds-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\cancel.spec.ts:243:7 › booker cancellation — the previewed refund is the refund given (SC#2) › re-opening the review screen for an already-cancelled booking redirects, never re-refunds 
+  1 passed (43.2s)
+--- end of unedited transcript -------------------------------------------------
+
+THE MESSAGE THE RED CARRIED, and it is the neither-branch message rather than a locator timeout: it
+names BOTH sentences with their regexes, gives the product file and lines that own each arm of the fork
+(`src/app/(app)/bookings/[id]/page.tsx:1095-1100` and `:1168-1176`,
+`src/components/booking/manual-return-notice.tsx:111`), states the rule it enforces — *"mutually
+exclusive and jointly exhaustive for refund_cents > 0"* — and states the correct response: *"investigate
+which branch the dispatch took … Never relax this assertion, and never allowlist this test (D-01)."*
+
+REVERT AND ITS PROOF:
+
+  $ git checkout -- e2e/cancel.spec.ts
+  $ sha256sum e2e/cancel.spec.ts            # AFTER REVERT — identical to BEFORE
+  97c7f18c2c55f77308cc699ca2c2bf58f93bfd9cc0c55683f97b8c2076d81b83 *e2e/cancel.spec.ts
+  $ git status --porcelain -- e2e/cancel.spec.ts
+  (no output)
+
+
+================================================================================
+WATCHED RED (b) — THE MANUAL-RETURN NOTICE WITHOUT ITS AUDIT RECORD
+================================================================================
+
+THE MUTATION — require an audit action that does not exist, so the notice on screen has no record
+behind it. This is the silent-money-failure case: the booker has been told a person will move their
+money by hand, and nothing tells any person to do it.
+
+  $ sha256sum e2e/cancel.spec.ts            # BEFORE
+  97c7f18c2c55f77308cc699ca2c2bf58f93bfd9cc0c55683f97b8c2076d81b83 *e2e/cancel.spec.ts
+
+  -          AND action = ANY(${[...REFUND_NOT_DISPATCHED_ACTIONS]}::text[])
+  +          AND action = ANY(${["refund_zzz_narrowing_b_action_that_does_not_exist"]}::text[])
+
+  $ sha256sum e2e/cancel.spec.ts            # MUTATED
+  19c3e798f680d7bf6b646326abd87e5d22c4fbd7a85552f1a5c6c11d37e8fd66 *e2e/cancel.spec.ts
+
+  $ npx playwright test e2e/cancel.spec.ts --project=chromium --reporter=list
+
+--- unedited transcript, exit code 1 -------------------------------------------
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[33m[1m⚠[22m[39m The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 2 tests using 1 worker
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[CANCEL_ALERT] refund_dispatch_failed {
+[2m[WebServer] [22m  bookingId: [32m'e2e_cx_booking_904ccce8-88a5-40d9-a439-3963cdb9eebe'[39m,
+[2m[WebServer] [22m  err: Error: PayMongo POST /v1/refunds failed (404): intercepted by instrumentation.ts, the dev-only PayMongo seam (plan 17.1-06, 17-D18) — no request left this machine
+[2m[WebServer] [22m      at paymongoFetch (src\lib\paymongo.ts:109:11)
+[2m[WebServer] [22m      at async createRefund (src\lib\paymongo.ts:451:16)
+[2m[WebServer] [22m      at async cancelBookingAsBooker (src\app\actions\cancel-booking.ts:722:7)
+[2m[WebServer] [22m    [90m107 |[0m       (json [36mas[0m { errors?: [33mArray[0m<{ detail?: string }> })?.errors?.[[35m0[0m]?.detail ??
+[2m[WebServer] [22m    [90m108 |[0m       res.statusText;
+[2m[WebServer] [22m  [31m[1m>[0m [90m109 |[0m     [36mthrow[0m [36mnew[0m [33mError[0m([32m`PayMongo [0m${method[32m} [0m${path[32m} failed ([0m${res.status[32m}): [0m${detail[32m}`[0m);
+[2m[WebServer] [22m    [90m    |[0m           [31m[1m^[0m
+[2m[WebServer] [22m    [90m110 |[0m   }
+[2m[WebServer] [22m    [90m111 |[0m   [36mreturn[0m json [36mas[0m [33mT[0m;
+[2m[WebServer] [22m    [90m112 |[0m }
+[2m[WebServer] [22m}
+[2m[WebServer] [22m[notify] enqueue_failed {
+[2m[WebServer] [22m  type: [32m'booking_cancelled_by_booker'[39m,
+[2m[WebServer] [22m  bookingId: [32m'e2e_cx_booking_904ccce8-88a5-40d9-a439-3963cdb9eebe'[39m,
+[2m[WebServer] [22m  err: TypeError: fetch failed
+[2m[WebServer] [22m      at async emitNotify (src\lib\notifications.ts:118:5)
+[2m[WebServer] [22m      at async notifyCancellation (src\app\actions\cancel-booking.ts:381:3)
+[2m[WebServer] [22m      at async cancelBookingAsBooker (src\app\actions\cancel-booking.ts:839:3)
+[2m[WebServer] [22m    [90m116 |[0m [36mexport[0m [36masync[0m [36mfunction[0m emitNotify(event: [33mNotifyEvent[0m): [33mPromise[0m<[36mvoid[0m> {
+[2m[WebServer] [22m    [90m117 |[0m   [36mtry[0m {
+[2m[WebServer] [22m  [31m[1m>[0m [90m118 |[0m     [36mawait[0m inngest.send({ name: [33mNOTIFY_EVENT[0m, data: event });
+[2m[WebServer] [22m    [90m    |[0m     [31m[1m^[0m
+[2m[WebServer] [22m    [90m119 |[0m   } [36mcatch[0m (err) {
+[2m[WebServer] [22m    [90m120 |[0m     [90m// A notification-transport failure must NEVER fail a money/state action whose durabl...[0m
+[2m[WebServer] [22m    [90m121 |[0m     [90m// succeeded (MANAGE-03) — the same discipline as request-expiry.ts's self-swallowing.[0m.. {
+[2m[WebServer] [22m    [cause]: AggregateError: 
+[2m[WebServer] [22m        at [3mignore-listed frames[23m {
+[2m[WebServer] [22m      code: [32m'ECONNREFUSED'[39m,
+[2m[WebServer] [22m      [errors]: [36m[Array][39m
+[2m[WebServer] [22m    }
+[2m[WebServer] [22m  }
+[2m[WebServer] [22m}
+[2m[WebServer] [22m[notify] enqueue_failed {
+[2m[WebServer] [22m  type: [32m'refund_issued'[39m,
+[2m[WebServer] [22m  bookingId: [32m'e2e_cx_booking_904ccce8-88a5-40d9-a439-3963cdb9eebe'[39m,
+[2m[WebServer] [22m  err: TypeError: fetch failed
+[2m[WebServer] [22m      at async emitNotify (src\lib\notifications.ts:118:5)
+[2m[WebServer] [22m      at async notifyCancellation (src\app\actions\cancel-booking.ts:401:5)
+[2m[WebServer] [22m      at async cancelBookingAsBooker (src\app\actions\cancel-booking.ts:839:3)
+[2m[WebServer] [22m    [90m116 |[0m [36mexport[0m [36masync[0m [36mfunction[0m emitNotify(event: [33mNotifyEvent[0m): [33mPromise[0m<[36mvoid[0m> {
+[2m[WebServer] [22m    [90m117 |[0m   [36mtry[0m {
+[2m[WebServer] [22m  [31m[1m>[0m [90m118 |[0m     [36mawait[0m inngest.send({ name: [33mNOTIFY_EVENT[0m, data: event });
+[2m[WebServer] [22m    [90m    |[0m     [31m[1m^[0m
+[2m[WebServer] [22m    [90m119 |[0m   } [36mcatch[0m (err) {
+[2m[WebServer] [22m    [90m120 |[0m     [90m// A notification-transport failure must NEVER fail a money/state action whose durabl...[0m
+[2m[WebServer] [22m    [90m121 |[0m     [90m// succeeded (MANAGE-03) — the same discipline as request-expiry.ts's self-swallowing.[0m.. {
+[2m[WebServer] [22m    [cause]: AggregateError: 
+[2m[WebServer] [22m        at [3mignore-listed frames[23m {
+[2m[WebServer] [22m      code: [32m'ECONNREFUSED'[39m,
+[2m[WebServer] [22m      [errors]: [36m[Array][39m
+[2m[WebServer] [22m    }
+[2m[WebServer] [22m  }
+[2m[WebServer] [22m}
+  ok 1 [chromium] › e2e\cancel.spec.ts:169:7 › booker cancellation — the previewed refund is the refund given (SC#2) › bookings list → cancel review → exact itemised refund → confirm → same amount persisted (19.6s)
+  x  2 [chromium] › e2e\cancel.spec.ts:243:7 › booker cancellation — the previewed refund is the refund given (SC#2) › re-opening the review screen for an already-cancelled booking redirects, never re-refunds (3.9s)
+
+
+  1) [chromium] › e2e\cancel.spec.ts:243:7 › booker cancellation — the previewed refund is the refund given (SC#2) › re-opening the review screen for an already-cancelled booking redirects, never re-refunds 
+
+    Error: The manual-return notice is on screen but NO audit row backs it. That is a silent money failure, not a test problem: the booker has been told a person will return their money by hand, and there is no record telling any person to do it. The notice is rendered from refundNeedsManualReturn (src/lib/booking/refund-dispatch.ts:103-116), which matches on outcome='needs_attention' AND action IN [refund_dispatch_failed, refund_transfer_failed, refund_manual_required, refund_over_instapay_ceiling] AND meta->>'bookingId'=e2e_cx_booking_904ccce8-88a5-40d9-a439-3963cdb9eebe — so a visible notice with zero matching rows means the two have come apart. Find out which write was lost. Never relax this to a row-optional check.
+
+    [2mexpect([22m[31mreceived[39m[2m).[22mtoBeGreaterThan[2m([22m[32mexpected[39m[2m)[22m
+
+    Expected: > [32m0[39m
+    Received:   [31m0[39m
+
+      319 |           `meta->>'bookingId'=${bookingId} — so a visible notice with zero matching rows means the two ` +
+      320 |           `have come apart. Find out which write was lost. Never relax this to a row-optional check.`,
+    > 321 |       ).toBeGreaterThan(0);
+          |         ^
+      322 |     } else if (inTransitCount > 0) {
+      323 |       // BRANCH 2 — the dispatch was accepted, so the in-transit sentence is the true one. Today's
+      324 |       // behaviour, unchanged, and the branch a machine holding a working payments credential takes.
+        at C:\Users\Admin\Roaming\FitOut\e2e\cancel.spec.ts:321:9
+
+    Error Context: test-results\cancel-booker-cancellation-77e97--redirects-never-re-refunds-chromium\error-context.md
+
+    Error Context: test-results\cancel-booker-cancellation-77e97--redirects-never-re-refunds-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\cancel.spec.ts:243:7 › booker cancellation — the previewed refund is the refund given (SC#2) › re-opening the review screen for an already-cancelled booking redirects, never re-refunds 
+  1 passed (43.6s)
+--- end of unedited transcript -------------------------------------------------
+
+THREE THINGS THIS RED PROVES, and they are distinct from (a)'s:
+
+  1. THE MESSAGE IS THE NOTICE-WITHOUT-ITS-RECORD ONE, not the neither-branch one — *"The manual-return
+     notice is on screen but NO audit row backs it. That is a silent money failure, not a test
+     problem…"* — so the two narrowings exercise two different assertions and neither red is the other
+     red wearing a different hat.
+  2. THE BRANCH ASSERTION IS REACHED AT ALL, which is what makes the disjunction a repair rather than a
+     weakening. `expect(...).toBeGreaterThan(0)` at `:321` lives inside branch 1 and nowhere else; the
+     run reaching it is the direct measurement that THIS MACHINE TOOK THE MANUAL-RETURN BRANCH.
+  3. THE FOUR ACTIONS REACHED THE MESSAGE FROM THE IMPORT, not from a literal. The red prints
+     *"action IN [refund_dispatch_failed, refund_transfer_failed, refund_manual_required,
+     refund_over_instapay_ceiling]"*, which is `REFUND_NOT_DISPATCHED_ACTIONS.join(", ")` evaluated at
+     runtime against `src/lib/booking/refund-dispatch.ts:82-87`. A spec that had typed its own copy
+     would have printed the same four strings while asserting against nothing the product owns.
+
+REVERT AND ITS PROOF:
+
+  $ git checkout -- e2e/cancel.spec.ts
+  $ sha256sum e2e/cancel.spec.ts            # AFTER REVERT — identical to BEFORE
+  97c7f18c2c55f77308cc699ca2c2bf58f93bfd9cc0c55683f97b8c2076d81b83 *e2e/cancel.spec.ts
+  $ git status --porcelain -- e2e/cancel.spec.ts
+  (no output)
+
+
+================================================================================
+FINAL GREEN — after BOTH reverts, proving no narrowing was left applied
+================================================================================
+
+  $ git status --porcelain -- e2e/cancel.spec.ts
+  (no output — the working tree differs from HEAD only by nothing; Task 2's repair IS HEAD)
+  $ npx playwright test e2e/cancel.spec.ts --project=chromium --reporter=list
+
+--- unedited transcript, exit code 0 -------------------------------------------
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[33m[1m⚠[22m[39m The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 2 tests using 1 worker
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[CANCEL_ALERT] refund_dispatch_failed {
+[2m[WebServer] [22m  bookingId: [32m'e2e_cx_booking_6e2f2004-9d5f-4e77-82b4-05b53b6b9542'[39m,
+[2m[WebServer] [22m  err: Error: PayMongo POST /v1/refunds failed (404): intercepted by instrumentation.ts, the dev-only PayMongo seam (plan 17.1-06, 17-D18) — no request left this machine
+[2m[WebServer] [22m      at paymongoFetch (src\lib\paymongo.ts:109:11)
+[2m[WebServer] [22m      at async createRefund (src\lib\paymongo.ts:451:16)
+[2m[WebServer] [22m      at async cancelBookingAsBooker (src\app\actions\cancel-booking.ts:722:7)
+[2m[WebServer] [22m    [90m107 |[0m       (json [36mas[0m { errors?: [33mArray[0m<{ detail?: string }> })?.errors?.[[35m0[0m]?.detail ??
+[2m[WebServer] [22m    [90m108 |[0m       res.statusText;
+[2m[WebServer] [22m  [31m[1m>[0m [90m109 |[0m     [36mthrow[0m [36mnew[0m [33mError[0m([32m`PayMongo [0m${method[32m} [0m${path[32m} failed ([0m${res.status[32m}): [0m${detail[32m}`[0m);
+[2m[WebServer] [22m    [90m    |[0m           [31m[1m^[0m
+[2m[WebServer] [22m    [90m110 |[0m   }
+[2m[WebServer] [22m    [90m111 |[0m   [36mreturn[0m json [36mas[0m [33mT[0m;
+[2m[WebServer] [22m    [90m112 |[0m }
+[2m[WebServer] [22m}
+[2m[WebServer] [22m[notify] enqueue_failed {
+[2m[WebServer] [22m  type: [32m'booking_cancelled_by_booker'[39m,
+[2m[WebServer] [22m  bookingId: [32m'e2e_cx_booking_6e2f2004-9d5f-4e77-82b4-05b53b6b9542'[39m,
+[2m[WebServer] [22m  err: TypeError: fetch failed
+[2m[WebServer] [22m      at async emitNotify (src\lib\notifications.ts:118:5)
+[2m[WebServer] [22m      at async notifyCancellation (src\app\actions\cancel-booking.ts:381:3)
+[2m[WebServer] [22m      at async cancelBookingAsBooker (src\app\actions\cancel-booking.ts:839:3)
+[2m[WebServer] [22m    [90m116 |[0m [36mexport[0m [36masync[0m [36mfunction[0m emitNotify(event: [33mNotifyEvent[0m): [33mPromise[0m<[36mvoid[0m> {
+[2m[WebServer] [22m    [90m117 |[0m   [36mtry[0m {
+[2m[WebServer] [22m  [31m[1m>[0m [90m118 |[0m     [36mawait[0m inngest.send({ name: [33mNOTIFY_EVENT[0m, data: event });
+[2m[WebServer] [22m    [90m    |[0m     [31m[1m^[0m
+[2m[WebServer] [22m    [90m119 |[0m   } [36mcatch[0m (err) {
+[2m[WebServer] [22m    [90m120 |[0m     [90m// A notification-transport failure must NEVER fail a money/state action whose durabl...[0m
+[2m[WebServer] [22m    [90m121 |[0m     [90m// succeeded (MANAGE-03) — the same discipline as request-expiry.ts's self-swallowing.[0m.. {
+[2m[WebServer] [22m    [cause]: AggregateError: 
+[2m[WebServer] [22m        at [3mignore-listed frames[23m {
+[2m[WebServer] [22m      code: [32m'ECONNREFUSED'[39m,
+[2m[WebServer] [22m      [errors]: [36m[Array][39m
+[2m[WebServer] [22m    }
+[2m[WebServer] [22m  }
+[2m[WebServer] [22m}
+[2m[WebServer] [22m[notify] enqueue_failed {
+[2m[WebServer] [22m  type: [32m'refund_issued'[39m,
+[2m[WebServer] [22m  bookingId: [32m'e2e_cx_booking_6e2f2004-9d5f-4e77-82b4-05b53b6b9542'[39m,
+[2m[WebServer] [22m  err: TypeError: fetch failed
+[2m[WebServer] [22m      at async emitNotify (src\lib\notifications.ts:118:5)
+[2m[WebServer] [22m      at async notifyCancellation (src\app\actions\cancel-booking.ts:401:5)
+[2m[WebServer] [22m      at async cancelBookingAsBooker (src\app\actions\cancel-booking.ts:839:3)
+[2m[WebServer] [22m    [90m116 |[0m [36mexport[0m [36masync[0m [36mfunction[0m emitNotify(event: [33mNotifyEvent[0m): [33mPromise[0m<[36mvoid[0m> {
+[2m[WebServer] [22m    [90m117 |[0m   [36mtry[0m {
+[2m[WebServer] [22m  [31m[1m>[0m [90m118 |[0m     [36mawait[0m inngest.send({ name: [33mNOTIFY_EVENT[0m, data: event });
+[2m[WebServer] [22m    [90m    |[0m     [31m[1m^[0m
+[2m[WebServer] [22m    [90m119 |[0m   } [36mcatch[0m (err) {
+[2m[WebServer] [22m    [90m120 |[0m     [90m// A notification-transport failure must NEVER fail a money/state action whose durabl...[0m
+[2m[WebServer] [22m    [90m121 |[0m     [90m// succeeded (MANAGE-03) — the same discipline as request-expiry.ts's self-swallowing.[0m.. {
+[2m[WebServer] [22m    [cause]: AggregateError: 
+[2m[WebServer] [22m        at [3mignore-listed frames[23m {
+[2m[WebServer] [22m      code: [32m'ECONNREFUSED'[39m,
+[2m[WebServer] [22m      [errors]: [36m[Array][39m
+[2m[WebServer] [22m    }
+[2m[WebServer] [22m  }
+[2m[WebServer] [22m}
+  ok 1 [chromium] › e2e\cancel.spec.ts:169:7 › booker cancellation — the previewed refund is the refund given (SC#2) › bookings list → cancel review → exact itemised refund → confirm → same amount persisted (19.8s)
+  ok 2 [chromium] › e2e\cancel.spec.ts:243:7 › booker cancellation — the previewed refund is the refund given (SC#2) › re-opening the review screen for an already-cancelled booking redirects, never re-refunds (3.8s)
+
+  2 passed (43.3s)
+--- end of unedited transcript -------------------------------------------------
+
+
+================================================================================
+THE ALLOWLIST PROHIBITION — the words plan 11 encodes as a named constant
+================================================================================
+
+19.1-RESEARCH.md § "D-03 — the known-failures allowlist", requirement 4, specifies the shape:
+*"The forbidden-file list is enforced — D-01 names `e2e/cancel.spec.ts` explicitly; the test asserts no
+entry lives in a file on that list. Make the list a constant with the decision id beside it."*
+
+Plan 11 declares that constant in `tests/design/e2e-known-failures.test.ts`. This line is what it
+quotes; it is written here so plan 11 can encode it without reopening this file, and so the prohibition
+has a recorded source rather than living only in a decision log.
+
+PROHIBITION — `e2e/cancel.spec.ts` is PERMANENTLY INELIGIBLE for the known-failures allowlist, by D-01. It sits on the refund path, and D-01 names it as the specific test whose quarantine was rejected: a green badge sitting on top of an unverified refund behaviour is the exact failure mode this phase exists to prevent. A failure in this file is repaired or left red — never annotated with `test.fail`, never `test.fixme`, never `test.skip`, never grep-excluded from `gate-e2e`, and never recorded in any allowlist entry. Adding a payments credential to CI to make it pass is forbidden on two independent grounds: a shipped invariant requires zero `secrets.` references across every job, and this repository is about to become public.
+
+⚠ ONE MORE THING PLAN 11 SHOULD KNOW, so its constant is not silently disarmed. The docblock this plan
+added to `e2e/cancel.spec.ts` cites `D-01` in three places and the neither-branch failure message cites
+it in a fourth. If a future round strips the disjunction, that citation goes with it — which is why the
+prohibition is ALSO encoded outside the file, in a build-blocking test that reads a path, not a comment.
+A prohibition that lives only in the file it protects is deleted by the same edit it was meant to stop.
