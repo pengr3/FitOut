@@ -329,3 +329,187 @@ probe (l) shows the opposite cause producing 56.53px, so the height cannot tell 
 RESEARCH.md's two dated candidates are BOTH exonerated: `ea61f5f`'s timezone label is absent from the
 composed text, and `cbedf46` is intact and is still the last commit to touch the product file. The
 evidence points at NEITHER.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+10. THE REPAIR, AND POST-REPAIR — 19.1-09 Task 2 / Task 3
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+ONE NON-COMMENT LINE CHANGED IN THE WHOLE REPOSITORY:
+
+  $ git diff -U0 -- e2e/skeleton-geometry.spec.ts | grep -E '^[+-][^+-]' \
+      | grep -vE "^[+-][[:space:]]*(//|[*])"
+    -const HOST_LISTING_TITLE = "Geo Courts Poblacion";
+    +const HOST_LISTING_TITLE = "Geo Courts Makati";
+
+  $ … | grep -cE '(HOST_)?TOLERANCE_PX *='
+    0                     ← no tolerance declaration added or removed
+
+  $ git diff -- 'src/app/(host)/host/bookings/page.tsx'
+    (no output)           ← the product tier was not touched, per the verdict
+
+  The rule the two adjacent cells exist to state is intact and unedited:
+    page.tsx:384  <TableCell className="whitespace-normal font-medium">      ← the Space cell
+    page.tsx:396  <TableCell className="text-label text-muted-foreground">   ← the When cell, bare
+  and the comment's warning sentence — do not "finish the job" by adding this class to the When
+  cell — is present, byte for byte, and the class was NOT added.
+
+  BOOKINGS_1280_ONE_LINE (36.52), BOOKINGS_1280_TWO_LINES (57), HOST_AGENDA_ROW_HEIGHT (112 / 72),
+  HOST_REQUEST_ROW_HEIGHT, HOST_TOLERANCE_PX (4) and TOLERANCE_PX (2) are all unchanged. The layout
+  returned to the shape the constants already describe; none of them had to move.
+
+THE POST-REPAIR NUMBERS, THE SAME FIVE MEASUREMENTS, ON BOTH RASTERISERS (the (title) case, 1280px):
+
+                                   Windows                     Linux / CI container
+                            before        after           before          after
+    row height (Corazon)    36.52         36.52           56.50           36.52   ← the declared shape
+    row height (Nenita)     57.00         57.00           57.00 *         57.00   ← the wrapped outcome
+    Space <td>             183.70        183.70          166             166
+      → content box        167.70        167.70          150             150
+    When  <td>             235.03        235.03          239             239
+    title ink              145.17        124.48          152             127
+    MARGIN                 +22.53        +43.22           −2.00          +23.00
+    Space cell lines            1             1             2               1
+    When  cell lines            1             1             1               1
+    composed When text     "Thu, Nov 12, 9:00 AM – 11:00 AM" on every one of the four readings
+
+    * Nenita's 57.00 could not be read before the repair on Linux — the serial describe aborted at
+      the shape case, so the (title) case never ran. It is read here after it, and it lands on the
+      declared 57 exactly, which is the non-vacuity check on this whole table: the LONG title still
+      wraps and still measures its own declared height, so the repair moved the short outcome only.
+
+  THE SPACE COLUMN DID NOT MOVE — 166px before and after on the runner. That is the point. Nothing
+  about the LAYOUT was changed; the fixture stopped asking a 152px string to fit a 150px box.
+
+POST-REPAIR RUNS, BOTH RASTERISERS, WHOLE FILE:
+
+  $ npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium --reporter=list
+    Running 17 tests using 4 workers
+    17 passed (54.4s)
+
+  $ docker run --rm --ipc=host … mcr.microsoft.com/playwright:v1.60.0-noble …
+      npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium --workers=1 --reporter=list
+    Running 17 tests using 1 worker
+      ✓ 10 :1913:9 › (agenda row · /host) …            ← was ✘ 4 lines vs 3
+      ✓ 11 :1913:9 › (request row · /host/requests) …  ← was "did not run"
+      ✓ 12 :1913:9 › (host booking row · /host/bookings) …  ← was ✘ 56.50 vs 36.52
+      ✓ 13 :2130:7 › (wrap) …      ✓ 14 :2211:7 › (step) …    ✓ 15 :2288:7 › (title) …
+      ✓ 16 :2500:7 › (deviation) …                     ← all four were "did not run"
+    17 passed (1.1m)
+
+  BOTH of the file's :1807 reds are closed by the one fixture change, and the four cases the serial
+  abort had been hiding since gate-e2e first ran are executing for the first time. They pass.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+11. WATCHED RED — THE ASSERTION SHOWN TO STILL FAIL, WITH THE CONTROL THAT MAKES IT EVIDENCE
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+REINTRODUCTION. On the TRACKED file that carries the repair, HOST_LISTING_TITLE put back to
+"Geo Courts Poblacion" — the pre-repair shape verbatim, not a synthetic mutation.
+
+11a. IN THE CONTAINER — the shape case, under the narrow grep:
+
+    ✘ 2 e2e/skeleton-geometry.spec.ts:1913:9 › (host booking row · /host/bookings) the plate's bar
+        and the arriving row are the same box at 320 and 1280 (4.5s)
+
+      Error: host booking row · /host/bookings · 1280px: the resolved table measures 56.5px, but this
+      shape was measured at 36.52px when its height was declared. A bar and a row that agree at the
+      wrong number are as "equal" as two that agree at the right one, which is why this is asserted
+      separately. The wrap-count clause above ran first and passed, so this is NOT the label wrapping
+      differently: the row's composition changed. Re-measure and move the constant, never the
+      tolerance.
+      Expected: <= 4
+      Received:    19.979999999999997
+      > 2057 |         ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
+
+    1 failed / 1 passed.  THE MESSAGE CARRIES THE FILE'S OWN RULE — "Re-measure and move the
+    constant, never the tolerance" — which is the sentence this plan exists to keep somebody from
+    obeying without reproducing first.
+
+11b. IN THE CONTAINER — the (title) case, which names the CELL rather than the number:
+
+    CELLPROBE bookings title · 1280px · Corazon :: {"rowH":56.5,"spaceW":166,"spaceContentW":150,
+      "whenW":239,"titleInk":79,"titleLines":2,"whenText":"Thu, Nov 12, 9:00 AM – 11:00 AM",
+      "whenLines":1}
+
+      Error: bookings title · 1280px · Corazon: "Geo Courts Poblacion" wraps to 2 lines in the Space
+      cell, not 1. … Do NOT widen a tolerance to absorb a line.
+      Expected: 1   Received: 2
+
+    (titleInk reads 79 here rather than 152 because the cell has wrapped and the range's box is now
+    the widest LINE, "Geo Courts". That is the wrap, seen from the other side.)
+
+11c. THE CONTROL, AND IT IS THE WHOLE REASON THIS SECTION IS WORTH READING. The IDENTICAL tree —
+     the reintroduced 20-character title, the same commit, the same database, the same fixture — run
+     on this Windows laptop:
+
+    ok 1 :1814:7 › (0) the fixture: one host, two listings, seven bookings, one booker each (2.2s)
+    ok 2 :1913:9 › (host booking row · /host/bookings) the plate's bar and the arriving row are the
+                   same box at 320 and 1280 (5.0s)
+    ok 3 :2130:7 › (wrap) …
+    CELLPROBE bookings title · 1280px · Corazon :: {"rowH":36.52,"spaceW":183.7,
+      "spaceContentW":167.7,"whenW":235.03,"titleInk":145.17,"titleLines":1,"whenLines":1}
+
+    GREEN. The defect this file exists to catch is invisible on the machine most people will run it
+    on, and visible on the one that gates the repository. A watched-red run on a laptop would have
+    reported "the probe does not reproduce" and closed the item as flake.
+
+11d. THE PROBES USED TO OBTAIN THE WIDTHS AND LINE COUNTS. Sections 2, 5 and 10 needed numbers no
+     assertion prints, so a temporary probe was added to the tracked spec, run, and reverted — the
+     idiom evidence/triage-plate-month.txt section 5a established for this phase. No assertion,
+     constant or tolerance was altered to obtain any figure in this document; the probes only READ
+     the DOM and console.logged it. The container harness was throwaway files at the repository root
+     (a loopback forwarder, a runner script and a config that removes ONLY webServer from the real
+     config — reuseExistingServer:false was never flipped). All are deleted; see section 12.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+12. REVERT PROOF
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+After the reintroduction and after every measurement probe, git checkout -- the single file, then
+compare CONTENT rather than bytes (core.autocrlf rewrites line endings on checkout — 19.1-03 and the
+D-A2 repair both recorded this trap):
+
+  e2e/skeleton-geometry.spec.ts, after the Task 1 probes
+    working copy   f01ac97f1ed9a5fa362eedc1e2071169c7c68815
+    HEAD blob      f01ac97f1ed9a5fa362eedc1e2071169c7c68815     ← pre-repair HEAD 6c7064e
+
+  e2e/skeleton-geometry.spec.ts, after the Task 3 probe AND the reintroduction
+    working copy   9d3e0a0520dad0ee405a624bcf7b4f473d342e01
+    HEAD blob      9d3e0a0520dad0ee405a624bcf7b4f473d342e01     ← post-repair HEAD 06cde6e
+    and grep -n 'const HOST_LISTING_TITLE =' reads
+      1357:const HOST_LISTING_TITLE = "Geo Courts Makati";
+
+  $ git status --porcelain
+    ?? .gsd/
+    ?? .planning/milestone.lock
+    ?? .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-PATTERNS.md
+    ?? .planning/state.json
+
+  BYTE-IDENTICAL TO THIS SESSION'S FIRST READING. No tracked modification, and none of the four
+  throwaway container files (.probe-linux-font.mjs, .probe-linux-run.sh, .probe-linux.config.ts,
+  .pl-throwaway.config.ts) survives. Nothing was ever staged but the commits named in section 13.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+13. GATES
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+  npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium    17 passed (Windows, 4 wk)
+  the same, in mcr.microsoft.com/playwright:v1.60.0-noble                 17 passed (1 worker)
+  npx tsc --noEmit                7 error TS, ALL pre-existing and none in a file this plan touched:
+                                  5 in tests/design/mail-credential-refusal.test.ts, 2 in
+                                  tests/design/workflow-invariants.test.ts. (19.1-03 recorded NINE;
+                                  two have since been closed by another plan. The achievable bar,
+                                  "contributes no new error TS lines", is met.)
+  npm run lint                    exit 0 — "31 problems (0 errors, 31 warnings)", every warning
+                                  pre-existing and in files this plan did not touch.
+
+  Commits: a6226a2 test(19.1-09) the reproduction and this verdict
+           06cde6e test(19.1-09) the fixture repair, one non-comment line
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+14. WHAT WAS CLOSED AND WHAT WAS NOT
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+PROHIBITION: `e2e/skeleton-geometry.spec.ts:1807` is NOT eligible for the known-failures allowlist under either verdict and must never be entered in one — it was reproduced, its tier was identified by measurement (fixture, not product), and it is CLOSED BY REPAIR on both rasterisers, so an allowlist entry here would hide a money-adjacent host surface behind a green check for a failure that no longer exists; the same applies to the `(agenda row · /host)` case that shares the source line and was closed by the same change.
+
+CARRY: five things this repair did NOT close — (1) the residual is NOT date-dependent and was therefore PINNED rather than derived, which is the correct shape here because the When column is held at the maximum of the fixture's own 5,208-label sweep by an ABSOLUTE row, so there is no band to derive against — but it becomes a time bomb of plan 03's class again the moment that May row is removed or its date changed, because the two `requested` rows would then set the When column and the residual would follow the clock, and that row is load-bearing for a reason not written at its own site; (2) every other fractional number in this file, and in `src/lib/design/measurements.ts`, is still a Windows measurement — this plan re-measured only the two the failure turned on, and the rest pass in the container today with 4px of tolerance absorbing the gap, which is luck rather than design; (3) `src/lib/design/measurements.ts:718-732` still documents a 24-character fixture title that has not existed since 24 August 2026 and now names a string two revisions old, and that file is outside this plan's `files_modified`; (4) the line numbers in this file moved and plan 11 needs them — the `14-15` shape loop's `test()` is now `:1913` (was `:1807`), `(0)` `:1814` (was `:1708`), `(wrap)` `:2130` (was `:2024`), `(step)` `:2211` (was `:2105`), `(title)` `:2288` (was `:2182`), `(deviation)` `:2500` (was `:2394`), `18-12` `:2626` (was `:2520`), comments only and no assertion moved; and (5) no CI run has confirmed this — the reproduction and the repair are both verified in the pinned image on this machine, which is the same rasteriser but not the same runner, so the first `gate-e2e` execution after this lands is the confirmation and it is the one thing this plan could not do for itself.

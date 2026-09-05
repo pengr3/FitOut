@@ -242,3 +242,54 @@ a page that renders only the pending shell.
 
 **Severity:** flake, not a hard failure (it passed on retry, both variants green
 overall with CI's `--retries=2`).
+
+## 19.1-09 — THE HOST GEOMETRY CONSTANTS WERE ALL MEASURED ON A RASTERISER THAT GATES NOTHING
+
+**Found during:** 19.1-09 Task 1, reproducing `e2e/skeleton-geometry.spec.ts:1807`.
+**Full transcript:** `evidence/triage-skeleton-geometry.txt` (14 sections, one VERDICT).
+
+`gate-e2e` runs inside `mcr.microsoft.com/playwright:v1.60.0-noble` (`ci.yml:1561-1568`), whose
+Chromium quantises glyph advances to WHOLE PIXELS. Every measurement in
+`e2e/skeleton-geometry.spec.ts`'s host block and in `src/lib/design/measurements.ts` is fractional —
+145.17, 174.03, 218.92, 36.52, 254.05 — because it was read on a Windows laptop, where they are not.
+Measured, same page, same commit, `/host/bookings` at 1280px:
+
+| | Windows | container |
+|---|---|---|
+| `HOST_LISTING_TITLE` ink | 145.17 | 152 |
+| the residual Space `<td>` | 183.70 | 166 |
+| margin | +22.53 | **−2.00** |
+
+19.1-09 re-measured and repaired the ONE string the failure turned on. **Everything else in that
+block is still a Windows number** — `HOST_REQUEST_ROW_HEIGHT` 254.05, the 320px bars, the `(step)`
+20px, `/ops`. They pass in the container today only because `HOST_TOLERANCE_PX` (4) happens to absorb
+the 2–5% inflation. That is luck, not design: the next constant to drift will drift the same silent
+way, red only in CI, green on every laptop that triages it.
+
+**Suggested disposition:** whichever plan owns the CI-signal hardening. Two shapes are available —
+(a) re-sweep the whole host block inside the pinned image and record both columns beside each
+constant, or (b) a note at the head of the file saying which rasteriser its numbers are true of and
+how to run it in the container. (b) is cheap and would have saved this plan most of its budget.
+
+**Reproduction harness, since it is not obvious and took a while to build:** run the dev server and
+Postgres on the host; `docker run --rm --ipc=host --add-host=host.docker.internal:host-gateway -v
+<repo>:/repo -w /repo -e PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+mcr.microsoft.com/playwright:v1.60.0-noble …` with (i) a ~10-line Node loopback forwarder inside the
+container mapping 127.0.0.1:3000/:5432 to `host.docker.internal` — `e2e/helpers/served-document.ts:39`
+hardcodes `http://localhost:3000` — and (ii) a throwaway config that imports the real
+`playwright.config.ts` and removes ONLY its `webServer` block. Do not flip `reuseExistingServer`
+([17-D24]/[17-D28]). Windows `node_modules` work: `@playwright/test` and `postgres` are pure JS and
+the browsers come from `/ms-playwright`.
+
+## 19.1-09 — `src/lib/design/measurements.ts:718-732` documents a fixture title that no longer exists
+
+**Found during:** 19.1-09 Task 2.
+The plateau table beside `HOST_AGENDA_ROW_HEIGHT` names `"Geo Courts Poblacion One"` (24 chars) as
+"the fixture's title, unchanged". That string was replaced on 24 August 2026 (`260824-ght`, → 20) and
+again on 5 September 2026 (19.1-09, → 17, `"Geo Courts Makati"`), so the comment is now two revisions
+stale. Its 19–27 plateau is also a Windows figure; in the container the plateau is **13–19**, which
+is why the 20-character title reddened `(agenda row · /host)` at 320px there.
+
+**Not repaired here:** `src/lib/design/measurements.ts` is outside 19.1-09's `files_modified`, and the
+constant it documents did NOT move — only the prose around it is wrong.
+**Severity:** comment only; no assertion or constant is affected.
