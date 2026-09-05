@@ -627,7 +627,7 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 14/15 plans executed (7 waves)
+**Plans:** 14/19 plans executed (11 waves)
 
 Plans:
 
@@ -680,12 +680,44 @@ Plans:
       strings with their measured statuses in `evidence/preflight-public.md` §(d). Unblocks only if
       the publication hold lifts.
 
+**Wave 8** *(gap closure — the SC4 route out)*
+
+- [ ] 19.1-16-PLAN.md — TRACER · the `(host)` layout hydration: reproduce cold and in the pinned image,
+      repair the streamed nav slot, settle `host-headings` + `overflow-320` and the blocked `AC#36` tail
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
+- [ ] 19.1-17-PLAN.md — two of the same element in one document on the booker surfaces
+      (`confirmation-decay`, `avatar-crop`): read the second copy's provenance, answer the shared-cause
+      question 19.1-13 left open, repair, and prove both instruments can still fail
+
+**Wave 10** *(blocked on Wave 9 completion)*
+
+- [ ] 19.1-18-PLAN.md — the day click that does not select on the checkout path: reproduce in
+      `mcr.microsoft.com/playwright:v1.60.0-noble` first (19.1-08's refusal to retry without an OBSERVED
+      lost click is inherited), then account for the siblings the file-scoped serial group blocked
+
+**Wave 11** *(blocked on Wave 10 completion)*
+
+- [ ] 19.1-19-PLAN.md — D-19.1-D: the today ring follows VENUE-LOCAL today in both calendar twins, the
+      fixture and the two reference URLs are pinned, clock-independence proved three ways, then rows 9–12
+      are minted via `baselines.yml` and READ out of the pixels *(carries a `blocking-human` checkpoint)*
+
 **⚠ SC4 and SC5 are OPEN. Phase 19.1 is NOT complete.** The route out is the three follow-up plans
 19.1-13 proposed and the PM confirmed as in-phase — **19.1-16** (host-layout hydration; owns both
-still-red originals `host-headings` and `overflow-320`, plus the 24 blocked tests), **19.1-17**
-(duplicated booker mounts), **19.1-18** (the lost day click). None exists yet; they are owed to the
-gap-planning step that runs after 19.1-14 closes. SC4 closes when they land, which is what lifts the
-publication hold, which is what unblocks 19.1-15.
+still-red originals `host-headings` and `overflow-320`, plus the blocked `AC#36` tail), **19.1-17**
+(duplicated booker mounts), **19.1-18** (the lost day click) — plus **19.1-19**, which implements the
+`gate-visual` half the same measurement specified: `D-19.1-D`'s decided point (a) and the five mechanical
+points beside it, which 19.1-12 measured as NOT small and localised and therefore refused to fold in.
+**All four now exist** and are numbered from 19.1-16 in their own waves above. SC4 closes when they land,
+which is what lifts the publication hold, which is what unblocks 19.1-15.
+
+⚠ **Each is its own wave deliberately, and it is not conservatism.** Every one of the four closes by
+reading a real `ci` run or a `baselines` dispatch, and the workflow's concurrency group cancels an
+in-flight run on the next push — which is how runs `33971557439` and `33971883942` already died inside
+this phase. Two of these plans executing at once would destroy each other's measurement. 19.1-17
+additionally depends on 19.1-16 by construction (its first instruction is to test whether the two are one
+defect), and 19.1-19's dispatch commits back to the branch.
 
 ### Phase 20: Ops Gets Its Own Front Door — the `ops.` Host, Sign-In & Staff Onboarding
 
@@ -995,7 +1027,7 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified & COMPLETE** — 17/17 requirements, 0 code-level blockers. The checkbox was held from 2026-09-01 until 18.1 shipped the missing submission path, then briefly re-held on PM decision D-274 (the `/ops` contact surface). **18.1-16 shipped D-274 on 2026-09-03 and phase 18.1 verified passed 9/9, so both holds are discharged.** | verified 2026-09-03 |
 | 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | Complete    | 2026-09-03 |
 | 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 11/11 | In Progress|  |
-| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 13/15 | In Progress — 19.1-14 HALTED (`hold`), 19.1-15 BLOCKED (403); SC4 + SC5 OPEN |  |
+| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 13/19 | In Progress — 19.1-14 HALTED (`hold`), 19.1-15 BLOCKED (403); gap-closure plans 19.1-16…19 planned (waves 8–11); SC4 + SC5 OPEN |  |
 | 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | Not started | - |
 | 21. The Host Can See Where They Stand | v1.2 | 0/TBD | Not started | - |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |
