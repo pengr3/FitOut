@@ -1,0 +1,376 @@
+FINDING D-A2 — `CalendarMonthSkeleton` reserves six week rows against the month's own count
+Repaired 2026-09-05, orchestrator-directed between waves 2 and 3 of phase 19.1.
+Machine: Windows 11, Asia/Manila (+08), Node/Next dev on :3000, Playwright chromium, 1 worker.
+Opened at HEAD 7c45403 (dev), tracked working tree clean.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+1. PRE-REPAIR RED — reproduced from scratch, not quoted
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+`npx playwright test e2e/calendar-hit-area.spec.ts --project=chromium -g "plate and grid agree"
+ --workers=1 --reporter=list`
+
+  x  1 [chromium] > e2e\calendar-hit-area.spec.ts:455:9 > AC#15 ... > court  (17.3s)
+  x  2 [chromium] > e2e\calendar-hit-area.spec.ts:455:9 > AC#15 ... > grove  (3.8s)
+
+  Error: month plate . court . 320px: the skeleton and its resolved twin differ by more than 2px.
+  skeleton {"width":288,"height":410} resolved {"width":288,"height":357.1875}
+  - Dwidth 0, Dheight 52.81
+    Expected: <= 2
+    Received:    52.8125
+
+  (grove byte-identical but for the theme name.)  2 failed.
+
+MY MEASUREMENT AGREES WITH 19.1-03's TO THE LAST DIGIT: 410 vs 357.1875, D 52.8125. Nothing in this
+document is inherited; the plan-03 numbers are confirmed rather than carried.
+
+WHAT 52.8125 IS. One week row (44 + 8 = 52) plus 0.8125 — the plate's declared weekday-row
+approximation (an `h-5` 20px bar where the resolved row's line box is 19.1875).
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+2. THE DECISION, AND THE CONDITION THAT CAME WITH IT
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+The operator chose DERIVE THE PLATE'S ROW COUNT. `fixedWeeks` on the DayPicker call site was
+considered and REJECTED: it renders a trailing week of the next month EVERY month, a permanent
+visible UX change.
+
+The condition attached to the choice was the hard part:
+
+  the plate is the PRE-HYDRATION paint, so its row count is computed server-side; if the server and
+  the client disagree about which month it is — which they can, across a timezone boundary near
+  midnight — that is a hydration mismatch, and the repair would have traded a layout shift for a
+  React error. The month must come from a SINGLE source both sides agree on, and must NOT be
+  re-derived from `new Date()` independently on each side.
+
+HOW IT IS SATISFIED (and it is satisfied by CONSTRUCTION, not by care):
+
+  `src/app/listings/[id]/(detail)/loading.tsx` is a Server Component. It reads the clock ONCE, binds
+  it to one `const`, and passes `{ year, month }` to `CalendarMonthSkeleton` as a prop. The component
+  is `"use client"`, so React renders it again during hydration — but with the SAME SERIALIZED PROP.
+  The client derives nothing. There is no second derivation to disagree with the first.
+
+  `weekRowsForMonth` and `CalendarMonthSkeleton` contain no clock access of any kind. The `month`
+  prop is REQUIRED rather than defaulted, deliberately: a default would have to read a clock.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+3. THE HYDRATION PROPERTY IS EXERCISED, NOT ASSERTED
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+`tests/design/calendar-plate-month.test.tsx` (build-blocking — `npm run test:design` runs inside
+`npm run build`). Three independent instruments, not one comment:
+
+  (i)   BEHAVIOURAL PURITY. Render the plate under two system clocks four months apart; require
+        byte-identical `innerHTML`.
+  (ii)  STRUCTURAL. A comment-stripped census over the helper-plus-component region of the source
+        forbidding `new Date()`, `Date.now(` and `getTimezoneOffset`, with a non-vacuity guard that
+        the stripped region still contains the code being searched.
+  (iii) THE REAL THING. `renderToString` under one instant, then a real `hydrateRoot` under another
+        eight hours later across a month boundary, collecting React's `onRecoverableError`.
+
+(iii) CARRIES ITS OWN CONTROL, and the control is what makes it evidence:
+
+  CONTROL   `ClockReadingPlate` — the shape this repair rejected, deriving its month from
+            `new Date()` — through the IDENTICAL harness. It must produce a recoverable error:
+
+              "Hydration failed because the server rendered HTML didn't match the client. As a result
+               this tree will be regenerated on the client. ... - Variable input such as `Date.now()`
+               or `Math.random()` which changes each time it's called. ...
+                 <Plate>
+                   <div data-testid="p">
+               -     <div className="mt-2 grid grid-cols-7">"
+
+  SUBJECT   `<CalendarMonthSkeleton month={SIX_ROW_MONTH} />` through the same harness: zero
+            recoverable errors, six rows on BOTH sides of the boundary that took the control from
+            six to five.
+
+  Both cases also assert the SERVER row count and the POST-HYDRATION row count, so neither can pass
+  by never rendering.
+
+WHAT THE INSTRUMENT COULD NOT DO, AND HOW THAT WAS FOUND. Two harness defects were caught by the
+control before they could produce a false green — see section 4. Both are recorded rather than
+quietly fixed, because each is a way this test could have "passed" while measuring nothing.
+
+STILL NOT EXERCISED, stated plainly: no test in this repository drives a real browser through a real
+Next.js hydration of the real `loading.tsx` across a real month boundary. `e2e/calendar-hit-area.spec.ts`
+explicitly does NOT hydrate the pending document (`served-document.ts` property 1), which is correct
+for geometry and blind to this. What would exercise it: a Playwright run against a dev server whose
+clock is 23:59 on the last of a month while the browser's `page.clock` is set past midnight in a
+different zone, asserting an empty `page.on("pageerror")` and no hydration console error. That is a
+harness this phase does not have and did not build; the jsdom instrument above is the closest
+available, and its control is what makes it worth something.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+4. TWO HARNESS DEFECTS THE CONTROL CAUGHT (both would have been a green that measured nothing)
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+DEFECT H1 — `vi.useFakeTimers()` stalls React's scheduler.
+  First run: control reported ZERO recoverable errors. Faking the whole timer suite also fakes the
+  timers React's scheduler uses, so the hydration work never flushed. Narrowed to
+  `vi.useFakeTimers({ toFake: ["Date"] })`; the same narrowing was applied to the purity test.
+
+DEFECT H2 — the control was a function of the RUNNER's timezone.
+  Second run: control still reported ZERO. The instants were chosen as 2027-01-31T20:00Z and
+  2027-02-01T04:00Z and the control read the LOCAL month. This box is Asia/Manila (+08), so BOTH
+  instants are already 1 February locally — the two renders agreed and there was nothing to mismatch.
+  Verified directly:
+
+    $ node -e "console.log(Intl.DateTimeFormat().resolvedOptions().timeZone,
+                           new Date('2027-01-31T20:00:00.000Z').toString())"
+    Asia/Manila Mon Feb 01 2027 04:00:00 GMT+0800 (Philippine Standard Time)
+
+  Fixed by having the control read UTC, which pins the boundary to the instants rather than to the
+  machine. A non-vacuity assertion on the SERVER row count (must be January's six) was added so the
+  same class of silent agreement cannot return.
+
+BOTH DEFECTS WERE FOUND BY THE CONTROL, IN A FILE WHOSE SUBJECT IS TESTS THAT CANNOT FAIL. Recorded
+because the obvious reading of the first run — "no mismatch, the property holds" — is exactly the
+false green this phase exists to eliminate.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+5. POST-REPAIR — MEASURED ON BOTH MONTH SHAPES
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+5a. FIVE-ROW MONTH (September 2026 — the real clock, the month D-A2 was measured in)
+
+  `npx playwright test e2e/calendar-hit-area.spec.ts --project=chromium --workers=1`
+    ok 1 :302 court . the day cell, the nav buttons and the fluid width floor   (AC#14)
+    ok 2 :302 grove . the day cell, the nav buttons and the fluid width floor   (AC#14)
+    ok 3 :455 court . plate and grid agree within +/-2px at 320 / 768 / 1280    (AC#15)
+    ok 4 :455 grove . plate and grid agree within +/-2px at 320 / 768 / 1280    (AC#15)
+    4 passed
+
+  The exact boxes, forced into the failure message by temporarily setting
+  `SKELETON_TOLERANCE_PX = 0` on the tracked file (reverted; see section 7). A tolerance-0 run halts
+  at the FIRST width, so 768 and 1280 were captured by additionally narrowing `SKELETON_WIDTHS` to
+  that one width per run — three runs, not one:
+
+    month plate . court .  320px: skeleton {"width":288,"height":358}
+                                  resolved {"width":288,"height":357.1875}  Dheight 0.81 (0.8125)
+    month plate . grove .  320px: identical (printed in the same run).
+    month plate . court .  768px: skeleton {"width":326,"height":358}
+                                  resolved {"width":326,"height":357.1875}  Dheight 0.81
+    month plate . court . 1280px: skeleton {"width":326,"height":358}
+                                  resolved {"width":326,"height":357.1875}  Dheight 0.81
+
+  52.8125  ->  0.8125. The residual is the declared weekday-row approximation and nothing else.
+
+5b. SIX-ROW MONTH (January 2027 — a dev server and a runner whose clock is shifted +127 days)
+
+  A throwaway `fake-clock.probe.cjs` at the repo root shifted `Date`/`Date.now` by 127 days and was
+  injected into BOTH the Playwright runner and the `npm run dev` server it boots:
+
+    FITOUT_FAKE_CLOCK_OFFSET_MS=10972800000 NODE_OPTIONS="--require ./fake-clock.probe.cjs" \
+      npx playwright test e2e/calendar-hit-area.spec.ts --project=chromium \
+        -g "plate and grid agree" --workers=1
+
+    ok 1 court . plate and grid agree within +/-2px at 320 / 768 / 1280   (6.5s)
+    ok 2 grove . plate and grid agree within +/-2px at 320 / 768 / 1280   (4.0s)
+    2 passed
+
+  With `SKELETON_TOLERANCE_PX = 0` (and `SKELETON_WIDTHS` narrowed per run, as above), the boxes it
+  actually measured:
+
+    month plate . court .  320px: skeleton {"width":288,"height":410}
+                                  resolved {"width":288,"height":409.1875}  Dheight 0.81
+    month plate . grove .  320px: identical (printed in the same run).
+    month plate . court .  768px: skeleton {"width":326,"height":410}
+                                  resolved {"width":326,"height":409.1875}  Dheight 0.81
+    month plate . court . 1280px: skeleton {"width":326,"height":410}
+                                  resolved {"width":326,"height":409.1875}  Dheight 0.81
+
+  NON-VACUITY: the RESOLVED side reads 409.1875, not 357.1875. The fake reached the SERVER — this is
+  genuinely a six-row month on both sides, not the September run again. The probe was deleted and
+  never committed (`git status --porcelain` untracked list is byte-identical to the session's first
+  reading).
+
+  Combined table. Every figure below is a PRINTED box, court at each width; grove was printed at 320
+  in both shapes and is byte-identical there, and is asserted at all three widths by the +/-2px pass:
+
+    rows   width   plate (pending)   calendar (resolved)   D
+    ----   -----   ---------------   -------------------   ----
+    5      320     288 x 358         288 x 357.19          0.81
+    5      768     326 x 358         326 x 357.19          0.81
+    5      1280    326 x 358         326 x 357.19          0.81
+    6      320     288 x 410         288 x 409.19          0.81
+    6      768     326 x 410         326 x 409.19          0.81
+    6      1280    326 x 410         326 x 409.19          0.81
+
+  D is 0.81 at BOTH row counts. The approximation does not grow with the count, which is why the
+  +/-2px band did not have to move — no tolerance was widened anywhere in this repair.
+
+5c. THE TRAP, MEASURED
+
+  With the plate's row count put back to the pre-repair constant (`const weekRows = 6;`) and the
+  faked JANUARY clock still in place:
+
+    ok 1 court . plate and grid agree within +/-2px at 320 / 768 / 1280   (8.9s)
+    ok 2 grove . plate and grid agree within +/-2px at 320 / 768 / 1280   (10.2s)
+    2 passed
+
+  THE DEFECTIVE CODE IS GREEN IN A SIX-ROW MONTH. That is the whole of why this survived from
+  August 2026 to September 2026 in two files at once: the spec and the component were both written in
+  a six-row month, and only 2 of the 12 months from September 2026 are six-row months (2027-01 and
+  2027-05). A repair verified only in the month it was written in is a repair verified in the one
+  month its own bug is invisible.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+6. WATCHED RED — the new assertions shown to FAIL when the count is wrong
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+MUTATION 1 — the plate stops asking the month.
+  `const weekRows = weekRowsForMonth(month)` -> `const weekRows = 6;`  (the pre-repair shape verbatim,
+  not a synthetic mutation).
+
+  design layer — `tests/design/calendar-plate-month.test.tsx` + `skeleton-a11y.test.tsx`:
+    3 failed | 27 passed
+      -> expected ...(50) to have a length of 43 but got 50          (calendar-plate-month, 5-row case)
+      -> expected ...(50) to have a length of 43 but got 50          (skeleton-a11y, 5-row case)
+      -> a six-row month must render exactly one more week of cells than a five-row one.
+         Equal counts mean the plate is still reserving a constant number of rows.: expected +0 to be 7
+
+  e2e layer — AC#15, real clock:
+    Error: month plate . court . 320px: ... skeleton {"width":288,"height":410}
+    resolved {"width":288,"height":357.1875} - Dwidth 0, Dheight 52.81
+    Received: 52.8125
+    2 failed / 0 passed, both themes.
+
+  The mutation reproduces the ORIGINAL defect exactly, at both layers, at the original number.
+  Reverted.
+
+MUTATION 2 — the wrong week start.
+  `getUTCDay()` -> `(getUTCDay() + 6) % 7`, i.e. a Monday-start fold.
+
+    6 failed. The two that matter name the discriminating month BY NAME:
+
+      2026-11: the helper and the day-walking count disagree about how many seven-day rows this
+               month folds into: expected 6 to be 5
+      2026-11: the plate would reserve 6 week rows against a grid that renders 5. Every pixel of
+               AC#15's +/-2px is one week row x 52px, so a disagreement here IS the layout shift.
+               expected 6 to be 5
+
+  November 2026 begins on a Sunday, which is the only month shape where a Sunday-start and a
+  Monday-start calendar give different row counts. The second failure is the helper measured against
+  what `react-day-picker` ACTUALLY RENDERED, so the week start is a measurement in this repository
+  rather than an assumption about a library default. Reverted.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+7. REVERT PROOF
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+After every mutation above, `git checkout --` the single file, then compare CONTENT rather than bytes
+(`core.autocrlf` rewrites line endings on checkout — 19.1-03 recorded the same trap):
+
+  e2e/calendar-hit-area.spec.ts, after the two SKELETON_TOLERANCE_PX = 0 runs
+    working copy   f511c19cad5e8dff88c33f7dc946a6d8f5f89103651aac570d7a9ffe3dcdcb91
+    HEAD blob      f511c19cad5e8dff88c33f7dc946a6d8f5f89103651aac570d7a9ffe3dcdcb91
+    (the same digest 19.1-03 recorded for this file)
+
+  src/components/availability/availability-calendar.tsx, after mutations 1 and 2
+    working copy   f45fb9707fb263e4a098c3852e4c9d02f65b7726e5a305aa82604d97e64fa050
+    HEAD blob      f45fb9707fb263e4a098c3852e4c9d02f65b7726e5a305aa82604d97e64fa050
+
+  `git status --porcelain | grep -v '^??' | wc -l` -> 0 after each revert.
+  The untracked list is byte-identical to the session's first reading (.gsd/, .planning/milestone.lock,
+  19-PATTERNS.md, .gitkeep, .planning/state.json) — the fake-clock probe left nothing behind.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+8. THE RIPPLE LIST — VERIFIED AGAINST THE CODE, NOT INHERITED
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+19.1-03 named four ripple sites. Two of them are wrong, and saying so is cheaper than the next reader
+re-deriving it:
+
+  src/components/availability/availability-calendar.tsx   REAL. The component, the helper, the 409px
+                                                          docblock (now `98 + r x 52` with both
+                                                          measured rows tabulated), and one narrative
+                                                          comment at the `[&_td]:aspect-auto` override
+                                                          that said "six week rows".
+  e2e/calendar-hit-area.spec.ts                           REAL, comments only. The MEASURED PAIR table
+                                                          (was a six-row snapshot read as constants),
+                                                          `SKELETON_TOLERANCE_PX`'s docblock, a new
+                                                          watched red (d), and NOT COVERED, which now
+                                                          names the hydration hazard this file
+                                                          structurally cannot see.
+  tests/design/skeleton-a11y.test.tsx                     REAL. Four mount sites needed the prop, and
+                                                          `toHaveLength(7 * 6 + 7 + 1)` was a fact
+                                                          about August 2026. Now two cases, a five-row
+                                                          and a six-row month.
+  e2e/skeleton-geometry.spec.ts                           NOT A RIPPLE. `grep -n "calendar"` returns
+                                                          20 hits, none of them this plate; that spec
+                                                          drives `/dev/theme`, which renders no
+                                                          calendar at all (its own NOT COVERED footer
+                                                          says so). Untouched.
+  src/lib/design/selector-contract.ts                     NOT A RIPPLE. It declares the
+                                                          `skeleton-calendar` HOOK and argues why the
+                                                          hook exists; it encodes no row count and no
+                                                          height. Untouched.
+
+ONE SITE 19.1-03 DID NOT NAME, and it is the one the repair actually needed:
+  src/app/listings/[id]/(detail)/loading.tsx              The only mount. It now owns the single clock
+                                                          read, and the whole hydration argument lives
+                                                          at that call site.
+
+Repo-wide sweep for the assumption afterwards
+(`grep -rn "length: 6 }\|7 \* 6\|6 \* (44\|6 x (44\|312\b" src/ e2e/ tests/`): every remaining hit is
+historical narrative describing what the code USED to say, or an unrelated line number in a stack
+trace. No live six-row assumption remains.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+9. GATES
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+  npm run build                       EXIT 0  (lint + test:design + next build)
+  npm run test:design                 80 files / 1394 passed | 3 skipped
+  npx tsc --noEmit                    9 `error TS`, ALL pre-existing:
+                                        5 tests/design/mail-credential-refusal.test.ts
+                                        4 tests/design/workflow-invariants.test.ts
+                                      Zero in any file this repair touched. Same nine as 19.1-03 and
+                                      19.1-04 recorded; the achievable bar, "contributes no new
+                                      `error TS` lines", is met.
+  npx playwright test e2e/calendar-hit-area.spec.ts       4 passed (AC#14 x2, AC#15 x2)
+  npx vitest run tests/availability/                      2 files / 17 passed
+  next build route table              `/listings/[id]` is `f (Dynamic) - server-rendered on demand`,
+                                      so the loading fallback renders PER REQUEST and the clock read
+                                      is not frozen at build time. Measured, because a statically
+                                      prerendered fallback would have pinned the plate to the month
+                                      of the build.
+
+A NOTE FOR PLAN 11: the AC#15 cases have MOVED from `e2e/calendar-hit-area.spec.ts:455` to `:492`,
+and AC#14 from `:302` to `:304`. Comments only; no assertion moved.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+10. RESIDUALS — stated, not closed
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+R1. THE LISTING'S OWN ZONE. `loading.tsx` gets neither params nor a database, so it cannot know which
+    zone the listing renders in. It uses the launch region (`schema.ts:223`'s `Asia/Manila` default).
+    For a listing in another zone, during the hours when its calendar date differs from Manila's AND
+    the two dates fall in different months AND those months fold into a different row count, the plate
+    is one row out. A handful of hours a year against ten months in twelve.
+
+R2. THE SEARCHED MONTH. `/listings/[id]?date=...` can open the resolved grid on a month that is not
+    the current one (D-59 #1). A `loading.tsx` cannot read search params, so the plate reserves the
+    current month's rows for another month's grid. UNCHANGED by this repair — it was equally wrong
+    before — and unfixable from a `loading.tsx`, which is defined not to see the request. Closing it
+    would mean moving the plate inside the page's own `<Suspense>`, which is a different change on a
+    different surface.
+
+R3. NO REAL-BROWSER HYDRATION TEST ACROSS A MONTH BOUNDARY. See section 3. The property is proved at
+    the jsdom layer with a control; it is not proved through Next.js.
+
+Neither R1 nor R2 is a regression, and neither reintroduces the hydration hazard: both are about WHICH
+month the single source names, never about the two sides naming different ones.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+VERDICT
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+VERDICT D-A2: CLOSED BY REPAIR. `CalendarMonthSkeleton` reserves `weekRowsForMonth(month)` week rows
+from a month computed once, server-side, at its only mount site and passed as a serialized prop. The
+layout shift measured 52.8125px and now measures 0.8125px, in BOTH a five-row and a six-row month,
+at three widths in two themes. `e2e/calendar-hit-area.spec.ts` AC#15 (court + grove) is GREEN; those
+two are no longer among the fourteen and are NOT allowlist candidates. The hydration condition
+attached to the decision is met by construction and exercised by a controlled
+`renderToString`/`hydrateRoot` harness whose control is required to fail. No tolerance was widened, no
+assertion deleted, no test annotated, and `fixedWeeks` was not implemented.

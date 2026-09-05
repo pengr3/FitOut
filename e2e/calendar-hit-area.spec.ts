@@ -393,9 +393,11 @@ test.describe("AC#14 — a calendar day cell is 44px tall at every width, in bot
 //
 // The 18 August 2026 table was taken in a SIX-row month and read as if its numbers were constants.
 // They are not: both sides are `chrome + rows × (44 + 8)`, so the pair slides 52px per week row. What
-// is constant is the Δ. Measured 5 September 2026 (19.1 · D-A2), court and grove, with the six-row
-// rows taken against a dev server whose clock was shifted 127 days forward so that the plate AND the
-// grid were both standing in January 2027:
+// is constant is the Δ. Measured 5 September 2026 (19.1 · D-A2) by forcing the boxes into the failure
+// message with `SKELETON_TOLERANCE_PX = 0` on this file (reverted, content checksum matched). The
+// figures below are COURT at each width; grove was printed at 320 and is byte-identical there, and is
+// asserted at all three. The six-row rows were taken against a dev server whose clock was shifted 127
+// days forward so that the plate AND the grid were both standing in January 2027:
 //
 //   rows   width   plate (pending)   calendar (resolved)   Δ
 //   ────   ─────   ───────────────   ───────────────────   ────
