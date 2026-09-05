@@ -1,0 +1,161 @@
+19.1-16 — THE (host) HYDRATION FAILURE: REPRODUCED COLD, CONTROLLED, REPAIRED, AND WATCHED RED
+================================================================================================
+
+Convention: `19.1-PATTERNS.md` §A — the command line above its own unedited output, line-anchored
+markers at column zero so a grep over this file cannot be satisfied by the prose around it.
+
+Box: Windows 11, Chromium via Playwright 1.60.0, dev server on :3000, postgis/postgis:18-3.6 in
+`fitout-db-1`. Date: 2026-09-06.
+
+THE PROBE. A throwaway spec `e2e/zz-hydration-probe.spec.ts`, created for STEP 1 and deleted in the
+same task. It arms `page.on("console")` and `page.on("pageerror")` BEFORE the navigation — a
+hydration error is thrown during the FIRST client render, so a listener registered after `goto`
+resolves can miss the only message it wants (`e2e/public-listing.spec.ts:329-330`'s own recorded
+reason) — signs a host up through the UI, loads `/host` at 375px, and then drives the nav drawer open
+and closed so the reading is taken on a page that provably HYDRATED rather than on a pre-hydration
+document.
+
+------------------------------------------------------------------------------------------------
+STEP 1 · READING 1 — /host, COLD COMPILE CACHE
+------------------------------------------------------------------------------------------------
+
+$ npm run db:migrate && npm run db:seed
+$ rm -rf .next
+$ npx playwright test e2e/zz-hydration-probe.spec.ts --project=chromium --workers=1 --reporter=list
+
+IMAGE=local
+COLD-CACHE=yes
+ROUTE=/host
+HYDRATION-COUNT=1
+EXIT=0
+
+React's own error detail, verbatim, as the browser printed it:
+
+DETAIL-BEGIN
+Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <div className="mx-auto fl...">
+      <LinkComponent>
+      <nav data-testid="site-nav" className="flex items...">
+        <Suspense fallback={[...]}>
+          <div>
+          <div className="md:hidden">
+            <NavDrawer>
+              <ResponsiveDialog title="Menu" hideTitle={true} trigger={<button>}>
+                <Dialog open={undefined} onOpenChange={undefined}>
+                  <Dialog data-slot="dialog" open={undefined} onOpenChange={undefined}>
+                    <DialogProvider scope={undefined} triggerRef={{current:null}} contentRef={{current:null}} ...>
+                      <DialogTrigger asChild={true}>
+                        <DialogTrigger data-slot="dialog-tri..." asChild={true}>
+                          <Primitive.button type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                            <Primitive.button.Slot type="button" aria-haspopup="dialog" aria-expanded={false} ...>
+                              <Primitive.button.SlotClone type="button" aria-haspopup="dialog" aria-expanded={false} ...>
++                               <button
++                                 data-slot="button"
++                                 data-variant="ghost"
++                                 data-size="icon"
++                                 className={"group/button inline-flex shrink-0 items-center justify-center rounded-l..."}
++                                 aria-label="Menu"
++                                 type="button"
++                                 aria-haspopup="dialog"
++                                 aria-expanded={false}
++                                 aria-controls="radix-_R_ad5ritulb_"
++                                 data-state="closed"
++                                 onClick={function handleEvent}
++                                 ref={function}
++                               >
+                      ...
+      ...
+DETAIL-END
+
+WHAT THE BROWSER NAMED, IN ITS OWN WORDS AND NOT IN PLAN 13's.
+
+  THE NODE:      `<button data-slot="button" data-variant="ghost" data-size="icon"
+                 aria-label="Menu" type="button">` — the nav drawer's trigger.
+  THE ATTRIBUTE: `aria-controls="radix-_R_ad5ritulb_"`, a Radix identifier generated per render from
+                 React's own id hook.
+  THE POSITION:  under `<nav data-testid="site-nav">` → `<Suspense fallback={[...]}>` →
+                 `<div className="md:hidden">` → `NavDrawer` → `ResponsiveDialog` → `Dialog` →
+                 `DialogProvider` → `DialogTrigger` → `Primitive.button.Slot`.
+  THE SIGN:      every line of the node is prefixed `+`. In React's diff `+` is CLIENT-ONLY — the
+                 client rendered this button at a position the server's HTML did not put it at.
+
+MATCHED OR REFUTED? MATCHED. 19.1-13 recorded the chain
+`host layout → SiteNav → NavDrawer → ResponsiveDialog → Radix DialogTrigger` and the attribute
+`aria-controls` as the LEADING CANDIDATE, and said in writing that it had not been read as this
+plan's own measurement. It is now read: the element and the attribute the browser names are the
+element and the attribute 13 named. Nothing in the reading was inherited — the block above is this
+run's output, and the id value (`radix-_R_ad5ritulb_`) is this run's own.
+
+------------------------------------------------------------------------------------------------
+STEP 1 · READING 2 — THE BOOKER CONTROL, SAME RUN, SAME COLD CACHE
+------------------------------------------------------------------------------------------------
+
+The booker CHECKOUT route (`/listings/[id]/book`), reached through a real seeded listing and a real
+placed hold, which is the route 19.1-13 measured as emitting none. Identical capture: listeners armed
+before the navigation, same filter, same probe.
+
+$ npx playwright test e2e/zz-hydration-probe.spec.ts --project=chromium --workers=1 --reporter=list
+  (test 2 of the same invocation)
+
+IMAGE=local
+COLD-CACHE=yes
+ROUTE=/listings/[id]/book
+HYDRATION-COUNT=0
+EXIT=0
+
+  @@@PROBE-BEGIN booker checkout /listings/[id]/book 375px
+  @@@HYDRATION-COUNT 0
+  @@@PROBE-END booker checkout /listings/[id]/book 375px
+  ok 2 [chromium] › e2e\zz-hydration-probe.spec.ts:65:5 › probe booker checkout control (17.0s)
+
+  2 passed (1.5m)
+
+WHY THE CONTROL IS THE WHOLE ARGUMENT. A mechanism that fires everywhere explains nothing. `(app)`
+streams too — `src/app/(app)/layout.tsx` wraps its bell in a boundary — but its fallback is
+`<BellSlotSkeleton />`, a plain `aria-hidden` box that mounts no Radix subtree at all, and the route
+emits zero. The difference between the two boundaries is not "streaming"; it is WHAT THE FALLBACK
+MOUNTS. That single in-repo contrast is what selects the repair shape in STEP 2.
+
+------------------------------------------------------------------------------------------------
+STEP 1 · READING 3 — /host AGAINST A `.next` LEFT DIRTY BY A PRODUCTION BUILD
+------------------------------------------------------------------------------------------------
+
+The second control, and the one this repository has actually been burned by: `evidence/triage-harness.md`
+warning 4 records a stale Turbopack cache faking both a route 404 and a hydration mismatch, so a
+warm-cache reading is not a reproduction on its own — and neither is a cold one, on its own, evidence
+that the cache is irrelevant. Both are taken.
+
+$ npm run build
+BUILD-EXIT=0
+$ npx playwright test e2e/zz-hydration-probe.spec.ts --project=chromium --workers=1 --reporter=list --grep "probe host route"
+
+IMAGE=local
+COLD-CACHE=no
+ROUTE=/host
+HYDRATION-COUNT=1
+EXIT=0
+
+  @@@PROBE-BEGIN host /host 375px
+  @@@HYDRATION-COUNT 1
+  ...
+  @@@PROBE-END host /host 375px
+  ok 1 [chromium] › e2e\zz-hydration-probe.spec.ts:49:5 › probe host route (8.3s)
+
+  1 passed (15.5s)
+
+THE TWO READINGS AGREE — 1 and 1. There is no disagreement to record, and therefore no cache
+artefact: the defect survives both a cache removed seconds earlier and a `.next` a production build
+has just rewritten. The same `aria-controls="radix-…"` node is named in the dirty-cache transcript
+(3 occurrences of `aria-controls="radix-` in that run's output).
