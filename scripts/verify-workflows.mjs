@@ -139,6 +139,41 @@ const CHECKER_RUN = `node ${CHECKER_SCRIPT}`;
 // somebody had already thought of it.
 const CHECKER_STEP_ALLOWED_KEYS = ["name", "run"];
 
+// ── THE OTHER LOAD-BEARING STEP OF THE SAME JOB (plan 19.1-05, CI-01/SC1) ──────────────────────
+// `gate-db-free` has exactly two steps that carry a gate. The pair above is the one that runs THIS
+// script. This pair is the one that runs `npm run build` — which is lint, the whole design suite and
+// the Next build in one command.
+//
+// ⚠ WHY THIS STEP IS NOT A LESSER SUBJECT THAN THE ONE ABOVE. `npm run build` is what executes
+// `tests/design/workflow-invariants.test.ts` — the standing mutation suite that holds every case
+// this phase has written, including the ones that protect the check above. Delete or soften this
+// step and the instrument that remembers all of it stops running, while the checker it protects
+// keeps printing a clean green. Measured, not supposed (evidence/guards-05-pre-fix.txt, MUTATIONS 5
+// and 6): appending an argument to this step's `run:`, and adding a condition key to the step, EACH
+// left the checker at exit 0 with all 52 invariants reported holding.
+//
+// ⚠ AND THE ONE THING THAT DID GO RED HERE IS NOT COVERAGE — READ THIS BEFORE ASSUMING IT IS.
+// Deleting the step outright is already caught, by `the job that runs \`npm run build\` exists and
+// declares NO services: (T-11-DBFREE)` further up. That predicate locates its subject with
+// `r.includes("npm run build")` over every job's run commands — the CR-02 substring-anchor idiom —
+// and its subject is the DB-free property, not this step. It says nothing about the step's `name:`,
+// nothing about its exact invocation and nothing about its key surface, and it is satisfied by
+// every softened form of the step. It is a red that arrives by accident, and an accident is not an
+// invariant.
+const BUILD_STEP_NAME = "Build (lint + design gate + next build)";
+const BUILD_RUN = "npm run build";
+
+// THE BUILD STEP'S PERMITTED KEY SURFACE — SEPARATE FROM `CHECKER_STEP_ALLOWED_KEYS`, AND THE
+// SEPARATION IS THE POINT. The two lists differ by EXACTLY ONE key: this step declares an `env:`
+// map (three build-only placeholders, documented at length at its site in `ci.yml`) and the checker
+// step declares none.
+//
+// ⚠ DO NOT MERGE THEM INTO ONE CONSTANT. A single shared list admitting `env` would silently permit
+// an environment map on the step whose ENTIRE property is that it takes none — and an `env:` on the
+// checker step is how somebody hands this script a different environment to run under. Two lists is
+// not duplication; it is the one-key difference being stated rather than averaged away.
+const BUILD_STEP_ALLOWED_KEYS = ["env", "name", "run"];
+
 // The snapshot-update flag, spelled ONCE, here. It is deliberately never spelled in `ci.yml` —
 // including in that file's comments — because the cheapest audit of "this file cannot mint a
 // baseline" is a grep for the token returning 0, and prose about a forbidden token is still the
@@ -1190,6 +1225,118 @@ if (sections.includes("ci")) {
       `permitted=[${CHECKER_STEP_ALLOWED_KEYS.join(", ")}]  ` +
       `unexpected=[${checkerStepExtraKeys.join(", ") || "(none)"}]  ` +
       `(of ${checkerSteps.length} steps in "${CI_CHECKER_JOB}")`,
+  );
+
+  // ── AND THE STEP THAT CARRIES LINT, THE DESIGN SUITE AND THE BUILD ────────────────────────────
+  // ADDED BY PLAN 19.1-05 (CI-01/SC1). A SIBLING of the check above, in its exact shape: the same
+  // exact-`name:` anchor, the same trimmed exact-equality invocation, the same positively-stated
+  // allow-list. The three conjuncts are separately necessary for the three reasons given above and
+  // they are not restated here.
+  //
+  // WHAT IS DIFFERENT, AND IT IS THE REASON THIS CHECK IS NOT OPTIONAL. `npm run build` runs
+  // `test:design`, and `test:design` is where `tests/design/workflow-invariants.test.ts` lives —
+  // the standing mutation suite that holds every case this phase has written, the ones protecting
+  // the check above included. An unasserted build step means the suite that remembers all of this
+  // can be removed from CI in one line, under a green from the very script it protects.
+  //
+  // THE ALLOW-LIST IS THE OTHER ONE, DELIBERATELY. `BUILD_STEP_ALLOWED_KEYS` admits `env` and
+  // `CHECKER_STEP_ALLOWED_KEYS` does not; see their declarations for why they must not be merged.
+  // The evidence line prints the offending key NAMES and never a value from that map — those three
+  // placeholders are build-only literals rather than secrets, and printing them anyway would be a
+  // habit that costs nothing here and everything on the step where it is wrong.
+  const buildStep = checkerSteps.find((s) => String(s?.name ?? "") === BUILD_STEP_NAME);
+  const buildStepRun = String(buildStep?.run ?? "");
+  const buildStepKeys = Object.keys(buildStep ?? {}).sort();
+  const buildStepExtraKeys = buildStepKeys.filter((k) => !BUILD_STEP_ALLOWED_KEYS.includes(k));
+  // Hoisted above the `check()` for the reason the sibling index above is hoisted: the predicate
+  // region stays containment-free to a grep, so the one property a reader most needs to confirm at
+  // a glance — that the invocation conjunct is an EQUALITY — survives that glance.
+  const buildStepIndex = checkerSteps.indexOf(buildStep);
+  check(
+    `"${CI_CHECKER_JOB}" carries the step that runs lint, the design suite and the build, under its exact name, with the EXACT no-argument invocation, and NO KEY OUTSIDE [${BUILD_STEP_ALLOWED_KEYS.join(", ")}]`,
+    buildStep !== undefined &&
+      buildStepRun.trim() === BUILD_RUN &&
+      buildStepExtraKeys.length === 0,
+    `step=${buildStep ? `index ${buildStepIndex}` : "(ABSENT)"}  ` +
+      `expected-name=${JSON.stringify(BUILD_STEP_NAME)}  ` +
+      `run=${JSON.stringify(buildStep ? buildStepRun.trim() : null)}  ` +
+      `expected-run=${JSON.stringify(BUILD_RUN)}  ` +
+      `keys=[${buildStepKeys.join(", ") || "(none)"}]  ` +
+      `permitted=[${BUILD_STEP_ALLOWED_KEYS.join(", ")}]  ` +
+      `unexpected=[${buildStepExtraKeys.join(", ") || "(none)"}]  ` +
+      `(of ${checkerSteps.length} steps in "${CI_CHECKER_JOB}")`,
+  );
+
+  // ── UNCONDITIONAL — THE JOB *AND* EVERY STEP OF IT ────────────────────────────────────────────
+  // ADDED BY PLAN 19.1-05 (CI-01/SC1). A SIBLING of `gate-e2e`'s unconditional invariant above, in
+  // its exact shape, over a different job. The full argument lives at that site and is not
+  // restated; two things about it transfer verbatim and are worth naming here because they are the
+  // parts that were paid for twice:
+  //
+  //   * PRESENCE, NEVER VALUE, AT BOTH LEVELS. A key that should never appear on a gate has NO
+  //     LEGITIMATE VALUE TO CARVE OUT, so every value comparison is one alternative spelling away
+  //     from green. This file has already recorded THREE spellings of `continue-on-error` — the
+  //     literal boolean, the Actions expression (which parses to a STRING, so `=== true` and
+  //     `!== true` were both green for the same input), and the quoted string.
+  //   * THE QUANTIFIER REACHES EVERY STEP AND NOT ONLY THE JOB. A softening key on ONE step is the
+  //     same defeat as one on the job: measured here (evidence/guards-05-pre-fix.txt, MUTATION 6),
+  //     `if: false` on the build step alone left the checker at exit 0 with all 52 reported holding
+  //     — with lint, the design suite and the build all skipped.
+  //
+  // MEASURED AT JOB LEVEL TOO (MUTATION 2): `continue-on-error: true` on `gate-db-free` left exit 0
+  // and all 52 holding, over a job that could no longer fail a pull request.
+  //
+  // ⚠ A DELIBERATE CONDITION IS A DECISION TO RECORD, NOT ONE TO ABSORB — AT EITHER LEVEL. If this
+  // job or any step in it is genuinely meant to become conditional or soft-failing, remove this
+  // invariant in the same commit and say why in it.
+  const checkerConditionalSteps = checkerSteps
+    // Index from the FULL step list, BEFORE filtering, so `step[2]` names the third step OF THE JOB
+    // rather than the third offender. Declared order is preserved and nothing is sorted or
+    // de-duped: two offending steps must stay distinguishable and the line must be stable across
+    // runs. Same mapping-before-filtering shape as the `gate-e2e` sibling, carried across.
+    .map((s, i) => ({ step: s, label: String(s?.name ?? `step[${i}]`) }))
+    .filter(({ step }) => step?.if !== undefined || step?.["continue-on-error"] !== undefined)
+    .map(({ label }) => label);
+  check(
+    `"${CI_CHECKER_JOB}" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP`,
+    checker?.if === undefined &&
+      checker?.["continue-on-error"] === undefined &&
+      checkerConditionalSteps.length === 0,
+    `job if=${JSON.stringify(checker?.if ?? null)}  ` +
+      `job continue-on-error=${JSON.stringify(checker?.["continue-on-error"] ?? null)}  ` +
+      `conditional/soft steps=[${checkerConditionalSteps.join(", ") || "(none)"}]  ` +
+      // The total is printed so a reader can tell an EMPTY step list from a CLEAN one. Both report
+      // no offenders; only one of them is this job.
+      `(of ${checkerSteps.length} steps)`,
+  );
+
+  // ── THE INTERPRETER, PINNED ON THIS JOB ───────────────────────────────────────────────────────
+  // ADDED BY PLAN 19.1-05 (CI-01/SC1). A SIBLING of the workflow-and-`gate-e2e` defaults predicate
+  // above, and DELIBERATELY NOT A WIDENING OF IT.
+  //
+  // ⚠ WHY A SIBLING RATHER THAN ONE PREDICATE COVERING BOTH JOBS. That check's own comment argues a
+  // scope — "SCOPED TO THE WORKFLOW AND TO THIS JOB, DELIBERATELY … asserting over EVERY job would
+  // redden a correct file the day somebody legitimately sets a working directory elsewhere". Adding
+  // `gate-db-free` to its conjunct list would leave that argument attached to a predicate that no
+  // longer has the scope it argues for, and a predicate whose printed name is broader than its
+  // conjunct list is the exact defect class this round exists to close. Its `CI_E2E_JOB` argument
+  // and its comment are therefore untouched, and the workflow level stays asserted there rather
+  // than being asserted twice.
+  //
+  // THE WHOLE BLOCK IS FORBIDDEN, NOT ONE KEY INSIDE IT, for the reason given at that site:
+  // `undefined` is the only passing value, so a present-but-EMPTY `defaults:` is red too. A block
+  // that exists is a block a later edit can fill, and the reviewer of that edit sees a one-line
+  // diff inside an accepted structure.
+  //
+  // MEASURED (evidence/guards-05-pre-fix.txt, MUTATION 3): a three-line `defaults: run: shell:` on
+  // this job left the checker at exit 0 with all 52 reported holding — under an interpreter that
+  // PRINTS each step's `run:` body instead of executing it. Every step in the job, including the
+  // one invoking this very script, becomes a no-op exiting 0.
+  check(
+    `"${CI_CHECKER_JOB}" runs its steps with the runner's DEFAULT interpreter — NO defaults: block on the job`,
+    checker?.defaults === undefined,
+    `job defaults=${JSON.stringify(checker?.defaults ?? null)}  ` +
+      `(the workflow level is asserted by the "${CI_E2E_JOB}" sibling above, not twice here)`,
   );
 
   // ── THE COMPARISON JOB EXISTS. ITS ABSENCE IS A HARD STOP, NOT A FAILED CHECK ─────────────────
