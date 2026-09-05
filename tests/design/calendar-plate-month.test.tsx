@@ -215,7 +215,9 @@ describe("the plate reserves the rows its month has", () => {
 
 describe("the plate is a pure function of its month prop", () => {
   it("renders identically under two system clocks four months apart", () => {
-    vi.useFakeTimers();
+    // `toFake: ["Date"]` for the reason spelled out on `hydrateAcrossClocks` below: faking the whole
+    // timer suite stalls React's scheduler.
+    vi.useFakeTimers({ toFake: ["Date"] });
 
     // 30 September 2026, 23:30 in a +08 venue — the eve of a month boundary.
     vi.setSystemTime(new Date("2026-09-30T15:30:00.000Z"));
@@ -276,11 +278,18 @@ describe("server render and client hydration cannot disagree about the month", (
   /**
    * The rejected shape, kept HERE as a control rather than in the product: a plate that derives its
    * own month from the clock. It is what the hydration hazard looks like, and putting it through the
-   * identical harness is what proves the harness can see the hazard at all.
+   * IDENTICAL harness — same function, same instants, same assertions — is what proves the harness can
+   * see the hazard at all.
    */
   function ClockReadingPlate() {
+    // UTC deliberately, and it cost a red to learn why. Reading the LOCAL month makes this control a
+    // function of the RUNNER's timezone: on this box (Asia/Manila, +08) both instants below are
+    // already February in local time, the two renders agreed, and the control reported no mismatch —
+    // a control that cannot fail, in the file whose whole subject is tests that cannot fail. Reading
+    // UTC pins the boundary to the instants themselves. Recorded in
+    // `evidence/triage-plate-month.txt` section 4.
     const now = new Date();
-    const rows = weekRowsForMonth({ year: now.getFullYear(), month: now.getMonth() + 1 });
+    const rows = weekRowsForMonth({ year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 });
     return (
       <div data-testid="clock-reading-plate">
         {Array.from({ length: rows }).map((_, week) => (
@@ -291,26 +300,46 @@ describe("server render and client hydration cannot disagree about the month", (
   }
 
   /**
-   * `renderToString` under `serverInstant`, then `hydrateRoot` under `clientInstant`, collecting every
-   * recoverable error React reports. A hydration mismatch is a recoverable error, so a non-empty
-   * result IS the mismatch.
+   * THE BOUNDARY, chosen so that a clock read actually changes the answer.
    *
-   * The two instants are 24 hours apart across a month boundary — the "browser east of the server,
-   * near midnight" case, which is the one the decision required be made impossible.
+   * January 2027 is a SIX-row month and February 2027 is a FIVE-row one, so a component that reads
+   * its own clock emits a different number of rows on each side of this pair. A boundary between two
+   * months of the SAME shape would leave the control green and prove nothing — most month boundaries
+   * are exactly that, which is part of why this class of bug is so quiet.
+   *
+   * The eight hours between them is the real-world shape of the disagreement: a venue at +08 has
+   * already crossed into the new month while a server at UTC has not.
    */
-  function hydrateAcrossClocks(node: React.ReactElement): string[] {
-    const serverInstant = new Date("2026-09-30T20:00:00.000Z"); // still September for the server
-    const clientInstant = new Date("2026-10-01T04:00:00.000Z"); // already October for the client
+  const SERVER_INSTANT = new Date("2027-01-31T20:00:00.000Z");
+  const CLIENT_INSTANT = new Date("2027-02-01T04:00:00.000Z");
 
-    vi.useFakeTimers();
-    vi.setSystemTime(serverInstant);
+  /**
+   * `renderToString` under `SERVER_INSTANT`, then a real `hydrateRoot` under `CLIENT_INSTANT`,
+   * collecting every recoverable error React reports. A hydration mismatch IS a recoverable error, so
+   * a non-empty result is the mismatch.
+   *
+   * ⚠ `toFake: ["Date"]` AND NOT THE WHOLE TIMER SUITE. Faking `setTimeout` too stalls React's own
+   * scheduler, and the hydration work then never flushes — which reads as "no mismatch" and would turn
+   * this harness into one that cannot fail. That failure was OBSERVED before the option was narrowed
+   * (the control came back with zero recoverable errors), which is the reason the control exists.
+   */
+  const ROW_MARK = /mt-2 grid grid-cols-7/g;
+  const countRows = (html: string) => (html.match(ROW_MARK) ?? []).length;
+
+  function hydrateAcrossClocks(node: React.ReactElement): {
+    recoverable: string[];
+    serverRows: number;
+    finalRows: number;
+  } {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(SERVER_INSTANT);
     const html = renderToString(node);
 
     const container = document.createElement("div");
     container.innerHTML = html;
     document.body.appendChild(container);
 
-    vi.setSystemTime(clientInstant);
+    vi.setSystemTime(CLIENT_INSTANT);
     const recoverable: string[] = [];
     let root: ReturnType<typeof hydrateRoot> | null = null;
     act(() => {
@@ -320,38 +349,31 @@ describe("server render and client hydration cannot disagree about the month", (
         },
       });
     });
+    const finalRows = countRows(container.innerHTML);
     act(() => {
       root?.unmount();
     });
     container.remove();
-    return recoverable;
+    return { recoverable, serverRows: countRows(html), finalRows };
   }
 
   it("CONTROL — a plate that reads the clock DOES mismatch across a month boundary", () => {
-    // September 2026 is a five-row month and October 2026 is a five-row month too, so the control
-    // needs a boundary where the row count actually moves: 31 Jan 2027 (six rows) -> 1 Feb 2027
-    // (five rows). Proved with its own instants rather than the shared helper's.
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2027-01-31T20:00:00.000Z"));
-    const html = renderToString(<ClockReadingPlate />);
-    const container = document.createElement("div");
-    container.innerHTML = html;
-    document.body.appendChild(container);
+    const { recoverable, serverRows, finalRows } = hydrateAcrossClocks(<ClockReadingPlate />);
 
-    vi.setSystemTime(new Date("2027-02-01T04:00:00.000Z"));
-    const recoverable: string[] = [];
-    let root: ReturnType<typeof hydrateRoot> | null = null;
-    act(() => {
-      root = hydrateRoot(container, <ClockReadingPlate />, {
-        onRecoverableError: (error) => {
-          recoverable.push(error instanceof Error ? error.message : String(error));
-        },
-      });
-    });
-    act(() => {
-      root?.unmount();
-    });
-    container.remove();
+    // Non-vacuity, both ends. The two renders must genuinely DISAGREE (January's six against
+    // February's five), and hydration must genuinely have RUN — otherwise "no errors" below would
+    // only mean "the harness rendered the same thing twice", which is the exact way this control
+    // first passed over nothing.
+    expect(
+      serverRows,
+      "the server pass did not render JANUARY's six rows, so the two sides never disagreed and this " +
+        "control is measuring nothing",
+    ).toBe(6);
+    expect(
+      finalRows,
+      "after hydration the control should hold FEBRUARY's five rows — the client's answer. If it " +
+        "still holds six, React never hydrated and this harness is measuring nothing.",
+    ).toBe(5);
 
     expect(
       recoverable.length,
@@ -361,7 +383,18 @@ describe("server render and client hydration cannot disagree about the month", (
   });
 
   it("the plate does NOT mismatch, because its month arrives as a prop", () => {
-    const recoverable = hydrateAcrossClocks(<CalendarMonthSkeleton month={FIVE_ROW_MONTH} />);
+    const { recoverable, serverRows, finalRows } = hydrateAcrossClocks(
+      <CalendarMonthSkeleton month={SIX_ROW_MONTH} />,
+    );
+
+    // The same non-vacuity check, and the answer it must give is the PROP's — six rows on BOTH sides
+    // of the very boundary that took the control from six to five.
+    expect(
+      [serverRows, finalRows],
+      "the plate did not keep its prop's six rows across the boundary that took the control from " +
+        "six to five",
+    ).toEqual([6, 6]);
+
     expect(
       recoverable,
       "hydrating the plate across a month boundary produced a recoverable React error. The month " +
@@ -377,15 +410,25 @@ describe("the mount site computes the month once, on the server", () => {
   it("is a Server Component and passes the plate an explicit month", () => {
     const source = readFileSync(resolve(process.cwd(), LOADING_PATH), "utf8");
 
+    // Comments in this file DISCUSS `"use client"` by name — the whole hazard note is about why it
+    // must not be there — so the directive census reads code only. Same trick, same reason, as
+    // `tests/design/availability-tz-note-id.test.ts`.
+    const code = source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
     expect(
-      source.includes('"use client"') || source.includes("'use client'"),
+      code.includes("CalendarMonthSkeleton"),
+      "the comment-stripping left nothing to search, so both assertions below would pass over an " +
+        "empty string",
+    ).toBe(true);
+
+    expect(
+      code.includes('"use client"') || code.includes("'use client'"),
       `${LOADING_PATH} declared "use client". The whole of the single-source argument is that this ` +
         "file runs on the server ONCE and the month reaches the plate as a serialized prop; a client " +
         "directive here puts the clock read back on both sides.",
     ).toBe(false);
 
     expect(
-      /<CalendarMonthSkeleton\s+month=\{/.test(source),
+      /<CalendarMonthSkeleton\s+month=\{/.test(code),
       `${LOADING_PATH} mounts CalendarMonthSkeleton without an explicit \`month\` prop.`,
     ).toBe(true);
   });

@@ -40,11 +40,64 @@
 // `tests/design/skeleton-a11y.test.tsx` and declared as `calendar-month-loading`; a surface that
 // mounts it as its OWN busy region gets an announced one, and this route is not that surface.
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// THE PLATE'S MONTH IS COMPUTED HERE, ONCE, AND THAT IS THE WHOLE OF THE SINGLE-SOURCE ARGUMENT
+// (19.1 · FINDING D-A2)
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// `CalendarMonthSkeleton` used to reserve six week rows unconditionally. A month folds into 4, 5 or 6
+// of them, and only 2 of the 12 months after September 2026 are six-row months — so the plate stood
+// 410px tall against a 357.19px grid, a **52.81px layout shift**, measured at 320 / 768 / 1280 in both
+// themes and live ten months in twelve. The plate now reserves the month's OWN rows.
+//
+// ⚠ WHY THE MONTH IS COMPUTED IN THIS FILE AND NOT IN THE COMPONENT. The plate is the pre-hydration
+// paint: this file is a Server Component, so its output is produced on the server, and the
+// `"use client"` component it mounts is rendered AGAIN on the client during hydration. If the
+// component derived the month from its own `new Date()`, the two renders would each read their own
+// clock — and a browser east of the server crosses a month boundary hours before the server does. On
+// the last night of a month those two renders emit a different number of week rows for the same
+// boundary, which is a hydration mismatch. That would trade a layout shift for a React error and call
+// it a repair.
+//
+// So the month is read from a clock EXACTLY ONCE, here, and travels to the component as a serialized
+// prop. The client never derives it; there is nothing for it to disagree with.
+// `tests/design/calendar-plate-month.test.tsx` is build-blocking and holds three proofs of that
+// property, including a `renderToString` → `hydrateRoot` across a month boundary carrying a
+// deliberately clock-reading control that must FAIL.
+//
+// THE ZONE. `src/lib/db/schema.ts:223` declares `Asia/Manila` as every listing's default and the
+// launch region, and the resolved calendar renders in the LISTING's zone — which this file cannot
+// know, because a `loading.tsx` receives neither params nor a database. The launch zone is therefore
+// the closest single answer available, and the residual is stated rather than hidden: for a listing in
+// some other zone, during the hours when its calendar date differs from Manila's AND the two dates
+// fall in different months AND those months fold into a different number of rows, the plate is one row
+// out. That is a handful of hours a year against ten months in twelve, and it is strictly better than
+// the constant it replaces.
+//
+// THE OTHER RESIDUAL — THE SEARCHED MONTH. `/listings/[id]?date=…` can open the resolved grid on a
+// month that is not the current one (D-59 #1, `(detail)/page.tsx`), and a `loading.tsx` cannot read
+// search params. The plate then reserves the current month's rows for another month's grid. Unchanged
+// by this repair, and unfixable from here: it would need the fallback to see the request, which is
+// what a `loading.tsx` is defined not to do.
+
+import { TZDate } from "@date-fns/tz";
+import { format } from "date-fns";
+
 import { CalendarMonthSkeleton } from "@/components/availability/availability-calendar";
 import { PanelSkeleton } from "@/components/patterns/panel-skeleton";
 import { MOSAIC_ASPECT } from "@/lib/design/measurements";
 
+/** The launch region — `src/lib/db/schema.ts:223`'s `timezone` default, and the reason above. */
+const PLATE_MONTH_TZ = "Asia/Manila";
+
 export default function ListingDetailLoading() {
+  // THE ONE CLOCK READ. Everything downstream of it is a serialized number.
+  const nowInLaunchTz = new TZDate(Date.now(), PLATE_MONTH_TZ);
+  const plateMonth = {
+    year: Number(format(nowInLaunchTz, "yyyy")),
+    month: Number(format(nowInLaunchTz, "M")),
+  };
+
   return (
     // Container is `listings/[id]/(detail)/page.tsx`'s own, verbatim.
     <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:py-12">
@@ -56,7 +109,7 @@ export default function ListingDetailLoading() {
         <PanelSkeleton label="Loading this listing" />
       </div>
       <div aria-hidden="true" className="mt-8">
-        <CalendarMonthSkeleton />
+        <CalendarMonthSkeleton month={plateMonth} />
       </div>
     </main>
   );

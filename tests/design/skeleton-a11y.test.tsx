@@ -286,6 +286,24 @@ const DAY_LABEL = "Loading times for Friday, Aug 21";
  */
 const MONTH_LABEL = "Loading the calendar";
 
+/**
+ * The month plate takes the month it stands in for, and this file has to pick one (19.1 · D-A2).
+ *
+ * It used to take nothing and reserve six week rows unconditionally, which is why the count assertion
+ * below could be the literal `7 * 6 + 7 + 1`. A month folds into 4, 5 or 6 rows, so that literal was a
+ * fact about August 2026 rather than about the plate. The cases here name a FIVE-row month and a
+ * SIX-row one and derive the expected bar count from each, because a plate checked only in a six-row
+ * month is exactly how the original assumption survived.
+ *
+ * The row counts are stated as literals rather than imported from `weekRowsForMonth`: importing the
+ * component's own arithmetic would make the count assertion true by construction, which is the
+ * mistake the MONTH_LABEL note above already refuses to make. The helper is checked against a second
+ * derivation and against the real react-day-picker grid in
+ * `tests/design/calendar-plate-month.test.tsx`; here it is simply given a month and held to a number.
+ */
+const FIVE_ROW_MONTH = { year: 2026, month: 9 } as const; // 1 Sept 2026 is a Tuesday, 30 days
+const SIX_ROW_MONTH = { year: 2027, month: 1 } as const; // 1 Jan 2027 is a Friday, 31 days
+
 const CALENDAR_CASES = [
   {
     name: "CalendarDaySkeleton",
@@ -297,7 +315,7 @@ const CALENDAR_CASES = [
     name: "CalendarMonthSkeleton",
     label: MONTH_LABEL,
     testId: "skeleton-calendar",
-    element: <CalendarMonthSkeleton />,
+    element: <CalendarMonthSkeleton month={FIVE_ROW_MONTH} />,
   },
 ] as const;
 
@@ -384,16 +402,24 @@ describe("AC#16 — the calendar's two skeletons announce themselves exactly onc
     ).toEqual([]);
   });
 
-  it("the month plate renders a full 7 × 6 grid, plus a caption and a weekday row", () => {
-    // The COUNT is the geometry claim this layer can actually make. jsdom cannot measure the box, but
-    // it can prove the plate is a month rather than three bars in a border: 42 day cells + 7 weekday
-    // marks + 1 caption = 50. A plate with fewer cells would be the same 409px tall only by accident.
-    const { container } = render(<CalendarMonthSkeleton />);
-    expect(container.querySelectorAll(BAR_SELECTOR)).toHaveLength(7 * 6 + 7 + 1);
-  });
+  it.each([
+    { label: "a five-row month (2026-09)", month: FIVE_ROW_MONTH, rows: 5 },
+    { label: "a six-row month (2027-01)", month: SIX_ROW_MONTH, rows: 6 },
+  ])(
+    "the month plate renders a full 7 × N grid for $label, plus a caption and a weekday row",
+    ({ month, rows }) => {
+      // The COUNT is the geometry claim this layer can actually make. jsdom cannot measure the box,
+      // but it can prove the plate is a MONTH rather than three bars in a border: `rows` × 7 day cells
+      // + 7 weekday marks + 1 caption. A plate with fewer cells would be the right height only by
+      // accident — and a plate with a CONSTANT number of cells is the right height only in the two
+      // months of twelve that happen to have that many rows (19.1 · D-A2).
+      const { container } = render(<CalendarMonthSkeleton month={month} />);
+      expect(container.querySelectorAll(BAR_SELECTOR)).toHaveLength(rows * 7 + 7 + 1);
+    },
+  );
 
   it("the month plate carries its declared hook as a string literal on the region itself", () => {
-    render(<CalendarMonthSkeleton />);
+    render(<CalendarMonthSkeleton month={FIVE_ROW_MONTH} />);
     const region = screen.queryAllByRole("status")[0];
     expect(
       region.getAttribute("data-testid"),

@@ -704,8 +704,9 @@ export function AvailabilityCalendar({
           // only on the button — so with the button at `h-11` and the cell still square, the td
           // measured 25.08px tall while the button inside it measured 44, and every week row
           // overlapped the next by 19px. Dropping the ratio lets the flex row's default `stretch` take
-          // the td to the button's height, which is what makes the grid six rows of 44 rather than six
-          // rows of 25 with the numerals colliding. It is an arbitrary VARIANT rather than the
+          // the td to the button's height, which is what makes the grid's week rows 44 tall rather
+          // than 25 with the numerals colliding. (Measured in a six-row month; the count is a
+          // function of the month — `weekRowsForMonth` — and never six. 19.1 · D-A2.) It is an arbitrary VARIANT rather than the
           // `classNames={{ day }}` escape hatch on purpose: the hatch is spread LAST in the vendored
           // file, so taking it would mean restating the `group/day` marker, the cell radius, `p-0`,
           // `text-center`, `select-none` and both range selectors — six copies that can go stale
@@ -833,8 +834,60 @@ export function CalendarDaySkeleton({ label }: { label: string }) {
 const CALENDAR_LOADING_LABEL = "Loading the calendar";
 
 /**
- * The month grid's placeholder: a caption bar, a weekday row and six rows of seven 44px cells, inside
- * the same box the resolved calendar occupies.
+ * A calendar month, with no day in it — `DayLocal` less the day, and structurally assignable from it.
+ *
+ * `month` is 1-BASED, which is `DayLocal`'s convention throughout this file and NOT `Date`'s. One
+ * convention per file beats one convention per function.
+ */
+export type MonthLocal = { year: number; month: number };
+
+/**
+ * The number of seven-day rows a month folds into — 4, 5 or 6, and never a constant (19.1 · D-A2).
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ * THIS FUNCTION EXISTS BECAUSE `Array.from({ length: 6 })` WAS WRONG TEN MONTHS IN TWELVE
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * The plate below used to reserve six rows unconditionally, and the docblock beneath derived its
+ * height from `312 = 6 × (44 + 8)`. Both were written in August 2026 — one of only two six-row months
+ * in the following twelve — so the assumption was true on the day it was made and false the month
+ * after. Measured on 5 September 2026 at 320 / 768 / 1280 in both themes: the plate stood 410px tall
+ * against a 357.19px grid, a 52.81px layout shift on the one component whose entire job is not to
+ * shift. `e2e/calendar-hit-area.spec.ts` AC#15 was red on exactly that number.
+ *
+ * ⚠ IT TAKES NO CLOCK, AND THAT IS THE LOAD-BEARING PART, NOT AN OPTIMISATION.
+ *
+ * The plate is the PRE-HYDRATION paint: `loading.tsx` renders it on the server and React renders it
+ * again on the client during hydration. A month derived from `new Date()` is derived SEPARATELY on
+ * each side, and a browser east of the server crosses a month boundary hours before the server does —
+ * so near midnight on the last of the month the two renders would emit a different number of week
+ * rows for the same boundary. That is a hydration mismatch: a layout shift traded for a React error,
+ * which is not a repair. The month is therefore computed ONCE, at the server-side mount site, and
+ * arrives here as a serialized prop. Neither this function nor the component reads a clock, and
+ * `tests/design/calendar-plate-month.test.tsx` proves it three ways — behaviourally (identical markup
+ * under two system clocks), structurally (a census over this code), and by a real
+ * `renderToString` → `hydrateRoot` across a month boundary that carries a deliberately clock-reading
+ * control required to FAIL.
+ *
+ * THE WEEK START IS SUNDAY, AND IT IS MEASURED RATHER THAN ASSUMED. `ui/calendar.tsx` passes
+ * `react-day-picker` no `weekStartsOn`, no `ISOWeek` and no `fixedWeeks`, so the grid folds on the
+ * default locale's week start. The test above mounts that very component for 24 consecutive months and
+ * requires this function to agree with the `tbody tr` it renders — and the sweep includes November
+ * 2026, a month beginning on a Sunday, which is the only shape where a Sunday-start and a Monday-start
+ * calendar disagree. If the vendored calendar ever takes a `weekStartsOn`, that test goes red here
+ * rather than silently in a browser.
+ */
+export function weekRowsForMonth({ year, month }: MonthLocal): number {
+  // `Date.UTC` throughout: this is calendar arithmetic about a NAMED month, so the host timezone must
+  // not be able to move the answer. Day 0 of the next month is the last day of this one.
+  const leadingBlanks = new Date(Date.UTC(year, month - 1, 1)).getUTCDay(); // 0 = Sunday
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return Math.ceil((leadingBlanks + daysInMonth) / 7);
+}
+
+/**
+ * The month grid's placeholder: a caption bar, a weekday row and THE MONTH'S OWN number of rows of
+ * seven 44px cells, inside the same box the resolved calendar occupies.
  *
  * ═══════════════════════════════════════════════════════════════════════════════════════════════════
  * WHERE IT MOUNTS, AND WHY IT IS NOT INSIDE `AvailabilityCalendar`
@@ -875,16 +928,31 @@ const CALENDAR_LOADING_LABEL = "Loading the calendar";
  *    44   the month caption — `h-(--cell-size)`
  *    16   the `gap-4` between the caption and the grid
  *    19   the weekday row (`text-[0.8rem]`; the resolved row measures 19.19)
- *   312   six week rows — 6 × (44 + 8), the `mt-2` `ui/calendar.tsx` puts on every week
- *   ───
- *   409   against a resolved calendar measured at 409.19. Δ0.81, inside the ±2px this repo's geometry
- *         specs assert (`e2e/calendar-hit-area.spec.ts`).
+ *     r   × (44 + 8) — the month's week rows, `r` from `weekRowsForMonth`, with the `mt-2`
+ *         `ui/calendar.tsx` puts on every week
+ *
+ * so the plate is `98 + r × 52`, against a resolved calendar of `97.19 + r × 52`. MEASURED at
+ * 320 / 768 / 1280 in both themes, 5 September 2026 (`e2e/calendar-hit-area.spec.ts` AC#15):
+ *
+ *   r = 5 (2026-09)   plate 358   resolved 357.19   Δ0.81
+ *   r = 6 (2027-01)   plate 410   resolved 409.19   Δ0.81
+ *
+ * Δ0.81 at EVERY row count, inside the ±2px this repo's geometry specs assert. The 409 this docblock
+ * used to state as a single number was the r = 6 row of that table, promoted to a constant — which is
+ * how the six-row assumption came to be written down twice (19.1 · D-A2).
  *
  * The one approximation is the weekday row, and it is stated rather than tuned: an `h-5` bar is 20px
  * where the real row's line box is 19.19. Reproducing a line box exactly would mean rendering the
- * weekday LETTERS into a placeholder, which is content a skeleton must not have.
+ * weekday LETTERS into a placeholder, which is content a skeleton must not have. It is the whole of
+ * the 0.81, and it does not grow with the row count — which is why the band did not have to move.
+ *
+ * @param month The month the resolved grid will open on, computed ONCE on the server by the mount
+ *   site. Required rather than defaulted: a default would have to read a clock, and a clock read here
+ *   is the hydration hazard `weekRowsForMonth` above exists to describe.
  */
-export function CalendarMonthSkeleton() {
+export function CalendarMonthSkeleton({ month }: { month: MonthLocal }) {
+  const weekRows = weekRowsForMonth(month);
+
   return (
     <div
       role="status"
@@ -912,9 +980,10 @@ export function CalendarMonthSkeleton() {
               </div>
             ))}
           </div>
-          {/* Six weeks of seven cells. `grid-cols-7` is the resolved row's `1fr` per cell, and `mt-2`
-              is `ui/calendar.tsx`'s own `week` spacing — both are what make the 312 above true. */}
-          {Array.from({ length: 6 }).map((_, week) => (
+          {/* THE MONTH'S weeks of seven cells — never a constant, see `weekRowsForMonth`.
+              `grid-cols-7` is the resolved row's `1fr` per cell, and `mt-2` is `ui/calendar.tsx`'s own
+              `week` spacing — both are what make the `r × 52` above true. */}
+          {Array.from({ length: weekRows }).map((_, week) => (
             <div key={week} className="mt-2 grid grid-cols-7">
               {Array.from({ length: 7 }).map((_, cell) => (
                 <Skeleton
