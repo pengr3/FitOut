@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
-current_phase_name: ci-signal-becomes-real-constrain-gate-db-free-repair-the-red
-status: Phase 19 gaps carried to 19.1 — run /gsd-plan-phase 19.1
-stopped_at: Phase 19.1 context gathered
-last_updated: "2026-09-05T04:27:11.719Z"
+current_phase_name: CI signal becomes real
+status: executing
+stopped_at: Completed 19.1-01-PLAN.md
+last_updated: "2026-09-05T05:06:02.960Z"
 last_activity: 2026-09-05
-last_activity_desc: Phase 19 verified 8/9 (SC1-SC4 met, D-14 hardening open); 19.1 inserted to close it
-state_head: 1706b837d9cad449ffa866b8822c861ad4522ab8
+last_activity_desc: Phase 19.1 execution started
+state_head: c0f7bc23322df44ebb5e20b86b73f41a80d4e40f
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 60
-  completed_plans: 45
+  completed_plans: 46
   percent: 13
 ---
 
@@ -29,7 +29,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 19 — Host Listing Surfaces & Gates That Actually Run
+**Current focus:** Phase 19.1 — CI signal becomes real
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues
 from 19; coverage is 25/25 with no orphans and no duplicates. The order is dependency-derived, not
 brief-derived: **19** (cheap independents — the `/host/listings` card fix, the reproduction-gated
@@ -73,10 +73,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19.1 (ci-signal-becomes-real-constrain-gate-db-free-repair-the-red) — READY TO EXECUTE
-Plan: 3 of 15
-Status: Phase 19 gaps carried to 19.1 — run /gsd-plan-phase 19.1
-Last activity: 2026-09-05 — Phase 19 verified 8/9 (SC1-SC4 met, D-14 hardening open); 19.1 inserted to close it
+Phase: 19.1 (CI signal becomes real) — EXECUTING
+Plan: 2 of 15
+Status: Ready to execute
+Last activity: 2026-09-05 — Phase 19.1 execution started
 
 ## Performance Metrics
 
@@ -437,6 +437,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19 P13 | 12 min | 3 tasks | 4 files |
 | Phase 19 P14 | 41 min | 3 tasks | 3 files |
 | Phase 19 P15 | 24 min | 2 tasks | 5 files |
+| Phase 19.1 P01 | 25 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -1425,6 +1426,9 @@ Recent decisions affecting current work:
 - [Phase 19]: The trigger check on ci.yml asserts MEMBERSHIP while baselines.yml's asserts the EXACT set — deliberately opposite shapes, with the reason for each stated at its own site and an explicit instruction not to harmonise them. baselines.yml is the write path where an ADDED trigger regenerates the baselines it gates; ci.yml writes nothing, so a MISSING trigger is the whole danger.
 - [Phase 19]: The execution-defaults check forbids the WHOLE defaults: block at workflow and gate-e2e level rather than naming run.shell inside it — allow-list shape against a failure class defined as "an attribute the checker does not know about". undefined is the only passing value, so a present-but-empty block is red.
 - [Phase 19]: A documented invariant COUNT and the count that produces it are made the SAME BYTES across every file stating either — the checker's output, ci.yml's count paragraph (which quotes the summary line verbatim) and the design test's EXPECTED_GREEN — so drift is a build-blocking red rather than a sentence nobody re-reads.
+- [Phase 19.1]: gate-db-free is now constrained by the checker it runs: an uncounted hard stop for the absent job, a display-name pin, and a checker-step invariant anchored by exact name: with an exact-equality invocation conjunct. Invariant total 50 -> 52 (ci=33).
+- [Phase 19.1]: A positive assertion must never locate its subject by a substring of a run: body. Applied to gate-db-free on arrival and proved by case 16, the only GREEN-asserting case in the plan: a decoy step whose run: mentions the checker path cannot capture an exact-name anchor.
+- [Phase 19.1]: Evidence capture runs against a COMMITTED tree. git checkout -- <file> restores from HEAD, so capturing a hand-mutation transcript before committing reverts the plan own edits along with the mutation (observed once, plan 19.1-01 Task 1).
 
 ### Pending Todos
 
@@ -1606,8 +1610,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-05T03:02:25.447Z
-Stopped at: Phase 19.1 context gathered
+Last session: 2026-09-05T05:05:47.125Z
+Stopped at: Completed 19.1-01-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1760,7 +1764,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/19.1-CONTEXT.md
+Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered

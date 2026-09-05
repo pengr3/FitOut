@@ -627,12 +627,12 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 15 plans (7 waves)
+**Plans:** 1/15 plans executed (7 waves)
 
 Plans:
 **Wave 1**
 
-- [ ] 19.1-01-PLAN.md — TRACER · SC1: constrain `gate-db-free`'s checker step end-to-end (hard stop, display-name pin, exact-invocation invariant, anchor control)
+- [x] 19.1-01-PLAN.md — TRACER · SC1: constrain `gate-db-free`'s checker step end-to-end (hard stop, display-name pin, exact-invocation invariant, anchor control)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
