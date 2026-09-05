@@ -243,5 +243,97 @@ That must be **12**, and no arrangement of prose can move it.
 
 ---
 
+# Task 3 — regeneration, and what a real run said about it
+
+## What was regenerated, and what was deliberately un-minted
+
+**The dispatch workflow has no filter.** `baselines.yml` runs
+`npx playwright test --project=visual --update-snapshots` over the whole project and stages
+`*-visual-linux.png` by glob, so a dispatch mints every baseline that differs — twelve, not the eight
+the PM authorised. That is a property of the only sanctioned write path, and the alternative
+(teaching it a filter input) means editing the one job in the repository that holds `contents: write`
+and carries eleven invariants. It was not worth it for one plan.
+
+So the sequence was **mint twelve, then un-mint four**, and both halves are in the history:
+
+| commit | what it did |
+|---|---|
+| `9dd4bcf` | the restore point, committed BEFORE the dispatch so its ancestry is structural |
+| `7d225a7` | the regeneration (bot, run `33971562151`) — twelve baseline images, nothing else |
+| `5d9e90f` | rows 9–12 restored to their pre-regeneration bytes, byte-identity verified per file |
+
+**The four were un-minted for stability, not for correctness** — and this was confirmed by looking at
+what the dispatch actually produced rather than by re-asserting section 3. Cropped from the minted
+`listing-detail-1280` before it was reverted:
+
+* `evidence/minted-rows-9-12-host-since.png` — the host line reads **`Host since September 2026`**,
+  the month the dispatch ran, beside the `Checked by FitOut` badge.
+* `evidence/minted-rows-9-12-today-cell.png` — the September grid with days 1–4 greyed and **day 5
+  carrying the today ring**: 5 September 2026, the day the dispatch ran.
+
+Those two images are the whole argument. A reference encoding "today is 5 September" is red on
+6 September. Regenerating rows 9–12 would have bought a gate that is green for one push, which is the
+habit SC4 exists to break rather than a repair of it.
+
+## The D-02 call on the fixture fix: NOT small and localised
+
+Measured in `evidence/rows-9-12-fixture-probe.txt`. The short version: it is three changes in three
+layers plus a test, and the third is production source —
+`react-day-picker@10.0.1` defaults its `today` modifier to the wall clock
+(`DayPicker.js:131`) and nothing in this repository passes the prop, so fixing it means changing the
+ring from the rendering host's day to venue-local today. That is a **product** question, not a
+fixture question. Compounding it, the visual project is not constructed off Linux (D-29), so the
+fix's effect on the rendered calendar **cannot be observed before minting** — doing it here would
+have committed four references whose stability was an assumption.
+
+⚠ **The 17-D26 seam is incomplete, and that is worth knowing on its own.** `devTodayOverride`
+(`?today=`) was built precisely to stop these four baselines expiring at the day-rollover. It moves
+`startMonth`, `endMonth`, `disabled` and the `initialDate` fallback — and it does not reach the one
+element that still expires. Its docblock reads as though the case is closed. It is not.
+
+The follow-up specification is six points at the foot of `rows-9-12-fixture-probe.txt`, and is also
+logged as `D-19.1-D` in `deferred-items.md`.
+
+## The verifying run
+
+The dispatch workflow's own push produces no workflow run — `baselines.yml`'s header says so in a
+warning step — so until a run is triggered nothing has compared against the new files. Pushing
+`5d9e90f` triggered one deliberately.
+
+| what | value |
+|---|---|
+| verifying run | **`33971883942`** (branch `dev`, head `5d9e90f`, event `push`) |
+| `gate-visual` result | **failure — 4 baselines**, down from 12 |
+| `gate-db-free` | success (lint + design + build + workflow parse) |
+| `gate-db` / `gate-price-parity` | success |
+| images changed by the regeneration | 12 minted, **8 kept**, 4 restored |
+| diff artifact | `visual-diffs`, **4,938,154 B** — against 38,526,148 B on run `33968421339` |
+
+**The four that still fail are exactly the four that were un-minted**, read from the artifact rather
+than from the summary line:
+
+```
+collision-notice-1280-court
+listing-detail-1280-court
+listing-detail-320-court
+listing-detail-768-court
+```
+
+Twelve `-diff.png` files for four baselines, because `gate-visual` retries twice. **No row from 1–8
+appears.** That is the load-bearing result: the eight regenerated references were compared against by
+a real run and agreed with, and the four that remain red are the four this plan deliberately did not
+touch. The count moved 12 → 4 for stated reasons, not by a threshold moving.
+
+VERIFIED — the regenerated reference set has been compared against by a real workflow run (`33971883942`), not merely committed. Eight baselines are green against images minted in the pinned Linux container by the sanctioned dispatch path; four remain red by decision, and `evidence/rows-9-12-fixture-probe.txt` says what would have to happen before they can be minted honestly.
+
+## What this plan did NOT achieve, said plainly
+
+`gate-visual` is still red. D-04's goal is that it stops being red on every push, and this plan gets
+two thirds of the way: eight of the twelve standing failures are gone and the remaining four have a
+written cause, an observational proof, and a specification. A phase that reported this as green would
+be doing the thing this phase exists to stop.
+
+---
+
 *Plan: 19.1-12 · Phase: 19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red*
-*Task 1 complete. Task 2 (blocking human classification) is next; nothing has been regenerated.*
+*All three tasks complete. Twelve rows classified, eight references regenerated, four un-minted.*
