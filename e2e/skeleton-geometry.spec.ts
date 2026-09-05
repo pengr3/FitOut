@@ -917,6 +917,16 @@ test.describe("D-57 — `/` renders ONE gutter in both its pending and its resol
 //      breakpoint up, re-armed by a source change rather than a fixture one — and it was found by
 //      sweeping rather than by waiting for the overnight red.
 //
+//      ⚠ CLAIM 2 STOPPED BEING TRUE WHEN THIS FIXTURE GAINED ITS SECOND LISTING, AND IT IS LEFT
+//      STANDING ABOVE ONLY BECAUSE IT EXPLAINS THE SHAPE OF THE BLOCK. Re-measured 5 September 2026
+//      (19.1-09) on both rasterisers: the When column is sized by the WIDEST label among ALL rows,
+//      and `260824-ght`'s long-titled row is seeded at an ABSOLUTE May day whose label — "Wed, May
+//      20, 9:00 AM – 11:00 AM", 219.03px on Windows, 223px in the container — is the MAXIMUM of the
+//      entire 5,208-label sweep. The two `requested` rows are the only ones that follow the clock and
+//      neither can ever reach it. So the residual is a CONSTANT on every date (183.70px here, 166px
+//      on the runner), and nothing in this block is a function of the calendar any more. Do not
+//      derive against a band that no longer exists; re-measure if a row is added or removed.
+//
 // SO THE FIXTURE MOVED AND NO NUMBER DID. `HOST_LISTING_TITLE` goes 24 → 20 characters (one line on
 // all 13,020, 12.86px of margin) and a SECOND listing carries the seeded catalogue's own longest
 // title, 30 characters (two lines on all 13,020, 15.03px of margin). Each constant's docblock holds
@@ -996,6 +1006,36 @@ test.describe("D-57 — `/` renders ONE gutter in both its pending and its resol
 //         Expected: 1   Received: 2
 //
 // All five probes reverted; `git status` clean; the block runs 16/16.
+//
+// ── WATCHED RED — THE SIXTH, AND IT WAS NOT A PROBE. 5 September 2026 (19.1-09) ───────────────────
+//
+//   (p) THE SHAPE MOVED FOR THE SECOND TIME, AND THE MACHINE IS THE CAUSE. `gate-e2e`'s first real
+//       executions (run 33840948047) reddened this file at `:1807`:
+//
+//         Error: host booking row · /host/bookings · 1280px: the resolved table measures 56.5px, but
+//         this shape was measured at 36.52px when its height was declared. … Re-measure and move the
+//         constant, never the tolerance.
+//         Expected: <= 4   Received: 19.979999999999997
+//
+//       OBSERVED 56.50px · DECLARED 36.52px (`BOOKINGS_1280_ONE_LINE`) · THE **SPACE** CELL WRAPPED,
+//       2 lines against a declared 1, and the WHEN cell measured 1 · VERDICT: FIXTURE DRIFT · TIER
+//       REPAIRED: THE FIXTURE (`HOST_LISTING_TITLE`, 20 → 17 characters). No tolerance moved, no
+//       constant moved, and `src/app/(host)/host/bookings/page.tsx` was NOT touched.
+//
+//       ⚠ THE HEIGHT ALONE POINTED AT THE WRONG TIER, WHICH IS WHY THE TWO LINE COUNTS ARE THE
+//       EVIDENCE HERE AND THE HEIGHT IS NOT. 56.50 is within 0.03px of probe (l) above — the reverted
+//       `260824-dbc` regression put back — so reading the number and stopping would have sent a
+//       repair into a product file that is correct. The When cell CANNOT wrap: `table.tsx:86` gives
+//       every `TableCell` `whitespace-nowrap` and the When cell carries no `whitespace-normal`.
+//
+//       ⚠⚠ IT IS GREEN ON A LAPTOP AND RED IN THE CONTAINER, AND THAT IS THE FINDING. `gate-e2e`
+//       runs in `mcr.microsoft.com/playwright:v1.60.0-noble`, whose Chromium quantises glyph
+//       advances to whole pixels; the same title is 152px there and 145.17px here, and the residual
+//       Space column is 166px there and 183.70px here. Every fractional number in this file was read
+//       on a machine that gates nothing. The `(agenda row · /host)` case at 320px reddens in the
+//       container too, from the same string and on the same source line — which of the two CI
+//       reports is the calendar's choice. Both were closed by the one fixture change.
+//       Full triage, both rasterisers: `19.1/evidence/triage-skeleton-geometry.txt`.
 
 /** The Playwright process does not load `.env`; fall back to the deterministic dev URL. */
 const HOST_DATABASE_URL =
@@ -1254,8 +1294,67 @@ async function signUpGeometryHost(page: Page): Promise<string> {
  *
  * One outcome at each width. `HOST_AGENDA_ROW_HEIGHT` does NOT move, and the title is still on the
  * 19-27 plateau `260824-ej2` measured — one character above its floor rather than mid-plateau.
+ *
+ * ⚠⚠⚠⚠⚠ 20 → 17 CHARACTERS ON 5 SEPTEMBER 2026 (19.1-09), AND EVERY SWEEP ABOVE THIS LINE WAS TAKEN
+ * ON THE WRONG MACHINE. That is the finding, and it is worth more than the string.
+ *
+ * `gate-e2e` runs INSIDE `mcr.microsoft.com/playwright:v1.60.0-noble` (`ci.yml:1561-1568`), and that
+ * container's Chromium quantises glyph advances to WHOLE PIXELS. Every measurement above is
+ * fractional — 145.17, 174.03, 218.92 — because it was read on a Windows laptop, where they are not.
+ * The same page, the same commit, the same viewport, the two rasterisers side by side:
+ *
+ *     <td>       Windows    Linux (CI)      the Space column is the residual and absorbs all of it
+ *     Guest        71.78       72
+ *     SPACE       183.70      166           −17.70
+ *     WHEN        235.03      239
+ *     Status      112.20      118
+ *     Payout       62.59       64
+ *     Actions     198.69      205
+ *     ─────────────────────────────
+ *     title ink   145.17      152           +4.7%
+ *     content box 167.70      150
+ *     MARGIN      +22.53       −2.00        ← the sign flips, the cell wraps, the row is 56.50px
+ *
+ * 56.50px against a declared 36.52 is `gate-e2e`'s red, and 19.979999999999997 is its received value
+ * to the last digit. It is NOT the calendar and NOT a product regression — the When cell measured
+ * ONE line on the same run, and `table.tsx:86`'s `whitespace-nowrap` means it cannot be otherwise.
+ * Full triage, with both rasterisers' numbers: `19.1/evidence/triage-skeleton-geometry.txt`.
+ *
+ * SO EVERY NUMBER BELOW WAS RE-MEASURED IN THE CONTAINER, which is the only rasteriser that gates
+ * anything. Same two instruments as above — the agenda paragraph swapped in place at its measured
+ * 141px content width over all 2,604 date tokens, and the title's ink in the Space cell's own
+ * computed style against that cell's measured 150px content box:
+ *
+ *     title (chars)                agenda 320px / 2,604 tokens     Space-cell ink   vs the 150px box
+ *     ──────────────────────────   ─────────────────────────────   ──────────────   ────────────────
+ *     "Geo Courts Poblacion" (20)  3 ×141  ·  4 ×2,463      ✘ RED         152            −2   wraps
+ *     "Geo Courts Poblacio"  (19)  3 ×2,604                              143            +7
+ *     "Geo Courts Poblaci"   (18)  3 ×2,604                              134           +16
+ *     "Geo Courts Makati"    (17)  3 ×2,604                              127           +23   ← here
+ *     "Geo Courts Pobla"     (16)  3 ×2,604                              121           +29
+ *     "Geo Courts Pobl"      (15)  3 ×2,604                              113           +37
+ *     "Geo Courts QC"        (13)  3 ×2,604                              104           +46
+ *     "Geo Courts"           (10)  2 ×1  ·  3 ×2,603        ✘ RED         79           +71
+ *
+ * THE AGENDA PLATEAU IS 13–19 ON THE RUNNER, NOT 19–27. The shipped 20 is one character OUTSIDE it,
+ * which is why `(agenda row · /host)` at 320px reddens in the container too, on the same source line
+ * and from the same string — 4 lines where 3 is declared, on 2,463 of the 2,604 dates. Which of the
+ * two cases CI happens to report is decided by the calendar; both are `:1807`, and one string fixes
+ * both.
+ *
+ * WHY 17 AND WHY THIS 17. It is the widest candidate that is comfortably interior on BOTH surfaces
+ * on the rasteriser that gates: 23px of clearance in the Space cell (against 12.86px claimed, and
+ * −2px actual, for the string it replaces) and four characters above the agenda plateau's measured
+ * floor with two below its ceiling. And it is still a name a Makati host would give a space —
+ * `HOST_VENUE_CITY` is "Makati" — rather than a truncated word, which matters because the whole
+ * argument for the LONG title is that it is a realistic one.
+ *
+ * ⚠ THE WINDOWS FIGURES ARE KEPT ABOVE RATHER THAN DELETED. They are not wrong; they are true of a
+ * machine that gates nothing, and the gap between the two columns is the finding. A later reader who
+ * re-measures on a laptop and gets 22.53px of margin needs to see, in this docblock, why that number
+ * is not the one to trust.
  */
-const HOST_LISTING_TITLE = "Geo Courts Poblacion";
+const HOST_LISTING_TITLE = "Geo Courts Makati";
 
 /**
  * The SECOND listing's title — thirty characters, and the whole reason it exists is that
@@ -1276,6 +1375,13 @@ const HOST_LISTING_TITLE = "Geo Courts Poblacion";
  * Swept over the same 13,020 labels at 1280px: `2 lines / 57px` ×13,020, never a third outcome and
  * never a first. Between the two titles the fixture therefore holds both of the shape's heights, each
  * unconditional, with ~13px and ~15px of margin on opposite sides of the same boundary.
+ *
+ * ⚠ RE-MEASURED ON THE RUNNER, 5 SEPTEMBER 2026 (19.1-09) — and this side of the boundary was never
+ * in danger. In `mcr.microsoft.com/playwright:v1.60.0-noble` this string renders 230px against a
+ * Space-cell content box of 150px, so it is 80px OVER rather than 15.03px over: it wraps on every
+ * date on both rasterisers, with far more margin than the short title ever had. See
+ * `HOST_LISTING_TITLE`'s docblock for the rasteriser gap and why the fractional figures above are
+ * true of a machine that gates nothing. This constant does NOT move.
  *
  * ⚠ IT CANNOT DISTURB THE OTHER SHAPES, AND EACH REASON WAS CHECKED RATHER THAN ASSUMED:
  *   • `/host`'s agenda shows only the venue's local TODAY, and this listing's one booking is seeded at
