@@ -62,9 +62,37 @@ rather than fixed, per the executor scope boundary.
   repairing `gate-e2e`-era substring anchors is explicitly plan 06's scope (19-REVIEW.md CR-02).
   Widening or re-anchoring it from inside this plan would edit a predicate whose comment argues a
   scope this plan did not measure.
-- **Suggested disposition:** plan 06's audit. The fix shape is the one PATTERNS.md §F names —
+- ~~**Suggested disposition:** plan 06's audit. The fix shape is the one PATTERNS.md §F names —
   find the job by key (`CI_CHECKER_JOB`) and assert `npm run build` on it, keeping the substring
-  filter only in the deny direction where over-matching fails closed.
+  filter only in the deny direction where over-matching fails closed.~~
+
+#### AUDITED — plan 19.1-06, verdict **CARRIED** (row 7 of `evidence/sc2-audit-inventory.md`)
+
+**The predicate is left as it is, deliberately, and the reason is written at the site.** The
+suggested fix above was NOT applied, and should not be applied later without re-reading this.
+
+Two things were established by the audit:
+
+1. **Its dangerous direction is the opposite of every other row.** The property is "the job that
+   builds declares no services". OVER-matching adds a *phantom* job to `buildJobs`; if that phantom
+   declares services the check goes RED. A false red on a safety property fails closed, and a
+   spurious extra entry can never make this check pass. UNDER-matching would be the danger here, and
+   a containment test cannot under-match. This is the one place in the file where the CR-02 idiom is
+   not the wrong tool.
+2. **Re-anchoring it by job key would defeat its own stated purpose.** The predicate's heading says
+   it is spelled by what the job DOES precisely so that it survives a rename. `CI_CHECKER_JOB` is
+   the string it exists not to depend on.
+
+**What mitigates the original concern:** consequences 2 and 3 of the finding above are already closed
+by plan 19.1-05's build-step invariant, which owns the claim that `gate-db-free` runs the build —
+exact `name:` anchor, trimmed exact-equality invocation, three-key allow-list. Consequence 1 (the
+accidental red) is now impossible to mistake for coverage: the site carries a comment stating in full
+that this predicate is **not** an assertion about the build step, and case 24 asserts the FAIL line
+names the build-step invariant specifically.
+
+**Residual, stated not closed:** moving `npm run build` into a different job still leaves this
+predicate green. That is correct behaviour for *this* predicate — its subject is the DB-free
+property, not job identity — and the build-step invariant is what would go red.
 
 ---
 

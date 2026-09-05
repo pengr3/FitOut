@@ -200,6 +200,17 @@ const VISUAL_PROJECT = constFromChecker("CI_VISUAL_PROJECT");
 const REFUSAL_SCRIPT = constFromChecker("MAIL_REFUSAL_SCRIPT");
 
 /**
+ * `baselines.yml`'s own step names and its staging glob — audit rows 11 and 12, the two sites the
+ * research inventory did not list. Read from the checker like everything else, and kept SEPARATE
+ * from the `gate-visual` names above even where the strings currently coincide, because the two
+ * jobs are in different FILES and can be renamed independently. The checker's own declarations say
+ * the same thing at their site.
+ */
+const BASELINES_JOB = constFromChecker("BASELINES_JOB");
+const BASELINES_MIGRATE_STEP = constFromChecker("BASELINES_MIGRATE_STEP");
+const BASELINES_STAGE_STEP = constFromChecker("BASELINES_STAGE_STEP");
+
+/**
  * `.gitattributes` declares `* text=auto` and this working tree checks `ci.yml` out with CRLF. Every
  * inserted line uses the EOL detected from the file it is being inserted into; a harness that
  * normalised line endings would rewrite the whole copy and make every red red for the wrong reason.
@@ -209,13 +220,47 @@ function eolOf(text: string): string {
 }
 
 /**
+ * The shape a spawned checker run comes back as. Spelled ONCE (plan 19.1-06).
+ *
+ * ⚠ IT IS A TYPE ALIAS RATHER THAN THREE INLINE ANNOTATIONS FOR A REASON THAT IS NOT STYLE.
+ * The construct on the right-hand side below does not typecheck under this repository's `@types/node`
+ * — it is two of the nine pre-existing `npx tsc --noEmit` errors recorded in the phase's
+ * `deferred-items.md`, and it was already spelled TWICE here before this plan. Adding a third
+ * function with the same annotation would have added two more errors to a count this plan is
+ * required not to grow. Naming it once means the construct appears in ONE place: the count goes
+ * DOWN by two rather than up by two, and whoever eventually fixes the underlying generic has one
+ * line to change instead of three. The alias is deliberately NOT `any` — the call sites still read
+ * `result.status`, `result.stdout` and `result.stderr` as strings.
+ */
+type CheckerRun = ReturnType<typeof spawnSync<string>>;
+
+/**
  * The single harness every case goes through. Builds a throwaway tree holding exactly what the
  * checker reads from its working directory, applies `mutate` to `ci.yml`'s text, and spawns the
  * SHIPPED checker against it with nothing but `cwd` changed.
  */
 function withMutatedWorkflows(
   mutate: (ci: string) => string,
-  assert: (result: ReturnType<typeof spawnSync<string>>, dir: string) => void,
+  assert: (result: CheckerRun, dir: string) => void,
+): void {
+  withMutatedWorkflowPair({ ci: mutate }, assert);
+}
+
+/**
+ * The general form, added by plan 19.1-06. Two of that plan's audit rows live in the `baselines`
+ * and `cross` sections, so their cases must be able to mutate `baselines.yml` — one of them must
+ * mutate BOTH files at once, because its whole point is that IDENTICAL decoys on both sides make a
+ * byte-identity comparison hold between two strings that are neither job's real command.
+ *
+ * ⚠ EACH SUPPLIED MUTATOR IS ASSERTED SEPARATELY. The differs-from-input assertion is described in
+ * the header above as "the single most important line in this file"; a pair form that only checked
+ * that SOMETHING changed would let a drifted anchor in one file hide behind a live mutation in the
+ * other, and the case would then measure a tree it did not describe. A mutator that is not supplied
+ * is not asserted, because its file is copied verbatim on purpose.
+ */
+function withMutatedWorkflowPair(
+  mutators: { ci?: (ci: string) => string; baselines?: (baselines: string) => string },
+  assert: (result: CheckerRun, dir: string) => void,
 ): void {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "workflow-invariants-")));
   try {
@@ -225,21 +270,33 @@ function withMutatedWorkflows(
     // `package.json` feeds `EXPECTED_IMAGE` (the pinned Playwright image tag must equal the
     // installed `@playwright/test` version).
     copyFileSync(REPO_PKG, join(dir, "package.json"));
-    // `baselines.yml` feeds the whole `baselines` section and both halves of `cross`.
-    copyFileSync(REPO_BASELINES, join(dir, ".github", "workflows", "baselines.yml"));
     // The refusal script feeds Invariant B's shares-pattern and holds-no-copy conjuncts.
     copyFileSync(REPO_REFUSAL, join(dir, "scripts", "refuse-mail-credential.mjs"));
 
-    const original = readFileSync(REPO_CI, "utf8");
-    const mutated = mutate(original);
-    // ⚠ THE SINGLE MOST IMPORTANT LINE IN THIS FILE. A mutation that did not apply must be a RED,
-    // never a green over an unmutated copy.
-    expect(
-      mutated,
-      "the mutation produced text identical to the input — its anchor has drifted, and every " +
-        "assertion below would be measuring an UNMUTATED copy",
-    ).not.toBe(original);
-    writeFileSync(join(dir, ".github", "workflows", "ci.yml"), mutated, "utf8");
+    const write = (
+      name: "ci.yml" | "baselines.yml",
+      source: string,
+      mutate: ((text: string) => string) | undefined,
+    ): void => {
+      const original = readFileSync(source, "utf8");
+      if (mutate === undefined) {
+        // `baselines.yml` feeds the whole `baselines` section and both halves of `cross`, so it is
+        // always present in the tree — verbatim unless a case asks otherwise.
+        writeFileSync(join(dir, ".github", "workflows", name), original, "utf8");
+        return;
+      }
+      const mutated = mutate(original);
+      // ⚠ THE SINGLE MOST IMPORTANT LINE IN THIS FILE. A mutation that did not apply must be a RED,
+      // never a green over an unmutated copy.
+      expect(
+        mutated,
+        `the mutation of ${name} produced text identical to the input — its anchor has drifted, ` +
+          `and every assertion below would be measuring an UNMUTATED copy`,
+      ).not.toBe(original);
+      writeFileSync(join(dir, ".github", "workflows", name), mutated, "utf8");
+    };
+    write("ci.yml", REPO_CI, mutators.ci);
+    write("baselines.yml", REPO_BASELINES, mutators.baselines);
 
     assert(spawnSync(process.execPath, [CHECKER], { cwd: dir, encoding: "utf8" }), dir);
   } finally {
@@ -249,7 +306,7 @@ function withMutatedWorkflows(
 
 /** Both halves, because "it went red" was never the property. */
 function expectRed(
-  result: ReturnType<typeof spawnSync<string>>,
+  result: CheckerRun,
   invariantFragment: string,
 ): void {
   const stdout = String(result.stdout ?? "");
@@ -707,6 +764,56 @@ function withStepRunReplacedInJob(
     const text = ci.slice(span.start, span.end);
     if (!text.includes(from)) return ci;
     return `${ci.slice(0, span.start)}${text.replace(from, to)}${ci.slice(span.end)}`;
+  };
+}
+
+/** The FIRST line of the named step's `run:` body, without the `run: ` prefix. "" when absent. */
+function firstRunLineOf(text: string, jobKey: string, stepName: string): string {
+  const span = stepSpan(text, jobKey, stepName);
+  if (span === null) return "";
+  const eol = eolOf(text);
+  const lines = text.slice(span.start, span.end).split(eol);
+  const run = lines[1] ?? "";
+  // Either `run: <command>` or `run: |` followed by an indented block — take the command line.
+  const inline = run.replace(/^\s*run:\s?/, "");
+  if (inline.trim() !== "" && inline.trim() !== "|") return inline.trim();
+  const after = text.slice(span.end).split(eol);
+  return (after[0] ?? "").trim();
+}
+
+/**
+ * ⚠ `stepSpan` ABOVE IS TWO LINES AND THE STAGING STEP IS A BLOCK SCALAR, so this builder RENAMES
+ * rather than deletes: renaming touches exactly one line and leaves the step's body untouched,
+ * which is what makes the case measure the ANCHOR rather than a structural edit. It is also the
+ * edit class this repository already cares most about — `withRenamedCheckerJobName` above is the
+ * same idea one level up, and its docblock explains why a rename is the quiet one.
+ */
+function withRenamedStepInJob(
+  jobKey: string,
+  stepName: string,
+  newName: string,
+): (text: string) => string {
+  return (text) => {
+    const span = stepSpan(text, jobKey, stepName);
+    if (span === null) return text;
+    return `${text.slice(0, span.start)}      - name: ${newName}${eolOf(text)}${text.slice(
+      span.start + `      - name: ${stepName}${eolOf(text)}`.length,
+    )}`;
+  };
+}
+
+/** Appends `argument` to the named step's `run:` line, inside the named job. */
+function withAppendedRunArgumentInJob(
+  jobKey: string,
+  stepName: string,
+  argument: string,
+): (text: string) => string {
+  return (text) => {
+    const eol = eolOf(text);
+    const span = stepSpan(text, jobKey, stepName);
+    if (span === null) return text;
+    const runEnd = span.end - eol.length;
+    return `${text.slice(0, runEnd)} ${argument}${text.slice(runEnd)}`;
   };
 }
 
@@ -1379,5 +1486,99 @@ describe("the workflow checker's own predicates, measured against a mutated copy
     withMutatedWorkflows(withStepMovedFirstInJob(E2E_JOB, MAIL_STEP_NAME), (result) => {
       expectRed(result, REFUSAL_ORDERING);
     });
+  });
+
+  // ── THE TWO SITES THE RESEARCH INVENTORY DID NOT LIST, PLAN 19.1-06 ───────────────────────────
+  //
+  // 19.1-RESEARCH.md inventoried ten anchoring and presence sites. The audit was carried out as a
+  // SCAN of the whole checker for the SHAPE, not as a walk of those ten, and it found two more —
+  // both in sections the plan's task text never mentions, and both confirmed by measurement. This
+  // is what the inventory document's HOW THIS AUDIT WAS CARRIED OUT section means by the difference
+  // between auditing the property and auditing the list.
+
+  // AUDIT ROW 11. WHAT WAS MEASURED (guards-06-pre-fix.txt, VECTOR STAGE-GLOB): the invariant is
+  // `a run command stages exactly the *-visual-linux.png glob` — an existential over EVERY run body
+  // in the regeneration job. A decoy block scalar merely PRINTING that command, with the real
+  // staging command changed to a glob that matches nothing, left the checker at exit 0 with all 55
+  // reported holding. The regeneration job would have staged nothing and reported success — and
+  // this tripwire's entire job is to notice what that commit contains.
+  //
+  // The mutation here is the same class in its quietest form: the decoy's run body is COPIED
+  // VERBATIM from the real step (so no literal is typed in this file, and the decoy is
+  // byte-faithful by construction), and the real step is RENAMED. Under the superseded existential
+  // both bodies mention the glob and the check is green; under the name anchor there is no step by
+  // that name and it is red.
+  it("case 35 (row 11): renaming the staging step, with a decoy copying its command, is red", () => {
+    withMutatedWorkflowPair(
+      {
+        baselines: (b) => {
+          const realCommand = firstRunLineOf(b, BASELINES_JOB, BASELINES_STAGE_STEP);
+          if (realCommand === "") return b;
+          const decoyed = withStepBeforeInJob(BASELINES_JOB, BASELINES_STAGE_STEP, [
+            "- name: A decoy step that merely prints the staging command",
+            "  run: |",
+            `    echo ${realCommand}`,
+          ])(b);
+          return withRenamedStepInJob(
+            BASELINES_JOB,
+            BASELINES_STAGE_STEP,
+            `${BASELINES_STAGE_STEP} (renamed)`,
+          )(decoyed);
+        },
+      },
+      (result) => {
+        expectRed(result, "stages exactly the *-visual-linux.png glob");
+      },
+    );
+  });
+
+  // AUDIT ROW 12, AND THE NASTIEST VECTOR IN THIS PLAN.
+  // The `cross` section asserts that the two visual jobs' migrate commands are BYTE-IDENTICAL —
+  // the machine that COMPARES must be the machine that SHOT (D-27). It found each command with
+  // `runs.find(r => r.includes("db:migrate"))`, on BOTH sides. A decoy in ONE job makes the two
+  // picks differ and goes red, which is why this looked safe. IDENTICAL decoys in BOTH jobs make
+  // the two picks identical TO EACH OTHER — they are the same `echo` — and the comparison then
+  // holds between two strings that are neither job's real command.
+  //
+  // WHAT WAS MEASURED (guards-06-pre-fix.txt, VECTOR CROSS-PICK): exit 0, all 55 reported holding,
+  // with one job migrating `--baselines-only` and the other `--ci-only`. The comparison would have
+  // measured a different tree than the one that was captured — which is the exact defect the
+  // invariant's own comment says run 32216145319 cost, written up as an assertion so it could not
+  // recur silently. It could.
+  //
+  // ⚠ THIS CASE MUTATES BOTH FILES, AND THAT IS THE PROPERTY. A single-file version of it is GREEN
+  // against the superseded code for the right reason, and would have proved the site safe.
+  it("case 36 (row 12): identical decoys in BOTH visual jobs, with the real migrate commands made to differ, is red", () => {
+    withMutatedWorkflowPair(
+      {
+        baselines: (b) => {
+          const real = firstRunLineOf(b, BASELINES_JOB, BASELINES_MIGRATE_STEP);
+          if (real === "") return b;
+          const decoyed = withStepBeforeInJob(BASELINES_JOB, BASELINES_MIGRATE_STEP, [
+            "- name: A decoy step that merely prints the migrate command",
+            `  run: echo ${real}`,
+          ])(b);
+          return withAppendedRunArgumentInJob(
+            BASELINES_JOB,
+            BASELINES_MIGRATE_STEP,
+            "--baselines-only",
+          )(decoyed);
+        },
+        ci: (ci) => {
+          const real = firstRunLineOf(ci, VISUAL_JOB, VISUAL_MIGRATE_STEP);
+          if (real === "") return ci;
+          const decoyed = withStepBeforeInJob(VISUAL_JOB, VISUAL_MIGRATE_STEP, [
+            "- name: A decoy step that merely prints the migrate command",
+            `  run: echo ${real}`,
+          ])(ci);
+          return withAppendedRunArgumentInJob(VISUAL_JOB, VISUAL_MIGRATE_STEP, "--ci-only")(
+            decoyed,
+          );
+        },
+      },
+      (result) => {
+        expectRed(result, "migrate run commands are byte-identical");
+      },
+    );
   });
 });

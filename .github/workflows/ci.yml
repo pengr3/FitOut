@@ -344,7 +344,7 @@
 #     ⚠ THE CHECKER'S OWN PREDICATES NOW HAVE A STANDING TEST, AND PLAN 19-14 ADDED IT.
 #     `tests/design/workflow-invariants.test.ts` mutates a COPY of this file in a throwaway
 #     directory and spawns the real checker against it, asserting a non-zero exit AND a named
-#     FAIL line — thirty-four cases as of plan 19.1-06, of which THREE assert GREEN and say why in
+#     FAIL line — thirty-six cases as of plan 19.1-06, of which THREE assert GREEN and say why in
 #     their own docblocks, inside `npm run build`. It exists because three
 #     consecutive verification rounds re-opened predicates that had been proven once by hand and then
 #     reverted: a checker with no test of its own regresses silently, and round N+1 begins with
@@ -519,8 +519,21 @@
 #     where over-matching produces a FALSE RED — the counter requiring zero occurrences of the
 #     snapshot-update flag, and the `npm run build` filter behind T-11-DBFREE, are both audited and
 #     KEPT, with the reason written at each site. A future audit must not "fix" them into locators.
+#     ⚠ AND THE AUDIT WAS A SCAN, NOT A WALK OF A LIST — WHICH IS WHY IT FOUND TWO MORE. The phase
+#     research inventoried TEN sites; scanning the checker for the SHAPE turned up two it had not,
+#     both outside this file's own section and both reproduced:
+#       - `baselines.yml`'s staging tripwire was an existential over every run body in that job, so
+#         a decoy merely PRINTING the staging command satisfied it while the real step staged a glob
+#         matching nothing. The regeneration job would stage nothing and report success.
+#       - the two visual jobs' byte-identity comparison found each command by substring on BOTH
+#         sides. A decoy in ONE job goes red — which is why the site looked safe — but IDENTICAL
+#         decoys in BOTH make the comparison hold between two strings that are neither job's real
+#         command. Measured with one job migrating one way and the other another: exit 0, all 55
+#         holding. That is the machine that COMPARES diverging from the machine that SHOT, i.e. D-27
+#         exactly, reported green by the invariant whose printed name is that guarantee.
 #     The full audit, with a verdict for every anchoring and presence site including the ones
-#     deliberately left alone, is `evidence/sc2-audit-inventory.md`.
+#     deliberately left alone, is `evidence/sc2-audit-inventory.md` — twenty-four rows, three-value
+#     vocabulary, a REASON on every correct-as-is row and a MITIGATION on every carry.
 #
 #   * ACROSS `.github/workflows/` THE MAIL-PROVIDER TOKEN APPEARS ZERO TIMES, asserted in the
 #     checker rather than by a human remembering to run a count, and over RAW TEXT so that a

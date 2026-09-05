@@ -400,3 +400,68 @@ AND THE TWO ROWS RESEARCH.md COULD NOT DECIDE FROM THE CODE:
   * row 6 (the gate-visual indices and project detection) — REPRODUCES, and its project-detection
     half is the worst single result in this plan: exit 0, all 55 reported holding, with GATE-01's
     comparison not running at all. Repaired, with case 33 as its memory.
+
+
+################################################################################
+# TASK 3 — ROWS 11 AND 12, AFTER THE REPAIR
+################################################################################
+
+================================================================================
+TASK 3 / VECTOR STAGE-GLOB (audit row 11)
+================================================================================
+EXPECTED AFTER THE REPAIR: RED. The invariant is now asked of the step NAMED "Stage the regenerated baselines", and its printed name says so.
+
+$ md5sum .github/workflows/*.yml
+01c1dce48118f62d4151e196a67de7fa *.github/workflows/baselines.yml
+9c515f96e51ff058d74550a157288364 *.github/workflows/ci.yml
+
+$ python <apply mutation "stage-glob-decoy">
+applied stage-glob-decoy to baselines.yml (decoy prints the glob; the REAL step now stages a glob that matches nothing)
+
+$ node scripts/verify-workflows.mjs
+  FAIL  the step named "Stage the regenerated baselines" stages exactly the *-visual-linux.png glob
+1 of 55 invariant(s) FAILED:
+          step="Stage the regenerated baselines" at index 8  must contain="git add -- \"*-visual-linux.png\""  first line of run="git add -- \"*-NOTHING-AT-ALL.png\""
+CHECKER-EXIT=1
+
+$ git checkout -- .github/workflows/ ; git status --porcelain -- .github/workflows/
+(no line above = clean revert)
+
+================================================================================
+TASK 3 / VECTOR CROSS-PICK (audit row 12)
+================================================================================
+EXPECTED AFTER THE REPAIR: RED. Both sides are name-anchored, so the decoys are simply not the subject. The seed comparison beside it additionally asserts that the shared command NAMES the seed script, which it previously inferred from the locator it no longer uses.
+
+$ md5sum .github/workflows/*.yml
+01c1dce48118f62d4151e196a67de7fa *.github/workflows/baselines.yml
+9c515f96e51ff058d74550a157288364 *.github/workflows/ci.yml
+
+$ python <apply mutation "cross-pick-decoy">
+applied cross-pick-decoy: IDENTICAL decoy steps in BOTH jobs, and the two REAL migrate commands made to differ
+
+$ node scripts/verify-workflows.mjs
+  FAIL  the two visual jobs' migrate run commands are byte-identical
+1 of 55 invariant(s) FAILED:
+          generate-baselines."Migrate the database"="npm run db:migrate --baselines-only"  gate-visual."Migrate the database"="npm run db:migrate --ci-only"
+CHECKER-EXIT=1
+
+$ git checkout -- .github/workflows/ ; git status --porcelain -- .github/workflows/
+(no line above = clean revert)
+
+================================================================================
+TASK 3 — DO CASES 35 AND 36 REMEMBER IT?
+================================================================================
+Same per-conjunct method as Task 2. Each of the two new conjuncts was loosened ALONE, back to its
+pre-19.1-06 shape, and the faithfulness of each revert is proved by the checker still exiting 0 on
+the unmutated tree before the suite is run.
+
+  LOOSENING E — the staging assertion put back to `runs.some(r => r.includes(<glob>))`
+    unmutated tree: CHECKER-EXIT=0        suite: 1 failed | 35 passed
+    the one failure: case 35 (row 11): renaming the staging step, with a decoy copying its command
+
+  LOOSENING F — the cross comparison put back to `pick = runs.find(r => r.includes(needle))`
+    unmutated tree: CHECKER-EXIT=0        suite: 1 failed | 35 passed
+    the one failure: case 36 (row 12): identical decoys in BOTH visual jobs
+
+SIX REPAIRED CONJUNCTS IN THIS PLAN, SIX BOUND CASES, ONE-TO-ONE (loosenings A-F, cases 29, 32, 33,
+34, 35, 36 — plus cases 25-27 for the trigger property and the three GREEN controls 16, 28, 30).

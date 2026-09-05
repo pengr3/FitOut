@@ -719,3 +719,99 @@ $ <restore ci.yml>  && md5sum
 $ git diff -U0 -- .github/workflows/ci.yml | grep -E '^[+-][^+-]' | grep -cv '^[+-][[:space:]]*#'
 0
 (0 = only comment lines differ from HEAD; the measurement left nothing behind)
+
+
+################################################################################
+# TASK 3 — THE TWO SITES THE RESEARCH INVENTORY DID NOT LIST
+#
+# 19.1-RESEARCH.md inventoried TEN anchoring and presence sites. This plan's audit was carried out
+# as a SCAN of the whole checker for the SHAPE — every `.includes(`, `.some(`, `.find(`,
+# `.findIndex(`, `.startsWith(` in the file — rather than as a walk of those ten. It found two more,
+# both in sections the plan's task text never mentions, and both reproduce.
+#
+# ⚠ THE FIRST ATTEMPT AT VECTOR STAGE-GLOB WAS A FALSE REFUTATION, AND IT IS RECORDED RATHER THAN
+# DISCARDED. The decoy was written as a plain YAML scalar containing backslash-escaped quotes, so
+# the string that reached the parser was `git add -- \"*-visual-linux.png\"` — which does NOT
+# contain the needle. The checker went red and the row looked REFUTED. It was the harness that was
+# broken, not the vector. The decoy below is a BLOCK scalar and the parsed run body was verified to
+# contain the needle before the verdict was written. A refutation is a finding, and a finding has to
+# be right; "the mutation did not fire" and "the mutation did not apply" look identical from the
+# outside, which is what `withMutatedWorkflows`'s differs-from-input assertion exists to separate,
+# and what a hand measurement has to check by hand.
+################################################################################
+
+================================================================================
+TASK 3 / VECTOR STAGE-GLOB (audit row 11) — a decoy PRINTING the staging command, with the real staging step changed to a glob that matches nothing
+================================================================================
+EXPECTED BEFORE THE REPAIR: GREEN. The invariant reads `runs.some(r => r.includes(<the glob>))` — an existential over EVERY run body in the regeneration job, which any echo satisfies. The job would stage nothing, commit nothing and report success, and this tripwire's entire purpose is to notice what that commit contains.
+
+$ md5sum .github/workflows/*.yml
+01c1dce48118f62d4151e196a67de7fa *.github/workflows/baselines.yml
+9c515f96e51ff058d74550a157288364 *.github/workflows/ci.yml
+
+$ python <apply mutation "stage-glob-decoy">
+applied stage-glob-decoy to baselines.yml (decoy prints the glob; the REAL step now stages a glob that matches nothing)
+
+$ md5sum .github/workflows/*.yml            # MUTATED
+e8be137ae28966bb11e5108299680b19 *.github/workflows/baselines.yml
+9c515f96e51ff058d74550a157288364 *.github/workflows/ci.yml
+
+$ git diff --unified=0 -- .github/workflows/
+diff --git a/.github/workflows/baselines.yml b/.github/workflows/baselines.yml
+@@ -369,0 +370,3 @@ jobs:
++      - name: A decoy step that merely prints the staging command
++        run: |
++          echo git add -- "*-visual-linux.png"
+@@ -373 +376 @@ jobs:
+-          git add -- "*-visual-linux.png"
++          git add -- "*-NOTHING-AT-ALL.png"
+
+$ node scripts/verify-workflows.mjs
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+  ok    a run command stages exactly the *-visual-linux.png glob
+  ok    the two visual jobs' migrate run commands are byte-identical
+CHECKER-EXIT=0
+
+$ git checkout -- .github/workflows/ ; git status --porcelain -- .github/workflows/
+(no line above = clean revert; the measurement left nothing behind)
+
+================================================================================
+TASK 3 / VECTOR CROSS-PICK (audit row 12) — IDENTICAL decoy steps in BOTH visual jobs, with the two REAL migrate commands made to differ
+================================================================================
+EXPECTED BEFORE THE REPAIR: GREEN, AND THIS IS THE NASTIEST VECTOR IN THE PLAN. The comparison locates each command with `runs.find(r => r.includes("db:migrate"))` on BOTH sides. A decoy in ONE job makes the picks differ and goes red — which is why this site looked safe. IDENTICAL decoys in BOTH make the picks identical TO EACH OTHER, and the byte-identity comparison then holds between two strings that are neither job's real command. The machine that COMPARES would migrate differently from the machine that SHOT: exactly and only what D-27 exists to prevent, and what run 32216145319 already cost once.
+
+$ md5sum .github/workflows/*.yml
+01c1dce48118f62d4151e196a67de7fa *.github/workflows/baselines.yml
+9c515f96e51ff058d74550a157288364 *.github/workflows/ci.yml
+
+$ python <apply mutation "cross-pick-decoy">
+applied cross-pick-decoy: IDENTICAL decoy steps in BOTH jobs, and the two REAL migrate commands made to differ
+
+$ md5sum .github/workflows/*.yml            # MUTATED
+b2cfb3bfa2c199a3ffdf8f7c3e7f9817 *.github/workflows/baselines.yml
+04d72c3486b7536b3c27d26829c1bdaf *.github/workflows/ci.yml
+
+$ git diff --unified=0 -- .github/workflows/
+diff --git a/.github/workflows/baselines.yml b/.github/workflows/baselines.yml
+@@ -324,0 +325,2 @@ jobs:
++      - name: A decoy step that merely prints the migrate command
++        run: echo npm run db:migrate
+@@ -326 +328 @@ jobs:
+-        run: npm run db:migrate
++        run: npm run db:migrate --baselines-only
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+@@ -1442,0 +1443,2 @@ jobs:
++      - name: A decoy step that merely prints the migrate command
++        run: echo npm run db:migrate
+@@ -1444 +1446 @@ jobs:
+-        run: npm run db:migrate
++        run: npm run db:migrate --ci-only
+
+$ node scripts/verify-workflows.mjs
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+  ok    a run command stages exactly the *-visual-linux.png glob
+  ok    the two visual jobs' migrate run commands are byte-identical
+CHECKER-EXIT=0
+
+$ git checkout -- .github/workflows/ ; git status --porcelain -- .github/workflows/
+(no line above = clean revert; the measurement left nothing behind)

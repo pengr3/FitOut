@@ -256,6 +256,21 @@ const CI_VISUAL_SEED_STEP = "Seed the baseline fixtures";
 const CI_VISUAL_PLAYWRIGHT_STEP = "Playwright — visual regression (GATE-01)";
 const CI_VISUAL_PROJECT = "--project=visual";
 
+// THE SAME TREATMENT FOR `baselines.yml`'s JOB (plan 19.1-06, audit rows 11 and 12 — two sites the
+// research inventory did not list, found by scanning the file for the shape rather than by working
+// the list). Both reproduced, both are repaired, and both are why the audit was a scan and not a
+// walk of ten known rows.
+//
+// ⚠ THEY ARE SEPARATE CONSTANTS FROM THE `gate-visual` ONES ABOVE EVEN THOUGH TWO OF THE FOUR
+// STRINGS ARE CURRENTLY IDENTICAL. The two jobs live in DIFFERENT FILES and can be renamed
+// independently; merging them would make a rename in one file silently redefine what the checker
+// looks for in the other. That is the same argument this file already makes for keeping a job KEY
+// and a job `name:` as two constants.
+const BASELINES_MIGRATE_STEP = "Migrate the database";
+const BASELINES_SEED_STEP = "Seed the baseline fixtures";
+const BASELINES_STAGE_STEP = "Stage the regenerated baselines";
+const BASELINES_STAGE_GLOB = 'git add -- "*-visual-linux.png"';
+
 // THE REFUSAL STEP'S PERMITTED KEY SURFACE, STATED POSITIVELY (review finding CR-01, third round).
 // Only these two keys may appear on that step. Anything else — an override of the interpreter its
 // `run:` body is handed to, a working directory, a per-step timeout, or an Actions attribute nobody
@@ -602,11 +617,24 @@ if (sections.includes("baselines")) {
   // 10. THE COMMIT STEP STILL STAGES ONLY THE LINUX-BASELINE GLOB.
   // T-11-PLATBASE. The tripwire catches the other way a wrong file lands in this commit: anything the
   // previous steps happened to modify (a churned lockfile, a run artefact) riding along.
-  const stagesGlob = runs.some((r) => r.includes('git add -- "*-visual-linux.png"'));
+  //
+  // ⚠ ASKED OF THE NAMED STEP (plan 19.1-06, audit row 11). The superseded form was
+  // `runs.some(r => r.includes(<the glob>))` — an existential over EVERY run body in the job, which
+  // any `echo` mentioning the glob satisfies. MEASURED on the tracked file
+  // (evidence/guards-06-pre-fix.txt, VECTOR STAGE-GLOB): a decoy block scalar reading
+  // `echo mentions: git add -- "*-visual-linux.png"`, with the REAL staging step changed to stage
+  // `*-NOTHING-AT-ALL.png`, left the checker at exit 0 with all 55 reported holding. The
+  // regeneration job would have staged nothing, committed nothing and reported success — and this
+  // is the tripwire whose whole job is to notice what that commit contains.
+  const stageStep = stepNamed(job, BASELINES_STAGE_STEP);
+  const stageRun = runOfStep(stageStep);
+  const stagesGlob = stageStep !== undefined && stageRun.includes(BASELINES_STAGE_GLOB);
   check(
-    "a run command stages exactly the *-visual-linux.png glob",
+    `the step named "${BASELINES_STAGE_STEP}" stages exactly the *-visual-linux.png glob`,
     stagesGlob,
-    stagesGlob ? 'found: git add -- "*-visual-linux.png"' : "no run command stages the Linux glob",
+    `step="${BASELINES_STAGE_STEP}" ${stageStep ? `at index ${stepIndexNamed(job, BASELINES_STAGE_STEP)}` : "(ABSENT)"}  ` +
+      `must contain=${JSON.stringify(BASELINES_STAGE_GLOB)}  ` +
+      `first line of run=${JSON.stringify(stageRun.split("\n")[0] ?? null)}`,
   );
 
   console.log(
@@ -1763,24 +1791,41 @@ if (sections.includes("cross")) {
   // seed path must produce the same fixture in both jobs, or the comparison measures a different
   // tree than the one that was captured." Run 32216145319 is what that costs. It is a standing
   // assertion now, so it cannot recur silently.
+  //
+  // ⚠ BOTH SIDES ARE NAME-ANCHORED NOW, AND THE VECTOR THAT BOUGHT IT IS THE NASTIEST IN THIS PLAN
+  // (plan 19.1-06, audit row 12 — a site the research inventory did not list). The superseded
+  // helper was `pick = (runs, needle) => runs.find(r => r.includes(needle))` — the FIRST run body
+  // in the job mentioning the needle, on BOTH sides. A decoy in ONE job would have made the two
+  // picks differ and gone red, which is why this looked safe. But IDENTICAL decoys in BOTH jobs
+  // make the two picks identical to each other — they are the same `echo` — and the comparison then
+  // holds between two strings that are not the commands either job runs.
+  // MEASURED (evidence/guards-06-pre-fix.txt, VECTOR CROSS-PICK): identical decoy steps mentioning
+  // `db:migrate` added to both jobs, with the REAL migrate commands changed to
+  // `--baselines-only` on one side and `--ci-only` on the other — exit 0, all 55 reported holding.
+  // The machine that COMPARES would have migrated differently from the machine that SHOT, which is
+  // exactly and only the property D-27 exists to guarantee, reported green by the invariant whose
+  // printed name is that guarantee.
   const captureRuns = runsOf(capture);
   const compareRuns = runsOf(compare);
-  const pick = (runs, needle) => runs.find((r) => r.includes(needle));
-  const captureMigrate = pick(captureRuns, "db:migrate");
-  const compareMigrate = pick(compareRuns, "db:migrate");
+  const captureMigrate = runOfStep(stepNamed(capture, BASELINES_MIGRATE_STEP)) || undefined;
+  const compareMigrate = runOfStep(stepNamed(compare, CI_VISUAL_MIGRATE_STEP)) || undefined;
   check(
     "the two visual jobs' migrate run commands are byte-identical",
     typeof captureMigrate === "string" && captureMigrate === compareMigrate,
-    `${BASELINES_JOB}="${captureMigrate ?? "(absent)"}"  ${CI_VISUAL_JOB}="${compareMigrate ?? "(absent)"}"`,
+    `${BASELINES_JOB}."${BASELINES_MIGRATE_STEP}"="${captureMigrate ?? "(absent)"}"  ` +
+      `${CI_VISUAL_JOB}."${CI_VISUAL_MIGRATE_STEP}"="${compareMigrate ?? "(absent)"}"`,
   );
 
   const SEED = "scripts/seed-baseline-fixtures.ts";
-  const captureSeed = pick(captureRuns, SEED);
-  const compareSeed = pick(compareRuns, SEED);
+  const captureSeed = runOfStep(stepNamed(capture, BASELINES_SEED_STEP)) || undefined;
+  const compareSeed = runOfStep(stepNamed(compare, CI_VISUAL_SEED_STEP)) || undefined;
   check(
     `the two visual jobs' seed run commands are byte-identical and both name ${SEED}`,
-    typeof captureSeed === "string" && captureSeed === compareSeed,
-    `${BASELINES_JOB}="${captureSeed ?? "(absent)"}"  ${CI_VISUAL_JOB}="${compareSeed ?? "(absent)"}"`,
+    typeof captureSeed === "string" &&
+      captureSeed === compareSeed &&
+      captureSeed.includes(SEED),
+    `${BASELINES_JOB}."${BASELINES_SEED_STEP}"="${captureSeed ?? "(absent)"}"  ` +
+      `${CI_VISUAL_JOB}."${CI_VISUAL_SEED_STEP}"="${compareSeed ?? "(absent)"}"  must name=${SEED}`,
   );
 
   // ── NEITHER VISUAL JOB BUILDS BEFORE ITS PLAYWRIGHT STEP ──────────────────────────────────────
