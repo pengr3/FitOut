@@ -627,7 +627,7 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 12/15 plans executed (7 waves)
+**Plans:** 13/15 plans executed (7 waves)
 
 Plans:
 **Wave 1**
@@ -656,7 +656,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 19.1-13-PLAN.md — SC4 close: full-suite re-measurement, the 25 released tests, the two flaky
+- [x] 19.1-13-PLAN.md — SC4 close: full-suite re-measurement, the 25 released tests, the two flaky
 
 **Wave 6** *(blocked on Wave 5 completion)*
 

@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 17
+open_count: 20
 waived_count: 0
 fixed_count: 0
-total_count: 17
-last_updated: 2026-09-05T10:25:45.760Z
+total_count: 20
+last_updated: 2026-09-05T16:40:07.379Z
 ---
 
 # Broken Windows Ledger
@@ -32,6 +32,9 @@ last_updated: 2026-09-05T10:25:45.760Z
 | 15 | 19.1 | deviation | scripts/verify-workflows.mjs | 741 | T-11-DBFREE locates the build job by a SUBSTRING of a run: body (r.includes("npm run build")) — the CR-02 idiom used for a positive assertion; satisfied by every softened form of the step and by moving the build to another job. Logged as D-19.1-C for plan 06. | open |  | 2026-09-05T05:46:15.519Z |  |
 | 16 | 19.1 | deviation | e2e/helpers/booker-seed.ts | 180 | pickWindow's tz-note assertion matches TEXT, so it stays strict-mode ambiguous after 19.1-04's id-only repair; two elements resolve while the served shell and resolved content overlap. Handed to plan 08 (19.1-PATTERNS section 7 charters that helper). | open |  | 2026-09-05T06:36:41.350Z |  |
 | 17 | 19.1 | unrun-verify | e2e/host-headings.spec.ts |  | host-headings:964 does not reproduce locally (14/14 green) while CI failed it 6/6; the pressAdvance repair is justified from mechanism + watched red but is UNVERIFIED on a real 2-core runner | open |  | 2026-09-05T10:25:45.760Z |  |
+| 18 | 19.1 | unrun-verify | e2e/confirmation-decay.spec.ts | 212 | The plan's own confirmation-decay verify expects a zero failed/flaky count; the settle refuted the timing hypothesis and the case now fails on a real duplicated mount. Satisfying the verify would require scoping the locator and hiding the defect. Owned by proposed plan 19.1-17. | open |  | 2026-09-05T16:40:06.282Z |  |
+| 19 | 19.1 | deviation | src/app/(host)/host/layout.tsx | 95 | Hydration failure on every (host) route: the Suspense fallback and its resolved content each mount a Radix DialogTrigger with a generated id. Reproduced locally. Leading candidate for host-headings:1052 and overflow-320:3434 remaining red. Owned by proposed plan 19.1-16. | open |  | 2026-09-05T16:40:06.818Z |  |
+| 20 | 19.1 | deviation | e2e/avatar-crop.spec.ts | 162 | locator('input[type=file]') resolved to 2 elements in run 33972688199; the helper's uniqueness claim is about src/, not about the document. Not repaired here - owned by proposed plan 19.1-17. | open |  | 2026-09-05T16:40:07.379Z |  |
 
 ````json
 [
@@ -237,6 +240,42 @@ last_updated: 2026-09-05T10:25:45.760Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-05T10:25:45.760Z",
+    "resolved_at": null
+  },
+  {
+    "id": 18,
+    "kind": "unrun-verify",
+    "phase": "19.1",
+    "file": "e2e/confirmation-decay.spec.ts",
+    "line": 212,
+    "description": "The plan's own confirmation-decay verify expects a zero failed/flaky count; the settle refuted the timing hypothesis and the case now fails on a real duplicated mount. Satisfying the verify would require scoping the locator and hiding the defect. Owned by proposed plan 19.1-17.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-05T16:40:06.282Z",
+    "resolved_at": null
+  },
+  {
+    "id": 19,
+    "kind": "deviation",
+    "phase": "19.1",
+    "file": "src/app/(host)/host/layout.tsx",
+    "line": 95,
+    "description": "Hydration failure on every (host) route: the Suspense fallback and its resolved content each mount a Radix DialogTrigger with a generated id. Reproduced locally. Leading candidate for host-headings:1052 and overflow-320:3434 remaining red. Owned by proposed plan 19.1-16.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-05T16:40:06.818Z",
+    "resolved_at": null
+  },
+  {
+    "id": 20,
+    "kind": "deviation",
+    "phase": "19.1",
+    "file": "e2e/avatar-crop.spec.ts",
+    "line": 162,
+    "description": "locator('input[type=file]') resolved to 2 elements in run 33972688199; the helper's uniqueness claim is about src/, not about the document. Not repaired here - owned by proposed plan 19.1-17.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-05T16:40:07.379Z",
     "resolved_at": null
   }
 ]

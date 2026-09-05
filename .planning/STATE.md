@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: Completed 19.1-12-PLAN.md
-last_updated: "2026-09-05T15:04:49.027Z"
+stopped_at: Completed 19.1-13-PLAN.md
+last_updated: "2026-09-05T16:39:56.086Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 19.1 plan 02 complete — Wave 0 measurement
-state_head: 832927eccc6c522f5557971785f246f9e78a85cf
+state_head: 6fb637624dd19fbd4ccd67c651f7f6915a6ae081
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 60
-  completed_plans: 57
+  completed_plans: 58
   percent: 13
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19.1 (CI signal becomes real) — EXECUTING
-Plan: 13 of 15
+Plan: 14 of 15
 Status: Ready to execute
 Last activity: 2026-09-05 — Phase 19.1 plan 02 complete (Wave 0 measurement)
 
@@ -449,6 +449,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P10 | 62 min | 3 tasks | 4 files |
 | Phase 19.1 P11 | 36 min | 3 tasks | 3 files |
 | Phase 19.1 P12 | 40 min | 3 tasks | 13 files |
+| Phase 19.1 P13 | 1h 52m | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1470,6 +1471,9 @@ Recent decisions affecting current work:
 - [Phase 19.1]: e2e/tabular-figures.spec.ts case (2) grove was NOT annotated: measured PASSING in the container (142/142 at 24px), so a symmetric second entry would have been a false reason and an unexpected pass burning all three CI retries.
 - [Phase 19.1]: Rows 9-12 of the visual baselines were NOT regenerated: their references encode the calendar day (react-day-picker defaults its today modifier to the wall clock, and nothing passes the prop) and the seed month (seed-baseline-fixtures.ts:193 uses now()), so minting them buys a gate green for one push. D-04 permits blessing drift, not minting a reference that expires.
 - [Phase 19.1]: The rows 9-12 fixture fix was measured against D-02 and found NOT small and localised (three layers plus a test, one of them production source whose behaviour change is a product question; and the visual project is not constructed off Linux, so the fix cannot be observed before minting). The phase grows by a plan.
+- [Phase 19.1]: SC4 is OPEN: run 33976831607 is red in gate-e2e (4 failures) and gate-visual (the four D-19.1-D clock rows). The phase grows by three plans under D-02 (19.1-16 host-layout hydration, 19.1-17 duplicated booker mounts, 19.1-18 the lost day click).
+- [Phase 19.1]: The known-failures allowlist stays pinned at 2. Two of the original fourteen that 19.1-11's derivation records as repaired (host-headings, overflow-320) are still red in CI; the prose is contradicted, the number is not edited, and neither failure is allowlist-eligible.
+- [Phase 19.1]: gate-e2e's merge wait is 26m16s measured on a named-failure tree (run 33976831607), down 47% from the red baseline's 50m29s, with 63m44s of headroom against the untouched 90-minute cap. This is the number 19.1-15 uses.
 
 ### Pending Todos
 
@@ -1555,6 +1559,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - 19.1-04 DEFECT 3 — e2e/helpers/booker-seed.ts:180 pickWindow's unscoped getByText on the timezone note resolves to 2 elements whenever two booking surfaces are in the document (responsive sheet, or the served-shell/resolved-content streaming overlap). A flake, green under CI's --retries=2. Owned by plan 08; brief in evidence/triage-collision-in-place.txt VERDICT DEFECT 3.
 - gate-visual remains RED on 4 baselines (listing-detail x3, collision-notice-1280). Blocked on the rows 9-12 fixture work specified in 19.1 evidence/rows-9-12-fixture-probe.txt; its point (a) is a product decision for the PM.
 - D-19.1-E: dev-theme-320-court is flaky on gate-visual (Failed to take two consecutive stable screenshots, 21109px between consecutive captures; the committed reference is byte-correct). Absorbed today by two retries and reported flaky rather than red.
+- Two of the five required-status-check contexts (gate-e2e, gate-visual) are RED today, and the flaky set is redrawn each run - six different tests across four runs of one tree. 19.1-15 must not make either a required check before the three D-02 plans land.
 
 ### Quick Tasks Completed
 
@@ -1655,8 +1660,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-05T14:43:42.498Z
-Stopped at: Completed 19.1-12-PLAN.md
+Last session: 2026-09-05T16:39:25.609Z
+Stopped at: Completed 19.1-13-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
