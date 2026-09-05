@@ -467,7 +467,26 @@ type AvailabilityCalendarProps = {
   todayDate?: DayLocal;
 };
 
-const TZ_NOTE_ID = "availability-tz-note";
+// ── THE TIMEZONE NOTE'S id IS DERIVED PER INSTANCE, NOT DECLARED HERE (19.1-04) ──────────────────
+//
+// This used to be `const TZ_NOTE_ID = "availability-tz-note"` — a module-level literal, so every
+// mount of this component emitted the SAME id. RESP-02 mounts a SECOND booking view inside a sheet
+// on `/listings/[id]` (`e2e/helpers/booker-seed.ts:86-88`), so while that sheet is open this
+// component is in the document TWICE and the id is duplicated.
+//
+// MEASURED, at 375x812, with the transcript in
+// `.planning/phases/19.1-…/evidence/triage-collision-in-place.txt` section 3: the id count goes
+// 1 -> 2 the moment the sheet opens, and a text locator on the note resolves to two elements, both
+// carrying it. A duplicated id makes the `aria-describedby` association below AMBIGUOUS — the
+// browser picks a target and the person using a screen reader does not.
+//
+// The id is therefore composed from `React.useId()` inside the component body, and the
+// `aria-describedby` reference points at that same derived value. `date-pass-picker.tsx` — this
+// file's twin — does it the same way, deliberately: two spellings of one convention in one
+// directory is a second source of truth wearing the costume of a convention.
+//
+// `tests/design/availability-tz-note-id.test.ts` is build-blocking and goes RED if either file
+// reintroduces a module-level string literal used directly as an id attribute value.
 
 export function AvailabilityCalendar({
   listingId,
@@ -495,6 +514,11 @@ export function AvailabilityCalendar({
     selectDay,
     collision,
   } = useBookingSelection();
+
+  // ONE id PER MOUNTED INSTANCE — the note above this component carries the measurement. Derived
+  // rather than declared, because this component is mounted twice on `/listings/[id]` while the
+  // responsive booking sheet is open, and the paragraph below is what `aria-describedby` points at.
+  const tzNoteId = `${React.useId()}-tz-note`;
 
   // The horizon is anchored on TODAY, which `initialDate` no longer necessarily is — see the prop.
   const today = todayDate ?? initialDate;
@@ -617,12 +641,12 @@ export function AvailabilityCalendar({
 
   return (
     <div data-testid="availability-calendar" className="space-y-3">
-      <p id={TZ_NOTE_ID} className="text-sm text-muted-foreground">
+      <p id={tzNoteId} className="text-sm text-muted-foreground">
         Times shown in {cityLabel} time ({gmtLabel})
       </p>
 
       <div
-        aria-describedby={TZ_NOTE_ID}
+        aria-describedby={tzNoteId}
         className="grid gap-6 md:grid-cols-[auto_1fr] md:items-start"
       >
         <Calendar

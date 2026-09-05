@@ -401,8 +401,15 @@ describe("DatePassPicker — a day and a pass count, never an hour (OPEN-02 · �
     const { container } = renderPicker({});
 
     const note = screen.getByText(`Times shown in ${CITY} time (GMT+8)`);
-    expect(note.id).toBe("availability-tz-note");
-    const described = container.querySelector('[aria-describedby="availability-tz-note"]');
+
+    // THE ASSOCIATION IS THE ASSERTION, NOT THE SPELLING (19.1-04). This used to pin the literal
+    // `availability-tz-note`, which was a module-level constant — and that is exactly what made the
+    // id duplicate when RESP-02 mounts a second booking view in a sheet on `/listings/[id]`. The id
+    // is derived per instance now (`React.useId()`), so a literal here would be asserting the defect.
+    // Reading the id OFF the note and requiring the describedby to target THAT is the stronger claim:
+    // it is false both for an unlinked grid and for a describedby left pointing at a stale id.
+    expect(note.id).toBeTruthy();
+    const described = container.querySelector(`[aria-describedby="${note.id}"]`);
     expect(described).toBeTruthy();
     expect(within(described as HTMLElement).getByRole("grid")).toBeTruthy();
   });
