@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: Completed 19.1-11-PLAN.md
-last_updated: "2026-09-05T13:07:37.116Z"
+stopped_at: Completed 19.1-12-PLAN.md
+last_updated: "2026-09-05T14:43:56.535Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 19.1 plan 02 complete — Wave 0 measurement
-state_head: 0cb154cdef5dc181bfffc37015b18296eeb5a4b4
+state_head: f51b04de23b49b46d378ab0ec0f79036fd37fede
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 60
-  completed_plans: 55
+  completed_plans: 57
   percent: 13
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19.1 (CI signal becomes real) — EXECUTING
-Plan: 12 of 15
+Plan: 13 of 15
 Status: Ready to execute
 Last activity: 2026-09-05 — Phase 19.1 plan 02 complete (Wave 0 measurement)
 
@@ -448,6 +448,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P09 | 46 min | 3 tasks | 3 files |
 | Phase 19.1 P10 | 62 min | 3 tasks | 4 files |
 | Phase 19.1 P11 | 36 min | 3 tasks | 3 files |
+| Phase 19.1 P12 | 40 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -1467,6 +1468,8 @@ Recent decisions affecting current work:
 - [Phase 19.1]: The tabular-figures CI red is NEITHER a stale spec NOR an open finding: reproduced byte-for-byte in the pinned Playwright container against the SAME host dev server, so it is a renderer capability gap. Annotated with the measured reason; the spec message false "hand it to Phase 17" framing repaired.
 - [Phase 19.1]: The known-failures allowlist totals TWO entries, not the fourteen the failure list implied: 12 were closed by repair, seeding, a public identifier or a measurement. The count is pinned in tests/design/e2e-known-failures.test.ts, which the build runs.
 - [Phase 19.1]: e2e/tabular-figures.spec.ts case (2) grove was NOT annotated: measured PASSING in the container (142/142 at 24px), so a symmetric second entry would have been a false reason and an unexpected pass burning all three CI retries.
+- [Phase 19.1]: Rows 9-12 of the visual baselines were NOT regenerated: their references encode the calendar day (react-day-picker defaults its today modifier to the wall clock, and nothing passes the prop) and the seed month (seed-baseline-fixtures.ts:193 uses now()), so minting them buys a gate green for one push. D-04 permits blessing drift, not minting a reference that expires.
+- [Phase 19.1]: The rows 9-12 fixture fix was measured against D-02 and found NOT small and localised (three layers plus a test, one of them production source whose behaviour change is a product question; and the visual project is not constructed off Linux, so the fix cannot be observed before minting). The phase grows by a plan.
 
 ### Pending Todos
 
@@ -1550,6 +1553,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - PRODUCTION SCOPE (from 19-04) STILL UNANSWERED, with new evidence that does NOT close it: a vercel.json is in the tree and a live Vercel project (pengr3s-projects/fit-out) deploys this repo, its check appearing on PR #1 — so a deployed environment EXISTS, satisfying the antecedent of WINDOWS.md entry 5. It does NOT establish that the deployment has its own database; nobody has measured that and no deployed environment was probed. Entry 5 stays open and is the PM's to answer.
 - ~~19.1-03 D-A2: CalendarMonthSkeleton's six hard-coded week rows vs a five-row grid (52.81px shift)~~ — CLEARED 2026-09-05. Repaired by deriving the row count from a server-single-sourced month prop; the two calendar-hit-area AC#15 tests are green (now at :492). Evidence: evidence/triage-plate-month.txt. Residuals stated, not blocking: the listing's own zone and the ?date= searched month are both unknowable from a loading.tsx, and neither can reintroduce a server/client disagreement.
 - 19.1-04 DEFECT 3 — e2e/helpers/booker-seed.ts:180 pickWindow's unscoped getByText on the timezone note resolves to 2 elements whenever two booking surfaces are in the document (responsive sheet, or the served-shell/resolved-content streaming overlap). A flake, green under CI's --retries=2. Owned by plan 08; brief in evidence/triage-collision-in-place.txt VERDICT DEFECT 3.
+- gate-visual remains RED on 4 baselines (listing-detail x3, collision-notice-1280). Blocked on the rows 9-12 fixture work specified in 19.1 evidence/rows-9-12-fixture-probe.txt; its point (a) is a product decision for the PM.
 
 ### Quick Tasks Completed
 
@@ -1650,8 +1654,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-05T13:06:55.442Z
-Stopped at: Completed 19.1-11-PLAN.md
+Last session: 2026-09-05T14:43:42.498Z
+Stopped at: Completed 19.1-12-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.

@@ -627,7 +627,7 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 10/15 plans executed (7 waves)
+**Plans:** 12/15 plans executed (7 waves)
 
 Plans:
 **Wave 1**
@@ -651,8 +651,8 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 19.1-11-PLAN.md — D-03: the known-failures allowlist + its growth census + Cause E
-- [ ] 19.1-12-PLAN.md — D-04: upload the visual diffs, classify all twelve, restore point, regenerate on the sanctioned path
+- [x] 19.1-11-PLAN.md — D-03: the known-failures allowlist + its growth census + Cause E
+- [x] 19.1-12-PLAN.md — D-04: upload the visual diffs, classify all twelve, restore point, regenerate on the sanctioned path
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
