@@ -135,6 +135,15 @@ const MAIL_STEP_NAME = constFromChecker("CI_E2E_MAIL_STEP");
 const CHECKER_STEP_NAME = constFromChecker("CHECKER_STEP_NAME");
 
 /**
+ * `gate-db-free`'s YAML job KEY and its `name:` — two different things, read separately because the
+ * checker spells them separately and for the reason it states there: GitHub matches a required
+ * status check on the `name:`, never on the key, so the two can be moved independently and only one
+ * of them detaches the job from branch protection.
+ */
+const CHECKER_JOB = constFromChecker("CI_CHECKER_JOB");
+const CHECKER_CONTEXT = constFromChecker("CI_CHECKER_CONTEXT");
+
+/**
  * `.gitattributes` declares `* text=auto` and this working tree checks `ci.yml` out with CRLF. Every
  * inserted line uses the EOL detected from the file it is being inserted into; a harness that
  * normalised line endings would rewrite the whole copy and make every red red for the wrong reason.
@@ -298,6 +307,22 @@ function withoutCheckerStep(): (ci: string) => string {
 }
 
 /**
+ * Renames `gate-db-free`'s `name:` — and NOTHING else. The job key does not move, the steps do not
+ * move, the checker invocation does not move: this is the edit that leaves the job perfectly intact
+ * and detaches it from the required-status-check list SC5 installs on `main`. Returns the input
+ * unchanged when the anchor is absent, so a drifted anchor lands on `withMutatedWorkflows`'s
+ * differs-from-input assertion.
+ */
+function withRenamedCheckerJobName(): (ci: string) => string {
+  return (ci) => {
+    const anchor = `    name: ${CHECKER_CONTEXT}`;
+    const at = ci.indexOf(anchor);
+    if (at < 0) return ci;
+    return `${ci.slice(0, at)}    name: ${CHECKER_JOB} (renamed)${ci.slice(at + anchor.length)}`;
+  };
+}
+
+/**
  * Shared insertion primitive. Returns the input UNCHANGED when the anchor is absent, so a drifted
  * anchor lands on `withMutatedWorkflows`'s differs-from-input assertion rather than producing a
  * quietly-different mutation somewhere else in the file.
@@ -324,6 +349,12 @@ const EXECUTION_DEFAULTS = "runs its steps with the runner's DEFAULT interpreter
 const CI_TRIGGERS = "runs on BOTH push and pull_request";
 /** A fragment of the checker-step invariant's printed name (new in plan 19.1-01, CR-03). */
 const CHECKER_STEP = "carries the step that RUNS this checker";
+/**
+ * A fragment of the `gate-db-free` display-name pin's printed name (new in plan 19.1-01). The job
+ * key is COMPOSED IN rather than left out, because `gate-e2e` carries a display-name pin of its own
+ * whose printed name is otherwise identical — a bare fragment would be satisfied by the wrong red.
+ */
+const CHECKER_DISPLAY_NAME = `"${CHECKER_JOB}" declares the exact display name`;
 
 describe("the workflow checker's own predicates, measured against a mutated copy", () => {
   // THE CONTROL. An identity mutation is impossible by construction (the differs-from-input
@@ -476,6 +507,20 @@ describe("the workflow checker's own predicates, measured against a mutated copy
   it("case 13 (CR-03): deleting gate-db-free's checker step is red", () => {
     withMutatedWorkflows(withoutCheckerStep(), (result) => {
       expectRed(result, CHECKER_STEP);
+    });
+  });
+
+  // THE QUIETER HALF OF CR-03, AND THE ONE THAT SURVIVES EVERY OTHER INVARIANT INTACT. Case 13's
+  // mutation removes work; this one removes nothing. The job key does not move, the steps do not
+  // move, the checker invocation is byte-identical — so case 13's predicate, the hard stop, and
+  // every universally-quantified assertion in the file all still pass. What moves is the ONE string
+  // GitHub matches a required status check by, which SC5 is about to make required on `main`. It was
+  // measured GREEN on the tracked file before this pin existed (guards-01-pre-fix.txt, MUTATION 2):
+  // exit 0, no FAIL line, all 51 invariants reported holding, over a job that branch protection
+  // would no longer recognise.
+  it("case 14: renaming gate-db-free's display name is red", () => {
+    withMutatedWorkflows(withRenamedCheckerJobName(), (result) => {
+      expectRed(result, CHECKER_DISPLAY_NAME);
     });
   });
 });
