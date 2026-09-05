@@ -578,6 +578,61 @@ use. ⚠ **Widening the existing `gate-price-parity` job instead is an enumerate
 `scripts/verify-workflows.mjs:600` is designed to catch.** The full-suite wall-clock in CI is
 **unmeasured** — measure it before deciding whether to shard.
 
+### Phase 19.1: CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes (INSERTED)
+
+**Goal**: A `ci` run means something. Green means the suite passed; red names something that actually
+broke. The job that runs the gates is itself gated, and the checker's own blind spots are closed.
+
+**Depends on**: Phase 19 — this phase CLOSES Phase 19's outstanding gaps (the `18.1`-style close-out
+convention). Phase 19's `19-VERIFICATION.md` is `gaps_found` and stays that way until this phase lands;
+re-verify Phase 19 after this closes.
+**Requirements**: CI-01 (carried — its literal SC4 text is satisfied, but the invariant suite meant to
+keep it true is not yet undriftable)
+
+**Why this is a NEW phase and not Phase 19 round 5.** Rounds 2–4 of Phase 19 each closed the exact
+mutation last measured and were each followed by a new single-token defeat. Round 4's structural fix (a
+positive allow-list, presence tests, a standing mutation test) genuinely worked *for the predicate it was
+applied to* — but the trigger check and the WR-05 fix shipped in the same commits were written in the old
+shape, and the job that executes the checker was never constrained at all. That last one is a **scope
+error, not a deeper token**: three rounds hardened the guard inside `gate-e2e` while `gate-db-free`, which
+runs the checker plus `lint`, `test:design` and `next build`, sat unprotected. Fixing the authoring habit
+and the scope is different work from closing vectors one at a time.
+
+**Success Criteria** (what must be TRUE):
+
+  1. `gate-db-free` — the job that runs `verify-workflows.mjs`, `lint`, `test:design` and `next build` —
+     is itself constrained. Deleting its checker step, or softening it with `continue-on-error:`, `if:`,
+     or a job-level `defaults:`, turns the checker RED. Today all of those leave 50 green
+     (`19-REVIEW.md` CR-03, independently reproduced by the verifier).
+  2. Every existing predicate is audited for the **axis-vs-property error**. A check asserting a key's
+     *presence* also asserts the absence of the modifiers that neuter it — `pull_request: branches:
+     [does-not-exist]` and `paths-ignore:` must go red, not just a deleted trigger key (CR-01). Every step
+     anchor identifies its step the SAME way: exact `name:`, never a `run` substring that a decoy step can
+     capture (CR-02).
+  3. The standing test covers the predicates it was built for. Reverting round 2's own load-bearing fix
+     (`e2eMailRun.trim() === MAIL_REFUSAL_RUN` → `.includes(...)`) turns
+     `tests/design/workflow-invariants.test.ts` RED. Today it stays 12/12 green (WR-01) — the case
+     `19-REVIEW.md`'s own minimum list named is the one that was dropped.
+  4. The `ci` workflow run is **not red on every push**. The 14 pre-existing e2e failures are either
+     repaired or recorded in a checked-in known-failures allowlist, and the allowlist itself is asserted
+     so it cannot silently grow. A gate that is red unconditionally carries zero signal — this is the
+     item that makes every other gate in this phase worth having.
+  5. The repository is **public** and `gate-e2e (functional Playwright suite)` is a **required status
+     check** on the default branch. Recorded PM decisions (2026-09-05): go public — a full-history secret
+     scan over 2,157 commits found zero credential hits and only `.env.example` ever committed — and
+     sequence the flip AFTER criteria 1–3, because `.planning/` currently documents reproduced, unfixed
+     ways to defeat this project's own CI guard.
+
+**⚠ The disclosure sequencing in SC5 is load-bearing, not bureaucratic.** `19-REVIEW.md` and
+`19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
+1–3 land ships an attack recipe alongside the code it applies to.
+
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 19.1 to break down)
+
 ### Phase 20: Ops Gets Its Own Front Door — the `ops.` Host, Sign-In & Staff Onboarding
 
 **Goal**: Staff reach FitOut Ops at its own address, sign in there and only there, and can onboard the

@@ -6,20 +6,20 @@ current_phase: 19
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
 status: executing
 stopped_at: Completed 19-15-PLAN.md
-last_updated: "2026-09-04T17:41:27.369Z"
+last_updated: "2026-09-05T01:37:38.160Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 19 execution started
-state_head: 23261a52a0d09ebb4e4e0b6dc4ba2d142a718d72
+state_head: aad282d5ae9174a8e4c4a4a4df96a4f0df8efdee
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
   # of 2026-09-04. The plan counters cover phases 18 + 18.1 ONLY -- phases 19-23
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
-  total_phases: 7
+  total_phases: 8
   completed_phases: 1
   total_plans: 45
   completed_plans: 45
-  percent: 14
+  percent: 13
 ---
 
 # Project State
@@ -813,6 +813,7 @@ deferred walk is inconsistent rather than honest.*
 
 - **Backlog 999.4 / 999.5 / 999.6 captured (2026-09-01)** as the deliberate remainder of that split: **999.4 booker-side reporting & dispute resolution** (without it Phase 18 catches fraud at onboarding and never again; it lands on the hold-until-session payout window, so it plugs into Phase 18's freeze lever), **999.5 reviews & ratings** (FitOut has NO reputation signal of any kind — no review or rating table exists; the cheapest continuous fraud detector and the largest booker-trust gap), and **999.6 host appeals** (Phase 18 must not paint it into a corner — reject/suspend carry a reason and an authenticated actor precisely so an appeal has something to review).
 - Phase 18.1 inserted after Phase 18: Close Phase 18 - the verification path FitOut is legally required to have (URGENT)
+- Phase 19.1 inserted after Phase 19: CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, close the checker's own coverage holes (URGENT)
 
 ### Decisions
 
