@@ -245,7 +245,7 @@ categories Phase 18/18.1 opened; `STATE-05` and `TRUST-01` keep their v1.1 IDs.
 
 ### CI — Gates that actually run
 
-- [x] **CI-01** — The repository's **functional Playwright specs run in CI**, as a **new job**
+- [ ] **CI-01** — The repository's **functional Playwright specs run in CI**, as a **new job**
       rather than by widening an existing one. *D-24 is half-closed already: two of four jobs run
       Playwright today, so the remaining scope is the functional `e2e/*.spec.ts` set.*
 
@@ -312,7 +312,7 @@ Explicitly excluded, with the reasoning, so they are not re-added by a later pla
 | **— the 25 v1.2 milestone-cycle requirements, mapped by `/gsd-roadmap` on 2026-09-04 —** | | |
 | HSURF-01 | Phase 19 | Gaps Found |
 | HSURF-02 | Phase 19 | Gaps Found |
-| CI-01 | Phase 19 | Complete |
+| CI-01 | Phase 19 | Gaps Found |
 | OPS-07 | Phase 20 | Pending |
 | OPS-08 | Phase 20 | Pending |
 | OPS-09 | Phase 20 | Pending |

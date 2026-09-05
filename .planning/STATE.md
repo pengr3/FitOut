@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
-current_phase: 19
-current_phase_name: Host Listing Surfaces & Gates That Actually Run
-status: executing
+current_phase: 19.1
+current_phase_name: NOT PLANNED
+status: Phase 19 gaps carried to 19.1 — run /gsd-plan-phase 19.1
 stopped_at: Completed 19-15-PLAN.md
-last_updated: "2026-09-05T01:37:38.160Z"
+last_updated: "2026-09-05T01:39:56.226Z"
 last_activity: 2026-09-05
-last_activity_desc: Phase 19 execution started
-state_head: aad282d5ae9174a8e4c4a4a4df96a4f0df8efdee
+last_activity_desc: Phase 19 verified 8/9 (SC1-SC4 met, D-14 hardening open); 19.1 inserted to close it
+state_head: 9cfb3a32c6b8321b01816488c734b57c9eb4cef7
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -73,10 +73,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19 (Host Listing Surfaces & Gates That Actually Run) — EXECUTING
+Phase: 19.1 (CI signal becomes real) — NOT PLANNED
 Plan: 3 of 15
-Status: Ready to execute
-Last activity: 2026-09-05 — Phase 19 execution started
+Status: Phase 19 gaps carried to 19.1 — run /gsd-plan-phase 19.1
+Last activity: 2026-09-05 — Phase 19 verified 8/9 (SC1-SC4 met, D-14 hardening open); 19.1 inserted to close it
 
 ## Performance Metrics
 
