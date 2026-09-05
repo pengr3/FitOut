@@ -297,3 +297,305 @@ Running 85 tests using 1 worker
   calendar day and the seed month) plus the D-19.1-E stability flake. NOT in this plan's scope: 19.1-12
   settled them and `e2e/visual/` baselines are out of scope here. They are stated because SC4 is a
   property of the RUN, and this job is why the run is red independently of `gate-e2e`.
+
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+TASK 2 — THE TRIAGE, AND THE TWO FLAKY
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+THE HARNESS, RUN FIRST, EXACTLY AS `evidence/triage-harness.md` (a) SPECIFIES
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+$ docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}'
+fitout-db-1	postgis/postgis:18-3.6	Up 5 hours
+$ npm run db:migrate                                             migrate ok
+$ npm run db:seed                                                seed ok
+$ rm -rf .next                                                   .next removed
+$ netstat -ano | grep -E ':3000[[:space:]]' || echo "port 3000 is free"
+port 3000 is free
+
+`FITOUT_E2E_REAL_EMAIL` was never set, exported or written to any file, per that file's first warning.
+Every reproduction below adds `--workers=1 --retries=2`, which is CI's shape and not this box's
+default (19.1-02 delta D2: this laptop derives 4 workers, the 2-core runner derives 1).
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(2a) THE REPRODUCTIONS — the transcripts, not summaries of them
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+$ npx playwright test e2e/hold-countdown.spec.ts --project=chromium --workers=1 --retries=2 --reporter=list
+  ok 1 … :292:9 › SHELL-03 … › court · the header and countdown boxes are identical in all four states (19.5s)
+  ok 2 … :292:9 › SHELL-03 … › grove · the header and countdown boxes are identical in all four states (6.7s)
+  ok 3 … :443:7 › GATE-03 … › the sr-only region's text changes ONCE across the hold, and not at expiry (6.4s)
+  ok 4 … :552:7 › D-49  … › [data-testid="hold-countdown"] resolves to exactly 1, and the rail carries no digits (5.3s)
+  4 passed (52.2s)
+
+  → N1 DOES NOT REPRODUCE, at CI's worker count and CI's retry count, over the WHOLE file so the serial
+    order is CI's. The two tests CI could not reach (`:443`, `:552`) both pass here.
+
+$ npx playwright test e2e/avatar-crop.spec.ts --project=chromium --workers=1 --retries=2 --reporter=list --grep "undiluted indicator"
+  ok 1 … :1558:7 › CROP-01 / DS-05 … › the stage draws an indicator on keyboard focus, and its colour carries no alpha (6.0s)
+  1 passed (11.7s)
+  → N2 DOES NOT REPRODUCE.
+
+$ npx playwright test e2e/price-parity.spec.ts --project=chromium --workers=1 --retries=2 --reporter=list
+  ok 1 … :270:5 › the total rendered on the reserve page IS the total the database froze (GATE-05 · D-35) (11.6s)
+  1 passed (17.7s)
+  → N3 DOES NOT REPRODUCE IN ISOLATION — which is the expected result and is itself the finding; see
+    VERDICT 3, where the cause is a race this repository has already measured and written down.
+
+$ npx playwright test e2e/overflow-320.spec.ts --project=chromium --workers=1 --retries=2 --reporter=list --grep "photos step"
+  ok 2 … :3434:11 › AC#36 … › /host/listings/[id]/edit · photos step · grove (1.3s)
+  2 passed (16.5s)
+  → O12 IS GREEN HERE AND RED IN CI. And the dev server printed the reason on the way past — see (2b).
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(2b) THE FINDING THIS TRIAGE WAS NOT LOOKING FOR — a hydration failure on EVERY `(host)` route
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+While `overflow-320`'s photos-step row passed, the dev server attached to that run printed, verbatim
+(ANSI stripped, `[WebServer]` prefix removed):
+
+  [browser] Uncaught Error: Hydration failed because the server rendered HTML didn't match the client.
+  As a result this tree will be regenerated on the client.
+  …
+  https://react.dev/link/hydration-mismatch
+    ...
+      <nav data-testid="site-nav" className="flex items...">
+        <Suspense fallback={[...]}>
+          <div>
+          <div className="md:hidden">
+            <NavDrawer>
+              <ResponsiveDialog title="Menu" hideTitle={true} trigger={<button>}>
+                …
+                      <DialogTrigger asChild={true}>
+                        …
+  +                               <button
+  +                                 data-slot="button"
+  +                                 aria-label="Menu"
+  +                                 aria-haspopup="dialog"
+  +                                 aria-controls="radix-_R_ad5ritulb_"
+  +                                 data-state="closed"
+  +                               >
+    at Button (src\components\ui\button.tsx:143:5)
+    at DialogTrigger (src/components/ui/dialog.tsx:19:10)
+    at ResponsiveDialog (src/components/patterns/responsive-dialog.tsx:250:18)
+    at NavDrawer (src\components\patterns\site-chrome.tsx:308:5)
+    at SiteNav (src\components\patterns\site-chrome.tsx:342:9)
+    at AmbientHostNav (src\components\patterns\ambient-notifications.tsx:176:10)
+    at HostLayout (src\app\(host)\host\layout.tsx:96:13)
+
+  WHAT IT IS. `src/app/(host)/host/layout.tsx:95` renders
+  `<Suspense fallback={<SiteNav links={HOST_NAV_LINKS} />}><AmbientHostNav …/></Suspense>`. BOTH sides
+  of that boundary mount a `NavDrawer` -> `ResponsiveDialog` -> Radix `DialogTrigger`, and a Radix
+  trigger carries a GENERATED `aria-controls` id. The `+` in React's diff means the node exists only on
+  the client, and the id it carries is React 19's CLIENT format (`_R_<hash>_`) rather than its SERVER
+  format (`_r_<n>_`). The ids cannot agree, so hydration fails and the tree is regenerated on the
+  client — on every `(host)` route, on this box, today.
+
+  ⚠ AND THE LAYOUT ARGUES THE OPPOSITE, IN A COMMENT, AT THE SITE. `host/layout.tsx:90-93`:
+      "the fallback is the identical `SiteNav` with no badges — which is byte-identical to the
+       resolved zero-count markup, because D-65 hides the badge at zero."
+  That argument is about the LINKS and the BADGE. It is true of both and false of the generated id,
+  and nothing measured it until now. This is this phase's standing finding for the fifth time: a
+  docblock asserts a property on the axis its author was thinking about, and is then read as a
+  statement about the axis that actually matters.
+
+  WHY IT IS THE MECHANISM BEHIND O11 AND O12. "This tree will be regenerated on the client" is a tree
+  whose buttons are REPLACED. `e2e/helpers/booker-seed.ts:118-160` already records this exact shape one
+  route over — "the control EXISTS in the server-rendered document and is then replaced while React
+  finishes with it, so under load the click lands on a node on its way out and the event goes with it
+  — the click is LOST, not queued". O11 is a wizard advance press that does not take effect; O12 is a
+  checklist `Fix` press that does not take effect. Both are `(host)` routes. Both are green on a fast
+  box and red on a 2-core runner, which is what a widening replacement window predicts.
+
+  THE CONTROL THAT STOPS THIS BECOMING AN OVER-UNIFICATION:
+
+$ npx playwright test e2e/hold-countdown.spec.ts --project=chromium --workers=1 --reporter=list --grep "court · the header and countdown"
+  ok 1 … :292:9 › SHELL-03 … › court · … (12.5s)
+  1 passed (19.2s)
+$ grep -c "Hydration failed" <that run's full transcript>
+0
+
+  ZERO hydration failures on the booker checkout route. `src/app/(app)/layout.tsx:89` wraps a
+  `<BellSlotSkeleton />`, not a second copy of a Radix-bearing subtree. So N1 is NOT this defect, and
+  is NOT claimed to be. It stays an open question with a named next instrument (VERDICT 1).
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(2c) THE VERDICTS
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+VERDICT N1 · e2e/hold-countdown.spec.ts:292 (SHELL-03 · court) · NEWLY SURFACED FAILURE
+VERDICT   ROOT CAUSE: NOT ESTABLISHED. What is MEASURED, and only this: after `selectTargetDayIn`
+VERDICT   clicks the target day, no day button carries `data-selected-single="true"` — 19 polls over
+VERDICT   2000ms, identically on all three CI attempts, at `e2e/helpers/booker-seed.ts:148`. It does
+VERDICT   not reproduce on this box over the whole file at CI's worker and retry counts (4 passed,
+VERDICT   52.2s), and the route emits no hydration failure. A DETERMINISTIC CI failure is NOT what the
+VERDICT   lost-click mechanism `booker-seed.ts:118-160` describes, which is intermittent by nature; the
+VERDICT   transcript separates "the selection never landed" from "the click was lost" no better than
+VERDICT   19.1-08's did, and 19.1-08 refused to add a retry on exactly that grounds. That refusal
+VERDICT   stands.
+VERDICT   TREATMENT: REPAIR IN A NEW PLAN, reproduced FIRST in `mcr.microsoft.com/playwright:v1.60.0-noble`
+VERDICT   by 19.1-09's recipe. That container is this phase's proven instrument for a "green here, red
+VERDICT   in CI" claim (19.1-09, 19.1-11), and it is the only thing that will separate the two readings.
+VERDICT   NOT AN ALLOWLIST CANDIDATE: it is not a capability CI structurally cannot have, and D-01 plus
+VERDICT   19.1-08's rule (a repaired spec defect is not an annotation candidate) both bar it.
+VERDICT   ⚠ THE INSTRUMENT IS WORKING AS 19.1-08 BUILT IT. The same defect previously spent ~3 minutes
+VERDICT   per attempt timing out on an unrelated hour-button locator in a different helper. It now
+VERDICT   fails in ~2 seconds at the line that caused it. The failure moved EARLIER in the file's
+VERDICT   file-scoped serial group, which is why `:443` and `:292 grove` regressed into the never-run
+VERDICT   tail — a visibility change, not a new defect.
+
+VERDICT N2 · e2e/avatar-crop.spec.ts:1558 (CROP-01 / DS-05) · NEWLY SURFACED FLAKY
+VERDICT   ROOT CAUSE: PARTLY ESTABLISHED. Measured in CI: `locator('input[type="file"]')` resolved to
+VERDICT   TWO elements, both `aria-label="Upload avatar"`, at `e2e/avatar-crop.spec.ts:162`. The helper
+VERDICT   above it argues its own safety like this (`:158-160`): "`input[type="file"]` is unambiguous by
+VERDICT   construction — `avatar-field.tsx` records that it is the only one in `src/`". THAT IS A CLAIM
+VERDICT   ABOUT THE SOURCE AND IT IS TRUE; the locator is a claim about the DOCUMENT, and ONE component
+VERDICT   with ONE call site can be MOUNTED TWICE. Same axis error as (2b), sixth instance.
+VERDICT   `src/app/(app)/profile/loading.tsx` was read and renders no file input, so the `loading.tsx`
+VERDICT   explanation that fits N3 does NOT fit this one — why two mount is unmeasured.
+VERDICT   TREATMENT: REPAIR IN A NEW PLAN. A `toHaveCount(1)` settle would very likely turn it green and
+VERDICT   would be the wrong move today: applied without measuring WHY two mount, it converts a real
+VERDICT   double-mount into a wait. The plan measures first. NOT AN ALLOWLIST CANDIDATE — and 19.1-10
+VERDICT   already recorded avatar-crop's sibling rows as permanently ineligible under D-01.
+
+VERDICT N3 · e2e/price-parity.spec.ts:270 (GATE-05 · D-35) · NEWLY SURFACED FLAKY · ⚠ MONEY PATH
+VERDICT   ROOT CAUSE: ESTABLISHED, AND THIS REPOSITORY HAD ALREADY MEASURED IT. `e2e/helpers/
+VERDICT   booker-seed.ts:481-495`, measured 2026-08-18: "`/` STREAMS, AND ITS OWN `loading.tsx` RENDERS
+VERDICT   A SECOND `SearchBar`. … the served document holds `id="search-category"` at byte 11,713 (the
+VERDICT   pending fallback) and again at 84,158 (the resolved page) … While the boundary is still
+VERDICT   resolving BOTH are in the DOM, and `page.locator("#search-category").click()` fails
+VERDICT   Playwright's strict mode with 'resolved to 2 elements' — an error that reads like a duplicate
+VERDICT   id and is actually a race. The shipped specs get away with it only because they happen to
+VERDICT   arrive late." `src/lib/design/visual-baselines.ts:503-505` cites the same measurement.
+VERDICT   `e2e/zero-result-relax.spec.ts:27` names THIS FILE as the analog whose idiom it copied — and
+VERDICT   this file never took the settle. It stopped arriving late on a 2-core runner under full-suite
+VERDICT   load. The CI transcript corroborates the two-SearchBars reading rather than a duplicated
+VERDICT   control: element (1)'s accessible name is DOUBLED — "Activity or type Activity or" — which is
+VERDICT   what TWO `<label for="search-category">` produce.
+VERDICT   TREATMENT: REPAIRED HERE. The established `toHaveCount(1)` settle, three in-repo precedents
+VERDICT   (`booker-seed.ts:490`, `one-tree.spec.ts:424`, `zero-result-relax.spec.ts:187`), with the
+VERDICT   measurement and the CI transcript written at the site. No timeout widened, no locator
+VERDICT   weakened, no assertion on the frozen total touched. It MUST be repaired and not annotated:
+VERDICT   D-01 names the money path by name, and this spec IS the money path.
+
+VERDICT O11 · e2e/host-headings.spec.ts:1052 (was :964) · ONE OF THE ORIGINAL FOURTEEN, STILL RED
+VERDICT   ⚠ 19.1-11-SUMMARY.md's derivation of the pinned 2 subtracts this item as "-1 (19.1-08
+VERDICT   `host-headings`, spec defect, repaired)". THE MEASUREMENT DISAGREES: run 33972688199 fails it
+VERDICT   on all three attempts with the message BYTE-FOR-BYTE as 19.1-RESEARCH.md quoted it, at
+VERDICT   `walkWizard` `:1034` — the original site. `evidence/triage-host-headings.txt` predicted two
+VERDICT   outcomes for this run ("it passes — or it fails at `pressAdvance` with NOT RECEIVED") and
+VERDICT   NEITHER occurred. 19.1-08's repair replaced a false accusation with a true one and moved a
+VERDICT   30s timeout to a 15s named failure; it did not fix the press.
+VERDICT   ROOT CAUSE: the press is not taking effect on the CI runner, and (2b) now supplies a named,
+VERDICT   locally-reproducible mechanism — the `(host)` layout's hydration failure regenerating the
+VERDICT   tree under the click. Stated as the leading candidate, NOT as a closed verdict: the causal
+VERDICT   link between the regeneration and this specific lost press has not been observed.
+VERDICT   TREATMENT: REPAIR IN A NEW PLAN — the same one as O12. The defect is PRODUCTION SOURCE and its
+VERDICT   fix is a product question (what id the two `NavDrawer` renders should share), which is D-02's
+VERDICT   "the phase grows rather than the allowlist" exactly. NOT AN ALLOWLIST CANDIDATE.
+
+VERDICT O12 · e2e/overflow-320.spec.ts:3434 (was :3400) · ONE OF THE ORIGINAL FOURTEEN, STILL RED
+VERDICT   ⚠ 19.1-11-SUMMARY.md subtracts this one too, as "-1 (19.1-10 `overflow-320:3400`, repaired
+VERDICT   with a public identifier)". THE MEASUREMENT DISAGREES: red on all three CI attempts. What is
+VERDICT   measured is that `openWizardPhotosStep` clicked the checklist's `Fix` control (its own
+VERDICT   `toBeVisible` guard passed) and the walk never arrived: `getByRole('heading', { name: 'How
+VERDICT   your cover appears' })` was "element(s) not found" for 30s. It is GREEN on this box (2 passed,
+VERDICT   16.5s) — so the seeded photo 19.1-10 added IS doing its job and the row's own note ("read a
+VERDICT   red as the two CoverFrames at 320px and NOT as a missing photo") still holds.
+VERDICT   ROOT CAUSE: same as O11, same layout, same press-not-taking-effect shape, same leading
+VERDICT   candidate from (2b). TREATMENT: REPAIR IN A NEW PLAN, jointly with O11.
+VERDICT   NOT AN ALLOWLIST CANDIDATE, and this one is barred by name:
+VERDICT   `evidence/triage-upload-capability.txt` § PROHIBITION — "`e2e/overflow-320.spec.ts:3400` is
+VERDICT   likewise ineligible, and for a stronger reason — the capability it needs is not one CI lacks."
+VERDICT   COST: this single case blocks 24 tests of the AC#36 serial group, which is the largest single
+VERDICT   term in the 22 that still do not run and a large part of the 94 retry executions.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(2d) THE ALLOWLIST DID NOT MOVE, AND THAT IS THE DECISION
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  `PINNED_ENTRY_TOTAL` stays at 2. No entry added, no entry removed, no docblock row changed.
+
+  Every one of the five failures above was tested against the entry rules and each is barred for a
+  written reason: N1 and N2 are not capabilities CI structurally cannot have; N3 and O12 are barred by
+  name (D-01's money path; `triage-upload-capability.txt`'s PROHIBITION); O11 is production source.
+  Two are already-triaged members of the original fourteen and get the same vocabulary they got then.
+
+  ⚠ WHAT MOVED IS 19.1-11-SUMMARY's PROSE, NOT THE COUNT. That summary's derivation of the pinned 2
+  subtracts `host-headings` and `overflow-320:3400` as repaired. A real run says neither is. THE
+  PINNED NUMBER IS STILL CORRECT — it counts ENTRIES IN THE TREE and the census reads the tree, not the
+  derivation — so it is deliberately NOT edited. Editing it to reflect this would be the exact
+  prohibition this plan carries: "the pinned count must never be edited to match the tree. The number
+  is the record of a decision; the entry and its reason are written first."
+
+$ npx vitest run --config vitest.design.config.ts tests/design/e2e-known-failures.test.ts
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+
+$ npm run build ; echo "BUILD-EXIT=$?"
+BUILD-EXIT=0                    (lint: warnings only, zero errors; design gate green; next build ok)
+
+$ npx tsc --noEmit | grep -c "error TS"
+7                               the SAME seven pre-existing `tests/design/` errors that predate 19.1.
+                                No NEW error, and none in a file this plan touched.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(2e) THE TWO FLAKY, SETTLED
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+FLAKY-1 `e2e/collision-in-place.spec.ts:240` court — SETTLED, and the settlement is READ FROM THE RUN
+        rather than assumed from 19.1-04's repair. In 33848750657 it was `✘ / ✓ / ✘` across three
+        attempts and reported under `2 flaky`. In 33972688199:
+            ✓  152 … › the collision lands in place · court (9.7s)
+            ✓  153 … › the collision lands in place · grove (9.8s)
+        Both themes, FIRST attempt, no `(retry #N)` line for either, and `grove` — which was one of
+        the fourteen hard failures — now runs and passes. 19.1-04's repair holds under CI's shape.
+
+FLAKY-2 `e2e/confirmation-decay.spec.ts:151` — REPAIRED HERE with a settle. It was still flaky in
+        33972688199, and it MOVED VIEWPORT, which is the fact that decides the treatment:
+            33848750657:  court · 375×667:  … 0px tall in a 667px viewport … Expected: >= 603 Received: 0
+            33972688199:  court · 1280×800: … 0px tall in a 800px viewport … Expected: >= 736 Received: 0
+        Two different viewports rules out a viewport-specific product defect and leaves timing. The
+        case asserts `toHaveCount(1)` (the element is IN THE DOCUMENT) and then immediately measures
+        `getBoundingClientRect()` — nothing between the two asserts the element has been LAID OUT.
+        A `toBeVisible()` is inserted between them: Playwright DEFINES a visible element as one with a
+        non-empty bounding box, so it asserts exactly the precondition the measurement depends on, in
+        the framework's own terms, in `booker-seed.ts:118-160`'s established shape, with a docblock
+        stating what was measured and why the wait is a requirement. NO TIMEOUT WIDENED (the default
+        expect timeout; the case's `test.setTimeout(240_000)` untouched) and NO EXPECTED HEIGHT
+        LOWERED (`height - 64` unchanged).
+
+$ git diff -U0 -- e2e/confirmation-decay.spec.ts | grep -E '^\+' | grep -oE 'timeout: *[0-9_]+' | sort -u
+(no output — no timeout value was added at all, let alone a widened one)
+
+$ npx playwright test e2e/confirmation-decay.spec.ts --project=chromium --retries=2 --reporter=list
+  ok 1 … :151:7 › … the moment is a full screen, the detail starts below the fold, and a reload shows the ordinary page (11.5s)
+  ok 2 … :286:7 › … a seeded pending row completes all 8 poll attempts with ZERO navigations (D-89) (3.3s)
+  ok 3 … :424:9 › … court · the success mark honours reduced motion, and nothing loops (1.4s)
+  ok 4 … :424:9 › … grove · the success mark honours reduced motion, and nothing loops (1.2s)
+  4 passed (26.2s)                     zero failed, zero flaky
+
+$ npx playwright test e2e/price-parity.spec.ts --project=chromium --workers=1 --retries=2 --reporter=list
+  ok 1 … :270:5 › the total rendered on the reserve page IS the total the database froze (GATE-05 · D-35) (14.4s)
+  1 passed (21.7s)                     the N3 repair, at CI's shape
+
+FLAKY-3 (new) `e2e/avatar-crop.spec.ts:1558` — NOT settled here. VERDICT N2 above says why, and names
+        the plan that owns it. It is recorded rather than absorbed.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+(2f) FLAKE-FAILURE ENFORCEMENT — DEFERRED, DELIBERATELY, WITH THE REASON
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+DEFERRAL `--fail-on-flaky-tests` is NOT enabled, and no `maxFailures`/flake policy is added to
+DEFERRAL `playwright.config.ts` or `.github/workflows/ci.yml` by this plan. `git diff` on both is empty.
+DEFERRAL REASON, and it is the plan's own prohibition: switching it on in the same wave that turns the
+DEFERRAL suite green would mask which change produced which effect, and a clean before/after comparison
+DEFERRAL is the entire point of this wave. 19.1-RESEARCH.md:686-688 states the same thing.
+DEFERRAL SECOND REASON, measured here rather than argued: the suite is NOT green (3 failed) and there
+DEFERRAL are now THREE flaky, not two — two of them newly surfaced. Enforcing flake-failure today would
+DEFERRAL convert three tests into merge blockers before any of them has a verdict that closes.
+DEFERRAL CANDIDATE FOR: the wave AFTER `gate-e2e` becomes a required check (19.1-15 installs the
+DEFERRAL requirement; enforcement is the wave after it). ⚠ It must not be deferred indefinitely: once
+DEFERRAL the gate is required, a test that passes two runs in three blocks merges one run in three,
+DEFERRAL which is `T-19.1-63` and is a self-inflicted denial of service on the merge queue.

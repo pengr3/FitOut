@@ -179,6 +179,38 @@ test.describe("BFLOW-08 — the confirmation moment fills the first screen and t
             "owner gate.",
         ).toHaveCount(1);
 
+        // ⚠ THE SETTLE, AND IT IS A REQUIREMENT RATHER THAN A HEDGE. `toHaveCount(1)` above proves the
+        // element is IN THE DOCUMENT. It does not prove the element has been LAID OUT, and the three
+        // assertions below are all measurements of its box — so between those two facts is the only
+        // place this case can report a number nobody rendered.
+        //
+        // WHAT WAS MEASURED, twice, on two different runs and two different viewports:
+        //   run 33848750657 `gate-e2e` (flaky, passed on retry):
+        //     court · 375×667: the moment is 0px tall in a 667px viewport… Expected: >= 603  Received: 0
+        //   run 33972688199 `gate-e2e` (flaky, passed on retry):
+        //     court · 1280×800: the moment is 0px tall in a 800px viewport… Expected: >= 736  Received: 0
+        // A ZERO in a viewport that is not zero is not a layout the product produced; it is a
+        // `getBoundingClientRect()` taken before the browser had one. That the two failures land on
+        // DIFFERENT viewports is what rules out a viewport-specific product defect and leaves timing.
+        //
+        // `toBeVisible()` is the assertion that says exactly that and nothing more: Playwright defines
+        // a visible element as one with a NON-EMPTY bounding box, so this is the precondition
+        // `boxOf` depends on, asserted in the framework's own terms — the shape
+        // `e2e/helpers/booker-seed.ts:118-160` established (assert the observable state the next step
+        // depends on, at the line that would otherwise fail three steps later).
+        //
+        // WHAT THIS DELIBERATELY IS NOT: no timeout is widened (the default `expect` timeout is used,
+        // and the case's own `test.setTimeout(240_000)` is untouched), and no expected height is
+        // lowered — `height - 64` below is unchanged. If the moment never gets a box, this line fails
+        // and names the settle instead of reporting a 0px moment as a product measurement.
+        await expect(
+          page.getByTestId("confirmation-moment"),
+          `${where}: the moment is in the document but has an EMPTY bounding box, so every ` +
+            "measurement below would be of a box the browser had not laid out yet. This is the " +
+            "settle the 0px-tall flake in runs 33848750657 and 33972688199 needed; a persistent " +
+            "failure here means the moment renders and never takes a box, which IS a product defect.",
+        ).toBeVisible();
+
         const moment = await boxOf(page, "confirmation-moment");
         const detail = await boxOf(page, "booking-detail");
         expect(moment, `${where}: no confirmation-moment box`).not.toBeNull();
