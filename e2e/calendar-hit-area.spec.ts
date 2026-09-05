@@ -175,8 +175,18 @@ const SKELETON_TOLERANCE_PX = 2;
 /** `ui/calendar.tsx`'s `week` class is `mt-2 flex w-full` — the 8px between every pair of week rows. */
 const WEEK_GAP_PX = 8;
 
-/** Six, because a month grid always renders six week rows (`reachableCalendar` asserts it). */
-const WEEK_ROWS = 6;
+/**
+ * The only week-row counts a month grid can take, and the reason the row count is DERIVED here
+ * rather than pinned.
+ *
+ * This constant used to be `WEEK_ROWS = 6`, "because a month grid always renders six week rows".
+ * It does not. A 28-to-31-day month folded into seven-day rows needs four rows (a non-leap February
+ * that starts on the week-start day), five, or six — and September 2026 needs five, which is what
+ * made this file red on every machine in every five-row month while passing by hand in six-row ones
+ * (19.1-03, `evidence/triage-calendar-hit-area.txt`). The row count is a function of TODAY, so it is
+ * read off the rendered grid; what stays constant is the SHAPE, and that is what this set pins.
+ */
+const LEGAL_WEEK_ROWS: readonly number[] = [4, 5, 6];
 
 const THEMES = ["court", "grove"] as const;
 
@@ -247,7 +257,7 @@ async function boxOfLocator(target: Locator, label: string): Promise<Box> {
  * The 15s allowance is that file's measured one — the dev server compiles routes on demand and a
  * reachability guard that flakes is a guard people learn to ignore.
  */
-async function reachableCalendar(page: Page, where: string): Promise<void> {
+async function reachableCalendar(page: Page, where: string): Promise<number> {
   await expect(
     page.locator('[data-slot="calendar"]'),
     `${where}: the route rendered no \`[data-slot="calendar"]\`. Every assertion in this file reads ` +
@@ -255,14 +265,32 @@ async function reachableCalendar(page: Page, where: string): Promise<void> {
       "numbers below a measurement rather than an empty pass.",
   ).not.toHaveCount(0, { timeout: 15_000 });
 
-  // The second half of the same guard: a month grid with the wrong number of week rows is a grid
-  // this file's six-row height arithmetic is not about.
+  // The second half of the same guard: a month grid with an IMPOSSIBLE number of week rows is a
+  // broken grid, and no height derived from it means anything. It used to pin six — see
+  // `LEGAL_WEEK_ROWS`. It now pins the SHAPE and hands the count back, so the height figures below
+  // follow the calendar the page rendered instead of the calendar this file was written in.
+  const weekRows = page.locator('[data-slot="calendar"] tbody tr');
+
   await expect(
-    page.locator('[data-slot="calendar"] tbody tr'),
-    `${where}: the month grid rendered a row count this file does not expect. The height figures ` +
-      "below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has " +
-      "nothing to do with the cell size.",
-  ).toHaveCount(6, { timeout: 15_000 });
+    weekRows,
+    `${where}: the month grid rendered no week rows at all. The height figures below are ` +
+      `rows × (${CELL_PX} + ${WEEK_GAP_PX}), and a grid with zero rows makes that product zero — ` +
+      "which every box would then agree with. Fix the grid; this is not a month, it is an empty " +
+      "table.",
+  ).not.toHaveCount(0, { timeout: 15_000 });
+
+  const rows = await weekRows.count();
+
+  expect(
+    LEGAL_WEEK_ROWS,
+    `${where}: the month grid rendered ${rows} week rows. A month of 28–31 days folded into ` +
+      `seven-day rows can only take ${LEGAL_WEEK_ROWS.join(", ")} of them, so a count outside that ` +
+      "set is a BROKEN grid rather than a different month — the derived height figures below " +
+      `(rows × (${CELL_PX} + ${WEEK_GAP_PX})) absorb every legal count on their own. If this is ` +
+      "red, repair the grid; never widen this set to admit the number that was measured.",
+  ).toContain(rows);
+
+  return rows;
 }
 
 test.describe("AC#14 — a calendar day cell is 44px tall at every width, in both themes", () => {
@@ -373,9 +401,11 @@ test.describe("AC#14 — a calendar day cell is 44px tall at every width, in bot
 //
 // WHY THE ABSOLUTE FIGURE IS ASSERTED TOO, in the shape `skeleton-geometry.spec.ts` and the block
 // above both use: two boxes that agree at 340px are exactly as "equal" as two that agree at 409, and
-// only one of those is six rows of 44px cells. The number pinned is the WEEKS' box — 6 × (44 + 8) =
-// 312 — because that is the part of the calendar BFLOW-05 is a claim about, and it is derived from the
-// cell size rather than typed in.
+// only one of those is the rendered rows of 44px cells. The number pinned is the WEEKS' box —
+// rows × (44 + 8), where `rows` is the count `reachableCalendar` READS off the grid — because that is
+// the part of the calendar BFLOW-05 is a claim about, and it is derived from the cell size and the
+// rendered month rather than typed in. It was `6 × (44 + 8) = 312` until 19.1-03; the six was an
+// assumption about the calendar month this file was written in, and it went red in September 2026.
 //
 // ── WATCHED RED, run and reverted, 18 August 2026 ────────────────────────────────────────────────
 //
@@ -469,7 +499,7 @@ test.describe("AC#15 — the month plate occupies the box the month grid will", 
         truncator.set(false);
         await page.goto(url);
         await page.evaluate(() => document.fonts.ready);
-        await reachableCalendar(page, where);
+        const weekRowCount = await reachableCalendar(page, where);
 
         // VACUITY GUARD 3, the mirror of guard 2: the plate is gone, so the second reading is not the
         // placeholder again and this test is not comparing one box with itself.
@@ -484,16 +514,21 @@ test.describe("AC#15 — the month plate occupies the box the month grid will", 
         expectSameBox("month plate", where, plate, resolved);
 
         // ── THE ABSOLUTE FIGURE, IN ITS OWN EXPECTATION ──────────────────────────────────────────
-        // Six rows of 44px cells with `ui/calendar.tsx`'s 8px between them. Derived from CELL_PX so a
-        // change to the constant moves this number with it rather than reddening it for no reason.
+        // The rendered rows of 44px cells with `ui/calendar.tsx`'s 8px between them. Derived from
+        // CELL_PX so a change to the constant moves this number with it rather than reddening it for
+        // no reason — and derived from the row count `reachableCalendar` just READ, so a five-row
+        // month moves it too. The row count is a function of today's date; the arithmetic is not.
+        const expectedWeeksHeight = weekRowCount * (CELL_PX + WEEK_GAP_PX);
         const weeks = await boxOf(page, '[data-slot="calendar"] tbody', `month weeks · ${where}`);
         expect(
           weeks.height,
-          `month weeks · ${where}: the six week rows measure ${weeks.height}px against a derived ` +
-            `${WEEK_ROWS * (CELL_PX + WEEK_GAP_PX)} = ${WEEK_ROWS} × (${CELL_PX} + ${WEEK_GAP_PX}). ` +
-            "Two boxes that agree at the wrong height are as equal as two that agree at the right " +
-            "one, which is why this is asserted separately from the comparison above.",
-        ).toBe(WEEK_ROWS * (CELL_PX + WEEK_GAP_PX));
+          `month weeks · ${where}: the ${weekRowCount} week rows this month renders measure ` +
+            `${weeks.height}px against a derived ${expectedWeeksHeight} = ${weekRowCount} × ` +
+            `(${CELL_PX} + ${WEEK_GAP_PX}), where ${weekRowCount} is the row count read off the ` +
+            "grid rather than assumed. Two boxes that agree at the wrong height are as equal as two " +
+            "that agree at the right one, which is why this is asserted separately from the " +
+            "comparison above. Re-measure and move the CELL SIZE, never the tolerance.",
+        ).toBe(expectedWeeksHeight);
       }
     });
   }
