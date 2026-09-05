@@ -378,3 +378,215 @@ prohibition is written that way.
     expected` — a STALE `.next/dev` artefact left by the dev server this plan booted for the container
     reproduction, not a defect in any tracked file. `rm -rf .next` and rebuild; green. (Same trap the
     project memory records for route 404s.)
+
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+TASK 3 — THE CENSUS DRIVEN RED IN FOUR DIRECTIONS, ON THE TRACKED TREE
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+Convention: 19.1-09 `evidence/triage-skeleton-geometry.txt` §12 and phase 19's
+`evidence/guards-post-fix.txt` — mutate, capture unedited, revert, PROVE the revert. Content checksums
+are `git hash-object` rather than byte hashes, because `core.autocrlf` rewrites line endings on
+checkout and a byte comparison would report a false difference (19.1-03 and 19.1-09 both recorded this
+trap). Each mutation was applied ALONE and the file was green (7 passed) again before the next.
+
+The command is the same for all four:
+
+  $ npx vitest run --config vitest.design.config.ts tests/design/e2e-known-failures.test.ts
+
+
+── 3a. MUTATION (a) — A SILENT ADDITION ────────────────────────────────────────────────────────────
+
+WHAT WAS MUTATED. A well-formed annotation added to `e2e/tabular-figures.spec.ts`'s "(2) grove" case
+— a real condition (`!!process.env.CI`) and a reason well past the 120-character floor — WITHOUT
+moving `PINNED_ENTRY_TOTAL`. The entry is deliberately well-formed: the count assertion has to catch an
+addition that every other assertion in the file would wave through.
+
+   RUN  v4.1.8 C:/Users/Admin/Roaming/FitOut
+
+   ❯ tests/design/e2e-known-failures.test.ts (7 tests | 1 failed) 625ms
+       × the entry total equals the pinned constant, and the entries are reported in a deterministic order 102ms
+
+  ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+   FAIL  tests/design/e2e-known-failures.test.ts > D-03 — the known-failures allowlist cannot silently
+   grow > the entry total equals the pinned constant, and the entries are reported in a deterministic order
+  AssertionError: The allowlist holds 3 entries (e2e/avatar-crop.spec.ts:1125,
+  e2e/tabular-figures.spec.ts:416, e2e/tabular-figures.spec.ts:454) but `PINNED_ENTRY_TOTAL` in this
+  file is 2.
+  THE LIST CAN ONLY GROW BY A DELIBERATE EDIT TO THAT NUMBER, and the order matters: write the new
+  entry's REASON at its call site first, then move the number, then add its clause to the constant's
+  docblock. The number is the RECORD of a decision, not the mechanism for making one. If the count went
+  DOWN, an entry was repaired or removed — delete its docblock clause in the same commit, or the next
+  reader inherits a list that claims a quarantine that no longer exists.
+  ⚠ If the entry you are adding lives on a money path, read `FORBIDDEN_ENTRY_FILES` before you touch
+  this number at all.: expected [ Array(3) ] to have a length of 2 but got 3
+
+   ❯ tests/design/e2e-known-failures.test.ts:407:7
+
+   Test Files  1 failed (1)
+        Tests  1 failed | 6 passed (7)
+
+  ⚠ THIS TRANSCRIPT ALSO CORROBORATES §2a's ENTRY TABLE. The failure message enumerates the entries it
+  found, so the two real ones — `e2e/avatar-crop.spec.ts:1125` and `e2e/tabular-figures.spec.ts:416` —
+  are printed by the census itself rather than transcribed by hand into this file.
+
+  REVERT PROOF
+    e2e/tabular-figures.spec.ts   before   8102e5ed346d22f364d2c15f8e8c9d9aea9a7b29
+                                  after    8102e5ed346d22f364d2c15f8e8c9d9aea9a7b29
+                                  HEAD     8102e5ed346d22f364d2c15f8e8c9d9aea9a7b29
+    $ git status --porcelain -- e2e tests      (no output)
+    $ npx vitest run … e2e-known-failures      7 passed (7)
+
+
+── 3b. MUTATION (b) — THE REASON REPLACED BY AN INDIRECTION ────────────────────────────────────────
+
+WHAT WAS MUTATED. `e2e/tabular-figures.spec.ts:416`'s reason replaced with a TEMPLATE LITERAL. A
+template literal is the mildest available indirection — it still reads at the call site today — which
+is why it is the one worth catching: a `${}` inside it tomorrow moves the reason somewhere else
+entirely, and nothing would have objected.
+
+   ❯ tests/design/e2e-known-failures.test.ts (7 tests | 1 failed) 694ms
+       × every entry carries a reason that is a STRING LITERAL and long enough to be read 89ms
+
+  AssertionError: Entry whose reason is not a plain string literal: e2e/tabular-figures.spec.ts:416 →
+  ``MUTATION (b) 19.1-11 Task 3: the reason replaced by an indirection``.
+  THE REASON IS READ AT THE CALL SITE by whoever is deciding whether this entry still deserves to
+  exist, so an indirection — a variable, a template literal, a helper call, a constant imported from
+  elsewhere — defeats the only thing the reason is for. Concatenated literals (`"…" + "…"`) are fine
+  and are what the existing entries use; anything that has to be resolved by reading a second file is
+  not.: expected [ 'e2e/tabular-figures.spec.ts:416' ] to deeply equal []
+
+   ❯ tests/design/e2e-known-failures.test.ts:441:7
+
+   Test Files  1 failed (1)
+        Tests  1 failed | 6 passed (7)
+
+  REVERT PROOF
+    e2e/tabular-figures.spec.ts   before   8102e5ed346d22f364d2c15f8e8c9d9aea9a7b29
+                                  after    8102e5ed346d22f364d2c15f8e8c9d9aea9a7b29
+    $ git status --porcelain -- e2e tests      (no output)
+
+
+── 3c. MUTATION (c) — AN ANNOTATION ON THE FILE D-01 FORBIDS ───────────────────────────────────────
+
+WHAT WAS MUTATED. A `test.fail(!!process.env.CI, <long reason>)` added to `e2e/cancel.spec.ts`.
+
+   ❯ tests/design/e2e-known-failures.test.ts (7 tests | 2 failed) 646ms
+       × the entry total equals the pinned constant, and the entries are reported in a deterministic order 101ms
+       × no entry lives in a file D-01 forbids, and none of those files carries any annotation at all 73ms
+
+  AssertionError: The allowlist holds 3 entries (e2e/avatar-crop.spec.ts:1125, e2e/cancel.spec.ts:169,
+  e2e/tabular-figures.spec.ts:416) but `PINNED_ENTRY_TOTAL` in this file is 2. …
+
+  AssertionError: e2e/cancel.spec.ts carries an allowlist entry, and D-01 forbids it PERMANENTLY: it
+  sits on the refund path, and a green badge sitting on top of an unverified refund behaviour is the
+  exact failure mode this phase exists to prevent. A failure in this file is REPAIRED or LEFT RED —
+  never annotated, never grep-excluded, never allowlisted. Remove the annotation; do not move
+  `PINNED_ENTRY_TOTAL` to accommodate it.: expected [ 'e2e/cancel.spec.ts:169' ] to deeply equal []
+
+   ❯ tests/design/e2e-known-failures.test.ts:491:9
+
+   Test Files  1 failed (1)
+        Tests  2 failed | 5 passed (7)
+
+  THE DECISION IS IN THE OUTPUT — "D-01 forbids it PERMANENTLY" and the reason that file is on the
+  list, so the red is self-explaining and cannot be mistaken for an arbitrary exclusion.
+
+  ⚠ TWO GUARDS FIRE, AND THAT IS THE INTENDED SHAPE ON THE MONEY PATH. The count assertion alone would
+  be silenced by a developer who moved `PINNED_ENTRY_TOTAL` to 3; the forbidden-file assertion is not
+  silenced by anything short of deleting the constant, which is a visible act with D-01 written beside
+  it. The census also carries a stricter rule for these files that this mutation did not need to
+  exercise: `test.skip` counts there too, because on the refund path a skipped case and a quarantined
+  one buy the same false green.
+
+  REVERT PROOF
+    e2e/cancel.spec.ts            before   d251d22927d5693d72ebf195d72dc6669fcb7ac7
+                                  after    d251d22927d5693d72ebf195d72dc6669fcb7ac7
+    $ git status --porcelain -- e2e tests      (no output)
+
+
+── 3d. MUTATION (d) — A BROKEN SCAN ────────────────────────────────────────────────────────────────
+
+WHAT WAS MUTATED. `SPEC_ROOT` pointed at `e2e/helpers` — a REAL directory that contains no `*.spec.ts`
+file. This is the failure mode a census cannot self-report: the walk still succeeds, still reads files,
+and still returns cleanly.
+
+   ❯ tests/design/e2e-known-failures.test.ts (7 tests | 4 failed) 54ms
+       × the scan reached real spec files AND the entry pattern still matches (non-vacuity, both halves) 16ms
+       × the entry total equals the pinned constant, and the entries are reported in a deterministic order 14ms
+       × every path this file names resolves to a real file — a stale path is a silent no-op 7ms
+       × comment-stripping is LOAD-BEARING here, not decorative — and it agrees with the shared helper 4ms
+
+  AssertionError: The walk over `e2e/helpers/` found ZERO spec files. That is not a clean tree — it is
+  a BROKEN SCAN, and a broken scan reports an empty allowlist that looks exactly like a genuinely empty
+  one. Every assertion below would then be passing over nothing. Fix the walk (or the directory
+  constant) rather than trusting the green.: expected 0 to be greater than 0
+
+   ❯ tests/design/e2e-known-failures.test.ts:358:7
+
+  AssertionError: The allowlist holds 0 entries (none) but `PINNED_ENTRY_TOTAL` in this file is 2. …
+
+   Test Files  1 failed (1)
+        Tests  4 failed | 3 passed (7)
+
+  A ZERO-ENTRY ALLOWLIST IS NOT A CLEAN RESULT BY DEFAULT, and this is the proof. The comment-stripping
+  case fails in the same run, so the census cannot report EITHER a clean tree OR a proven strip once
+  its scan has stopped working.
+
+  REVERT PROOF
+    tests/design/e2e-known-failures.test.ts   before   e77b11ef441bd671137a84faf90d0d966dcc77d3
+                                              after    e77b11ef441bd671137a84faf90d0d966dcc77d3
+                                              HEAD     e77b11ef441bd671137a84faf90d0d966dcc77d3
+    $ git status --porcelain -- e2e tests src   (no output)
+    $ npx vitest run … e2e-known-failures       7 passed (7)
+
+
+── 3e. THE INTERLOCK — WHY A PINNED COUNT BEAT A CUSTOM REPORTER ───────────────────────────────────
+
+The chain, with each link's file, and each link something this phase built or is building:
+
+  1. the census runs in the DESIGN SUITE
+       `tests/design/e2e-known-failures.test.ts`, collected by `vitest.design.config.ts`'s
+       `include: ["tests/design/**/*.test.ts", …]` with NO config edit — a new file in that directory
+       is collected automatically, and adding `setupFiles`/`globalSetup` is what would reintroduce the
+       database dependency that config exists to exclude.
+  2. the design suite runs inside the BUILD
+       `package.json` → `"build": "npm run lint && npm run test:design && next build"`.
+  3. the build runs as a step of GATE-DB-FREE
+       `.github/workflows/ci.yml` — the job 19.1-01 and 19.1-05 constrained, whose shape is asserted by
+       `scripts/verify-workflows.mjs` and `tests/design/workflow-invariants.test.ts`.
+  4. `gate-db-free` becomes a REQUIRED STATUS CHECK
+       19.1-15.
+
+WHY THAT CHAIN IS THE ARGUMENT. RESEARCH.md § D-03 surveyed five options; only two fail closed in both
+directions — option D (an external manifest plus a custom reporter that overrides the final status) and
+option A plus this census. D needs roughly 120 lines of new machinery ON `gate-e2e`, the job that
+carries the money-path specs, and that machinery would itself be un-gated code deciding whether a red
+run is allowed to be green. This census adds ZERO lines to any gate: it is a file in a directory the
+build already runs, and it therefore inherits the constrained job, the workflow invariants and the
+required check without asking for any of them. The guard is as strong as the chain that runs it, and
+every link in that chain is something this phase already built.
+
+INTERLOCK tests/design/e2e-known-failures.test.ts → vitest.design.config.ts (design suite, no config edit) → package.json "build" → .github/workflows/ci.yml gate-db-free (constrained by 19.1-01 and 19.1-05) → a required status check in 19.1-15.
+
+CAVEAT the serial-group behaviour is MEASURED, not assumed, and it cuts BOTH ways. 19.1-02 `evidence/testfail-behaviour.txt` Q3 answers the question RESEARCH.md's Assumptions Log A2 left open: an EXPECTED failure does NOT stop the remainder of its `describe.serial` group — "x 4 serial 1 · expected failure whose body throws / ok 5 serial 2 / ok 6 serial 3", with no "did not run" bucket at all. So an allowlisted entry does not keep hiding the tail of its group, and the allowlist is not claiming more than it delivers on that axis. 19.1-11 measured the CONVERSE in the container and it is the more useful half: a GENUINE failure DOES stop the group — `e2e/tabular-figures.spec.ts`'s "(2) grove" case reported "1 did not run" before the annotation and ran and PASSED after it (§1b vs §1e), so on this file the annotation REVEALS a measurement the red was hiding rather than hiding one. ⚠ What an entry DOES still hide is narrower and is named at both call sites: Playwright has no per-assertion expected failure, so on CI a break in any OTHER clause of an annotated case is absorbed by its annotation. For `tabular-figures` that is clauses (a) and (b) — TRUST-02's own property — which still run and still assert unannotated on every developer machine, and are green on both rasterisers today. Plan 13's re-measurement should read the allowlist as covering CASES, not assertions. 19.1-02 also measured the other cost: an entry that goes STALE (its test starts passing) fails the run by name AND consumes all three retries, so a stale entry is more expensive than no entry at all.
+
+
+── 3f. GATES, AND THE HARNESS DELETED ──────────────────────────────────────────────────────────────
+
+  $ rm -f .probe-linux-forward.mjs .probe-linux-run.sh .probe-linux.config.ts
+  $ git status --porcelain
+    ?? .gsd/
+    ?? .planning/milestone.lock
+    ?? .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-PATTERNS.md
+    ?? .planning/state.json
+
+    ← identical to this session's first reading. No residue of any of the four mutations, and none of
+      the three throwaway container files survives. Nothing was ever staged but the commits this plan
+      names.
+
+  $ npm run build                                                              exit 0
+  $ node scripts/verify-workflows.mjs                                          exit 0
+  $ npx playwright test e2e/tabular-figures.spec.ts --project=chromium         2 passed, exit 0
+  $ npx tsc --noEmit | grep -c "error TS"                                      7 (pre-existing)

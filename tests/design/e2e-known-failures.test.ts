@@ -51,16 +51,28 @@
 // reverted with a checksum pair; the full transcripts, with the revert proofs, are in
 // `.planning/phases/19.1-…/evidence/known-failures-census.txt`.
 //
-//   (a) ADD an annotation to a spec without moving the pinned constant → RED on the count assertion.
-//   (b) REMOVE the reason from an existing annotation / replace it with an indirection → RED on the
-//       reason assertion.
-//   (c) ADD an annotation to the file on the forbidden list → RED on the forbidden-file assertion,
-//       with D-01 named in the output.
-//   (d) BREAK the scan (point the walk at a directory with no spec files) → RED on the non-vacuity
-//       assertion, proving a broken scan cannot report a clean tree.
+//   (a) ADD an annotation to `e2e/tabular-figures.spec.ts`'s grove case, with a condition and a long
+//       enough reason, WITHOUT moving the pinned constant → 1 failed / 6 passed, on the COUNT
+//       assertion: *"The allowlist holds 3 entries (e2e/avatar-crop.spec.ts:1125,
+//       e2e/tabular-figures.spec.ts:416, e2e/tabular-figures.spec.ts:454) but `PINNED_ENTRY_TOTAL` in
+//       this file is 2."* The message names the constant and states the order — reason first, number
+//       second. A well-formed entry is still a red one.
+//   (b) REPLACE an existing entry's reason with an indirection (a template literal) → 1 failed /
+//       6 passed, on the REASON assertion: *"Entry whose reason is not a plain string literal:
+//       e2e/tabular-figures.spec.ts:416"*, with the message naming variables, template literals,
+//       helper calls and imported constants as the shapes it rejects.
+//   (c) ADD an annotation to `e2e/cancel.spec.ts` → 2 failed / 5 passed. The FORBIDDEN-FILE assertion
+//       fires by name: *"e2e/cancel.spec.ts carries an allowlist entry, and D-01 forbids it
+//       PERMANENTLY: it sits on the refund path …"*, and the count assertion fires alongside it. Two
+//       independent guards catch this one, which is the intended shape for the money path.
+//   (d) BREAK the scan — point `SPEC_ROOT` at `e2e/helpers`, a real directory with no spec files →
+//       4 failed / 3 passed, the FIRST being the non-vacuity assertion: *"The walk over
+//       `e2e/helpers/` found ZERO spec files. That is not a clean tree — it is a BROKEN SCAN …"*. The
+//       comment-stripping proof fails closed in the same run, so a broken scan cannot report either a
+//       clean tree or a proven strip.
 //
-// (Observed results are filled in beneath each letter by the run that produced them — see the
-// evidence file for the unedited output.)
+// Each mutation was reverted with a `git hash-object` pair and a `git status --porcelain` proof, and
+// the file was green (7 passed) after each.
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
