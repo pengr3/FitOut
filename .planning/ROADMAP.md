@@ -627,7 +627,7 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 6/15 plans executed (7 waves)
+**Plans:** 7/15 plans executed (7 waves)
 
 Plans:
 **Wave 1**
@@ -643,7 +643,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 19.1-06-PLAN.md — SC2: the axis-vs-property audit — trigger filters (CR-01), sequence form (WR-02), anchor repairs (CR-02), inventory
+- [x] 19.1-06-PLAN.md — SC2: the axis-vs-property audit — trigger filters (CR-01), sequence form (WR-02), anchor repairs (CR-02), inventory
 - [x] 19.1-07-PLAN.md — Cause C: `cancel.spec.ts:232` refund disjunction + audit row (D-01 protected, never allowlisted)
 - [ ] 19.1-08-PLAN.md — Cause F + #11: trace the hold-countdown timeout, post-condition the day-select helper, triage the wizard refusal
 - [ ] 19.1-09-PLAN.md — Cause D2: `skeleton-geometry:1807` — reproduce, name the wrapped cell, repair the right tier
