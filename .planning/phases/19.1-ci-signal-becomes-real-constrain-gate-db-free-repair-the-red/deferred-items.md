@@ -65,3 +65,58 @@ rather than fixed, per the executor scope boundary.
 - **Suggested disposition:** plan 06's audit. The fix shape is the one PATTERNS.md §F names —
   find the job by key (`CI_CHECKER_JOB`) and assert `npm run build` on it, keeping the substring
   filter only in the deny direction where over-matching fails closed.
+
+---
+
+### D-A2 — `CalendarMonthSkeleton` reserves six week rows against a five-row grid (PRODUCT defect, needs an operator decision)
+
+- **Found during:** plan 19.1-03, Task 2 — after `reachableCalendar` stopped pinning six, the two
+  AC#15 cases got past the guard and failed 52.81px LATER, at `expectSameBox`.
+- **Observed:** `src/components/availability/availability-calendar.tsx` — `CalendarMonthSkeleton`
+  renders `Array.from({ length: 6 })` week rows unconditionally, and its docblock derives its 409px
+  from `312 = 6 × (44 + 8)`. The resolved grid renders the month's actual row count. Measured this
+  session at all three widths, in both themes:
+  `skeleton {"width":288,"height":410}` vs `resolved {"width":288,"height":357.1875}` — Δheight 52.81,
+  Δwidth 0. That is exactly one week row (44 + 8) plus the 0.81px weekday-row approximation the
+  component itself declares.
+- **Why it matters:** the plate exists to occupy the box the grid will occupy — that is AC#15 /
+  BFLOW-05 and the component's own "THE BOX IS THE ARGUMENT" docblock. So this is a real 52.81px
+  layout shift on `/listings/[id]` when the calendar resolves. Computed over the next 12 months
+  (Sunday-start): only **2 of 12 are six-row months** (2027-01 and 2027-05), so the shift is live
+  **10 months in 12**. It was invisible because the spec and the component were both written in
+  August 2026 — one of the two six-row months.
+- **Why not fixed here:** it is a production source change, outside 19.1-03's declared
+  `files_modified`, and the plan states "No production source file is modified." More importantly it
+  is a **product fork** with two legitimate repairs that differ in visible UX:
+  1. **Derive the plate's row count** for the month it stands in for — keeps today's appearance, but
+     the plate is the PRE-HYDRATION paint, so the count is computed server-side and a
+     server-vs-client month disagreement across a timezone boundary is a hydration mismatch.
+  2. **`fixedWeeks` on the DayPicker call site** — one prop, removes the date dependence from the
+     PRODUCT rather than from the spec, and makes the plate correct as written. Cost: every month
+     then renders a trailing week of the next month.
+  Both ripple into `e2e/skeleton-geometry.spec.ts`, `tests/design/skeleton-a11y.test.tsx`,
+  `src/lib/design/selector-contract.ts` and the component's own 409px docblock arithmetic.
+- **Suggested disposition:** an operator decision between (1) and (2), then its own plan. Until then
+  `e2e/calendar-hit-area.spec.ts:455` (court + grove) stays RED and is an **open product finding**,
+  NOT one of the fourteen written off and NOT a known-failures-allowlist candidate. Full triage in
+  `evidence/triage-calendar-hit-area.txt` §2 (FINDING D-A2) and the VERDICT.
+
+---
+
+### `npx tsc --noEmit` has been exiting 2 on nine pre-existing errors in `tests/design/`
+
+- **Found during:** plan 19.1-03, Task 2's verification step.
+- **Observed:** 9 `error TS` lines, all in two files this plan never touched —
+  `tests/design/mail-credential-refusal.test.ts` (TS2741 `NODE_ENV` missing on a `ProcessEnv`
+  literal; TS2344/TS2635 on `vi.mocked(spawnSync)`; two TS7006 implicit-`any` params) and
+  `tests/design/workflow-invariants.test.ts` (two more TS2344/TS2635 `spawnSync` pairs).
+  Zero errors in `e2e/calendar-hit-area.spec.ts`.
+- **Proof they are pre-existing rather than introduced:** at the time of the run the ONLY tracked
+  modification in the working tree was `e2e/calendar-hit-area.spec.ts`
+  (`git status --porcelain | grep -v '^??'` returned exactly one line), and that file contributes
+  none of the nine, so HEAD produces the same nine.
+- **Why not fixed here:** out of this plan's scope boundary — a different subsystem, and repairing
+  `vi.mocked(spawnSync)` generics is unrelated to the calendar geometry this plan measures.
+- **Suggested disposition:** whichever 19.1 plan owns the type gate. Note that this makes the
+  plan-level verification line "`npx tsc --noEmit` exits 0" unachievable for any 19.1 plan until it
+  is closed; the achievable form is "contributes no new `error TS` lines".

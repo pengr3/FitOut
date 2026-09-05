@@ -206,3 +206,337 @@ DIAGNOSIS
    SKELETON_TOLERANCE_PX (2), CELL_PX (44), WCAG_AA_TARGET_PX (24) and
    WEEK_GAP_PX (8) are all left at their HEAD values, and no assertion is deleted.
 
+
+################################################################################
+# 2. POST-REPAIR  —  reachableCalendar derives the row count (commit 7b7196a)
+################################################################################
+
+$ npx playwright test e2e/calendar-hit-area.spec.ts --project=chromium --reporter=list
+
+[WebServer] ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 4 tests using 4 workers
+
+  x  4 [chromium] › e2e\calendar-hit-area.spec.ts:455:9 › AC#15 — the month plate occupies the box the month grid will › grove · plate and grid agree within ±2px at 320 / 768 / 1280 (10.8s)
+  x  1 [chromium] › e2e\calendar-hit-area.spec.ts:455:9 › AC#15 — the month plate occupies the box the month grid will › court · plate and grid agree within ±2px at 320 / 768 / 1280 (10.9s)
+  ok 3 [chromium] › e2e\calendar-hit-area.spec.ts:302:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › court · the day cell, the nav buttons and the fluid width floor (15.5s)
+  ok 2 [chromium] › e2e\calendar-hit-area.spec.ts:302:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › grove · the day cell, the nav buttons and the fluid width floor (15.8s)
+
+
+  1) [chromium] › e2e\calendar-hit-area.spec.ts:455:9 › AC#15 — the month plate occupies the box the month grid will › court · plate and grid agree within ±2px at 320 / 768 / 1280 
+
+    Error: month plate · court · 320px: the skeleton and its resolved twin differ by more than 2px. skeleton {"width":288,"height":410} resolved {"width":288,"height":357.1875} — Δwidth 0, Δheight 52.81
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 2
+    Received:    52.8125
+
+      443 |     `Δheight ${Math.round(dh * 100) / 100}`;
+      444 |   expect(dw, detail).toBeLessThanOrEqual(SKELETON_TOLERANCE_PX);
+    > 445 |   expect(dh, detail).toBeLessThanOrEqual(SKELETON_TOLERANCE_PX);
+          |                      ^
+      446 | }
+      447 |
+      448 | /** 320 is the floor, 768 the `md:` step, 1280 Desktop Chrome's default — 12-UI-SPEC AC#15's three. */
+        at expectSameBox (C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:445:22)
+        at C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:514:9
+
+    Error Context: test-results\calendar-hit-area-AC-15-—--b0775-within-±2px-at-320-768-1280-chromium\error-context.md
+
+    Error Context: test-results\calendar-hit-area-AC-15-—--b0775-within-±2px-at-320-768-1280-chromium\error-context.md
+
+  2) [chromium] › e2e\calendar-hit-area.spec.ts:455:9 › AC#15 — the month plate occupies the box the month grid will › grove · plate and grid agree within ±2px at 320 / 768 / 1280 
+
+    Error: month plate · grove · 320px: the skeleton and its resolved twin differ by more than 2px. skeleton {"width":288,"height":410} resolved {"width":288,"height":357.1875} — Δwidth 0, Δheight 52.81
+
+    expect(received).toBeLessThanOrEqual(expected)
+
+    Expected: <= 2
+    Received:    52.8125
+
+      443 |     `Δheight ${Math.round(dh * 100) / 100}`;
+      444 |   expect(dw, detail).toBeLessThanOrEqual(SKELETON_TOLERANCE_PX);
+    > 445 |   expect(dh, detail).toBeLessThanOrEqual(SKELETON_TOLERANCE_PX);
+          |                      ^
+      446 | }
+      447 |
+      448 | /** 320 is the floor, 768 the `md:` step, 1280 Desktop Chrome's default — 12-UI-SPEC AC#15's three. */
+        at expectSameBox (C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:445:22)
+        at C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:514:9
+
+    Error Context: test-results\calendar-hit-area-AC-15-—--a8258-within-±2px-at-320-768-1280-chromium\error-context.md
+
+    Error Context: test-results\calendar-hit-area-AC-15-—--a8258-within-±2px-at-320-768-1280-chromium\error-context.md
+
+  2 failed
+    [chromium] › e2e\calendar-hit-area.spec.ts:455:9 › AC#15 — the month plate occupies the box the month grid will › court · plate and grid agree within ±2px at 320 / 768 / 1280 
+    [chromium] › e2e\calendar-hit-area.spec.ts:455:9 › AC#15 — the month plate occupies the box the month grid will › grove · plate and grid agree within ±2px at 320 / 768 / 1280 
+  2 passed (23.1s)
+
+--------------------------------------------------------------------------------
+POST-REPAIR TALLY — compared against the pre-repair NUMBERS, not an impression
+--------------------------------------------------------------------------------
+collected : 4    (unchanged — same four tests, none skipped, none annotated)
+failed    : 2    (was 4)
+passed    : 2    (was 0)
+
+CLOSED by the helper repair — both were failing ONLY on the six-row assumption:
+  :302 (was :274)  court · the day cell, the nav buttons and the fluid width floor   PASS
+  :302 (was :274)  grove · the day cell, the nav buttons and the fluid width floor   PASS
+
+NOT CLOSED — and NOT for the Cause A reason. Both now get PAST the repaired guard
+and fail LATER, at `expectSameBox` (:445), on a different measurement:
+  :455 (was :425)  court · plate and grid agree within +/-2px    FAIL
+  :455 (was :425)  grove · plate and grid agree within +/-2px    FAIL
+
+    Error: month plate - court - 320px: the skeleton and its resolved twin differ
+    by more than 2px. skeleton {"width":288,"height":410} resolved
+    {"width":288,"height":357.1875} - dWidth 0, dHeight 52.81
+    Expected: <= 2
+    Received:    52.8125
+
+================================================================================
+FINDING D-A2 — A SECOND DEFECT, PRODUCT-SIDE, MEASURED RATHER THAN INFERRED
+================================================================================
+19.1-03's own assumption block anticipated this branch: "If the repaired helper
+leaves any of the four still red, that test has a SECOND defect and is triaged
+separately rather than annotated." It does, and this is that triage.
+
+WHAT IT IS. The six-row assumption Cause A found in the SPEC also lives in the
+PRODUCT, in a second place the spec repair cannot reach:
+
+  src/components/availability/availability-calendar.tsx - CalendarMonthSkeleton
+    {Array.from({ length: 6 }).map((_, week) => ( ... ))}
+  and its docblock arithmetic:
+    "312   six week rows - 6 x (44 + 8) ... 409 against a resolved calendar
+     measured at 409.19."
+
+The plate therefore ALWAYS reserves six rows. The resolved grid renders five this
+month. The plate is 410px, the grid it stands in for is 357.19px, and the delta is
+52.81 — one week row, to the pixel (44 + 8 = 52, plus the 0.81 weekday-row
+approximation the component's own docblock declares).
+
+WHY IT IS REAL, NOT A TEST ARTEFACT. CalendarMonthSkeleton exists to occupy the
+box the month grid will occupy — that is the whole of AC#15 / BFLOW-05, and the
+component's docblock says so ("THE BOX IS THE ARGUMENT"). A plate 52.81px taller
+than its twin is a 52.81px layout shift on resolve, on the listing detail page,
+at every one of the three asserted widths, in both themes. The assertion is
+correct; the product violates it.
+
+HOW OFTEN IT IS LIVE — computed, not guessed (Sunday-start grid, 12 months from
+2026-09):
+  2026-09=5  2026-10=5  2026-11=5  2026-12=5  2027-01=6  2027-02=5
+  2027-03=5  2027-04=5  2027-05=6  2027-06=5  2027-07=5  2027-08=5
+  -> SIX-row months: 2 of 12.  FIVE-row months: 10 of 12.
+The shift is live roughly TEN months in twelve. It went unseen because this spec
+was authored on 18 August 2026 and August 2026 is one of the two six-row months —
+the month the six was true in is the month the six was written in, in BOTH files.
+
+WHY THIS PLAN DOES NOT FIX IT. It is a production change, outside 19.1-03's
+declared files_modified, and the plan states "No production source file is
+modified." It is also a PRODUCT FORK with two legitimate and materially different
+repairs, which is an operator decision rather than an executor one:
+
+  (i)  Make the PLATE derive its row count for the month it stands in for.
+       Keeps the calendar's current appearance. Hazard: the plate is the
+       PRE-HYDRATION paint, so the row count would be computed on the server —
+       a server-vs-client month disagreement across a timezone boundary is a
+       hydration mismatch, and this repository already treats timezone as a
+       first-order pitfall.
+  (ii) Make the GRID fixed at six rows (fixedWeeks on the DayPicker call site).
+       One prop; removes the date dependence from the product rather than from
+       the spec; makes the plate correct as written. Cost: every month then shows
+       a trailing week of the next month, which is a visible UX change.
+
+Both also ripple into e2e/skeleton-geometry.spec.ts, tests/design/
+skeleton-a11y.test.tsx, src/lib/design/selector-contract.ts and the component's
+own 409px docblock. Handed on as a finding; NOT repaired here, NOT annotated
+here, and no tolerance widened to hide it.
+
+################################################################################
+# 3. WATCHED RED  —  the repaired guard can still fail
+#    Mutation: the legal set narrowed to exclude the count the page renders.
+#      -  const LEGAL_WEEK_ROWS: readonly number[] = [4, 5, 6];
+#      +  const LEGAL_WEEK_ROWS: readonly number[] = [4, 6];
+#    Applied to the TRACKED file (git status --porcelain reported " M").
+################################################################################
+
+$ npx playwright test e2e/calendar-hit-area.spec.ts --project=chromium --reporter=list
+
+[WebServer] ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 4 tests using 4 workers
+
+  x  3 [chromium] › e2e\calendar-hit-area.spec.ts:302:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › court · the day cell, the nav buttons and the fluid width floor (5.4s)
+  x  4 [chromium] › e2e\calendar-hit-area.spec.ts:302:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › grove · the day cell, the nav buttons and the fluid width floor (5.6s)
+  x  2 [chromium] › e2e\calendar-hit-area.spec.ts:455:9 › AC#15 — the month plate occupies the box the month grid will › court · plate and grid agree within ±2px at 320 / 768 / 1280 (7.6s)
+  x  1 [chromium] › e2e\calendar-hit-area.spec.ts:455:9 › AC#15 — the month plate occupies the box the month grid will › grove · plate and grid agree within ±2px at 320 / 768 / 1280 (7.8s)
+
+
+  1) [chromium] › e2e\calendar-hit-area.spec.ts:302:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › court · the day cell, the nav buttons and the fluid width floor 
+
+    Error: court · 320px: the month grid rendered 5 week rows. A month of 28–31 days folded into seven-day rows can only take 4, 6 of them, so a count outside that set is a BROKEN grid rather than a different month — the derived height figures below (rows × (44 + 8)) absorb every legal count on their own. If this is red, repair the grid; never widen this set to admit the number that was measured.
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 5
+    Received array: [4, 6]
+
+      289 |       `(rows × (${CELL_PX} + ${WEEK_GAP_PX})) absorb every legal count on their own. If this is ` +
+      290 |       "red, repair the grid; never widen this set to admit the number that was measured.",
+    > 291 |   ).toContain(rows);
+          |     ^
+      292 |
+      293 |   return rows;
+      294 | }
+        at reachableCalendar (C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:291:5)
+        at C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:313:9
+
+    Error Context: test-results\calendar-hit-area-AC-14-—--8a0d1-s-and-the-fluid-width-floor-chromium\error-context.md
+
+    Error Context: test-results\calendar-hit-area-AC-14-—--8a0d1-s-and-the-fluid-width-floor-chromium\error-context.md
+
+  2) [chromium] › e2e\calendar-hit-area.spec.ts:302:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › grove · the day cell, the nav buttons and the fluid width floor 
+
+    Error: grove · 320px: the month grid rendered 5 week rows. A month of 28–31 days folded into seven-day rows can only take 4, 6 of them, so a count outside that set is a BROKEN grid rather than a different month — the derived height figures below (rows × (44 + 8)) absorb every legal count on their own. If this is red, repair the grid; never widen this set to admit the number that was measured.
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 5
+    Received array: [4, 6]
+
+      289 |       `(rows × (${CELL_PX} + ${WEEK_GAP_PX})) absorb every legal count on their own. If this is ` +
+      290 |       "red, repair the grid; never widen this set to admit the number that was measured.",
+    > 291 |   ).toContain(rows);
+          |     ^
+      292 |
+      293 |   return rows;
+      294 | }
+        at reachableCalendar (C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:291:5)
+        at C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:313:9
+
+    Error Context: test-results\calendar-hit-area-AC-14-—--cd228-s-and-the-fluid-width-floor-chromium\error-context.md
+
+    Error Context: test-results\calendar-hit-area-AC-14-—--cd228-s-and-the-fluid-width-floor-chromium\error-context.md
+
+  3) [chromium] › e2e\calendar-hit-area.spec.ts:455:9 › AC#15 — the month plate occupies the box the month grid will › court · plate and grid agree within ±2px at 320 / 768 / 1280 
+
+    Error: court · 320px: the month grid rendered 5 week rows. A month of 28–31 days folded into seven-day rows can only take 4, 6 of them, so a count outside that set is a BROKEN grid rather than a different month — the derived height figures below (rows × (44 + 8)) absorb every legal count on their own. If this is red, repair the grid; never widen this set to admit the number that was measured.
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 5
+    Received array: [4, 6]
+
+      289 |       `(rows × (${CELL_PX} + ${WEEK_GAP_PX})) absorb every legal count on their own. If this is ` +
+      290 |       "red, repair the grid; never widen this set to admit the number that was measured.",
+    > 291 |   ).toContain(rows);
+          |     ^
+      292 |
+      293 |   return rows;
+      294 | }
+        at reachableCalendar (C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:291:5)
+        at C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:502:30
+
+    Error Context: test-results\calendar-hit-area-AC-15-—--b0775-within-±2px-at-320-768-1280-chromium\error-context.md
+
+    Error Context: test-results\calendar-hit-area-AC-15-—--b0775-within-±2px-at-320-768-1280-chromium\error-context.md
+
+  4) [chromium] › e2e\calendar-hit-area.spec.ts:455:9 › AC#15 — the month plate occupies the box the month grid will › grove · plate and grid agree within ±2px at 320 / 768 / 1280 
+
+    Error: grove · 320px: the month grid rendered 5 week rows. A month of 28–31 days folded into seven-day rows can only take 4, 6 of them, so a count outside that set is a BROKEN grid rather than a different month — the derived height figures below (rows × (44 + 8)) absorb every legal count on their own. If this is red, repair the grid; never widen this set to admit the number that was measured.
+
+    expect(received).toContain(expected) // indexOf
+
+    Expected value: 5
+    Received array: [4, 6]
+
+      289 |       `(rows × (${CELL_PX} + ${WEEK_GAP_PX})) absorb every legal count on their own. If this is ` +
+      290 |       "red, repair the grid; never widen this set to admit the number that was measured.",
+    > 291 |   ).toContain(rows);
+          |     ^
+      292 |
+      293 |   return rows;
+      294 | }
+        at reachableCalendar (C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:291:5)
+        at C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:502:30
+
+    Error Context: test-results\calendar-hit-area-AC-15-—--a8258-within-±2px-at-320-768-1280-chromium\error-context.md
+
+    Error Context: test-results\calendar-hit-area-AC-15-—--a8258-within-±2px-at-320-768-1280-chromium\error-context.md
+
+  4 failed
+    [chromium] › e2e\calendar-hit-area.spec.ts:302:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › court · the day cell, the nav buttons and the fluid width floor 
+    [chromium] › e2e\calendar-hit-area.spec.ts:302:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › grove · the day cell, the nav buttons and the fluid width floor 
+    [chromium] › e2e\calendar-hit-area.spec.ts:455:9 › AC#15 — the month plate occupies the box the month grid will › court · plate and grid agree within ±2px at 320 / 768 / 1280 
+    [chromium] › e2e\calendar-hit-area.spec.ts:455:9 › AC#15 — the month plate occupies the box the month grid will › grove · plate and grid agree within ±2px at 320 / 768 / 1280 
+
+--------------------------------------------------------------------------------
+WATCHED-RED TALLY
+--------------------------------------------------------------------------------
+collected : 4
+failed    : 4    — including the TWO that passed a moment earlier, which is the
+                   point: the guard is what reddened them, so it is load-bearing
+                   and not a guard that cannot fail.
+
+The message names the observed count and the legal set, verbatim:
+
+  Error: grove - 320px: the month grid rendered 5 week rows. A month of 28-31
+  days folded into seven-day rows can only take 4, 6 of them, so a count outside
+  that set is a BROKEN grid rather than a different month ...
+  expect(received).toContain(expected) // indexOf
+  Expected value: 5
+  Received array: [4, 6]
+      at reachableCalendar (e2e/calendar-hit-area.spec.ts:291:5)
+
+################################################################################
+# 4. REVERT PROOF
+################################################################################
+
+$ git checkout -- e2e/calendar-hit-area.spec.ts
+
+  raw sha256 BEFORE the narrowing (working copy, LF endings)
+    f511c19cad5e8dff88c33f7dc946a6d8f5f89103651aac570d7a9ffe3dcdcb91
+  raw sha256 AFTER the revert (working copy, CRLF - git re-applied core.autocrlf)
+    10970cc53ab2b79893700087428fb5995f65c43f193663ab4a07910a12ee20ad
+
+  The two raw digests differ ONLY by line endings, and that is stated rather than
+  glossed: `git checkout --` rewrote the file with CRLF (535 CR bytes), which the
+  pre-mutation working copy did not have. The CONTENT comparison is the proof,
+  and it is exact:
+
+  $ tr -d '\r' < e2e/calendar-hit-area.spec.ts | sha256sum
+    f511c19cad5e8dff88c33f7dc946a6d8f5f89103651aac570d7a9ffe3dcdcb91   <- matches BEFORE
+  $ git show HEAD:e2e/calendar-hit-area.spec.ts | tr -d '\r' | sha256sum
+    f511c19cad5e8dff88c33f7dc946a6d8f5f89103651aac570d7a9ffe3dcdcb91   <- matches HEAD
+
+  $ git status --porcelain -- e2e/calendar-hit-area.spec.ts
+    (no output)
+  $ git diff HEAD --stat -- e2e/calendar-hit-area.spec.ts
+    (no output)
+  $ grep -n "^const LEGAL_WEEK_ROWS" e2e/calendar-hit-area.spec.ts
+    189:const LEGAL_WEEK_ROWS: readonly number[] = [4, 5, 6];
+
+  No residue of the narrowing survives.
+
+################################################################################
+# 5. POST-REVERT CONFIRMATION  —  the state this plan leaves behind
+################################################################################
+
+$ npx playwright test e2e/calendar-hit-area.spec.ts --project=chromium --reporter=list
+  Running 4 tests using 4 workers
+  2 failed
+  2 passed (21.9s)
+
+Identical to section 2: the narrowing is gone and nothing else moved.
+
+################################################################################
+# 6. VERDICT
+################################################################################
+
+VERDICT: Cause A is SPEC DRIFT and it is CLOSED BY REPAIR, not by allowlisting. The six-row month grid `reachableCalendar` asserted is an assumption about the calendar month the file was written in (August 2026, six rows); the guard now READS the row count off the rendered grid and every height figure is derived from it, so the file is correct in a four-, five- or six-row month and RED only for a grid shape no month can take (section 3 proves that half still fails). TWO of the four Cause A failures - `:302` court and grove - are closed outright and are NOT known-failures-allowlist candidates: they are repaired, and 19.1-01 D-01 makes allowlist eligibility conditional on NOT being repairable in this phase. The other TWO - `:455` court and grove - are ALSO not Cause A failures any more and must not be allowlisted as flake either: they were freed from the six-row guard and now fail on FINDING D-A2, a measured PRODUCT defect (CalendarMonthSkeleton reserves six week rows against a five-row grid, delta 52.81px, live in 10 of the next 12 months), which needs the operator's choice between the two repairs set out above before any plan may act on it. Plan 11 must therefore treat these two as an OPEN PRODUCT FINDING carried forward, not as two of the fourteen written off; 19.1-03's prohibition "none of these four may be allowlisted" holds for all four, but its premise - that all four share one root cause - is falsified by the measurement above. Finally, the row count is a function of the calendar month, so this file now HANDLES the passage of time rather than assuming it away; the only constant left in the derivation is the legal SHAPE of a month grid, which is a property of arithmetic and not of a date.
+
+################################################################################
+# END
+################################################################################
