@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: Completed 19.1-09-PLAN.md
-last_updated: "2026-09-05T11:17:50.031Z"
+stopped_at: Completed 19.1-10-PLAN.md
+last_updated: "2026-09-05T12:22:55.315Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 19.1 plan 02 complete — Wave 0 measurement
-state_head: 9c36f0baaded57c25d6e65a6171dadef3fa44f50
+state_head: 888c1ccbc5bbca758b8f19abdb89f91477386684
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19.1 (CI signal becomes real) — EXECUTING
-Plan: 10 of 15
+Plan: 11 of 15
 Status: Ready to execute
 Last activity: 2026-09-05 — Phase 19.1 plan 02 complete (Wave 0 measurement)
 
@@ -446,6 +446,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P06 | 1h 10m | 3 tasks | 7 files |
 | Phase 19.1 P08 | 60 min | 3 tasks | 4 files |
 | Phase 19.1 P09 | 46 min | 3 tasks | 3 files |
+| Phase 19.1 P10 | 62 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1460,6 +1461,8 @@ Recent decisions affecting current work:
 - [Phase 19.1]: 19.1-08 — a post-condition is added when the failure mode is measured; a RETRY is added only when the lost click was OBSERVED. Neither of this plan's two was, so neither retries — and for the wizard press a retry would additionally double-save and end the walk a step early.
 - [Phase 19.1]: 19.1-09: skeleton-geometry.spec.ts:1807 is FIXTURE DRIFT, not a product regression — the Space cell wrapped (2 lines), the When cell did not (1) — Measured in the pinned CI container: the residual Space column is 166px there vs 183.70px on Windows, and the 20-char title 152px vs 145.17px, because that Chromium quantises glyph advances to whole pixels. The product file was not touched.
 - [Phase 19.1]: 19.1-09: HOST_LISTING_TITLE 20 -> 17 chars; no tolerance and no declared shape constant moved — Chosen from a candidate sweep run INSIDE mcr.microsoft.com/playwright:v1.60.0-noble: 127px against a 150px content box (23px clear) and 3 agenda lines on all 2,604 date tokens. Closes both of the file's :1807 reds.
+- [Phase 19.1]: The four Cause-B failures are TWO classes, not one: the avatar three need a server-side Cloudinary CREDENTIAL (invariant-forbidden, verify-workflows.mjs:813), while overflow-320:3400 needed only the PUBLIC, non-secret NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME to be defined — measured, and it is repaired rather than allowlisted.
+- [Phase 19.1]: Playwright test.fail() covers an ASSERTION failure and NOT a TIMEOUT — an annotated case that times out is reported as a plain failure and burns all three retries. hold-countdown.spec.ts:443 is that shape, so plan 11/13's ~6-minute saving needs the case budget raised alongside the annotation.
 
 ### Pending Todos
 
@@ -1643,8 +1646,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-05T11:17:49.294Z
-Stopped at: Completed 19.1-09-PLAN.md
+Last session: 2026-09-05T12:22:35.422Z
+Stopped at: Completed 19.1-10-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
