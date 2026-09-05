@@ -344,7 +344,7 @@
 #     ⚠ THE CHECKER'S OWN PREDICATES NOW HAVE A STANDING TEST, AND PLAN 19-14 ADDED IT.
 #     `tests/design/workflow-invariants.test.ts` mutates a COPY of this file in a throwaway
 #     directory and spawns the real checker against it, asserting a non-zero exit AND a named
-#     FAIL line — twenty-three cases as of plan 19.1-05, of which TWO assert GREEN and say why in
+#     FAIL line — twenty-eight cases as of plan 19.1-06, of which THREE assert GREEN and say why in
 #     their own docblocks, inside `npm run build`. It exists because three
 #     consecutive verification rounds re-opened predicates that had been proven once by hand and then
 #     reverted: a checker with no test of its own regresses silently, and round N+1 begins with
@@ -465,6 +465,29 @@
 #     This file writes nothing, so an added `workflow_dispatch` is harmless and a MISSING trigger
 #     is the whole danger. The two shapes are not drift and must not be harmonised; the reason for
 #     each is stated at its own site in the checker.
+#     ⚠ MEMBERSHIP WAS NEVER THE PROPERTY — TIGHTENED 2026-09-05, PLAN 19.1-06 (review finding
+#     CR-01). The paragraph above is kept verbatim because its argument survived and only its
+#     sufficiency did not. THREE edits leave both keys exactly where they are and detach the gates
+#     anyway; all three were watched GREEN against this file at exit 0 with all 55 reported holding
+#     (`evidence/guards-06-pre-fix.txt`):
+#       (a) `pull_request: { branches: [does-not-exist] }` — no pull request against any real
+#           branch runs any gate;
+#       (b) `pull_request: { paths-ignore: ['**'] }` — every path there is matches the ignore rule;
+#       (c) `push: { branches: [dev] }` — every gate detaches from the branch the ruleset protects,
+#           and a required status check cannot be required on a branch the workflow never runs on.
+#     So the two triggers are now asserted along DIFFERENT properties, and the asymmetry is as
+#     deliberate as the one above. `pull_request` must be present AND carry NO FILTER AT ALL — an
+#     allow-list of nothing rather than a deny-list of the modifiers somebody thought of, because
+#     the modifier surface is an open set. `push` must REACH both branches: unfiltered reaches every
+#     branch and is correct, a filter must name both and may narrow along no other axis. Asserting
+#     `push` unfiltered would redden THIS file, whose push filter is deliberate — which is how a
+#     correct check gets deleted rather than repaired.
+#     ⚠ AND THE ACCESSOR NOW UNDERSTANDS ALL THREE DOCUMENTED SPELLINGS OF `on:` (review finding
+#     WR-02). Rewriting this block as the sequence form `on: [push, pull_request]` — a CORRECT file,
+#     and one the platform documents — used to make the checker exit 1 and name this very invariant,
+#     because `Object.keys` over an array returns its INDICES. A false red is not harmless
+#     conservatism: the next person to hit it deletes the check, and the three reds above go with
+#     it. That spelling is now a standing GREEN control in the design suite.
 #
 #   * ACROSS `.github/workflows/` THE MAIL-PROVIDER TOKEN APPEARS ZERO TIMES, asserted in the
 #     checker rather than by a human remembering to run a count, and over RAW TEXT so that a

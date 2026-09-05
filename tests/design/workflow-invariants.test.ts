@@ -168,6 +168,16 @@ const CHECKER_CONTEXT = constFromChecker("CI_CHECKER_CONTEXT");
 const BUILD_STEP_NAME = constFromChecker("BUILD_STEP_NAME");
 
 /**
+ * The two branches `ci.yml`'s push trigger must reach, read from the checker for the reason every
+ * constant above is read: the trigger cases below rewrite that branch list, and a case that TYPED
+ * the names would be constructing a "correct" file out of its own guess rather than out of the
+ * property the checker asserts. `CHECKER_DEFAULT_BRANCH` is additionally the name plan 15's ruleset
+ * is about, so a case that dropped it by hand would be asserting on a coincidence.
+ */
+const CHECKER_DEV_BRANCH = constFromChecker("CI_DEV_BRANCH");
+const CHECKER_DEFAULT_BRANCH = constFromChecker("CI_DEFAULT_BRANCH");
+
+/**
  * `.gitattributes` declares `* text=auto` and this working tree checks `ci.yml` out with CRLF. Every
  * inserted line uses the EOL detected from the file it is being inserted into; a harness that
  * normalised line endings would rewrite the whole copy and make every red red for the wrong reason.
@@ -324,6 +334,60 @@ function withoutPullRequestTrigger(): (ci: string) => string {
     const at = ci.indexOf(anchor);
     if (at < 0) return ci;
     return `${ci.slice(0, at + eol.length)}${ci.slice(at + eol.length + line.length + eol.length)}`;
+  };
+}
+
+/**
+ * Adds a FILTER under the pull-request trigger, four-space indented, without touching the key. This
+ * is 19-REVIEW.md CR-01's mutation class: the trigger survives, so a membership test cannot see it,
+ * while the gates below it become unreachable from the pull requests the filter excludes.
+ *
+ * Returns the input unchanged when the anchor is absent, so a drifted anchor lands on
+ * `withMutatedWorkflows`'s differs-from-input assertion.
+ */
+function withPullRequestFilter(filterLine: string): (ci: string) => string {
+  return (ci) => insertAfterLineContaining(ci, "\n  pull_request:", `    ${filterLine}`);
+}
+
+/**
+ * Rewrites the push trigger's branch list to exactly `branches`. Both the anchor and the replacement
+ * are COMPOSED from the branch names read out of the checker, so this builder cannot construct a
+ * file the checker was not asked about — and a rename of either branch lands on the differs-from-
+ * input assertion rather than producing a quietly-different mutation.
+ */
+function withPushBranches(branches: string[]): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const anchor = `${eol}    branches: [${CHECKER_DEV_BRANCH}, ${CHECKER_DEFAULT_BRANCH}]${eol}`;
+    const at = ci.indexOf(anchor);
+    if (at < 0) return ci;
+    return `${ci.slice(0, at)}${eol}    branches: [${branches.join(", ")}]${eol}${ci.slice(
+      at + anchor.length,
+    )}`;
+  };
+}
+
+/**
+ * Rewrites the whole `on:` MAPPING block into the documented SEQUENCE spelling
+ * `on: [push, pull_request]` — semantically a correct, MORE permissive file: both triggers present,
+ * and push no longer narrowed to two branches, so it reaches every branch including both of the ones
+ * the checker requires.
+ *
+ * ⚠ THIS BUILDER EXISTS TO PRODUCE A GREEN, NOT A RED. See its case's docblock. The anchor is the
+ * entire block as this file writes it, composed from the branch names read out of the checker.
+ */
+function withSequenceFormTriggerBlock(): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const anchor = [
+      "on:",
+      "  push:",
+      `    branches: [${CHECKER_DEV_BRANCH}, ${CHECKER_DEFAULT_BRANCH}]`,
+      "  pull_request:",
+    ].join(eol);
+    const at = ci.indexOf(`${eol}${anchor}${eol}`);
+    if (at < 0) return ci;
+    return `${ci.slice(0, at + eol.length)}on: [push, pull_request]${ci.slice(at + eol.length + anchor.length)}`;
   };
 }
 
@@ -910,6 +974,93 @@ describe("the workflow checker's own predicates, measured against a mutated copy
   it("case 24 (CR-03): deleting gate-db-free's build step is red ON THE BUILD-STEP INVARIANT", () => {
     withMutatedWorkflows(withoutBuildStep(), (result) => {
       expectRed(result, BUILD_STEP);
+    });
+  });
+
+  // ── CR-01's TRIGGER VECTORS AND WR-02's FALSE RED, PLAN 19.1-06 ───────────────────────────────
+  //
+  // Cases 25–28 are the standing half of this plan's trigger measurements. Case 12 above already
+  // asserts that DELETING `pull_request:` is red. That was the whole property until this plan, and
+  // it was the axis that had been measured rather than the property the invariant's name claims:
+  // three edits below leave the key exactly where it is and detach the gates anyway. Every one of
+  // them was watched GREEN against the tracked file before the conjuncts existed
+  // (`evidence/guards-06-pre-fix.txt`, VECTORS CR-01(a), (b), (c)) with an md5 pair and an empty
+  // porcelain, and watched RED after (`evidence/guards-06-post-fix.txt`).
+
+  // WHAT WAS MEASURED (guards-06-pre-fix.txt, VECTOR CR-01(a)): exit 0, all 55 reported holding,
+  // over a file in which no pull request opened against any real branch runs any gate at all. The
+  // key is present, so a membership test is satisfied; the branch list is what makes it inert.
+  it("case 25 (CR-01): a nothing-matching branch list on the pull-request trigger is red", () => {
+    withMutatedWorkflows(withPullRequestFilter("branches: [does-not-exist]"), (result) => {
+      expectRed(result, CI_TRIGGERS);
+    });
+  });
+
+  // THE SECOND MODIFIER, AND THE REASON THE CONJUNCT IS `filter == null` RATHER THAN A LIST OF
+  // FORBIDDEN KEYS. WHAT WAS MEASURED (guards-06-pre-fix.txt, VECTOR CR-01(b)): exit 0, all 55
+  // reported holding. `paths-ignore: ['**']` excludes every path there is, so every pull request
+  // matches the ignore rule and no gate runs — a different key from case 25, the identical outcome.
+  // Kept as its own case for the reason cases 4 and 5 are two: "the predicate catches the branch
+  // form" is not evidence that it catches the path form, and that inference is what cost rounds 2
+  // and 3. Deny-listing these two would leave `types:` and whatever round five finds; the checker
+  // therefore denies ANY filter, and these two cases are the evidence that it does.
+  it("case 26 (CR-01): an everything-matching path-ignore filter on the pull-request trigger is red", () => {
+    withMutatedWorkflows(withPullRequestFilter("paths-ignore: ['**']"), (result) => {
+      expectRed(result, CI_TRIGGERS);
+    });
+  });
+
+  // THE OTHER TRIGGER, ALONG ITS OWN PROPERTY. WHAT WAS MEASURED (guards-06-pre-fix.txt, VECTOR
+  // CR-01(c)): exit 0, all 55 reported holding, with `push` still present and still filtered — just
+  // no longer reaching the default branch. That is the branch plan 15's ruleset protects, and a
+  // required status check cannot be required on a branch the workflow never runs on, so this single
+  // deleted name detaches every gate in the file from the ruleset while reading in review as a
+  // narrowing somebody meant.
+  //
+  // ⚠ NOTE WHAT THIS CASE DOES *NOT* ASSERT, AND WHY THE OMISSION IS THE POINT. There is no sibling
+  // case requiring the push trigger to be UNFILTERED, because this file's push filter is DELIBERATE
+  // — such a case would demand the checker redden a correct file, which is how a correct check gets
+  // deleted rather than repaired. The property is reachability, not shape; case 28 is the other half
+  // of that same statement.
+  it("case 27 (CR-01): removing the default branch from the push trigger's branch list is red", () => {
+    withMutatedWorkflows(withPushBranches([CHECKER_DEV_BRANCH]), (result) => {
+      expectRed(result, CI_TRIGGERS);
+    });
+  });
+
+  // ⚠ A CASE THAT ASSERTS GREEN, AND THE SECOND OF THIS PLAN'S TWO POSITIVE CONTROLS (case 16 is
+  // the other; case 30 below is the third, added by the same plan for the step-anchor class).
+  //
+  // WHY IT IS HERE. Every red case in this file shows the checker is capable of failing. Only a
+  // mutation that SHOULD stay green can show that a defect class is CLOSED rather than MOVED — and
+  // WR-02's defect class is the OPPOSITE of every other one measured in this phase. It is not a
+  // mutation the checker fails to catch; it is a CORRECT FILE the checker used to REDDEN.
+  //
+  // WHAT WAS MEASURED (guards-06-pre-fix.txt, VECTOR WR-02): `on: [push, pull_request]` — the
+  // sequence spelling docs.github.com documents alongside the mapping one — produced
+  // `CHECKER-EXIT=1` and `1 of 55 invariant(s) FAILED`, naming this very invariant. `triggersOf`
+  // ran `Object.keys` over an ARRAY, so the trigger names came back as the array indices "0" and
+  // "1". A false red is not a harmless conservatism: the next person to hit it deletes the check,
+  // and then the three reds above go with it.
+  //
+  // WHAT THIS CASE PINS. Not merely a zero exit — also the SUMMARY LINE, so a future edit that made
+  // this spelling green by REMOVING or WEAKENING invariants would fail here rather than pass. That
+  // is why this case asserts `EXPECTED_GREEN` and not just `status === 0`.
+  //
+  // ⚠ THE MUTATED FILE IS *MORE* PERMISSIVE THAN THE TRACKED ONE, DELIBERATELY. The sequence form
+  // cannot express a filter, so push loses its `[dev, main]` narrowing and reaches every branch —
+  // which is precisely why the push conjunct is written as REACHABILITY. A conjunct demanding a
+  // literal branch list would redden this file, and this case is what stops anyone rewriting it
+  // that way.
+  it("case 28 (WR-02, POSITIVE CONTROL): the sequence spelling of the trigger block stays GREEN", () => {
+    withMutatedWorkflows(withSequenceFormTriggerBlock(), (result) => {
+      expect(
+        result.status,
+        `the sequence spelling of \`on:\` — a CORRECT file — did not go green. That is a FALSE RED, ` +
+          `and a check that reddens correct files is the check that gets deleted rather than ` +
+          `repaired (19-REVIEW.md WR-02).\n--- stdout ---\n${result.stdout}\n--- stderr ---\n${result.stderr}`,
+      ).toBe(0);
+      expect(String(result.stdout)).toContain(EXPECTED_GREEN);
     });
   });
 });

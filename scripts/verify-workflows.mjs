@@ -85,6 +85,18 @@ const CI = `${WORKFLOW_DIR}/ci.yml`;
 const BASELINES_JOB = "generate-baselines";
 const CI_VISUAL_JOB = "gate-visual";
 
+// THE TWO BRANCHES `ci.yml`'s PUSH TRIGGER MUST REACH (plan 19.1-06, review finding CR-01).
+//   * `CI_DEV_BRANCH` is where work lands day to day — the branch a developer's push is on.
+//   * `CI_DEFAULT_BRANCH` is the branch plan 15's ruleset protects. A required status check can only
+//     be required on a branch the workflow actually runs on, so dropping this one name from the push
+//     filter detaches EVERY gate in this file from the branch the whole ruleset is about, while
+//     leaving `push` present, filtered, and perfectly plausible in review.
+// They are spelled here, once, because the push filter's PROPERTY is which branches it reaches; a
+// literal in the predicate would be a second source of truth for a value the file's own `on:` block
+// already carries.
+const CI_DEV_BRANCH = "dev";
+const CI_DEFAULT_BRANCH = "main";
+
 // THE FUNCTIONAL-SUITE JOB, AND THE DISPLAY NAME BRANCH PROTECTION MATCHES ON (plan 19-08, D-15,
 // T-19-40). Two spellings, deliberately, because they are two different things:
 //   * `CI_E2E_JOB` is the YAML job KEY. Its absence is a hard stop below.
@@ -293,8 +305,51 @@ function workflow(path) {
 const jobsOf = (doc) => Object.entries(doc?.jobs ?? {});
 const stepsOf = (job) => (Array.isArray(job?.steps) ? job.steps : []);
 const runsOf = (job) => stepsOf(job).filter((s) => typeof s?.run === "string").map((s) => s.run);
-const triggersOf = (doc) =>
-  doc?.on == null ? [] : typeof doc.on === "string" ? [doc.on] : Object.keys(doc.on);
+/**
+ * THE TRIGGER NAMES, FOR ALL THREE DOCUMENTED SPELLINGS OF `on:` (review finding WR-02).
+ * docs.github.com, "Workflow syntax for GitHub Actions → on", permits exactly three forms and they
+ * are semantically identical in the only respect this file asserts on — WHICH EVENTS START A RUN:
+ *
+ *   on: push                         SCALAR    → ["push"]
+ *   on: [push, pull_request]         SEQUENCE  → ["push", "pull_request"]      ← the one that was missing
+ *   on:                              MAPPING   → ["push", "pull_request"]
+ *     push:
+ *       branches: [dev, main]
+ *     pull_request:
+ *
+ * ⚠ WHY THE MISSING FORM WAS WORSE THAN A GAP, AND THE MEASUREMENT THAT BOUGHT THIS (evidence/
+ * guards-06-pre-fix.txt, VECTOR WR-02). `Object.keys` over an ARRAY returns its INDICES, so the
+ * sequence spelling used to yield `["0", "1"]` and the membership conjunct below failed: a CORRECT
+ * file, RED, for a reason that has nothing to do with its content. That is not a missed catch, it is
+ * the failure mode that gets a check DELETED rather than repaired — and it would have arrived on the
+ * day somebody rewrote this block in a form the platform documents. An UNHANDLED SPELLING IS A FALSE
+ * RED, and a false red costs more than the true red it was standing in for.
+ *
+ * It is also a PREREQUISITE for the filter conjuncts below rather than an optional tidy: under the
+ * sequence spelling every filter is absent, so the filter half would have passed while the
+ * membership half failed, and a reader would have diagnosed the wrong conjunct.
+ */
+const triggersOf = (doc) => {
+  const on = doc?.on;
+  if (on == null) return [];
+  if (typeof on === "string") return [on];
+  if (Array.isArray(on)) return on.map((t) => String(t));
+  return Object.keys(on);
+};
+
+/**
+ * The FILTER declared for one trigger, normalised across the same three spellings. The scalar and
+ * sequence forms cannot express a filter at all, so both answer `undefined` — which is the honest
+ * answer and the one the "unfiltered" conjunct below wants. Only the mapping form can carry one.
+ * A trigger that is not present at all also answers `undefined`, so this accessor must NEVER be
+ * read without the membership test beside it: absence and unfiltered-presence are the same value
+ * here, and telling them apart is `triggersOf`'s job, not this one's.
+ */
+const triggerFilterOf = (doc, trigger) => {
+  const on = doc?.on;
+  if (on == null || typeof on === "string" || Array.isArray(on)) return undefined;
+  return on?.[trigger];
+};
 
 /** `postgres://user:pass@host:port/db` → `host:port`. Returns "" when the shape is unrecognised,
  *  which fails every branch of the addressing rule loudly rather than passing one silently. */
@@ -563,13 +618,70 @@ if (sections.includes("ci")) {
   //
   // `triggersOf` returns `[]` for an absent or null `on:` block, so an emptied `on:` is FALSE here
   // rather than vacuously true — absence IS the failure this check exists for.
+  //
+  // ── PRESENCE WAS NEVER THE PROPERTY (plan 19.1-06, review finding CR-01) ──────────────────────
+  // THE MEASUREMENT THAT BOUGHT THE TWO FILTER CONJUNCTS (evidence/guards-06-pre-fix.txt, VECTORS
+  // CR-01(a), (b) and (c)). Membership alone was defeated three ways WITHOUT DELETING A SINGLE KEY:
+  //   (a) `pull_request: { branches: [does-not-exist] }`  → exit 0, all 55 reported holding
+  //   (b) `pull_request: { paths-ignore: ['**'] }`        → exit 0, all 55 reported holding
+  //   (c) `push: { branches: [dev] }`                     → exit 0, all 55 reported holding
+  // In (a) and (b) EVERY gate in this file becomes unreachable from a pull request, which falsifies
+  // CI-01's own requirement text — literally "opening a pull request runs the repository's
+  // functional Playwright specs" — while this check printed green. In (c) every gate detaches from
+  // the branch plan 15's ruleset protects. The comment above says a MISSING trigger is the whole
+  // danger. That was true and incomplete: a NEUTERED trigger is the same danger wearing the key.
+  //
+  // ⚠ THE TWO TRIGGERS ARE ASSERTED ALONG DIFFERENT PROPERTIES, AND THAT ASYMMETRY IS DELIBERATE
+  // — do not "harmonise" it either. This file's PUSH filter is a real, intended narrowing; its
+  // PULL-REQUEST trigger is intentionally bare. Asserting push unfiltered would redden a CORRECT
+  // file, which is how a correct check gets deleted rather than repaired.
+  //
+  //   * `pull_request` MUST BE PRESENT AND UNFILTERED. Any filter at all — a branch list, a path
+  //     list, a `types:` narrowing — makes some pull request not run these gates, and the
+  //     requirement text does not qualify WHICH pull request. So the conjunct is `filter == null`
+  //     (null for the bare `pull_request:` mapping entry this file writes, undefined for the scalar
+  //     and sequence spellings), NOT an enumeration of the modifiers anybody has thought of.
+  //     Deny-listing `branches`, then `paths-ignore`, then whatever round five finds is the shape
+  //     `MAIL_STEP_ALLOWED_KEYS` above already argues against: the attack surface is an open set.
+  //
+  //   * `push` MUST REACH BOTH BRANCHES. Reachability, not shape — because there are two correct
+  //     files here and only one of them has a branch list. An ABSENT push filter runs on every
+  //     branch, so it reaches both by construction and is GREEN; that is exactly the file the
+  //     sequence spelling `on: [push, pull_request]` produces, and a conjunct demanding a literal
+  //     list would have reddened it. A PRESENT filter must name both branches, and — allow-list,
+  //     never deny-list — may carry NO OTHER KEY, because `paths-ignore: ['**']` on push detaches
+  //     the gates just as completely as an empty branch list does.
   const ciTriggers = triggersOf(doc);
+  const prFilter = triggerFilterOf(doc, "pull_request");
+  const pushFilter = triggerFilterOf(doc, "push");
+  const PUSH_FILTER_ALLOWED_KEYS = ["branches"];
+  const pushFilterKeys = pushFilter == null ? [] : Object.keys(pushFilter).sort();
+  const pushBranches = Array.isArray(pushFilter?.branches) ? pushFilter.branches.map(String) : null;
+  // Unfiltered push reaches every branch there is. A filtered push reaches exactly what it lists,
+  // and may narrow along no other axis.
+  const pushReachesBoth =
+    pushFilter == null ||
+    (pushBranches !== null &&
+      pushFilterKeys.every((k) => PUSH_FILTER_ALLOWED_KEYS.includes(k)) &&
+      pushBranches.includes(CI_DEV_BRANCH) &&
+      pushBranches.includes(CI_DEFAULT_BRANCH));
   check(
-    "ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull request",
-    ciTriggers.includes("push") && ciTriggers.includes("pull_request"),
+    `ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull ` +
+      `request — with pull_request UNFILTERED, and push reaching both "${CI_DEV_BRANCH}" and "${CI_DEFAULT_BRANCH}"`,
+    ciTriggers.includes("push") &&
+      ciTriggers.includes("pull_request") &&
+      prFilter == null &&
+      pushReachesBoth,
     // The document's own key order, so a red is diagnosable against the file as written. Membership
-    // is order-independent by construction; this evidence line deliberately is not.
-    `triggers=[${ciTriggers.join(", ") || "(none)"}]`,
+    // is order-independent by construction; this evidence line deliberately is not. `(none)` is an
+    // EXPLICIT marker rather than an empty pair of brackets, so an emptied `on:` reads as the
+    // absence it is instead of as a rendering accident.
+    `triggers=[${ciTriggers.join(", ") || "(none)"}]  ` +
+      `pull_request filter=${prFilter === undefined ? "(absent)" : JSON.stringify(prFilter)} (must be null/absent)  ` +
+      `push filter=${pushFilter === undefined ? "(absent)" : JSON.stringify(pushFilter)}  ` +
+      `push filter keys=[${pushFilterKeys.join(", ") || "(none)"}]  permitted=[${PUSH_FILTER_ALLOWED_KEYS.join(", ")}]  ` +
+      `push branches=[${pushBranches?.join(", ") ?? "(unfiltered — reaches every branch)"}]  ` +
+      `must reach=[${CI_DEV_BRANCH}, ${CI_DEFAULT_BRANCH}]  and it does=${pushReachesBoth}`,
   );
 
   // ── THE CONCURRENCY GROUP (T-11-CANCEL) ───────────────────────────────────────────────────────

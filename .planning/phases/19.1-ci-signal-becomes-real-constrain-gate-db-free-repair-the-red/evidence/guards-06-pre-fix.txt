@@ -1,0 +1,385 @@
+GUARDS — PLAN 19.1-06, PRE-FIX MEASUREMENTS
+===========================================
+
+WHAT THIS FILE IS. Every mutation below was applied BY HAND to the TRACKED
+`.github/workflows/ci.yml`, the SHIPPED `scripts/verify-workflows.mjs` was run against it, and the
+result was captured verbatim. Then the file was reverted and the revert was PROVED — md5 before and
+after, plus `git status --porcelain`. A mutation is a measurement, and a measurement left in the tree
+is a defect.
+
+WHY IT EXISTS. This plan's subject is the axis-versus-property error: a predicate that asserts a
+key's PRESENCE without denying the modifiers that neuter it, or that LOCATES its subject by a
+substring of a `run:` body. Both classes are invisible to a reading of the code — plan 19.1-05
+demonstrated that by loosening the checker's own conjunct at `:982` and watching the standing suite
+report 16 of 16 GREEN. So each site is MEASURED before it is repaired, and a site whose vector does
+not reproduce is recorded as refuted rather than repaired on suspicion.
+
+ELISION RULE, STATED SO AN OMISSION CANNOT BE MISTAKEN FOR A SELECTION. The checker closes each
+section with a `parsed values` block — four-space-indented lowercase key lines dumping the whole
+parsed tree. Those lines are IDENTICAL in every capture except where a mutation changed the value
+they print, and they are hundreds of columns wide. They are filtered out of every transcript below by
+`grep -vE '^ {4}[a-z]'`. NOTHING ELSE IS REMOVED: every heading, every FAIL line, every summary line
+and every exit code is verbatim.
+
+THE THREE TRIGGER VECTORS (Task 1) COME FIRST, THEN THE TWO STEP-ANCHOR VECTORS (Task 2).
+
+================================================================================
+TASK 1 / VECTOR CR-01(a) — the pull-request trigger restricted to a branch that does not exist
+================================================================================
+EXPECTED BEFORE THE REPAIR: GREEN. The key `pull_request` is still present, so a membership test cannot see this. Every gate in the file becomes unreachable from a pull request.
+
+$ md5sum .github/workflows/ci.yml            # tracked file, at HEAD
+925db7b91bccc2d1ab1220b1441e1e58 *.github/workflows/ci.yml
+
+$ node <apply mutation "pr-branches" to the TRACKED file>
+applied pr-branches
+
+$ md5sum .github/workflows/ci.yml            # MUTATED
+7a7489479669bac626801db7fcb8c037 *.github/workflows/ci.yml
+
+$ git diff --unified=1 -- .github/workflows/ci.yml
+@@ -711,2 +711,3 @@ on:
+   pull_request:
++    branches: [does-not-exist]
+ 
+
+$ node scripts/verify-workflows.mjs   # (parsed-values block elided — see ELISION RULE)
+verify-workflows — parse-based invariants over .github/workflows/
+sections            baselines, ci, cross
+@playwright/test    1.60.0 (installed)
+expected image      mcr.microsoft.com/playwright:v1.60.0-noble
+
+── baselines — .github/workflows/baselines.yml (job "generate-baselines") ──────────────────────
+  ok    the ONLY trigger is workflow_dispatch (no push, no pull_request, no schedule)
+          triggers=[workflow_dispatch]
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    job "generate-baselines" permissions.contents is 'write'
+          job permissions={"contents":"write"}
+  ok    exactly ONE job in this workflow holds contents: write
+          jobs with contents:write=[generate-baselines]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    container image tag is pinned and equals the installed @playwright/test version
+          image=mcr.microsoft.com/playwright:v1.60.0-noble  expected=mcr.microsoft.com/playwright:v1.60.0-noble  (@playwright/test=1.60.0)
+  ok    container options carry --ipc=host
+          container.options=--ipc=host
+  ok    exactly ONE run command contains --update-snapshots
+          run commands=8  carrying --update-snapshots=1
+  ok    zero `secrets.` references in any env / run / with VALUE
+          scanned workflow env, job env, container env, service env, and every step run/env/with — 0 hits
+  ok    every `uses:` is a first-party actions/* action
+          uses=[actions/checkout@v4, actions/setup-node@v4]
+  ok    a run command stages exactly the *-visual-linux.png glob
+          found: git add -- "*-visual-linux.png"
+
+  parsed values (baselines):
+
+── ci — .github/workflows/ci.yml (5 job(s)) ────────────────────────────────────────────────────
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    NO job in ci.yml holds contents: write — the write path is baselines.yml alone
+          jobs with contents:write=[(none)]  jobs=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull request
+          triggers=[push, pull_request]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    every `uses:` across every job is a first-party actions/* action
+          uses=[gate-db-free:actions/checkout@v4, gate-db-free:actions/setup-node@v4, gate-db:actions/checkout@v4, gate-db:actions/setup-node@v4, gate-price-parity:actions/checkout@v4, gate-price-parity:actions/setup-node@v4, gate-visual:actions/checkout@v4, gate-visual:actions/setup-node@v4, gate-e2e:actions/checkout@v4, gate-e2e:actions/setup-node@v4]
+  ok    ZERO run commands in ci.yml carry --update-snapshots — this file can never mint a baseline
+          run commands=21 across 5 job(s)  carrying the flag=0
+  ok    zero `secrets.` references in any env / run / with VALUE, across every job
+          scanned workflow env, every job env, every container env, every service env, and every step run/env/with — 0 hits
+  ok    no job, step or workflow env KEY declares RESEND_API_KEY — the e2e suite must send zero real email
+          hits=[(none)]  scanned 5 job(s), their steps, and the workflow env  prefix=RESEND
+  ok    every job declaring a container: pins the exact installed-Playwright image
+          containerized=[gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every containerized job carries --ipc=host
+          options=[gate-db-free="--ipc=host", gate-price-parity="--ipc=host", gate-visual="--ipc=host", gate-e2e="--ipc=host"]
+  ok    every service image is postgis/postgis: with a tag qualified beyond the bare major
+          services=[gate-db.postgres=postgis/postgis:18-3.6, gate-price-parity.postgres=postgis/postgis:18-3.6, gate-visual.postgres=postgis/postgis:18-3.6, gate-e2e.postgres=postgis/postgis:18-3.6]
+  ok    addressing rule — "gate-db-free" declares no services:, so DATABASE_URL must be the unreachable sentinel
+          job="gate-db-free"  services=[]  container=true  authority=127.0.0.1:59999  expected=127.0.0.1:59999
+  ok    addressing rule — "gate-db" runs ON the runner, so the host must be localhost and every service MUST declare ports:
+          job="gate-db"  container=false  host=localhost  ports=[postgres=["5432:5432"]]
+  ok    addressing rule — "gate-price-parity" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-price-parity"  container=true  host=postgres  service labels=[postgres]  ports=null
+CHECKER-EXIT=0
+
+$ git checkout -- .github/workflows/ci.yml
+$ md5sum .github/workflows/ci.yml            # REVERTED — must equal the first md5 above
+925db7b91bccc2d1ab1220b1441e1e58 *.github/workflows/ci.yml
+$ git status --porcelain -- .github/workflows/ci.yml
+(no line above = the working tree is clean; the measurement left nothing behind)
+
+================================================================================
+TASK 1 / VECTOR CR-01(b) — a path-ignore filter matching EVERYTHING under the pull-request trigger
+================================================================================
+EXPECTED BEFORE THE REPAIR: GREEN. Same shape, different modifier: the key survives, and `paths-ignore: ['**']` excludes every path there is.
+
+$ md5sum .github/workflows/ci.yml            # tracked file, at HEAD
+925db7b91bccc2d1ab1220b1441e1e58 *.github/workflows/ci.yml
+
+$ node <apply mutation "pr-paths-ignore" to the TRACKED file>
+applied pr-paths-ignore
+
+$ md5sum .github/workflows/ci.yml            # MUTATED
+8699e36a8d582b68cbc5468bfda6d1de *.github/workflows/ci.yml
+
+$ git diff --unified=1 -- .github/workflows/ci.yml
+@@ -711,2 +711,3 @@ on:
+   pull_request:
++    paths-ignore: ['**']
+ 
+
+$ node scripts/verify-workflows.mjs   # (parsed-values block elided — see ELISION RULE)
+verify-workflows — parse-based invariants over .github/workflows/
+sections            baselines, ci, cross
+@playwright/test    1.60.0 (installed)
+expected image      mcr.microsoft.com/playwright:v1.60.0-noble
+
+── baselines — .github/workflows/baselines.yml (job "generate-baselines") ──────────────────────
+  ok    the ONLY trigger is workflow_dispatch (no push, no pull_request, no schedule)
+          triggers=[workflow_dispatch]
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    job "generate-baselines" permissions.contents is 'write'
+          job permissions={"contents":"write"}
+  ok    exactly ONE job in this workflow holds contents: write
+          jobs with contents:write=[generate-baselines]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    container image tag is pinned and equals the installed @playwright/test version
+          image=mcr.microsoft.com/playwright:v1.60.0-noble  expected=mcr.microsoft.com/playwright:v1.60.0-noble  (@playwright/test=1.60.0)
+  ok    container options carry --ipc=host
+          container.options=--ipc=host
+  ok    exactly ONE run command contains --update-snapshots
+          run commands=8  carrying --update-snapshots=1
+  ok    zero `secrets.` references in any env / run / with VALUE
+          scanned workflow env, job env, container env, service env, and every step run/env/with — 0 hits
+  ok    every `uses:` is a first-party actions/* action
+          uses=[actions/checkout@v4, actions/setup-node@v4]
+  ok    a run command stages exactly the *-visual-linux.png glob
+          found: git add -- "*-visual-linux.png"
+
+  parsed values (baselines):
+
+── ci — .github/workflows/ci.yml (5 job(s)) ────────────────────────────────────────────────────
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    NO job in ci.yml holds contents: write — the write path is baselines.yml alone
+          jobs with contents:write=[(none)]  jobs=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull request
+          triggers=[push, pull_request]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    every `uses:` across every job is a first-party actions/* action
+          uses=[gate-db-free:actions/checkout@v4, gate-db-free:actions/setup-node@v4, gate-db:actions/checkout@v4, gate-db:actions/setup-node@v4, gate-price-parity:actions/checkout@v4, gate-price-parity:actions/setup-node@v4, gate-visual:actions/checkout@v4, gate-visual:actions/setup-node@v4, gate-e2e:actions/checkout@v4, gate-e2e:actions/setup-node@v4]
+  ok    ZERO run commands in ci.yml carry --update-snapshots — this file can never mint a baseline
+          run commands=21 across 5 job(s)  carrying the flag=0
+  ok    zero `secrets.` references in any env / run / with VALUE, across every job
+          scanned workflow env, every job env, every container env, every service env, and every step run/env/with — 0 hits
+  ok    no job, step or workflow env KEY declares RESEND_API_KEY — the e2e suite must send zero real email
+          hits=[(none)]  scanned 5 job(s), their steps, and the workflow env  prefix=RESEND
+  ok    every job declaring a container: pins the exact installed-Playwright image
+          containerized=[gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every containerized job carries --ipc=host
+          options=[gate-db-free="--ipc=host", gate-price-parity="--ipc=host", gate-visual="--ipc=host", gate-e2e="--ipc=host"]
+  ok    every service image is postgis/postgis: with a tag qualified beyond the bare major
+          services=[gate-db.postgres=postgis/postgis:18-3.6, gate-price-parity.postgres=postgis/postgis:18-3.6, gate-visual.postgres=postgis/postgis:18-3.6, gate-e2e.postgres=postgis/postgis:18-3.6]
+  ok    addressing rule — "gate-db-free" declares no services:, so DATABASE_URL must be the unreachable sentinel
+          job="gate-db-free"  services=[]  container=true  authority=127.0.0.1:59999  expected=127.0.0.1:59999
+  ok    addressing rule — "gate-db" runs ON the runner, so the host must be localhost and every service MUST declare ports:
+          job="gate-db"  container=false  host=localhost  ports=[postgres=["5432:5432"]]
+  ok    addressing rule — "gate-price-parity" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-price-parity"  container=true  host=postgres  service labels=[postgres]  ports=null
+CHECKER-EXIT=0
+
+$ git checkout -- .github/workflows/ci.yml
+$ md5sum .github/workflows/ci.yml            # REVERTED — must equal the first md5 above
+925db7b91bccc2d1ab1220b1441e1e58 *.github/workflows/ci.yml
+$ git status --porcelain -- .github/workflows/ci.yml
+(no line above = the working tree is clean; the measurement left nothing behind)
+
+================================================================================
+TASK 1 / VECTOR CR-01(c) — the DEFAULT branch removed from the push trigger's branch list
+================================================================================
+EXPECTED BEFORE THE REPAIR: GREEN. `push` is still a key and still filtered; it simply no longer reaches the branch plan 15's ruleset protects.
+
+$ md5sum .github/workflows/ci.yml            # tracked file, at HEAD
+925db7b91bccc2d1ab1220b1441e1e58 *.github/workflows/ci.yml
+
+$ node <apply mutation "push-no-main" to the TRACKED file>
+applied push-no-main
+
+$ md5sum .github/workflows/ci.yml            # MUTATED
+453934ef656e23d835a365b641347462 *.github/workflows/ci.yml
+
+$ git diff --unified=1 -- .github/workflows/ci.yml
+@@ -709,3 +709,3 @@ on:
+   push:
+-    branches: [dev, main]
++    branches: [dev]
+   pull_request:
+
+$ node scripts/verify-workflows.mjs   # (parsed-values block elided — see ELISION RULE)
+verify-workflows — parse-based invariants over .github/workflows/
+sections            baselines, ci, cross
+@playwright/test    1.60.0 (installed)
+expected image      mcr.microsoft.com/playwright:v1.60.0-noble
+
+── baselines — .github/workflows/baselines.yml (job "generate-baselines") ──────────────────────
+  ok    the ONLY trigger is workflow_dispatch (no push, no pull_request, no schedule)
+          triggers=[workflow_dispatch]
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    job "generate-baselines" permissions.contents is 'write'
+          job permissions={"contents":"write"}
+  ok    exactly ONE job in this workflow holds contents: write
+          jobs with contents:write=[generate-baselines]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    container image tag is pinned and equals the installed @playwright/test version
+          image=mcr.microsoft.com/playwright:v1.60.0-noble  expected=mcr.microsoft.com/playwright:v1.60.0-noble  (@playwright/test=1.60.0)
+  ok    container options carry --ipc=host
+          container.options=--ipc=host
+  ok    exactly ONE run command contains --update-snapshots
+          run commands=8  carrying --update-snapshots=1
+  ok    zero `secrets.` references in any env / run / with VALUE
+          scanned workflow env, job env, container env, service env, and every step run/env/with — 0 hits
+  ok    every `uses:` is a first-party actions/* action
+          uses=[actions/checkout@v4, actions/setup-node@v4]
+  ok    a run command stages exactly the *-visual-linux.png glob
+          found: git add -- "*-visual-linux.png"
+
+  parsed values (baselines):
+
+── ci — .github/workflows/ci.yml (5 job(s)) ────────────────────────────────────────────────────
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    NO job in ci.yml holds contents: write — the write path is baselines.yml alone
+          jobs with contents:write=[(none)]  jobs=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull request
+          triggers=[push, pull_request]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    every `uses:` across every job is a first-party actions/* action
+          uses=[gate-db-free:actions/checkout@v4, gate-db-free:actions/setup-node@v4, gate-db:actions/checkout@v4, gate-db:actions/setup-node@v4, gate-price-parity:actions/checkout@v4, gate-price-parity:actions/setup-node@v4, gate-visual:actions/checkout@v4, gate-visual:actions/setup-node@v4, gate-e2e:actions/checkout@v4, gate-e2e:actions/setup-node@v4]
+  ok    ZERO run commands in ci.yml carry --update-snapshots — this file can never mint a baseline
+          run commands=21 across 5 job(s)  carrying the flag=0
+  ok    zero `secrets.` references in any env / run / with VALUE, across every job
+          scanned workflow env, every job env, every container env, every service env, and every step run/env/with — 0 hits
+  ok    no job, step or workflow env KEY declares RESEND_API_KEY — the e2e suite must send zero real email
+          hits=[(none)]  scanned 5 job(s), their steps, and the workflow env  prefix=RESEND
+  ok    every job declaring a container: pins the exact installed-Playwright image
+          containerized=[gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every containerized job carries --ipc=host
+          options=[gate-db-free="--ipc=host", gate-price-parity="--ipc=host", gate-visual="--ipc=host", gate-e2e="--ipc=host"]
+  ok    every service image is postgis/postgis: with a tag qualified beyond the bare major
+          services=[gate-db.postgres=postgis/postgis:18-3.6, gate-price-parity.postgres=postgis/postgis:18-3.6, gate-visual.postgres=postgis/postgis:18-3.6, gate-e2e.postgres=postgis/postgis:18-3.6]
+  ok    addressing rule — "gate-db-free" declares no services:, so DATABASE_URL must be the unreachable sentinel
+          job="gate-db-free"  services=[]  container=true  authority=127.0.0.1:59999  expected=127.0.0.1:59999
+  ok    addressing rule — "gate-db" runs ON the runner, so the host must be localhost and every service MUST declare ports:
+          job="gate-db"  container=false  host=localhost  ports=[postgres=["5432:5432"]]
+  ok    addressing rule — "gate-price-parity" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-price-parity"  container=true  host=postgres  service labels=[postgres]  ports=null
+CHECKER-EXIT=0
+
+$ git checkout -- .github/workflows/ci.yml
+$ md5sum .github/workflows/ci.yml            # REVERTED — must equal the first md5 above
+925db7b91bccc2d1ab1220b1441e1e58 *.github/workflows/ci.yml
+$ git status --porcelain -- .github/workflows/ci.yml
+(no line above = the working tree is clean; the measurement left nothing behind)
+
+================================================================================
+TASK 1 / VECTOR WR-02 — the trigger block rewritten in the DOCUMENTED SEQUENCE spelling
+================================================================================
+EXPECTED BEFORE THE REPAIR: RED — AND THIS ONE IS THE FALSE RED. `on: [push, pull_request]` is a CORRECT file. `triggersOf` does `Object.keys` over an array, so the trigger names come back as the array INDICES "0" and "1" and the membership conjunct fails. A check that reddens a correct file is the check that gets deleted rather than repaired, which is why the form-aware accessor is a PREREQUISITE for the CR-01 fix and not an optional tidy.
+
+$ md5sum .github/workflows/ci.yml            # tracked file, at HEAD
+925db7b91bccc2d1ab1220b1441e1e58 *.github/workflows/ci.yml
+
+$ node <apply mutation "sequence-form" to the TRACKED file>
+applied sequence-form
+
+$ md5sum .github/workflows/ci.yml            # MUTATED
+6d1408f8ff050dae5ed916201573f1ac *.github/workflows/ci.yml
+
+$ git diff --unified=1 -- .github/workflows/ci.yml
+@@ -707,6 +707,3 @@ name: ci
+ 
+-on:
+-  push:
+-    branches: [dev, main]
+-  pull_request:
++on: [push, pull_request]
+ 
+
+$ node scripts/verify-workflows.mjs   # (parsed-values block elided — see ELISION RULE)
+verify-workflows — parse-based invariants over .github/workflows/
+sections            baselines, ci, cross
+@playwright/test    1.60.0 (installed)
+expected image      mcr.microsoft.com/playwright:v1.60.0-noble
+
+── baselines — .github/workflows/baselines.yml (job "generate-baselines") ──────────────────────
+  ok    the ONLY trigger is workflow_dispatch (no push, no pull_request, no schedule)
+          triggers=[workflow_dispatch]
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    job "generate-baselines" permissions.contents is 'write'
+          job permissions={"contents":"write"}
+  ok    exactly ONE job in this workflow holds contents: write
+          jobs with contents:write=[generate-baselines]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    container image tag is pinned and equals the installed @playwright/test version
+          image=mcr.microsoft.com/playwright:v1.60.0-noble  expected=mcr.microsoft.com/playwright:v1.60.0-noble  (@playwright/test=1.60.0)
+  ok    container options carry --ipc=host
+          container.options=--ipc=host
+  ok    exactly ONE run command contains --update-snapshots
+          run commands=8  carrying --update-snapshots=1
+  ok    zero `secrets.` references in any env / run / with VALUE
+          scanned workflow env, job env, container env, service env, and every step run/env/with — 0 hits
+  ok    every `uses:` is a first-party actions/* action
+          uses=[actions/checkout@v4, actions/setup-node@v4]
+  ok    a run command stages exactly the *-visual-linux.png glob
+          found: git add -- "*-visual-linux.png"
+
+  parsed values (baselines):
+
+── ci — .github/workflows/ci.yml (5 job(s)) ────────────────────────────────────────────────────
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    NO job in ci.yml holds contents: write — the write path is baselines.yml alone
+          jobs with contents:write=[(none)]  jobs=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  FAIL  ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull request
+          triggers=[0, 1]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    every `uses:` across every job is a first-party actions/* action
+          uses=[gate-db-free:actions/checkout@v4, gate-db-free:actions/setup-node@v4, gate-db:actions/checkout@v4, gate-db:actions/setup-node@v4, gate-price-parity:actions/checkout@v4, gate-price-parity:actions/setup-node@v4, gate-visual:actions/checkout@v4, gate-visual:actions/setup-node@v4, gate-e2e:actions/checkout@v4, gate-e2e:actions/setup-node@v4]
+  ok    ZERO run commands in ci.yml carry --update-snapshots — this file can never mint a baseline
+          run commands=21 across 5 job(s)  carrying the flag=0
+  ok    zero `secrets.` references in any env / run / with VALUE, across every job
+          scanned workflow env, every job env, every container env, every service env, and every step run/env/with — 0 hits
+  ok    no job, step or workflow env KEY declares RESEND_API_KEY — the e2e suite must send zero real email
+          hits=[(none)]  scanned 5 job(s), their steps, and the workflow env  prefix=RESEND
+  ok    every job declaring a container: pins the exact installed-Playwright image
+          containerized=[gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every containerized job carries --ipc=host
+          options=[gate-db-free="--ipc=host", gate-price-parity="--ipc=host", gate-visual="--ipc=host", gate-e2e="--ipc=host"]
+  ok    every service image is postgis/postgis: with a tag qualified beyond the bare major
+          services=[gate-db.postgres=postgis/postgis:18-3.6, gate-price-parity.postgres=postgis/postgis:18-3.6, gate-visual.postgres=postgis/postgis:18-3.6, gate-e2e.postgres=postgis/postgis:18-3.6]
+  ok    addressing rule — "gate-db-free" declares no services:, so DATABASE_URL must be the unreachable sentinel
+          job="gate-db-free"  services=[]  container=true  authority=127.0.0.1:59999  expected=127.0.0.1:59999
+  ok    addressing rule — "gate-db" runs ON the runner, so the host must be localhost and every service MUST declare ports:
+          job="gate-db"  container=false  host=localhost  ports=[postgres=["5432:5432"]]
+  ok    addressing rule — "gate-price-parity" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-price-parity"  container=true  host=postgres  service labels=[postgres]  ports=null
+CHECKER-EXIT=1
+
+$ git checkout -- .github/workflows/ci.yml
+$ md5sum .github/workflows/ci.yml            # REVERTED — must equal the first md5 above
+925db7b91bccc2d1ab1220b1441e1e58 *.github/workflows/ci.yml
+$ git status --porcelain -- .github/workflows/ci.yml
+(no line above = the working tree is clean; the measurement left nothing behind)
