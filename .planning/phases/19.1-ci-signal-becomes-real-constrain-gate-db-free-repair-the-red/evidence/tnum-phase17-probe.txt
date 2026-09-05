@@ -1,0 +1,478 @@
+19.1-02 Task 3 — THE TWO OPEN VERDICTS, PROBED
+==============================================
+
+PART 1 answers RESEARCH.md Open Question 1: did Phase 17 close the Geist `tnum` finding that
+`e2e/tabular-figures.spec.ts:361` asserts against? Plan 11 branches on this and must not re-litigate it.
+
+PART 2 answers RESEARCH.md Assumptions Log A3: do `avatar-crop`'s three real-upload cases pass on this
+laptop? Plan 10 chooses a route on this and must not re-litigate it either.
+
+⚠ NOTHING BELOW PRINTS A CREDENTIAL VALUE, AN ENVIRONMENT-VARIABLE VALUE OR A SIGNED URL. Only names,
+counts and outcomes. The rule `scripts/refuse-mail-credential.mjs` states about its own diagnostics binds
+every diagnostic this phase writes, and D-07 publishes this directory.
+
+════════════════════════════════════════════════════════════════════════════════════════════
+PART 1 — THE TABULAR-FIGURE VERDICT
+════════════════════════════════════════════════════════════════════════════════════════════
+
+── 1a. Does a Phase 17 directory exist, and does anything in it name the finding? ──────────
+
+$ ls -d .planning/phases/17* .planning/phases/*17* 2>/dev/null
+(no path matched)
+
+$ grep -rniE "tnum|tabular-nums|tabular figures" .planning/ROADMAP.md .planning/REQUIREMENTS.md
+(no match)
+
+$ grep -rniE "tnum" .planning/phases/17* | head -60
+
+$ grep -rlniE "tnum" .planning/ --include=*.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-13-PLAN.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-13-SUMMARY.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-16-SUMMARY.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-RESEARCH.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-UI-SPEC.md
+.planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/19.1-02-PLAN.md
+.planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/19.1-10-PLAN.md
+.planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/19.1-11-PLAN.md
+.planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/19.1-RESEARCH.md
+.planning/STATE.md
+
+$ grep -rliE "Geist" .planning/ --include=*.md
+.planning/milestones/v1.0-ui-specs/02-UI-SPEC.md
+.planning/milestones/v1.0-ui-specs/03-UI-SPEC.md
+.planning/milestones/v1.0-ui-specs/04-UI-SPEC.md
+.planning/milestones/v1.0-ui-specs/05-UI-SPEC.md
+.planning/milestones/v1.0-ui-specs/06-UI-SPEC.md
+.planning/milestones/v1.0-ui-specs/07-UI-SPEC.md
+.planning/milestones/v1.0-ui-specs/08-UI-SPEC.md
+.planning/milestones/v1.0-ui-specs/09-UI-SPEC.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-03-PLAN.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-03-SUMMARY.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-05-PLAN.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-05-SUMMARY.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-12-SUMMARY.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-15-PLAN.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-CONTEXT.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-DISCUSSION-LOG.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-PATTERNS.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-RESEARCH.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-UI-SPEC.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-VALIDATION.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/10-VERIFICATION.md
+.planning/milestones/v1.1-phases/10-design-system-foundation-theme-runtime/deferred-items.md
+.planning/milestones/v1.1-phases/11-quality-gates-pattern-layer-app-shell/11-18-PLAN.md
+.planning/milestones/v1.1-phases/11-quality-gates-pattern-layer-app-shell/11-20-PLAN.md
+.planning/milestones/v1.1-phases/11-quality-gates-pattern-layer-app-shell/11-20-SUMMARY.md
+.planning/milestones/v1.1-phases/11-quality-gates-pattern-layer-app-shell/11-REVIEW.md
+.planning/milestones/v1.1-phases/11-quality-gates-pattern-layer-app-shell/11-UI-SPEC.md
+.planning/milestones/v1.1-phases/12-booker-path-search-listing-checkout/12-UI-SPEC.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-02-PLAN.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-02-SUMMARY.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-13-PLAN.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-13-SUMMARY.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-16-SUMMARY.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-PATTERNS.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-RESEARCH.md
+.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-UI-SPEC.md
+.planning/milestones/v1.1-phases/14-host-tooling/14-UI-SPEC.md
+.planning/milestones/v1.1-phases/15-auth-profile-transactional-email/15-UI-SPEC.md
+.planning/milestones/v1.1-phases/16-image-crop-framing/16-UI-SPEC.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-UI-SPEC.md
+.planning/milestones/v1.1-REQUIREMENTS.md
+.planning/milestones/v1.1-research/ARCHITECTURE.md
+.planning/milestones/v1.1-research/FEATURES.md
+.planning/milestones/v1.1-research/PITFALLS.md
+.planning/milestones/v1.1-research/STACK.md
+.planning/milestones/v1.1-research/SUMMARY.md
+.planning/milestones/v1.1-ROADMAP.md
+.planning/MILESTONES.md
+.planning/phases/18-host-verification-listing-review-fitout-ops/18-UI-SPEC.md
+.planning/phases/18.1-close-phase-18-verification-submission-didit-listing-gate/18.1-UI-SPEC.md
+.planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-UI-SPEC.md
+.planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/19.1-02-PLAN.md
+.planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/19.1-RESEARCH.md
+.planning/phases/999.2-profile-picture-and-listing-photo-crop-ui/999.2-UI-SPEC.md
+.planning/STATE.md
+
+── 1b. Phase 17 is archived under .planning/milestones/. Grepped directly: ─────────────────
+
+$ ls .planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines
+17-01-PLAN.md
+17-01-SUMMARY.md
+17-02-PLAN.md
+17-02-SUMMARY.md
+17-03-PLAN.md
+17-03-SUMMARY.md
+17-04-PLAN.md
+17-04-SUMMARY.md
+17-05-PLAN.md
+17-05-SUMMARY.md
+17-06-PLAN.md
+17-06-SUMMARY.md
+17-07-PLAN.md
+17-07-SUMMARY.md
+17-08-PLAN.md
+17-08-SUMMARY.md
+17-09-PLAN.md
+17-09-SUMMARY.md
+17-10-PLAN.md
+17-10-SUMMARY.md
+17-11-PLAN.md
+17-11-SUMMARY.md
+17-12-PLAN.md
+17-12-SUMMARY.md
+17-13-PLAN.md
+17-13-SUMMARY.md
+17-14-PLAN.md
+17-14-SUMMARY.md
+17-CONTEXT.md
+17-DISCUSSION-LOG.md
+17-PATTERNS.md
+17-RESEARCH.md
+17-REVIEW.md
+17-SECURITY.md
+17-UI-SPEC.md
+17-VALIDATION.md
+17-VERIFICATION.md
+baseline-evidence.md
+deferred-items.md
+e2e-baseline-reds.md
+
+$ grep -rniE 'tnum|tabular-nums|tabular figures|font-variant-numeric' .planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-04-SUMMARY.md:162:- **Issue:** The plan names the status-chip rows as the skip case. The UI-SPEC's declared set also contains "every `tabular-nums` money figure in a fixed-height box" and "every named 44px action's label", and leaving either out is exactly the silent absence AC#2's discipline forbids.
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-11-PLAN.md:239:    reach: every **status chip label** on the booking surfaces, and every `tabular-nums` money figure in
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-11-SUMMARY.md:41:  - "`MONEY_FIGURE` narrows the price class by CURRENCY SYMBOL, because `tabular-nums` is on dates too — the literal reading of 17-UI-SPEC's price class went red on a when-label"
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-11-SUMMARY.md:121:| `dd.tabular-nums` (a when-label on the receipt) | **48** | 24 | two lines — `tabular-nums` is on dates too |
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-11-SUMMARY.md:175:**3. [Rule 1 - Bug] `tabular-nums` is not the same thing as "a money figure"**
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-11-SUMMARY.md:178:- **Issue:** 17-UI-SPEC's price class read literally is *every `tabular-nums` money figure*; the utility is deliberately on DATES too (`payout-row.tsx` says so). A when-label is prose and wraps by design, so the literal reading is red on a correct tree and names the wrong defect.
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-11-SUMMARY.md:207:**Impact on plan:** No scope creep — every change is inside the one file the plan names, plus two reverted red-watch mutations to `src/components/ui/badge.tsx` and one reverted throwaway route. Every deviation makes an assertion harder to pass or removes a way for one to pass vacuously; none relaxes a claim. Three of the six exist because the plan's stated subject (a status chip, a `tabular-nums` money figure, a surface with an action) is not what the shipped tree actually contains.
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-UI-SPEC.md:217:| **Price** | The sticky bar's rate line · `data-testid="price-total"` · every `tabular-nums` money figure in a fixed-height box | A wrapped rate in a 64px bar is a clipped rate, on the one surface carrying the price at 320px |
+
+$ grep -rniE 'geist' .planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-UI-SPEC.md:82:| Font | Geist Sans / Geist Mono via `next/font/google` | none |
+
+$ grep -rniE 'Assumption A1|13-RESEARCH' .planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines
+(no match — exit 1)
+
+$ grep -rlniE 'font' .planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-05-PLAN.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-06-PLAN.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-06-SUMMARY.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-07-PLAN.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-09-PLAN.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-10-PLAN.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-10-SUMMARY.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-11-PLAN.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-12-PLAN.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-12-SUMMARY.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-14-PLAN.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-PATTERNS.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-RESEARCH.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-REVIEW.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-UI-SPEC.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/baseline-evidence.md
+.planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/deferred-items.md
+
+── 1c. What the "none" column means, what the deferred list holds, and where the finding
+       actually went ────────────────────────────────────────────────────────────────────
+
+$ sed -n '78,86p' .planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/17-UI-SPEC.md
+| Tool | shadcn — `components.json`, `style: "radix-nova"`, `baseColor: "neutral"`, `cssVariables: true`, no JS config | none |
+| Registries | `"registries": {}` — **zero third-party** (verified 2026-08-28) | none |
+| Component library | Radix via **32 vendored primitives** in `src/components/ui/**` | **no new block is fetched** |
+| Icon library | `lucide-react` | none |
+| Font | Geist Sans / Geist Mono via `next/font/google` | none |
+| Styling engine | Tailwind CSS 4.3.0, `@theme inline` | none |
+| Theme runtime | `next-themes`, `attribute="data-theme"`, `["court","grove"]`, default `court`, `enableSystem={false}`, no runtime switcher | none |
+| Product theme | **`court`** — the only theme a user can reach (D-138, D-06) | **named as such for the first time in a UI-SPEC** |
+| Probe theme | **`grove`** — token-contract probe; three cheap proofs only (key-set parity, contrast table, four-surface swap) | none |
+
+$ grep -rniE 'tnum|tabular' .planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/deferred-items.md
+(no match — exit 1)
+
+$ grep -rniE 'tnum' .planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-16-SUMMARY.md
+356:| **Assumption A1 — `tabular-nums` — SETTLED, and its GOOD branch is live** | Money pair **0px** apart WITH `tabular-nums`; **42.71875px (court) / 49.0px (grove)** apart WITHOUT. Two equal-length references with `font-mono` removed and `tabular-nums` retained: **116.156px vs 104.469px — an 11.69px spread** | **No Phase-17 finding to hand forward.** The Google-Fonts build of Geist ships a working `tnum` table and the utility is load-bearing on every money surface. The assertion stays and its failure message still names Phase 17 — one measurement on one Chromium build is not a permanent property of a font pipeline |
+
+$ grep -rn "next/font/google" src/ | head
+src/app/layout.tsx:2:import { Geist, Geist_Mono } from "next/font/google";
+src/app/og-render.ts:127: * `next/font/google` exposes no buffer — it emits CSS and a `woff2`, and satori reads neither CSS
+src/lib/site.ts:80: * whole module graph — `next/font/google`, `globals.css`, the theme provider — into every component
+
+$ git log --oneline --all -- src/app/layout.tsx | head -20
+54fa002 feat(11-14): the footer, and the support slot that is absent rather than faked
+151f5e2 fix(10): WR-05 require an http(s) metadataBase, WR-06 document NEXT_PUBLIC_APP_URL
+d4a7bf4 fix(10): WR-12 stop a blank NEXT_PUBLIC_APP_URL crashing every route
+71db2d9 fix(10-15): give the tab icon exactly one owner
+5468db6 feat(10-15): themed favicon swap, and delete the create-next-app residue
+1ce8756 feat(10-05): mount the theme provider, FitOut identity metadata and the Sonner map
+5485d0f feat(01-01): scaffold Next.js 16 App Router with pinned deps
+
+── 1d. The spec's own provenance, and the record that settles it ──────────────────────────
+
+$ git log --oneline --all -- e2e/tabular-figures.spec.ts
+593d971 test(13-13): measure the glyph advances, and settle Assumption A1 with numbers
+
+$ git log --oneline --all -- src/app/globals.css | head -20
+4c8f926 feat(12-13): the flip, and the two windows that are the alternative
+6d086d3 test(12-01): the rendered gutter on /, the GATE-06 tripwire, and the --z-sheet zero restated
+e448282 test(11-09): assert the --z-sheet zero, with its reason
+5468db6 feat(10-15): themed favicon swap, and delete the create-next-app residue
+bf5584d fix(10-12): narrow Tailwind's content root to src/ (closes deferred item D-1)
+afdaf2b fix(10-07): remove every half-alpha focus ring, all 14 remaining sites
+06cac90 feat(10-04): add the global reduced-motion reset and a solid base focus colour
+47a9005 feat(10-04): add the elevation steps, the z scale and the motion budget
+b76a77e feat(10-04): author the per-theme type scale as named token steps
+6254ec7 feat(10-03): author the court and grove theme blocks
+c8b6172 fix(10-03): resolve the --font-sans cycle and drop 13 dead tokens
+526a727 chore(02-02): add Phase-2 deps, FitOut brand/success tokens, 15 shadcn components, PayMongo env
+f84dd12 feat(01-01): wire Dockerized Postgres 18 + Drizzle + env + shadcn/ui
+5485d0f feat(01-01): scaffold Next.js 16 App Router with pinned deps
+
+$ sed -n "352,360p" .planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-16-SUMMARY.md
+### 4. Findings handed forward
+
+| Finding | Measurement | Where it goes |
+|---|---|---|
+| **Assumption A1 — `tabular-nums` — SETTLED, and its GOOD branch is live** | Money pair **0px** apart WITH `tabular-nums`; **42.71875px (court) / 49.0px (grove)** apart WITHOUT. Two equal-length references with `font-mono` removed and `tabular-nums` retained: **116.156px vs 104.469px — an 11.69px spread** | **No Phase-17 finding to hand forward.** The Google-Fonts build of Geist ships a working `tnum` table and the utility is load-bearing on every money surface. The assertion stays and its failure message still names Phase 17 — one measurement on one Chromium build is not a permanent property of a font pipeline |
+| **D-81's re-probe (WALK D)** | **NOT RUN — deferred.** Last two probes: 2026-07-23 and 2026-08-20, both `HTTP 400`, *"Refunds are not allowed for payments with source type qrph."* | UAT session. `REFUNDABLE_RAILS` unchanged; a 2xx is a finding that changes D-82's policy split |
+| **`ALLOWED_RAW_CARD` exempts a file in BOTH directions, permanently** | `tests/design/cancel-page-shell.test.tsx:17` records it: the allow-list half only asserts the named file **exists** (`parsedByFile.has(file)`), so a file that **stops** rendering a raw container does not redden its row. `card-pattern-coverage.test.ts:135` records the other direction: *"THE ALLOW-LIST IS A LIST OF FILES, NOT OF CALL SITES"* — a listed file can grow a sixth `<Card>` unnoticed | **Phase 17.** Its audit leans on this gate. A row left in place after its reason expired is a silent permanent exemption, and the cancel page now holds exactly such a row deliberately (with a `⚠ If this page is ever deleted or moved, that row must go in the same commit` note as the only thing standing between it and rot) |
+| **13-15's seven named skips** | `e2e/overflow-320.spec.ts`'s Phase-13 sweep: 25 cases, **18 passed / 7 skipped / exit 0**. Every skip throws its reason (`unreachable: {row.skip}`) so it travels into the run's own output rather than living in a comment | Recorded, not a defect. The D-83 ordering case computes **two independent blockers** at runtime and starts RUNNING the day either is fixed — it cannot go green for the wrong reason |
+| **The unnoticed phase-close over a red GATE-01** | Run `32274691204` on `bcdc7ec` (phase-12 completion): `9 failed / 1 did not run`. Phase 12 closed anyway; Phase 13 inherited it | **Phase 17.** No gate notices a phase COMPLETING with GATE-01 red |
+
+── 1e. AND THE ONE RUN THE GREP CANNOT SUBSTITUTE FOR ──────────────────────────────────────
+
+  The grep above establishes that Phase 17 shipped nothing, but the plan's binary ("stale spec" vs
+  "still-open finding") does not fit what the grep found — 13-16-SUMMARY records the finding as SETTLED
+  GREEN, which is neither. This plan's own prohibition applies: "A triage verdict must never be
+  recorded from a job log alone when a local run can settle it." So the spec was run.
+
+$ npx playwright test e2e/tabular-figures.spec.ts --project=chromium --reporter=list
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[33m[1m⚠[22m[39m The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 2 tests using 1 worker
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[MEASUREMENT court] reference widths: 115.203125 / 115.203125 (spread 0px) · money pair WITH tabular-nums: 108.921875 / 108.921875 (spread 0px) · WITHOUT: 75.265625 / 117.984375 (spread 42.71875px)
+  ok 1 [chromium] › e2e\tabular-figures.spec.ts:361:7 › TRUST-02 — the reference is fixed-advance-width, measured rather than assumed › (1) court — the reference lines up, and the money pair is measured (12.1s)
+[MEASUREMENT grove] reference widths: 122.40625 / 122.40625 (spread 0px) · money pair WITH tabular-nums: 136.234375 / 136.234375 (spread 0px) · WITHOUT: 97.71875 / 146.765625 (spread 49.046875px)
+  ok 2 [chromium] › e2e\tabular-figures.spec.ts:377:7 › TRUST-02 — the reference is fixed-advance-width, measured rather than assumed › (2) grove — the same measurements, the other theme (9.6s)
+
+  2 passed (36.5s)
+
+$ echo $?
+0
+
+────────────────────────────────────────────────────────────────────────────────────────────
+
+VERDICT (tabular figures) — PHASE 17 SHIPPED NO CHANGE, AND NONE WAS OWED: the finding was never open. `.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-16-SUMMARY.md:356` is the artefact this rests on — it records A1 as "SETTLED, and its GOOD branch is live … No Phase-17 finding to hand forward." The spec is NOT stale (it passes locally, 0px spread, byte-identical to 13-16's recorded numbers) and the finding is NOT open, so plan 11 must take NEITHER of the two branches RESEARCH.md offered: `e2e/tabular-figures.spec.ts:361` is a CI-ENVIRONMENT-SPECIFIC FONT-PIPELINE FAILURE, in the same class as Cause B.
+
+  THE ARTEFACTS THE VERDICT RESTS ON, EACH NAMED:
+
+  (i) A Phase 17 directory EXISTS — archived, 40 files:
+        .planning/milestones/v1.1-phases/17-cross-cutting-audit-themes-responsive-a11y-baselines/
+      It is NOT absent, and this is stated explicitly because absence would also have been a finding.
+
+  (ii) NOTHING in it names the finding. `grep -rniE 'tnum|tabular-nums|tabular figures|
+       font-variant-numeric'` over that directory returns four hits, ALL of them about the
+       `tabular-nums` UTILITY as a wrap/height subject and NONE about the font's `tnum` TABLE:
+
+         17-UI-SPEC.md:217     | **Price** | … every `tabular-nums` money figure in a fixed-height box |
+         17-11-SUMMARY.md:175  **3. [Rule 1 - Bug] `tabular-nums` is not the same thing as "a money figure"**
+
+       `grep -rniE 'Assumption A1|13-RESEARCH'` over the same directory returns NOTHING. The finding
+       the spec hands to Phase 17 was never picked up there.
+
+  (iii) The font was explicitly OUT OF SCOPE for Phase 17. `17-UI-SPEC.md:82`, in the inventory table
+        whose third column is the change each row is permitted:
+
+          | Font | Geist Sans / Geist Mono via `next/font/google` | none |
+
+        and `17-*/deferred-items.md` holds no `tnum` or `tabular` row either, so it was not deferred —
+        it was never on the list.
+
+  (iv) NO FONT CHANGE SHIPPED, ANYWHERE. `src/app/layout.tsx` still imports `{ Geist, Geist_Mono }`
+       from `next/font/google`, and its last commit is `54fa002 feat(11-14)` — PHASE 11, i.e. BEFORE
+       Phase 13 measured A1 at all. `src/app/globals.css`'s last commit is `4c8f926 feat(12-13)`.
+       Nothing in the font pipeline moved between the measurement and today.
+
+  (v) THE MEASUREMENT THAT REVERSES RESEARCH.md's HYPOTHESIS. The spec was authored by
+      `593d971 test(13-13): measure the glyph advances, and settle Assumption A1 with numbers`, and
+      `13-16-SUMMARY.md:356` records the result verbatim:
+
+        "**Assumption A1 — `tabular-nums` — SETTLED, and its GOOD branch is live** | Money pair **0px**
+         apart WITH `tabular-nums`; **42.71875px (court) / 49.0px (grove)** apart WITHOUT … **No
+         Phase-17 finding to hand forward.** The Google-Fonts build of Geist ships a working `tnum`
+         table … The assertion stays and its failure message still names Phase 17 — one measurement on
+         one Chromium build is not a permanent property of a font pipeline"
+
+      RESEARCH.md § Cause E reads the spec's FAILURE MESSAGE as though it were a standing statement of
+      fact ("the Google Fonts build of Geist ships no usable tnum table") and concludes the spec
+      "asserts a property the codebase KNOWS is false". That message is the text printed WHEN THE
+      ASSERTION FAILS; the codebase's recorded knowledge is the opposite. The measurement wins.
+
+  (vi) AND IT STILL HOLDS TODAY, ON THIS MACHINE. Read from the run in 1e above:
+
+        [MEASUREMENT court] … money pair WITH tabular-nums: 108.921875 / 108.921875 (spread 0px) · WITHOUT: 75.265625 / 117.984375 (spread 42.71875px)
+        [MEASUREMENT grove] … money pair WITH tabular-nums: 136.234375 / 136.234375 (spread 0px) · WITHOUT: 97.71875 / 146.765625 (spread 49.046875px)
+        2 passed (36.5s)
+
+      0px spread in both themes, and the WITHOUT figures are byte-identical to 13-16's
+      42.71875 / 49.0. The assertion is satisfiable and satisfied on a correct tree.
+
+  WHAT PLAN 11 MUST DO WITH THIS — the branch it is actually on:
+
+    NOT "repair a stale spec" (it is not stale — it passes), and NOT "annotate a known open finding"
+    (there is no open finding — 13-16 closed it green). The CI red — `spread 7px`, `Expected: <= 0.05
+    Received: 7` — is produced by the PINNED PLAYWRIGHT CONTAINER and not by the tree. In
+    `mcr.microsoft.com/playwright:v1.60.0-noble` the Geist build the page actually gets has no usable
+    `tnum` table: either `next/font/google` could not fetch it and fell back, or the container resolves
+    a different build than this laptop's Chromium does. Plan 11 should reproduce IN THE CONTAINER
+    before choosing a mechanism, and treat the result as an environment-capability gap of the same
+    class as Cause B (the routes there — intercept, ship the asset locally, or annotate with the real
+    reason — are the same three).
+
+    ⚠ IF PLAN 11 ANNOTATES IT ANYWAY, THE REASON STRING MUST NOT SAY "known open finding handed to
+    Phase 17". That sentence is false, and an allowlist entry carrying a false reason is precisely the
+    defect D-03's written-reason requirement exists to prevent. The true reason is: the assertion holds
+    on a developer machine and fails only in the pinned CI container, which is a font-delivery
+    difference and not a product property.
+
+════════════════════════════════════════════════════════════════════════════════════════════
+PART 2 — THE LOCAL AVATAR VERDICT (RESEARCH.md Assumptions Log A3)
+════════════════════════════════════════════════════════════════════════════════════════════
+
+── 2a. The bring-up sequence from evidence/triage-harness.md, run verbatim ─────────────────
+
+$ npm run db:up
+
+> fitout@0.1.0 db:up
+> docker compose up -d db
+
+ Container fitout-db-1 Running 
+
+$ npm run db:migrate
+Using 'postgres' driver for database querying
+[⣷] applying migrations...{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P06',
+  message: 'schema "drizzle" already exists, skipping',
+  file: 'schemacmds.c',
+  line: '132',
+  routine: 'CreateSchemaCommand'
+}
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '42P07',
+  message: 'relation "__drizzle_migrations" already exists, skipping',
+  file: 'parse_utilcmd.c',
+  line: '208',
+  routine: 'transformCreateStmt'
+}
+[2K[1G[✓] migrations applied successfully!
+$ npm run db:seed
+
+> fitout@0.1.0 db:seed
+> tsx scripts/seed.ts
+
+Seeded 5 published bookable listings (host seed_host_1, origin 14.5547,121.0244). seed_listing_5 sits beyond the 10 km radius; seed_listing_4 is a gym tagged 'basketball' (disjoint type/tag).
+
+$ rm -rf .next
+(removed)
+
+$ netstat -ano | grep -E ':3000[[:space:]]' || echo "port 3000 is free"
+port 3000 is free
+
+── 2b. The run ─────────────────────────────────────────────────────────────────────────────
+
+$ npx playwright test e2e/avatar-crop.spec.ts --project=chromium --reporter=list
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[33m[1m⚠[22m[39m The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 33 tests using 4 workers
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  ok  1 [chromium] › e2e\avatar-crop.spec.ts:422:7 › CROP-01 — the crop stage renders in a real browser › picking a valid photo opens the dialog and the stage is addressable by its accessible name (20.1s)
+  ok  2 [chromium] › e2e\avatar-crop.spec.ts:500:9 › CROP-01 / Delta-2 — the stage measures its three derived terms › 1280x800: the stage is a 320px square inside its wrapper (20.2s)
+  ok  3 [chromium] › e2e\avatar-crop.spec.ts:500:9 › CROP-01 / Delta-2 — the stage measures its three derived terms › 360x640: the stage is a 256px square inside its wrapper (20.2s)
+  ok  4 [chromium] › e2e\avatar-crop.spec.ts:500:9 › CROP-01 / Delta-2 — the stage measures its three derived terms › 320x568: the stage is a 227.2px square inside its wrapper (19.9s)
+  ok  5 [chromium] › e2e\avatar-crop.spec.ts:548:7 › CROP-01 / Delta-4 — a one-finger drag on the stage cannot scroll the sheet › the cropper's container computes `touch-action: none`, and the shared dialog box does not (11.4s)
+  ok  8 [chromium] › e2e\avatar-crop.spec.ts:742:9 › CROP-01 / 999.2 § 2e — the four pre-dialog refusals, decoded for real › tiny.svg is refused before the dialog (guard 1 · TYPE — `image/svg+xml`, a scriptable document) (13.7s)
+  ok  7 [chromium] › e2e\avatar-crop.spec.ts:742:9 › CROP-01 / 999.2 § 2e — the four pre-dialog refusals, decoded for real › tiny.gif is refused before the dialog (guard 1 · TYPE — `image/gif` is outside AVATAR_ALLOWED_TYPES) (13.8s)
+  ok  6 [chromium] › e2e\avatar-crop.spec.ts:642:7 › CROP-01 / Delta-6 — the mask ring is 2px in --background and the scrim is 55% ink › the crop area's computed border and scrim colour are the contract's, by whichever route won (13.9s)
+  ok  9 [chromium] › e2e\avatar-crop.spec.ts:742:9 › CROP-01 / 999.2 § 2e — the four pre-dialog refusals, decoded for real › corrupt.jpg is refused before the dialog (guard 3 · DECODE — a plausible JPEG header cut inside its Huffman tables) (12.5s)
+  ok 10 [chromium] › e2e\avatar-crop.spec.ts:742:9 › CROP-01 / 999.2 § 2e — the four pre-dialog refusals, decoded for real › tiny-150.png is refused before the dialog (guard 4 · DIMENSIONS — 150px shorter side, below AVATAR_MIN_SOURCE_PX) (12.5s)
+  ok 12 [chromium] › e2e\avatar-crop.spec.ts:836:9 › CROP-01 / rule F8 — the zoom row is disabled with its reason, conditionally › small-300.png (shorter 300px): the row is DISABLED — avatarMaxZoom(300) === 1 — inside D-173's [200, 400) soft band (12.5s)
+  ok 11 [chromium] › e2e\avatar-crop.spec.ts:836:9 › CROP-01 / rule F8 — the zoom row is disabled with its reason, conditionally › square-400.png (shorter 400px): the row is DISABLED — avatarMaxZoom(400) === 1 — no headroom (IC-05's own 400x400 row) (12.5s)
+  ok 13 [chromium] › e2e\avatar-crop.spec.ts:836:9 › CROP-01 / rule F8 — the zoom row is disabled with its reason, conditionally › panorama-4000x500.jpg (shorter 500px): the row is enabled — avatarMaxZoom(500) === 1.25 — real headroom, so neither half applies (14.1s)
+  ok 14 [chromium] › e2e\avatar-crop.spec.ts:910:7 › CROP-01 / D-174 — the same file, picked twice, opens the cropper twice › cancelling and re-choosing the identical file re-opens the dialog (14.9s)
+  ok 16 [chromium] › e2e\avatar-crop.spec.ts:1209:9 › CROP-01 / D-178 — the stage pans by keyboard, with the library's clamp intact › panorama-4000x500.jpg: ArrowLeft pans x, ArrowUp is clamped on y (14.9s)
+  ok 19 [chromium] › e2e\avatar-crop.spec.ts:1321:5 › D-178: the crop dialog layers NO key handling over the library's (3.2s)
+  ok 15 [chromium] › e2e\avatar-crop.spec.ts:974:7 › CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert › Escape, the overlay click and the close control all do nothing while a save is in flight (20.4s)
+  ok 17 [chromium] › e2e\avatar-crop.spec.ts:1209:9 › CROP-01 / D-178 — the stage pans by keyboard, with the library's clamp intact › portrait-strip-500x4000.jpg: ArrowUp pans y, ArrowLeft is clamped on x (11.4s)
+  ok 18 [chromium] › e2e\avatar-crop.spec.ts:1260:7 › CROP-01 / D-178 — the stage pans by keyboard, with the library's clamp intact › Shift makes the step FINER, which is the shipped contract D-178 accepted (13.8s)
+  ok 23 [chromium] › e2e\avatar-crop.spec.ts:1918:7 › CROP-01 / IC-06 — one bitmap, one coordinate system, on a rotated source › IC-06: the crop dialog builds no image of its own — it draws the library's (2.8s)
+  ok 20 [chromium] › e2e\avatar-crop.spec.ts:1399:7 › CROP-01 / DS-05 — the focused stage draws a visible, undiluted indicator › the stage draws an indicator on keyboard focus, and its colour carries no alpha (15.3s)
+  ok 21 [chromium] › e2e\avatar-crop.spec.ts:1803:7 › CROP-01 / IC-06 — one bitmap, one coordinate system, on a rotated source › the crop rectangle is derived from the same oriented element the encoder draws (13.4s)
+  ok 22 [chromium] › e2e\avatar-crop.spec.ts:1855:7 › CROP-01 / IC-06 — one bitmap, one coordinate system, on a rotated source › WR-01: the crop square is repaired even with an INFINITE animation on the page (12.6s)
+  ok 26 [chromium] › e2e\avatar-crop.spec.ts:2133:7 › CROP-01 / D-172 + D-177 — transparency is flattened onto a white the person saw › animated.png: the saved bytes are ONE still frame of the two the source cycles (14.7s)
+  ok 25 [chromium] › e2e\avatar-crop.spec.ts:2073:7 › CROP-01 / D-172 + D-177 — transparency is flattened onto a white the person saw › transparent.png: the stage shows white through the alpha, and the saved JPEG stores it (15.1s)
+  ok 24 [chromium] › e2e\avatar-crop.spec.ts:1948:7 › CROP-01 / IC-02 — what the person saw is what leaves the browser › exif-orientation-6.jpg: the saved square samples the same as the preview it was framed in (17.3s)
+  ok 27 [chromium] › e2e\avatar-crop.spec.ts:2200:7 › CROP-01 / IC-06 + D-172 — the output size is the contract, not the source's size › small-300.png: a 300px source still stores a 400x400 JPEG (15.1s)
+  ok 29 [chromium] › e2e\avatar-crop.spec.ts:2395:7 › CROP-01 / GATE-STATES + rule F5 — a failed save keeps the work on screen › the pending window is a designed state, and the two absences beside it are designed too (14.0s)
+  ok 28 [chromium] › e2e\avatar-crop.spec.ts:2310:7 › CROP-01 / GATE-STATES + rule F5 — a failed save keeps the work on screen › the refusal is announceable, has a box, and the framing the person chose is untouched (15.2s)
+  ok 30 [chromium] › e2e\avatar-crop.spec.ts:2621:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the crop dialog: zero axe violations, and every stop paints a DS-05 indicator (18.9s)
+  ok 33 [chromium] › e2e\avatar-crop.spec.ts:2827:5 › harness: the dev server this file measures is the one the helpers name (5.0s)
+  ok 31 [chromium] › e2e\avatar-crop.spec.ts:2675:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated (18.0s)
+  ok 32 [chromium] › e2e\avatar-crop.spec.ts:2747:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) (13.5s)
+
+  33 passed (2.2m)
+
+$ echo $?
+0
+
+────────────────────────────────────────────────────────────────────────────────────────────
+
+VERDICT (avatar upload) — THE THREE CASES PASS LOCALLY. A3 IS CONFIRMED: the CI failures at `e2e/avatar-crop.spec.ts:974`, `:2675` and `:2747` are an ENVIRONMENT-CAPABILITY GAP, not broken specs, so plan 10 REPAIRS NOTHING and instead chooses among the three routes RESEARCH.md § Cause B lists — a `page.route` intercept over the Cloudinary endpoint, a locally-served committed asset, or an annotation carrying the invariant-forbidden-credential reason.
+
+  QUOTED FROM THE TRANSCRIPT IN 2b — the three cases by name, each `ok`:
+
+    ok 15 [chromium] › e2e\avatar-crop.spec.ts:974:7 › CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert › Escape, the overlay click and the close control all do nothing while a save is in flight (20.4s)
+    ok 31 [chromium] › e2e\avatar-crop.spec.ts:2675:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated (18.0s)
+    ok 32 [chromium] › e2e\avatar-crop.spec.ts:2747:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) (13.5s)
+
+  AND THE NON-VACUITY CHECK ON THIS RUN — it collected something, and every case in the file passed:
+
+    Running 33 tests using 4 workers
+    33 passed (2.2m)
+
+  Exit code 0. Zero failed, zero flaky, zero skipped.
+
+  WHAT THIS SETTLES, AND WHAT IT DOES NOT:
+
+    SETTLES — this machine's local environment DOES carry usable Cloudinary configuration, so the real
+    upload the three cases perform (`avatar-crop.spec.ts:322-329`: "a REAL avatar upload, and in each
+    one the upload is unavoidable rather than convenient") completes here. The CI failure message — the
+    avatar circle still showing initials after a "successful" save — is the absent-credential path,
+    the state `tests/listing/photos.test.ts:434` names as "the state every CI run is in (R1)".
+    ⚠ This also corrects the memory note RESEARCH.md cites for A3, which recorded the local Cloudinary
+    configuration as dummy. It is not: the uploads land.
+
+    DOES NOT SETTLE — `e2e/overflow-320.spec.ts:3400` was NOT run here; it is the fourth Cause-B item
+    and plan 10 owns it. Its reproduction line is in `evidence/triage-harness.md` § (c) item 4.
+
+    ⚠ AND THE ROUTE IS STILL CONSTRAINED, not free: giving CI a live Cloudinary credential is
+    invariant-forbidden. `scripts/verify-workflows.mjs` asserts "zero `secrets.` references in any env /
+    run / with VALUE, across every job", and the checker printed that green this session. Promoting the
+    three build-only literals in `gate-db-free` to secrets goes RED by design.
+
+    ⚠ AND A COST TO CARRY INTO PLAN 10: each of the three cases really stores a 400x400 JPEG under a
+    throwaway signup id, and `avatar-crop.spec.ts`'s file-scoped `afterEach` teardown (D-192) is what
+    cleans them. Repeated local triage runs of this file are billed uploads, not free ones.
