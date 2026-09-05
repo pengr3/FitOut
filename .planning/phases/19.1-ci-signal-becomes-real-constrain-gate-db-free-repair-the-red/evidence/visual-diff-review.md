@@ -5,9 +5,17 @@ were compared and their diff images destroyed on the same runner in the same sec
 uploaded them. They are now downloadable, and every figure below was measured from those images or from
 the job log — none is carried over from `19.1-RESEARCH.md`.
 
-**Verdict columns are deliberately empty.** Filling them is Task 2, and Task 2 is a blocking human
-decision (`gate="blocking-human"`). A pixel comparison cannot classify itself; that is the whole reason
-the diffs are uploaded first.
+**Verdict columns are filled as of Task 2** (blocking human decision, `gate="blocking-human"`). A pixel
+comparison cannot classify itself; that is the whole reason the diffs are uploaded first.
+
+**⚠ HOW THE VERDICTS WERE OBTAINED, STATED PRECISELY, BECAUSE THE PROVENANCE IS THE POINT.** The PM
+opened the five annotated crops in `_crops/` and classified **at the group level**: no regressions were
+found, and all twelve diffs are drift. The PM did **not** write twelve individual sentences, and this
+document does not pretend otherwise. So each row's `verdict` cell carries the PM's classification, and
+each row's `explanation` cell carries the **measured** cause established in Task 1 — the badge reflow for
+rows 1–8, and the badge plus the two-line explanation plus the two clock-dependent elements of section 3
+for rows 9–12. A row's explanation is therefore evidence, not testimony; the verdict is testimony, and it
+was given per group.
 
 ## Provenance
 
@@ -36,31 +44,45 @@ region, with no tolerance at all; it is larger by construction and the two are N
 
 | # | baseline | expected → received | Δh | px (PW) | px (exact) | first changed row | verdict | explanation |
 |---|---|---|---|---|---|---|---|---|
-| 1 | `dev-theme-320-court` | 320×24786 → 320×24842 | +56 | 510,560 | 1,898,145 | y 3265 | | |
-| 2 | `dev-theme-768-court` | 768×16969 → 768×17025 | +56 | 535,698 | 2,521,947 | y 2325 | | |
-| 3 | `dev-theme-1280-court` | 1280×8026 → 1280×8054 | +28 | 411,679 | 1,637,349 | y 2345 | | |
-| 4 | `search-results-320-court` | 320×2968 → 320×3024 | +56 | 61,175 | 193,805 | y 1289 | | |
-| 5 | `search-results-768-court` | 768×2080 → 768×2108 | +28 | 8,870 | 50,679 | y 1244 | | |
-| 6 | `search-results-1280-court` | 1280×1690 → 1280×1718 | +28 | 28,000 | 118,449 | y 853 | | |
-| 7 | `search-relax-band-320-court` | 320×1868 → 320×1868 | **0** | 385 | 2,572 | y 1367 (band ends y 1386) | | |
-| 8 | `search-relax-band-1280-court` | 1280×1260 → 1280×1260 | **0** | 385 | 2,572 | y 903 (band ends y 922) | | |
-| 9 | `listing-detail-320-court` | 320×3018 → 320×3094 | +76 | 6,846 | 63,268 | y 1174 | | |
-| 10 | `listing-detail-768-court` | 768×2488 → 768×2544 | +56 | 7,014 | 107,147 | y 1272 | | |
-| 11 | `listing-detail-1280-court` | 1280×2669 → 1280×2725 | +56 | 7,008 | 92,889 | y 1442 | | |
-| 12 | `collision-notice-1280-court` | 1280×2879 → 1280×2935 | +56 | 7,008 | 92,887 | y 1442 | | |
+| 1 | `dev-theme-320-court` | 320×24786 → 320×24842 | +56 | 510,560 | 1,898,145 | y 3265 | DRIFT | The `Checked by FitOut` badge (`e245dfe`, post-dates the baseline) wrapping to its own line on two cards of the theme gallery — 2 × 28px, and every pixel below y 3265 differs only by having moved. |
+| 2 | `dev-theme-768-court` | 768×16969 → 768×17025 | +56 | 535,698 | 2,521,947 | y 2325 | DRIFT | The same badge, wrapping on two cards at this width; identical +56 from the identical cause, and `_crops/devtheme-band.png` shows the wrap directly. |
+| 3 | `dev-theme-1280-court` | 1280×8026 → 1280×8054 | +28 | 411,679 | 1,637,349 | y 2345 | DRIFT | The same badge wrapping on ONE card at this width — the atomic +28 — because the wider gallery column lets the other card keep it inline. |
+| 4 | `search-results-320-court` | 320×2968 → 320×3024 | +56 | 61,175 | 193,805 | y 1289 | DRIFT | The same badge on the results cards; at the 320 floor it wraps on two of the three, giving 2 × 28px. |
+| 5 | `search-results-768-court` | 768×2080 → 768×2108 | +28 | 8,870 | 50,679 | y 1244 | DRIFT | The same badge wrapping on `Mandaluyong Open Mat Sessions` only — the card that already carries a `Drop-in` chip, so the badge has nowhere inline to go. |
+| 6 | `search-results-1280-court` | 1280×1690 → 1280×1718 | +28 | 28,000 | 118,449 | y 853 | DRIFT | The same single wrap on the same `Drop-in` card, read directly off `_crops/results-1280.png` where the other two cards keep the badge inline. |
+| 7 | `search-relax-band-320-court` | 320×1868 → 320×1868 | **0** | 385 | 2,572 | y 1367 (band ends y 1386) | DRIFT | The same badge, INLINE after `Tennis court` — it fits, so the card does not grow, and the entire change is a 20px band with nothing displaced. |
+| 8 | `search-relax-band-1280-court` | 1280×1260 → 1280×1260 | **0** | 385 | 2,572 | y 903 (band ends y 922) | DRIFT | Identical to row 7 at the other width — same badge, same inline fit, same byte-exact 2,572 changed pixels, confirming one element rather than two coincidences. |
+| 9 | `listing-detail-320-court` | 320×3018 → 320×3094 | +76 | 6,846 | 63,268 | y 1174 | DRIFT | Badge + the two-line explanation beneath it (+76 at this width), PLUS the two clock-dependent elements of section 3 — the calendar's today cell and `Host since August → September 2026` — neither of which regeneration can stabilise. |
+| 10 | `listing-detail-768-court` | 768×2488 → 768×2544 | +56 | 7,014 | 107,147 | y 1272 | DRIFT | The same three causes as row 9 at this width; the badge block contributes the +56 and the two clock-dependent elements contribute no height at all. |
+| 11 | `listing-detail-1280-court` | 1280×2669 → 1280×2725 | +56 | 7,008 | 92,889 | y 1442 | DRIFT | The same three causes, and the row-alignment scan above separates them on one page: today cell at y 1442, badge at y 2356, month word at y 2383, everything below y 2457 merely shifted 56px. |
+| 12 | `collision-notice-1280-court` | 1280×2879 → 1280×2935 | +56 | 7,008 | 92,887 | y 1442 | DRIFT | The same listing page in its refused-hold state, so it inherits all three causes unchanged — the pixel count differs from row 11 by 2, which is the notice itself and not a fourth cause. |
 
 Rows 7 and 8 carry **no** `Expected an image …, received …` line in the job log at all, because their
 dimensions did not move. `19.1-RESEARCH.md`'s delta table has ten rows for twelve baselines for exactly
 that reason; the two it is missing are these.
 
-## The two summary lines Task 2 must add
+## The two summary lines — written by Task 2
 
-Both are **deliberately absent** until a human has classified the rows. Task 2 writes them here, each
-beginning at column 0 so that `grep -c '^HYPOTHESIS'` and `grep -c '^REGRESSIONS'` measure Task 2's work
-and not this placeholder — a check a placeholder satisfies is a check that has stopped measuring
+Each begins at column 0 so that `grep -c '^HYPOTHESIS'` and `grep -c '^REGRESSIONS'` measure Task 2's
+work and not a placeholder — a check a placeholder satisfies is a check that has stopped measuring
 anything, which is the failure this phase exists to remove.
 
-<!-- Task 2: replace this comment with one line beginning HYPOTHESIS and one beginning REGRESSIONS. -->
+HYPOTHESIS held, but at ten of twelve rather than the plan's eleven: ONE shared element — the `Checked by FitOut` verification badge shipped by `e245dfe` after the 2026-08-30 baselines — explains rows 1 through 8 completely and explains the height change on rows 9 through 12; rows 9–12 additionally carry two elements that are functions of the CALENDAR rather than of the product (section 3), which neither the plan nor the research anticipated.
+
+REGRESSIONS: 0 — the PM classified at the group level against the five annotated crops and found no regressions; all twelve diffs are drift. Rows 9–12 are nonetheless NOT regenerated by this plan, and the reason is stability rather than correctness: their references would encode "today is 5 September 2026" and "Host since September 2026" and expire at the next day-rollover, so the outstanding condition on them is fixture work, not a defect fix. See "Rows 9–12" below.
+
+## What the PM decided, and the condition attached to it
+
+The PM chose neither of the plan's two options but a third that this checkpoint raised: **regenerate rows
+1–8 only, and treat rows 9–12's clock-dependence as fixture work to be done BEFORE those four references
+are minted.** A today-ring and a member-since line are both plausibly correct product behaviour; the
+objection is narrower and is only that a reference image encoding a particular calendar day expires the
+next day.
+
+The PM carried forward D-02's condition verbatim: **if the fixture fix is not small and localised, the
+phase grows by a plan rather than the diff being blessed.** Task 3 makes that call on measurement and
+records it. Leaving four baselines red with a stated reason is an acceptable outcome; minting an unstable
+reference is not.
 
 
 ---
