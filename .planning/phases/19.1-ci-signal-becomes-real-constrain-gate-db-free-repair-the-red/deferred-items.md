@@ -320,3 +320,58 @@ deployment-shaped risk rather than a test one — a Vercel environment missing t
 e2e harness supplies its own. ⚠ That last clause is the cost of this plan's repair, stated plainly: it
 buys a true CI signal for the 320px layout and it removes the accidental one for the missing variable.
 **Severity:** medium — a real production failure mode, currently unguarded and now unwatched.
+
+## 19.1-12 — a hydration mismatch on the two `checkout` baselines, which are currently GREEN
+
+**Found during:** 19.1-12 Task 1, reading `gate-visual`'s job log (run `33968421339`, job
+`101312530205`) for the mismatch `19.1-RESEARCH.md` reported without locating.
+
+**Located, from the log's interleaved `[WebServer]` and reporter lines:** it fires twice, at
+`13:22:04.754` and `13:22:12.588`, bracketed by test 49 `checkout-320-court.png` (passed, 9.3s) and
+test 50 `checkout-1280-court.png` (passed, 6.0s). The React stack names `url={"/listing..."}`
+`params={{id:"vrt_li..."}}`.
+
+    [browser] Uncaught Error: Hydration failed because the server rendered text didn't match the
+    client. As a result this tree will be regenerated on the client.
+
+**Why it is not fixed here:** the surface it fires on is not among this plan's twelve failing
+baselines — both `checkout` rows pass — so no image this plan regenerates is downstream of it, and
+19.1-12 modifies no product source. Fixing it means finding which text differs between server and
+client render on the listing/checkout tree, which is a product investigation and not a CI one.
+
+**Why it is worth keeping:** a hydration mismatch means the DOM the screenshot captured is one React
+regenerated on the client, so those two baselines are green by timing rather than by construction.
+They passed all three attempts of this run, which bounds the risk but does not remove it. If
+`checkout-320` or `checkout-1280` ever starts flapping, this is the first thing to read.
+
+**Severity:** low today (both baselines green, three-for-three), medium if either begins to flake.
+
+## 19.1-12 — `scripts/seed-baseline-fixtures.ts` seeds `created_at` with `now()`, and four baselines read the clock
+
+**Found during:** 19.1-12 Task 1, reading the uploaded diff images rather than the height arithmetic.
+
+**Two date-dependent differences, both measured and both confirmed in source:**
+
+* the availability calendar marks today with a neutral ring
+  (`src/components/availability/availability-calendar.tsx:661`), so the September 2026 grid gains a
+  marked cell on day 5 that the 2026-08-30 baseline does not have;
+* `Host since August 2026` renders as `Host since September 2026`, because
+  `scripts/seed-baseline-fixtures.ts:193` inserts the host with `created_at` = `now()`,
+  `src/components/listing/host-block.tsx:159` renders `formatMemberSince(createdAt)`, and
+  `src/lib/profile.ts:74` formats it as long month plus year.
+
+**Which baselines:** `HostBlock` and `AvailabilityCalendar` are rendered by exactly one route,
+`src/app/listings/[id]/(detail)/page.tsx` — so `listing-detail-320`, `listing-detail-768`,
+`listing-detail-1280` and `collision-notice-1280`. The other eight failing baselines are clean.
+
+**Why it is not fixed here:** 19.1-12's Task 2 is a blocking human classification and this plan halted
+there. Whether the calendar's today-ring and a member-since line are correct product behaviour that the
+FIXTURE must pin (freeze the seeded `created_at`, and pin the clock the visual project runs under), or
+something else, is a decision this executor is specifically forbidden to make on the PM's behalf.
+
+**Why it matters:** regenerating these four today mints a reference that records *today is 5 September*
+and *Host since September 2026*. They go red again on 6 September and again on 1 October. D-04's
+purpose is that `gate-visual` stops being red on every push; regeneration alone buys one push.
+
+**Severity:** high for the plan — it is the difference between a gate that is green and a gate that is
+green until tomorrow.
