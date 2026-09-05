@@ -53,6 +53,43 @@ const RUN_VISUAL_PROJECT = process.platform === "linux";
  */
 const REAL_EMAIL = process.env.FITOUT_E2E_REAL_EMAIL === "1";
 
+/**
+ * `[19.1-10]` — THE PUBLIC CLOUDINARY CLOUD NAME, SUPPLIED AS AN INVENTED LITERAL.
+ *
+ * ⚠ THIS IS NOT A CREDENTIAL, AND THE DISTINCTION IS THE WHOLE REASON THIS LINE IS ALLOWED TO EXIST.
+ * `NEXT_PUBLIC_*` variables are inlined into the client bundle and served to every browser that loads
+ * the site, so the cloud NAME is public by construction. The two things that are secret —
+ * `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET` — are NOT set here and must never be: a real
+ * credential could only reach `.github/workflows/ci.yml` as a `${{ secrets.X }}` reference, and
+ * `scripts/verify-workflows.mjs:813` asserts "zero `secrets.` references in any env / run / with
+ * VALUE, across every job". The value below is deliberately shaped like `ci.yml:1076-1078`'s three
+ * `ci-build-only-placeholder-not-a-real-*` literals, for the same reason those are literals: so that
+ * anybody who "promotes it to a secret" turns the checker red on the spot.
+ *
+ * WHAT IT BUYS, MEASURED RATHER THAN ASSUMED (`.planning/phases/19.1-…/evidence/triage-upload-capability.txt`,
+ * runs R4–R6). `src/components/listing/photo-uploader.tsx` renders `<CldUploadWidget>`, and
+ * `next-cloudinary` THROWS at render when this variable is absent — "A Cloudinary Cloud name is
+ * required". The throw takes the wizard's photos step down through the route's error boundary, so
+ * `e2e/overflow-320.spec.ts:3400` (`· photos step ·`, both themes) never finds the cover-preview
+ * heading and fails with a message about the listing having no photo — which it has. With this
+ * literal supplied and BOTH secrets still absent, both themes pass. The gate was red for a reason
+ * nothing in the repository could have supplied a credential for, because it never needed one.
+ *
+ * WHY IT LIVES HERE AND NOT IN `ci.yml`. `gate-e2e` boots its server through this config
+ * (`npx playwright test --project=chromium`), so one line here fixes the gate AND every local run at
+ * once, with no workflow edit. That is also what this `env` block is for: the comment on
+ * `reuseExistingServer` below argues that the environment the suite boots must be "a STATIC PROPERTY
+ * OF THIS FILE" rather than a runtime condition. A value only CI sets would be exactly the property
+ * that file argument rejects.
+ *
+ * THE COST, STATED RATHER THAN HIDDEN: this SHADOWS an operator's real `.env.local` cloud name for
+ * the duration of an e2e run, so a spec that drove a real listing-photo upload through the widget
+ * would now address a cloud that does not exist. No spec does (grepped, 19.1-10) — every fixture
+ * seeds `listing_photo` rows pointing at committed local assets — and the day one does, it needs a
+ * deliberate opt-in of its own, on the `FITOUT_E2E_REAL_EMAIL` model.
+ */
+const CLOUDINARY_PUBLIC_CLOUD_NAME = "fitout-e2e-placeholder-not-a-real-cloud";
+
 if (REAL_EMAIL) {
   // Same idiom as the VISUAL_OFF_LINUX_REASON warning above: one line, on stderr, naming the FLAG and
   // never the key. A run that sends real email should say so before it sends any.
@@ -183,7 +220,15 @@ export default defineConfig({
     // `e2e/stale-session-selfheal.spec.ts:44-50`). Sends route to `src/lib/email.ts`'s `[email:dev]`
     // console fallback instead, which is that module's own designed test posture.
     // ─────────────────────────────────────────────────────────────────────────────────────────────
-    env: REAL_EMAIL ? {} : { RESEND_API_KEY: "" },
+    // ⚠ THE SPREAD KEEPS THE MAIL BRANCH EXACTLY AS IT WAS. `[17-D28]`'s guarantee is that the
+    // opt-in branch emits NO `RESEND_API_KEY` KEY AT ALL rather than an empty one, and
+    // `tests/design/e2e-email-silence.test.ts` asserts both halves by key presence — so the mail
+    // entry stays inside its own conditional and 19.1-10's public cloud name is added BESIDE it,
+    // unconditionally, never merged into either branch.
+    env: {
+      ...(REAL_EMAIL ? {} : { RESEND_API_KEY: "" }),
+      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: CLOUDINARY_PUBLIC_CLOUD_NAME,
+    },
 
     timeout: 120_000,
   },

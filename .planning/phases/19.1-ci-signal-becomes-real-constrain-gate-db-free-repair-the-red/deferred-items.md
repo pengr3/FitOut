@@ -293,3 +293,30 @@ is why the 20-character title reddened `(agenda row · /host)` at 320px there.
 **Not repaired here:** `src/lib/design/measurements.ts` is outside 19.1-09's `files_modified`, and the
 constant it documents did NOT move — only the prose around it is wrong.
 **Severity:** comment only; no assertion or constant is affected.
+
+## 19.1-10 — an absent `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` takes the whole `(host)` subtree down
+
+**Found during:** 19.1-10 Task 1, reproducing `e2e/overflow-320.spec.ts:3400` under `gate-e2e`'s
+environment (every Cloudinary variable emptied).
+
+**Observed, on the dev server's stderr:**
+
+    [browser] [boundary] (host)/host Error: A Cloudinary Cloud name is required, please make sure
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is set and configured in your environment.
+
+`src/components/listing/photo-uploader.tsx` renders `<CldUploadWidget>`, and `next-cloudinary` THROWS
+at render when that variable is absent. The throw is caught by the route's error boundary, so the
+wizard's photos step renders NOTHING — not a degraded uploader, not a message about photos being
+unavailable, but no step. A single missing PUBLIC configuration value removes a whole surface.
+
+**Why it is not fixed here:** the fix is in product source (a guard around the widget, or a rendered
+"photo uploads are unavailable" state), and 19.1-10 modifies no product file. The plan's subject is
+the CI signal, and that half IS closed: `playwright.config.ts` now supplies an invented placeholder to
+every server the e2e suite boots, so the gate measures the step rather than the error boundary.
+
+**Suggested disposition:** decide whether an absent public cloud name should degrade or crash. It is a
+deployment-shaped risk rather than a test one — a Vercel environment missing this variable would take
+`/host/listings/[id]/edit` down in production the same way, and no gate would now notice, because the
+e2e harness supplies its own. ⚠ That last clause is the cost of this plan's repair, stated plainly: it
+buys a true CI signal for the 320px layout and it removes the accidental one for the missing variable.
+**Severity:** medium — a real production failure mode, currently unguarded and now unwatched.

@@ -3003,6 +3003,40 @@ const PHASE_14_ROWS: readonly Phase14Row[] = [
     // 16-06's hand-off note says exactly that — as ARITHMETIC. This row is the measurement that
     // arithmetic never was, and it also covers the uploader's tiles and its `3 photos minimum` note,
     // which share the step.
+    //
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+    // ⚠ 19.1-10 — THIS ROW WAS RED ON `gate-e2e`, AND ITS OWN FAILURE MESSAGE NAMED THE WRONG CAUSE.
+    // ═══════════════════════════════════════════════════════════════════════════════════════════
+    //
+    // `subjectWhy` below says the heading renders "only once the listing has at least one photo", and
+    // the CI failure was read that way for a whole phase. THE LISTING HAS ONE. `seedHostSurfaces`
+    // seeds exactly one `listing_photo` row, pointed at the committed local asset `/vrt/photo-0.svg`,
+    // under the "EXACTLY ONE PHOTO" block around `:2731-2755` — the local-rather-than-remote precedent
+    // this file established at `:2740` and which needs no upload, no credential and no network.
+    // Seeding a second photo would have changed nothing.
+    //
+    // WHAT WAS ACTUALLY MEASURED, on the dev server's own stderr immediately above the failure, with
+    // every Cloudinary variable emptied to reproduce `gate-e2e`'s environment:
+    //
+    //     [browser] [boundary] (host)/host Error: A Cloudinary Cloud name is required, please make
+    //     sure NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is set and configured in your environment.
+    //
+    // `photo-uploader.tsx` renders `<CldUploadWidget>`, and `next-cloudinary` THROWS at render when
+    // that variable is absent. The throw takes this step's whole subtree down through the route's
+    // error boundary, so `CoverFramePreview` — and the heading `subject` waits on — never render. The
+    // walk arrived; the step did not.
+    //
+    // AND THE VARIABLE IS NOT A CREDENTIAL, which is why this row is REPAIRED rather than allowlisted.
+    // `NEXT_PUBLIC_*` is inlined into the client bundle and served to every browser, and the value
+    // need not even be real: an invented literal makes both themes pass with both Cloudinary SECRETS
+    // still absent. So `playwright.config.ts` now supplies one from `webServer.env` — the same block
+    // that injects `RESEND_API_KEY: ""`, and the file `gate-e2e` boots its server through. No
+    // workflow edit, no `secrets.` reference, nothing for `scripts/verify-workflows.mjs:813` to catch.
+    // The transcripts are in `.planning/phases/19.1-…/evidence/triage-upload-capability.txt`, runs
+    // R4–R6 and § 7.
+    //
+    // ⚠ WHAT A RED HERE MEANS NOW, since the environment cause is closed: read it as this row's own
+    // subject again — the two `CoverFrame`s at 320px — and NOT as a missing photo.
     name: "/host/listings/[id]/edit · photos step",
     path: (f) => `/host/listings/${f.listingId}/edit`,
     tell: '[data-testid="wizard-step-rail"]',

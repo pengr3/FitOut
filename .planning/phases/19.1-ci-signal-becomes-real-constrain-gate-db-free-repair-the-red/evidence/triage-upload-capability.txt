@@ -652,3 +652,132 @@ $ npx tsc --noEmit | grep -c "error TS"
 $ grep -cF "Your avatar" e2e/avatar-crop.spec.ts   # at HEAD, then in the working copy
 5
 5   — no upload assertion was deleted; the two seeded cases keep theirs, retargeted
+
+
+§ 7 — POST-ROUTE: THE PHOTOS STEP (Task 3)
+================================================================================================
+
+WHAT WAS DONE, AND IT IS NOT WHAT THE PLAN PRESCRIBED. The plan's Task 3 says to seed a listing photo.
+§ 3 measured that the photo is already seeded and that the cause is elsewhere, so the route taken is
+the REPAIR the § 4 line records: `playwright.config.ts`'s `webServer.env` now supplies
+`NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` as the invented literal
+`fitout-e2e-placeholder-not-a-real-cloud`, beside the `RESEND_API_KEY: ""` that block already writes.
+No `secrets.` reference, no workflow edit, no credential, and no second seeder. The row itself gains
+only a comment recording what was measured and pointing at the local-asset precedent at `:2740`.
+
+⚠ THE PARENT PROCESS BELOW STILL HAS EVERY CLOUDINARY VARIABLE EMPTIED. That is the point of putting
+the value in the config rather than in a shell: the booted server gets it either way, which is exactly
+how `gate-e2e` — which runs `npx playwright test --project=chromium` and sets only `DATABASE_URL` —
+will get it.
+
+$ CLOUDINARY_CLOUD_NAME= CLOUDINARY_API_KEY= CLOUDINARY_API_SECRET= NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME= npx playwright test e2e/overflow-320.spec.ts --project=chromium --reporter=list --workers=1 --grep "photos step"
+  # CI shape: every Cloudinary variable STILL emptied in the parent process. The config supplies the
+  # public name to the booted server regardless, which is the whole point of putting it there.
+
+Running 2 tests using 1 worker
+
+  ok 1 [chromium] › e2e\overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · court (3.3s)
+  ok 2 [chromium] › e2e\overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · grove (1.4s)
+
+  2 passed (15.0s)
+EXIT=0
+
+────────────────────────────────────────────────────────────────────────────────────────────────
+7b — THE WHOLE FILE, post-repair, this box as it stands. 104 passed / 7 skipped / 0 failed. The
+     seven skips are pre-existing conditional rows and are unchanged by this plan.
+────────────────────────────────────────────────────────────────────────────────────────────────
+  -  104 [chromium] › e2e\overflow-320.spec.ts:2273:7 › AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › D-83 — the support control sits above the coral primary in the reversed manual branch
+  ok 105 [chromium] › e2e\overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/payouts/return · grove (1.9s)
+  ok 106 [chromium] › e2e\overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/payouts/refresh · court (3.9s)
+  ok 107 [chromium] › e2e\overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/payouts/refresh · grove (1.9s)
+  ok 108 [chromium] › e2e\overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/verify · court (4.5s)
+  ok 109 [chromium] › e2e\overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/verify · grove (1.9s)
+  ok 110 [chromium] › e2e\overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/new · court (6.1s)
+  ok 111 [chromium] › e2e\overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/new · grove (3.6s)
+
+  7 skipped
+  104 passed (4.2m)
+EXIT=0
+
+
+§ 8 — THE REPAIR IS PROVED LOAD-BEARING: THE ROW STILL REDDENS WHEN IT IS REMOVED
+================================================================================================
+
+A repair that cannot be watched red is a repair nobody has measured. The one line was deleted from
+the TRACKED `playwright.config.ts`, the row was re-run, and the file was restored and proved restored
+by checksum — the idiom `evidence/triage-plate-month.txt` § 5a established and 19.1-09 reused.
+
+⚠ WHAT THE RED PROVES, AND IT IS TWO THINGS AT ONCE. The row comes back with its ORIGINAL failure —
+the cover-preview heading not found — and the dev server prints "A Cloudinary Cloud name is required"
+directly above it. So the same run exhibits both the symptom the gate reported and the cause the
+symptom's own message does not name. That pairing is the whole verdict of this plan, in one
+transcript.
+
+$ md5sum playwright.config.ts   # BEFORE the temporary removal
+40922b246e1032666848c5ec12ffcec0 *playwright.config.ts
+$ sed -i "/NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: CLOUDINARY_PUBLIC_CLOUD_NAME,/d" playwright.config.ts   # remove the repair on the TRACKED file
+$ grep -c "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: CLOUDINARY_PUBLIC_CLOUD_NAME" playwright.config.ts
+0
+
+$ CLOUDINARY_CLOUD_NAME= CLOUDINARY_API_KEY= CLOUDINARY_API_SECRET= NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME= npx playwright test e2e/overflow-320.spec.ts --project=chromium --reporter=list --workers=1 --grep "photos step"
+[WebServer] [browser] Uncaught Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+[WebServer] [browser] [boundary] (host)/host Error: A Cloudinary Cloud name is required, please make sure NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is set and configured in your environment. (src/app/(host)
+[WebServer] [browser] [boundary] (host)/host Error: A Cloudinary Cloud name is required, please make sure NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is set and configured in your environment. (src/app/(host)
+  x  1 [chromium] › e2e\overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · court (33.2s)
+  -  2 [chromium] › e2e\overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · grove
+    Error: /host/listings/[id]/edit · photos step · court · 320px: the walk did not reach the surface this row measures — the cover preview's own heading, which ONLY the photos step renders and only once the listing has at least one photo (`photo-uploader.tsx:199` returns its empty state before the preview exists). The wizard's first step — the one this route mounts on and the row above measures — renders no such heading, so this is what tells the two apart. Imported from `cover-frames.ts`, never re-typed: a spec carrying its own copy of a heading reports ARRIVAL the day the heading changes while the walk is still standing on the wrong step. Without this the case would measure the state the route MOUNTS on, which an earlier row already covers, and report green having measured the same pixels twice.
+    expect(locator).toBeVisible() failed
+    Locator: getByRole('heading', { name: 'How your cover appears' })
+    Timeout: 30000ms
+    Error: element(s) not found
+  1 failed
+  1 did not run
+EXIT=1
+
+$ cp "$SC/pwc.bak" playwright.config.ts   # restore
+$ md5sum playwright.config.ts   # AFTER the restore — must equal the BEFORE line above
+40922b246e1032666848c5ec12ffcec0 *playwright.config.ts
+$ grep -c "NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: CLOUDINARY_PUBLIC_CLOUD_NAME" playwright.config.ts
+1
+$ git status --porcelain
+ M e2e/overflow-320.spec.ts
+ M playwright.config.ts
+?? .gsd/
+?? .planning/milestone.lock
+?? .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-PATTERNS.md
+?? .planning/state.json
+
+$ npx vitest run --config vitest.design.config.ts tests/design/e2e-email-silence.test.ts | tail -3
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   (the guard on this very env block — `[17-D28]`'s two key-presence assertions still hold)
+
+$ grep -oE "public/vrt/[a-z0-9-]+\.svg" e2e/overflow-320.spec.ts | sort -u | while read -r p; do git ls-files --error-unmatch "$p" >/dev/null || { echo "UNTRACKED $p"; exit 1; }; done; echo "EXIT=$?"
+EXIT=0
+
+
+§ 9 — THE FOUR CASES, FINAL STATE
+================================================================================================
+
+Plan 11 counts allowlist entries. It should read the next four lines and stop; nothing above them
+changes the count and nothing below them adds one.
+
+SUMMARY 4 upload-dependent CI failures closed — 1 ANNOTATED, 2 SEEDED, 1 REPAIRED, 0 INTERCEPTED. (1) e2e/avatar-crop.spec.ts:974 — ANNOTATED, and this is the ONLY allowlist entry this plan creates: `test.fail(!!process.env.CI, …)` with a reason naming the capability (a live CLOUDINARY_API_KEY/CLOUDINARY_API_SECRET in the server process), the invariant that forbids supplying it (`scripts/verify-workflows.mjs:813`, "zero `secrets.` references in any env / run / with VALUE, across every job"), and the covering tests (`tests/profile/avatar.test.ts:137`, `tests/profile/avatar-field.test.tsx:309`); it carries `test.setTimeout(90_000)` under the same condition because `test.fail` does not cover a timeout. (2) e2e/avatar-crop.spec.ts:2675 — SEEDED via `seedStoredAvatar`, no annotation, green under CI's credential shape. (3) e2e/avatar-crop.spec.ts:2747 — SEEDED the same way, no annotation, green under CI's credential shape. (4) e2e/overflow-320.spec.ts:3400 — REPAIRED in `playwright.config.ts`, no annotation, no credential, green under CI's credential shape; it was never an allowlist candidate, because the capability it needed is a PUBLIC identifier the zero-`secrets.` invariant does not forbid.
+
+WHAT PLAN 11 MUST NOT DO WITH THIS FILE, stated because both mistakes are one careless grep away:
+  • Do NOT count four entries. There is ONE. Two cases were seeded and one was repaired, and 19.1-08's
+    rule — a repaired spec defect is not an annotation candidate — is why.
+  • Do NOT reuse the phrase "requires a live Cloudinary credential" for `overflow-320.spec.ts:3400`.
+    It is false of that row, measured (R6), and a false reason is the exact defect D-03's
+    written-reason requirement exists to prevent.
+
+CARRY — for plans 11 and 13, and it changes a number both are budgeting against. `test.fail()` covers
+an ASSERTION failure and NOT a TIMEOUT: an annotated case that times out is reported as a plain
+`1 failed` and burns all three attempts (§ 6, first transcript). `e2e/hold-countdown.spec.ts:443` —
+the entry the ~6-minute wall-clock saving is attributed to — is a timeout failure, so a bare
+`test.fail(cond, reason)` there will deliver none of that saving. It needs the case's own budget
+raised alongside the annotation, so the inner assertion expires first.
+
+PROHIBITION — `e2e/avatar-crop.spec.ts:2675` and `:2747` are PERMANENTLY INELIGIBLE for the allowlist
+under D-01: they are green without any credential, measured. `e2e/overflow-320.spec.ts:3400` is
+likewise ineligible, and for a stronger reason — the capability it needs is not one CI lacks.
