@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 16
+open_count: 17
 waived_count: 0
 fixed_count: 0
-total_count: 16
-last_updated: 2026-09-05T06:36:41.350Z
+total_count: 17
+last_updated: 2026-09-05T10:25:45.760Z
 ---
 
 # Broken Windows Ledger
@@ -31,6 +31,7 @@ last_updated: 2026-09-05T06:36:41.350Z
 | 14 | 19 | deviation | scripts/refuse-mail-credential.mjs |  | READ hard-stop remedy sentence corrected: 'fix the path in ci.yml' became false when the argv override was removed | open |  | 2026-09-04T16:11:09.561Z |  |
 | 15 | 19.1 | deviation | scripts/verify-workflows.mjs | 741 | T-11-DBFREE locates the build job by a SUBSTRING of a run: body (r.includes("npm run build")) — the CR-02 idiom used for a positive assertion; satisfied by every softened form of the step and by moving the build to another job. Logged as D-19.1-C for plan 06. | open |  | 2026-09-05T05:46:15.519Z |  |
 | 16 | 19.1 | deviation | e2e/helpers/booker-seed.ts | 180 | pickWindow's tz-note assertion matches TEXT, so it stays strict-mode ambiguous after 19.1-04's id-only repair; two elements resolve while the served shell and resolved content overlap. Handed to plan 08 (19.1-PATTERNS section 7 charters that helper). | open |  | 2026-09-05T06:36:41.350Z |  |
+| 17 | 19.1 | unrun-verify | e2e/host-headings.spec.ts |  | host-headings:964 does not reproduce locally (14/14 green) while CI failed it 6/6; the pressAdvance repair is justified from mechanism + watched red but is UNVERIFIED on a real 2-core runner | open |  | 2026-09-05T10:25:45.760Z |  |
 
 ````json
 [
@@ -224,6 +225,18 @@ last_updated: 2026-09-05T06:36:41.350Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-05T06:36:41.350Z",
+    "resolved_at": null
+  },
+  {
+    "id": 17,
+    "kind": "unrun-verify",
+    "phase": "19.1",
+    "file": "e2e/host-headings.spec.ts",
+    "line": null,
+    "description": "host-headings:964 does not reproduce locally (14/14 green) while CI failed it 6/6; the pressAdvance repair is justified from mechanism + watched red but is UNVERIFIED on a real 2-core runner",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-05T10:25:45.760Z",
     "resolved_at": null
   }
 ]

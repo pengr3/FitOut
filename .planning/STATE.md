@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: Completed 19.1-06-PLAN.md
-last_updated: "2026-09-05T09:00:49.829Z"
+stopped_at: Completed 19.1-08-PLAN.md
+last_updated: "2026-09-05T10:25:37.782Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 19.1 plan 02 complete — Wave 0 measurement
-state_head: 084cdb8b1b371e839d03b7c0722a394ac13d0d28
+state_head: 817d35371bc753723de209069f23e4ba4f124dcb
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 60
-  completed_plans: 52
+  completed_plans: 53
   percent: 13
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19.1 (CI signal becomes real) — EXECUTING
-Plan: 8 of 15
+Plan: 9 of 15
 Status: Ready to execute
 Last activity: 2026-09-05 — Phase 19.1 plan 02 complete (Wave 0 measurement)
 
@@ -444,6 +444,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P04 | 42 min | 3 tasks | 8 files |
 | Phase 19.1 P07 | 30 min | 3 tasks | 2 files |
 | Phase 19.1 P06 | 1h 10m | 3 tasks | 7 files |
+| Phase 19.1 P08 | 60 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1453,6 +1454,9 @@ Recent decisions affecting current work:
 - [Phase 19.1]: One identity per anchored step: a step anchored by exact name: is anchored ONCE and every predicate about it derives from that object. Six substring locators repaired across gate-e2e, gate-visual, baselines.yml and the cross section; all ordering indices moved to the FULL-step scale.
 - [Phase 19.1]: D-19.1-C is CARRIED, not repaired, and its suggested fix is withdrawn: T-11-DBFREE substring filter over-matches in the DENY direction (fails closed), and re-anchoring it by job key would defeat the rename-survival purpose its own heading states.
 - [Phase 19.1]: The SC2 audit is a scan of the whole checker for the shape, not a walk of RESEARCH.md ten rows — which found two more sites (baselines staging tripwire, cross byte-identity comparisons), both reproduced and both repaired. 24 rows carry a verdict in evidence/sc2-audit-inventory.md.
+- [Phase 19.1]: 19.1-08 — Cause F's discriminator is FALSIFIED: a held hour renders present-and-disabled but named "2:00 PM — Unavailable", so an exact-name locator reports ABSENT in BOTH hypotheses and no trace could ever have separated them. The distinction was moved into the helper (four named grid states) instead of into a better trace.
+- [Phase 19.1]: 19.1-08 — host-headings.spec.ts:964 is a SPEC DEFECT, not a product refusal and not an environment gap. CI's own "(nothing)" is a state saveAndContinue cannot produce (it writes "Saving…" synchronously before it awaits), so the walk was accusing the server of refusing a draft it was never sent. The save path reads one env var (DATABASE_URL) which CI had already used twice by that step, so there was no capability to name.
+- [Phase 19.1]: 19.1-08 — a post-condition is added when the failure mode is measured; a RETRY is added only when the lost click was OBSERVED. Neither of this plan's two was, so neither retries — and for the wizard press a retry would additionally double-save and end the walk a step early.
 
 ### Pending Todos
 
@@ -1636,8 +1640,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-05T08:59:57.576Z
-Stopped at: Completed 19.1-06-PLAN.md
+Last session: 2026-09-05T10:25:22.744Z
+Stopped at: Completed 19.1-08-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
