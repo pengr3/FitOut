@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: Completed 19.1-10-PLAN.md
-last_updated: "2026-09-05T12:22:55.315Z"
+stopped_at: Completed 19.1-11-PLAN.md
+last_updated: "2026-09-05T13:07:37.116Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 19.1 plan 02 complete — Wave 0 measurement
-state_head: 888c1ccbc5bbca758b8f19abdb89f91477386684
+state_head: 0cb154cdef5dc181bfffc37015b18296eeb5a4b4
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 60
-  completed_plans: 54
+  completed_plans: 55
   percent: 13
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19.1 (CI signal becomes real) — EXECUTING
-Plan: 11 of 15
+Plan: 12 of 15
 Status: Ready to execute
 Last activity: 2026-09-05 — Phase 19.1 plan 02 complete (Wave 0 measurement)
 
@@ -447,6 +447,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P08 | 60 min | 3 tasks | 4 files |
 | Phase 19.1 P09 | 46 min | 3 tasks | 3 files |
 | Phase 19.1 P10 | 62 min | 3 tasks | 4 files |
+| Phase 19.1 P11 | 36 min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -1463,6 +1464,9 @@ Recent decisions affecting current work:
 - [Phase 19.1]: 19.1-09: HOST_LISTING_TITLE 20 -> 17 chars; no tolerance and no declared shape constant moved — Chosen from a candidate sweep run INSIDE mcr.microsoft.com/playwright:v1.60.0-noble: 127px against a 150px content box (23px clear) and 3 agenda lines on all 2,604 date tokens. Closes both of the file's :1807 reds.
 - [Phase 19.1]: The four Cause-B failures are TWO classes, not one: the avatar three need a server-side Cloudinary CREDENTIAL (invariant-forbidden, verify-workflows.mjs:813), while overflow-320:3400 needed only the PUBLIC, non-secret NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME to be defined — measured, and it is repaired rather than allowlisted.
 - [Phase 19.1]: Playwright test.fail() covers an ASSERTION failure and NOT a TIMEOUT — an annotated case that times out is reported as a plain failure and burns all three retries. hold-countdown.spec.ts:443 is that shape, so plan 11/13's ~6-minute saving needs the case budget raised alongside the annotation.
+- [Phase 19.1]: The tabular-figures CI red is NEITHER a stale spec NOR an open finding: reproduced byte-for-byte in the pinned Playwright container against the SAME host dev server, so it is a renderer capability gap. Annotated with the measured reason; the spec message false "hand it to Phase 17" framing repaired.
+- [Phase 19.1]: The known-failures allowlist totals TWO entries, not the fourteen the failure list implied: 12 were closed by repair, seeding, a public identifier or a measurement. The count is pinned in tests/design/e2e-known-failures.test.ts, which the build runs.
+- [Phase 19.1]: e2e/tabular-figures.spec.ts case (2) grove was NOT annotated: measured PASSING in the container (142/142 at 24px), so a symmetric second entry would have been a false reason and an unexpected pass burning all three CI retries.
 
 ### Pending Todos
 
@@ -1646,8 +1650,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-05T12:22:35.422Z
-Stopped at: Completed 19.1-10-PLAN.md
+Last session: 2026-09-05T13:06:55.442Z
+Stopped at: Completed 19.1-11-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.

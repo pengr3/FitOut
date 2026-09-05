@@ -627,7 +627,7 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 9/15 plans executed (7 waves)
+**Plans:** 10/15 plans executed (7 waves)
 
 Plans:
 **Wave 1**
@@ -647,7 +647,7 @@ Plans:
 - [x] 19.1-07-PLAN.md — Cause C: `cancel.spec.ts:232` refund disjunction + audit row (D-01 protected, never allowlisted)
 - [x] 19.1-08-PLAN.md — Cause F + #11: trace the hold-countdown timeout, post-condition the day-select helper, triage the wizard refusal
 - [x] 19.1-09-PLAN.md — Cause D2: `skeleton-geometry:1807` — reproduce, name the wrapped cell, repair the right tier
-- [ ] 19.1-10-PLAN.md — Cause B: the four upload-dependent failures — route per case, no credential
+- [x] 19.1-10-PLAN.md — Cause B: the four upload-dependent failures — route per case, no credential
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
