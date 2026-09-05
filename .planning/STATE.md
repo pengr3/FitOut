@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
-current_phase_name: NOT PLANNED
+current_phase_name: ci-signal-becomes-real-constrain-gate-db-free-repair-the-red
 status: Phase 19 gaps carried to 19.1 — run /gsd-plan-phase 19.1
 stopped_at: Phase 19.1 context gathered
-last_updated: "2026-09-05T03:02:26.286Z"
+last_updated: "2026-09-05T04:27:11.719Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 19 verified 8/9 (SC1-SC4 met, D-14 hardening open); 19.1 inserted to close it
-state_head: b6342611d04b53f4ecedf2701734f1123814a173
+state_head: 1706b837d9cad449ffa866b8822c861ad4522ab8
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -17,7 +17,7 @@ progress:
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 8
   completed_phases: 1
-  total_plans: 45
+  total_plans: 60
   completed_plans: 45
   percent: 13
 ---
@@ -73,7 +73,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19.1 (CI signal becomes real) — NOT PLANNED
+Phase: 19.1 (ci-signal-becomes-real-constrain-gate-db-free-repair-the-red) — READY TO EXECUTE
 Plan: 3 of 15
 Status: Phase 19 gaps carried to 19.1 — run /gsd-plan-phase 19.1
 Last activity: 2026-09-05 — Phase 19 verified 8/9 (SC1-SC4 met, D-14 hardening open); 19.1 inserted to close it
