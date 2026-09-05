@@ -1,0 +1,275 @@
+19.1-11 — THE KNOWN-FAILURES ALLOWLIST: ITS ENTRIES, ITS GROWTH GUARD, AND THE PROOF BOTH WORK
+==============================================================================================
+
+WHY THIS FILE EXISTS
+  D-03 requires a checked-in known-failures allowlist whose every entry carries a WRITTEN REASON and
+  which CANNOT SILENTLY GROW. This file is the record: the verdict each entry rests on, the entry
+  table and the derivation of the pinned count, the four mutations that prove the census red, and the
+  chain from the census to the required status check.
+
+  Nothing below prints a credential value, an environment-variable value or a signed URL. Only names,
+  counts, measurements and outcomes.
+
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+TASK 1 — THE FIXED-ADVANCE-WIDTH SPEC (e2e/tabular-figures.spec.ts)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+── 1a. PLAN 02'S VERDICT, QUOTED VERBATIM, WITH THE ARTEFACT IT RESTS ON ───────────────────────────
+
+From `.planning/phases/19.1-.../evidence/tnum-phase17-probe.txt`, PART 1, the VERDICT paragraph:
+
+    VERDICT (tabular figures) — PHASE 17 SHIPPED NO CHANGE, AND NONE WAS OWED: the finding was never
+    open. `.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-16-SUMMARY.md:356` is
+    the artefact this rests on — it records A1 as "SETTLED, and its GOOD branch is live … No Phase-17
+    finding to hand forward." The spec is NOT stale (it passes locally, 0px spread, byte-identical to
+    13-16's recorded numbers) and the finding is NOT open, so plan 11 must take NEITHER of the two
+    branches RESEARCH.md offered: `e2e/tabular-figures.spec.ts:361` is a CI-ENVIRONMENT-SPECIFIC
+    FONT-PIPELINE FAILURE, in the same class as Cause B.
+
+and its instruction to this plan, quoted in full because it is the reason the reason string reads the
+way it does:
+
+    ⚠ IF PLAN 11 ANNOTATES IT ANYWAY, THE REASON STRING MUST NOT SAY "known open finding handed to
+    Phase 17". That sentence is false, and an allowlist entry carrying a false reason is precisely the
+    defect D-03's written-reason requirement exists to prevent. The true reason is: the assertion holds
+    on a developer machine and fails only in the pinned CI container, which is a font-delivery
+    difference and not a product property.
+
+    Plan 11 should reproduce IN THE CONTAINER before choosing a mechanism, and treat the result as an
+    environment-capability gap of the same class as Cause B.
+
+THE ARTEFACT THE VERDICT RESTS ON, NAMED AGAIN SO THIS FILE STANDS ALONE:
+  `.planning/milestones/v1.1-phases/13-confirmation-bookings-trust/13-16-SUMMARY.md:356` — the
+  Assumption-A1 row of "Findings handed forward", recording the money pair at 0px WITH `tabular-nums`
+  and 42.71875px (court) / 49.0px (grove) WITHOUT, and stating "No Phase-17 finding to hand forward."
+
+  ⚠ THE PLAN'S TWO BRANCHES BOTH MISS. Task 1 offered "repair a stale spec" or "annotate a known open
+  finding". Plan 02 measured that it is NEITHER: the spec passes, and there is no open finding. This
+  plan therefore took plan 02's THIRD route — reproduce in the container, then annotate with the REAL
+  reason — and recorded it as a deviation rather than forcing the measurement into one of two boxes it
+  does not fit.
+
+
+── 1b. THE REPRODUCTION — THE PINNED CI CONTAINER, WHICH IS THE RASTERISER THAT GATES THIS REPO ────
+
+Harness: 19.1-09's recipe (`evidence/triage-skeleton-geometry.txt` §4), rebuilt for this task. The
+repository mounted at /repo; the Next dev server and Postgres left running on the Windows HOST; a
+~15-line Node loopback forwarder inside the container making the container's own 127.0.0.1:3000 and
+:5432 mean the host's, because `e2e/helpers/served-document.ts:39` hardcodes `http://localhost:3000`
+and `e2e/helpers/booker-seed.ts:55-56` defaults `DATABASE_URL` to `localhost:5432`. The real
+`playwright.config.ts` reused verbatim through a throwaway config that removes ONLY the `webServer`
+block — `reuseExistingServer:false` is load-bearing ([17-D24]/[17-D28]) and was NOT flipped. All three
+throwaway files are deleted in §1f; none was ever staged.
+
+⚠ THE THING THIS HARNESS PROVES THAT A CI LOG CANNOT. Both renderers were served BY THE SAME DEV
+SERVER, on the same commit, from the same working tree. The HTML, the CSS, the class list and the
+`next/font/google` woff2 are therefore not merely equivalent — they are the same bytes off the same
+process. Anything that differs between the two runs below is the renderer, and nothing else is left.
+
+  $ MSYS_NO_PATHCONV=1 docker run --rm --ipc=host --add-host=host.docker.internal:host-gateway \
+      -v "C:/Users/Admin/Roaming/FitOut":/repo -w /repo -e PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+      mcr.microsoft.com/playwright:v1.60.0-noble bash /repo/.probe-linux-run.sh \
+      e2e/tabular-figures.spec.ts
+
+    [forward] 127.0.0.1:3000 -> host.docker.internal:3000
+    [forward] 127.0.0.1:5432 -> host.docker.internal:5432
+
+    Running 2 tests using 1 worker
+
+    [MEASUREMENT court] reference widths: 120 / 120 (spread 0px) · money pair WITH tabular-nums:
+      105.015625 / 112.015625 (spread 7px) · WITHOUT: 78.015625 / 119.015625 (spread 41px)
+      ✘  1 [chromium] › e2e/tabular-figures.spec.ts:361:7 › TRUST-02 … › (1) court — the reference
+                        lines up, and the money pair is measured (10.2s)
+      -  2 [chromium] › e2e/tabular-figures.spec.ts:377:7 › TRUST-02 … › (2) grove — the same
+                        measurements, the other theme
+
+      1) [chromium] › e2e/tabular-figures.spec.ts:361:7 › … › (1) court …
+
+        Error: court: A1's BAD BRANCH IS LIVE — AND THIS IS A FINDING FOR PHASE 17, NOT A DEFECT IN
+        THIS PHASE'S WORK. "₱11,111.11" rendered at 105.015625px and "₱00,000.00" at 112.015625px in
+        the money surfaces' own treatment — a spread of 7px, where equal width is what tabular figures
+        mean. …
+
+        Expected: <= 0.05
+        Received:    7
+
+      1 failed
+      1 did not run
+
+THAT IS CI's MESSAGE AND CI's RECEIVED VALUE, CHARACTER FOR CHARACTER. 19.1-RESEARCH.md § Cause E
+quotes CI as `"₱11,111.11" rendered at 105.015625px and "₱00,000.00" at 112.015625px … Expected: <=
+0.05  Received: 7`. Both operands and the received value match to the last digit.
+
+NOTE THE SECOND LINE OF THE SUMMARY: `1 did not run`. The genuine failure ABORTED the serial group, so
+CI has never had a grove measurement for this file. §1e records what happens to that case once the
+court case is annotated, and it is not what was expected.
+
+
+── 1c. THE CONTROL, AND THE PROBE THAT NAMES THE MECHANISM ─────────────────────────────────────────
+
+A temporary READ-ONLY probe was added to the tracked spec (the `evidence/triage-plate-month.txt` §5a
+idiom this phase established), run on BOTH renderers against the SAME host dev server, and reverted
+with the checksum pair in §1f. It measures single glyphs, which no assertion in the file prints. It
+asserts nothing and changes no constant, class or tolerance.
+
+  IN THE CONTAINER (mcr.microsoft.com/playwright:v1.60.0-noble):
+    [GLYPHPROBE court] {"one_x1_tab":11.8125,"zero_x1_tab":12.8125,"one_x10_tab":118.015625,
+      "zero_x10_tab":128.015625,"one_x10_norm":79.015625,"zero_x10_norm":138.015625,
+      "fontFamily":"Geist, \"Geist Fallback\"","fontVariantNumeric":"tabular-nums","fontSize":"20px"}
+
+  ON THIS WINDOWS LAPTOP, SAME SERVER, SAME COMMIT:
+    [GLYPHPROBE court] {"one_x1_tab":12.28125,"zero_x1_tab":12.28125,"one_x10_tab":122.8125,
+      "zero_x10_tab":122.8125,"one_x10_norm":76.203125,"zero_x10_norm":136.40625,
+      "fontFamily":"Geist, \"Geist Fallback\"","fontVariantNumeric":"tabular-nums","fontSize":"20px"}
+    [GLYPHPROBE grove] {"one_x1_tab":15.265625,"zero_x1_tab":15.265625,"one_x10_tab":152.640625,
+      "zero_x10_tab":152.640625,"one_x10_norm":99.125,"zero_x10_norm":168.484375,
+      "fontFamily":"Geist, \"Geist Fallback\"","fontVariantNumeric":"tabular-nums","fontSize":"24px"}
+
+  READ IT AS A TABLE (court, 20px, with `font-variant-numeric: tabular-nums` applied):
+
+      measurement                     Windows Chromium     the pinned container
+      "1", one glyph                     12.28125              11.8125
+      "0", one glyph                     12.28125              12.8125
+      ten "1"s                          122.8125             118.015625
+      ten "0"s                          122.8125             128.015625
+      per-digit delta under tnum          0.00000               1.00000
+      per-digit delta with tnum OFF       6.02031               5.90000
+
+  THE COMPUTED STYLE IS IDENTICAL ON BOTH — `font-family: Geist, "Geist Fallback"`,
+  `font-variant-numeric: tabular-nums`, `font-size: 20px`. So the page asked for the same thing in both
+  places and got a different answer.
+
+  WHAT IS AND IS NOT ESTABLISHED, stated separately because the difference matters to the reason string:
+    ESTABLISHED — `tabular-nums` EQUALISES the digit advances EXACTLY on this laptop's Chromium
+      (12.28125px for both "0" and "1") and leaves a residual of EXACTLY 1.000px per digit in the
+      pinned container (11.8125 vs 12.8125). "₱11,111.11" and "₱00,000.00" differ in seven digit
+      positions; 7 × 1.000px is the 7px the assertion reports. The arithmetic closes.
+    ESTABLISHED — the feature is NOT inert in the container. With `font-variant-numeric` forced to
+      `normal` the per-digit delta is 5.90px; with tabular-nums it is 1.00px. The container applies the
+      feature and still does not land the two digits on the same advance.
+    ESTABLISHED — this is the SAME image 19.1-09 measured quantising glyph advances to whole pixels
+      (`evidence/triage-skeleton-geometry.txt` §5, "EVERY LINUX FIGURE IS A WHOLE NUMBER AND EVERY
+      WINDOWS FIGURE IS FRACTIONAL"), and §5 of that file predicted this exact red without being fitted
+      to it: "integer-quantised advances are exactly what makes '1' and '0' differ in width, which is
+      `tabular-figures.spec.ts:361`'s 7px."
+    NOT ESTABLISHED, AND NOT CLAIMED ANYWHERE IN THE REASON STRING — the internal path inside the
+      container's font stack by which an applied tnum table still yields unequal advances. Naming a
+      mechanism this measurement does not separate would put a second false sentence in an allowlist
+      reason, which is the defect the first one nearly caused.
+    NOT EVIDENCE — `document.fonts.check()` returned `false` in BOTH environments, so it separates
+      nothing and is deliberately absent from the reason string and from the spec's message.
+
+
+── 1d. THE ROUTE TAKEN, AND WHY THE OTHER TWO WERE NOT ─────────────────────────────────────────────
+
+Plan 02 named three routes for a Cause-B-class environment gap — intercept, ship the asset locally, or
+annotate with the real reason.
+
+  INTERCEPT — structurally unavailable. There is nothing to intercept: the woff2 is served by the app
+    itself and was byte-identical across the two runs above. The difference is downstream of delivery.
+  SHIP THE ASSET LOCALLY — out of this plan's scope on two independent grounds. It means moving
+    `src/app/layout.tsx` from `next/font/google` to `next/font/local` with a committed face, which is a
+    change to the font pipeline (an architectural decision, deviation Rule 4) AND a `src/` edit that
+    Task 1's own acceptance criteria forbid ("No file under `src/` is modified by this task"). It also
+    would not obviously help: the container applies the feature and still misses by 1px per digit.
+  ANNOTATE WITH THE REAL REASON — taken. Conditional on `CI`, never bare, with the measurement, both
+    control runs, the image, the workflow line and the corroborating 19.1-09 artefact in the string.
+
+AND THE SPEC'S OWN MESSAGE WAS REPAIRED IN THE SAME COMMIT — a deviation (Rule 1), recorded here
+because it is the more consequential half of this task. The message told its reader "the Google Fonts
+build of Geist ships no usable tnum table (13-RESEARCH Assumption A1) … hand it to Phase 17". Plan 02
+measured every clause of that false: 13-16-SUMMARY.md:356 settled A1 GREEN, Phase 17 shipped no font
+change, and the assertion passes on a developer machine. That sentence has already been read as a
+statement of fact once — 19.1-RESEARCH.md § Cause E built its whole Cause-E verdict on it and called
+this "the clearest allowlist candidate in the set" — and a plan acting on that reading would have
+written a FALSE allowlist entry. The message now names the rasteriser split, quotes the refuted reading
+so the next reader recognises it, and keeps every instruction that is still true (do not strip
+tabular-nums, do not move EPSILON_PX, do not touch the font-mono decision, record the measurement).
+
+ROUTE e2e/tabular-figures.spec.ts:412 (the `test.fail` at :416, case "(1) court") — ANNOTATED, conditional on `process.env.CI`, on plan 02's verdict (evidence/tnum-phase17-probe.txt PART 1: "PHASE 17 SHIPPED NO CHANGE, AND NONE WAS OWED … a CI-ENVIRONMENT-SPECIFIC FONT-PIPELINE FAILURE, in the same class as Cause B") plus this task's own container reproduction and Windows control in §1b/§1c. NEITHER of the plan's two branches applied: the spec is not stale (it passes here) and the finding is not open (13-16-SUMMARY.md:356 closed it green). Case "(2) grove" at :450 is NOT annotated — measured passing in the container, §1e. No file under `src/` was touched.
+
+THE ANNOTATION, QUOTED IN FULL so the census's count has a readable source:
+
+    test.fail(
+      !!process.env.CI,
+      "clause (c)'s `tabular-nums` equalisation is delivered by a developer machine's Chromium and NOT " +
+        "by mcr.microsoft.com/playwright:v1.60.0-noble, the image gate-e2e runs in " +
+        "(.github/workflows/ci.yml:1572-1574). MEASURED 19.1-11 with the identical tree, the identical " +
+        'CSS and the identical font asset served by ONE dev server to both renderers: "0" and "1" are ' +
+        "both 12.28125px under tabular-nums on Windows and are 12.8125px vs 11.8125px in the container " +
+        "— exactly 1px per digit, which is the 7px this case reports across the seven positions " +
+        "where the two money strings differ. Transcript and both control runs: " +
+        "evidence/known-failures-census.txt (19.1-11); the same image was measured quantising glyph " +
+        "advances to whole pixels in evidence/triage-skeleton-geometry.txt §5 (19.1-09). This is a " +
+        "RENDERER capability gap, not a product property, so the response is neither stripping " +
+        "tabular-nums nor moving EPSILON_PX. ⚠ WHAT THIS ANNOTATION COSTS, NAMED RATHER THAN " +
+        "IMPLIED: Playwright has no per-assertion expected failure, so on CI a break in clause (a) or " +
+        "(b) — the TRUST-02 property a booker actually uses — would be absorbed here too. Both " +
+        "clauses still run and still assert UNANNOTATED on every developer machine, and (b) is green on " +
+        "both rasterisers; the narrowing that is available is this case rather than the whole file.",
+    );
+
+
+── 1e. THE SECOND ENTRY THIS TASK DID NOT WRITE, AND THE MEASUREMENT THAT STOPPED IT ───────────────
+
+The obvious next move after annotating case (1) was to annotate case (2) as well: same file, same
+assertion, same rasteriser, and §1b shows case (2) never even runs in CI today. It was RUN instead.
+
+  $ … -e CI=1 … bash /repo/.probe-linux-run.sh e2e/tabular-figures.spec.ts     # case (1) annotated
+
+    Running 2 tests using 1 worker
+
+    [MEASUREMENT court] reference widths: 120 / 120 (spread 0px) · money pair WITH tabular-nums:
+      105.015625 / 112.015625 (spread 7px) · WITHOUT: 78.015625 / 119.015625 (spread 41px)
+      ✘  1 [chromium] › e2e/tabular-figures.spec.ts:372:7 › … › (1) court … (5.1s)
+    [MEASUREMENT grove] reference widths: 120 / 120 (spread 0px) · money pair WITH tabular-nums:
+      142 / 142 (spread 0px) · WITHOUT: 92 / 149 (spread 57px)
+      ✓  2 [chromium] › e2e/tabular-figures.spec.ts:406:7 › … › (2) grove … (4.8s)
+
+      2 passed (21.6s)                                         $ echo $? → 0
+
+  CASE (2) GROVE PASSES IN THE CONTAINER — 142px / 142px, a 0px spread, on the rasteriser that fails
+  court by 7px. Grove renders the money figure at 24px and court at 20px (§1c's font-size fields), and
+  at 24px the container's advances land the two digits on the same whole number. A second annotation
+  would therefore have been an entry for a test that PASSES — a false reason AND, measured in 19.1-02
+  (`evidence/testfail-behaviour.txt` Q2), an UNEXPECTED PASS, which fails the run by name and burns all
+  three CI attempts. The allowlist is one entry for this file, not two, and the difference was decided
+  by a run rather than by symmetry.
+
+  A GAIN WORTH NAMING, because it is the opposite of what an allowlist is usually accused of: before
+  the annotation, case (2) `did not run` — the real failure aborted the serial group and CI had no
+  grove measurement at all. After it, case (2) RUNS and REPORTS. The annotation reveals a measurement
+  the red was hiding. (Consistent with 19.1-02 A2: an EXPECTED failure does not stop its serial group.
+  A GENUINE one does, which is what §1b's `1 did not run` records.)
+
+
+── 1f. REVERT PROOF AND GATES FOR TASK 1 ───────────────────────────────────────────────────────────
+
+The temporary glyph probe, reverted before any edit was written:
+
+    e2e/tabular-figures.spec.ts   working copy   e70d03f79e61ef7001fa6e2ac4b938d1200a59d3
+                                  HEAD blob      e70d03f79e61ef7001fa6e2ac4b938d1200a59d3
+
+    $ git status --porcelain -- e2e src
+      (no output)
+
+The three throwaway container files (`.probe-linux-forward.mjs`, `.probe-linux-run.sh`,
+`.probe-linux.config.ts`) are deleted at the end of Task 3; none is ever staged.
+
+    $ git status --porcelain -- src
+      (no output)                       ← no styling class, and no production file, moved either way
+
+    $ npx playwright test e2e/tabular-figures.spec.ts --project=chromium --reporter=list
+      [MEASUREMENT court] … money pair WITH tabular-nums: 108.921875 / 108.921875 (spread 0px) …
+        ok 1 [chromium] › e2e\tabular-figures.spec.ts:372:7 › … › (1) court … (12.3s)
+      [MEASUREMENT grove] … money pair WITH tabular-nums: 136.234375 / 136.234375 (spread 0px) …
+        ok 2 [chromium] › e2e\tabular-figures.spec.ts:406:7 › … › (2) grove … (10.0s)
+      2 passed (41.7s)                  $ echo $? → 0
+
+      Zero unexpected failures and zero unexpected passes: the annotation's condition is FALSE here, so
+      both cases run and assert exactly as they did before this task.
+
+    $ npx tsc --noEmit | grep -c "error TS"
+      7                                 ← the pre-existing baseline (19.1-09 §13 recorded the same 7,
+                                          all in tests/design/, none in a file this plan touches)

@@ -1,7 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { BASE, seedBookableListing, signUpBooker, type SeededListing } from "./helpers/booker-seed";
-import { seedPaymentStates, type SeededPaymentStates } from "./helpers/seed-payment-states";
+import {
+  BASE,
+  seedBookableListing,
+  signUpBooker,
+  type SeededListing,
+} from "./helpers/booker-seed";
+import {
+  seedPaymentStates,
+  type SeededPaymentStates,
+} from "./helpers/seed-payment-states";
 import { seedTheme } from "./helpers/theme";
 import { type ThemeName } from "../src/components/theme/theme-provider";
 
@@ -113,7 +121,11 @@ const MONEY_NARROW = "₱00,000.00";
  */
 const EPSILON_PX = 0.05;
 
-type TextWidth = { readonly text: string; readonly rangeWidth: number; readonly boxWidth: number };
+type TextWidth = {
+  readonly text: string;
+  readonly rangeWidth: number;
+  readonly boxWidth: number;
+};
 
 test.describe("TRUST-02 — the reference is fixed-advance-width, measured rather than assumed", () => {
   test.describe.configure({ mode: "serial" });
@@ -137,12 +149,16 @@ test.describe("TRUST-02 — the reference is fixed-advance-width, measured rathe
     await page.getByLabel("Email").fill(email);
     await page.getByLabel("Password").fill("averylongpassword");
     await page.getByRole("button", { name: "Log in" }).click();
-    await page.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 30_000 });
+    await page.waitForURL((u) => !u.pathname.startsWith("/login"), {
+      timeout: 30_000,
+    });
   }
 
   /** The theme seam is a silent no-op when it misses — `helpers/theme.ts`'s own warning. */
   async function expectTheme(page: Page, theme: ThemeName): Promise<void> {
-    const applied = await page.evaluate(() => document.documentElement.getAttribute("data-theme"));
+    const applied = await page.evaluate(() =>
+      document.documentElement.getAttribute("data-theme"),
+    );
     expect(
       applied,
       `the theme seam seeded "${theme}" and the document resolved "${applied}". Two runs of one theme ` +
@@ -154,15 +170,25 @@ test.describe("TRUST-02 — the reference is fixed-advance-width, measured rathe
   function normaliseFamilies(raw: string): string[] {
     return raw
       .split(",")
-      .map((f) => f.trim().replace(/^['"]|['"]$/g, "").toLowerCase())
+      .map((f) =>
+        f
+          .trim()
+          .replace(/^['"]|['"]$/g, "")
+          .toLowerCase(),
+      )
       .filter((f) => f !== "");
   }
 
   /**
    * Measure the reference on a given booking's receipt: the laid-out text width AND the element box.
    */
-  async function measureReference(page: Page, bookingId: string): Promise<TextWidth> {
-    await page.goto(`${BASE}/bookings/${bookingId}/receipt`, { waitUntil: "networkidle" });
+  async function measureReference(
+    page: Page,
+    bookingId: string,
+  ): Promise<TextWidth> {
+    await page.goto(`${BASE}/bookings/${bookingId}/receipt`, {
+      waitUntil: "networkidle",
+    });
     const el = page.getByTestId("booking-reference");
     await expect(
       el,
@@ -180,7 +206,10 @@ test.describe("TRUST-02 — the reference is fixed-advance-width, measured rathe
       };
     });
 
-    expect(measured.rangeWidth, `the reference on ${bookingId} laid out at zero width`).toBeGreaterThan(0);
+    expect(
+      measured.rangeWidth,
+      `the reference on ${bookingId} laid out at zero width`,
+    ).toBeGreaterThan(0);
     // THE VACUITY GUARD FOR (b). If the box does not hug the text, the box comparison would be a
     // comparison of container widths and would pass for any font at all. Asserted rather than assumed.
     expect(
@@ -211,7 +240,10 @@ test.describe("TRUST-02 — the reference is fixed-advance-width, measured rathe
     return page.evaluate(
       ([wideText, narrowText, mode]) => {
         const source = document.querySelector('[data-testid="receipt-total"]');
-        if (!source) throw new Error("receipt-total is absent, so the money probe has nothing to clone");
+        if (!source)
+          throw new Error(
+            "receipt-total is absent, so the money probe has nothing to clone",
+          );
 
         const measure = (text: string): number => {
           const probe = source.cloneNode(false) as HTMLElement;
@@ -237,7 +269,11 @@ test.describe("TRUST-02 — the reference is fixed-advance-width, measured rathe
     );
   }
 
-  async function runMeasurements(page: Page, theme: ThemeName, bookingIds: readonly string[]) {
+  async function runMeasurements(
+    page: Page,
+    theme: ThemeName,
+    bookingIds: readonly string[],
+  ) {
     // ═══════════════════════════════════════════════════════════════════════════════════════════════
     // (a) THE REFERENCE RESOLVES TO THE DECLARED MONO STACK
     // ═══════════════════════════════════════════════════════════════════════════════════════════════
@@ -288,12 +324,14 @@ test.describe("TRUST-02 — the reference is fixed-advance-width, measured rathe
     // SHA-256 over the booking id and the format is `FIT-` + 8 symbols, so equal length is guaranteed by
     // construction and difference is guaranteed by two different ids — both are asserted anyway, because
     // "guaranteed by construction" is what a fixture change quietly breaks.
-    expect(first.text, `${theme}: the first reference is not in FIT- form: "${first.text}"`).toMatch(
-      /^FIT-[0-9A-Z]{8}$/,
-    );
-    expect(second.text, `${theme}: the second reference is not in FIT- form: "${second.text}"`).toMatch(
-      /^FIT-[0-9A-Z]{8}$/,
-    );
+    expect(
+      first.text,
+      `${theme}: the first reference is not in FIT- form: "${first.text}"`,
+    ).toMatch(/^FIT-[0-9A-Z]{8}$/);
+    expect(
+      second.text,
+      `${theme}: the second reference is not in FIT- form: "${second.text}"`,
+    ).toMatch(/^FIT-[0-9A-Z]{8}$/);
     expect(
       second.text,
       `${theme}: both receipts rendered the SAME reference (${first.text}). Two renderings of one string ` +
@@ -344,29 +382,64 @@ test.describe("TRUST-02 — the reference is fixed-advance-width, measured rathe
 
     expect(
       spreadWith,
-      `${theme}: A1's BAD BRANCH IS LIVE — AND THIS IS A FINDING FOR PHASE 17, NOT A DEFECT IN THIS ` +
-        `PHASE'S WORK. "${MONEY_WIDE}" rendered at ${withTnum.wide}px and "${MONEY_NARROW}" at ` +
-        `${withTnum.narrow}px in the money surfaces' own treatment — a spread of ${spreadWith}px, where ` +
-        `equal width is what tabular figures mean. The same pair with font-variant-numeric forced to ` +
-        `normal spread ${spreadWithout}px, so the utility is ${
-          Math.abs(spreadWith - spreadWithout) <= EPSILON_PX ? "changing NOTHING" : "changing something"
-        }. Read that as: the Google Fonts build of Geist ships no usable tnum table (13-RESEARCH ` +
-        `Assumption A1), so \`tabular-nums\` is a silent no-op on every money figure in the app — not ` +
-        `only here. DO NOT respond by stripping tabular-nums anywhere, and DO NOT change the reference's ` +
-        `font-mono decision: (b) above is what carries TRUST-02 and it does not depend on this. Record ` +
-        `the measurement, hand it to Phase 17, and leave the classes alone.`,
+      `${theme}: THE MONEY PAIR DOES NOT LINE UP UNDER \`tabular-nums\`. "${MONEY_WIDE}" rendered ` +
+        `at ${withTnum.wide}px and "${MONEY_NARROW}" at ${withTnum.narrow}px in the money surfaces' ` +
+        `own treatment — a spread of ${spreadWith}px, where equal width is what tabular figures ` +
+        `mean. The same pair with font-variant-numeric forced to normal spread ${spreadWithout}px, so ` +
+        `the utility is ${
+          Math.abs(spreadWith - spreadWithout) <= EPSILON_PX
+            ? "changing NOTHING"
+            : "changing something"
+        }. ⚠ BEFORE READING THIS AS A PRODUCT DEFECT, ASK WHICH RASTERISER YOU ARE ON: this ` +
+        `assertion is GREEN on a developer machine and RED in mcr.microsoft.com/playwright:v1.60.0-noble, ` +
+        `the image gate-e2e runs in (.github/workflows/ci.yml:1572-1574), with the IDENTICAL tree, CSS ` +
+        `and font asset served by ONE dev server to both renderers: "0" and "1" are both 12.28125px ` +
+        `under tabular-nums on Windows Chromium and are 12.8125px vs 11.8125px in the container — ` +
+        `exactly 1px per digit, which is the 7px spread across the seven positions the two strings ` +
+        `differ in. MEASURED 19.1-11, evidence/known-failures-census.txt; the same image was measured ` +
+        `quantising glyph advances to whole pixels in 19.1-09, evidence/triage-skeleton-geometry.txt §5. ` +
+        `⚠ THE EARLIER READING OF THIS MESSAGE IS REFUTED, and it is written out because it was ` +
+        `read as fact once already (19.1-RESEARCH.md § Cause E): "the Google Fonts build of Geist ships ` +
+        `no usable tnum table (13-RESEARCH Assumption A1) … hand it to Phase 17" is FALSE — ` +
+        `13-16-SUMMARY.md:356 records A1 SETTLED with its good branch live and "No Phase-17 finding to ` +
+        `hand forward", and Phase 17 shipped no font change (19.1-02, evidence/tnum-phase17-probe.txt ` +
+        `PART 1). DO NOT respond by stripping tabular-nums anywhere, DO NOT move EPSILON_PX, and DO NOT ` +
+        `change the reference's font-mono decision: (b) above is what carries TRUST-02 and it does not ` +
+        `depend on this. Record the measurement and leave the classes alone.`,
     ).toBeLessThanOrEqual(EPSILON_PX);
   }
 
-  test("(1) court — the reference lines up, and the money pair is measured", async ({ page }) => {
+  test("(1) court — the reference lines up, and the money pair is measured", async ({
+    page,
+  }) => {
     test.setTimeout(120_000);
+    test.fail(
+      !!process.env.CI,
+      "clause (c)'s `tabular-nums` equalisation is delivered by a developer machine's Chromium and NOT " +
+        "by mcr.microsoft.com/playwright:v1.60.0-noble, the image gate-e2e runs in " +
+        "(.github/workflows/ci.yml:1572-1574). MEASURED 19.1-11 with the identical tree, the identical " +
+        'CSS and the identical font asset served by ONE dev server to both renderers: "0" and "1" are ' +
+        "both 12.28125px under tabular-nums on Windows and are 12.8125px vs 11.8125px in the container " +
+        "— exactly 1px per digit, which is the 7px this case reports across the seven positions " +
+        "where the two money strings differ. Transcript and both control runs: " +
+        "evidence/known-failures-census.txt (19.1-11); the same image was measured quantising glyph " +
+        "advances to whole pixels in evidence/triage-skeleton-geometry.txt §5 (19.1-09). This is a " +
+        "RENDERER capability gap, not a product property, so the response is neither stripping " +
+        "tabular-nums nor moving EPSILON_PX. ⚠ WHAT THIS ANNOTATION COSTS, NAMED RATHER THAN " +
+        "IMPLIED: Playwright has no per-assertion expected failure, so on CI a break in clause (a) or " +
+        "(b) — the TRUST-02 property a booker actually uses — would be absorbed here too. Both " +
+        "clauses still run and still assert UNANNOTATED on every developer machine, and (b) is green on " +
+        "both rasterisers; the narrowing that is available is this case rather than the whole file.",
+    );
 
     await seedTheme(page.context(), "court");
     ownerEmail = await signUpBooker(page, seed);
     const [{ id: bookerId }] = await seed.sql<{ id: string }[]>`
       SELECT id FROM "user" WHERE email = ${ownerEmail}
     `;
-    payStates = await seedPaymentStates(seed, bookerId, { idPrefix: "e2e_tabular" });
+    payStates = await seedPaymentStates(seed, bookerId, {
+      idPrefix: "e2e_tabular",
+    });
 
     await runMeasurements(page, "court", [
       payStates.bookingIds.confirmed,
@@ -374,7 +447,9 @@ test.describe("TRUST-02 — the reference is fixed-advance-width, measured rathe
     ]);
   });
 
-  test("(2) grove — the same measurements, the other theme", async ({ page }) => {
+  test("(2) grove — the same measurements, the other theme", async ({
+    page,
+  }) => {
     test.setTimeout(120_000);
 
     expect(
