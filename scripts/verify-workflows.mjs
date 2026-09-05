@@ -224,6 +224,38 @@ const MAIL_REFUSAL_SCRIPT = "scripts/refuse-mail-credential.mjs";
 const MAIL_REFUSAL_RUN = `node ${MAIL_REFUSAL_SCRIPT}`;
 const CI_E2E_MAIL_STEP = "Refuse to run the suite with a live mail credential in the environment";
 
+// THE STEPS EVERY ORDERING CLAIM IN THIS FILE IS ABOUT, NAMED (plan 19.1-06, review finding CR-02
+// and RESEARCH.md inventory rows 5 and 6). Until this plan the ordering predicates found these
+// steps by SEARCHING EVERY `run:` BODY IN THE JOB for a substring — `db:seed`, `db:migrate`,
+// `playwright test`, `--project=visual`, the refusal script's path. A `run:` body is FREE TEXT
+// written by whoever edits the workflow, so that made an attacker-controlled string the thing that
+// decides which step a positive assertion is about.
+//
+// ⚠ ALL FOUR VECTORS BELOW WERE MEASURED GREEN ON THE TRACKED FILE (evidence/guards-06-pre-fix.txt):
+//   * a decoy `echo` mentioning the refusal script, with the REAL refusal step moved to LAST —
+//     exit 0, all 55 holding, while the only control protecting the current run fired after the
+//     whole suite had already sent its mail;
+//   * a decoy mentioning `npm run db:seed`, with the REAL seed moved after the suite — exit 0, all
+//     55 holding, and the suite runs against an empty catalogue (RESEARCH.md row 5, which the
+//     research flagged NOT YET REPRODUCED; it reproduces);
+//   * the same shape in `gate-visual` — the ordering invariant that names the property went GREEN;
+//     the only red came from an unrelated `cross` check, by accident, for a different property;
+//   * a decoy mentioning `--project=visual` with the REAL step switched to `--project=chromium` —
+//     exit 0, ALL 55 HOLDING, including the invariant printed as "runs the visual project BY NAME".
+//     GATE-01's comparison never ran, and the checker said the file was fine.
+//
+// So each of these steps is now anchored ONCE, by its EXACT `name:`, and every predicate about it
+// derives from the resulting object. That is 19.1-PATTERNS.md §F, applied to the sites it was
+// written about rather than only to the new ones.
+const CI_E2E_MIGRATE_STEP = "Migrate the database";
+const CI_E2E_SEED_STEP = "Seed the demo catalogue";
+const CI_E2E_PLAYWRIGHT_STEP = "Playwright — the functional suite";
+const CI_E2E_PROJECT = "--project=chromium";
+const CI_VISUAL_MIGRATE_STEP = "Migrate the database";
+const CI_VISUAL_SEED_STEP = "Seed the baseline fixtures";
+const CI_VISUAL_PLAYWRIGHT_STEP = "Playwright — visual regression (GATE-01)";
+const CI_VISUAL_PROJECT = "--project=visual";
+
 // THE REFUSAL STEP'S PERMITTED KEY SURFACE, STATED POSITIVELY (review finding CR-01, third round).
 // Only these two keys may appear on that step. Anything else — an override of the interpreter its
 // `run:` body is handed to, a working directory, a per-step timeout, or an Actions attribute nobody
@@ -305,6 +337,29 @@ function workflow(path) {
 const jobsOf = (doc) => Object.entries(doc?.jobs ?? {});
 const stepsOf = (job) => (Array.isArray(job?.steps) ? job.steps : []);
 const runsOf = (job) => stepsOf(job).filter((s) => typeof s?.run === "string").map((s) => s.run);
+
+/**
+ * THE ONE WAY A POSITIVE ASSERTION IN THIS FILE MAY IDENTIFY A STEP (19.1-PATTERNS.md §F).
+ * Exact equality over the parsed `name:` scalar — not containment, not a regex, not a search over
+ * `run:` bodies. `name:` is a LABEL a reviewer reads in the diff; `run:` is free text, and letting
+ * free text decide which step an assertion is about hands the choice to whoever wrote it.
+ *
+ * ⚠ `stepIndexNamed` RETURNS A POSITION IN THE FULL STEP LIST, NOT IN `runsOf(job)`. Those are two
+ * different scales and mixing them is its own defect: `runsOf` filters out `uses:` steps, so an
+ * index taken from it silently ignores every action in the job. Review finding WR-05 was exactly
+ * that mistake, one predicate over. Every ordering comparison below is on the FULL-step scale, so
+ * the numbers printed in the evidence lines are comparable to each other and to what a reader sees
+ * in the file.
+ *
+ * Both return the ABSENT answer (`undefined` / `-1`) for a missing step rather than throwing, so
+ * the conjuncts that use them must test for it explicitly — an ordering claim over an absent step
+ * must be FALSE, never vacuous.
+ */
+const stepNamed = (job, name) => stepsOf(job).find((s) => String(s?.name ?? "") === name);
+const stepIndexNamed = (job, name) =>
+  stepsOf(job).findIndex((s) => String(s?.name ?? "") === name);
+/** The trimmed `run:` body of a step, or "" when the step is absent or carries none. */
+const runOfStep = (step) => String(step?.run ?? "").trim();
 /**
  * THE TRIGGER NAMES, FOR ALL THREE DOCUMENTED SPELLINGS OF `on:` (review finding WR-02).
  * docs.github.com, "Workflow syntax for GitHub Actions → on", permits exactly three forms and they
@@ -885,6 +940,25 @@ if (sections.includes("ci")) {
   // DB-touching route is being prerendered. Point that job at a live database and a route that
   // silently becomes static builds green and ships a page of FROZEN AVAILABILITY — one of the two
   // failure modes PROJECT.md names as unacceptable. This is the cheapest standing check against it.
+  //
+  // ⚠ THE SUBSTRING BELOW IS AUDITED AND DELIBERATELY KEPT — READ THIS BEFORE "FIXING" IT (plan
+  // 19.1-06, deferred item D-19.1-C; verdict CARRIED in evidence/sc2-audit-inventory.md row 7).
+  // It IS the CR-02 idiom, and it is the one place in this file where that idiom is not the wrong
+  // tool, because of what this predicate's DANGEROUS DIRECTION is:
+  //   * Its property is "the job that builds declares no services". OVER-matching adds a PHANTOM
+  //     job to `buildJobs`; if that phantom declares services the check goes RED. A false red on a
+  //     safety property fails CLOSED, and a spurious extra entry can never make this check pass.
+  //   * UNDER-matching is what would be dangerous here — and under-matching is impossible for a
+  //     containment test, which is exactly why containment is the right shape for the DENY
+  //     direction and the wrong one for locating the subject of a positive claim.
+  // ⚠ WHAT IT IS THEREFORE *NOT*: it is NOT the invariant that `gate-db-free` runs the build. Plan
+  // 19.1-05's build-step invariant OWNS that claim now, anchored by exact `name:` with a trimmed
+  // exact-equality invocation. Before that invariant existed, deleting the build step went red HERE
+  // — by accident, on this predicate's existence conjunct, for a property that is not about the
+  // step at all — and `npm run build --decoy` and `if: false` on that step both left it GREEN
+  // (19.1-05's MUTATIONS 5 and 6). A future reader must not treat this line as coverage of the
+  // build step, and must not re-anchor it by job key either: spelling the job by NAME is the one
+  // thing this predicate's own heading says it exists to avoid.
   const buildJobs = ciRunsByJob.filter(([, rs]) => rs.some((r) => r.includes("npm run build")));
   const buildJobsWithServices = buildJobs.filter(([name]) => {
     const j = doc.jobs[name];
@@ -949,10 +1023,19 @@ if (sections.includes("ci")) {
   // and no mail key appear, the addressing rule passes. A required check would go green over a job
   // that installs npm and stops. That is the same vacuity as a deleted job, one level in.
   //
-  // All three below quantify over `e2eRuns` — the job's RUN COMMANDS — so a job whose steps are
-  // emptied makes each of them FALSE rather than vacuously true: an existential over an empty list
-  // is false, and an index comparison over an empty list has no non-negative indices to compare.
+  // All three below used to quantify over `e2eRuns` — the job's RUN COMMANDS — so a job whose steps
+  // are emptied made each of them FALSE rather than vacuously true: an existential over an empty
+  // list is false, and an index comparison over an empty list has no non-negative indices to
+  // compare. THAT ARGUMENT SURVIVES AND ONLY ITS SUFFICIENCY DID NOT (plan 19.1-06, CR-02's class).
+  // An EXISTENTIAL over run bodies is false over an empty job, yes — and it is also satisfied by
+  // ANY step that merely mentions the string, including one that does nothing. Absence was handled;
+  // IMPERSONATION was not. Each of the three now anchors its step by exact `name:` and asks its
+  // question of THAT step, and each still answers FALSE over an emptied job because a named step
+  // that is not there yields `undefined` / `-1`.
   const e2eRuns = runsOf(e2e);
+  const e2eSteps = stepsOf(e2e);
+  const e2ePlayStep = stepNamed(e2e, CI_E2E_PLAYWRIGHT_STEP);
+  const e2ePlayRun = runOfStep(e2ePlayStep);
 
   // 1. THE FUNCTIONAL PROJECT BY NAME, not "some Playwright command exists". `--project=chromium`
   //    is what selects `testMatch: "e2e/*.spec.ts"` in playwright.config.ts, so naming the project
@@ -960,10 +1043,23 @@ if (sections.includes("ci")) {
   //    project that job 4 owns and whose committed baselines this job must never touch. This is
   //    verbatim the argument the `gate-visual` block one screen below makes for `--project=visual`
   //    — it transfers unchanged, and is not restated at length here.
+  //
+  //    ⚠ THE QUESTION IS ASKED OF THE NAMED STEP, NOT OF THE JOB (plan 19.1-06). The superseded
+  //    form was `e2eRuns.some(r => r.includes(…))` — an existential over every run body in the job,
+  //    which any `echo` mentioning the flag satisfies. The SIBLING of this check in `gate-visual`
+  //    was defeated exactly that way and MEASURED: a decoy `echo` naming the visual project, with
+  //    the real step switched to a different project, left the checker at exit 0 with all 55
+  //    reported holding. Containment is still the comparison — the invocation legitimately carries
+  //    other arguments — but it is now containment over the SUBJECT'S OWN run body rather than a
+  //    search for a subject, which is the whole distinction this plan is about.
   check(
-    `"${CI_E2E_JOB}" runs the functional project BY NAME (--project=chromium)`,
-    e2eRuns.some((r) => r.includes("playwright test") && r.includes("--project=chromium")),
-    `run commands=${JSON.stringify(e2eRuns)}`,
+    `"${CI_E2E_JOB}" runs the functional project BY NAME (${CI_E2E_PROJECT}), on the step named "${CI_E2E_PLAYWRIGHT_STEP}"`,
+    e2ePlayStep !== undefined &&
+      e2ePlayRun.includes("playwright test") &&
+      e2ePlayRun.includes(CI_E2E_PROJECT),
+    `step="${CI_E2E_PLAYWRIGHT_STEP}" ${e2ePlayStep ? `at index ${stepIndexNamed(e2e, CI_E2E_PLAYWRIGHT_STEP)}` : "(ABSENT)"}  ` +
+      `run=${JSON.stringify(e2ePlayStep ? e2ePlayRun : null)}  must contain=["playwright test", ${JSON.stringify(CI_E2E_PROJECT)}]  ` +
+      `(of ${e2eSteps.length} steps)`,
   );
 
   // 2. UNCONDITIONAL — THE JOB *AND* EVERY STEP OF IT. A job-level `if:` or
@@ -1059,12 +1155,26 @@ if (sections.includes("ci")) {
   //    after the suite is a seed that changed nothing, and this job's own step comment records that
   //    FIVE named specs fail against an empty catalogue and say so in their own messages. Same
   //    shape as the `gate-visual` migrate → seed → playwright ordering check below.
-  const iE2eSeed = e2eRuns.findIndex((r) => r.includes("db:seed"));
-  const iE2ePlay = e2eRuns.findIndex((r) => r.includes("playwright test"));
+  //
+  //    ⚠ THE INDICES COME FROM NAME-ANCHORED STEPS, AND RESEARCH.md's ROW 5 REPRODUCED (plan
+  //    19.1-06). The superseded computation was `e2eRuns.findIndex(r => r.includes("db:seed"))` —
+  //    the FIRST run body in the job that mentions the seed command, which need not be the seed
+  //    step and need not seed anything. 19.1-RESEARCH.md flagged that vector NOT YET REPRODUCED, so
+  //    it was reproduced before it was repaired rather than repaired on suspicion. It reproduces:
+  //    a decoy `echo "…npm run db:seed…"` placed after the refusal step, with the REAL seed step
+  //    moved after the Playwright step, left the checker at exit 0 with all 55 reported holding
+  //    (evidence/guards-06-pre-fix.txt, VECTOR ROW-5). The suite would have run against an empty
+  //    catalogue with this invariant printing green — and its printed name is the claim that it
+  //    would not.
+  //
+  //    Both indices are positions in the FULL step list, not in `runsOf`. See `stepIndexNamed`.
+  const iE2eSeed = stepIndexNamed(e2e, CI_E2E_SEED_STEP);
+  const iE2ePlay = stepIndexNamed(e2e, CI_E2E_PLAYWRIGHT_STEP);
   check(
     `"${CI_E2E_JOB}" seeds the demo catalogue BEFORE it runs the suite`,
     iE2eSeed >= 0 && iE2ePlay >= 0 && iE2eSeed < iE2ePlay,
-    `indices: db:seed=${iE2eSeed}  playwright=${iE2ePlay}  (of ${e2eRuns.length} run commands)`,
+    `step indices: "${CI_E2E_SEED_STEP}"=${iE2eSeed}  "${CI_E2E_PLAYWRIGHT_STEP}"=${iE2ePlay}  ` +
+      `(of ${e2eSteps.length} steps; -1 means the step is ABSENT under that exact name)`,
   );
 
   // ── AND THE THREE THAT MAKE D-14'S RUNTIME HALF REAL (plan 19-12, review finding CR-01) ───────
@@ -1078,7 +1188,13 @@ if (sections.includes("ci")) {
   // Its coverage over that scan was ZERO, and it could not observe `container.env`, the hole
   // `ci.yml`'s header named and then leaned on this step to cover. It shipped, was documented as
   // active, and survived a full verification round. Presence is not the property.
-  const e2eMailStep = stepsOf(e2e).find((s) => String(s?.name ?? "") === CI_E2E_MAIL_STEP);
+  // ⚠ THIS LINE IS THE ONLY PLACE IN THIS FILE THAT DECIDES WHICH STEP THE REFUSAL STEP IS.
+  // Invariants A, B and C below all derive from `e2eMailStep`. Until plan 19.1-06, Invariant C
+  // located the SAME step a SECOND time, by a substring of a run body — 19-REVIEW.md CR-02 — so the
+  // job had two answers to one question and a decoy could make them disagree. One identity, derived
+  // once, used everywhere: that is what makes the decoy control at case 30 a meaningful measurement
+  // rather than a restatement of this line.
+  const e2eMailStep = stepNamed(e2e, CI_E2E_MAIL_STEP);
   const e2eMailRun = String(e2eMailStep?.run ?? "");
   // Sorted, because YAML mapping order is an authoring accident and a diagnostic that changes with it
   // is not stable across runs. Membership below is EXACT string equality, so a differently-cased or
@@ -1179,39 +1295,66 @@ if (sections.includes("ci")) {
   //
   //    ⚠ THE TRAILING `@` IS LOAD-BEARING. A bare prefix test would also admit an action whose name
   //    merely BEGINS with a permitted one.
-  const e2eSteps = stepsOf(e2e);
+  //
+  //    ── ONE IDENTITY PER STEP (plan 19.1-06, review finding CR-02) ────────────────────────────
+  //    THE DEFECT THIS REPLACES, AND ITS MEASUREMENT (evidence/guards-06-pre-fix.txt, VECTOR
+  //    CR-02). The refusal step is anchored by exact `name:` at `e2eMailStep` above. This predicate
+  //    then went and FOUND IT AGAIN, by `findIndex(s => String(s?.run).includes(MAIL_REFUSAL_SCRIPT))`
+  //    — a substring of a `run:` body, which is free text. So the job had TWO answers to the
+  //    question "which step is the refusal step", and a decoy could make them disagree: a step whose
+  //    `run:` is nothing but `echo "…scripts/refuse-mail-credential.mjs…"`, inserted where the real
+  //    step used to be, CAPTURED this index, and the real step was then free to sit at the END of
+  //    the job. Measured on the tracked file: exit 0, all 55 reported holding, with the only control
+  //    that protects the CURRENT run firing after migrate, seed and the entire Playwright suite had
+  //    finished — i.e. after the mail this whole invariant exists to prevent had already been sent.
+  //    Invariants A and B stayed green throughout, because the step they anchor still existed and
+  //    still carried the exact invocation. It was in the wrong PLACE, and this is the only predicate
+  //    that was supposed to notice.
+  //    THE FIX IS NOT A BETTER SUBSTRING. It is that a step anchored once is anchored ONCE: the
+  //    index is now the position of `e2eMailStep` — the very object Invariants A and B assert about
+  //    — in the job's own step list. A decoy cannot capture it, because a decoy does not carry the
+  //    step's `name:`; and if a decoy DID carry that exact name, `stepNamed` would return the first
+  //    of them and Invariant A's exact-invocation conjunct would immediately go red on the `echo`.
+  //
+  //    ⚠ AND THE ORDERING CLAIM MAY NOT HOLD VACUOUSLY. `e2ePrecede.every(…)` is TRUE over an EMPTY
+  //    list, so a refusal step promoted to FIRST in the job satisfied "only checkout, setup-node and
+  //    npm ci may precede it" by having nothing precede it at all. MEASURED: exit 0, all 55 holding
+  //    (VECTOR VACUOUS-PRECEDE) — over a job where the refusal step runs before `actions/checkout`,
+  //    so the script it invokes IS NOT ON DISK YET and the step is a guaranteed failure at best.
+  //    The non-empty conjunct is what turns an unfalsifiable claim back into an assertion.
   const E2E_PRECEDE_USES_OK = ["actions/checkout", "actions/setup-node"];
   const E2E_PRECEDE_RUN_OK = "npm ci";
-  const iE2eStepRefuse = e2eSteps.findIndex((s) =>
-    String(s?.run ?? "").includes(MAIL_REFUSAL_SCRIPT),
-  );
+  const iE2eStepRefuse = e2eMailStep === undefined ? -1 : e2eSteps.indexOf(e2eMailStep);
   const e2ePrecede = iE2eStepRefuse >= 0 ? e2eSteps.slice(0, iE2eStepRefuse) : [];
   const describeStep = (s) =>
     s?.uses !== undefined ? `uses:${String(s.uses)}` : `run:${String(s?.run ?? "").trim()}`;
   const onlySetupBefore =
     iE2eStepRefuse >= 0 &&
+    e2ePrecede.length > 0 &&
     e2ePrecede.every(
       (s) =>
         String(s?.run ?? "").trim() === E2E_PRECEDE_RUN_OK ||
         E2E_PRECEDE_USES_OK.some((u) => String(s?.uses ?? "").startsWith(`${u}@`)),
     );
-  const iE2eRefuse = e2eRuns.findIndex((r) => r.includes(MAIL_REFUSAL_SCRIPT));
-  const iE2eMigrate = e2eRuns.findIndex((r) => r.includes("db:migrate"));
+  const iE2eMigrate = stepIndexNamed(e2e, CI_E2E_MIGRATE_STEP);
   check(
     `"${CI_E2E_JOB}" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY ${E2E_PRECEDE_USES_OK.join("@, ")}@ and \`${E2E_PRECEDE_RUN_OK}\` may precede it, over the FULL step list`,
-    iE2eRefuse >= 0 &&
-      iE2eStepRefuse >= 0 &&
+    iE2eStepRefuse >= 0 &&
       onlySetupBefore &&
       iE2eMigrate >= 0 &&
       iE2eSeed >= 0 &&
       iE2ePlay >= 0 &&
-      iE2eRefuse < iE2eMigrate &&
-      iE2eRefuse < iE2eSeed &&
-      iE2eRefuse < iE2ePlay,
-    `indices: refusal=${iE2eRefuse}  db:migrate=${iE2eMigrate}  db:seed=${iE2eSeed}  ` +
-      `playwright=${iE2ePlay}  (of ${e2eRuns.length} run commands)  ` +
-      `refusal step index=${iE2eStepRefuse} (of ${e2eSteps.length} steps)  ` +
-      `precedes=[${e2ePrecede.map(describeStep).join(", ") || "(none)"}]  ` +
+      iE2eStepRefuse < iE2eMigrate &&
+      iE2eStepRefuse < iE2eSeed &&
+      iE2eStepRefuse < iE2ePlay,
+    // Every index below is a position in the FULL step list and every one of them is derived from
+    // an exact `name:`, so they are on ONE scale and comparable to what a reader counts in the file.
+    `step indices (of ${e2eSteps.length} steps, -1 = ABSENT under that exact name): ` +
+      `refusal="${CI_E2E_MAIL_STEP}"=${iE2eStepRefuse}  ` +
+      `"${CI_E2E_MIGRATE_STEP}"=${iE2eMigrate}  "${CI_E2E_SEED_STEP}"=${iE2eSeed}  ` +
+      `"${CI_E2E_PLAYWRIGHT_STEP}"=${iE2ePlay}  ` +
+      `precedes=[${e2ePrecede.map(describeStep).join(", ") || "(NONE — and an ordering claim over an empty preceding set is VACUOUS, which is why it is red)"}]  ` +
+      `preceding count=${e2ePrecede.length} (must be > 0)  ` +
       `permitted=[${E2E_PRECEDE_USES_OK.map((u) => `${u}@…`).join(", ")}, run:${E2E_PRECEDE_RUN_OK}]  ` +
       `and that holds=${onlySetupBefore}`,
   );
@@ -1490,25 +1633,51 @@ if (sections.includes("ci")) {
   // (`{arg}-visual-linux.png`, measured in 11-RESEARCH Finding 1), so renaming it orphans all 52
   // committed baselines at once — and `npm run test:e2e` here would re-open the whole e2e surface
   // D-24 closed.
-  const runsVisualProject = visualRuns.some(
-    (r) => r.includes("playwright test") && r.includes("--project=visual"),
-  );
+  //
+  // ⚠ ASKED OF THE NAMED STEP, NOT OF THE JOB (plan 19.1-06, RESEARCH.md inventory row 6). The
+  // superseded form was an existential over EVERY run body in the job. THE MEASUREMENT
+  // (evidence/guards-06-pre-fix.txt, VECTOR VISUAL-PROJECT): a decoy step whose entire body is
+  // `echo "…npx playwright test --project=visual…"`, with THIS step's own invocation switched to
+  // `--project=chromium`, left the checker at exit 0 with ALL 55 REPORTED HOLDING — including this
+  // invariant, whose printed name is the claim that the visual project runs by name. GATE-01's
+  // comparison would not have run at all; the job would have collected the functional suite
+  // instead, and the 52 committed baselines would have gone uncompared under a green check.
+  const visualPlayStep = stepNamed(visual, CI_VISUAL_PLAYWRIGHT_STEP);
+  const visualPlayRun = runOfStep(visualPlayStep);
+  const runsVisualProject =
+    visualPlayStep !== undefined &&
+    visualPlayRun.includes("playwright test") &&
+    visualPlayRun.includes(CI_VISUAL_PROJECT);
   check(
-    `"${CI_VISUAL_JOB}" runs the visual project BY NAME (--project=visual)`,
+    `"${CI_VISUAL_JOB}" runs the visual project BY NAME (${CI_VISUAL_PROJECT}), on the step named "${CI_VISUAL_PLAYWRIGHT_STEP}"`,
     runsVisualProject,
-    `run commands=${JSON.stringify(visualRuns)}`,
+    `step="${CI_VISUAL_PLAYWRIGHT_STEP}" ${visualPlayStep ? `at index ${stepIndexNamed(visual, CI_VISUAL_PLAYWRIGHT_STEP)}` : "(ABSENT)"}  ` +
+      `run=${JSON.stringify(visualPlayStep ? visualPlayRun : null)}  ` +
+      `must contain=["playwright test", ${JSON.stringify(CI_VISUAL_PROJECT)}]  ` +
+      `(of ${stepsOf(visual).length} steps)`,
   );
 
   // MIGRATE → SEED → PLAYWRIGHT, IN THAT ORDER. A seed after the comparison is a seed that changed
   // nothing, and the comparison then photographs an empty database.
-  const iMigrate = visualRuns.findIndex((r) => r.includes("db:migrate"));
-  const iSeed = visualRuns.findIndex((r) => r.includes("seed-baseline-fixtures"));
-  const iPlay = visualRuns.findIndex((r) => r.includes("playwright test"));
+  //
+  // ⚠ THE SAME REPAIR AS `gate-e2e`'s ORDERING, ONE JOB OVER, AND IT TRANSFERS WITHOUT A NEW SHAPE
+  // because every step of this job carries an exact `name:` (plan 19.1-06, inventory row 6). THE
+  // MEASUREMENT (VECTOR VISUAL-ORDER): a decoy mentioning the seed script placed after migrate,
+  // with the REAL seed step moved after the Playwright step, left THIS invariant GREEN. The run did
+  // go red — but on `the two visual jobs' seed run commands are byte-identical`, in the `cross`
+  // section, for a completely different property, and only because that predicate happens to pick
+  // the same decoy. A red that arrives from an unrelated predicate is not coverage: move the build
+  // one job over, or make the decoy byte-identical to `baselines.yml`'s seed command, and the
+  // accident goes away while this invariant's own claim stays false.
+  const iMigrate = stepIndexNamed(visual, CI_VISUAL_MIGRATE_STEP);
+  const iSeed = stepIndexNamed(visual, CI_VISUAL_SEED_STEP);
+  const iPlay = stepIndexNamed(visual, CI_VISUAL_PLAYWRIGHT_STEP);
   check(
     `"${CI_VISUAL_JOB}" runs migrate, then seed, then playwright — IN THAT ORDER`,
     iMigrate >= 0 && iSeed >= 0 && iPlay >= 0 && iMigrate < iSeed && iSeed < iPlay,
-    `indices: db:migrate=${iMigrate}  seed-baseline-fixtures=${iSeed}  playwright=${iPlay}  ` +
-      `(of ${visualRuns.length} run commands)`,
+    `step indices: "${CI_VISUAL_MIGRATE_STEP}"=${iMigrate}  "${CI_VISUAL_SEED_STEP}"=${iSeed}  ` +
+      `"${CI_VISUAL_PLAYWRIGHT_STEP}"=${iPlay}  ` +
+      `(of ${stepsOf(visual).length} steps; -1 means the step is ABSENT under that exact name)`,
   );
 
   console.log(

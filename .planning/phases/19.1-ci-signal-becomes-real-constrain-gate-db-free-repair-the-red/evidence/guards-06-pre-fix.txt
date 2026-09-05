@@ -383,3 +383,339 @@ $ md5sum .github/workflows/ci.yml            # REVERTED — must equal the first
 925db7b91bccc2d1ab1220b1441e1e58 *.github/workflows/ci.yml
 $ git status --porcelain -- .github/workflows/ci.yml
 (no line above = the working tree is clean; the measurement left nothing behind)
+
+
+################################################################################
+# TASK 2 — THE STEP-ANCHOR VECTORS
+#
+# The checker used for every capture in THIS SECTION is the one committed by Task 1 (3e87c8d) —
+# i.e. WITH the trigger repair and WITHOUT the step-anchor repair. It was restored with
+# `git checkout HEAD -- scripts/verify-workflows.mjs` and its md5 is printed above this block in
+# the session transcript. Task 2's working-tree changes were set aside for the duration and put
+# back afterwards; the checker's md5 was compared before and after and is identical.
+#
+# ⚠ A NOTE ON THE HARNESS ITSELF, RECORDED BECAUSE IT IS THE SAME DEFECT CLASS THIS PLAN IS ABOUT.
+# The first run of these mutations used an UNSCOPED `indexOf("      - name: Migrate the database")`.
+# That string appears in THREE jobs of `ci.yml`, and the first is `gate-price-parity` — so two
+# decoys landed in the wrong job and produced three reds attributed to vectors they had nothing to
+# do with. It was caught because the FAIL lines named invariants the vectors were not about. Every
+# anchor below is scoped to a job key first. A mutation harness that locates its subject by an
+# ambiguous string is measuring something other than what it claims, exactly as a checker is.
+################################################################################
+
+================================================================================
+TASK 2 / VECTOR CR-02-DECOY-ONLY — a decoy step, ahead of the refusal step, whose run merely MENTIONS the refusal script
+================================================================================
+EXPECTED BEFORE THE REPAIR: GREEN. This is the sharpest form of CR-02. The predicate finds the refusal step with `findIndex(s => run.includes(<script path>))` — the FIRST step whose run body mentions the script — so the decoy BECOMES the anchor. The preceding set is then `slice(0, <decoy index>)`, which does not contain the decoy: THE DECOY EXCLUDES ITSELF FROM THE SET IT VIOLATES. The invariant's printed name says only checkout, setup-node and `npm ci` may precede the refusal step, and here is a fourth thing preceding it under a green check.
+
+$ md5sum .github/workflows/ci.yml            # working tree (comment-only diff from HEAD)
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "cr02-decoy-only">
+applied cr02-decoy-only
+
+$ md5sum .github/workflows/ci.yml            # MUTATED
+008ee50829bd91d692c4ee6e3c977041 *.github/workflows/ci.yml
+
+$ git diff --unified=0 -- .github/workflows/ci.yml   # the edit, in full
+@@ -1606,0 +1607,2 @@ jobs:
++      - name: A decoy step whose run merely mentions the refusal script
++        run: echo "this step mentions scripts/refuse-mail-credential.mjs and executes nothing"
+
+$ node scripts/verify-workflows.mjs   # (parsed-values block elided — see ELISION RULE)
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+  ok    "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+  ok    "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+  ok    "gate-visual" runs IN the pinned Playwright container
+  ok    "gate-visual" declares a `postgres` service
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+CHECKER-EXIT=0
+
+$ <restore ci.yml>  && md5sum
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+$ git diff -U0 -- .github/workflows/ci.yml | grep -E '^[+-][^+-]' | grep -cv '^[+-][[:space:]]*#'
+0
+(0 = only comment lines differ from HEAD; the measurement left nothing behind)
+
+================================================================================
+TASK 2 / VECTOR CR-02 — the same decoy, WITH the real refusal step moved to the END of the job
+================================================================================
+EXPECTED BEFORE THE REPAIR: GREEN. The consequence of the above, stated as damage: the only control that protects the CURRENT run now fires AFTER migrate, seed and the entire Playwright suite — i.e. after the mail this invariant exists to prevent has already been sent. Invariants A and B stay green throughout, because the step they anchor still exists and still carries the exact invocation. It is in the wrong PLACE, and this is the only predicate that was supposed to notice.
+
+$ md5sum .github/workflows/ci.yml            # working tree (comment-only diff from HEAD)
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "cr02-decoy-and-move">
+applied cr02-decoy-and-move
+
+$ md5sum .github/workflows/ci.yml            # MUTATED
+9be45b3a73f579dbb407c89ea536e1cc *.github/workflows/ci.yml
+
+$ git diff --unified=0 -- .github/workflows/ci.yml   # the edit, in full
+@@ -1607,2 +1606,0 @@ jobs:
+-      - name: Refuse to run the suite with a live mail credential in the environment
+-        run: node scripts/refuse-mail-credential.mjs
+@@ -1612,0 +1611,2 @@ jobs:
++      - name: A decoy step whose run merely mentions the refusal script
++        run: echo "this step mentions scripts/refuse-mail-credential.mjs and executes nothing"
+@@ -1633,0 +1634,2 @@ jobs:
++      - name: Refuse to run the suite with a live mail credential in the environment
++        run: node scripts/refuse-mail-credential.mjs
+
+$ node scripts/verify-workflows.mjs   # (parsed-values block elided — see ELISION RULE)
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+  ok    "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+  ok    "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+  ok    "gate-visual" runs IN the pinned Playwright container
+  ok    "gate-visual" declares a `postgres` service
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+CHECKER-EXIT=0
+
+$ <restore ci.yml>  && md5sum
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+$ git diff -U0 -- .github/workflows/ci.yml | grep -E '^[+-][^+-]' | grep -cv '^[+-][[:space:]]*#'
+0
+(0 = only comment lines differ from HEAD; the measurement left nothing behind)
+
+================================================================================
+TASK 2 / CONTROL — the refusal step moved to the end WITHOUT a decoy
+================================================================================
+EXPECTED BEFORE THE REPAIR: RED, already, before any repair. Nothing captures the anchor, so the real step's own late index fails the comparison honestly. Recorded so the two captures above cannot be misread as "the ordering predicate does nothing": it works, and a decoy is what disables it.
+
+$ md5sum .github/workflows/ci.yml            # working tree (comment-only diff from HEAD)
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "refusal-moved-last">
+applied refusal-moved-last
+
+$ md5sum .github/workflows/ci.yml            # MUTATED
+0988816794a89fd68eb896d7e853538b *.github/workflows/ci.yml
+
+$ git diff --unified=0 -- .github/workflows/ci.yml   # the edit, in full
+@@ -1607,2 +1606,0 @@ jobs:
+-      - name: Refuse to run the suite with a live mail credential in the environment
+-        run: node scripts/refuse-mail-credential.mjs
+@@ -1633,0 +1632,2 @@ jobs:
++      - name: Refuse to run the suite with a live mail credential in the environment
++        run: node scripts/refuse-mail-credential.mjs
+
+$ node scripts/verify-workflows.mjs   # (parsed-values block elided — see ELISION RULE)
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+  ok    "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+  FAIL  "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+  ok    "gate-visual" runs IN the pinned Playwright container
+  ok    "gate-visual" declares a `postgres` service
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+1 of 55 invariant(s) FAILED:
+CHECKER-EXIT=1
+
+$ <restore ci.yml>  && md5sum
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+$ git diff -U0 -- .github/workflows/ci.yml | grep -E '^[+-][^+-]' | grep -cv '^[+-][[:space:]]*#'
+0
+(0 = only comment lines differ from HEAD; the measurement left nothing behind)
+
+================================================================================
+TASK 2 / VECTOR ROW-5 — a decoy mentioning the seed command, WITH the real seed step moved after the suite
+================================================================================
+EXPECTED BEFORE THE REPAIR: UNKNOWN AT CAPTURE TIME. 19.1-RESEARCH.md's inventory flags row 5 as NOT YET REPRODUCED, so this capture is the reproduction and its result decides whether the row is repaired or recorded as refuted. A green confirms the vector; a red refutes it. Both are findings and neither was assumed.
+
+$ md5sum .github/workflows/ci.yml            # working tree (comment-only diff from HEAD)
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "row5-decoy-and-move">
+applied row5-decoy-and-move
+
+$ md5sum .github/workflows/ci.yml            # MUTATED
+3933293b9d637d3d14afa5a41cd4b222 *.github/workflows/ci.yml
+
+$ git diff --unified=0 -- .github/workflows/ci.yml   # the edit, in full
+@@ -1608,0 +1609,2 @@ jobs:
++      - name: A decoy step whose run merely mentions the seed command
++        run: echo "this step mentions npm run db:seed and seeds nothing"
+@@ -1621,2 +1622,0 @@ jobs:
+-      - name: Seed the demo catalogue
+-        run: npm run db:seed
+@@ -1633,0 +1634,2 @@ jobs:
++      - name: Seed the demo catalogue
++        run: npm run db:seed
+
+$ node scripts/verify-workflows.mjs   # (parsed-values block elided — see ELISION RULE)
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+  ok    "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+  ok    "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+  ok    "gate-visual" runs IN the pinned Playwright container
+  ok    "gate-visual" declares a `postgres` service
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+CHECKER-EXIT=0
+
+$ <restore ci.yml>  && md5sum
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+$ git diff -U0 -- .github/workflows/ci.yml | grep -E '^[+-][^+-]' | grep -cv '^[+-][[:space:]]*#'
+0
+(0 = only comment lines differ from HEAD; the measurement left nothing behind)
+
+================================================================================
+TASK 2 / VECTOR VISUAL-ORDER — the same shape one job over: a decoy mentioning the baseline seed, with gate-visual's real seed step moved after its Playwright step
+================================================================================
+EXPECTED BEFORE THE REPAIR: UNKNOWN AT CAPTURE TIME (inventory row 6). Watch WHICH invariant reddens, not merely whether one does.
+
+$ md5sum .github/workflows/ci.yml            # working tree (comment-only diff from HEAD)
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "visual-decoy-and-move">
+applied visual-decoy-and-move
+
+$ md5sum .github/workflows/ci.yml            # MUTATED
+61f1818ba4d495bff0912f803fc55287 *.github/workflows/ci.yml
+
+$ git diff --unified=0 -- .github/workflows/ci.yml   # the edit, in full
+@@ -1411,0 +1412,2 @@ jobs:
++      - name: A decoy step whose run merely mentions the baseline seed
++        run: echo "this step mentions scripts/seed-baseline-fixtures.ts and seeds nothing"
+@@ -1426,2 +1427,0 @@ jobs:
+-      - name: Seed the baseline fixtures
+-        run: npx tsx scripts/seed-baseline-fixtures.ts
+@@ -1436,0 +1437,2 @@ jobs:
++      - name: Seed the baseline fixtures
++        run: npx tsx scripts/seed-baseline-fixtures.ts
+
+$ node scripts/verify-workflows.mjs   # (parsed-values block elided — see ELISION RULE)
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+  ok    "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+  ok    "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+  ok    "gate-visual" runs IN the pinned Playwright container
+  ok    "gate-visual" declares a `postgres` service
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+  FAIL  the two visual jobs' seed run commands are byte-identical and both name scripts/seed-baseline-fixtures.ts
+1 of 55 invariant(s) FAILED:
+CHECKER-EXIT=1
+
+$ <restore ci.yml>  && md5sum
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+$ git diff -U0 -- .github/workflows/ci.yml | grep -E '^[+-][^+-]' | grep -cv '^[+-][[:space:]]*#'
+0
+(0 = only comment lines differ from HEAD; the measurement left nothing behind)
+
+================================================================================
+TASK 2 / VECTOR VISUAL-PROJECT — a decoy naming the visual project, with gate-visual's REAL Playwright step switched to a different project
+================================================================================
+EXPECTED BEFORE THE REPAIR: UNKNOWN AT CAPTURE TIME (inventory row 6, second half). gate-visual exists to run GATE-01's comparison against 52 committed baselines.
+
+$ md5sum .github/workflows/ci.yml            # working tree (comment-only diff from HEAD)
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "visual-project-decoy">
+applied visual-project-decoy
+
+$ md5sum .github/workflows/ci.yml            # MUTATED
+92275b4a4afe2073f6e81586d2027561 *.github/workflows/ci.yml
+
+$ git diff --unified=0 -- .github/workflows/ci.yml   # the edit, in full
+@@ -1427,0 +1428,4 @@ jobs:
++      - name: Playwright — visual regression (GATE-01)
++        run: npx playwright test --project=chromium
++      - name: A decoy step whose run merely mentions the visual project
++        run: echo "this step mentions npx playwright test --project=visual and runs nothing"
+@@ -1435,2 +1438,0 @@ jobs:
+-      - name: Playwright — visual regression (GATE-01)
+-        run: npx playwright test --project=visual
+
+$ node scripts/verify-workflows.mjs   # (parsed-values block elided — see ELISION RULE)
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+  ok    "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+  ok    "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+  ok    "gate-visual" runs IN the pinned Playwright container
+  ok    "gate-visual" declares a `postgres` service
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+CHECKER-EXIT=0
+
+$ <restore ci.yml>  && md5sum
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+$ git diff -U0 -- .github/workflows/ci.yml | grep -E '^[+-][^+-]' | grep -cv '^[+-][[:space:]]*#'
+0
+(0 = only comment lines differ from HEAD; the measurement left nothing behind)
+
+================================================================================
+TASK 2 / VECTOR VACUOUS-PRECEDE — the refusal step promoted to the FIRST step of the job
+================================================================================
+EXPECTED BEFORE THE REPAIR: UNKNOWN AT CAPTURE TIME. Not on RESEARCH.md's inventory at all; found while reading the predicate for the CR-02 repair. `[].every(…)` is TRUE, so a step with NOTHING before it may satisfy "only these three may precede it" by having nothing precede it — and the refusal step first means it runs before `actions/checkout`, so the script it invokes is not on disk yet.
+
+$ md5sum .github/workflows/ci.yml            # working tree (comment-only diff from HEAD)
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "refusal-first">
+applied refusal-first
+
+$ md5sum .github/workflows/ci.yml            # MUTATED
+71ed0c5036b0310300cec84ee4930e8c *.github/workflows/ci.yml
+
+$ git diff --unified=0 -- .github/workflows/ci.yml   # the edit, in full
+@@ -1566,0 +1567,2 @@ jobs:
++      - name: Refuse to run the suite with a live mail credential in the environment
++        run: node scripts/refuse-mail-credential.mjs
+@@ -1607,2 +1608,0 @@ jobs:
+-      - name: Refuse to run the suite with a live mail credential in the environment
+-        run: node scripts/refuse-mail-credential.mjs
+
+$ node scripts/verify-workflows.mjs   # (parsed-values block elided — see ELISION RULE)
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+  ok    "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+  ok    "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+  ok    "gate-visual" runs IN the pinned Playwright container
+  ok    "gate-visual" declares a `postgres` service
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+CHECKER-EXIT=0
+
+$ <restore ci.yml>  && md5sum
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+$ git diff -U0 -- .github/workflows/ci.yml | grep -E '^[+-][^+-]' | grep -cv '^[+-][[:space:]]*#'
+0
+(0 = only comment lines differ from HEAD; the measurement left nothing behind)

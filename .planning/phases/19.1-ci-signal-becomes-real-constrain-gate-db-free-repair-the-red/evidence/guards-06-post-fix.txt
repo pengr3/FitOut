@@ -151,3 +151,252 @@ different modifiers — a branch list, a path filter, a deleted branch name — 
 triggers, all caught by ONE predicate whose printed name now states the property it actually
 enforces. A predicate whose printed name is broader than its conjunct list is this plan's subject;
 this is the shape after the repair, where the name and the conjuncts say the same thing.
+
+
+################################################################################
+# TASK 2 — THE STEP-ANCHOR VECTORS, AFTER THE REPAIR
+#
+# THE RULE APPLIED, IN ONE SENTENCE: a step anchored by exact `name:` is anchored ONCE, and every
+# predicate about that step derives from the resulting object. Nothing below is a better substring.
+################################################################################
+
+================================================================================
+TASK 2 / VECTOR CR-02-DECOY-ONLY — a decoy step ahead of the refusal step
+================================================================================
+EXPECTED AFTER THE REPAIR: RED. Note the evidence line: the decoy now APPEARS in the precedes=[...] list. Before the repair it captured the anchor and was therefore sliced out of its own preceding set.
+
+$ md5sum .github/workflows/ci.yml
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "cr02-decoy-only">
+applied cr02-decoy-only
+
+$ node scripts/verify-workflows.mjs
+  FAIL  "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+1 of 55 invariant(s) FAILED:
+          step indices (of 8 steps, -1 = ABSENT under that exact name): refusal="Refuse to run the suite with a live mail credential in the environment"=4  "Migrate the database"=5  "Seed the demo catalogue"=6  "Playwright — the functional suite"=7  precedes=[uses:actions/checkout@v4, uses:actions
+CHECKER-EXIT=1
+
+$ <restore> && git diff -U0 -- .github/workflows/ci.yml | grep -E "^[+-][^+-]" | grep -cv "^[+-][[:space:]]*#"
+0
+
+================================================================================
+TASK 2 / VECTOR CR-02 — decoy ahead, real refusal step at the END of the job
+================================================================================
+EXPECTED AFTER THE REPAIR: RED, on the ordering invariant.
+
+$ md5sum .github/workflows/ci.yml
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "cr02-decoy-and-move">
+applied cr02-decoy-and-move
+
+$ node scripts/verify-workflows.mjs
+  FAIL  "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+1 of 55 invariant(s) FAILED:
+          step indices (of 8 steps, -1 = ABSENT under that exact name): refusal="Refuse to run the suite with a live mail credential in the environment"=7  "Migrate the database"=4  "Seed the demo catalogue"=5  "Playwright — the functional suite"=6  precedes=[uses:actions/checkout@v4, uses:actions
+CHECKER-EXIT=1
+
+$ <restore> && git diff -U0 -- .github/workflows/ci.yml | grep -E "^[+-][^+-]" | grep -cv "^[+-][[:space:]]*#"
+0
+
+================================================================================
+TASK 2 / CONTROL — the refusal step moved to the end WITHOUT a decoy
+================================================================================
+EXPECTED AFTER THE REPAIR: RED, as it already was. Unchanged by the repair, and that is the point of keeping it: the repair did not trade one catch for another.
+
+$ md5sum .github/workflows/ci.yml
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "refusal-moved-last">
+applied refusal-moved-last
+
+$ node scripts/verify-workflows.mjs
+  FAIL  "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+1 of 55 invariant(s) FAILED:
+          step indices (of 7 steps, -1 = ABSENT under that exact name): refusal="Refuse to run the suite with a live mail credential in the environment"=6  "Migrate the database"=3  "Seed the demo catalogue"=4  "Playwright — the functional suite"=5  precedes=[uses:actions/checkout@v4, uses:actions
+CHECKER-EXIT=1
+
+$ <restore> && git diff -U0 -- .github/workflows/ci.yml | grep -E "^[+-][^+-]" | grep -cv "^[+-][[:space:]]*#"
+0
+
+================================================================================
+TASK 2 / VECTOR ROW-5 — decoy mentioning the seed command, real seed after the suite
+================================================================================
+EXPECTED AFTER THE REPAIR: RED. The row-5 vector REPRODUCED at capture time (pre-fix: exit 0, all 55 holding, with the seed invariant printed ok), so it was repaired on a measurement rather than on suspicion.
+
+$ md5sum .github/workflows/ci.yml
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "row5-decoy-and-move">
+applied row5-decoy-and-move
+
+$ node scripts/verify-workflows.mjs
+  FAIL  "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+1 of 55 invariant(s) FAILED:
+          step indices: "Seed the demo catalogue"=7  "Playwright — the functional suite"=6  (of 8 steps; -1 means the step is ABSENT under that exact name)
+CHECKER-EXIT=1
+
+$ <restore> && git diff -U0 -- .github/workflows/ci.yml | grep -E "^[+-][^+-]" | grep -cv "^[+-][[:space:]]*#"
+0
+
+================================================================================
+TASK 2 / VECTOR VISUAL-ORDER — decoy mentioning the baseline seed, real seed after playwright
+================================================================================
+EXPECTED AFTER THE REPAIR: RED on the ORDERING invariant now. Pre-fix it went red only on the two visual jobs seed run commands are byte-identical — a cross-section check with a different subject that happened to pick the same decoy. That accident is still present and still fires; what changed is that the invariant which NAMES the ordering property now fails too. A red arriving from an unrelated predicate is not coverage: move the build one job over, or make the decoy byte-identical to the baselines.yml seed command, and the accident goes away while the ordering claim stays false.
+
+$ md5sum .github/workflows/ci.yml
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "visual-decoy-and-move">
+applied visual-decoy-and-move
+
+$ node scripts/verify-workflows.mjs
+  FAIL  "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+  FAIL  the two visual jobs' seed run commands are byte-identical and both name scripts/seed-baseline-fixtures.ts
+2 of 55 invariant(s) FAILED:
+          step indices: "Migrate the database"=4  "Seed the baseline fixtures"=7  "Playwright — visual regression (GATE-01)"=6  (of 8 steps; -1 means the step is ABSENT under that exact name)
+          generate-baselines="npx tsx scripts/seed-baseline-fixtures.ts"  gate-visual="echo "this step mentions scripts/seed-baseline-fixtures.ts and seeds nothing""
+CHECKER-EXIT=1
+
+$ <restore> && git diff -U0 -- .github/workflows/ci.yml | grep -E "^[+-][^+-]" | grep -cv "^[+-][[:space:]]*#"
+0
+
+================================================================================
+TASK 2 / VECTOR VISUAL-PROJECT — decoy naming the visual project, real step switched to another project
+================================================================================
+EXPECTED AFTER THE REPAIR: RED. Pre-fix: exit 0, ALL 55 REPORTED HOLDING, over a file where GATE-01 comparison never runs and 52 committed baselines go uncompared.
+
+$ md5sum .github/workflows/ci.yml
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "visual-project-decoy">
+applied visual-project-decoy
+
+$ node scripts/verify-workflows.mjs
+  FAIL  "gate-visual" runs the visual project BY NAME (--project=visual), on the step named "Playwright — visual regression (GATE-01)"
+1 of 55 invariant(s) FAILED:
+          step="Playwright — visual regression (GATE-01)" at index 6  run="npx playwright test --project=chromium"  must contain=["playwright test", "--project=visual"]  (of 8 steps)
+CHECKER-EXIT=1
+
+$ <restore> && git diff -U0 -- .github/workflows/ci.yml | grep -E "^[+-][^+-]" | grep -cv "^[+-][[:space:]]*#"
+0
+
+================================================================================
+TASK 2 / VECTOR VACUOUS-PRECEDE — the refusal step promoted to FIRST
+================================================================================
+EXPECTED AFTER THE REPAIR: RED, on the new non-empty conjunct. The evidence line renders the empty preceding set with an explicit marker rather than as an empty pair of brackets, so the diagnosis is on the line rather than in the reader head.
+
+$ md5sum .github/workflows/ci.yml
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "refusal-first">
+applied refusal-first
+
+$ node scripts/verify-workflows.mjs
+  FAIL  "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+1 of 55 invariant(s) FAILED:
+          step indices (of 7 steps, -1 = ABSENT under that exact name): refusal="Refuse to run the suite with a live mail credential in the environment"=0  "Migrate the database"=4  "Seed the demo catalogue"=5  "Playwright — the functional suite"=6  precedes=[(NONE — and an ordering claim over a
+CHECKER-EXIT=1
+
+$ <restore> && git diff -U0 -- .github/workflows/ci.yml | grep -E "^[+-][^+-]" | grep -cv "^[+-][[:space:]]*#"
+0
+
+================================================================================
+TASK 2 / POSITIVE CONTROL 1 — the SAME decoy, placed where it is LEGITIMATE (after everything the refusal must precede)
+================================================================================
+EXPECTED AFTER THE REPAIR: GREEN, at the unchanged total. THIS IS WHAT DISTINGUISHES A CLOSED CLASS FROM A MOVED ONE. An over-tight repair that simply forbade any step from MENTIONING the refusal script would make the vectors above red too — and would be a predicate broader than its printed name, which is this plan own prohibition. Mentioning the script is not the offence; PRECEDING the refusal step is.
+
+$ md5sum .github/workflows/ci.yml
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "cr02-decoy-after">
+applied cr02-decoy-after
+
+$ node scripts/verify-workflows.mjs
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+CHECKER-EXIT=0
+
+$ <restore> && git diff -U0 -- .github/workflows/ci.yml | grep -E "^[+-][^+-]" | grep -cv "^[+-][[:space:]]*#"
+0
+
+================================================================================
+TASK 2 / POSITIVE CONTROL 2 — a decoy naming the visual project, placed AFTER the real Playwright step, real step untouched
+================================================================================
+EXPECTED AFTER THE REPAIR: GREEN. The same statement one job over: the repaired predicate asks its question of the NAMED step and is indifferent to what other steps say.
+
+$ md5sum .github/workflows/ci.yml
+2a74342bea34f2ca733efa150979b5ea *.github/workflows/ci.yml
+
+$ node <apply mutation "visual-project-decoy-after">
+applied visual-project-decoy-after
+
+$ node scripts/verify-workflows.mjs
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+CHECKER-EXIT=0
+
+$ <restore> && git diff -U0 -- .github/workflows/ci.yml | grep -E "^[+-][^+-]" | grep -cv "^[+-][[:space:]]*#"
+0
+
+================================================================================
+TASK 2 — DOES THE STANDING SUITE ACTUALLY REMEMBER ANY OF THIS?
+================================================================================
+A suite that is green over an unmutated tree measures nothing (plan 19.1-05, WR-01). So each of the
+four repaired conjuncts was LOOSENED BY HAND, back to its pre-19.1-06 shape, in the SHIPPED checker
+— and the standing suite was re-run against the unmutated tracked file each time.
+
+⚠ THE FIRST ATTEMPT AT THIS MEASUREMENT WAS WRONG AND IS RECORDED RATHER THAN DISCARDED. All four
+conjuncts were loosened AT ONCE, which left `iE2eSeed` on the RUN-command scale while `iE2ePlay`
+stayed on the STEP scale. Mixed scales made the checker exit 1 on the UNMUTATED tree, so eight cases
+failed — including the three that assert GREEN — and none of those failures measured anything about
+memory. A revert that does not reproduce the prior BEHAVIOUR is not a revert. Each conjunct was then
+loosened ALONE, and the faithfulness of each revert is proved by the checker still exiting 0 on the
+unmutated tree before the suite is run.
+
+  LOOSENING A — the CR-02 anchor put back to `e2eSteps.findIndex(s => run.includes(<script>))`
+    unmutated tree: CHECKER-EXIT=0        suite: 1 failed | 33 passed
+    the one failure: case 29 (CR-02): a decoy run body ahead of the refusal step is red
+
+  LOOSENING B — the non-empty preceding-set conjunct DELETED
+    unmutated tree: CHECKER-EXIT=0        suite: 1 failed | 33 passed
+    the one failure: case 34 (CR-02): the refusal step promoted to FIRST is red
+
+  LOOSENING C — gate-visual's project detection put back to a job-wide existential over run bodies
+    unmutated tree: CHECKER-EXIT=0        suite: 1 failed | 33 passed
+    the one failure: case 33 (row 6): a decoy naming the visual project ... is red
+
+  LOOSENING D — the e2e ordering indices put back to `e2eRuns.findIndex(...)`, both ends
+    unmutated tree: CHECKER-EXIT=0        suite: 1 failed | 33 passed
+    the one failure: case 32 (row 5): a decoy mentioning the seed command ... is red
+
+FOUR CONJUNCTS, FOUR CASES, ONE-TO-ONE. Every repair this plan makes has exactly one case bound to
+it, and no case is passing on another conjunct's behalf. The checker source was restored from a copy
+after each loosening and its md5 compared: 49e9f235d8eb6b67033fa40892573e04 throughout.
+
+================================================================================
+CLOSING MAP — EACH FINDING TO THE INVARIANT THAT CATCHES IT AND THE CASE THAT REMEMBERS IT
+================================================================================
+
+| finding | the mutation it names | the invariant that now catches it | the standing case |
+|---|---|---|---|
+| CR-01 | a pull-request trigger filter matching nothing, or a paths-ignore matching everything, or the default branch dropped from the push list | `ci.yml runs on BOTH push and pull_request ... with pull_request UNFILTERED, and push reaching both "dev" and "main"` | cases 25, 26, 27 |
+| WR-02 | the trigger block written in the documented SEQUENCE spelling — a CORRECT file the checker used to REDDEN | the same invariant, now reading a form-aware `triggersOf` | case 28 (GREEN control) |
+| CR-02 | a decoy `run:` body capturing the refusal step's ordering anchor, and an ordering claim held vacuously over an empty preceding set | `"gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite ...` | cases 29, 31, 34 |
+
+THE THREE POSITIVE CONTROLS AND WHAT EACH PROVES:
+
+  * case 16 (plan 19.1-01) — a decoy mentioning THIS CHECKER's path, first in `gate-db-free`, stays
+    GREEN. Proves the checker-step anchor selects by exact `name:`.
+  * case 28 (WR-02) — the sequence spelling of `on:` stays GREEN, at the pinned summary line.
+    Proves the trigger repair did not buy its three reds with a false red on a correct file.
+  * case 30 (CR-02) — a decoy mentioning the refusal script, placed where it is LEGITIMATE, stays
+    GREEN. Proves the class was CLOSED and not MOVED: the repair did not degenerate into "no step
+    may mention the script", which would have been a predicate broader than its printed name.
+
+AND THE TWO ROWS RESEARCH.md COULD NOT DECIDE FROM THE CODE:
+
+  * row 5 (the e2e ordering indices) — flagged NOT YET REPRODUCED. It REPRODUCES. Repaired, with
+    case 32 as its memory.
+  * row 6 (the gate-visual indices and project detection) — REPRODUCES, and its project-detection
+    half is the worst single result in this plan: exit 0, all 55 reported holding, with GATE-01's
+    comparison not running at all. Repaired, with case 33 as its memory.

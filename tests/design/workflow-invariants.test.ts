@@ -178,6 +178,28 @@ const CHECKER_DEV_BRANCH = constFromChecker("CI_DEV_BRANCH");
 const CHECKER_DEFAULT_BRANCH = constFromChecker("CI_DEFAULT_BRANCH");
 
 /**
+ * The `name:` of every step the checker makes an ORDERING claim about, in both jobs that carry one,
+ * plus the two project flags and the refusal script's path — all read from the checker for the
+ * reason every constant above is read, and for one more that is peculiar to this group.
+ *
+ * ⚠ THESE ARE THE STRINGS THE REPAIRED PREDICATES ANCHOR ON. Before plan 19.1-06 the checker found
+ * these steps by SEARCHING RUN BODIES for a substring; it now finds them by exact `name:`. A case
+ * that typed one of these names would be moving a step the checker is not looking at, the mutation
+ * would still apply, `withMutatedWorkflows`'s differs-from-input assertion would still be satisfied,
+ * and the case would report a red that has nothing to do with its own name — which is precisely the
+ * class of defect these cases exist to remember.
+ */
+const E2E_MIGRATE_STEP = constFromChecker("CI_E2E_MIGRATE_STEP");
+const E2E_SEED_STEP = constFromChecker("CI_E2E_SEED_STEP");
+const E2E_PLAY_STEP = constFromChecker("CI_E2E_PLAYWRIGHT_STEP");
+const VISUAL_JOB = constFromChecker("CI_VISUAL_JOB");
+const VISUAL_MIGRATE_STEP = constFromChecker("CI_VISUAL_MIGRATE_STEP");
+const VISUAL_SEED_STEP = constFromChecker("CI_VISUAL_SEED_STEP");
+const VISUAL_PLAY_STEP = constFromChecker("CI_VISUAL_PLAYWRIGHT_STEP");
+const VISUAL_PROJECT = constFromChecker("CI_VISUAL_PROJECT");
+const REFUSAL_SCRIPT = constFromChecker("MAIL_REFUSAL_SCRIPT");
+
+/**
  * `.gitattributes` declares `* text=auto` and this working tree checks `ci.yml` out with CRLF. Every
  * inserted line uses the EOL detected from the file it is being inserted into; a harness that
  * normalised line endings would rewrite the whole copy and make every red red for the wrong reason.
@@ -551,6 +573,144 @@ function withRenamedCheckerJobName(): (ci: string) => string {
 }
 
 /**
+ * ── THE JOB-SCOPED STEP PRIMITIVES (plan 19.1-06) ────────────────────────────────────────────────
+ *
+ * ⚠ EVERY ONE OF THESE TAKES A JOB KEY AND FINDS ITS STEP *FROM THERE*, AND THAT IS NOT TIDINESS.
+ * `      - name: Migrate the database` appears in THREE jobs of `ci.yml`. The first draft of this
+ * plan's hand-mutation harness used an UNSCOPED `indexOf` for exactly that anchor, and quietly
+ * inserted two decoys into `gate-price-parity` — producing three reds attributed to vectors they
+ * had nothing to do with. That was caught only because the FAIL lines named invariants the vectors
+ * were not about. A mutation harness is subject to the same rule as the checker it measures: locate
+ * the subject exactly, once, and never by a string that is ambiguous in the document.
+ *
+ * `withStepFirstInCheckerJob` above is the same idea for `gate-db-free`, written before these
+ * existed; it is left alone rather than rewritten in terms of these, because its own docblock
+ * already states the scoping argument and a case that passes is not a case to churn.
+ */
+
+/** The character offset of `  <jobKey>:` at job level, or -1. */
+function jobKeyAt(ci: string, jobKey: string): number {
+  return ci.indexOf(`${eolOf(ci)}  ${jobKey}:${eolOf(ci)}`);
+}
+
+/**
+ * The `[start, end)` span of the TWO-LINE step named `stepName` inside `jobKey` — its `- name:`
+ * line and the `run:` line beneath it, both including their terminators. Null when either the job
+ * or the step is absent, so every caller returns its input unchanged and lands on the
+ * differs-from-input assertion.
+ *
+ * Two lines is correct for every step these cases move: all of them carry exactly `name` and `run`.
+ * `withoutBuildStep` above computes its boundary from INDENTATION instead, because the step it
+ * removes carries an `env:` map — see its docblock for what happens when that distinction is
+ * missed.
+ */
+function stepSpan(
+  ci: string,
+  jobKey: string,
+  stepName: string,
+): { start: number; end: number } | null {
+  const eol = eolOf(ci);
+  const job = jobKeyAt(ci, jobKey);
+  if (job < 0) return null;
+  const anchor = `      - name: ${stepName}${eol}`;
+  const start = ci.indexOf(anchor, job);
+  if (start < 0) return null;
+  const end = ci.indexOf(eol, start + anchor.length);
+  if (end < 0) return null;
+  return { start, end: end + eol.length };
+}
+
+/** Inserts a complete step immediately AFTER the named step of the named job. */
+function withStepAfterInJob(
+  jobKey: string,
+  afterStepName: string,
+  stepLines: string[],
+): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const span = stepSpan(ci, jobKey, afterStepName);
+    if (span === null) return ci;
+    const block = stepLines.map((l) => `      ${l}`).join(eol);
+    return `${ci.slice(0, span.end)}${block}${eol}${ci.slice(span.end)}`;
+  };
+}
+
+/** Inserts a complete step immediately BEFORE the named step of the named job. */
+function withStepBeforeInJob(
+  jobKey: string,
+  beforeStepName: string,
+  stepLines: string[],
+): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const span = stepSpan(ci, jobKey, beforeStepName);
+    if (span === null) return ci;
+    const block = stepLines.map((l) => `      ${l}`).join(eol);
+    return `${ci.slice(0, span.start)}${block}${eol}${ci.slice(span.start)}`;
+  };
+}
+
+/**
+ * MOVES the named step of the named job to sit immediately after another step of the same job.
+ * Byte-for-byte the same step — same name, same `run:`, same keys — in a different POSITION. That
+ * is the whole point: every conjunct except the ordering one is satisfied identically before and
+ * after, so a red here can only come from the ordering claim.
+ */
+function withStepMovedAfterInJob(
+  jobKey: string,
+  stepName: string,
+  afterStepName: string,
+): (ci: string) => string {
+  return (ci) => {
+    const span = stepSpan(ci, jobKey, stepName);
+    if (span === null) return ci;
+    const text = ci.slice(span.start, span.end);
+    const without = `${ci.slice(0, span.start)}${ci.slice(span.end)}`;
+    const dest = stepSpan(without, jobKey, afterStepName);
+    if (dest === null) return ci;
+    return `${without.slice(0, dest.end)}${text}${without.slice(dest.end)}`;
+  };
+}
+
+/** MOVES the named step of the named job to be the FIRST step of that job. */
+function withStepMovedFirstInJob(jobKey: string, stepName: string): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const span = stepSpan(ci, jobKey, stepName);
+    if (span === null) return ci;
+    const text = ci.slice(span.start, span.end);
+    const without = `${ci.slice(0, span.start)}${ci.slice(span.end)}`;
+    const job = jobKeyAt(without, jobKey);
+    if (job < 0) return ci;
+    const stepsAnchor = `${eol}    steps:${eol}`;
+    const at = without.indexOf(stepsAnchor, job);
+    if (at < 0) return ci;
+    const cut = at + stepsAnchor.length;
+    return `${without.slice(0, cut)}${text}${without.slice(cut)}`;
+  };
+}
+
+/**
+ * Rewrites the named step's `run:` line, replacing `from` with `to`. Used to switch the visual
+ * job's Playwright invocation to a different project while a decoy elsewhere keeps naming the
+ * right one — the two halves of RESEARCH.md inventory row 6's project-detection vector.
+ */
+function withStepRunReplacedInJob(
+  jobKey: string,
+  stepName: string,
+  from: string,
+  to: string,
+): (ci: string) => string {
+  return (ci) => {
+    const span = stepSpan(ci, jobKey, stepName);
+    if (span === null) return ci;
+    const text = ci.slice(span.start, span.end);
+    if (!text.includes(from)) return ci;
+    return `${ci.slice(0, span.start)}${text.replace(from, to)}${ci.slice(span.end)}`;
+  };
+}
+
+/**
  * Shared insertion primitive. Returns the input UNCHANGED when the anchor is absent, so a drifted
  * anchor lands on `withMutatedWorkflows`'s differs-from-input assertion rather than producing a
  * quietly-different mutation somewhere else in the file.
@@ -598,6 +758,15 @@ const BUILD_STEP = "carries the step that runs lint, the design suite and the bu
  */
 const CHECKER_UNCONDITIONAL = `"${CHECKER_JOB}" is unconditional`;
 const CHECKER_JOB_DEFAULTS = `"${CHECKER_JOB}" runs its steps with the runner's DEFAULT interpreter`;
+/**
+ * Fragments of the three ORDERING/PROJECT invariants repaired by plan 19.1-06. The job key is
+ * COMPOSED IN for all three, for the `CHECKER_DISPLAY_NAME` reason and one sharper: the two
+ * ordering invariants are siblings whose printed names would otherwise be confusable, and a case
+ * that matched the wrong job's red would be reporting a pass on somebody else's failure.
+ */
+const E2E_SEED_ORDERING = `"${E2E_JOB}" seeds the demo catalogue BEFORE it runs the suite`;
+const VISUAL_ORDERING = `"${VISUAL_JOB}" runs migrate, then seed, then playwright`;
+const VISUAL_PROJECT_BY_NAME = `"${VISUAL_JOB}" runs the visual project BY NAME`;
 
 describe("the workflow checker's own predicates, measured against a mutated copy", () => {
   // THE CONTROL. An identity mutation is impossible by construction (the differs-from-input
@@ -1061,6 +1230,154 @@ describe("the workflow checker's own predicates, measured against a mutated copy
           `repaired (19-REVIEW.md WR-02).\n--- stdout ---\n${result.stdout}\n--- stderr ---\n${result.stderr}`,
       ).toBe(0);
       expect(String(result.stdout)).toContain(EXPECTED_GREEN);
+    });
+  });
+
+  // ── CR-02 AND THE ORDERING ANCHORS, PLAN 19.1-06 ──────────────────────────────────────────────
+  //
+  // Cases 29–34 are the standing half of this plan's step-anchor measurements. Every predicate they
+  // exercise used to locate its subject by SEARCHING EVERY `run:` BODY IN THE JOB for a substring.
+  // A `run:` body is free text written by whoever edits the workflow, so that made an
+  // attacker-controlled string the thing that decides which step a positive assertion is about.
+  // Four of these six were watched GREEN on the tracked file before the repair
+  // (`evidence/guards-06-pre-fix.txt`) and are RED after (`evidence/guards-06-post-fix.txt`).
+
+  // ⚠ THE SHARPEST STATEMENT OF CR-02 IN THIS FILE, AND IT IS WORTH READING TWICE.
+  // WHAT WAS MEASURED (guards-06-pre-fix.txt, VECTOR CR-02-DECOY-ONLY): exit 0, all 55 reported
+  // holding. The invariant's own printed name says ONLY checkout, setup-node and `npm ci` may
+  // precede the refusal step — and here is a fourth thing preceding it, in plain sight, under a
+  // green check.
+  //
+  // THE MECHANISM IS THE PART TO UNDERSTAND. The predicate found the refusal step by
+  // `findIndex(s => String(s?.run).includes(<the script path>))` — the FIRST step whose run body
+  // mentions the script. This decoy mentions it and sits earlier, so the decoy became the anchor.
+  // The preceding set was then `slice(0, <the decoy's index>)` — which does not contain the decoy.
+  // THE DECOY EXCLUDED ITSELF FROM THE SET IT VIOLATES. No amount of care in the allow-list could
+  // have caught that, because the allow-list was being applied to the wrong list.
+  it("case 29 (CR-02): a decoy run body ahead of the refusal step is red — before the repair it excluded ITSELF from the set it violates", () => {
+    withMutatedWorkflows(
+      withStepBeforeRefusal([
+        "- name: A decoy step whose run merely mentions the refusal script",
+        `  run: echo "this step mentions ${REFUSAL_SCRIPT} and executes nothing"`,
+      ]),
+      (result) => {
+        expectRed(result, REFUSAL_ORDERING);
+      },
+    );
+  });
+
+  // ⚠ A CASE THAT ASSERTS GREEN, AND THE THIRD OF THIS PLAN'S POSITIVE CONTROLS.
+  //
+  // WHAT IT PROVES, AND WHY CASE 29 CANNOT PROVE IT. Case 29 shows the checker now notices a decoy.
+  // It does NOT show that the defect class was CLOSED rather than MOVED — an over-tight "repair"
+  // that simply forbade any step from mentioning the refusal script would also make case 29 red,
+  // and would be a predicate whose behaviour is broader than its printed name, which is this plan's
+  // own prohibition. This case is the difference: the SAME decoy, with the SAME run body, placed
+  // where it is LEGITIMATE — after everything the refusal step must precede — leaves the checker
+  // green at the unchanged total. Mentioning the script is not the offence; PRECEDING the refusal
+  // step is, and the repaired predicate distinguishes the two.
+  //
+  // ⚠ NOTE WHAT THIS CASE WOULD HAVE DONE BEFORE THE REPAIR: also green, because `findIndex`
+  // returns the FIRST match and the real step is earlier. Its value is entirely forward-looking —
+  // it is the guard on the repair, not a record of the defect. Case 29 is the record.
+  it("case 30 (CR-02, POSITIVE CONTROL): the same decoy placed where it is legitimate leaves the checker GREEN", () => {
+    withMutatedWorkflows(
+      withStepAfterInJob(E2E_JOB, E2E_PLAY_STEP, [
+        "- name: A decoy step whose run merely mentions the refusal script",
+        `  run: echo "this step mentions ${REFUSAL_SCRIPT} and executes nothing"`,
+      ]),
+      (result) => {
+        expect(
+          result.status,
+          `a step that merely MENTIONS the refusal script, placed after everything the refusal ` +
+            `step must precede, went red. Mentioning the script is not the offence — preceding ` +
+            `the refusal step is. A predicate whose behaviour is broader than its printed name is ` +
+            `this plan's own prohibition.\n--- stdout ---\n${result.stdout}\n--- stderr ---\n${result.stderr}`,
+        ).toBe(0);
+        expect(String(result.stdout)).toContain(EXPECTED_GREEN);
+      },
+    );
+  });
+
+  // THE REORDERING, WITHOUT A DECOY. This one was ALREADY red before the repair — nothing captured
+  // the anchor, so the real step's own late index failed the comparison honestly. It is kept
+  // standing anyway, because it is the case that fails if the ordering conjuncts are ever deleted
+  // while the anchor repair is left in place: cases 29 and 34 both go red through the PRECEDING-set
+  // conjunct, and neither would notice an ordering comparison quietly removed.
+  it("case 31 (CR-02): the refusal step moved after the steps it must precede is red", () => {
+    withMutatedWorkflows(
+      withStepMovedAfterInJob(E2E_JOB, MAIL_STEP_NAME, E2E_PLAY_STEP),
+      (result) => {
+        expectRed(result, REFUSAL_ORDERING);
+      },
+    );
+  });
+
+  // RESEARCH.md INVENTORY ROW 5 — FLAGGED "NOT YET REPRODUCED", AND IT REPRODUCES.
+  // WHAT WAS MEASURED (guards-06-pre-fix.txt, VECTOR ROW-5): exit 0, all 55 reported holding, with
+  // the REAL seed step running AFTER the Playwright suite. `gate-e2e`'s own step comment records
+  // that FIVE named specs fail against an empty catalogue and say so in their own messages, so this
+  // is not a hypothetical: the suite would have run against an empty database with the invariant
+  // whose printed name is "seeds the demo catalogue BEFORE it runs the suite" printing green.
+  //
+  // The decoy sits AFTER the refusal step deliberately, so that the refusal-ordering invariant is
+  // untouched and this case can only go red on the one it names. It is the isolation discipline
+  // case 20 established, applied to a different pair of predicates.
+  it("case 32 (row 5): a decoy mentioning the seed command, with the real seed moved after the suite, is red", () => {
+    withMutatedWorkflows(
+      (ci) => {
+        const decoyed = withStepAfterInJob(E2E_JOB, MAIL_STEP_NAME, [
+          "- name: A decoy step whose run merely mentions the seed command",
+          '  run: echo "this step mentions npm run db:seed and seeds nothing"',
+        ])(ci);
+        return withStepMovedAfterInJob(E2E_JOB, E2E_SEED_STEP, E2E_PLAY_STEP)(decoyed);
+      },
+      (result) => {
+        expectRed(result, E2E_SEED_ORDERING);
+      },
+    );
+  });
+
+  // RESEARCH.md INVENTORY ROW 6, THE HALF WITH THE WORST CONSEQUENCE.
+  // WHAT WAS MEASURED (guards-06-pre-fix.txt, VECTOR VISUAL-PROJECT): exit 0, ALL 55 REPORTED
+  // HOLDING, over a file in which `gate-visual` runs `--project=chromium`. That job exists to run
+  // GATE-01's comparison against 52 committed baselines; under this mutation it collects the
+  // FUNCTIONAL suite instead, compares nothing, and reports success. The invariant printed as
+  // "runs the visual project BY NAME" was satisfied by an `echo`.
+  //
+  // The decoy sits AFTER the real Playwright step so the ordering indices are unmoved and this case
+  // reddens exactly one invariant — the one it names.
+  it("case 33 (row 6): a decoy naming the visual project, with the real step switched to another project, is red", () => {
+    withMutatedWorkflows(
+      (ci) => {
+        const decoyed = withStepAfterInJob(VISUAL_JOB, VISUAL_PLAY_STEP, [
+          "- name: A decoy step whose run merely mentions the visual project",
+          `  run: echo "this step mentions npx playwright test ${VISUAL_PROJECT} and runs nothing"`,
+        ])(ci);
+        return withStepRunReplacedInJob(
+          VISUAL_JOB,
+          VISUAL_PLAY_STEP,
+          VISUAL_PROJECT,
+          "--project=chromium",
+        )(decoyed);
+      },
+      (result) => {
+        expectRed(result, VISUAL_PROJECT_BY_NAME);
+      },
+    );
+  });
+
+  // THE VACUOUS ORDERING CLAIM. WHAT WAS MEASURED (guards-06-pre-fix.txt, VECTOR VACUOUS-PRECEDE):
+  // exit 0, all 55 reported holding, with the refusal step promoted to FIRST in the job — i.e.
+  // running before `actions/checkout`, so the script it invokes IS NOT ON DISK YET.
+  //
+  // `[].every(…)` IS TRUE. The invariant's own printed name claims "ONLY checkout, setup-node and
+  // npm ci may precede it", and a step with NOTHING before it satisfies that by having nothing
+  // before it at all — the claim was unfalsifiable in the one arrangement where it is most wrong.
+  // The repair adds a non-empty conjunct, so an ordering claim can no longer hold over an empty set.
+  it("case 34 (CR-02): the refusal step promoted to FIRST is red — an ordering claim may not hold vacuously", () => {
+    withMutatedWorkflows(withStepMovedFirstInJob(E2E_JOB, MAIL_STEP_NAME), (result) => {
+      expectRed(result, REFUSAL_ORDERING);
     });
   });
 });

@@ -344,7 +344,7 @@
 #     ⚠ THE CHECKER'S OWN PREDICATES NOW HAVE A STANDING TEST, AND PLAN 19-14 ADDED IT.
 #     `tests/design/workflow-invariants.test.ts` mutates a COPY of this file in a throwaway
 #     directory and spawns the real checker against it, asserting a non-zero exit AND a named
-#     FAIL line — twenty-eight cases as of plan 19.1-06, of which THREE assert GREEN and say why in
+#     FAIL line — thirty-four cases as of plan 19.1-06, of which THREE assert GREEN and say why in
 #     their own docblocks, inside `npm run build`. It exists because three
 #     consecutive verification rounds re-opened predicates that had been proven once by hand and then
 #     reverted: a checker with no test of its own regresses silently, and round N+1 begins with
@@ -488,6 +488,39 @@
 #     because `Object.keys` over an array returns its INDICES. A false red is not harmless
 #     conservatism: the next person to hit it deletes the check, and the three reds above go with
 #     it. That spelling is now a standing GREEN control in the design suite.
+#
+#   * EVERY STEP THIS CHECKER ASSERTS SOMETHING POSITIVE ABOUT IS IDENTIFIED EXACTLY ONCE, BY ITS
+#     EXACT `name:` — NEW 2026-09-05, PLAN 19.1-06 (19-REVIEW.md finding CR-02, plus RESEARCH.md
+#     inventory rows 5 and 6, one of which the research flagged NOT YET REPRODUCED).
+#     A `run:` body is FREE TEXT written by whoever edits this file. Until this plan, five
+#     predicates decided WHICH STEP they were about by searching every run body in the job for a
+#     substring — so a step that merely MENTIONS a command could impersonate the step that runs it.
+#     Four vectors were measured on this file, and every one of them left the checker at exit 0 with
+#     all 55 invariants reported holding (`evidence/guards-06-pre-fix.txt`):
+#       - a decoy `echo` naming the refusal script, ahead of the real refusal step. The decoy became
+#         the anchor, and the preceding set was then computed from the decoy's own index — so THE
+#         DECOY EXCLUDED ITSELF FROM THE SET IT VIOLATES. With the real step then moved to the end
+#         of the job, the only control that protects the CURRENT run fired after the whole suite.
+#       - a decoy naming `db:seed`, with the real seed step moved after the suite: the functional
+#         specs would have run against an EMPTY catalogue, and five of them say so in their own
+#         messages.
+#       - the same shape in `gate-visual`. Its ordering invariant stayed green; the only red came
+#         from an unrelated `cross` check that happened to pick the same decoy, which is an accident
+#         and not coverage.
+#       - WORST: a decoy naming `--project=visual` with `gate-visual`'s real invocation switched to
+#         a different project. ALL 55 REPORTED HOLDING while GATE-01's comparison did not run at all
+#         and 52 committed baselines went uncompared.
+#     A fifth hole was found while reading the predicate rather than by mutation: `[].every(…)` is
+#     TRUE, so promoting the refusal step to FIRST satisfied "only checkout, setup-node and npm ci
+#     may precede it" by having NOTHING precede it — in the one arrangement where the claim is most
+#     wrong, since the script is not on disk before checkout. An ordering claim may not hold
+#     vacuously, and there is now a conjunct saying so.
+#     ⚠ THE SAFE DIRECTION IS PRESERVED DELIBERATELY. Substring matching over run bodies is CORRECT
+#     where over-matching produces a FALSE RED — the counter requiring zero occurrences of the
+#     snapshot-update flag, and the `npm run build` filter behind T-11-DBFREE, are both audited and
+#     KEPT, with the reason written at each site. A future audit must not "fix" them into locators.
+#     The full audit, with a verdict for every anchoring and presence site including the ones
+#     deliberately left alone, is `evidence/sc2-audit-inventory.md`.
 #
 #   * ACROSS `.github/workflows/` THE MAIL-PROVIDER TOKEN APPEARS ZERO TIMES, asserted in the
 #     checker rather than by a human remembering to run a count, and over RAW TEXT so that a
