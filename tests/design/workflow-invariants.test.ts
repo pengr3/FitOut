@@ -97,7 +97,7 @@ const REPO_REFUSAL = resolve(process.cwd(), "scripts/refuse-mail-credential.mjs"
  * which is the intended property rather than an inconvenience: it is what stops a future round from
  * adding a check and leaving a stale total sentence behind somewhere else.
  */
-const EXPECTED_GREEN = "All 51 invariants hold across 3 section(s) (baselines=11, ci=32, cross=8).";
+const EXPECTED_GREEN = "All 52 invariants hold across 3 section(s) (baselines=11, ci=33, cross=8).";
 
 /**
  * Reads a single-line `const <NAME> = "<value>";` declaration out of the SHIPPED checker, so a string

@@ -344,35 +344,35 @@
 #     ⚠ THE CHECKER'S OWN PREDICATES NOW HAVE A STANDING TEST, AND PLAN 19-14 ADDED IT.
 #     `tests/design/workflow-invariants.test.ts` mutates a COPY of this file in a throwaway
 #     directory and spawns the real checker against it, asserting a non-zero exit AND a named
-#     FAIL line — thirteen cases as of plan 19.1-01, inside `npm run build`. It exists because three
+#     FAIL line — fourteen cases as of plan 19.1-01, inside `npm run build`. It exists because three
 #     consecutive verification rounds re-opened predicates that had been proven once by hand and then
 #     reverted: a checker with no test of its own regresses silently, and round N+1 begins with
 #     no memory of round N. Its control case pins the total below as an exact string, so a count
 #     change is only possible by deliberately editing it.
-#     ⚠ THE `gate-e2e` LIST IS EIGHT AND THE TOTAL IS 51. THE TWO FIGURES COUNT DIFFERENT THINGS
+#     ⚠ THE `gate-e2e` LIST IS EIGHT AND THE TOTAL IS 52. THE TWO FIGURES COUNT DIFFERENT THINGS
 #     AND ARE DELIBERATELY NOT THE SAME NUMBER: the EIGHT counts the entries in the list directly
 #     above this paragraph and is plan 19-15's figure, unchanged; the TOTAL counts every counted
 #     `check()` in the whole checker across all three sections, and it MOVED 2026-09-05 BY PLAN
 #     19.1-01, IN THE SAME COMMIT THAT MOVED IT. Every 19-13 and 19-14 change TIGHTENED an
 #     invariant that already existed, which is why the total sat at 48 through both rounds. Plan
 #     19-15's two were genuinely NEW assertions over properties that had none, so the `ci` section
-#     went 29 → 31 and the total 48 → 50. Plan 19.1-01's is new in the same sense and over a
+#     went 29 → 31 and the total 48 → 50. Plan 19.1-01's TWO are new in the same sense and over a
 #     subject that was worse than unasserted — a job NOTHING in the checker read at all — so `ci`
-#     goes 31 → 32 and the total 50 → 51. Each traces to one named gap and nothing rode along:
+#     goes 31 → 33 and the total 50 → 52. Each traces to one named gap and nothing rode along:
 #     entry 8 above closes 19-VERIFICATION.md gap 1's `missing:` bullet (review finding CR-01's
 #     outer half, the `defaults:` levels nothing read), the trigger bullet below closes
 #     19-VERIFICATION.md gap 2 (review finding WR-01, the trigger set nothing compared), and the
 #     `gate-db-free` list below closes 19-REVIEW.md CR-03 (the job that RUNS the checker, whose
-#     checker step could be deleted in two lines under a clean green). `node scripts/verify-
-#     workflows.mjs` now ends with, exactly:
+#     checker step could be deleted in two lines, and whose display name could be renamed in one,
+#     under a clean green both times). `node scripts/verify-workflows.mjs` now ends with, exactly:
 #
-#         All 51 invariants hold across 3 section(s) (baselines=11, ci=32, cross=8).
+#         All 52 invariants hold across 3 section(s) (baselines=11, ci=33, cross=8).
 #
 #     That line is quoted here VERBATIM, and the standing test's control constant carries the same
 #     bytes, so the documented count and the printed count cannot drift apart silently — a stale
 #     total is a false claim of exactly the class this whole round exists to delete, and it is the
-#     cheapest one to detect. A reader who counts 52 should look for an invariant added out of
-#     turn, and one who counts 50 for one deleted.
+#     cheapest one to detect. A reader who counts 53 should look for an invariant added out of
+#     turn, and one who counts 51 for one deleted.
 #
 #   * THE `gate-db-free` INVARIANTS — NEW 2026-09-05, PLAN 19.1-01 (19-REVIEW.md finding CR-03).
 #     A SIBLING of the `gate-e2e` list above rather than an entry inside it, because its subject is
@@ -398,6 +398,17 @@
 #          value: an appended argument is invisible to it BY CONSTRUCTION, and only the equality
 #          test can see one. That is review finding WR-01's property, asserted for this job on the
 #          day it is repaired for the other one.
+#       2. THE EXACT DISPLAY NAME `gate-db-free (lint + design + build + workflow parse)`. Same
+#          argument as entry 1 of the `gate-e2e` list — GitHub matches a required status check on
+#          `name:` and never on the YAML key — with a larger consequence, because THIS job is the
+#          one holding lint, the design suite, the Next build and the checker step above. An
+#          unbound `gate-db-free` is not one missing gate; it is every invariant in this file plus
+#          every lint rule and every design test, silently no longer required to pass before a
+#          merge, while the file itself still reads correct. Measured: renaming this `name:` and
+#          NOTHING else left the checker at exit 0 with all 51 invariants reported holding.
+#          The rename is not forbidden — it is required to be DELIBERATE, because it must be paired
+#          with an edit to the repository's required-status-check list, which no file here can
+#          carry. That pairing is the decision this entry exists to make visible.
 #
 #   * THIS FILE'S OWN TRIGGERS ARE ASSERTED — NEW 2026-09-05, PLAN 19-15 (review finding WR-01).
 #     `ci.yml` must run on BOTH `push` and `pull_request`. It is filed here beside the other

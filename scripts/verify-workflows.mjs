@@ -1103,6 +1103,34 @@ if (sections.includes("ci")) {
     ]);
   }
 
+  // THE DISPLAY NAME IS THE REQUIRED-CHECK CONTEXT. The `gate-e2e` argument above transfers
+  // unchanged and is not restated at length: GitHub matches branch protection on `name:`, so a
+  // `name:` edit detaches the gate from branch protection while leaving the job — and every
+  // invariant over it — perfectly intact. Asserted separately from the KEY, because the key did not
+  // move in the mutation that produced this check.
+  //
+  // WHAT IS DIFFERENT ABOUT THIS JOB, AND WHY THE CONSEQUENCE IS LARGER HERE. This exact string
+  // becomes a REQUIRED STATUS CHECK on `main`, and `gate-db-free` is the job that holds lint, the
+  // design suite, the Next build AND the step that runs this script. An unbound `gate-db-free` is
+  // therefore not one missing gate: it is every invariant in this file, plus every lint rule and
+  // every design test, silently no longer required to pass before a merge. That undoes the whole of
+  // SC1 at the branch level while the file itself still reads correct — the check above would keep
+  // printing `ok`, in a run nothing waits for.
+  //
+  // MEASURED, NOT SUPPOSED: renaming this `name:` and nothing else left the checker at exit 0 with
+  // all 51 invariants reported holding (evidence/guards-01-pre-fix.txt, MUTATION 2).
+  //
+  // ⚠ THE RENAME IS NOT FORBIDDEN; IT IS REQUIRED TO BE DELIBERATE. It must be paired with an edit
+  // to the repository's required-status-check list, which no file here can carry. That pairing is
+  // the decision this check exists to make visible.
+  check(
+    `"${CI_CHECKER_JOB}" declares the exact display name branch protection matches on`,
+    String(checker?.name ?? "") === CI_CHECKER_CONTEXT,
+    `name=${JSON.stringify(checker?.name ?? null)}  expected=${JSON.stringify(CI_CHECKER_CONTEXT)}  ` +
+      `(a required status check is matched by this string; changing it silently unbinds the job ` +
+      `that runs ${CHECKER_SCRIPT}, lint, the design suite and the build)`,
+  );
+
   // ── AND THE STEP THAT MAKES IT THE CHECKER'S JOB RATHER THAN JUST A BUILD JOB ─────────────────
   // The stop above closes DELETION OF THE JOB. It does not close the job being kept, correctly
   // named, and made to no longer run this script — which is the cheaper edit and the one CR-03
