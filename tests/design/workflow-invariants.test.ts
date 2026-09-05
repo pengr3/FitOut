@@ -97,7 +97,7 @@ const REPO_REFUSAL = resolve(process.cwd(), "scripts/refuse-mail-credential.mjs"
  * which is the intended property rather than an inconvenience: it is what stops a future round from
  * adding a check and leaving a stale total sentence behind somewhere else.
  */
-const EXPECTED_GREEN = "All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).";
+const EXPECTED_GREEN = "All 57 invariants hold across 3 section(s) (baselines=11, ci=38, cross=8).";
 
 /**
  * Reads a single-line `const <NAME> = "<value>";` declaration out of the SHIPPED checker, so a string
@@ -911,6 +911,21 @@ const CHECKER_JOB_DEFAULTS = `"${CHECKER_JOB}" runs its steps with the runner's 
  * ordering invariants are siblings whose printed names would otherwise be confusable, and a case
  * that matched the wrong job's red would be reporting a pass on somebody else's failure.
  */
+/**
+ * Fragments of the two JOB-LEVEL ALLOW-LIST invariants added for 19.1-REVIEW.md CR-01. The job key
+ * is COMPOSED IN for the reason stated above and with the same force: these two printed names are
+ * word-for-word identical after the key, so a bare fragment would be satisfied by EITHER job's red
+ * and the two `gate-e2e` cases below could pass on the `gate-db-free` failure, or the reverse.
+ *
+ * ⚠ THE FRAGMENT STOPS AT THE PERMITTED-KEY LIST ON PURPOSE. The printed name goes on to enumerate
+ * the list's members, and pinning those here would make every future widening of either list a
+ * failure of these cases rather than of the invariant — a test that has to be edited whenever the
+ * subject legitimately changes is a test people learn to edit.
+ */
+const CHECKER_JOB_KEYS = `"${CHECKER_JOB}" carries NO JOB-LEVEL KEY OUTSIDE`;
+const E2E_JOB_KEYS = `"${E2E_JOB}" carries NO JOB-LEVEL KEY OUTSIDE`;
+/** A fragment of the cross-section migrate byte-identity invariant, tightened for WR-04. */
+const MIGRATE_IDENTITY = "migrate run commands are byte-identical and both name";
 const E2E_SEED_ORDERING = `"${E2E_JOB}" seeds the demo catalogue BEFORE it runs the suite`;
 const VISUAL_ORDERING = `"${VISUAL_JOB}" runs migrate, then seed, then playwright`;
 const VISUAL_PROJECT_BY_NAME = `"${VISUAL_JOB}" runs the visual project BY NAME`;
@@ -1617,9 +1632,180 @@ describe("the workflow checker's own predicates, measured against a mutated copy
         },
       },
       (result) => {
-        expectRed(result, "migrate run commands are byte-identical");
+        expectRed(result, MIGRATE_IDENTITY);
       },
     );
+  });
+
+  // ── THE JOB-LEVEL KEY SURFACE, AND THE MIGRATE CONJUNCT — 19.1-REVIEW.md CR-01 AND WR-04 ──────
+  //
+  // ⚠ THE NUMBERING CONTINUES PAST THE EOL BLOCK BELOW, WHICH IS DELIBERATELY LEFT LAST. Cases
+  // 37-39 are the only ones in this file whose subject is the HARNESS rather than the checker, they
+  // spawn nothing, and they are grouped as a closing section on purpose. Renumbering them to keep
+  // the file in numeric order would break every reference to "case 38's census" in the checker's
+  // comments, in `ci.yml` and in three plan summaries — a rename with no property behind it.
+  //
+  // WHAT THESE SEVEN REMEMBER. Every case above proves the checker sees some specific softening of
+  // a STEP, or of a job's two condition keys. None of them looked at the job's own KEY SET, and
+  // that was the one place in the checker where an open set was still being met with an
+  // enumeration of two. Four one-line edits were watched GREEN at `All 55 …` against the tracked
+  // file (`evidence/guards-review-cr01-wr04-pre-fix.txt`) and are RED after
+  // (`evidence/guards-review-cr01-wr04-post-fix.txt`).
+
+  // THE FALSE-GREEN ONE, AND THE WORST GREEN THIS PHASE HAS MEASURED. `gate-e2e` is red today, so
+  // a `gate-db-free` that NEEDS it never runs. A job skipped because a needed job failed reports a
+  // check run with conclusion `skipped`, and GitHub's required-status-check evaluation treats a
+  // skipped job as PASSING — this is the documented reason the `always()` aggregator-job idiom
+  // exists. The required check for this repository would therefore report GREEN over a run in which
+  // lint, the entire design suite (this file included), the Next build and the checker itself all
+  // failed to execute. Neither `if:` nor `continue-on-error:` appears anywhere; the invariant whose
+  // printed name is "is unconditional" cannot see this, and could not have been widened to, because
+  // the set of keys that detach a job from a run is open.
+  it("case 40 (CR-01): a needs: on the gate-db-free JOB is red", () => {
+    withMutatedWorkflows(withJobKey(CHECKER_JOB, `needs: [${E2E_JOB}]`), (result) => {
+      expectRed(result, CHECKER_JOB_KEYS);
+    });
+  });
+
+  // THE FAIL-CLOSED ONE — and it is here BESIDE case 40 rather than instead of it, because the two
+  // break different things. A matrix does not stop the job running; it renames what the job
+  // REPORTS. The runtime check contexts become `<name> (1)` and `<name> (2)`, so the display-name
+  // invariant three checks above stays green over a `name:` that at runtime matches no check at
+  // all — the exact binding that invariant exists to protect, broken while it reports `ok`.
+  it("case 41 (CR-01): a strategy: matrix on the gate-db-free JOB is red", () => {
+    withMutatedWorkflows(
+      withJobKey(CHECKER_JOB, ["strategy:", "  matrix:", "    shard: [1, 2]"]),
+      (result) => {
+        expectRed(result, CHECKER_JOB_KEYS);
+      },
+    );
+  });
+
+  // ⚠ THE GREEN CONTROL FOR BOTH ALLOW-LISTS, AND THE REASON IT IS NOT OPTIONAL. An allow-list with
+  // no legitimate member is a RED-ONLY INSTRUMENT, and a red-only instrument is widened by the
+  // first person who hits a false positive — at which point the two keys cases 40 and 41 measure
+  // come back in through a door nobody watched. `timeout-minutes` is permitted on both jobs and
+  // `gate-e2e` already carries one; adding a wall-clock cap to `gate-db-free` neither skips the
+  // job, nor softens its failure, nor renames its check context, so this must stay GREEN.
+  //
+  // It is also the one case here whose green would be produced by DELETING the invariant entirely —
+  // which is why it is a control and never a proof, and why cases 40, 41, 43, 44 and 45 sit beside
+  // it. The pair is the measurement; neither half is.
+  it("case 42 (CR-01, POSITIVE CONTROL): a timeout-minutes: on the gate-db-free JOB stays GREEN", () => {
+    withMutatedWorkflows(withJobKey(CHECKER_JOB, "timeout-minutes: 30"), (result) => {
+      expect(
+        result.status,
+        `a wall-clock cap on this job — a CORRECT file, and a key its sibling gate already ` +
+          `carries — did not go green. That is a FALSE RED, and an allow-list that reddens ` +
+          `legitimate hardening is the allow-list somebody widens rather than reads.\n` +
+          `--- stdout ---\n${result.stdout}\n--- stderr ---\n${result.stderr}`,
+      ).toBe(0);
+      expect(String(result.stdout)).toContain(EXPECTED_GREEN);
+    });
+  });
+
+  // THE SIBLING JOB, BOTH VECTORS. Kept as their own cases rather than folded into 40 and 41 for
+  // the reason plan 19.1-05 gives for every sibling pair in this file: "the predicate catches it on
+  // one job" is not evidence that a second predicate exists for the other, and the asymmetry that
+  // WR-04 records three lines below its own correct spelling is what that inference costs.
+  //
+  // `gate-e2e` REPORTS rather than blocks, so the consequence is smaller than case 40's. It is not
+  // nil: a `needs:` here makes the functional suite silently stop running, and the phase's whole
+  // subject is a signal that has stopped measuring anything while still being read.
+  it("case 43 (CR-01): a needs: on the gate-e2e JOB is red", () => {
+    withMutatedWorkflows(withJobKey(E2E_JOB, `needs: [${CHECKER_JOB}]`), (result) => {
+      expectRed(result, E2E_JOB_KEYS);
+    });
+  });
+
+  it("case 44 (CR-01): a strategy: matrix on the gate-e2e JOB is red", () => {
+    withMutatedWorkflows(
+      withJobKey(E2E_JOB, ["strategy:", "  matrix:", "    shard: [1, 2]"]),
+      (result) => {
+        expectRed(result, E2E_JOB_KEYS);
+      },
+    );
+  });
+
+  // THE ONE-KEY DIFFERENCE BETWEEN THE TWO LISTS, ASSERTED RATHER THAN DOCUMENTED. `services` is
+  // permitted on `gate-e2e` and absent from `gate-db-free`'s list, and that omission is the whole
+  // reason the two constants were not merged: this is the DB-FREE job. Without this case the
+  // difference is a comment, and a comment is what the next person deletes when merging two lists
+  // that look identical.
+  //
+  // ⚠ THIS MUTATION REDDENS THREE INVARIANTS AND THE CASE ASSERTS ONE BY NAME — the same shape as
+  // case 21 and for the same reason. A `services:` block here also falsifies `the job that runs
+  // \`npm run build\` … declares NO services:` and flips the addressing rule to its containerised
+  // branch. This case is about the job's KEY SURFACE, and it says so in the FAIL line it requires.
+  it("case 45 (CR-01): a services: block on the gate-db-free JOB is red ON THE JOB-KEY INVARIANT", () => {
+    withMutatedWorkflows(
+      withJobKey(CHECKER_JOB, ["services:", "  postgres:", "    image: postgis/postgis:18-3.6"]),
+      (result) => {
+        expectRed(result, CHECKER_JOB_KEYS);
+      },
+    );
+  });
+
+  // WR-04, AND IT IS CASE 36'S VECTOR WITH THE DECOYS DELETED. Case 36 makes the two migrate
+  // commands DIFFER behind identical decoys; this one makes them IDENTICAL and wrong. Name-anchoring
+  // both sides (plan 19.1-06, audit row 12) closed the first and moved the second: the same `echo`
+  // can be written under the right step NAME on both sides, and a pure byte-identity comparison then
+  // holds between two strings that are neither job's migrate command.
+  //
+  // MEASURED (guards-review-cr01-wr04-pre-fix.txt, WR-04): exit 0, all 55 reported holding, over a
+  // pair of visual jobs in which NEITHER migrates its database — under the invariant whose printed
+  // name is that the two migrate the same way. The seed sibling three lines below in the checker
+  // already carried the missing conjunct, which is what makes this the asymmetry rather than an
+  // oversight.
+  //
+  // ⚠ THE SUBSTITUTE COMMAND IS AN `echo` ON PURPOSE. It is the cheapest thing that satisfies "a
+  // step named `Migrate the database` exists on both sides and their run bodies match" while
+  // migrating nothing — the same decoy shape that has satisfied six checks in this phase.
+  it("case 46 (WR-04): an identical decoy run body on BOTH visual jobs' migrate steps is red", () => {
+    const DECOY = 'echo "no migration here at all"';
+    withMutatedWorkflowPair(
+      {
+        baselines: (b) =>
+          withStepRunReplacedInJob(
+            BASELINES_JOB,
+            BASELINES_MIGRATE_STEP,
+            firstRunLineOf(b, BASELINES_JOB, BASELINES_MIGRATE_STEP),
+            DECOY,
+          )(b),
+        ci: (ci) =>
+          withStepRunReplacedInJob(
+            VISUAL_JOB,
+            VISUAL_MIGRATE_STEP,
+            firstRunLineOf(ci, VISUAL_JOB, VISUAL_MIGRATE_STEP),
+            DECOY,
+          )(ci),
+      },
+      (result) => {
+        expectRed(result, MIGRATE_IDENTITY);
+      },
+    );
+  });
+
+  // ── THE THIRD SPELLING OF THE INVARIANT TOTAL — 19.1-REVIEW.md IN-01 ──────────────────────────
+  //
+  // The total is spelled in THREE places: the checker computes and PRINTS it, `ci.yml` quotes that
+  // line verbatim in the paragraph documenting the checker, and `EXPECTED_GREEN` above pins it.
+  // Case 1 binds the first two of those three. The third was PROSE, read by nothing —
+  // `grep -rn "invariants hold across"` found no code that touched it — while plan 19.1-06's
+  // summary claimed "case 1 is the instrument that makes forgetting impossible". It covered two.
+  //
+  // This case costs a file read and makes that sentence true. It is deliberately NOT folded into
+  // case 1: case 1 spawns the checker and is about the copied tree being a faithful subject, and a
+  // read of a tracked file has no business inside it.
+  it("case 47 (IN-01): ci.yml's quoted copy of the invariant total is byte-identical to the pinned one", () => {
+    expect(
+      readFileSync(REPO_CI, "utf8"),
+      `${REPO_CI} does not contain ${JSON.stringify(EXPECTED_GREEN)}. The invariant total is ` +
+        `spelled in THREE places — the checker's printed summary, this file's EXPECTED_GREEN, and ` +
+        `ci.yml's quoted copy of that line — and all three must move in the SAME commit. Take the ` +
+        `number from what \`node scripts/verify-workflows.mjs\` PRINTS, never from an estimate, ` +
+        `and update ci.yml's surrounding arithmetic paragraph while you are there.`,
+    ).toContain(EXPECTED_GREEN);
   });
 
   // ── THE LINE-ENDING EQUIVALENCE CASES ─────────────────────────────────────────────────────────

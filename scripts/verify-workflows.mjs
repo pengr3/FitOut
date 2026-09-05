@@ -186,6 +186,56 @@ const BUILD_RUN = "npm run build";
 // not duplication; it is the one-key difference being stated rather than averaged away.
 const BUILD_STEP_ALLOWED_KEYS = ["env", "name", "run"];
 
+// ── THE JOB LEVEL, STATED POSITIVELY (19.1-REVIEW.md CR-01) ────────────────────────────────────
+// THE TWO LISTS ABOVE ARE ABOUT STEPS. These two are the same rule one level OUT, on the JOB, and
+// they exist because the job level was the one place in this file the rule was never applied.
+//
+// WHAT WAS THERE BEFORE, AND WHY IT WAS NOT ENOUGH. The two `is unconditional` invariants below
+// enumerate exactly two job keys — `if:` and `continue-on-error:` — and their printed name is the
+// broad claim that the job "is unconditional". An enumeration of two against an open set is the
+// shape this file has already rejected three times in writing: `MAIL_STEP_ALLOWED_KEYS`,
+// `CHECKER_STEP_ALLOWED_KEYS` and `BUILD_STEP_ALLOWED_KEYS` are all allow-lists, and
+// `PUSH_FILTER_ALLOWED_KEYS` was added THIS PHASE for the same reason ("the modifier surface is an
+// open set"). The job level was the exception, and two one-line edits walked straight through it.
+//
+// MEASURED, NOT SUPPOSED (evidence/guards-review-cr01-wr04-pre-fix.txt, four vectors, each against
+// the tracked tree, each `exit 0` with `All 55 invariants hold`):
+//   * `needs: [gate-e2e]` on `gate-db-free`. THE FALSE-GREEN ONE. `gate-e2e` is red today, so the
+//     job SKIPS — and GitHub's required-status-check evaluation treats a skipped job as PASSING
+//     (this is the documented reason the `always()` aggregator idiom exists). The required check
+//     for this repository would go green over a job that ran neither lint, nor the design suite,
+//     nor the build, nor this script.
+//   * `strategy: { matrix: … }` on `gate-db-free`. THE FAIL-CLOSED ONE, and still a defeat: the
+//     runtime check context becomes `…(1)` / `…(2)`, so the display-name invariant below stays
+//     green over a `name:` that at runtime matches NO check at all. It is byte-unchanged, which is
+//     exactly why that invariant cannot see this.
+//   * the same two on `gate-e2e`.
+//
+// ⚠ THE DENY DIRECTION IS NOT ENUMERATED HERE ON PURPOSE, and the keys these lists exclude are
+// worth naming once so the next reader does not have to re-derive them: `needs:` and `if:` stop the
+// job running, `strategy:` renames the check context, `continue-on-error:` makes its failure
+// advisory, `environment:` can park it awaiting a manual approval, `concurrency:` can cancel it
+// mid-run, and `uses:`/`with:`/`secrets:` replace the job's entire body with a call to another
+// workflow while the `name:` stays put. That list is not the predicate — it is a list of the ones
+// thought of today, which is precisely what an allow-list exists so as not to depend on.
+//
+// ⚠ TWO CONSTANTS, DIFFERING BY EXACTLY ONE KEY, FOR THE REASON THE STEP PAIR ABOVE IS TWO. The
+// one key is `services`, and the difference is substantive rather than incidental: `gate-db-free`
+// is the DB-FREE job — its whole property is that it provisions no database — and a merged list
+// would permit a `services:` block on the one job in this file that must never carry one. (That
+// property is also asserted directly further up, by `the job that runs \`npm run build\` exists and
+// declares NO services:`. Two invariants reddening on the same edit is not duplication when they
+// are about different things; each case below asserts the FAIL line it means BY NAME.)
+//
+// `timeout-minutes` is PERMITTED on both, and it is the deliberate green control for these lists.
+// An allow-list with no legitimate key in it is a red-only instrument, and a red-only instrument
+// gets widened by the first person who hits a false positive. A wall-clock cap is a hardening knob
+// that neither skips the job, nor softens its failure, nor renames its check context — `gate-e2e`
+// already carries one — so it belongs on the permitted side, and there is a standing case asserting
+// that adding one to `gate-db-free` leaves this checker GREEN.
+const CHECKER_JOB_ALLOWED_KEYS = ["container", "env", "name", "runs-on", "steps", "timeout-minutes"];
+const E2E_JOB_ALLOWED_KEYS = ["container", "env", "name", "runs-on", "services", "steps", "timeout-minutes"];
+
 // The snapshot-update flag, spelled ONCE, here. It is deliberately never spelled in `ci.yml` —
 // including in that file's comments — because the cheapest audit of "this file cannot mint a
 // baseline" is a grep for the token returning 0, and prose about a forbidden token is still the
@@ -1144,6 +1194,26 @@ if (sections.includes("ci")) {
       `(of ${stepsOf(e2e).length} steps)`,
   );
 
+  // 2a-bis. THE JOB'S WHOLE KEY SURFACE, AS AN ALLOW-LIST (19.1-REVIEW.md CR-01).
+  //    A SIBLING of the check above, not a replacement for it: that one QUANTIFIES OVER EVERY STEP
+  //    and this one does not — it is about the job's own keys — so neither subsumes the other.
+  //    See `E2E_JOB_ALLOWED_KEYS` for the full argument and the four measured vectors.
+  //
+  //    ⚠ THE KEYS ARE SORTED FOR THE EVIDENCE LINE ONLY. Membership is exact string equality and
+  //    is order-independent by construction; sorting makes a red diffable across runs.
+  const e2eJobKeys = Object.keys(e2e ?? {}).sort();
+  const e2eJobExtraKeys = e2eJobKeys.filter((k) => !E2E_JOB_ALLOWED_KEYS.includes(k));
+  check(
+    `"${CI_E2E_JOB}" carries NO JOB-LEVEL KEY OUTSIDE [${E2E_JOB_ALLOWED_KEYS.join(", ")}] — needs: and if: stop this job running, strategy: renames its check context, and each leaves its name: byte-identical`,
+    e2eJobExtraKeys.length === 0,
+    `job keys=[${e2eJobKeys.join(", ") || "(none)"}]  ` +
+      `permitted=[${E2E_JOB_ALLOWED_KEYS.join(", ")}]  ` +
+      `unexpected=[${e2eJobExtraKeys.join(", ") || "(none)"}]  ` +
+      `(a key here is not forbidden forever — it is required to be DELIBERATE. If this job is ` +
+      `genuinely meant to gain one, add it to E2E_JOB_ALLOWED_KEYS in the same commit and say why ` +
+      `in it, having first checked it neither skips the job nor renames the check context)`,
+  );
+
   // 2b. THE INTERPRETER, PINNED ONE LEVEL OUT (T-19-15-02, review finding CR-01, OUTER HALF).
   //    Same family of question as the check above — what can change how this gate runs — asked one
   //    level further out. GitHub Actions supports `defaults: { run: { shell: … } }` at WORKFLOW and
@@ -1593,6 +1663,33 @@ if (sections.includes("ci")) {
       `(of ${checkerSteps.length} steps)`,
   );
 
+  // ── AND THE JOB'S WHOLE KEY SURFACE, AS AN ALLOW-LIST ─────────────────────────────────────────
+  // ADDED FOR 19.1-REVIEW.md CR-01. A SIBLING of the check immediately above, and NOT a replacement
+  // for it — that one quantifies over EVERY STEP of the job, this one is about the job's own keys,
+  // and neither subsumes the other. The full argument, the four measured vectors and the reason
+  // this list omits `services` while its `gate-e2e` twin permits it are all at the declaration of
+  // `CHECKER_JOB_ALLOWED_KEYS`; they are not restated here.
+  //
+  // ⚠ WHY THE CONSEQUENCE IS LARGER ON THIS JOB THAN ON ITS TWIN. This job's `name:` is the
+  // REQUIRED STATUS CHECK, and this job holds lint, the whole design suite, the Next build and the
+  // step that runs this script. `needs:` here is the false-green vector in full: a job skipped
+  // because a needed job failed reports conclusion `skipped`, GitHub's required-check evaluation
+  // treats skipped as PASSING, and the merge gate then goes green over a run in which not one of
+  // those four things happened. That is this phase's own subject — a green that measures nothing —
+  // arriving through the gate the phase built.
+  const checkerJobKeys = Object.keys(checker ?? {}).sort();
+  const checkerJobExtraKeys = checkerJobKeys.filter((k) => !CHECKER_JOB_ALLOWED_KEYS.includes(k));
+  check(
+    `"${CI_CHECKER_JOB}" carries NO JOB-LEVEL KEY OUTSIDE [${CHECKER_JOB_ALLOWED_KEYS.join(", ")}] — needs: and if: stop this job running, strategy: renames its check context, and each leaves its name: byte-identical`,
+    checkerJobExtraKeys.length === 0,
+    `job keys=[${checkerJobKeys.join(", ") || "(none)"}]  ` +
+      `permitted=[${CHECKER_JOB_ALLOWED_KEYS.join(", ")}]  ` +
+      `unexpected=[${checkerJobExtraKeys.join(", ") || "(none)"}]  ` +
+      `(a key here is not forbidden forever — it is required to be DELIBERATE. If this job is ` +
+      `genuinely meant to gain one, add it to CHECKER_JOB_ALLOWED_KEYS in the same commit and say ` +
+      `why in it. \`services\` is absent from that list on purpose: this is the DB-FREE job)`,
+  );
+
   // ── THE INTERPRETER, PINNED ON THIS JOB ───────────────────────────────────────────────────────
   // ADDED BY PLAN 19.1-05 (CI-01/SC1). A SIBLING of the workflow-and-`gate-e2e` defaults predicate
   // above, and DELIBERATELY NOT A WIDENING OF IT.
@@ -1809,11 +1906,36 @@ if (sections.includes("cross")) {
   const compareRuns = runsOf(compare);
   const captureMigrate = runOfStep(stepNamed(capture, BASELINES_MIGRATE_STEP)) || undefined;
   const compareMigrate = runOfStep(stepNamed(compare, CI_VISUAL_MIGRATE_STEP)) || undefined;
+  // ⚠ THE THIRD CONJUNCT IS THE ONE THIS CHECK LOST AND ITS SEED SIBLING KEPT (19.1-REVIEW.md
+  // WR-04). Name-anchoring both sides closes the decoy vector in ONE direction only: identical
+  // decoys on both sides make the two picks differ from the real commands but stay identical TO
+  // EACH OTHER, and a pure byte-identity comparison then holds between two strings that are neither
+  // job's migrate command. Anchoring by `name:` moved the vector rather than removing it — the same
+  // `echo` can be written under the right step NAME on both sides.
+  //
+  // MEASURED (evidence/guards-review-cr01-wr04-pre-fix.txt, WR-04): the `run:` of the step named
+  // `${BASELINES_MIGRATE_STEP}` replaced on BOTH sides with the identical line
+  // `echo "no migration here at all"` — exit 0, all 55 reported holding. Neither visual job
+  // migrated its database, and nothing else in this file asserts that anything runs the migration
+  // at all (`grep -n 'db:migrate'` returns only comments and step-NAME constants).
+  //
+  // The runtime blast radius is smaller than the `gate-db-free` finding — the seed step would fail
+  // against an unmigrated database, so the job goes red anyway — but a one-sided assertion sitting
+  // three lines above the correct spelling of itself reads as deliberate to the next auditor, and
+  // "it happens to fail for another reason" is not the property this invariant's name claims.
+  //
+  // ⚠ SUBSTRING, AND IT IS SAFE HERE BECAUSE IT IS A CONJUNCT IN THE DENY DIRECTION (PATTERNS §F).
+  // It does not LOCATE the step — `stepNamed` above does that, by exact `name:`. It only refuses a
+  // located command that does not name the migration, so over-matching produces a false RED.
+  const MIGRATE = "db:migrate";
   check(
-    "the two visual jobs' migrate run commands are byte-identical",
-    typeof captureMigrate === "string" && captureMigrate === compareMigrate,
+    `the two visual jobs' migrate run commands are byte-identical and both name ${MIGRATE}`,
+    typeof captureMigrate === "string" &&
+      captureMigrate === compareMigrate &&
+      captureMigrate.includes(MIGRATE),
     `${BASELINES_JOB}."${BASELINES_MIGRATE_STEP}"="${captureMigrate ?? "(absent)"}"  ` +
-      `${CI_VISUAL_JOB}."${CI_VISUAL_MIGRATE_STEP}"="${compareMigrate ?? "(absent)"}"`,
+      `${CI_VISUAL_JOB}."${CI_VISUAL_MIGRATE_STEP}"="${compareMigrate ?? "(absent)"}"  ` +
+      `must name=${MIGRATE}`,
   );
 
   const SEED = "scripts/seed-baseline-fixtures.ts";

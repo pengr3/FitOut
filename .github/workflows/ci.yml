@@ -222,9 +222,9 @@
 # not stop job 5 booting the app. A parse-based invariant here therefore protects the NEXT run,
 # never the current one; what protects THIS run is job 5's own first step (the D-14 bullet below).
 #
-#   * THE EIGHT `gate-e2e` INVARIANTS. The job's ABSENCE is a HARD STOP rather than a failed
+#   * THE NINE `gate-e2e` INVARIANTS. The job's ABSENCE is a HARD STOP rather than a failed
 #     check, because every other invariant in this file is universally quantified and a
-#     DELETED JOB SATISFIES ALL OF THEM VACUOUSLY. Above that stop, eight counted checks:
+#     DELETED JOB SATISFIES ALL OF THEM VACUOUSLY. Above that stop, nine counted checks:
 #       1. the exact DISPLAY NAME `gate-e2e (functional Playwright suite)` — GitHub matches a
 #          required status check on `name:`, never on the YAML key, so a rename would detach
 #          a required check while leaving the job and every invariant over it intact (19-08);
@@ -328,6 +328,25 @@
 #          edit can fill inside an already-accepted structure. It is scoped to this workflow and
 #          to `gate-e2e` and NOT to every job, because a block on an unrelated job cannot change
 #          how this gate executes and a wider assertion would redden a correct file.
+#       9. THE JOB'S WHOLE KEY SURFACE ASSERTED AS AN ALLOW-LIST — NEW 2026-09-06 (19.1-REVIEW.md
+#          finding CR-01). Entry 3 above is a DENY-LIST OF TWO wearing the name "is unconditional",
+#          and this entry is the same rule applied the way every other key surface in the checker
+#          already is. Two one-line edits walked straight through entry 3, both MEASURED green at
+#          all 55 invariants against the tracked file: `needs:` on the job, which makes it SKIP
+#          when the needed job is red — and GitHub's required-check evaluation treats a skipped
+#          job as PASSING — and `strategy: matrix`, which turns the runtime check context into
+#          `…(1)` / `…(2)` while entry 1's `name:` stays byte-identical and green over a string
+#          that at runtime matches no check at all. Neither key is named by entry 3, and neither
+#          would have been named by adding them to it: `environment:` can park the job awaiting an
+#          approval, `concurrency:` can cancel it mid-run, and `uses:`/`with:`/`secrets:` replace
+#          the job's entire body with a call to another workflow while the `name:` stays put. An
+#          enumeration of what is FORBIDDEN can only ever list what somebody already thought of.
+#          ⚠ THE LIST PERMITS `timeout-minutes:` ON PURPOSE, and this job carries one. An
+#          allow-list with no legitimate key in it is a red-only instrument, and a red-only
+#          instrument gets widened by the first person who hits a false positive. A wall-clock cap
+#          neither skips the job, nor softens its failure, nor renames its check context. The
+#          standing suite carries a case asserting that adding one to `gate-db-free` — which
+#          declares none today — leaves the checker GREEN.
 #     2, 3 and 4 exist because 1 did not close them. Measured, not supposed: until 19-11 you
 #     could delete this job's Playwright step and EVERY assertion in this file still passed,
 #     over a job that installed npm and stopped. All three were watched RED under a deliberate
@@ -350,7 +369,7 @@
 #     reverted: a checker with no test of its own regresses silently, and round N+1 begins with
 #     no memory of round N. Its control case pins the total below as an exact string, so a count
 #     change is only possible by deliberately editing it.
-#     ⚠ THE `gate-e2e` LIST IS EIGHT AND THE TOTAL IS 55. THE TWO FIGURES COUNT DIFFERENT THINGS
+#     ⚠ THE `gate-e2e` LIST IS NINE AND THE TOTAL IS 57. THE TWO FIGURES COUNT DIFFERENT THINGS
 #     AND ARE DELIBERATELY NOT THE SAME NUMBER: the EIGHT counts the entries in the list directly
 #     above this paragraph and is plan 19-15's figure, unchanged; the TOTAL counts every counted
 #     `check()` in the whole checker across all three sections, and it MOVED 2026-09-05 BY PLANS
@@ -360,7 +379,12 @@
 #     `ci` section went 29 → 31 and the total 48 → 50. Plan 19.1-01's TWO are new in the same sense
 #     and over a subject that was worse than unasserted — a job NOTHING in the checker read at all —
 #     so `ci` went 31 → 33 and the total 50 → 52. Plan 19.1-05's THREE finish that job: `ci` goes
-#     33 → 36 and the total 52 → 55. Each traces to one named gap and nothing rode along:
+#     33 → 36 and the total 52 → 55. The REVIEW REPAIR of 2026-09-06 adds TWO more — one job-level
+#     allow-list per gate job, `gate-e2e`'s entry 9 and `gate-db-free`'s entry 6 — so `ci` goes
+#     36 → 38 and the total 55 → 57. The `cross` section stayed at 8 through that repair: WR-04
+#     TIGHTENED the migrate byte-identity check with a third conjunct rather than adding a check,
+#     which is why one of the two findings moved the total and the other did not.
+#     Each traces to one named gap and nothing rode along:
 #     entry 8 above closes 19-VERIFICATION.md gap 1's `missing:` bullet (review finding CR-01's
 #     outer half, the `defaults:` levels nothing read), the trigger bullet below closes
 #     19-VERIFICATION.md gap 2 (review finding WR-01, the trigger set nothing compared), and the
@@ -370,13 +394,18 @@
 #     interpreter at job level — under a clean green every time).
 #     `node scripts/verify-workflows.mjs` now ends with, exactly:
 #
-#         All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+#         All 57 invariants hold across 3 section(s) (baselines=11, ci=38, cross=8).
 #
 #     That line is quoted here VERBATIM, and the standing test's control constant carries the same
 #     bytes, so the documented count and the printed count cannot drift apart silently — a stale
 #     total is a false claim of exactly the class this whole round exists to delete, and it is the
-#     cheapest one to detect. A reader who counts 56 should look for an invariant added out of
-#     turn, and one who counts 54 for one deleted.
+#     cheapest one to detect. A reader who counts 58 should look for an invariant added out of
+#     turn, and one who counts 56 for one deleted.
+#     ⚠ AND THIS SPELLING IS NOW ASSERTED RATHER THAN MERELY MAINTAINED (19.1-REVIEW.md IN-01).
+#     The claim that the standing suite makes forgetting impossible used to cover TWO of the three
+#     spellings — the checker's printed line and the test's own constant — while this paragraph,
+#     the third, was prose nothing read. `workflow-invariants.test.ts` now reads THIS FILE and
+#     requires it to contain the line above, so the three cannot drift.
 #
 #   * THE `gate-db-free` INVARIANTS — NEW 2026-09-05, PLANS 19.1-01 AND 19.1-05 (19-REVIEW.md
 #     finding CR-03; entries 1 and 2 are 19.1-01's, entries 3, 4 and 5 are 19.1-05's).
@@ -451,6 +480,24 @@
 #          52 reported holding, under an interpreter that PRINTS each step's `run:` body instead of
 #          executing it — every step in the job, including the one invoking the checker, reduced to
 #          a no-op that exits 0.
+#       6. THE JOB'S WHOLE KEY SURFACE ASSERTED AS AN ALLOW-LIST — NEW 2026-09-06 (19.1-REVIEW.md
+#          finding CR-01). A SIBLING of entry 9 of the `gate-e2e` list, whose argument transfers
+#          unchanged and is not restated. TWO THINGS ARE DIFFERENT HERE AND BOTH MATTER.
+#          FIRST, THE CONSEQUENCE IS THE LARGEST IN THIS FILE. This job's `name:` is the REQUIRED
+#          STATUS CHECK, and this job holds lint, the whole design suite, the Next build and the
+#          step that runs the checker. `needs:` here is the false-green vector in full: the needed
+#          job is red today, so this job would SKIP; a skipped job reports conclusion `skipped`;
+#          GitHub's required-check evaluation treats skipped as PASSING. The merge gate would go
+#          green over a run in which not one of those four things happened — this phase's own
+#          subject, arriving through the gate the phase built. Measured against the tracked file:
+#          exit 0, all 55 reported holding.
+#          SECOND, THIS LIST OMITS `services:` WHERE THE `gate-e2e` ONE PERMITS IT, and the two
+#          constants differ by exactly that one key for the reason entries 1 and 3's step lists
+#          differ by exactly one: this is the DB-FREE job. A merged list would permit a `services:`
+#          block on the one job in this file whose entire property is that it provisions no
+#          database. (`the job that runs \`npm run build\` … declares NO services:` asserts that
+#          property directly too. Two invariants reddening on one edit is not duplication when
+#          they are about different things, and each standing case names the FAIL line it means.)
 #
 #   * THIS FILE'S OWN TRIGGERS ARE ASSERTED — NEW 2026-09-05, PLAN 19-15 (review finding WR-01).
 #     `ci.yml` must run on BOTH `push` and `pull_request`. It is filed here beside the other

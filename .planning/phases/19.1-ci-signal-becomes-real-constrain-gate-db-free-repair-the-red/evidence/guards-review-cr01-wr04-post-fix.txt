@@ -1,0 +1,149 @@
+GUARDS — POST-FIX MEASUREMENT for 19.1-REVIEW.md CR-01 and WR-04
+Captured: 2026-09-05T17:49:23Z   node v24.13.0   win32
+
+WHAT THIS FILE IS. The RED-AFTER half of the pair whose GREEN-BEFORE half is
+guards-review-cr01-wr04-pre-fix.txt. Same harness, same vectors, same tracked tree — the only
+thing that changed between the two files is the checker's predicates. Read them side by side:
+one file alone proves nothing, because a red can always be arranged and a green can always be
+left alone.
+
+ELISION RULE: identical to the pre-fix file. Each run prints its exit code, the summary line
+VERBATIM, and every line beginning FAIL — nothing else, for any run. An absent FAIL section
+means there were no FAIL lines, not that they were selected out.
+
+THE INVARIANT TOTAL MOVED 55 -> 57 (ci 36 -> 38). CR-01 added TWO counted checks, one job-level
+allow-list per gate job. WR-04 added a CONJUNCT to an existing check and therefore moved
+nothing — which is why cross stays at 8. All three spellings were moved in the same commit and
+the number was taken from what the checker PRINTS.
+
+==================================================================================
+SECTION 1 — THE SAME SIX VECTORS, RE-RUN AGAINST THE REPAIRED CHECKER
+==================================================================================
+
+### CONTROL — unmutated tracked tree
+exit=0
+All 57 invariants hold across 3 section(s) (baselines=11, ci=38, cross=8).
+
+### CR-01 vector 1 — `needs: [gate-e2e]` on gate-db-free
+exit=1
+  FAIL  "gate-db-free" carries NO JOB-LEVEL KEY OUTSIDE [container, env, name, runs-on, steps, timeout-minutes] — needs: and if: stop this job running, strategy: renames its check context, and each leaves its name: byte-identical
+1 of 57 invariant(s) FAILED:
+  - [ci] "gate-db-free" carries NO JOB-LEVEL KEY OUTSIDE [container, env, name, runs-on, steps, timeout-minutes] — needs: and if: stop this job running, strategy: renames its check context, and each leaves its name: byte-identical
+
+### CR-01 vector 2 — `strategy: matrix` on gate-db-free
+exit=1
+  FAIL  "gate-db-free" carries NO JOB-LEVEL KEY OUTSIDE [container, env, name, runs-on, steps, timeout-minutes] — needs: and if: stop this job running, strategy: renames its check context, and each leaves its name: byte-identical
+1 of 57 invariant(s) FAILED:
+  - [ci] "gate-db-free" carries NO JOB-LEVEL KEY OUTSIDE [container, env, name, runs-on, steps, timeout-minutes] — needs: and if: stop this job running, strategy: renames its check context, and each leaves its name: byte-identical
+
+### CR-01 sibling A — `needs: [gate-db-free]` on gate-e2e
+exit=1
+  FAIL  "gate-e2e" carries NO JOB-LEVEL KEY OUTSIDE [container, env, name, runs-on, services, steps, timeout-minutes] — needs: and if: stop this job running, strategy: renames its check context, and each leaves its name: byte-identical
+1 of 57 invariant(s) FAILED:
+  - [ci] "gate-e2e" carries NO JOB-LEVEL KEY OUTSIDE [container, env, name, runs-on, services, steps, timeout-minutes] — needs: and if: stop this job running, strategy: renames its check context, and each leaves its name: byte-identical
+
+### CR-01 sibling B — `strategy: matrix` on gate-e2e
+exit=1
+  FAIL  "gate-e2e" carries NO JOB-LEVEL KEY OUTSIDE [container, env, name, runs-on, services, steps, timeout-minutes] — needs: and if: stop this job running, strategy: renames its check context, and each leaves its name: byte-identical
+1 of 57 invariant(s) FAILED:
+  - [ci] "gate-e2e" carries NO JOB-LEVEL KEY OUTSIDE [container, env, name, runs-on, services, steps, timeout-minutes] — needs: and if: stop this job running, strategy: renames its check context, and each leaves its name: byte-identical
+
+### POSITIVE CONTROL — `timeout-minutes: 30` on gate-db-free (must stay GREEN)
+exit=0
+All 57 invariants hold across 3 section(s) (baselines=11, ci=38, cross=8).
+
+### WR-04 — identical `echo` replaces BOTH visual jobs' migrate commands
+exit=1
+  FAIL  the two visual jobs' migrate run commands are byte-identical and both name db:migrate
+1 of 57 invariant(s) FAILED:
+  - [cross] the two visual jobs' migrate run commands are byte-identical and both name db:migrate
+
+==================================================================================
+SECTION 2 — THE STANDING SUITE, AND THE ONE-TO-ONE BINDING OF EACH NEW CONJUNCT
+==================================================================================
+
+A hand mutation proves the fix TODAY; a standing case is what remembers it. Seven cases were
+added (40-46 for CR-01 and WR-04, 47 for IN-01's third spelling), taking the file from 39 to
+47. Each new conjunct was then LOOSENED ALONE in the shipped checker and the suite re-run, so
+that what each case measures is a measurement rather than a claim. A case that stays green
+when the thing it names is removed is the defect this whole phase exists to delete.
+
+--- baseline: the repaired tree, unmutated ---
+ Test Files  1 passed (1)
+      Tests  47 passed (47)
+
+--- LOOSENING: gate-db-free's job-level allow-list conjunct -> true
+    bound cases, expected to fail and NOTHING ELSE: 40, 41, 45 (and 42, the GREEN control, must stay green)
+    mutation applied (checker=1  ci.yml=0 — a 0 in BOTH would mean this probe measured an unmutated tree)
+    checker summary under the loosening: All 57 invariants hold across 3 section(s) (baselines=11, ci=38, cross=8).
+         × case 40 (CR-01): a needs: on the gate-db-free JOB is red 198ms
+         × case 41 (CR-01): a strategy: matrix on the gate-db-free JOB is red 197ms
+         × case 45 (CR-01): a services: block on the gate-db-free JOB is red ON THE JOB-KEY INVARIANT 220ms
+          Tests  3 failed | 44 passed (47)
+
+--- LOOSENING: gate-e2e's job-level allow-list conjunct -> true
+    bound cases, expected to fail and NOTHING ELSE: 43, 44
+    mutation applied (checker=1  ci.yml=0 — a 0 in BOTH would mean this probe measured an unmutated tree)
+    checker summary under the loosening: All 57 invariants hold across 3 section(s) (baselines=11, ci=38, cross=8).
+         × case 43 (CR-01): a needs: on the gate-e2e JOB is red 240ms
+         × case 44 (CR-01): a strategy: matrix on the gate-e2e JOB is red 237ms
+          Tests  2 failed | 45 passed (47)
+
+--- LOOSENING: WR-04's must-name conjunct on the migrate comparison -> true
+    bound cases, expected to fail and NOTHING ELSE: 46
+    mutation applied (checker=1  ci.yml=0 — a 0 in BOTH would mean this probe measured an unmutated tree)
+    checker summary under the loosening: All 57 invariants hold across 3 section(s) (baselines=11, ci=38, cross=8).
+         × case 46 (WR-04): an identical decoy run body on BOTH visual jobs' migrate steps is red 236ms
+          Tests  1 failed | 46 passed (47)
+
+--- LOOSENING: ci.yml's quoted copy of the total, altered to a wrong number
+    bound cases, expected to fail and NOTHING ELSE: 47
+    mutation applied (checker=0  ci.yml=1 — a 0 in BOTH would mean this probe measured an unmutated tree)
+    checker summary under the loosening: All 57 invariants hold across 3 section(s) (baselines=11, ci=38, cross=8).
+         × case 47 (IN-01): ci.yml's quoted copy of the invariant total is byte-identical to the pinned one 16ms
+          Tests  1 failed | 46 passed (47)
+
+⚠ AN INSTRUMENT FAILURE INSIDE THIS MEASUREMENT, RECORDED RATHER THAN TIDIED AWAY.
+The WR-04 probe above was run TWICE. Its first form used a substitution pattern spelling the
+line break as \n, and this working tree checks scripts/verify-workflows.mjs out with CRLF —
+so the loosening DID NOT APPLY, and the suite reported 47/47 green. Read without the applied-
+count line, that transcript says "case 46 survives the conjunct being removed", which is the
+exact false conclusion this phase exists to prevent, produced by the exact defect (a hardcoded
+\n on a CRLF checkout) the phase already repaired once in insertAfterLineContaining.
+The applied-count line printed with every probe above exists because of it.
+
+==================================================================================
+SECTION 3 — THE OTHER CHECKOUT
+==================================================================================
+
+Every case above ran against this working tree's CRLF checkout. The CI runner checks the same
+files out as LF, and six cases in this file were once 39/39 green here and red there for that
+reason alone. Both workflow files were converted to LF in the working tree and the whole suite
+re-run, then restored byte-identical:
+
+    Test Files  1 passed (1)
+         Tests  47 passed (47)
+
+No new mutation BUILDER was written for any of the seven cases — they use withJobKey (both
+argument shapes) and withStepRunReplacedInJob, which case 38's census already covers and case
+37 already proves EOL-symmetric. That is why the census assertion needed no new entry.
+
+==================================================================================
+SECTION 4 — NOTHING WAS LEFT BEHIND
+==================================================================================
+
+--- md5 of every file this measurement mutated, AFTER restore ---
+12b27cd495caeacbd79489c4d09a1f44 *scripts/verify-workflows.mjs
+90a09c87130b52ae5ffbc8b10fcd3ffe *.github/workflows/ci.yml
+01c1dce48118f62d4151e196a67de7fa *.github/workflows/baselines.yml
+
+--- the same three, as recorded before the probes began ---
+12b27cd495caeacbd79489c4d09a1f44 *scripts/verify-workflows.mjs
+90a09c87130b52ae5ffbc8b10fcd3ffe *.github/workflows/ci.yml
+.github/workflows/baselines.yml: OK
+
+--- git status --porcelain -- scripts .github ---
+ M .github/workflows/ci.yml
+ M scripts/verify-workflows.mjs
+(the two entries above are THIS repair's own edits to the checker and to ci.yml's comments;
+ no probe residue remains — every md5 matches its pre-probe value)

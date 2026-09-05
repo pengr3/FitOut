@@ -1,0 +1,58 @@
+GUARDS — PRE-FIX MEASUREMENT for 19.1-REVIEW.md CR-01 and WR-04
+Captured: 2026-09-05T17:41:52Z   node v24.13.0   win32
+
+WHAT THIS FILE IS. The green-BEFORE half of the pair. Every vector below is run against the
+TRACKED, UNMODIFIED working tree, copied into a throwaway directory holding exactly the four
+files the checker reads from its cwd (ci.yml, baselines.yml, package.json,
+scripts/refuse-mail-credential.mjs). The SHIPPED checker is spawned with nothing but `cwd`
+changed. No file in the repository is modified — the md5 pair and the empty porcelain at the
+foot of this file are the proof, not the claim.
+
+ELISION RULE: for each run the transcript below prints the checker's exit code, its summary
+line VERBATIM, and every line beginning FAIL. Nothing else is printed for any run, so an
+absent FAIL section means there were no FAIL lines rather than that they were selected out.
+
+--- md5, BEFORE ---
+f058fd5c983e001307bc0bdcd2cbb296 *scripts/verify-workflows.mjs
+9d32f5e23fa8e6114981ddf021fe2545 *tests/design/workflow-invariants.test.ts
+b3907f006d22ecfb6c38dd7a80d51784 *.github/workflows/ci.yml
+01c1dce48118f62d4151e196a67de7fa *.github/workflows/baselines.yml
+
+--- transcript ---
+
+### CONTROL — unmutated tracked tree
+exit=0
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+
+### CR-01 vector 1 — `needs: [gate-e2e]` on gate-db-free
+exit=0
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+
+### CR-01 vector 2 — `strategy: matrix` on gate-db-free
+exit=0
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+
+### CR-01 sibling A — `needs: [gate-db-free]` on gate-e2e
+exit=0
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+
+### CR-01 sibling B — `strategy: matrix` on gate-e2e
+exit=0
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+
+### POSITIVE CONTROL — `timeout-minutes: 30` on gate-db-free (must stay GREEN)
+exit=0
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+
+### WR-04 — identical `echo` replaces BOTH visual jobs' migrate commands
+exit=0
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+
+--- md5, AFTER (must equal the pair above) ---
+f058fd5c983e001307bc0bdcd2cbb296 *scripts/verify-workflows.mjs
+9d32f5e23fa8e6114981ddf021fe2545 *tests/design/workflow-invariants.test.ts
+b3907f006d22ecfb6c38dd7a80d51784 *.github/workflows/ci.yml
+01c1dce48118f62d4151e196a67de7fa *.github/workflows/baselines.yml
+
+--- git status --porcelain -- scripts .github tests ---
+(empty above)

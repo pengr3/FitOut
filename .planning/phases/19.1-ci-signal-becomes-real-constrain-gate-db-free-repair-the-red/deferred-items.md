@@ -609,3 +609,42 @@ EOL-agnostic, so there is no known instance; it is a gap in coverage, not a susp
   `sk_test_` / `sk_live_` prefixes, AND a watched-red case proving each rule fires — the same
   discipline `tests/design/workflow-invariants.test.ts` applies to the workflow checker. The measured
   control transcript is in `evidence/secret-scan-pre-public.txt` §"POSITIVE CONTROL".
+
+---
+
+## D-19.1-G — the six code-review findings the CR-01/WR-04 repair did NOT close
+
+- **Found during:** the orchestrator-directed repair of 2026-09-06 (not a numbered plan; no
+  SUMMARY.md). Its charter was `19.1-REVIEW.md` **CR-01** and **WR-04** only.
+- **Closed by that repair, with measured green-before / red-after pairs in
+  `evidence/guards-review-cr01-wr04-{pre,post}-fix.txt`:** CR-01 (job-level allow-lists on both gate
+  jobs, `needs:` and `strategy:` now red, cases 40/41/43/44/45 + green control 42), WR-04 (the
+  `must name db:migrate` conjunct, case 46), and IN-01 (the third spelling of the invariant total,
+  case 47 — taken on because that repair MOVED the total 55 → 57 and had to touch all three
+  spellings by hand, which is precisely when the unenforced one gets missed).
+- **What is still OPEN, and where it lives.** All six remain written up in full, with their proposed
+  fixes, in `19.1-REVIEW.md`; this entry exists so the phase's own carry-forward register names them
+  rather than leaving them only in a review document a later phase may not read.
+
+  | # | File | One line |
+  |---|---|---|
+  | WR-01 | `e2e/cancel.spec.ts:288-340` | the two refund sentences are asserted jointly exhaustive, never mutually exclusive — "both rendered" takes branch 1 and passes, on the money path |
+  | WR-02 | `e2e/cancel.spec.ts:295-296` | the branch selector uses two non-retrying `count()` reads, so a slow render throws a money-defect error message at a timing flake |
+  | WR-03 | `tests/design/e2e-known-failures.test.ts` | the pin counts the two allowlist entries but never asserts WHERE they are — a quarantine can move while the total stays 2 |
+  | WR-05 | `tests/design/calendar-plate-month.test.tsx:410-434` | the D-A2 repair's month VALUE is never asserted, only that the prop is present; a 0-based slip stays green |
+  | IN-02 | `tests/design/calendar-plate-month.test.tsx` | fake timers are never restored, so everything after the hydration describe sees a clock pinned in 2027 |
+  | IN-03 | `tests/design/e2e-known-failures.test.ts:207-222` | the comment stripper is applied outside its own helper's stated contract — fail-CLOSED, so a false-red risk only |
+
+- **Why they were not fixed here.** WR-01 and WR-02 are in `e2e/`, which the repair's brief put out
+  of scope. WR-05 and IN-02 are in `tests/design/calendar-plate-month.test.tsx`, which the brief
+  excluded by name — "a separate repair follows this one". WR-03 and IN-03 are in
+  `tests/design/e2e-known-failures.test.ts`, whose `PINNED_ENTRY_TOTAL = 2` the brief pinned as
+  out of scope. Widening the repair into any of them would have made a one-to-one proof of the two
+  findings it WAS chartered for impossible to read.
+- **⚠ Suggested disposition, and the priority order is not the severity order.** **WR-03 first**:
+  it is the only one of the six that is a false-GREEN in the same class as CR-01 — a guard whose
+  name ("the allowlist cannot silently grow") is satisfiable while a silent substitution has
+  happened — and its fix is four lines in a test that already runs. **WR-01/WR-02 next**, together
+  and in that order, because WR-02's `expect.poll` form subsumes WR-01. **WR-05 with the
+  calendar-plate repair** that already follows. IN-02 is one `afterEach`. IN-03 needs nothing today
+  and is recorded so the next reader does not re-derive it.
