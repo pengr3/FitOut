@@ -28,6 +28,17 @@ import { test, expect, type Page, type BrowserContext } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 
+// THE FOUR ATTENTION-NEEDING AUDIT ACTIONS ARE IMPORTED, NEVER TYPED. `src/lib/booking/refund-dispatch.ts`
+// declares the closed set that means "money is owed and nothing was dispatched", and it is the same
+// declaration `refundNeedsManualReturn` queries with — so the assertion at the foot of this file is
+// asserting against the product's own list rather than a copy of it that can drift. A literal list here
+// would be a second source of truth wearing the costume of a constant, which is the failure
+// `scripts/verify-workflows.mjs:118-133` states the rule against. Relative-path import: the established
+// idiom for a spec reading a source constant in this suite (`e2e/overflow-320.spec.ts:32`,
+// `e2e/one-tree.spec.ts:117`, `e2e/host-verification.spec.ts:74`). If the export is ever renamed, this
+// file stops compiling — which is the strongest form the link can take.
+import { REFUND_NOT_DISPATCHED_ACTIONS } from "../src/lib/booking/refund-dispatch";
+
 const BASE = "http://localhost:3000";
 const VENUE_TZ = "Asia/Manila";
 
@@ -246,7 +257,89 @@ test.describe("booker cancellation — the previewed refund is the refund given 
     // The detail page now RENDERS the cancellation rather than 404ing it, with the refund as a muted sibling
     // line beneath the badge (D-79) — and phrased "on its way", never "refunded", because the webhook is the
     // single writer of terminal refund state (D-57).
-    await expect(page.getByText(/refund on its way/i)).toBeVisible();
+    //
+    // ══ THE TWO LEGITIMATE MONEY TRUTHS ON THIS BRANCH — A NAMED DISJUNCTION (19.1-07) ═══════════════
+    //
+    // WHAT WAS MEASURED, not what was reasoned about — `.planning/phases/19.1-.../evidence/
+    // triage-cancel-refund.txt`. This assertion used to demand the in-transit sentence UNCONDITIONALLY,
+    // and it failed with `Locator: getByText(/refund on its way/i) → element(s) not found`. The product
+    // was right and this spec was incomplete: `gate-e2e` has no PayMongo credential and STRUCTURALLY
+    // CANNOT HAVE ONE (`.github/workflows/ci.yml` is invariant-forbidden from carrying any `secrets.`
+    // reference), so the cancel action's refund POST raises, an operator alert is written, and
+    // `src/app/(app)/bookings/[id]/page.tsx:1168-1176` renders `ManualReturnNotice` INSTEAD. That fork's
+    // own comment states why the in-transit sentence is withheld rather than merely absent: "the two
+    // sentences are mutually exclusive money claims about the same figure, and the in-transit one is the
+    // false half whenever the dispatch did not happen." The manual-return branch is therefore the
+    // CORRECT render in CI, and this spec now asserts both truths instead of one of them.
+    //
+    // ⚠ D-01 — THIS TEST IS NEVER ELIGIBLE FOR THE KNOWN-FAILURES ALLOWLIST, IN ANY FUTURE ROUND. It
+    // sits on the refund path, and D-01 names it as the specific test whose quarantine was rejected: a
+    // green badge sitting on top of an unverified refund behaviour is the exact failure mode that
+    // decision exists to prevent. Repair it or leave it red. Never annotate it, never skip it, never
+    // record its path in an allowlist.
+    //
+    // ⚠ AND THIS IS A STRONGER ASSERTION THAN THE ONE IT REPLACES, WHICH IS THE ONLY THING THAT MAKES A
+    // DISJUNCTION A REPAIR RATHER THAN A WEAKENING. It does not ask whether one of two strings is
+    // somewhere on the page — that would pass on a page rendering the wrong sentence for its state. It
+    // IDENTIFIES which branch rendered and then asserts the consequence that branch owes. For the
+    // manual-return branch the consequence is the audit row the render is DERIVED from
+    // (`refundNeedsManualReturn`, zero new columns, D-80): a notice on screen with no operator record
+    // behind it would be a silent money failure, and it is red here.
+    const manualReturnSentence = page.getByText(/coming back to you/i);
+    const inTransitSentence = page.getByText(/refund on its way/i);
+
+    // A NON-THROWING COUNT, DELIBERATELY. A visibility assertion cannot select a branch — it can only
+    // end the test — and selecting the branch is the whole point of the repair. `count()` resolves to a
+    // number for both an absent and a present locator, so the fork below is decided by a measurement
+    // rather than by a caught exception.
+    const manualReturnCount = await manualReturnSentence.count();
+    const inTransitCount = await inTransitSentence.count();
+
+    if (manualReturnCount > 0) {
+      // BRANCH 1 — the dispatch did not happen. This is the branch CI is always in.
+      await expect(manualReturnSentence.first()).toBeVisible();
+
+      // …and the record that branch owes. `refundNeedsManualReturn` reads exactly this shape
+      // (`src/lib/booking/refund-dispatch.ts:103-116`) and requires BOTH halves — the action on the
+      // imported list AND `outcome = 'needs_attention'` — so an action recorded as `ok` would never
+      // match. The query below conjoins them for the same reason.
+      const [alert] = await sql<{ n: number }[]>`
+        SELECT count(*)::int AS n FROM audit
+        WHERE outcome = ${"needs_attention"}
+          AND action = ANY(${[...REFUND_NOT_DISPATCHED_ACTIONS]}::text[])
+          AND meta->>'bookingId' = ${bookingId}
+      `;
+      expect(
+        alert.n,
+        `The manual-return notice is on screen but NO audit row backs it. That is a silent money ` +
+          `failure, not a test problem: the booker has been told a person will return their money by ` +
+          `hand, and there is no record telling any person to do it. The notice is rendered from ` +
+          `refundNeedsManualReturn (src/lib/booking/refund-dispatch.ts:103-116), which matches on ` +
+          `outcome='needs_attention' AND action IN [${REFUND_NOT_DISPATCHED_ACTIONS.join(", ")}] AND ` +
+          `meta->>'bookingId'=${bookingId} — so a visible notice with zero matching rows means the two ` +
+          `have come apart. Find out which write was lost. Never relax this to a row-optional check.`,
+      ).toBeGreaterThan(0);
+    } else if (inTransitCount > 0) {
+      // BRANCH 2 — the dispatch was accepted, so the in-transit sentence is the true one. Today's
+      // behaviour, unchanged, and the branch a machine holding a working payments credential takes.
+      await expect(inTransitSentence.first()).toBeVisible();
+    } else {
+      throw new Error(
+        `NEITHER money sentence rendered on a cancelled booking with a positive refund, and exactly ` +
+          `one of them must. The two are:\n` +
+          `  • the IN-TRANSIT sentence, /refund on its way/i — composed at ` +
+          `src/app/(app)/bookings/[id]/page.tsx:1095-1100 and rendered by the second arm of the fork ` +
+          `at :1168-1176, when the refund dispatch was accepted;\n` +
+          `  • the MANUAL-RETURN notice, /coming back to you/i — ` +
+          `src/components/booking/manual-return-notice.tsx:111, rendered by the first arm of that same ` +
+          `fork when refundNeedsManualReturn(bk.id) is true.\n` +
+          `They are mutually exclusive and jointly exhaustive for refund_cents > 0, so a page showing ` +
+          `neither means the cancelled branch did not render its money statement at all — the booker ` +
+          `was told nothing about their money.\n` +
+          `THE CORRECT RESPONSE: investigate which branch the dispatch took and why the statement is ` +
+          `missing. Never relax this assertion, and never allowlist this test (D-01).`,
+      );
+    }
 
     // The refund column is still the single value written by the one successful cancel.
     const [row] = await sql<{ refund_cents: number }[]>`
