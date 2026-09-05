@@ -1,0 +1,282 @@
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+19.1-08 TASK 3 — e2e/host-headings.spec.ts:964, the wizard that would not pass its location step
+Triage transcript. Command lines above unedited output, per evidence/triage-harness.md §(d).
+Box: win32, 2026-09-05. Bring-up: npm run db:up / db:migrate / db:seed / rm -rf .next / :3000 free.
+Executed by the CONTINUATION agent for plan 08 (tasks 1 and 2 were inherited from an interrupted run).
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+WHAT CI SAID, VERBATIM (19.1-RESEARCH.md §"Triage summary table" item #11)
+
+    Error: wizard · whole space · step 3 of 9: pressing the advance control did not change the
+    question — it is still "Where is it?". The wizard autosaves and then advances ONLY when the server
+    accepts the draft (`saveAndContinue`), so a stuck walk means the draft was REFUSED at this step.
+    The save-state region says: (nothing). That is a fixture failure or a real refusal — never a
+    reason to lower the step count or to weaken the guard that refused.
+
+AND HOW OFTEN. `.planning/phases/19-.../evidence/gate-e2e-wallclock.txt:120-152` lists this as item 11
+of FOURTEEN failures and states, of that whole list: "The same failures appear in both runs, so they
+are not one-off infrastructure noise." It is NOT in that file's separate two-line "flaky (passed on
+retry)" list. `gate-e2e` carries `retries: 2`. So: two runs × three attempts = SIX FOR SIX in CI.
+That number is load-bearing below — a race that loses six coin flips is not a race.
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+PRE-REPAIR — THE CANONICAL RUN (CI's worker count, tracing on)
+───────────────────────────────────────────────────────────────────────────────────────────────────
+
+$ npx playwright test e2e/host-headings.spec.ts --project=chromium --trace on --workers=1 \
+    --reporter=list
+
+  The harness (§(c)3) offers `--grep "wizard · whole space, every step"` because the AC#35 describe is
+  `mode: "serial"` and an earlier failure would mask this one. The FULL file was run instead, and the
+  grep kept only for the red/green pair below: the masking risk only exists if something earlier goes
+  red, and nothing did — so the full run is strictly more evidence for the same 2.3 minutes.
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[WebServer] ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 14 tests using 1 worker
+
+  ok  1 [chromium] › host-headings.spec.ts:753:7 › dashboard · today's sessions
+  ok  2 [chromium] › host-headings.spec.ts:764:7 › dashboard · quiet day, next up
+  ok  3 [chromium] › host-headings.spec.ts:775:7 › dashboard · nothing booked
+  ok  4 [chromium] › host-headings.spec.ts:802:7 › dashboard · no listings (D-143)
+  ok  5 [chromium] › host-headings.spec.ts:812:7 › requests · rows
+  ok  6 [chromium] › host-headings.spec.ts:823:7 › requests · inbox zero
+  ok  7 [chromium] › host-headings.spec.ts:833:7 › bookings · upcoming · rows
+  ok  8 [chromium] › host-headings.spec.ts:842:7 › bookings · upcoming · empty
+  ok  9 [chromium] › host-headings.spec.ts:856:7 › bookings · past · rows
+  ok 10 [chromium] › host-headings.spec.ts:864:7 › bookings · past · empty
+  ok 11 [chromium] › host-headings.spec.ts:872:7 › availability
+  ok 12 [chromium] › host-headings.spec.ts:964:7 › wizard · whole space, every step (13.3s)
+  ok 13 [chromium] › host-headings.spec.ts:968:7 › wizard · drop-in, every step (13.3s)
+  ok 14 [chromium] › host-headings.spec.ts:974:7 › all five surfaces' headings compute the SAME size
+
+  14 passed (2.3m)
+
+⚠ THE FAILURE DID NOT REPRODUCE. The whole-space walk completed all NINE steps in 13.3 s, first
+attempt. There is therefore no local failure trace to read, and the three required observations are
+taken from the trace of the PASSING run plus a database poll taken across a second, targeted run.
+Every number below is measured on this box in this session.
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+THE THREE REQUIRED OBSERVATIONS
+───────────────────────────────────────────────────────────────────────────────────────────────────
+
+(1) WHAT DID THE LOCATION STEP'S SAVE-AND-ADVANCE SERVER ACTION RETURN?
+
+    SUCCESS — HTTP 200, in 350 ms, and seven more like it. Read out of the passing run's trace
+    (test-results/…whole-space-every-step-chromium/trace.zip, 0-trace.network, POST resource
+    snapshots). Eight advances, eight server actions, one action id:
+
+      POST http://localhost:3000/host/listings/e2e_head_listing_2296744b-…/edit  200  452.432 ms
+      POST … /edit   200  328.764 ms
+      POST … /edit   200  350.201 ms      ← the location step ("Where is it?" → "Add photos…")
+      POST … /edit   200  270.726 ms
+      POST … /edit   200  293.955 ms
+      POST … /edit   200  306.733 ms
+      POST … /edit   200  325.106 ms
+      POST … /edit   200  290.667 ms
+      all carrying   next-action=609a5f6785b3f3d95bea43245c797f7fc05e406cbf   (one action: saveListingStep)
+
+    There is no refusal on this path here, and the step is not slow: 350 ms.
+
+(2) WHAT DID THE SAVE-STATE REGION RENDER?
+
+    Read out of the same trace's DOM snapshots, resolving the element carrying
+    `aria-label="Save state"` (`wizard.tsx:306`, `SAVE_STATE_REGION_NAME`) and the `H1` beside it:
+
+      snap#   3  after@call@1858  region=""         h1="What kind of space is it?"
+      snap# 122  after@call@1992  region="Saving…"  h1=(unchanged/ref)
+      snap# 124  after@call@1994  region="Saved"    h1="Tell guests about your space"
+      snap# 237  after@call@2122  region="Saving…"  h1=(unchanged/ref)
+      snap# 239  after@call@2124  region="Saved"    h1="Where is it?"          ← ARRIVES AT STEP 3
+      snap# 352  after@call@2252  region="Saving…"  h1=(unchanged/ref)         ← STEP 3'S PRESS
+      snap# 354  after@call@2254  region="Saved"    h1="Add photos of your space"
+      snap# 479 / 481                "Saving…" → "Saved"  h1="How do people use your space?"
+      snap# 594 / 596                "Saving…" → "Saved"  h1="Set your rates"
+      snap# 709 / 711                "Saving…" → "Saved"  h1="How do you want to accept bookings?"
+      snap# 824 / 826                "Saving…" → "Saved"  h1="What happens if a guest cancels?"
+      snap#1052 /1056                "Saving…" → "Saved"  h1="Review and publish"
+
+    Exactly seventeen of the run's 1262 frame snapshots serialise this element at all; in every other
+    snapshot it is a reference, i.e. UNCHANGED. Between snap#239 and snap#352 it is a reference
+    throughout, so ON THIS BOX THE REGION READS "Saved" AT THE MOMENT OF THE STEP-3 PRESS.
+
+    ⚠ CI READ `(nothing)` AT THAT SAME MOMENT, AND THAT IS THE FINDING OF THIS TASK. `(nothing)` is a
+    state NO REFUSAL CAN PRODUCE. `saveAndContinue` (`wizard.tsx:626-638`) writes `Saving…` into the
+    region SYNCHRONOUSLY, before it awaits anything; a refusal then replaces it with
+    `Couldn't save — ` + the server's sentence (`saveStateText`, `:340-345`; `SAVE_STATE_FAILED_PREFIX`,
+    `:319`). There is no path through that function that leaves the region empty. An empty region
+    therefore means THE HANDLER NEVER RAN — the press was not received, and the server was never asked.
+
+(3) DID THE DRAFT ROW CHANGE AFTER THE ADVANCE CONTROL WAS PRESSED?
+
+    YES — once per press, eight times. Measured by polling Postgres at 400 ms across a second,
+    targeted run (`--grep "wizard · whole space, every step"`, 1 passed in 24.5 s):
+
+      +  15.3s  e2e_head_listing_56977bef-…  updated_at=2026-09-05T10:14:25.092Z   ← seeded
+      +  21.0s  e2e_head_listing_56977bef-…  updated_at=2026-09-05T10:14:30.806Z   ← press 1
+      +  22.3s  …10:14:32.036Z   ← press 2
+      +  23.1s  …10:14:33.007Z   ← press 3   (the location step)
+      +  24.3s  …10:14:34.150Z   ← press 4
+      +  25.1s  …10:14:35.171Z   ← press 5
+      +  26.4s  …10:14:36.248Z   ← press 6
+      +  27.2s  …10:14:37.270Z   ← press 7
+      +  28.4s  …10:14:38.323Z   ← press 8
+
+      and the row's location columns throughout, so the step's own fields are not the problem:
+        addr="7 Real Street" city="Makati" region="Metro Manila" country="Philippines"
+        lat=14.5547 lng=121.0244   (ST_Y/ST_X of the PostGIS point — coordinates present)
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+WHY OUTCOME 2 (ENVIRONMENT-DEPENDENT) WAS CONSIDERED AND REJECTED
+───────────────────────────────────────────────────────────────────────────────────────────────────
+
+RESEARCH.md's hypothesis was that the location step's server-side validation depends on something CI
+lacks — geocoding or PostGIS-derived fields — and it labelled itself unverified. The plan requires
+that an environment verdict NAME the capability; "CI is different" is not a verdict. So the capability
+was looked for, and there is none to name:
+
+  a. `saveListingStep`'s whole path reads exactly ONE environment variable. A grep for `process.env.`
+     over `src/app/actions/listing.ts` and `src/lib/db/*.ts` returns one line:
+     `src/lib/db/index.ts:5: drizzle(postgres(process.env.DATABASE_URL!))`.
+  b. `ci.yml`'s `gate-e2e` job says so itself, at `:1607`: "⚠ THIS IS THE ONLY ENVIRONMENT INPUT THIS
+     JOB HAS", above `DATABASE_URL: postgres://fitout:fitout@postgres:5432/fitout`. The job is
+     invariant-forbidden from carrying any `secrets.` reference at all.
+  c. CI HAD ALREADY USED THAT INPUT SUCCESSFULLY TWICE when step 3 failed: the walk reached "Where is
+     it?", which happens only after steps 1 and 2 each saved and advanced. The database, the session
+     and the action all worked in that very run.
+  d. The step's own data needs nothing external: the fixture seeds address_line1/city/region/country
+     and a PostGIS point (observation 3), and the geocoder is never called — `AddressAutocomplete`
+     fetches Photon only on keystrokes and the walk never types into it
+     (`src/components/listing/address-autocomplete.tsx:219`, and its own header note that it "degrades
+     gracefully … Automated tests do not depend on a live call").
+  e. CI runs the SAME server as this box: `webServer.command: "npm run dev"`, unconditionally
+     (`playwright.config.ts:134-136`); `gate-e2e`'s step is a bare `npx playwright test
+     --project=chromium` (`ci.yml:1679`).
+
+Naming a capability anyway would be the guess the spec's own message forbids.
+
+WHY OUTCOME 1 (REAL REFUSAL) IS REFUTED
+
+By observation (2)'s mechanism, not by preference: a refusal writes `Couldn't save — …` into the
+region and CI's own message reports the region as empty. Locally the action returns 200 at that exact
+step and the row is written. Nothing was refused, because nothing was asked.
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+
+VERDICT: SPEC DEFECT — A MISSING SETTLE, AND THE MISSING SETTLE IS ON THE PRESS ITSELF. The walk
+pressed the advance control and then waited thirty seconds on the HEADING, which cannot tell a server
+refusal from a press that never reached `saveAndContinue`; on that timeout it reported the first. Its
+own printed evidence says it was in the second state — `The save-state region says: (nothing)`, which
+`saveAndContinue` cannot produce, because it writes `Saving…` synchronously before it awaits and a
+refusal writes `Couldn't save — …` (`wizard.tsx:626-638`, `:340-345`). The test was accusing the
+server of refusing a draft it was never sent. Repaired here in `e2e/host-headings.spec.ts` by
+`pressAdvance`, which arms `page.waitForRequest` for the server action BEFORE clicking and fails at
+its own line, in seconds, naming NOT RECEIVED and the two causes that produce it — and which thereby
+also makes the surviving "REFUSED" sentence in the heading-timeout branch true rather than assumed,
+since reaching that branch now proves a save request left the page. NO retry was added, following
+`booker-seed.ts`'s `selectTargetDayIn` precedent from this same plan: the lost press was inferred from
+CI's message, never observed here, and a second press that the first press merely delayed would save
+and advance twice, ending the walk a step early and reddening `EXPECTED_MEASUREMENTS` for an unrelated
+reason. NO file under `src/` is touched, the nine-step count is unchanged, and no guard is weakened.
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+THE RED-THEN-GREEN PAIR, WITH THE REVERT PROOF
+───────────────────────────────────────────────────────────────────────────────────────────────────
+
+sha256 of the repaired file, BEFORE the red was induced:
+    4fa66a57c415e197a8f48dcdb1795a25f83449f494107427810850c6713d3ce2  e2e/host-headings.spec.ts
+
+RED — `await control.click()` in `pressAdvance` replaced by `await control.hover()`, which is a press
+      that is never received. This is the simulation of CI's state, not of CI's cause.
+
+$ npx playwright test e2e/host-headings.spec.ts --project=chromium --workers=1 --reporter=list \
+    --grep "wizard · whole space, every step"
+
+  x  1 [chromium] › e2e\host-headings.spec.ts:1052:7 › … › wizard · whole space, every step (18.6s)
+
+  1) … › wizard · whole space, every step
+
+    Error: wizard · whole space · step 1 of 9: the advance control was pressed and NO SAVE REQUEST
+    LEFT THE PAGE within 15000 ms. The press was NOT RECEIVED — this is not a refusal, and the server
+    was never asked. `saveAndContinue` writes `Saving…` into the save-state region synchronously
+    before it awaits anything, so a handler that ran always leaves a trace here; the region says:
+    (nothing). Two causes produce this and they live in different files: the control was replaced
+    under the pointer while React finished with the step, so the click landed on a node on its way out
+    and was LOST rather than queued (the mechanism `e2e/helpers/booker-seed.ts:118-160` documents for
+    this app's other streamed surfaces); or the surface was not interactive at all when it was
+    pressed. Either way the draft is untouched, so this is NEVER a reason to lower the step count or
+    to weaken any guard.
+
+        at pressAdvance (C:\Users\Admin\Roaming\FitOut\e2e\host-headings.spec.ts:775:9)
+        at walkWizard  (C:\Users\Admin\Roaming\FitOut\e2e\host-headings.spec.ts:1021:7)
+
+  1 failed
+
+  ⚠ READ THE TWO THINGS THIS RED PROVES, BECAUSE THEY ARE NOT THE SAME THING. First, the new failure
+  lands at `pressAdvance`'s OWN line at 18.6 s rather than in the heading wait 30 s later, and it says
+  NOT RECEIVED rather than REFUSED. Second — and this is the part that ties it to CI — the region it
+  prints reads `(nothing)`, the exact word CI printed, reached here with the server demonstrably
+  untouched. The old shape would have called this same state a refusal.
+
+REVERT — `control.hover()` restored to `control.click()`:
+
+$ sha256sum e2e/host-headings.spec.ts
+    4fa66a57c415e197a8f48dcdb1795a25f83449f494107427810850c6713d3ce2 *e2e/host-headings.spec.ts
+
+  Byte-identical to the pre-red checksum above; `diff` against the saved copy reports no difference.
+
+GREEN — the full file, post-repair, CI's worker count, tracing on:
+
+$ npx playwright test e2e/host-headings.spec.ts --project=chromium --trace on --workers=1 \
+    --reporter=list
+
+  ok 13 … › wizard · drop-in, every step (12.3s)
+  ok 14 … › all five surfaces' first-level headings compute the SAME size (2ms)
+
+  14 passed (1.1m)
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+THE PROHIBITIONS, CHECKED RATHER THAN ASSERTED
+───────────────────────────────────────────────────────────────────────────────────────────────────
+
+$ git status --porcelain -- src
+                                    (no output — no production source file was modified)
+
+$ git status --porcelain -- e2e
+ M e2e/host-headings.spec.ts        (the only file this task changed)
+
+$ npx tsc --noEmit  |  grep -c "error TS"
+7                                   the SAME seven pre-existing `tests/design/` errors that predate
+                                    19.1 (mail-credential-refusal ×5, workflow-invariants ×2). None
+                                    is in e2e/. No NEW `error TS` line.
+
+$ node scripts/verify-workflows.mjs
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+
+The wizard walks NINE steps for whole space and EIGHT for drop-in, exactly as before
+(`WHOLE_SPACE_STEPS = 9`, `DROP_IN_STEPS = 8`, `host-headings.spec.ts:167-168`, untouched), and
+`saveListingStep`'s CR-04 / HG-01 refusal guards are not read, not weakened and not in this diff.
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+WHAT THE NEXT CI RUN WILL TELL US, AND WHAT IT DOES NOT CLOSE
+───────────────────────────────────────────────────────────────────────────────────────────────────
+
+This repair does not claim to have found WHY the press is not received on a 2-core ubuntu runner. It
+removes the false accusation and replaces it with the true one, and it moves the failure from a 30-
+second heading timeout to a 15-second named failure at the line that caused it. On the next `gate-e2e`
+run the test will do one of two things, and BOTH are progress:
+
+  * it passes — the press is received and the walk completes; or
+  * it fails at `pressAdvance` with NOT RECEIVED, which pins the defect to the press rather than the
+    server and hands the next plan a real starting point instead of a wrong one.
+
+⚠ WHAT MUST NOT HAPPEN NEXT is the repair being read as a green light to annotate this test away. It
+is NOT an annotation candidate for plan 11 on today's evidence: the verdict is a spec defect that has
+been repaired, not an environment capability CI structurally cannot have.
+
+INCIDENTAL, RECORDED BECAUSE IT COST A MINUTE TO EXPLAIN AND WILL COST THE NEXT READER THE SAME. The
+database poll found a STALE fixture row, `e2e_head_listing_34e0d8c9-…` with `updated_at`
+2026-09-03T02:31:15Z — a previous run whose `afterAll` teardown did not complete. It is inert (the
+fixture mints a per-run UUID id and never reads another row) and it is not this plan's to clean.

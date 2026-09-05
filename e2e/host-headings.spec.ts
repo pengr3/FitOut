@@ -701,6 +701,92 @@ async function expectSurface(page: Page, where: string, tell: string): Promise<v
   ).not.toHaveCount(0, { timeout: TELL_TIMEOUT_MS });
 }
 
+/**
+ * How long a received press has to put its save request on the wire. Generous on purpose: this number
+ * is not a settle, it is the boundary between "slow" and "never", and every millisecond of slack costs
+ * nothing on the passing path — the wait resolves the instant the request is seen.
+ */
+const PRESS_RECEIVED_TIMEOUT_MS = 15_000;
+
+/**
+ * Press the advance control, AND PROVE THE PRESS REACHED `saveAndContinue` BEFORE BELIEVING ANYTHING
+ * ABOUT THE SERVER.
+ *
+ * ⚠ THIS IS A MEASURED REQUIREMENT, NOT A HEDGE, AND THE MEASUREMENT IS THE FAILURE MESSAGE THIS FILE
+ * PRINTS IN CI. `gate-e2e` reported this walk stuck at `step 3 of 9` ("Where is it?") in BOTH of its
+ * first two real runs, all three attempts each — six for six, deterministic — with the save-state
+ * region reading `(nothing)`. That last word is the whole finding, because `(nothing)` is a state a
+ * REFUSAL CANNOT PRODUCE: `wizard.tsx`'s `saveAndContinue` writes `Saving…` into the region
+ * SYNCHRONOUSLY, before it awaits anything, and a refusal replaces that with `Couldn't save — …`
+ * (`saveStateText`, `wizard.tsx:340-345`). An empty region therefore means the handler NEVER RAN.
+ *
+ * MEASURED LOCALLY, 2026-09-05, over the trace of a passing run of this same walk
+ * (evidence/triage-host-headings.txt): eight advances, eight `POST …/edit` server actions, ALL HTTP
+ * 200, 270–452 ms each; the region reads `""` at step 1 and then `Saving…` → `Saved` at every advance,
+ * and it still reads `Saved` at the moment of the step-3 press. The draft row's `updated_at` moved
+ * once per press, eight times. The location step's action does not refuse here, and nothing in its
+ * path reads an environment input CI lacks — `src/lib/db/index.ts:5`'s `DATABASE_URL` is the only one,
+ * and CI has it and had already used it twice by the time step 3 was reached.
+ *
+ * So the old shape's central claim — "a stuck walk means the draft was REFUSED at this step" — was the
+ * one thing it could not check. It clicked and then waited 30 s on the HEADING, which cannot tell a
+ * refusal from a press that was never received, and then reported the first. This function makes the
+ * distinction the walk was missing: the save request leaving the page is the signal that the handler
+ * ran, and it is durable rather than transient, unlike the `Saving…` text or the button's disabled
+ * state — both of which are gone again in under half a second and cannot be asserted without a race.
+ *
+ * ⚠ NO RETRY, DELIBERATELY, AND `booker-seed.ts`'s `selectTargetDayIn` IS THE PRECEDENT (19.1-08). A
+ * retry is warranted when the click was OBSERVED lost; this one was not — the failure does not
+ * reproduce on this box at all. A second press here would also be genuinely unsafe in a way that
+ * helper's is not: if the first press WAS received and merely slow, the retry saves and advances
+ * twice, the walk ends a step early, and `EXPECTED_MEASUREMENTS` goes red for a reason that has
+ * nothing to do with the wizard. Fail honestly instead, and name the state.
+ */
+async function pressAdvance(page: Page, where: string): Promise<void> {
+  // The advance control is `Get started` on the first question and `Save and continue` on every one
+  // after it — the shipped labels, queried by accessible name the way
+  // `tests/listing/wizard-occupancy.test.tsx:161-166` does.
+  const control = page.getByRole("button", { name: /^(Get started|Save and continue)$/ });
+
+  // Armed BEFORE the click, because a server action that answers in 270 ms can be over before a
+  // listener attached afterwards exists. The predicate is the wizard's own route: `saveListingStep` is
+  // a server action, so it POSTs back to the page's own URL, which is the only POST to `/host/listings/`
+  // this screen makes. `.then(ok, fail)` is attached immediately so the timeout can never surface as
+  // an unhandled rejection.
+  const sawSaveRequest = page
+    .waitForRequest(
+      (request) =>
+        request.method() === "POST" && request.url().startsWith(`${BASE}/host/listings/`),
+      { timeout: PRESS_RECEIVED_TIMEOUT_MS },
+    )
+    .then(
+      () => true,
+      () => false,
+    );
+
+  await control.click();
+
+  if (await sawSaveRequest) return;
+
+  const said = (await page.getByRole("status").allTextContents())
+    .map((s) => s.replace(/\s+/g, " ").trim())
+    .filter((s) => s.length > 0);
+
+  throw new Error(
+    `${where}: the advance control was pressed and NO SAVE REQUEST LEFT THE PAGE within ` +
+      `${PRESS_RECEIVED_TIMEOUT_MS} ms. The press was NOT RECEIVED — this is not a refusal, and the ` +
+      "server was never asked. `saveAndContinue` writes `Saving…` into the save-state region " +
+      "synchronously before it awaits anything, so a handler that ran always leaves a trace here; " +
+      `the region says: ${said.length > 0 ? said.join(" · ") : "(nothing)"}. ` +
+      "Two causes produce this and they live in different files: the control was replaced under the " +
+      "pointer while React finished with the step, so the click landed on a node on its way out and " +
+      "was LOST rather than queued (the mechanism `e2e/helpers/booker-seed.ts:118-160` documents for " +
+      "this app's other streamed surfaces); or the surface was not interactive at all when it was " +
+      "pressed. Either way the draft is untouched, so this is NEVER a reason to lower the step count " +
+      "or to weaken any guard.",
+  );
+}
+
 /** Load a host route with the fixture's session and wait for fonts, so a size read is a settled one. */
 async function open(page: Page, cookies: SessionCookies, path: string): Promise<void> {
   await resumeSession(page, cookies);
@@ -931,11 +1017,8 @@ test.describe("AC#35 — one first-level heading per document, one size across f
       if (step === expectedSteps) break;
 
       const before = ((await h1.textContent()) ?? "").trim();
-      // The advance control is `Get started` on the first question and `Save and continue` on every
-      // one after it — the shipped labels, queried by accessible name the way
-      // `tests/listing/wizard-occupancy.test.tsx:161-166` does.
       await page.setViewportSize({ width: 1280, height: 900 });
-      await page.getByRole("button", { name: /^(Get started|Save and continue)$/ }).click();
+      await pressAdvance(page, where);
 
       try {
         await expect(h1).not.toHaveText(before, { timeout: 30_000 });
@@ -952,6 +1035,11 @@ test.describe("AC#35 — one first-level heading per document, one size across f
           `${where}: pressing the advance control did not change the question — it is still ` +
             `"${before}". The wizard autosaves and then advances ONLY when the server accepts the ` +
             "draft (`saveAndContinue`), so a stuck walk means the draft was REFUSED at this step. " +
+            // ⚠ THAT SENTENCE IS NOW EARNED RATHER THAN ASSUMED, and `pressAdvance` above is what
+            // earns it: reaching this line means a save request DID leave the page, so the server was
+            // genuinely asked and genuinely did not advance the walk. Before 19.1-08 this message made
+            // the same accusation with no such proof, and CI's own copy of it is the evidence that the
+            // accusation can be false — see this file's `pressAdvance` docblock.
             `The save-state region says: ${said.length > 0 ? said.join(" · ") : "(nothing)"}. ` +
             "That is a fixture failure or a real refusal — never a reason to lower the step count or " +
             "to weaken the guard that refused.\n" +
