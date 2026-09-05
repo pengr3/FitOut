@@ -1,0 +1,102 @@
+BASELINES RESTORE POINT — captured BEFORE the reference set was overwritten.
+Plan 19.1-12, Task 3. Written 2026-09-05T14:19:31Z.
+
+WHY THIS FILE EXISTS. The plan rates regeneration REVERSIBILITY: COSTLY. Restoring the
+old reference set means reverting BINARY files across a dozen paths and then
+re-establishing which of the diffs were intentional in the first place — the second
+half being the expensive one, because a PNG carries no record of why it was blessed.
+This file removes both costs: the commit is named, the paths are listed, and the
+reversal is one command. evidence/visual-diff-review.md is the record of the decision.
+
+RESTORE POINT COMMIT: fe99817acf6b7fd8cecf732081c023815c4ed241
+                     (fe99817 — HEAD at the moment of writing, an ANCESTOR of the
+                      regeneration commit by construction, since the dispatch had not
+                      yet been triggered when this file was written and committed.)
+
+TRACKED BASELINE COUNT AT THAT COMMIT: 36
+
+THE FULL PATH LIST (36 files):
+  e2e/visual/surfaces.spec.ts-snapshots/auth-forgot-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/auth-forgot-320-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/auth-login-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/auth-login-320-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/auth-reset-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/auth-reset-320-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/auth-signup-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/auth-signup-320-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/booking-not-found-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/checkout-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/checkout-320-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/collision-notice-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/dev-theme-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/dev-theme-320-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/dev-theme-768-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/listing-detail-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/listing-detail-320-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/listing-detail-768-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/listing-lightbox-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/listing-sheet-375-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/og-invite-1200-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/og-listing-1200-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/og-root-1200-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/privacy-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/privacy-320-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/privacy-768-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/root-not-found-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/root-not-found-320-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/search-relax-band-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/search-relax-band-320-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/search-results-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/search-results-320-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/search-results-768-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/terms-1280-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/terms-320-court-visual-linux.png
+  e2e/visual/surfaces.spec.ts-snapshots/terms-768-court-visual-linux.png
+
+================================================================================
+THE ONE-COMMAND RESTORE (the whole set, back to the state above):
+
+    git checkout fe99817 -- 'e2e/**/*-visual-linux.png'
+
+Then commit the result. Nothing else needs to move: the regeneration commit is
+constrained to this same glob (the dispatch workflow's staging guard, plus this
+plan's independent check of the changed-file list), so restoring the glob restores
+everything the regeneration touched and nothing it did not.
+
+TO RESTORE ONLY THE FOUR CLOCK-DEPENDENT ROWS (what this plan itself does, because
+the dispatch workflow regenerates ALL baselines and carries no filter — see the SUMMARY):
+
+    git checkout fe99817 -- \
+      e2e/visual/surfaces.spec.ts-snapshots/listing-detail-320-court-visual-linux.png \
+      e2e/visual/surfaces.spec.ts-snapshots/listing-detail-768-court-visual-linux.png \
+      e2e/visual/surfaces.spec.ts-snapshots/listing-detail-1280-court-visual-linux.png \
+      e2e/visual/surfaces.spec.ts-snapshots/collision-notice-1280-court-visual-linux.png
+================================================================================
+
+================================================================================
+THE RESTORE COMMAND IS PROVEN, NOT ASSUMED — and it was worth proving.
+================================================================================
+
+A restore command that silently matches nothing is worse than no restore file: it
+reads as a reversal that has been thought about, and it is a no-op. So it was tested
+here rather than written and trusted.
+
+  NEGATIVE CONTROL — a pathspec matching nothing is LOUD, so a silent success means
+  something really matched:
+
+    $ git checkout fe99817 -- 'e2e/**/*-NOSUCHTHING.png'
+    error: pathspec 'e2e/**/*-NOSUCHTHING.png' did not match any file(s) known to git
+
+  POSITIVE PROOF — a real baseline was corrupted and restored by the exact command
+  above, and the bytes came back identical:
+
+    before    md5 38ac2012a4d9   (dev-theme-320-court-visual-linux.png)
+    corrupted md5 11ce7a200230
+    restored  md5 38ac2012a4d9   <- byte-identical to `before`
+
+  ⚠ AND ONE TRAP THAT LOOKS EXACTLY LIKE A FAILURE, RECORDED SO THE NEXT READER DOES
+  NOT "FIX" A WORKING COMMAND. `git ls-tree -r --name-only fe99817 -- 'e2e/**/*-visual
+  -linux.png'` reports 0 for this same glob, because ls-tree does prefix matching and
+  not full pathspec globbing. `git ls-files` reports 36 and `git checkout` restores 36.
+  The 0 is a property of ls-tree, not of the pathspec. Do not use ls-tree to verify
+  this file.

@@ -1,0 +1,146 @@
+ROWS 9-12 — IS THE FIXTURE FIX SMALL AND LOCALISED? (plan 19.1-12, Task 3)
+Captured 2026-09-05T14:18:35Z on fe99817
+
+The PM authorised minting rows 9-12 ONLY IF the fixture fix is small and localised,
+carrying D-02's condition forward. This file is the measurement that call rests on.
+
+=== 1. WHAT DECIDES THE TODAY RING: react-day-picker's OWN default, not our prop ===
+$ node -e "console.log(require('react-day-picker/package.json').version)"
+10.0.1
+
+$ grep -n -A2 'if (!props.today)' node_modules/react-day-picker/dist/esm/DayPicker.js
+131:    if (!props.today) {
+132-        props = { ...props, today: dateLib.today() };
+133-    }
+
+=== 2. NEITHER OF OUR TWO LAYERS PASSES today= ===
+$ grep -c 'today=' src/components/availability/availability-calendar.tsx src/components/ui/calendar.tsx
+src/components/availability/availability-calendar.tsx:0
+src/components/ui/calendar.tsx:0
+(0 and 0 -> the ring falls through to dateLib.today(), i.e. the wall clock at render time)
+
+=== 3. WHAT THE EXISTING ?today= SEAM ACTUALLY MOVES ===
+$ grep -n 'todayOverride\|todayLocal' 'src/app/listings/[id]/(detail)/page.tsx'
+451:  const todayOverride = devTodayOverride(sp.today);
+452:  const todayLocal = todayOverride ?? {
+473:    todayLocal.year,
+474:    todayLocal.month - 1,
+475:    todayLocal.day,
+479:    todayLocal.year,
+480:    todayLocal.month - 1,
+481:    todayLocal.day + BOOKING_HORIZON_DAYS,
+502:    : todayLocal;
+656:              todayDate={todayLocal}
+839:              todayDate={todayLocal}
+887:              todayDate={todayLocal}
+
+$ grep -n 'startMonth=\|endMonth=\|disabled=' src/components/availability/availability-calendar.tsx
+657:          startMonth={todayStart}
+658:          endMonth={horizonEnd}
+659:          disabled={[{ before: todayStart }, { after: horizonEnd }]}
+775:              disabled={!bookable}
+
+=> devTodayOverride moves startMonth, endMonth, disabled and the initialDate fallback.
+=> It does NOT move react-day-picker's `today` modifier. The 17-D26 seam is INCOMPLETE
+   for the exact element section 3a of visual-diff-review.md measured.
+
+=== 4. AND page.clock IS ALREADY MEASURED TO BE THE WRONG TOOL (17-D26, not re-derived) ===
+// ⚠ WHY IT IS A SERVER SEAM AND NOT A PLAYWRIGHT CLOCK — MEASURED, AND THE FIRST PRESCRIPTION WAS
+// WRONG. `[17-D26]`'s first draft prescribed `page.clock.install()` on the three calendar-bearing
+// visual drives. Probed before it was written: with the browser clock moved to 2026-11-05, the
+// in-page `new Date()` DID move, and the rendered calendar did NOT — `data-today` stayed 30, the
+// caption stayed August 2026, the disabled count stayed 29. `page.clock` emulates time in the
+// BROWSER; `todayLocal` is computed in the Node process before the HTML is sent, so nothing the
+// browser believes about the date can reach it. `checkoutDrive` is a real `page.clock` precedent for
+// a client-side `setInterval`, and that resemblance is exactly what made the wrong fix look right.
+//
+
+=== 5. THE SECOND CAUSE (3b): the seeded host's created_at is now() ===
+$ grep -n 'created_at' scripts/seed-baseline-fixtures.ts | head -5
+192:    INSERT INTO "user" (id, name, email, email_verified, first_name, can_host, can_book, created_at, updated_at)
+199:    INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
+206:    INSERT INTO "host_verification" (user_id, status, provider, created_at, updated_at)
+211:    INSERT INTO "user" (id, name, email, email_verified, first_name, can_host, can_book, created_at, updated_at)
+223:      currency, booking_mode, status, review_state, published_at, created_at, updated_at
+
+$ sed -n '190,194p' scripts/seed-baseline-fixtures.ts
+async function seedUsers(): Promise<void> {
+  await sql`
+    INSERT INTO "user" (id, name, email, email_verified, first_name, can_host, can_book, created_at, updated_at)
+    VALUES (${VRT_HOST_ID}, ${"Baseline Host"}, ${`${VRT_HOST_ID}@fitout.invalid`}, ${true}, ${"Vera"}, ${true}, ${false}, now(), now())
+  `;
+
+=== 6. THE BASELINE URLs PIN ?date= BUT NOT ?today= ===
+$ grep -n 'vrt_listing_exclusive?date' src/lib/design/visual-baselines.ts
+541:    url: "/listings/vrt_listing_exclusive?date=2026-09-16",
+555:    url: "/listings/vrt_listing_exclusive?date=2026-09-16",
+570:    url: "/listings/vrt_listing_exclusive?date=2026-09-16",
+611:    url: "/listings/vrt_listing_exclusive?date=2026-09-16",
+
+================================================================================
+THE CALL: NOT SMALL, NOT LOCALISED. ROWS 9-12 ARE NOT MINTED BY THIS PLAN.
+================================================================================
+
+Counted from the measurements above, the fix is THREE changes in THREE layers plus
+a test, and one of the three is production source with a user-visible consequence:
+
+  1. scripts/seed-baseline-fixtures.ts  - pin the host's created_at to a literal.
+     Test-only, one line. Small on its own.
+  2. src/lib/design/visual-baselines.ts - add `&today=` to the two failing URLs.
+     Test-only, two string literals. Small on its own.
+  3. src/components/availability/availability-calendar.tsx - pass `today={todayStart}`
+     to <Calendar>. THIS IS PRODUCTION SOURCE AND IT IS A PRODUCT CHANGE, not a
+     fixture change: today it is react-day-picker's dateLib.today() (the rendering
+     HOST's day) and afterwards it is venue-local today. Those two disagree by a day
+     for any venue in a timezone that differs from the server's. Whether the ring
+     should be venue-local is a product question with a right answer that a fixture
+     plan is not the place to decide - and note the answer is probably YES, which is
+     precisely why it deserves to be decided rather than smuggled in under a
+     baseline regeneration.
+  4. A clock-independence test. This repository's standard for exactly this claim is
+     tests/design/calendar-plate-month.test.tsx, which proves it THREE ways -
+     behaviourally under two system clocks, structurally by census, and by a real
+     renderToString -> hydrateRoot across a month boundary carrying a control
+     required to FAIL. Anything weaker here is a green a decoy can counterfeit,
+     which is the defect this whole phase exists to remove (see 19.1-06).
+
+AND THE VERIFICATION ASYMMETRY, WHICH IS THE DECIDING ONE. The visual project is not
+even constructed off Linux (D-29), so the effect of the fix on the rendered calendar
+CANNOT BE OBSERVED BEFORE MINTING. Doing 1-4 and dispatching would put four reference
+images into the repository whose stability is an assumption. If the ring fix is wrong
+in any detail, the reference silently re-encodes "today is 5 September 2026" and the
+rows are red again tomorrow - the exact unstable reference the PM forbade minting.
+
+Under D-02 as the PM carried it forward, the phase therefore grows by a plan rather
+than the diff being blessed. Rows 9-12 stay red, with the reason written down.
+
+WHAT THAT PLAN HAS TO DO, so it does not have to re-derive any of the above:
+
+  a. Decide, as a product question, whether the availability calendar's today ring
+     should follow venue-local today (the value startMonth/endMonth/disabled already
+     use) rather than the rendering host's clock. If yes, pass `today={todayStart}`.
+     In production devTodayOverride returns null unconditionally, so todayLocal is
+     wall-clock today and the change is byte-equivalent on every shipped request for
+     a venue in the server's timezone; it differs only where the two clocks already
+     disagree, which is the bug.
+  b. Complete the 17-D26 seam it finishes: devTodayOverride was built to stop these
+     four baselines expiring at the day-rollover, and it does not reach the one
+     element that still expires. Say so at the site, or the next reader concludes the
+     seam already covers it - as this plan initially did.
+  c. Pin scripts/seed-baseline-fixtures.ts's host created_at to a fixed literal. The
+     file's own header already forbids what line 193 does: "anything that varies
+     between dispatches shows up as a pixel diff and trains people to re-mint the
+     reference instead of reading the diff." now() is such a value. Check the other
+     now() calls in seedUsers() at the same time.
+  d. Add `&today=<the fixture's day>` to the listing-detail and collision-notice URLs
+     in src/lib/design/visual-baselines.ts, and assert it in surfaces.spec.ts the way
+     `date=` is already asserted there (the `?`-bearing-rows loop) - otherwise a
+     future edit drops it and the rows silently go back to being clock-dependent.
+  e. Carry the clock-independence test of point 4 above.
+  f. THEN mint rows 9-12, and confirm stability by inspecting the minted PNG rather
+     than by trusting the dispatch: the ring must land on the PINNED day, not on the
+     day the dispatch ran. That check is available post-mint and costs one crop.
+
+NOT IN SCOPE FOR THAT PLAN, and deliberately so: rows 1-8 are regenerated by THIS
+plan and are not clock-dependent (measured in visual-diff-review.md section 3 - the
+theme gallery and the search surfaces render neither HostBlock nor AvailabilityCalendar).
