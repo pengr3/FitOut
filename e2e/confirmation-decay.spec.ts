@@ -179,36 +179,61 @@ test.describe("BFLOW-08 — the confirmation moment fills the first screen and t
             "owner gate.",
         ).toHaveCount(1);
 
-        // ⚠ THE SETTLE, AND IT IS A REQUIREMENT RATHER THAN A HEDGE. `toHaveCount(1)` above proves the
-        // element is IN THE DOCUMENT. It does not prove the element has been LAID OUT, and the three
-        // assertions below are all measurements of its box — so between those two facts is the only
-        // place this case can report a number nobody rendered.
+        // ⚠ THIS LINE EXISTS BECAUSE `toHaveCount(1)` ABOVE IS NOT ENOUGH, AND WHAT IT CAUGHT IS NOT
+        // WHAT IT WAS ADDED FOR. Read the whole note before touching it; the obvious "fix" is wrong.
         //
-        // WHAT WAS MEASURED, twice, on two different runs and two different viewports:
+        // WHAT WAS OBSERVED FIRST — a 0px moment, twice, on two runs and two DIFFERENT viewports:
         //   run 33848750657 `gate-e2e` (flaky, passed on retry):
-        //     court · 375×667: the moment is 0px tall in a 667px viewport… Expected: >= 603  Received: 0
+        //     court · 375×667:  the moment is 0px tall in a 667px viewport… Expected: >= 603  Received: 0
         //   run 33972688199 `gate-e2e` (flaky, passed on retry):
         //     court · 1280×800: the moment is 0px tall in a 800px viewport… Expected: >= 736  Received: 0
-        // A ZERO in a viewport that is not zero is not a layout the product produced; it is a
-        // `getBoundingClientRect()` taken before the browser had one. That the two failures land on
-        // DIFFERENT viewports is what rules out a viewport-specific product defect and leaves timing.
         //
-        // `toBeVisible()` is the assertion that says exactly that and nothing more: Playwright defines
-        // a visible element as one with a NON-EMPTY bounding box, so this is the precondition
-        // `boxOf` depends on, asserted in the framework's own terms — the shape
-        // `e2e/helpers/booker-seed.ts:118-160` established (assert the observable state the next step
-        // depends on, at the line that would otherwise fail three steps later).
+        // THE HYPOTHESIS THAT READING PRODUCED — 19.1-RESEARCH.md § "The two flaky": "a 0px measurement
+        // means the element was measured before layout; likely a missing settle" — IS REFUTED. It was
+        // refuted by adding this assertion and reading what it actually printed. Run 33975274855:
+        //
+        //   court · 320×568: … Error: strict mode violation: getByTestId('confirmation-moment')
+        //   resolved to 2 elements:
+        //     1) <section data-testid="confirmation-moment" …> aka getByRole('main').getByTestId('confirmation-moment')
+        //     2) <section data-testid="confirmation-moment" …> aka getByTestId('confirmation-moment').nth(1)
+        //   - locator resolved to <section …>  - unexpected value "hidden"
+        //
+        // AND IT REPRODUCES OFF CI, which the 0px reading never did. This box, cold `.next` per
+        // `evidence/triage-harness.md` step 3, `--retries=2`: attempt 1 fails with the SAME two-element
+        // violation (grove · 320×568), attempt 2 passes — `1 flaky, 3 passed (52.7s)`. Run again with a
+        // `.next` left dirty by a production build it fails on ALL THREE attempts, at two viewports and
+        // both themes. So it is intermittent at rest and deterministic under compile pressure, which is
+        // exactly the shape a 2-core runner produces and why CI has only ever reported it as flaky.
+        //
+        // THE MOMENT IS NOT UNLAID-OUT. THERE ARE TWO OF IT, and one of them is HIDDEN. `boxOf` uses
+        // `document.querySelector`, which takes the FIRST match — so the "0px tall" every earlier run
+        // reported was the box of the WRONG SECTION, not an unsettled box of the right one. Note also
+        // that `toHaveCount(1)` two statements above PASSED: the second copy appears BETWEEN the two
+        // assertions, so it is an overlap during the route's own streaming and not a static duplicate.
+        //
+        // WHY THIS ASSERTION STAYS, EXACTLY AS IT IS. Strict mode is what turned a vague, viewport-
+        // shaped number into a named defect with both elements printed. That is the whole value.
+        //
+        // ⚠ DO NOT "FIX" THIS BY SCOPING THE LOCATOR (`getByRole('main').getByTestId(...)`) OR BY
+        // GIVING `boxOf` THE VISIBLE ONE. Either turns the suite green and deletes the only instrument
+        // that has ever named this defect — and the same two-elements-one-in-`main` signature is live
+        // in `e2e/avatar-crop.spec.ts:162` (`input[type="file"]` resolved to 2, run 33972688199). The
+        // duplicate mount is handed forward as a defect to be MEASURED, not waited out;
+        // `.planning/phases/19.1-…/evidence/suite-remeasurement.txt` VERDICT N2 and the FINAL section
+        // name the plan that owns it.
         //
         // WHAT THIS DELIBERATELY IS NOT: no timeout is widened (the default `expect` timeout is used,
         // and the case's own `test.setTimeout(240_000)` is untouched), and no expected height is
-        // lowered — `height - 64` below is unchanged. If the moment never gets a box, this line fails
-        // and names the settle instead of reporting a 0px moment as a product measurement.
+        // lowered — `height - 64` below is unchanged.
         await expect(
           page.getByTestId("confirmation-moment"),
-          `${where}: the moment is in the document but has an EMPTY bounding box, so every ` +
-            "measurement below would be of a box the browser had not laid out yet. This is the " +
-            "settle the 0px-tall flake in runs 33848750657 and 33972688199 needed; a persistent " +
-            "failure here means the moment renders and never takes a box, which IS a product defect.",
+          `${where}: the moment must resolve to exactly ONE laid-out section before anything below ` +
+            "measures its box. A `strict mode violation … resolved to 2 elements` here is the known " +
+            "duplicate mount (run 33975274855), and it is why the earlier `0px tall` reports were the " +
+            "box of the WRONG section rather than an unsettled box of the right one — `boxOf` takes " +
+            "`document.querySelector`'s first match. An `unexpected value \"hidden\"` with a count of " +
+            "one instead means the moment renders and never takes a box. Do not scope this locator to " +
+            "make it pass: see the note above this line.",
         ).toBeVisible();
 
         const moment = await boxOf(page, "confirmation-moment");
