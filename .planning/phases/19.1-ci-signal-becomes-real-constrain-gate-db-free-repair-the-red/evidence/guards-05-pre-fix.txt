@@ -1,0 +1,990 @@
+================================================================================
+PHASE 19.1 PLAN 05 — WATCHED-GREEN EVIDENCE (the holes, BEFORE the fix)
+================================================================================
+
+Every transcript below is a RAW CONSOLE CAPTURE taken against the TRACKED tree at
+the HEAD recorded below, with the checker and the standing suite exactly as plan
+19.1-01 left them. Each one is a defeat this plan closes, measured BEFORE it was
+closed.
+
+ELISION RULE, STATED SO IT IS NOT MISTAKEN FOR SELECTION. The checker prints three
+sections. The `baselines` section (11 invariants) is byte-identical in every
+transcript here — no mutation below touches `baselines.yml` — so it is elided from
+every checker capture and the FIVE header lines plus the whole `ci` section, the
+`cross` section, the summary line and the exit code are reproduced in full. Nothing
+is elided from any capture that contains a FAIL line.
+
+Nothing here echoes an env: VALUE. Step names, key names, exit codes and md5 only —
+in particular the build step's three build-only placeholders are never printed.
+
+CAPTURE ORDER (the lesson plan 19.1-01 paid for, recorded in its own evidence file
+and applied here from the first command): `git checkout -- <file>` restores from
+HEAD, not from the working tree, so a mutation reverted while this plan's own edits
+are uncommitted discards those edits too. EVERY transcript below was therefore taken
+against a CLEAN COMMITTED TREE, before a single line of this plan's code was
+written.
+
+date (UTC): 2026-09-05T05:30:34Z
+HEAD:       a53313f469f96c8a751f460effacb434287c6e0b
+baseline md5 .github/workflows/ci.yml:        fa4dcf2e75322bd22f03714edc1f35f2
+baseline md5 scripts/verify-workflows.mjs:    887b558deeaa96fa4bbabff990d1733c
+
+════════════════════════════════════════════════════════════════════════════════
+WR-01 / SC3 — THE CONJUNCT IS CORRECT AND NOTHING REMEMBERS THAT IT IS
+════════════════════════════════════════════════════════════════════════════════
+
+This is the ONE hole in this plan that is not about `gate-db-free` at all. It is
+about the INSTRUMENT. Round 2 (plan 19-13) fixed the mail refusal step's invocation
+conjunct to an exact equality; the standing mutation suite that round 3 built has no
+case for that property. So the fix is correct today and remembered by nothing.
+
+Three captures, in the order they were taken.
+
+────────────────────────────────────────────────────────────────────────────────
+1a. THE CONJUNCT IS CORRECT TODAY — an appended argument on the refusal step is RED
+────────────────────────────────────────────────────────────────────────────────
+
+$ md5sum .github/workflows/ci.yml      # before mutation
+fa4dcf2e75322bd22f03714edc1f35f2 *.github/workflows/ci.yml
+
+$ git diff -U0 -- .github/workflows/ci.yml
+@@ -1544 +1544 @@
+-        run: node scripts/refuse-mail-credential.mjs
++        run: node scripts/refuse-mail-credential.mjs --decoy
+
+$ node scripts/verify-workflows.mjs
+verify-workflows — parse-based invariants over .github/workflows/
+sections            baselines, ci, cross
+@playwright/test    1.60.0 (installed)
+expected image      mcr.microsoft.com/playwright:v1.60.0-noble
+
+── ci — .github/workflows/ci.yml (5 job(s)) ────────────────────────────────────────────────────
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    NO job in ci.yml holds contents: write — the write path is baselines.yml alone
+          jobs with contents:write=[(none)]  jobs=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull request
+          triggers=[push, pull_request]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    every `uses:` across every job is a first-party actions/* action
+          uses=[gate-db-free:actions/checkout@v4, gate-db-free:actions/setup-node@v4, gate-db:actions/checkout@v4, gate-db:actions/setup-node@v4, gate-price-parity:actions/checkout@v4, gate-price-parity:actions/setup-node@v4, gate-visual:actions/checkout@v4, gate-visual:actions/setup-node@v4, gate-e2e:actions/checkout@v4, gate-e2e:actions/setup-node@v4]
+  ok    ZERO run commands in ci.yml carry --update-snapshots — this file can never mint a baseline
+          run commands=21 across 5 job(s)  carrying the flag=0
+  ok    zero `secrets.` references in any env / run / with VALUE, across every job
+          scanned workflow env, every job env, every container env, every service env, and every step run/env/with — 0 hits
+  ok    no job, step or workflow env KEY declares RESEND_API_KEY — the e2e suite must send zero real email
+          hits=[(none)]  scanned 5 job(s), their steps, and the workflow env  prefix=RESEND
+  ok    every job declaring a container: pins the exact installed-Playwright image
+          containerized=[gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every containerized job carries --ipc=host
+          options=[gate-db-free="--ipc=host", gate-price-parity="--ipc=host", gate-visual="--ipc=host", gate-e2e="--ipc=host"]
+  ok    every service image is postgis/postgis: with a tag qualified beyond the bare major
+          services=[gate-db.postgres=postgis/postgis:18-3.6, gate-price-parity.postgres=postgis/postgis:18-3.6, gate-visual.postgres=postgis/postgis:18-3.6, gate-e2e.postgres=postgis/postgis:18-3.6]
+  ok    addressing rule — "gate-db-free" declares no services:, so DATABASE_URL must be the unreachable sentinel
+          job="gate-db-free"  services=[]  container=true  authority=127.0.0.1:59999  expected=127.0.0.1:59999
+  ok    addressing rule — "gate-db" runs ON the runner, so the host must be localhost and every service MUST declare ports:
+          job="gate-db"  container=false  host=localhost  ports=[postgres=["5432:5432"]]
+  ok    addressing rule — "gate-price-parity" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-price-parity"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    addressing rule — "gate-visual" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-visual"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    addressing rule — "gate-e2e" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-e2e"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    the addressing rule covered at least one job — it is a total function, not an empty loop
+          jobs setting DATABASE_URL=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    the job that runs `npm run build` exists and declares NO services: (T-11-DBFREE)
+          jobs running `npm run build`=[gate-db-free]  of which declare services=[(none)]
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+          name="gate-e2e (functional Playwright suite)"  expected="gate-e2e (functional Playwright suite)"  (a required status check is matched by this string; changing it silently unbinds the gate)
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+          run commands=["npm ci","node scripts/refuse-mail-credential.mjs --decoy","npm run db:migrate","npm run db:seed","npx playwright test --project=chromium"]
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+          job if=null  job continue-on-error=null  conditional/soft steps=[(none)]  (of 7 steps)
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+          workflow defaults=null  job defaults=null
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+          indices: db:seed=3  playwright=4  (of 5 run commands)
+  FAIL  "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+          step=index 3  run="node scripts/refuse-mail-credential.mjs --decoy"  expected-run="node scripts/refuse-mail-credential.mjs"  env=null  keys=[name, run]  permitted=[name, run]  unexpected=[(none)]  expects scripts/refuse-mail-credential.mjs
+  ok    the prefix is spelled ONCE: scripts/refuse-mail-credential.mjs reads this file's declaration and holds no copy
+          declaration-matches-pattern=true  script-shares-pattern-source=true  script-holds-no-copy=true  (prefix=RESEND  pattern=^const MAIL_KEY_PREFIX = "([A-Z_]+)";$  script=10887 bytes)
+  ok    "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+          indices: refusal=1  db:migrate=2  db:seed=3  playwright=4  (of 5 run commands)  refusal step index=3 (of 7 steps)  precedes=[uses:actions/checkout@v4, uses:actions/setup-node@v4, run:npm ci]  permitted=[actions/checkout@…, actions/setup-node@…, run:npm ci]  and that holds=true
+  ok    "gate-db-free" declares the exact display name branch protection matches on
+          name="gate-db-free (lint + design + build + workflow parse)"  expected="gate-db-free (lint + design + build + workflow parse)"  (a required status check is matched by this string; changing it silently unbinds the job that runs scripts/verify-workflows.mjs, lint, the design suite and the build)
+  ok    "gate-db-free" carries the step that RUNS this checker, under its exact name, with the EXACT no-argument invocation, and NO KEY OUTSIDE [name, run]
+          step=index 4  expected-name="Verify the workflow invariants (parse, not grep)"  run="node scripts/verify-workflows.mjs"  expected-run="node scripts/verify-workflows.mjs"  keys=[name, run]  permitted=[name, run]  unexpected=[(none)]  (of 6 steps in "gate-db-free")
+  ok    "gate-visual" runs IN the pinned Playwright container
+          container.image=mcr.microsoft.com/playwright:v1.60.0-noble  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    "gate-visual" declares a `postgres` service
+          services=["postgres"]
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+          job permissions=null
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+          run commands=["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+          indices: db:migrate=2  seed-baseline-fixtures=3  playwright=4  (of 5 run commands)
+
+  parsed values (ci):
+    jobs                ["gate-db-free","gate-db","gate-price-parity","gate-visual","gate-e2e"]
+    triggers            ["push","pull_request"]
+    workflow perms      {"contents":"read"}
+    concurrency.group   ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+    containerized       ["gate-db-free","gate-price-parity","gate-visual","gate-e2e"]
+    service images      [{"job":"gate-db","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-price-parity","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-visual","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-e2e","svc":"postgres","image":"postgis/postgis:18-3.6"}]
+    DATABASE_URL        {"gate-db-free":"postgres://unreachable:unreachable@127.0.0.1:59999/nope","gate-db":"postgres://fitout:fitout@localhost:5432/fitout","gate-price-parity":"postgres://fitout:fitout@postgres:5432/fitout","gate-visual":"postgres://fitout:fitout@postgres:5432/fitout","gate-e2e":"postgres://fitout:fitout@postgres:5432/fitout"}
+    run commands        21 (0 with --update-snapshots)
+    gate-visual runs   ["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+
+── cross — .github/workflows/baselines.yml × .github/workflows/ci.yml ──────────────────────────
+  ok    every container image in BOTH files is the same string and equals the installed @playwright/test
+          5 container(s): [baselines.yml:generate-baselines=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  distinct=1  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every postgres service image in BOTH files is the same string
+          5 service(s): [baselines.yml:generate-baselines.postgres=postgis/postgis:18-3.6, ci.yml:gate-db.postgres=postgis/postgis:18-3.6, ci.yml:gate-price-parity.postgres=postgis/postgis:18-3.6, ci.yml:gate-visual.postgres=postgis/postgis:18-3.6, ci.yml:gate-e2e.postgres=postgis/postgis:18-3.6]  distinct=[postgis/postgis:18-3.6]
+  ok    the two visual jobs' DATABASE_URL values are byte-identical
+          generate-baselines=postgres://fitout:fitout@postgres:5432/fitout
+          gate-visual=postgres://fitout:fitout@postgres:5432/fitout
+  ok    the two visual jobs' migrate run commands are byte-identical
+          generate-baselines="npm run db:migrate"  gate-visual="npm run db:migrate"
+  ok    the two visual jobs' seed run commands are byte-identical and both name scripts/seed-baseline-fixtures.ts
+          generate-baselines="npx tsx scripts/seed-baseline-fixtures.ts"  gate-visual="npx tsx scripts/seed-baseline-fixtures.ts"
+  ok    neither visual job runs `npm run build` before its playwright step
+          generate-baselines=["npm ci","git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual --update-snapshots","git add -- \"*-visual-linux.png\"\nUNEXPECTED=\"$(git diff --cached --name-only | grep -v -- '-visual-linux\\.png$' || true)\"\nif [ -n \"$UNEXPECTED\" ]; then\n  echo \"::error::staged files that are not Linux baselines:\"\n  echo \"$UNEXPECTED\"\n  exit 1\nfi\nCOUNT=\"$(git diff --cached --name-only | wc -l | tr -d ' ')\"\necho \"count=$COUNT\" >> \"$GITHUB_OUTPUT\"\necho \"staged $COUNT baseline file(s)\"\ngit diff --cached --name-status\n","if git diff --cached --quiet; then\n  echo \"No baseline changes — nothing to commit. This is the expected result of a\"\n  echo \"re-dispatch against an already-current baseline set.\"\n  exit 0\nfi\ngit commit -m \"chore(11-22): regenerate visual baselines in the pinned Linux image\n\nGenerated by the \\`baselines\\` workflow_dispatch job (D-27), run ${{ github.run_id }},\nfrom ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.\n\nNOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared\nagainst these files. See .github/workflows/baselines.yml's header — an explicit\nfollow-up run is required.\"\n# Push to the ref this workflow was dispatched against. `github.ref` is\n# `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD\n# or on a branch the operator did not choose.\ngit push origin \"HEAD:${{ github.ref }}\"\n","echo \"::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers\"\necho \"::warning::no workflow run, so nothing has compared against them. Pull the branch,\"\necho \"::warning::confirm only *-visual-linux.png files were added, run npm run test:design,\"\necho \"::warning::then push an empty commit or re-dispatch so a ci run compares and goes\"\necho \"::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces\"\necho \"::warning::baselines nobody has ever seen pass.\"\n"]
+          gate-visual=["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+  ok    across .github/workflows/ exactly ONE run command carries --update-snapshots, and it is in baselines.yml
+          files scanned=[baselines.yml, ci.yml]  carriers=[baselines.yml:generate-baselines]
+  ok    across .github/workflows/ the mail-provider token appears ZERO times, in values AND in comments
+          files scanned=[baselines.yml, ci.yml]  prefix=RESEND  occurrences=[(none)]
+
+  parsed values (cross):
+    container images    ["mcr.microsoft.com/playwright:v1.60.0-noble"]
+    service images      ["postgis/postgis:18-3.6"]
+    DATABASE_URL        postgres://fitout:fitout@postgres:5432/fitout
+    capture runs        ["npm ci","git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual --update-snapshots","git add -- \"*-visual-linux.png\"\nUNEXPECTED=\"$(git diff --cached --name-only | grep -v -- '-visual-linux\\.png$' || true)\"\nif [ -n \"$UNEXPECTED\" ]; then\n  echo \"::error::staged files that are not Linux baselines:\"\n  echo \"$UNEXPECTED\"\n  exit 1\nfi\nCOUNT=\"$(git diff --cached --name-only | wc -l | tr -d ' ')\"\necho \"count=$COUNT\" >> \"$GITHUB_OUTPUT\"\necho \"staged $COUNT baseline file(s)\"\ngit diff --cached --name-status\n","if git diff --cached --quiet; then\n  echo \"No baseline changes — nothing to commit. This is the expected result of a\"\n  echo \"re-dispatch against an already-current baseline set.\"\n  exit 0\nfi\ngit commit -m \"chore(11-22): regenerate visual baselines in the pinned Linux image\n\nGenerated by the \\`baselines\\` workflow_dispatch job (D-27), run ${{ github.run_id }},\nfrom ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.\n\nNOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared\nagainst these files. See .github/workflows/baselines.yml's header — an explicit\nfollow-up run is required.\"\n# Push to the ref this workflow was dispatched against. `github.ref` is\n# `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD\n# or on a branch the operator did not choose.\ngit push origin \"HEAD:${{ github.ref }}\"\n","echo \"::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers\"\necho \"::warning::no workflow run, so nothing has compared against them. Pull the branch,\"\necho \"::warning::confirm only *-visual-linux.png files were added, run npm run test:design,\"\necho \"::warning::then push an empty commit or re-dispatch so a ci run compares and goes\"\necho \"::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces\"\necho \"::warning::baselines nobody has ever seen pass.\"\n"]
+    compare runs        ["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+    workflow files      ["baselines.yml","ci.yml"]
+    write-path carriers ["baselines.yml:generate-baselines"]
+
+1 of 52 invariant(s) FAILED:
+  - [ci] "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+CHECKER-EXIT=1
+
+$ git checkout -- .github/workflows/ci.yml
+$ md5sum .github/workflows/ci.yml      # after revert — byte-identical to before
+fa4dcf2e75322bd22f03714edc1f35f2 *.github/workflows/ci.yml
+$ git status --porcelain -- .github/workflows/ci.yml
+(no output)
+
+────────────────────────────────────────────────────────────────────────────────
+1b. AND THE STANDING SUITE IS FULLY GREEN — on the UNMUTATED tree, 16 of 16
+────────────────────────────────────────────────────────────────────────────────
+
+$ npx vitest run --config vitest.design.config.ts tests/design/workflow-invariants.test.ts
+
+ RUN  v4.1.8 C:/Users/Admin/Roaming/FitOut
+
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  13:28:30
+   Duration  3.27s (transform 56ms, setup 0ms, import 80ms, tests 2.96s, environment 0ms)
+
+VITEST-EXIT=0
+
+────────────────────────────────────────────────────────────────────────────────
+1c. ⚠ THE ACTUAL WR-01 MEASUREMENT — LOOSEN THE CONJUNCT AND THE SUITE STAYS GREEN
+────────────────────────────────────────────────────────────────────────────────
+
+1b on its own proves nothing: a green suite over an unmutated tree is what a green
+suite over an unmutated tree always is. The property WR-01 names is that the suite
+would not NOTICE the conjunct being loosened, and the only way to measure that is to
+loosen it. So this capture mutates the CHECKER'S OWN SOURCE — one operator — and
+re-runs the standing suite against it.
+
+$ md5sum scripts/verify-workflows.mjs      # before mutation
+887b558deeaa96fa4bbabff990d1733c *scripts/verify-workflows.mjs
+
+$ git diff -U0 -- scripts/verify-workflows.mjs
+@@ -982 +982 @@
+-      e2eMailRun.trim() === MAIL_REFUSAL_RUN &&
++      e2eMailRun.trim().startsWith(MAIL_REFUSAL_RUN) &&
+
+$ npx vitest run --config vitest.design.config.ts tests/design/workflow-invariants.test.ts
+
+ RUN  v4.1.8 C:/Users/Admin/Roaming/FitOut
+
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  13:28:42
+   Duration  3.31s (transform 49ms, setup 0ms, import 72ms, tests 2.99s, environment 0ms)
+
+VITEST-EXIT=0
+
+⚠ SIXTEEN OF SIXTEEN, EXIT 0. Review finding WR-01's defect — the containment test
+that every argument list in the world satisfies — was just reintroduced into the
+shipped checker, and the file whose entire purpose is to be the checker's memory did
+not move. That is the hole this plan's Task 1 closes, and it is why the new case
+mutates the WORKFLOW rather than reverting the conjunct: the harness spawns the
+SHIPPED checker at an absolute path and cannot mutate its source, so it exercises the
+property the conjunct is the only thing that can see. Loosen the conjunct after this
+plan and the mutation goes green — and the case fails. That is the memory.
+
+$ git checkout -- scripts/verify-workflows.mjs
+$ md5sum scripts/verify-workflows.mjs      # after revert — byte-identical to before
+887b558deeaa96fa4bbabff990d1733c *scripts/verify-workflows.mjs
+$ git status --porcelain -- scripts/verify-workflows.mjs
+(no output)
+
+
+================================================================================
+CR-03's REMAINING VECTORS — gate-db-free IS STILL SOFTENABLE AFTER PLAN 19.1-01
+================================================================================
+
+Plan 19.1-01 closed DELETION of the job, DELETION of its checker step, RENAME of its
+display name and an APPENDED ARGUMENT on its checker invocation. It closed nothing
+else. Each capture below is one line — or one three-line block — added to the TRACKED
+`.github/workflows/ci.yml`, and each is reverted with an md5 pair and an empty
+porcelain immediately after.
+
+════════════════════════════════════════════════════════════════════════════════
+MUTATION 2 — a job-level softening key on gate-db-free
+════════════════════════════════════════════════════════════════════════════════
+
+$ md5sum .github/workflows/ci.yml      # before mutation
+fa4dcf2e75322bd22f03714edc1f35f2 *.github/workflows/ci.yml
+
+$ git diff -U0 -- .github/workflows/ci.yml
+@@ -719,0 +720 @@
++    continue-on-error: true
+
+$ node scripts/verify-workflows.mjs
+verify-workflows — parse-based invariants over .github/workflows/
+sections            baselines, ci, cross
+@playwright/test    1.60.0 (installed)
+expected image      mcr.microsoft.com/playwright:v1.60.0-noble
+
+── ci — .github/workflows/ci.yml (5 job(s)) ────────────────────────────────────────────────────
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    NO job in ci.yml holds contents: write — the write path is baselines.yml alone
+          jobs with contents:write=[(none)]  jobs=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull request
+          triggers=[push, pull_request]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    every `uses:` across every job is a first-party actions/* action
+          uses=[gate-db-free:actions/checkout@v4, gate-db-free:actions/setup-node@v4, gate-db:actions/checkout@v4, gate-db:actions/setup-node@v4, gate-price-parity:actions/checkout@v4, gate-price-parity:actions/setup-node@v4, gate-visual:actions/checkout@v4, gate-visual:actions/setup-node@v4, gate-e2e:actions/checkout@v4, gate-e2e:actions/setup-node@v4]
+  ok    ZERO run commands in ci.yml carry --update-snapshots — this file can never mint a baseline
+          run commands=21 across 5 job(s)  carrying the flag=0
+  ok    zero `secrets.` references in any env / run / with VALUE, across every job
+          scanned workflow env, every job env, every container env, every service env, and every step run/env/with — 0 hits
+  ok    no job, step or workflow env KEY declares RESEND_API_KEY — the e2e suite must send zero real email
+          hits=[(none)]  scanned 5 job(s), their steps, and the workflow env  prefix=RESEND
+  ok    every job declaring a container: pins the exact installed-Playwright image
+          containerized=[gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every containerized job carries --ipc=host
+          options=[gate-db-free="--ipc=host", gate-price-parity="--ipc=host", gate-visual="--ipc=host", gate-e2e="--ipc=host"]
+  ok    every service image is postgis/postgis: with a tag qualified beyond the bare major
+          services=[gate-db.postgres=postgis/postgis:18-3.6, gate-price-parity.postgres=postgis/postgis:18-3.6, gate-visual.postgres=postgis/postgis:18-3.6, gate-e2e.postgres=postgis/postgis:18-3.6]
+  ok    addressing rule — "gate-db-free" declares no services:, so DATABASE_URL must be the unreachable sentinel
+          job="gate-db-free"  services=[]  container=true  authority=127.0.0.1:59999  expected=127.0.0.1:59999
+  ok    addressing rule — "gate-db" runs ON the runner, so the host must be localhost and every service MUST declare ports:
+          job="gate-db"  container=false  host=localhost  ports=[postgres=["5432:5432"]]
+  ok    addressing rule — "gate-price-parity" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-price-parity"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    addressing rule — "gate-visual" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-visual"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    addressing rule — "gate-e2e" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-e2e"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    the addressing rule covered at least one job — it is a total function, not an empty loop
+          jobs setting DATABASE_URL=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    the job that runs `npm run build` exists and declares NO services: (T-11-DBFREE)
+          jobs running `npm run build`=[gate-db-free]  of which declare services=[(none)]
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+          name="gate-e2e (functional Playwright suite)"  expected="gate-e2e (functional Playwright suite)"  (a required status check is matched by this string; changing it silently unbinds the gate)
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+          run commands=["npm ci","node scripts/refuse-mail-credential.mjs","npm run db:migrate","npm run db:seed","npx playwright test --project=chromium"]
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+          job if=null  job continue-on-error=null  conditional/soft steps=[(none)]  (of 7 steps)
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+          workflow defaults=null  job defaults=null
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+          indices: db:seed=3  playwright=4  (of 5 run commands)
+  ok    "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+          step=index 3  run="node scripts/refuse-mail-credential.mjs"  expected-run="node scripts/refuse-mail-credential.mjs"  env=null  keys=[name, run]  permitted=[name, run]  unexpected=[(none)]  expects scripts/refuse-mail-credential.mjs
+  ok    the prefix is spelled ONCE: scripts/refuse-mail-credential.mjs reads this file's declaration and holds no copy
+          declaration-matches-pattern=true  script-shares-pattern-source=true  script-holds-no-copy=true  (prefix=RESEND  pattern=^const MAIL_KEY_PREFIX = "([A-Z_]+)";$  script=10887 bytes)
+  ok    "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+          indices: refusal=1  db:migrate=2  db:seed=3  playwright=4  (of 5 run commands)  refusal step index=3 (of 7 steps)  precedes=[uses:actions/checkout@v4, uses:actions/setup-node@v4, run:npm ci]  permitted=[actions/checkout@…, actions/setup-node@…, run:npm ci]  and that holds=true
+  ok    "gate-db-free" declares the exact display name branch protection matches on
+          name="gate-db-free (lint + design + build + workflow parse)"  expected="gate-db-free (lint + design + build + workflow parse)"  (a required status check is matched by this string; changing it silently unbinds the job that runs scripts/verify-workflows.mjs, lint, the design suite and the build)
+  ok    "gate-db-free" carries the step that RUNS this checker, under its exact name, with the EXACT no-argument invocation, and NO KEY OUTSIDE [name, run]
+          step=index 4  expected-name="Verify the workflow invariants (parse, not grep)"  run="node scripts/verify-workflows.mjs"  expected-run="node scripts/verify-workflows.mjs"  keys=[name, run]  permitted=[name, run]  unexpected=[(none)]  (of 6 steps in "gate-db-free")
+  ok    "gate-visual" runs IN the pinned Playwright container
+          container.image=mcr.microsoft.com/playwright:v1.60.0-noble  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    "gate-visual" declares a `postgres` service
+          services=["postgres"]
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+          job permissions=null
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+          run commands=["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+          indices: db:migrate=2  seed-baseline-fixtures=3  playwright=4  (of 5 run commands)
+
+  parsed values (ci):
+    jobs                ["gate-db-free","gate-db","gate-price-parity","gate-visual","gate-e2e"]
+    triggers            ["push","pull_request"]
+    workflow perms      {"contents":"read"}
+    concurrency.group   ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+    containerized       ["gate-db-free","gate-price-parity","gate-visual","gate-e2e"]
+    service images      [{"job":"gate-db","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-price-parity","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-visual","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-e2e","svc":"postgres","image":"postgis/postgis:18-3.6"}]
+    DATABASE_URL        {"gate-db-free":"postgres://unreachable:unreachable@127.0.0.1:59999/nope","gate-db":"postgres://fitout:fitout@localhost:5432/fitout","gate-price-parity":"postgres://fitout:fitout@postgres:5432/fitout","gate-visual":"postgres://fitout:fitout@postgres:5432/fitout","gate-e2e":"postgres://fitout:fitout@postgres:5432/fitout"}
+    run commands        21 (0 with --update-snapshots)
+    gate-visual runs   ["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+
+── cross — .github/workflows/baselines.yml × .github/workflows/ci.yml ──────────────────────────
+  ok    every container image in BOTH files is the same string and equals the installed @playwright/test
+          5 container(s): [baselines.yml:generate-baselines=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  distinct=1  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every postgres service image in BOTH files is the same string
+          5 service(s): [baselines.yml:generate-baselines.postgres=postgis/postgis:18-3.6, ci.yml:gate-db.postgres=postgis/postgis:18-3.6, ci.yml:gate-price-parity.postgres=postgis/postgis:18-3.6, ci.yml:gate-visual.postgres=postgis/postgis:18-3.6, ci.yml:gate-e2e.postgres=postgis/postgis:18-3.6]  distinct=[postgis/postgis:18-3.6]
+  ok    the two visual jobs' DATABASE_URL values are byte-identical
+          generate-baselines=postgres://fitout:fitout@postgres:5432/fitout
+          gate-visual=postgres://fitout:fitout@postgres:5432/fitout
+  ok    the two visual jobs' migrate run commands are byte-identical
+          generate-baselines="npm run db:migrate"  gate-visual="npm run db:migrate"
+  ok    the two visual jobs' seed run commands are byte-identical and both name scripts/seed-baseline-fixtures.ts
+          generate-baselines="npx tsx scripts/seed-baseline-fixtures.ts"  gate-visual="npx tsx scripts/seed-baseline-fixtures.ts"
+  ok    neither visual job runs `npm run build` before its playwright step
+          generate-baselines=["npm ci","git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual --update-snapshots","git add -- \"*-visual-linux.png\"\nUNEXPECTED=\"$(git diff --cached --name-only | grep -v -- '-visual-linux\\.png$' || true)\"\nif [ -n \"$UNEXPECTED\" ]; then\n  echo \"::error::staged files that are not Linux baselines:\"\n  echo \"$UNEXPECTED\"\n  exit 1\nfi\nCOUNT=\"$(git diff --cached --name-only | wc -l | tr -d ' ')\"\necho \"count=$COUNT\" >> \"$GITHUB_OUTPUT\"\necho \"staged $COUNT baseline file(s)\"\ngit diff --cached --name-status\n","if git diff --cached --quiet; then\n  echo \"No baseline changes — nothing to commit. This is the expected result of a\"\n  echo \"re-dispatch against an already-current baseline set.\"\n  exit 0\nfi\ngit commit -m \"chore(11-22): regenerate visual baselines in the pinned Linux image\n\nGenerated by the \\`baselines\\` workflow_dispatch job (D-27), run ${{ github.run_id }},\nfrom ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.\n\nNOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared\nagainst these files. See .github/workflows/baselines.yml's header — an explicit\nfollow-up run is required.\"\n# Push to the ref this workflow was dispatched against. `github.ref` is\n# `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD\n# or on a branch the operator did not choose.\ngit push origin \"HEAD:${{ github.ref }}\"\n","echo \"::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers\"\necho \"::warning::no workflow run, so nothing has compared against them. Pull the branch,\"\necho \"::warning::confirm only *-visual-linux.png files were added, run npm run test:design,\"\necho \"::warning::then push an empty commit or re-dispatch so a ci run compares and goes\"\necho \"::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces\"\necho \"::warning::baselines nobody has ever seen pass.\"\n"]
+          gate-visual=["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+  ok    across .github/workflows/ exactly ONE run command carries --update-snapshots, and it is in baselines.yml
+          files scanned=[baselines.yml, ci.yml]  carriers=[baselines.yml:generate-baselines]
+  ok    across .github/workflows/ the mail-provider token appears ZERO times, in values AND in comments
+          files scanned=[baselines.yml, ci.yml]  prefix=RESEND  occurrences=[(none)]
+
+  parsed values (cross):
+    container images    ["mcr.microsoft.com/playwright:v1.60.0-noble"]
+    service images      ["postgis/postgis:18-3.6"]
+    DATABASE_URL        postgres://fitout:fitout@postgres:5432/fitout
+    capture runs        ["npm ci","git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual --update-snapshots","git add -- \"*-visual-linux.png\"\nUNEXPECTED=\"$(git diff --cached --name-only | grep -v -- '-visual-linux\\.png$' || true)\"\nif [ -n \"$UNEXPECTED\" ]; then\n  echo \"::error::staged files that are not Linux baselines:\"\n  echo \"$UNEXPECTED\"\n  exit 1\nfi\nCOUNT=\"$(git diff --cached --name-only | wc -l | tr -d ' ')\"\necho \"count=$COUNT\" >> \"$GITHUB_OUTPUT\"\necho \"staged $COUNT baseline file(s)\"\ngit diff --cached --name-status\n","if git diff --cached --quiet; then\n  echo \"No baseline changes — nothing to commit. This is the expected result of a\"\n  echo \"re-dispatch against an already-current baseline set.\"\n  exit 0\nfi\ngit commit -m \"chore(11-22): regenerate visual baselines in the pinned Linux image\n\nGenerated by the \\`baselines\\` workflow_dispatch job (D-27), run ${{ github.run_id }},\nfrom ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.\n\nNOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared\nagainst these files. See .github/workflows/baselines.yml's header — an explicit\nfollow-up run is required.\"\n# Push to the ref this workflow was dispatched against. `github.ref` is\n# `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD\n# or on a branch the operator did not choose.\ngit push origin \"HEAD:${{ github.ref }}\"\n","echo \"::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers\"\necho \"::warning::no workflow run, so nothing has compared against them. Pull the branch,\"\necho \"::warning::confirm only *-visual-linux.png files were added, run npm run test:design,\"\necho \"::warning::then push an empty commit or re-dispatch so a ci run compares and goes\"\necho \"::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces\"\necho \"::warning::baselines nobody has ever seen pass.\"\n"]
+    compare runs        ["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+    workflow files      ["baselines.yml","ci.yml"]
+    write-path carriers ["baselines.yml:generate-baselines"]
+
+All 52 invariants hold across 3 section(s) (baselines=11, ci=33, cross=8).
+CHECKER-EXIT=0
+
+⚠ EXIT 0, NO FAIL LINE, ALL 52 REPORTED HOLDING. The job that runs lint, the design
+suite, the Next build and this checker can no longer fail a pull request, and the
+checker that is itself executed by that job says every invariant holds. `gate-e2e`
+carries a presence-tested unconditional invariant covering exactly this; it is scoped
+to `gate-e2e` by argument and does not reach here.
+
+$ git checkout -- .github/workflows/ci.yml
+$ md5sum .github/workflows/ci.yml      # after revert
+fa4dcf2e75322bd22f03714edc1f35f2 *.github/workflows/ci.yml
+$ git status --porcelain -- .github/workflows/ci.yml
+(no output)
+
+════════════════════════════════════════════════════════════════════════════════
+MUTATION 3 — a job-level execution-defaults block on gate-db-free
+════════════════════════════════════════════════════════════════════════════════
+
+$ md5sum .github/workflows/ci.yml      # before mutation
+fa4dcf2e75322bd22f03714edc1f35f2 *.github/workflows/ci.yml
+
+$ git diff -U0 -- .github/workflows/ci.yml
+@@ -719,0 +720,3 @@
++    defaults:
++      run:
++        shell: cat {0}
+
+$ node scripts/verify-workflows.mjs
+verify-workflows — parse-based invariants over .github/workflows/
+sections            baselines, ci, cross
+@playwright/test    1.60.0 (installed)
+expected image      mcr.microsoft.com/playwright:v1.60.0-noble
+
+── ci — .github/workflows/ci.yml (5 job(s)) ────────────────────────────────────────────────────
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    NO job in ci.yml holds contents: write — the write path is baselines.yml alone
+          jobs with contents:write=[(none)]  jobs=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull request
+          triggers=[push, pull_request]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    every `uses:` across every job is a first-party actions/* action
+          uses=[gate-db-free:actions/checkout@v4, gate-db-free:actions/setup-node@v4, gate-db:actions/checkout@v4, gate-db:actions/setup-node@v4, gate-price-parity:actions/checkout@v4, gate-price-parity:actions/setup-node@v4, gate-visual:actions/checkout@v4, gate-visual:actions/setup-node@v4, gate-e2e:actions/checkout@v4, gate-e2e:actions/setup-node@v4]
+  ok    ZERO run commands in ci.yml carry --update-snapshots — this file can never mint a baseline
+          run commands=21 across 5 job(s)  carrying the flag=0
+  ok    zero `secrets.` references in any env / run / with VALUE, across every job
+          scanned workflow env, every job env, every container env, every service env, and every step run/env/with — 0 hits
+  ok    no job, step or workflow env KEY declares RESEND_API_KEY — the e2e suite must send zero real email
+          hits=[(none)]  scanned 5 job(s), their steps, and the workflow env  prefix=RESEND
+  ok    every job declaring a container: pins the exact installed-Playwright image
+          containerized=[gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every containerized job carries --ipc=host
+          options=[gate-db-free="--ipc=host", gate-price-parity="--ipc=host", gate-visual="--ipc=host", gate-e2e="--ipc=host"]
+  ok    every service image is postgis/postgis: with a tag qualified beyond the bare major
+          services=[gate-db.postgres=postgis/postgis:18-3.6, gate-price-parity.postgres=postgis/postgis:18-3.6, gate-visual.postgres=postgis/postgis:18-3.6, gate-e2e.postgres=postgis/postgis:18-3.6]
+  ok    addressing rule — "gate-db-free" declares no services:, so DATABASE_URL must be the unreachable sentinel
+          job="gate-db-free"  services=[]  container=true  authority=127.0.0.1:59999  expected=127.0.0.1:59999
+  ok    addressing rule — "gate-db" runs ON the runner, so the host must be localhost and every service MUST declare ports:
+          job="gate-db"  container=false  host=localhost  ports=[postgres=["5432:5432"]]
+  ok    addressing rule — "gate-price-parity" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-price-parity"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    addressing rule — "gate-visual" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-visual"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    addressing rule — "gate-e2e" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-e2e"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    the addressing rule covered at least one job — it is a total function, not an empty loop
+          jobs setting DATABASE_URL=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    the job that runs `npm run build` exists and declares NO services: (T-11-DBFREE)
+          jobs running `npm run build`=[gate-db-free]  of which declare services=[(none)]
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+          name="gate-e2e (functional Playwright suite)"  expected="gate-e2e (functional Playwright suite)"  (a required status check is matched by this string; changing it silently unbinds the gate)
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+          run commands=["npm ci","node scripts/refuse-mail-credential.mjs","npm run db:migrate","npm run db:seed","npx playwright test --project=chromium"]
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+          job if=null  job continue-on-error=null  conditional/soft steps=[(none)]  (of 7 steps)
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+          workflow defaults=null  job defaults=null
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+          indices: db:seed=3  playwright=4  (of 5 run commands)
+  ok    "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+          step=index 3  run="node scripts/refuse-mail-credential.mjs"  expected-run="node scripts/refuse-mail-credential.mjs"  env=null  keys=[name, run]  permitted=[name, run]  unexpected=[(none)]  expects scripts/refuse-mail-credential.mjs
+  ok    the prefix is spelled ONCE: scripts/refuse-mail-credential.mjs reads this file's declaration and holds no copy
+          declaration-matches-pattern=true  script-shares-pattern-source=true  script-holds-no-copy=true  (prefix=RESEND  pattern=^const MAIL_KEY_PREFIX = "([A-Z_]+)";$  script=10887 bytes)
+  ok    "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+          indices: refusal=1  db:migrate=2  db:seed=3  playwright=4  (of 5 run commands)  refusal step index=3 (of 7 steps)  precedes=[uses:actions/checkout@v4, uses:actions/setup-node@v4, run:npm ci]  permitted=[actions/checkout@…, actions/setup-node@…, run:npm ci]  and that holds=true
+  ok    "gate-db-free" declares the exact display name branch protection matches on
+          name="gate-db-free (lint + design + build + workflow parse)"  expected="gate-db-free (lint + design + build + workflow parse)"  (a required status check is matched by this string; changing it silently unbinds the job that runs scripts/verify-workflows.mjs, lint, the design suite and the build)
+  ok    "gate-db-free" carries the step that RUNS this checker, under its exact name, with the EXACT no-argument invocation, and NO KEY OUTSIDE [name, run]
+          step=index 4  expected-name="Verify the workflow invariants (parse, not grep)"  run="node scripts/verify-workflows.mjs"  expected-run="node scripts/verify-workflows.mjs"  keys=[name, run]  permitted=[name, run]  unexpected=[(none)]  (of 6 steps in "gate-db-free")
+  ok    "gate-visual" runs IN the pinned Playwright container
+          container.image=mcr.microsoft.com/playwright:v1.60.0-noble  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    "gate-visual" declares a `postgres` service
+          services=["postgres"]
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+          job permissions=null
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+          run commands=["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+          indices: db:migrate=2  seed-baseline-fixtures=3  playwright=4  (of 5 run commands)
+
+  parsed values (ci):
+    jobs                ["gate-db-free","gate-db","gate-price-parity","gate-visual","gate-e2e"]
+    triggers            ["push","pull_request"]
+    workflow perms      {"contents":"read"}
+    concurrency.group   ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+    containerized       ["gate-db-free","gate-price-parity","gate-visual","gate-e2e"]
+    service images      [{"job":"gate-db","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-price-parity","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-visual","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-e2e","svc":"postgres","image":"postgis/postgis:18-3.6"}]
+    DATABASE_URL        {"gate-db-free":"postgres://unreachable:unreachable@127.0.0.1:59999/nope","gate-db":"postgres://fitout:fitout@localhost:5432/fitout","gate-price-parity":"postgres://fitout:fitout@postgres:5432/fitout","gate-visual":"postgres://fitout:fitout@postgres:5432/fitout","gate-e2e":"postgres://fitout:fitout@postgres:5432/fitout"}
+    run commands        21 (0 with --update-snapshots)
+    gate-visual runs   ["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+
+── cross — .github/workflows/baselines.yml × .github/workflows/ci.yml ──────────────────────────
+  ok    every container image in BOTH files is the same string and equals the installed @playwright/test
+          5 container(s): [baselines.yml:generate-baselines=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  distinct=1  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every postgres service image in BOTH files is the same string
+          5 service(s): [baselines.yml:generate-baselines.postgres=postgis/postgis:18-3.6, ci.yml:gate-db.postgres=postgis/postgis:18-3.6, ci.yml:gate-price-parity.postgres=postgis/postgis:18-3.6, ci.yml:gate-visual.postgres=postgis/postgis:18-3.6, ci.yml:gate-e2e.postgres=postgis/postgis:18-3.6]  distinct=[postgis/postgis:18-3.6]
+  ok    the two visual jobs' DATABASE_URL values are byte-identical
+          generate-baselines=postgres://fitout:fitout@postgres:5432/fitout
+          gate-visual=postgres://fitout:fitout@postgres:5432/fitout
+  ok    the two visual jobs' migrate run commands are byte-identical
+          generate-baselines="npm run db:migrate"  gate-visual="npm run db:migrate"
+  ok    the two visual jobs' seed run commands are byte-identical and both name scripts/seed-baseline-fixtures.ts
+          generate-baselines="npx tsx scripts/seed-baseline-fixtures.ts"  gate-visual="npx tsx scripts/seed-baseline-fixtures.ts"
+  ok    neither visual job runs `npm run build` before its playwright step
+          generate-baselines=["npm ci","git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual --update-snapshots","git add -- \"*-visual-linux.png\"\nUNEXPECTED=\"$(git diff --cached --name-only | grep -v -- '-visual-linux\\.png$' || true)\"\nif [ -n \"$UNEXPECTED\" ]; then\n  echo \"::error::staged files that are not Linux baselines:\"\n  echo \"$UNEXPECTED\"\n  exit 1\nfi\nCOUNT=\"$(git diff --cached --name-only | wc -l | tr -d ' ')\"\necho \"count=$COUNT\" >> \"$GITHUB_OUTPUT\"\necho \"staged $COUNT baseline file(s)\"\ngit diff --cached --name-status\n","if git diff --cached --quiet; then\n  echo \"No baseline changes — nothing to commit. This is the expected result of a\"\n  echo \"re-dispatch against an already-current baseline set.\"\n  exit 0\nfi\ngit commit -m \"chore(11-22): regenerate visual baselines in the pinned Linux image\n\nGenerated by the \\`baselines\\` workflow_dispatch job (D-27), run ${{ github.run_id }},\nfrom ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.\n\nNOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared\nagainst these files. See .github/workflows/baselines.yml's header — an explicit\nfollow-up run is required.\"\n# Push to the ref this workflow was dispatched against. `github.ref` is\n# `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD\n# or on a branch the operator did not choose.\ngit push origin \"HEAD:${{ github.ref }}\"\n","echo \"::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers\"\necho \"::warning::no workflow run, so nothing has compared against them. Pull the branch,\"\necho \"::warning::confirm only *-visual-linux.png files were added, run npm run test:design,\"\necho \"::warning::then push an empty commit or re-dispatch so a ci run compares and goes\"\necho \"::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces\"\necho \"::warning::baselines nobody has ever seen pass.\"\n"]
+          gate-visual=["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+  ok    across .github/workflows/ exactly ONE run command carries --update-snapshots, and it is in baselines.yml
+          files scanned=[baselines.yml, ci.yml]  carriers=[baselines.yml:generate-baselines]
+  ok    across .github/workflows/ the mail-provider token appears ZERO times, in values AND in comments
+          files scanned=[baselines.yml, ci.yml]  prefix=RESEND  occurrences=[(none)]
+
+  parsed values (cross):
+    container images    ["mcr.microsoft.com/playwright:v1.60.0-noble"]
+    service images      ["postgis/postgis:18-3.6"]
+    DATABASE_URL        postgres://fitout:fitout@postgres:5432/fitout
+    capture runs        ["npm ci","git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual --update-snapshots","git add -- \"*-visual-linux.png\"\nUNEXPECTED=\"$(git diff --cached --name-only | grep -v -- '-visual-linux\\.png$' || true)\"\nif [ -n \"$UNEXPECTED\" ]; then\n  echo \"::error::staged files that are not Linux baselines:\"\n  echo \"$UNEXPECTED\"\n  exit 1\nfi\nCOUNT=\"$(git diff --cached --name-only | wc -l | tr -d ' ')\"\necho \"count=$COUNT\" >> \"$GITHUB_OUTPUT\"\necho \"staged $COUNT baseline file(s)\"\ngit diff --cached --name-status\n","if git diff --cached --quiet; then\n  echo \"No baseline changes — nothing to commit. This is the expected result of a\"\n  echo \"re-dispatch against an already-current baseline set.\"\n  exit 0\nfi\ngit commit -m \"chore(11-22): regenerate visual baselines in the pinned Linux image\n\nGenerated by the \\`baselines\\` workflow_dispatch job (D-27), run ${{ github.run_id }},\nfrom ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.\n\nNOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared\nagainst these files. See .github/workflows/baselines.yml's header — an explicit\nfollow-up run is required.\"\n# Push to the ref this workflow was dispatched against. `github.ref` is\n# `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD\n# or on a branch the operator did not choose.\ngit push origin \"HEAD:${{ github.ref }}\"\n","echo \"::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers\"\necho \"::warning::no workflow run, so nothing has compared against them. Pull the branch,\"\necho \"::warning::confirm only *-visual-linux.png files were added, run npm run test:design,\"\necho \"::warning::then push an empty commit or re-dispatch so a ci run compares and goes\"\necho \"::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces\"\necho \"::warning::baselines nobody has ever seen pass.\"\n"]
+    compare runs        ["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+    workflow files      ["baselines.yml","ci.yml"]
+    write-path carriers ["baselines.yml:generate-baselines"]
+
+All 52 invariants hold across 3 section(s) (baselines=11, ci=33, cross=8).
+CHECKER-EXIT=0
+
+⚠ EXIT 0, NO FAIL LINE, ALL 52 REPORTED HOLDING. `cat {0}` writes each step's `run:`
+body to a temp file and PRINTS it instead of executing it. Every step in this job —
+lint, the design suite, the Next build and the invocation of this very script — is
+now a no-op that exits 0, and the checker's own output above is what that no-op would
+have replaced. Plan 19-15 closed exactly this at workflow level and on `gate-e2e`;
+that predicate's comment argues a `gate-e2e`-scoped subject, so it must be given a
+SIBLING here rather than be widened.
+
+$ git checkout -- .github/workflows/ci.yml
+$ md5sum .github/workflows/ci.yml      # after revert
+fa4dcf2e75322bd22f03714edc1f35f2 *.github/workflows/ci.yml
+$ git status --porcelain -- .github/workflows/ci.yml
+(no output)
+
+════════════════════════════════════════════════════════════════════════════════
+MUTATION 4 — DELETE gate-db-free's build step
+════════════════════════════════════════════════════════════════════════════════
+
+⚠ READ THE RESULT BEFORE THE TRANSCRIPT. THE PLAN PREDICTED A GREEN HERE AND THE
+MEASUREMENT DISAGREED. This is the one vector of the three that is ALREADY red — and
+it is red for a reason that is not the build step's integrity, which is why the
+build-step invariant is still necessary and why MUTATIONS 5 and 6 below exist.
+
+What catches it is `the job that runs \`npm run build\` exists and declares NO
+services: (T-11-DBFREE)`, at `scripts/verify-workflows.mjs:741-751`. Its predicate is
+
+    const buildJobs = ciRunsByJob.filter(([, rs]) => rs.some((r) => r.includes("npm run build")));
+    …  buildJobs.length > 0 && buildJobsWithServices.length === 0
+
+Three things follow, and each is a reason NOT to treat this red as coverage:
+
+  * ITS SUBJECT IS A DIFFERENT PROPERTY. It asserts that whichever job builds
+    declares no `services:`. It says nothing about the step's `name:`, nothing about
+    its exact invocation, and nothing about its key surface. It goes red here only
+    as a side effect of its own existence conjunct being falsified.
+  * IT ANCHORS ON A SUBSTRING OF A `run:` BODY — the CR-02 idiom PATTERNS.md §F
+    forbids for a positive assertion. `r.includes("npm run build")` is satisfied by
+    any step in ANY job that mentions the string, so the red disappears the moment
+    the build is moved somewhere else rather than deleted.
+  * IT IS SATISFIED BY EVERY SOFTENED FORM OF THE STEP. MUTATIONS 5 and 6 below are
+    the proof: an appended argument and an `if:` on that same step both keep the
+    substring, both keep the job, and both are GREEN.
+
+$ md5sum .github/workflows/ci.yml      # before mutation
+fa4dcf2e75322bd22f03714edc1f35f2 *.github/workflows/ci.yml
+
+$ git diff --stat -- .github/workflows/ci.yml
+ .github/workflows/ci.yml | 57 -------------------------   (the whole step: its
+                                                            name:, its run:, and its
+                                                            env: block with the
+                                                            three build-only
+                                                            placeholders)
+
+$ node scripts/verify-workflows.mjs
+verify-workflows — parse-based invariants over .github/workflows/
+sections            baselines, ci, cross
+@playwright/test    1.60.0 (installed)
+expected image      mcr.microsoft.com/playwright:v1.60.0-noble
+
+── ci — .github/workflows/ci.yml (5 job(s)) ────────────────────────────────────────────────────
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    NO job in ci.yml holds contents: write — the write path is baselines.yml alone
+          jobs with contents:write=[(none)]  jobs=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull request
+          triggers=[push, pull_request]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    every `uses:` across every job is a first-party actions/* action
+          uses=[gate-db-free:actions/checkout@v4, gate-db-free:actions/setup-node@v4, gate-db:actions/checkout@v4, gate-db:actions/setup-node@v4, gate-price-parity:actions/checkout@v4, gate-price-parity:actions/setup-node@v4, gate-visual:actions/checkout@v4, gate-visual:actions/setup-node@v4, gate-e2e:actions/checkout@v4, gate-e2e:actions/setup-node@v4]
+  ok    ZERO run commands in ci.yml carry --update-snapshots — this file can never mint a baseline
+          run commands=20 across 5 job(s)  carrying the flag=0
+  ok    zero `secrets.` references in any env / run / with VALUE, across every job
+          scanned workflow env, every job env, every container env, every service env, and every step run/env/with — 0 hits
+  ok    no job, step or workflow env KEY declares RESEND_API_KEY — the e2e suite must send zero real email
+          hits=[(none)]  scanned 5 job(s), their steps, and the workflow env  prefix=RESEND
+  ok    every job declaring a container: pins the exact installed-Playwright image
+          containerized=[gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every containerized job carries --ipc=host
+          options=[gate-db-free="--ipc=host", gate-price-parity="--ipc=host", gate-visual="--ipc=host", gate-e2e="--ipc=host"]
+  ok    every service image is postgis/postgis: with a tag qualified beyond the bare major
+          services=[gate-db.postgres=postgis/postgis:18-3.6, gate-price-parity.postgres=postgis/postgis:18-3.6, gate-visual.postgres=postgis/postgis:18-3.6, gate-e2e.postgres=postgis/postgis:18-3.6]
+  ok    addressing rule — "gate-db-free" declares no services:, so DATABASE_URL must be the unreachable sentinel
+          job="gate-db-free"  services=[]  container=true  authority=127.0.0.1:59999  expected=127.0.0.1:59999
+  ok    addressing rule — "gate-db" runs ON the runner, so the host must be localhost and every service MUST declare ports:
+          job="gate-db"  container=false  host=localhost  ports=[postgres=["5432:5432"]]
+  ok    addressing rule — "gate-price-parity" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-price-parity"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    addressing rule — "gate-visual" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-visual"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    addressing rule — "gate-e2e" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-e2e"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    the addressing rule covered at least one job — it is a total function, not an empty loop
+          jobs setting DATABASE_URL=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  FAIL  the job that runs `npm run build` exists and declares NO services: (T-11-DBFREE)
+          jobs running `npm run build`=[(none)]  of which declare services=[(none)]
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+          name="gate-e2e (functional Playwright suite)"  expected="gate-e2e (functional Playwright suite)"  (a required status check is matched by this string; changing it silently unbinds the gate)
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+          run commands=["npm ci","node scripts/refuse-mail-credential.mjs","npm run db:migrate","npm run db:seed","npx playwright test --project=chromium"]
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+          job if=null  job continue-on-error=null  conditional/soft steps=[(none)]  (of 7 steps)
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+          workflow defaults=null  job defaults=null
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+          indices: db:seed=3  playwright=4  (of 5 run commands)
+  ok    "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+          step=index 3  run="node scripts/refuse-mail-credential.mjs"  expected-run="node scripts/refuse-mail-credential.mjs"  env=null  keys=[name, run]  permitted=[name, run]  unexpected=[(none)]  expects scripts/refuse-mail-credential.mjs
+  ok    the prefix is spelled ONCE: scripts/refuse-mail-credential.mjs reads this file's declaration and holds no copy
+          declaration-matches-pattern=true  script-shares-pattern-source=true  script-holds-no-copy=true  (prefix=RESEND  pattern=^const MAIL_KEY_PREFIX = "([A-Z_]+)";$  script=10887 bytes)
+  ok    "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+          indices: refusal=1  db:migrate=2  db:seed=3  playwright=4  (of 5 run commands)  refusal step index=3 (of 7 steps)  precedes=[uses:actions/checkout@v4, uses:actions/setup-node@v4, run:npm ci]  permitted=[actions/checkout@…, actions/setup-node@…, run:npm ci]  and that holds=true
+  ok    "gate-db-free" declares the exact display name branch protection matches on
+          name="gate-db-free (lint + design + build + workflow parse)"  expected="gate-db-free (lint + design + build + workflow parse)"  (a required status check is matched by this string; changing it silently unbinds the job that runs scripts/verify-workflows.mjs, lint, the design suite and the build)
+  ok    "gate-db-free" carries the step that RUNS this checker, under its exact name, with the EXACT no-argument invocation, and NO KEY OUTSIDE [name, run]
+          step=index 4  expected-name="Verify the workflow invariants (parse, not grep)"  run="node scripts/verify-workflows.mjs"  expected-run="node scripts/verify-workflows.mjs"  keys=[name, run]  permitted=[name, run]  unexpected=[(none)]  (of 5 steps in "gate-db-free")
+  ok    "gate-visual" runs IN the pinned Playwright container
+          container.image=mcr.microsoft.com/playwright:v1.60.0-noble  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    "gate-visual" declares a `postgres` service
+          services=["postgres"]
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+          job permissions=null
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+          run commands=["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+          indices: db:migrate=2  seed-baseline-fixtures=3  playwright=4  (of 5 run commands)
+
+  parsed values (ci):
+    jobs                ["gate-db-free","gate-db","gate-price-parity","gate-visual","gate-e2e"]
+    triggers            ["push","pull_request"]
+    workflow perms      {"contents":"read"}
+    concurrency.group   ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+    containerized       ["gate-db-free","gate-price-parity","gate-visual","gate-e2e"]
+    service images      [{"job":"gate-db","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-price-parity","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-visual","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-e2e","svc":"postgres","image":"postgis/postgis:18-3.6"}]
+    DATABASE_URL        {"gate-db-free":"postgres://unreachable:unreachable@127.0.0.1:59999/nope","gate-db":"postgres://fitout:fitout@localhost:5432/fitout","gate-price-parity":"postgres://fitout:fitout@postgres:5432/fitout","gate-visual":"postgres://fitout:fitout@postgres:5432/fitout","gate-e2e":"postgres://fitout:fitout@postgres:5432/fitout"}
+    run commands        20 (0 with --update-snapshots)
+    gate-visual runs   ["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+
+── cross — .github/workflows/baselines.yml × .github/workflows/ci.yml ──────────────────────────
+  ok    every container image in BOTH files is the same string and equals the installed @playwright/test
+          5 container(s): [baselines.yml:generate-baselines=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  distinct=1  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every postgres service image in BOTH files is the same string
+          5 service(s): [baselines.yml:generate-baselines.postgres=postgis/postgis:18-3.6, ci.yml:gate-db.postgres=postgis/postgis:18-3.6, ci.yml:gate-price-parity.postgres=postgis/postgis:18-3.6, ci.yml:gate-visual.postgres=postgis/postgis:18-3.6, ci.yml:gate-e2e.postgres=postgis/postgis:18-3.6]  distinct=[postgis/postgis:18-3.6]
+  ok    the two visual jobs' DATABASE_URL values are byte-identical
+          generate-baselines=postgres://fitout:fitout@postgres:5432/fitout
+          gate-visual=postgres://fitout:fitout@postgres:5432/fitout
+  ok    the two visual jobs' migrate run commands are byte-identical
+          generate-baselines="npm run db:migrate"  gate-visual="npm run db:migrate"
+  ok    the two visual jobs' seed run commands are byte-identical and both name scripts/seed-baseline-fixtures.ts
+          generate-baselines="npx tsx scripts/seed-baseline-fixtures.ts"  gate-visual="npx tsx scripts/seed-baseline-fixtures.ts"
+  ok    neither visual job runs `npm run build` before its playwright step
+          generate-baselines=["npm ci","git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual --update-snapshots","git add -- \"*-visual-linux.png\"\nUNEXPECTED=\"$(git diff --cached --name-only | grep -v -- '-visual-linux\\.png$' || true)\"\nif [ -n \"$UNEXPECTED\" ]; then\n  echo \"::error::staged files that are not Linux baselines:\"\n  echo \"$UNEXPECTED\"\n  exit 1\nfi\nCOUNT=\"$(git diff --cached --name-only | wc -l | tr -d ' ')\"\necho \"count=$COUNT\" >> \"$GITHUB_OUTPUT\"\necho \"staged $COUNT baseline file(s)\"\ngit diff --cached --name-status\n","if git diff --cached --quiet; then\n  echo \"No baseline changes — nothing to commit. This is the expected result of a\"\n  echo \"re-dispatch against an already-current baseline set.\"\n  exit 0\nfi\ngit commit -m \"chore(11-22): regenerate visual baselines in the pinned Linux image\n\nGenerated by the \\`baselines\\` workflow_dispatch job (D-27), run ${{ github.run_id }},\nfrom ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.\n\nNOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared\nagainst these files. See .github/workflows/baselines.yml's header — an explicit\nfollow-up run is required.\"\n# Push to the ref this workflow was dispatched against. `github.ref` is\n# `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD\n# or on a branch the operator did not choose.\ngit push origin \"HEAD:${{ github.ref }}\"\n","echo \"::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers\"\necho \"::warning::no workflow run, so nothing has compared against them. Pull the branch,\"\necho \"::warning::confirm only *-visual-linux.png files were added, run npm run test:design,\"\necho \"::warning::then push an empty commit or re-dispatch so a ci run compares and goes\"\necho \"::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces\"\necho \"::warning::baselines nobody has ever seen pass.\"\n"]
+          gate-visual=["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+  ok    across .github/workflows/ exactly ONE run command carries --update-snapshots, and it is in baselines.yml
+          files scanned=[baselines.yml, ci.yml]  carriers=[baselines.yml:generate-baselines]
+  ok    across .github/workflows/ the mail-provider token appears ZERO times, in values AND in comments
+          files scanned=[baselines.yml, ci.yml]  prefix=RESEND  occurrences=[(none)]
+
+  parsed values (cross):
+    container images    ["mcr.microsoft.com/playwright:v1.60.0-noble"]
+    service images      ["postgis/postgis:18-3.6"]
+    DATABASE_URL        postgres://fitout:fitout@postgres:5432/fitout
+    capture runs        ["npm ci","git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual --update-snapshots","git add -- \"*-visual-linux.png\"\nUNEXPECTED=\"$(git diff --cached --name-only | grep -v -- '-visual-linux\\.png$' || true)\"\nif [ -n \"$UNEXPECTED\" ]; then\n  echo \"::error::staged files that are not Linux baselines:\"\n  echo \"$UNEXPECTED\"\n  exit 1\nfi\nCOUNT=\"$(git diff --cached --name-only | wc -l | tr -d ' ')\"\necho \"count=$COUNT\" >> \"$GITHUB_OUTPUT\"\necho \"staged $COUNT baseline file(s)\"\ngit diff --cached --name-status\n","if git diff --cached --quiet; then\n  echo \"No baseline changes — nothing to commit. This is the expected result of a\"\n  echo \"re-dispatch against an already-current baseline set.\"\n  exit 0\nfi\ngit commit -m \"chore(11-22): regenerate visual baselines in the pinned Linux image\n\nGenerated by the \\`baselines\\` workflow_dispatch job (D-27), run ${{ github.run_id }},\nfrom ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.\n\nNOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared\nagainst these files. See .github/workflows/baselines.yml's header — an explicit\nfollow-up run is required.\"\n# Push to the ref this workflow was dispatched against. `github.ref` is\n# `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD\n# or on a branch the operator did not choose.\ngit push origin \"HEAD:${{ github.ref }}\"\n","echo \"::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers\"\necho \"::warning::no workflow run, so nothing has compared against them. Pull the branch,\"\necho \"::warning::confirm only *-visual-linux.png files were added, run npm run test:design,\"\necho \"::warning::then push an empty commit or re-dispatch so a ci run compares and goes\"\necho \"::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces\"\necho \"::warning::baselines nobody has ever seen pass.\"\n"]
+    compare runs        ["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+    workflow files      ["baselines.yml","ci.yml"]
+    write-path carriers ["baselines.yml:generate-baselines"]
+
+1 of 52 invariant(s) FAILED:
+  - [ci] the job that runs `npm run build` exists and declares NO services: (T-11-DBFREE)
+CHECKER-EXIT=1
+
+$ git checkout -- .github/workflows/ci.yml
+$ md5sum .github/workflows/ci.yml      # after revert
+fa4dcf2e75322bd22f03714edc1f35f2 *.github/workflows/ci.yml
+$ git status --porcelain -- .github/workflows/ci.yml
+(no output)
+
+════════════════════════════════════════════════════════════════════════════════
+MUTATION 5 — APPEND AN ARGUMENT to gate-db-free's build invocation
+════════════════════════════════════════════════════════════════════════════════
+
+The adjacency probe, one step over from the checker step where plan 19.1-01 already
+proved this property. `run` is a PERMITTED key, so a key-surface allow-list is blind
+to a changed VALUE by construction, and the T-11-DBFREE substring above still matches.
+
+$ git diff -U0 -- .github/workflows/ci.yml
+@@ -913 +913 @@
+-        run: npm run build
++        run: npm run build --decoy
+
+$ node scripts/verify-workflows.mjs
+verify-workflows — parse-based invariants over .github/workflows/
+sections            baselines, ci, cross
+@playwright/test    1.60.0 (installed)
+expected image      mcr.microsoft.com/playwright:v1.60.0-noble
+
+── ci — .github/workflows/ci.yml (5 job(s)) ────────────────────────────────────────────────────
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    NO job in ci.yml holds contents: write — the write path is baselines.yml alone
+          jobs with contents:write=[(none)]  jobs=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull request
+          triggers=[push, pull_request]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    every `uses:` across every job is a first-party actions/* action
+          uses=[gate-db-free:actions/checkout@v4, gate-db-free:actions/setup-node@v4, gate-db:actions/checkout@v4, gate-db:actions/setup-node@v4, gate-price-parity:actions/checkout@v4, gate-price-parity:actions/setup-node@v4, gate-visual:actions/checkout@v4, gate-visual:actions/setup-node@v4, gate-e2e:actions/checkout@v4, gate-e2e:actions/setup-node@v4]
+  ok    ZERO run commands in ci.yml carry --update-snapshots — this file can never mint a baseline
+          run commands=21 across 5 job(s)  carrying the flag=0
+  ok    zero `secrets.` references in any env / run / with VALUE, across every job
+          scanned workflow env, every job env, every container env, every service env, and every step run/env/with — 0 hits
+  ok    no job, step or workflow env KEY declares RESEND_API_KEY — the e2e suite must send zero real email
+          hits=[(none)]  scanned 5 job(s), their steps, and the workflow env  prefix=RESEND
+  ok    every job declaring a container: pins the exact installed-Playwright image
+          containerized=[gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every containerized job carries --ipc=host
+          options=[gate-db-free="--ipc=host", gate-price-parity="--ipc=host", gate-visual="--ipc=host", gate-e2e="--ipc=host"]
+  ok    every service image is postgis/postgis: with a tag qualified beyond the bare major
+          services=[gate-db.postgres=postgis/postgis:18-3.6, gate-price-parity.postgres=postgis/postgis:18-3.6, gate-visual.postgres=postgis/postgis:18-3.6, gate-e2e.postgres=postgis/postgis:18-3.6]
+  ok    addressing rule — "gate-db-free" declares no services:, so DATABASE_URL must be the unreachable sentinel
+          job="gate-db-free"  services=[]  container=true  authority=127.0.0.1:59999  expected=127.0.0.1:59999
+  ok    addressing rule — "gate-db" runs ON the runner, so the host must be localhost and every service MUST declare ports:
+          job="gate-db"  container=false  host=localhost  ports=[postgres=["5432:5432"]]
+  ok    addressing rule — "gate-price-parity" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-price-parity"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    addressing rule — "gate-visual" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-visual"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    addressing rule — "gate-e2e" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-e2e"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    the addressing rule covered at least one job — it is a total function, not an empty loop
+          jobs setting DATABASE_URL=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    the job that runs `npm run build` exists and declares NO services: (T-11-DBFREE)
+          jobs running `npm run build`=[gate-db-free]  of which declare services=[(none)]
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+          name="gate-e2e (functional Playwright suite)"  expected="gate-e2e (functional Playwright suite)"  (a required status check is matched by this string; changing it silently unbinds the gate)
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+          run commands=["npm ci","node scripts/refuse-mail-credential.mjs","npm run db:migrate","npm run db:seed","npx playwright test --project=chromium"]
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+          job if=null  job continue-on-error=null  conditional/soft steps=[(none)]  (of 7 steps)
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+          workflow defaults=null  job defaults=null
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+          indices: db:seed=3  playwright=4  (of 5 run commands)
+  ok    "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+          step=index 3  run="node scripts/refuse-mail-credential.mjs"  expected-run="node scripts/refuse-mail-credential.mjs"  env=null  keys=[name, run]  permitted=[name, run]  unexpected=[(none)]  expects scripts/refuse-mail-credential.mjs
+  ok    the prefix is spelled ONCE: scripts/refuse-mail-credential.mjs reads this file's declaration and holds no copy
+          declaration-matches-pattern=true  script-shares-pattern-source=true  script-holds-no-copy=true  (prefix=RESEND  pattern=^const MAIL_KEY_PREFIX = "([A-Z_]+)";$  script=10887 bytes)
+  ok    "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+          indices: refusal=1  db:migrate=2  db:seed=3  playwright=4  (of 5 run commands)  refusal step index=3 (of 7 steps)  precedes=[uses:actions/checkout@v4, uses:actions/setup-node@v4, run:npm ci]  permitted=[actions/checkout@…, actions/setup-node@…, run:npm ci]  and that holds=true
+  ok    "gate-db-free" declares the exact display name branch protection matches on
+          name="gate-db-free (lint + design + build + workflow parse)"  expected="gate-db-free (lint + design + build + workflow parse)"  (a required status check is matched by this string; changing it silently unbinds the job that runs scripts/verify-workflows.mjs, lint, the design suite and the build)
+  ok    "gate-db-free" carries the step that RUNS this checker, under its exact name, with the EXACT no-argument invocation, and NO KEY OUTSIDE [name, run]
+          step=index 4  expected-name="Verify the workflow invariants (parse, not grep)"  run="node scripts/verify-workflows.mjs"  expected-run="node scripts/verify-workflows.mjs"  keys=[name, run]  permitted=[name, run]  unexpected=[(none)]  (of 6 steps in "gate-db-free")
+  ok    "gate-visual" runs IN the pinned Playwright container
+          container.image=mcr.microsoft.com/playwright:v1.60.0-noble  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    "gate-visual" declares a `postgres` service
+          services=["postgres"]
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+          job permissions=null
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+          run commands=["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+          indices: db:migrate=2  seed-baseline-fixtures=3  playwright=4  (of 5 run commands)
+
+  parsed values (ci):
+    jobs                ["gate-db-free","gate-db","gate-price-parity","gate-visual","gate-e2e"]
+    triggers            ["push","pull_request"]
+    workflow perms      {"contents":"read"}
+    concurrency.group   ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+    containerized       ["gate-db-free","gate-price-parity","gate-visual","gate-e2e"]
+    service images      [{"job":"gate-db","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-price-parity","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-visual","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-e2e","svc":"postgres","image":"postgis/postgis:18-3.6"}]
+    DATABASE_URL        {"gate-db-free":"postgres://unreachable:unreachable@127.0.0.1:59999/nope","gate-db":"postgres://fitout:fitout@localhost:5432/fitout","gate-price-parity":"postgres://fitout:fitout@postgres:5432/fitout","gate-visual":"postgres://fitout:fitout@postgres:5432/fitout","gate-e2e":"postgres://fitout:fitout@postgres:5432/fitout"}
+    run commands        21 (0 with --update-snapshots)
+    gate-visual runs   ["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+
+── cross — .github/workflows/baselines.yml × .github/workflows/ci.yml ──────────────────────────
+  ok    every container image in BOTH files is the same string and equals the installed @playwright/test
+          5 container(s): [baselines.yml:generate-baselines=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  distinct=1  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every postgres service image in BOTH files is the same string
+          5 service(s): [baselines.yml:generate-baselines.postgres=postgis/postgis:18-3.6, ci.yml:gate-db.postgres=postgis/postgis:18-3.6, ci.yml:gate-price-parity.postgres=postgis/postgis:18-3.6, ci.yml:gate-visual.postgres=postgis/postgis:18-3.6, ci.yml:gate-e2e.postgres=postgis/postgis:18-3.6]  distinct=[postgis/postgis:18-3.6]
+  ok    the two visual jobs' DATABASE_URL values are byte-identical
+          generate-baselines=postgres://fitout:fitout@postgres:5432/fitout
+          gate-visual=postgres://fitout:fitout@postgres:5432/fitout
+  ok    the two visual jobs' migrate run commands are byte-identical
+          generate-baselines="npm run db:migrate"  gate-visual="npm run db:migrate"
+  ok    the two visual jobs' seed run commands are byte-identical and both name scripts/seed-baseline-fixtures.ts
+          generate-baselines="npx tsx scripts/seed-baseline-fixtures.ts"  gate-visual="npx tsx scripts/seed-baseline-fixtures.ts"
+  ok    neither visual job runs `npm run build` before its playwright step
+          generate-baselines=["npm ci","git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual --update-snapshots","git add -- \"*-visual-linux.png\"\nUNEXPECTED=\"$(git diff --cached --name-only | grep -v -- '-visual-linux\\.png$' || true)\"\nif [ -n \"$UNEXPECTED\" ]; then\n  echo \"::error::staged files that are not Linux baselines:\"\n  echo \"$UNEXPECTED\"\n  exit 1\nfi\nCOUNT=\"$(git diff --cached --name-only | wc -l | tr -d ' ')\"\necho \"count=$COUNT\" >> \"$GITHUB_OUTPUT\"\necho \"staged $COUNT baseline file(s)\"\ngit diff --cached --name-status\n","if git diff --cached --quiet; then\n  echo \"No baseline changes — nothing to commit. This is the expected result of a\"\n  echo \"re-dispatch against an already-current baseline set.\"\n  exit 0\nfi\ngit commit -m \"chore(11-22): regenerate visual baselines in the pinned Linux image\n\nGenerated by the \\`baselines\\` workflow_dispatch job (D-27), run ${{ github.run_id }},\nfrom ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.\n\nNOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared\nagainst these files. See .github/workflows/baselines.yml's header — an explicit\nfollow-up run is required.\"\n# Push to the ref this workflow was dispatched against. `github.ref` is\n# `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD\n# or on a branch the operator did not choose.\ngit push origin \"HEAD:${{ github.ref }}\"\n","echo \"::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers\"\necho \"::warning::no workflow run, so nothing has compared against them. Pull the branch,\"\necho \"::warning::confirm only *-visual-linux.png files were added, run npm run test:design,\"\necho \"::warning::then push an empty commit or re-dispatch so a ci run compares and goes\"\necho \"::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces\"\necho \"::warning::baselines nobody has ever seen pass.\"\n"]
+          gate-visual=["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+  ok    across .github/workflows/ exactly ONE run command carries --update-snapshots, and it is in baselines.yml
+          files scanned=[baselines.yml, ci.yml]  carriers=[baselines.yml:generate-baselines]
+  ok    across .github/workflows/ the mail-provider token appears ZERO times, in values AND in comments
+          files scanned=[baselines.yml, ci.yml]  prefix=RESEND  occurrences=[(none)]
+
+  parsed values (cross):
+    container images    ["mcr.microsoft.com/playwright:v1.60.0-noble"]
+    service images      ["postgis/postgis:18-3.6"]
+    DATABASE_URL        postgres://fitout:fitout@postgres:5432/fitout
+    capture runs        ["npm ci","git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual --update-snapshots","git add -- \"*-visual-linux.png\"\nUNEXPECTED=\"$(git diff --cached --name-only | grep -v -- '-visual-linux\\.png$' || true)\"\nif [ -n \"$UNEXPECTED\" ]; then\n  echo \"::error::staged files that are not Linux baselines:\"\n  echo \"$UNEXPECTED\"\n  exit 1\nfi\nCOUNT=\"$(git diff --cached --name-only | wc -l | tr -d ' ')\"\necho \"count=$COUNT\" >> \"$GITHUB_OUTPUT\"\necho \"staged $COUNT baseline file(s)\"\ngit diff --cached --name-status\n","if git diff --cached --quiet; then\n  echo \"No baseline changes — nothing to commit. This is the expected result of a\"\n  echo \"re-dispatch against an already-current baseline set.\"\n  exit 0\nfi\ngit commit -m \"chore(11-22): regenerate visual baselines in the pinned Linux image\n\nGenerated by the \\`baselines\\` workflow_dispatch job (D-27), run ${{ github.run_id }},\nfrom ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.\n\nNOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared\nagainst these files. See .github/workflows/baselines.yml's header — an explicit\nfollow-up run is required.\"\n# Push to the ref this workflow was dispatched against. `github.ref` is\n# `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD\n# or on a branch the operator did not choose.\ngit push origin \"HEAD:${{ github.ref }}\"\n","echo \"::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers\"\necho \"::warning::no workflow run, so nothing has compared against them. Pull the branch,\"\necho \"::warning::confirm only *-visual-linux.png files were added, run npm run test:design,\"\necho \"::warning::then push an empty commit or re-dispatch so a ci run compares and goes\"\necho \"::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces\"\necho \"::warning::baselines nobody has ever seen pass.\"\n"]
+    compare runs        ["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+    workflow files      ["baselines.yml","ci.yml"]
+    write-path carriers ["baselines.yml:generate-baselines"]
+
+All 52 invariants hold across 3 section(s) (baselines=11, ci=33, cross=8).
+CHECKER-EXIT=0
+
+⚠ EXIT 0, NO FAIL LINE, ALL 52 REPORTED HOLDING.
+
+$ git checkout -- .github/workflows/ci.yml
+$ md5sum .github/workflows/ci.yml      # after revert
+fa4dcf2e75322bd22f03714edc1f35f2 *.github/workflows/ci.yml
+$ git status --porcelain -- .github/workflows/ci.yml
+(no output)
+
+════════════════════════════════════════════════════════════════════════════════
+MUTATION 6 — a condition key on gate-db-free's build step
+════════════════════════════════════════════════════════════════════════════════
+
+The quantifier probe. MUTATION 2 softens the JOB; this softens ONE STEP of it — the
+step that carries lint, the design suite (where every standing case in this phase
+lives) and the Next build. `if: false` makes it skip.
+
+$ git diff -U0 -- .github/workflows/ci.yml
+@@ -912,0 +913 @@
++        if: false
+
+$ node scripts/verify-workflows.mjs
+verify-workflows — parse-based invariants over .github/workflows/
+sections            baselines, ci, cross
+@playwright/test    1.60.0 (installed)
+expected image      mcr.microsoft.com/playwright:v1.60.0-noble
+
+── ci — .github/workflows/ci.yml (5 job(s)) ────────────────────────────────────────────────────
+  ok    workflow-level permissions.contents is 'read'
+          workflow permissions={"contents":"read"}
+  ok    NO job in ci.yml holds contents: write — the write path is baselines.yml alone
+          jobs with contents:write=[(none)]  jobs=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    ci.yml runs on BOTH push and pull_request — CI-01's requirement text is about opening a pull request
+          triggers=[push, pull_request]
+  ok    github.event_name is in the concurrency group
+          concurrency.group=${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  ok    every `uses:` across every job is a first-party actions/* action
+          uses=[gate-db-free:actions/checkout@v4, gate-db-free:actions/setup-node@v4, gate-db:actions/checkout@v4, gate-db:actions/setup-node@v4, gate-price-parity:actions/checkout@v4, gate-price-parity:actions/setup-node@v4, gate-visual:actions/checkout@v4, gate-visual:actions/setup-node@v4, gate-e2e:actions/checkout@v4, gate-e2e:actions/setup-node@v4]
+  ok    ZERO run commands in ci.yml carry --update-snapshots — this file can never mint a baseline
+          run commands=21 across 5 job(s)  carrying the flag=0
+  ok    zero `secrets.` references in any env / run / with VALUE, across every job
+          scanned workflow env, every job env, every container env, every service env, and every step run/env/with — 0 hits
+  ok    no job, step or workflow env KEY declares RESEND_API_KEY — the e2e suite must send zero real email
+          hits=[(none)]  scanned 5 job(s), their steps, and the workflow env  prefix=RESEND
+  ok    every job declaring a container: pins the exact installed-Playwright image
+          containerized=[gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every containerized job carries --ipc=host
+          options=[gate-db-free="--ipc=host", gate-price-parity="--ipc=host", gate-visual="--ipc=host", gate-e2e="--ipc=host"]
+  ok    every service image is postgis/postgis: with a tag qualified beyond the bare major
+          services=[gate-db.postgres=postgis/postgis:18-3.6, gate-price-parity.postgres=postgis/postgis:18-3.6, gate-visual.postgres=postgis/postgis:18-3.6, gate-e2e.postgres=postgis/postgis:18-3.6]
+  ok    addressing rule — "gate-db-free" declares no services:, so DATABASE_URL must be the unreachable sentinel
+          job="gate-db-free"  services=[]  container=true  authority=127.0.0.1:59999  expected=127.0.0.1:59999
+  ok    addressing rule — "gate-db" runs ON the runner, so the host must be localhost and every service MUST declare ports:
+          job="gate-db"  container=false  host=localhost  ports=[postgres=["5432:5432"]]
+  ok    addressing rule — "gate-price-parity" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-price-parity"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    addressing rule — "gate-visual" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-visual"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    addressing rule — "gate-e2e" runs IN a container, so the host must be a service LABEL and that service must declare NO ports:
+          job="gate-e2e"  container=true  host=postgres  service labels=[postgres]  ports=null
+  ok    the addressing rule covered at least one job — it is a total function, not an empty loop
+          jobs setting DATABASE_URL=[gate-db-free, gate-db, gate-price-parity, gate-visual, gate-e2e]
+  ok    the job that runs `npm run build` exists and declares NO services: (T-11-DBFREE)
+          jobs running `npm run build`=[gate-db-free]  of which declare services=[(none)]
+  ok    "gate-e2e" declares the exact display name branch protection matches on
+          name="gate-e2e (functional Playwright suite)"  expected="gate-e2e (functional Playwright suite)"  (a required status check is matched by this string; changing it silently unbinds the gate)
+  ok    "gate-e2e" runs the functional project BY NAME (--project=chromium)
+          run commands=["npm ci","node scripts/refuse-mail-credential.mjs","npm run db:migrate","npm run db:seed","npx playwright test --project=chromium"]
+  ok    "gate-e2e" is unconditional — no if:, no continue-on-error: AT ALL, on the JOB or on ANY STEP
+          job if=null  job continue-on-error=null  conditional/soft steps=[(none)]  (of 7 steps)
+  ok    "gate-e2e" runs its steps with the runner's DEFAULT interpreter — NO defaults: block at workflow level or on the job
+          workflow defaults=null  job defaults=null
+  ok    "gate-e2e" seeds the demo catalogue BEFORE it runs the suite
+          indices: db:seed=3  playwright=4  (of 5 run commands)
+  ok    "gate-e2e"'s mail refusal reads the REAL process environment — no ${{ }} expression, no env: map, exact invocation, NO ARGUMENTS, and NO KEY OUTSIDE [name, run]
+          step=index 3  run="node scripts/refuse-mail-credential.mjs"  expected-run="node scripts/refuse-mail-credential.mjs"  env=null  keys=[name, run]  permitted=[name, run]  unexpected=[(none)]  expects scripts/refuse-mail-credential.mjs
+  ok    the prefix is spelled ONCE: scripts/refuse-mail-credential.mjs reads this file's declaration and holds no copy
+          declaration-matches-pattern=true  script-shares-pattern-source=true  script-holds-no-copy=true  (prefix=RESEND  pattern=^const MAIL_KEY_PREFIX = "([A-Z_]+)";$  script=10887 bytes)
+  ok    "gate-e2e" refuses a live mail credential BEFORE it migrates, seeds or boots the suite — and ONLY actions/checkout@, actions/setup-node@ and `npm ci` may precede it, over the FULL step list
+          indices: refusal=1  db:migrate=2  db:seed=3  playwright=4  (of 5 run commands)  refusal step index=3 (of 7 steps)  precedes=[uses:actions/checkout@v4, uses:actions/setup-node@v4, run:npm ci]  permitted=[actions/checkout@…, actions/setup-node@…, run:npm ci]  and that holds=true
+  ok    "gate-db-free" declares the exact display name branch protection matches on
+          name="gate-db-free (lint + design + build + workflow parse)"  expected="gate-db-free (lint + design + build + workflow parse)"  (a required status check is matched by this string; changing it silently unbinds the job that runs scripts/verify-workflows.mjs, lint, the design suite and the build)
+  ok    "gate-db-free" carries the step that RUNS this checker, under its exact name, with the EXACT no-argument invocation, and NO KEY OUTSIDE [name, run]
+          step=index 4  expected-name="Verify the workflow invariants (parse, not grep)"  run="node scripts/verify-workflows.mjs"  expected-run="node scripts/verify-workflows.mjs"  keys=[name, run]  permitted=[name, run]  unexpected=[(none)]  (of 6 steps in "gate-db-free")
+  ok    "gate-visual" runs IN the pinned Playwright container
+          container.image=mcr.microsoft.com/playwright:v1.60.0-noble  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    "gate-visual" declares a `postgres` service
+          services=["postgres"]
+  ok    "gate-visual" holds no permissions: block — it inherits the workflow default contents: read
+          job permissions=null
+  ok    "gate-visual" runs the visual project BY NAME (--project=visual)
+          run commands=["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+  ok    "gate-visual" runs migrate, then seed, then playwright — IN THAT ORDER
+          indices: db:migrate=2  seed-baseline-fixtures=3  playwright=4  (of 5 run commands)
+
+  parsed values (ci):
+    jobs                ["gate-db-free","gate-db","gate-price-parity","gate-visual","gate-e2e"]
+    triggers            ["push","pull_request"]
+    workflow perms      {"contents":"read"}
+    concurrency.group   ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+    containerized       ["gate-db-free","gate-price-parity","gate-visual","gate-e2e"]
+    service images      [{"job":"gate-db","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-price-parity","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-visual","svc":"postgres","image":"postgis/postgis:18-3.6"},{"job":"gate-e2e","svc":"postgres","image":"postgis/postgis:18-3.6"}]
+    DATABASE_URL        {"gate-db-free":"postgres://unreachable:unreachable@127.0.0.1:59999/nope","gate-db":"postgres://fitout:fitout@localhost:5432/fitout","gate-price-parity":"postgres://fitout:fitout@postgres:5432/fitout","gate-visual":"postgres://fitout:fitout@postgres:5432/fitout","gate-e2e":"postgres://fitout:fitout@postgres:5432/fitout"}
+    run commands        21 (0 with --update-snapshots)
+    gate-visual runs   ["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+
+── cross — .github/workflows/baselines.yml × .github/workflows/ci.yml ──────────────────────────
+  ok    every container image in BOTH files is the same string and equals the installed @playwright/test
+          5 container(s): [baselines.yml:generate-baselines=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-db-free=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-price-parity=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-visual=mcr.microsoft.com/playwright:v1.60.0-noble, ci.yml:gate-e2e=mcr.microsoft.com/playwright:v1.60.0-noble]  distinct=1  expected=mcr.microsoft.com/playwright:v1.60.0-noble
+  ok    every postgres service image in BOTH files is the same string
+          5 service(s): [baselines.yml:generate-baselines.postgres=postgis/postgis:18-3.6, ci.yml:gate-db.postgres=postgis/postgis:18-3.6, ci.yml:gate-price-parity.postgres=postgis/postgis:18-3.6, ci.yml:gate-visual.postgres=postgis/postgis:18-3.6, ci.yml:gate-e2e.postgres=postgis/postgis:18-3.6]  distinct=[postgis/postgis:18-3.6]
+  ok    the two visual jobs' DATABASE_URL values are byte-identical
+          generate-baselines=postgres://fitout:fitout@postgres:5432/fitout
+          gate-visual=postgres://fitout:fitout@postgres:5432/fitout
+  ok    the two visual jobs' migrate run commands are byte-identical
+          generate-baselines="npm run db:migrate"  gate-visual="npm run db:migrate"
+  ok    the two visual jobs' seed run commands are byte-identical and both name scripts/seed-baseline-fixtures.ts
+          generate-baselines="npx tsx scripts/seed-baseline-fixtures.ts"  gate-visual="npx tsx scripts/seed-baseline-fixtures.ts"
+  ok    neither visual job runs `npm run build` before its playwright step
+          generate-baselines=["npm ci","git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual --update-snapshots","git add -- \"*-visual-linux.png\"\nUNEXPECTED=\"$(git diff --cached --name-only | grep -v -- '-visual-linux\\.png$' || true)\"\nif [ -n \"$UNEXPECTED\" ]; then\n  echo \"::error::staged files that are not Linux baselines:\"\n  echo \"$UNEXPECTED\"\n  exit 1\nfi\nCOUNT=\"$(git diff --cached --name-only | wc -l | tr -d ' ')\"\necho \"count=$COUNT\" >> \"$GITHUB_OUTPUT\"\necho \"staged $COUNT baseline file(s)\"\ngit diff --cached --name-status\n","if git diff --cached --quiet; then\n  echo \"No baseline changes — nothing to commit. This is the expected result of a\"\n  echo \"re-dispatch against an already-current baseline set.\"\n  exit 0\nfi\ngit commit -m \"chore(11-22): regenerate visual baselines in the pinned Linux image\n\nGenerated by the \\`baselines\\` workflow_dispatch job (D-27), run ${{ github.run_id }},\nfrom ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.\n\nNOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared\nagainst these files. See .github/workflows/baselines.yml's header — an explicit\nfollow-up run is required.\"\n# Push to the ref this workflow was dispatched against. `github.ref` is\n# `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD\n# or on a branch the operator did not choose.\ngit push origin \"HEAD:${{ github.ref }}\"\n","echo \"::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers\"\necho \"::warning::no workflow run, so nothing has compared against them. Pull the branch,\"\necho \"::warning::confirm only *-visual-linux.png files were added, run npm run test:design,\"\necho \"::warning::then push an empty commit or re-dispatch so a ci run compares and goes\"\necho \"::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces\"\necho \"::warning::baselines nobody has ever seen pass.\"\n"]
+          gate-visual=["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+  ok    across .github/workflows/ exactly ONE run command carries --update-snapshots, and it is in baselines.yml
+          files scanned=[baselines.yml, ci.yml]  carriers=[baselines.yml:generate-baselines]
+  ok    across .github/workflows/ the mail-provider token appears ZERO times, in values AND in comments
+          files scanned=[baselines.yml, ci.yml]  prefix=RESEND  occurrences=[(none)]
+
+  parsed values (cross):
+    container images    ["mcr.microsoft.com/playwright:v1.60.0-noble"]
+    service images      ["postgis/postgis:18-3.6"]
+    DATABASE_URL        postgres://fitout:fitout@postgres:5432/fitout
+    capture runs        ["npm ci","git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config user.name \"github-actions[bot]\"\ngit config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual --update-snapshots","git add -- \"*-visual-linux.png\"\nUNEXPECTED=\"$(git diff --cached --name-only | grep -v -- '-visual-linux\\.png$' || true)\"\nif [ -n \"$UNEXPECTED\" ]; then\n  echo \"::error::staged files that are not Linux baselines:\"\n  echo \"$UNEXPECTED\"\n  exit 1\nfi\nCOUNT=\"$(git diff --cached --name-only | wc -l | tr -d ' ')\"\necho \"count=$COUNT\" >> \"$GITHUB_OUTPUT\"\necho \"staged $COUNT baseline file(s)\"\ngit diff --cached --name-status\n","if git diff --cached --quiet; then\n  echo \"No baseline changes — nothing to commit. This is the expected result of a\"\n  echo \"re-dispatch against an already-current baseline set.\"\n  exit 0\nfi\ngit commit -m \"chore(11-22): regenerate visual baselines in the pinned Linux image\n\nGenerated by the \\`baselines\\` workflow_dispatch job (D-27), run ${{ github.run_id }},\nfrom ${{ github.sha }}. Files: ${{ steps.stage.outputs.count }}.\n\nNOT YET VERIFIED: a GITHUB_TOKEN push creates no workflow run, so nothing has compared\nagainst these files. See .github/workflows/baselines.yml's header — an explicit\nfollow-up run is required.\"\n# Push to the ref this workflow was dispatched against. `github.ref` is\n# `refs/heads/<branch>` for a workflow_dispatch, so this cannot land on a detached HEAD\n# or on a branch the operator did not choose.\ngit push origin \"HEAD:${{ github.ref }}\"\n","echo \"::warning::These baselines have NOT been verified. A GITHUB_TOKEN push triggers\"\necho \"::warning::no workflow run, so nothing has compared against them. Pull the branch,\"\necho \"::warning::confirm only *-visual-linux.png files were added, run npm run test:design,\"\necho \"::warning::then push an empty commit or re-dispatch so a ci run compares and goes\"\necho \"::warning::green. Plan 11-22 Task 3 owns this step. Without it, D-27 produces\"\necho \"::warning::baselines nobody has ever seen pass.\"\n"]
+    compare runs        ["git config --global --add safe.directory \"$GITHUB_WORKSPACE\"\ngit config --global --add safe.directory \"$PWD\"\n\necho \"GITHUB_WORKSPACE=$GITHUB_WORKSPACE\"\necho \"PWD=$PWD\"\ngit rev-parse --show-toplevel\n\nCOUNT=\"$(git ls-files '*-visual-linux.png' | wc -l | tr -d ' ')\"\necho \"tracked Linux baselines: $COUNT\"\nif [ \"$COUNT\" -eq 0 ]; then\n  echo \"::error::git ran but reports zero tracked *-visual-linux.png files. Either the\"\n  echo \"::error::baselines were deleted, or this is not the checkout this job expects.\"\n  echo \"::error::Comparing against an empty reference set would report 52 missing\"\n  echo \"::error::baselines instead of the one real problem.\"\n  exit 1\nfi\n","npm ci","npm run db:migrate","npx tsx scripts/seed-baseline-fixtures.ts","npx playwright test --project=visual"]
+    workflow files      ["baselines.yml","ci.yml"]
+    write-path carriers ["baselines.yml:generate-baselines"]
+
+All 52 invariants hold across 3 section(s) (baselines=11, ci=33, cross=8).
+CHECKER-EXIT=0
+
+⚠ EXIT 0, NO FAIL LINE, ALL 52 REPORTED HOLDING. The mutation suite that holds every
+standing case in this phase can be switched off in one line, and the checker those
+cases protect prints a clean green over it.
+
+$ git checkout -- .github/workflows/ci.yml
+$ md5sum .github/workflows/ci.yml      # after revert
+fa4dcf2e75322bd22f03714edc1f35f2 *.github/workflows/ci.yml
+$ git status --porcelain -- .github/workflows/ci.yml
+(no output)
+
+================================================================================
+SUMMARY OF WHAT WAS MEASURED
+================================================================================
+
+  1a  refusal step, appended argument      →  RED   (the conjunct is correct today)
+  1b  standing suite, unmutated tree       →  GREEN 16/16
+  1c  standing suite, conjunct LOOSENED    →  GREEN 16/16   ⚠ WR-01, the hole
+  2   gate-db-free, job-level soften       →  GREEN exit 0  ⚠ CR-03 vector
+  3   gate-db-free, job-level defaults     →  GREEN exit 0  ⚠ CR-03 vector
+  4   gate-db-free, build step DELETED     →  RED, by T-11-DBFREE's substring anchor,
+                                              for a different property (see above)
+  5   gate-db-free, build run + argument   →  GREEN exit 0  ⚠ CR-03 vector
+  6   gate-db-free, build step `if: false` →  GREEN exit 0  ⚠ CR-03 vector
+
+Five greens that should have been red, one red that arrives by accident. All six
+reverted byte-identical; `git status --porcelain` empty after every one.

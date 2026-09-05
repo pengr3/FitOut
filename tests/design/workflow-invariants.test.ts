@@ -127,6 +127,21 @@ function constFromChecker(declName: string): string {
 const MAIL_STEP_NAME = constFromChecker("CI_E2E_MAIL_STEP");
 
 /**
+ * `gate-e2e`'s YAML job KEY, read rather than typed — and read HERE rather than inside
+ * `withJobKey` for the reason `withJobKey`'s own docblock states: until plan 19.1-05 that helper
+ * ended its read with `?? <a second copy of the key>`, a silent fallback where the reader beside it
+ * throws (19-REVIEW.md finding IN-02). The fallback is deleted, not defaulted, and the key it used
+ * to guess is now one more constant on this list.
+ *
+ * ⚠ NOTE THAT NEITHER THAT DOCBLOCK NOR THIS ONE SPELLS THE KEY. That is deliberate and it is this
+ * repository's established shape for exactly this class — `ci.yml` never spells the snapshot-update
+ * flag or the mail provider's token for the same reason. The cheapest audit of "this file holds no
+ * second source of truth for a job key" is a grep for the key returning zero, and prose quoting the
+ * literal it forbids is still the literal.
+ */
+const E2E_JOB = constFromChecker("CI_E2E_JOB");
+
+/**
  * The checker step's `name:` inside `gate-db-free` — the step that RUNS the script this file spawns.
  * Read from the checker for the same reason as above, and load-bearing for a second one: the
  * invariant added by plan 19.1-01 anchors on this EXACT string, so a test that guessed it would be
@@ -216,16 +231,50 @@ function withRefusalStepKey(line: string): (ci: string) => string {
 }
 
 /**
- * Inserts one line — or a whole BLOCK of lines — indented four spaces, immediately after the
- * `gate-e2e:` job key line. The array form exists because a `defaults:` block is three lines deep
- * and joining them here rather than at the call site is what keeps the EOL detected from the file
- * being mutated; a caller that joined with `\n` would write LF into a CRLF copy and make the red
- * red for the wrong reason.
+ * Appends `argument` to the MAIL REFUSAL step's `run:` line, leaving everything else
+ * byte-identical: same step, same name, same position, no new key. The step still runs the refusal
+ * script — with an argument.
+ *
+ * ⚠ WHY THIS BUILDER EXISTS AT ALL, GIVEN `withAppendedCheckerArgument` ONE JOB OVER. That one
+ * measures the same PROPERTY on `gate-db-free`'s checker step; this one measures it on the step
+ * plan 19-13 actually fixed. They are not redundant, because the conjunct is a different line of
+ * the checker in each case and either can be loosened without touching the other — and it is THIS
+ * one, at `scripts/verify-workflows.mjs:982`, that round 2 wrote and that nothing in this file
+ * remembered. See case 17's docblock for the measurement.
+ *
+ * Returns the input unchanged when the anchor is absent, so a drifted anchor lands on
+ * `withMutatedWorkflows`'s differs-from-input assertion.
  */
-function withJobKey(lines: string | string[]): (ci: string) => string {
-  const jobKeyDecl = /^const CI_E2E_JOB = "(.+)";$/m;
-  const match = jobKeyDecl.exec(readFileSync(CHECKER, "utf8").replace(/\r\n/g, "\n"));
-  const jobKey = match?.[1] ?? "gate-e2e";
+function withAppendedRefusalArgument(argument: string): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const anchor = `      - name: ${MAIL_STEP_NAME}${eol}`;
+    const at = ci.indexOf(anchor);
+    if (at < 0) return ci;
+    const runEnd = ci.indexOf(eol, at + anchor.length);
+    if (runEnd < 0) return ci;
+    return `${ci.slice(0, runEnd)} ${argument}${ci.slice(runEnd)}`;
+  };
+}
+
+/**
+ * Inserts one line — or a whole BLOCK of lines — indented four spaces, immediately after the given
+ * job's key line. The array form exists because a `defaults:` block is three lines deep and joining
+ * them here rather than at the call site is what keeps the EOL detected from the file being
+ * mutated; a caller that joined with `\n` would write LF into a CRLF copy and make the red red for
+ * the wrong reason.
+ *
+ * ⚠ THE JOB KEY IS A PARAMETER AND THERE IS NO DEFAULT — 19-REVIEW.md finding IN-02, closed by plan
+ * 19.1-05. This function used to read `CI_E2E_JOB` itself and fall back to a hard-coded second
+ * copy of that key when the declaration did not match, three lines below a reader that THROWS on
+ * exactly that condition and says why. The two behaviours cannot both be right. A fallback here is
+ * strictly worse than one anywhere else in this file, because the string it guesses is the ANCHOR:
+ * a wrong job key inserts the mutation into a job the checker is not being asked about, the
+ * mutation applies, `withMutatedWorkflows`'s differs-from-input assertion is satisfied, and the
+ * case then measures a red — or a green — that has nothing to do with its own name. Every call site
+ * now passes a constant read through `constFromChecker`, which throws.
+ */
+function withJobKey(jobKey: string, lines: string | string[]): (ci: string) => string {
   return (ci) => {
     const block = (Array.isArray(lines) ? lines : [lines])
       .map((l) => `    ${l}`)
@@ -477,7 +526,7 @@ describe("the workflow checker's own predicates, measured against a mutated copy
   // 19-11 shipped at job level, and until plan 19-14 it was weaker there too: the job read compared
   // the same key against the same boolean.
   it("case 7: continue-on-error as an Actions expression on the JOB is red", () => {
-    withMutatedWorkflows(withJobKey("continue-on-error: ${{ true }}"), (result) => {
+    withMutatedWorkflows(withJobKey(E2E_JOB, "continue-on-error: ${{ true }}"), (result) => {
       expectRed(result, UNCONDITIONAL);
     });
   });
@@ -524,7 +573,7 @@ describe("the workflow checker's own predicates, measured against a mutated copy
   // paid for across four rounds.
   it("case 11: a job-level defaults: block on gate-e2e is red", () => {
     withMutatedWorkflows(
-      withJobKey(["defaults:", "  run:", "    shell: cat {0}"]),
+      withJobKey(E2E_JOB, ["defaults:", "  run:", "    shell: cat {0}"]),
       (result) => {
         expectRed(result, EXECUTION_DEFAULTS);
       },
@@ -621,5 +670,39 @@ describe("the workflow checker's own predicates, measured against a mutated copy
         expect(String(result.stdout)).toContain(EXPECTED_GREEN);
       },
     );
+  });
+
+  // ⚠ WR-01 AT ITS ORIGINAL SITE, AND THE CASE THIS FILE WAS BUILT TO CONTAIN AND DID NOT
+  // (19-REVIEW.md finding WR-01, named in that document's own minimum list and then dropped).
+  //
+  // WHAT WAS MEASURED, on 2026-09-05 against the tracked tree, before this case existed
+  // (evidence/guards-05-pre-fix.txt, captures 1a–1c):
+  //   1a. Appending an argument to this step's `run:` in `ci.yml` turned the checker RED. So the
+  //       exact-equality conjunct plan 19-13 wrote at `scripts/verify-workflows.mjs:982` is
+  //       CORRECT today. That is not the question.
+  //   1b. The standing suite over the unmutated tree was 16 of 16 green — which proves nothing at
+  //       all, and is recorded only so that 1c cannot be mistaken for it.
+  //   1c. THE QUESTION. That conjunct was then loosened BY HAND, in the shipped checker, from
+  //       `=== MAIL_REFUSAL_RUN` to `.startsWith(MAIL_REFUSAL_RUN)` — review finding WR-01's exact
+  //       defect, reintroduced — and this file was re-run: SIXTEEN OF SIXTEEN, EXIT 0. Round 2's
+  //       own load-bearing fix could be reverted and the instrument built to be the checker's
+  //       memory did not move.
+  //
+  // WHY THIS CASE DOES NOT REVERT THE CONJUNCT, AND WHY THAT IS THE HONEST SHAPE RATHER THAN A
+  // COMPROMISE. `withMutatedWorkflows` mutates a COPY of `ci.yml` and spawns the SHIPPED checker
+  // at an absolute path; it cannot mutate the checker's source, and a harness that could would be
+  // testing a checker nobody runs. So this case exercises the PROPERTY the conjunct is the only
+  // thing that can see: `run` is a PERMITTED key on this step, so the allow-list conjunct compares
+  // KEY SETS and is satisfied identically before and after; the step keeps its exact `name:`, its
+  // position and its key surface. Written as containment — which every argument list in the world
+  // satisfies — this mutation is GREEN. Loosen that conjunct again and this case fails. That is
+  // the memory, and it is why the argument is `--decoy` rather than something inert: the refusal
+  // script's own cases 7 and 8 prove it refuses ANY argument before it reads a file or the
+  // environment, so an argument here is not cosmetic, it is a redirection of the only control that
+  // protects the current run.
+  it("case 17 (WR-01, SC3): appending an argument to the mail refusal invocation is red", () => {
+    withMutatedWorkflows(withAppendedRefusalArgument("--decoy"), (result) => {
+      expectRed(result, MAIL_REFUSAL);
+    });
   });
 });
