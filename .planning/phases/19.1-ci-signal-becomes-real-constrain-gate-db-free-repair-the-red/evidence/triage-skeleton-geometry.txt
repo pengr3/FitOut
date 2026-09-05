@@ -1,0 +1,331 @@
+CAUSE D2 — `e2e/skeleton-geometry.spec.ts:1807`, the host bookings row that grew ~20px
+19.1-09 Task 1. Opened at HEAD 6c7064e (dev), tracked working tree clean.
+Machine: Windows 11, Asia/Manila (+08), Docker Desktop, Node/Next dev on :3000, Playwright 1.60.0.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+0. THE HEADLINE, BEFORE THE TRANSCRIPTS
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+THE FAILURE DOES NOT REPRODUCE ON THIS LAPTOP AT ALL, AND IT REPRODUCES BYTE-FOR-BYTE INSIDE THE
+PINNED CI CONTAINER. It is neither of the two causes RESEARCH.md nominated. It is not a product
+regression, and it is not the calendar. It is that every number in this file's host block was
+measured on a rasteriser that does not gate this repository.
+
+  Windows / this box     the row measures 36.52px      the declared shape          PASSES
+  mcr.microsoft.com/playwright:v1.60.0-noble
+                         the row measures 56.50px      the declared shape 36.52    FAILS, Δ 19.98
+
+56.50 and Δ 19.979999999999997 are CI's own two numbers, to the last digit.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+1. PRE-REPAIR — THE LOCAL RUN, WHICH IS GREEN
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+Plan 02's bring-up ran first and in order: `npm run db:up` (fitout-db-1 already Up), `npm run
+db:migrate`, `npm run db:seed` ("Seeded 5 published bookable listings"), `rm -rf .next`,
+`netstat -ano | grep -E ':3000[[:space:]]'` → "port 3000 is free". `FITOUT_E2E_REAL_EMAIL` was never
+set, exported or written to a file at any point in this plan.
+
+The file's own narrower grep, verbatim from its header, because the `14-15` describe is
+`mode: "serial"` and the first failure skips every case after it:
+
+  $ npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium --trace on --workers=1 \
+      --reporter=list --grep "the fixture: one host|title\) the Space cell"
+
+    ok 1 [chromium] › e2e\skeleton-geometry.spec.ts:1708:7 › … › (0) the fixture: one host, two
+         listings, seven bookings, one booker each
+    ok 2 [chromium] › e2e\skeleton-geometry.spec.ts:2182:7 › … › (title) the Space cell wraps and
+         the When cell does not — both heights, both seeded (6.2s)
+
+    2 passed (26.8s)
+
+And the case that is actually red in CI, reached by its own name:
+
+  $ npx playwright test e2e/skeleton-geometry.spec.ts --project=chromium --trace on --workers=1 \
+      --reporter=list --grep "the fixture: one host|host booking row"
+
+    3 passed (33.3s)      ← (0), the (host booking row · /host/bookings) shape case, and (wrap)
+
+⚠ A NOTE ON THE PRE-EXISTING NOISE IN BOTH TRANSCRIPTS. Every `/host` navigation prints the hydration
+mismatch at `site-chrome.tsx:308` → `button.tsx:143` that 19.1-08 recorded. It is present on the runs
+that PASS and on the runs that FAIL, on both platforms, so it is not a term in anything below.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+2. THE FIVE MEASUREMENTS, ON THIS BOX — TAKEN BEFORE ANY VERDICT
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+Taken with a TEMPORARY measurement probe on the tracked spec — the idiom `evidence/triage-plate-
+month.txt` §5a established for this phase (there, `SKELETON_TOLERANCE_PX = 0` to force the boxes into
+a message). Reverted, with the checksum pair in §8. No assertion, constant or tolerance was changed
+to obtain any number here.
+
+  /host/bookings · 1280px · Corazon (RESTING_GUEST), Windows:
+
+    resolved row height                      36.52 px      ← the tracked assertion's own figure
+    the declared constant it is compared to  36.52 px      `BOOKINGS_1280_ONE_LINE`,
+                                                            e2e/skeleton-geometry.spec.ts:1985
+                                             36.52 px      the same number restated as the shape
+                                                            table's `row:` for this step, :1626
+    tolerance                                4 px          `HOST_TOLERANCE_PX`, :1114 — NOT TOUCHED
+    <td> widths, all six, left to right      71.78 / 183.70 / 235.03 / 112.20 / 62.59 / 198.69
+                                             Guest / SPACE / WHEN / Status / Payout / Actions
+                                             (Σ = 863.99 against a table-container clientWidth 864)
+    Space cell rendered width                183.70 px  → content box 167.70 (padding 8px/8px)
+    When  cell rendered width                235.03 px  → content box 219.03
+    Space cell title line count              1          ← "Geo Courts Poblacion", ink 145.17px
+    When  cell line count                    1          ← ink 207.95px
+    the composed When text, verbatim         "Thu, Nov 12, 9:00 AM – 11:00 AM"
+                                             — no timezone label appended; the single-zone
+                                               `260824-ej2` ruling is holding
+
+  MARGIN ON THIS BOX: 167.70 − 145.17 = 22.53px clear. Nothing is close to wrapping.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+3. IS THE DELTA DATE-DEPENDENT? NO — AND THE FILE'S OWN DOCBLOCK IS WRONG ABOUT THIS
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+STATED EXPLICITLY, BECAUSE THE PLAN REQUIRED AN EXPLICIT ANSWER EITHER WAY:
+
+  THE OBSERVED DELTA IS **NOT** DATE-DEPENDENT. The residual Space column does not move with the
+  calendar under the current fixture, on either rasteriser.
+
+THE MECHANISM, MEASURED RATHER THAN ARGUED. `:909-925` states that "THE RESIDUAL MOVES WITH THE
+CALENDAR, because the WHEN column is in it", and that the row height is therefore a function of the
+date. That was true when it was written. It stopped being true when `260824-ght` added the SECOND,
+long-titled listing — because that listing's booking is seeded at an ABSOLUTE venue-local day whose
+composed label happens to be the WIDEST label this fixture can produce.
+
+The When column is sized by the widest label among ALL rows on the list. The bookings list carries
+five rows: three seeded at absolute instants (Nov, Jan, May) and two `requested` rows seeded RELATIVE
+to the clock (dayOffset 5 and 6, `:1765-1785`) — only the last two vary with the date. Measured
+inks, same run, same page:
+
+    Thu, Sep 10, 9:00 AM – 11:00 AM   208.33   ← relative, dayOffset 5, moves with the clock
+    Fri, Sep 11, 3:00 PM – 5:00 PM    195.20   ← relative, dayOffset 6, moves with the clock
+    Mon, Jan 12, 9:00 AM – 11:00 AM   211.53   ← absolute
+    Wed, May 20, 9:00 AM – 11:00 AM   219.03   ← absolute, and the widest thing on the page
+    Thu, Nov 12, 9:00 AM – 11:00 AM   207.95   ← absolute, the row under test
+
+Then the whole label space was swept in the When cell's own computed style — 7 weekdays × 12 months
+× 31 days × the fixture's two seeded window spellings = 5,208 labels:
+
+    Windows   max "Wed, May 20, 9:00 AM – 11:00 AM"  219.03      min "Fri, Jul 1, 3:00 PM – 5:00 PM"  185.34
+    Linux     max "Mon, May 20, 9:00 AM – 11:00 AM"  223         min "Fri, Jul 1, 3:00 PM – 5:00 PM"  187
+
+ON BOTH RASTERISERS THE MAXIMUM OF THE WHOLE SWEEP IS THE FIXTURE'S OWN ABSOLUTE MAY ROW. No date the
+two relative rows can reach will ever widen the When column past a row that is already sitting at the
+sweep's ceiling. The residual is therefore a CONSTANT — 183.70px on Windows, 166px on Linux — on
+every date, and this failure is not the `[14-16]` / Cause A time-bomb class at all.
+
+CONSEQUENCE FOR THE REPAIR: there is nothing to derive. Plan 03's calendar treatment does not apply
+here; a static fixture value is the correct shape, and §7's CARRY line says so rather than leaving it
+implied.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+4. THE REPRODUCTION — THE PINNED CI CONTAINER, WHICH IS THE RASTERISER THAT GATES THIS REPO
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+WHY THIS WAS RUN AT ALL. Two independent facts made "the laptop is green, therefore the tree is fine"
+untenable:
+
+  (i)  `.github/workflows/ci.yml:1561-1568` — gate-e2e runs IN `mcr.microsoft.com/playwright:
+       v1.60.0-noble`, not on the bare runner. The image is the rendering environment, not an
+       incidental detail.
+  (ii) A SECOND of the fourteen behaves the same way. `e2e/tabular-figures.spec.ts:361` fails in CI
+       ("₱11,111.11 rendered at 105.015625px and ₱00,000.00 at 112.015625px … Received: 7") and
+       PASSES on this box, run this session:
+
+         $ npx playwright test e2e/tabular-figures.spec.ts --project=chromium --workers=1
+           ok 1 :361 (1) court — the reference lines up, and the money pair is measured (9.5s)
+           ok 2 :377 (2) grove — the same measurements, the other theme (7.6s)
+           2 passed (23.8s)
+
+       Two CI reds, in two unrelated files, both of which are pure text-width measurements, both of
+       which are green here. That is a rasteriser hypothesis with a control, not a hunch.
+
+HOW IT WAS RUN. `docker pull mcr.microsoft.com/playwright:v1.60.0-noble` (the exact pinned tag), the
+repository mounted at /repo, and the dev server + Postgres left running on the Windows host.
+`e2e/helpers/served-document.ts:39` hardcodes `http://localhost:3000`, so a ~15-line Node loopback
+forwarder inside the container makes the container's own localhost:3000 / :5432 mean the host's. The
+real `playwright.config.ts` was reused verbatim through a throwaway config that removes ONLY the
+`webServer` block — `reuseExistingServer:false` is load-bearing ([17-D24]/[17-D28]) and was NOT
+flipped, so nothing here can leak into a normal run. All three throwaway files are deleted in §8.
+
+  $ docker run --rm --ipc=host --add-host=host.docker.internal:host-gateway \
+      -v "C:/Users/Admin/Roaming/FitOut":/repo -w /repo -e PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+      mcr.microsoft.com/playwright:v1.60.0-noble bash /repo/.probe-linux-run.sh \
+      --grep "the fixture: one host|host booking row|title\) the Space cell"
+
+    Running 4 tests using 1 worker
+
+      ✓  1 e2e/skeleton-geometry.spec.ts:1708:7 › (0) the fixture: one host, two listings, seven
+                                                     bookings, one booker each (4.3s)
+      ✘  2 e2e/skeleton-geometry.spec.ts:1807:9 › (host booking row · /host/bookings) the plate's
+                                                     bar and the arriving row are the same box at
+                                                     320 and 1280 (6.1s)
+      -  3 e2e/skeleton-geometry.spec.ts:2024:7 › (wrap) …
+      -  4 e2e/skeleton-geometry.spec.ts:2182:7 › (title) …
+
+      1) e2e/skeleton-geometry.spec.ts:1807:9 › (host booking row · /host/bookings) …
+
+        Error: host booking row · /host/bookings · 1280px: the resolved table measures 56.5px, but
+        this shape was measured at 36.52px when its height was declared. A bar and a row that agree
+        at the wrong number are as "equal" as two that agree at the right one, which is why this is
+        asserted separately. The wrap-count clause above ran first and passed, so this is NOT the
+        label wrapping differently: the row's composition changed. Re-measure and move the constant,
+        never the tolerance.
+
+        Expected: <= 4
+        Received:    19.979999999999997
+
+          > 1951 |         ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
+
+      1 failed / 2 did not run / 1 passed (23.0s)
+
+THAT IS CI'S MESSAGE AND CI'S RECEIVED VALUE, CHARACTER FOR CHARACTER. Note also that cases 3 and 4
+DID NOT RUN — the serial describe aborted. That is exactly why the CI log never printed a line count
+for either cell, and it is why the file's header prescribes the narrower grep.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+5. THE FIVE MEASUREMENTS AGAIN, ON THE CI RASTERISER — WHICH CELL WRAPPED
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+Same probe, same page, run through the narrower grep inside the container so the `(title)` case is
+reached:
+
+    resolved row height                      56.50 px   ← CI's number
+    the declared constant                    36.52 px   `BOOKINGS_1280_ONE_LINE`, :1985
+    <td> widths, all six                     72 / 166 / 239 / 118 / 64 / 205   (Σ = 864)
+    Space cell rendered width                166 px  → content box 150
+    When  cell rendered width                239 px  → content box 223
+    Space cell title LINE COUNT              2       ← "Geo Courts Poblacion" WRAPPED
+    When  cell LINE COUNT                    1       ← the When cell did NOT wrap
+    the composed When text, verbatim         "Thu, Nov 12, 9:00 AM – 11:00 AM"   (unchanged, no
+                                                                                  timezone label)
+    the title's unwrapped ink                152 px  against a 150px content box → overflows by 2px
+
+AND THE SAME PAGE ON THE SAME COMMIT, THE TWO RASTERISERS SIDE BY SIDE:
+
+    <td>            Windows      Linux (CI)     Δ
+    Guest            71.78         72          +0.22
+    SPACE           183.70        166         −17.70   ← the residual, squeezed by the other five
+    WHEN            235.03        239          +3.97
+    Status          112.20        118          +5.80
+    Payout           62.59         64          +1.41
+    Actions         198.69        205          +6.31
+    Σ               864.00        864.00
+
+    title ink       145.17        152          +6.83   (+4.7%)
+    content box     167.70        150.00
+    MARGIN          +22.53        −2.00        ← the sign flips
+
+EVERY LINUX FIGURE IS A WHOLE NUMBER AND EVERY WINDOWS FIGURE IS FRACTIONAL. That is the mechanism in
+one line: the container's Chromium quantises glyph advances to whole pixels, which makes every string
+in the table 2–5% wider AND removes the sub-pixel slack. The five non-wrapping columns each take a
+few pixels more, the Space column is the residual and absorbs all of it at once (−17.70px), and the
+title that cleared its box by 22.53px on this laptop overflows it by 2px on the runner.
+
+It also predicts the second CI red without being fitted to it: integer-quantised advances are exactly
+what makes "1" and "0" differ in width, which is `tabular-figures.spec.ts:361`'s 7px.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+6. THE TWO CANDIDATE COMMITS RESEARCH.md NOMINATED — THE EVIDENCE POINTS AT NEITHER
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+  ea61f5f feat(260824-ej2) …widens the When column with a composed timezone label
+    NOT IMPLICATED. The composed When text measured above carries NO timezone label on either
+    rasteriser, on the row under test and on all five rows of the list. The ruling is holding.
+
+  cbedf46 fix(260824-ght) the Space cell wraps, the When cell beside it never does
+    NOT REVERTED, AND STILL THE LAST COMMIT TO TOUCH THE FILE.
+      $ git log --oneline --since=2026-08-01 -- 'src/app/(host)/host/bookings/page.tsx'
+        cbedf46 fix(260824-ght): the Space cell wraps, the When cell beside it never does
+        ea61f5f feat(260824-ej2): name the venue timezone on host lists only when it varies
+        6a8e577 revert(260824-dbc): back out the F-2 wrap fix …
+        …
+
+THE PRODUCT-REGRESSION MECHANISM IS REFUTED BY CONSTRUCTION, NOT ONLY BY THE LINE COUNT.
+`src/components/ui/table.tsx:86` gives every `TableCell` `whitespace-nowrap`, and the When cell at
+`src/app/(host)/host/bookings/page.tsx:392-394` carries only `text-label text-muted-foreground` — no
+`whitespace-normal`. The When cell CANNOT wrap at any width. The measured `whenLines: 1` in §5 is the
+same fact read from the rendered page.
+
+⚠ THE HEIGHT ALONE WOULD HAVE BEEN AMBIGUOUS, WHICH IS THIS PLAN'S WHOLE POINT. The file's watched-red
+probe (l) — the When cell wrapping — measured 56.53px, and this failure measures 56.50px. Reading the
+height and stopping would have named the reverted `260824-dbc` regression and sent a repair into a
+product file that is correct. The two LINE COUNTS are what separate them, and they had to be measured
+in the container to exist at all.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+7. A SECOND RED IN THE SAME SHAPE LOOP, FOUND BY THE SAME RUN
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+The FULL file in the container (17 tests) reddens EARLIER than the bookings row — on the dashboard
+agenda, which shares the same source line `:1807` because all three shapes run through one `test()`:
+
+    ✘ 10 :1807:9 › (agenda row · /host) the plate's bar and the arriving row are the same box …
+
+      Error: agenda row · /host · 320px: the meta line wraps to 4 lines today; it wrapped to 3 when
+      this shape's height was measured. … The label was "Geo Courts Poblacion · Sat, Sep 5, 8:00 AM
+      – 10:00 AM". … re-measure the shape; do NOT widen a tolerance to absorb a line.
+      Expected: 3   Received: 4
+
+      1 failed / 6 did not run / 10 passed (56.4s)
+
+It is the SAME defect and the SAME string: `HOST_LISTING_TITLE` is in the agenda's meta line too. CI
+reported the bookings message rather than this one because CI ran on a different date — measured
+below, the 20-character title is 3 lines on 141 of the 2,604 date tokens and 4 lines on the other
+2,463, so which of the two cases reddens first is a coin the calendar tosses. Both are `:1807`.
+
+Swept in the agenda meta's own computed style, at its measured 141px content width, over every date
+token for the seeded 8:00 AM – 10:00 AM window, IN THE CONTAINER:
+
+    candidate (chars)        agenda ink   agenda 320px lines / 2,604    Space-cell ink vs a 150px box
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+    Geo Courts Poblacion (20)   144        3 ×141  ·  4 ×2,463   ✘        152   −2   ✘ wraps
+    Geo Courts Poblacio  (19)   136        3 ×2,604                       143   +7
+    Geo Courts Poblaci   (18)   127        3 ×2,604                       134  +16
+    Geo Courts Poblac    (17)   124        3 ×2,604                       130  +20
+    Geo Courts Makati    (17)   120        3 ×2,604                       127  +23
+    Geo Courts Manila    (17)   120        3 ×2,604                       127  +23
+    Geo Courts Pobla     (16)   116        3 ×2,604                       121  +29
+    Geo Courts Pasig     (16)   115        3 ×2,604                       120  +30
+    Geo Courts Pobl      (15)   108        3 ×2,604                       113  +37
+    Geo Courts Pob       (14)   105        3 ×2,604                       109  +41
+    Geo Courts QC        (13)   100        3 ×2,604                       104  +46
+    Geo Courts           (10)    75        2 ×1  ·  3 ×2,603     ✘         79  +71
+    QC Strength & Conditioning Gym (30)                                   230  −80  ✓ wraps, always
+
+  THE PLATEAU MOVED WITH THE RASTERISER. `HOST_LISTING_TITLE`'s docblock declares the agenda plateau
+  as 19–27 characters, measured on Windows. In the container it is roughly 13–19: the shipped 20 is
+  ONE CHARACTER OUTSIDE IT, and 24 — the value the fixture carried before `260824-ej2` — is four
+  outside. The 19–27 figure is not wrong so much as measured somewhere that does not gate anything.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+8. REVERT PROOF FOR THE MEASUREMENT PROBES (Task 1 leaves no edit behind)
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+  e2e/skeleton-geometry.spec.ts   working copy  f01ac97f1ed9a5fa362eedc1e2071169c7c68815
+                                  HEAD blob     f01ac97f1ed9a5fa362eedc1e2071169c7c68815
+
+  $ git status --porcelain -- e2e src
+    (no output)
+
+The three throwaway container files (`.probe-linux-font.mjs`, `.probe-linux-run.sh`,
+`.probe-linux.config.ts`) are kept only until the post-repair run in Task 3 and are deleted there;
+none is ever staged.
+
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+9. THE VERDICT
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+VERDICT FIXTURE DRIFT — the SPACE cell wrapped (titleLines 2, ink 152px against a 150px content box) and the WHEN cell did NOT (whenLines 1, and `whitespace-nowrap` from src/components/ui/table.tsx:86 makes it structurally unable to), so the product tier is correct and the repair belongs in the fixture; the drift is NOT the calendar — the residual Space column is a constant 166px on the CI rasteriser because the When column is pinned by the fixture's own absolute May row, which is the maximum of all 5,208 labels the fixture can compose — it is that the title's margin was measured on a rasteriser whose glyph advances are fractional and asserted on one whose advances are integers, where the same title is 152px rather than 145.17px and the residual is 166px rather than 183.70px.
+
+The evidence this verdict rests on is the pair of LINE COUNTS (Space 2, When 1) and the pair of CELL
+WIDTHS (Space 166 → content 150, When 239 → content 223) measured in
+mcr.microsoft.com/playwright:v1.60.0-noble, NOT the row height — the height is 56.50px, and watched-red
+probe (l) shows the opposite cause producing 56.53px, so the height cannot tell them apart.
+
+RESEARCH.md's two dated candidates are BOTH exonerated: `ea61f5f`'s timezone label is absent from the
+composed text, and `cbedf46` is intact and is still the last commit to touch the product file. The
+evidence points at NEITHER.
