@@ -1,0 +1,208 @@
+================================================================================
+TRIAGE — e2e/calendar-hit-area.spec.ts  (Cause A, 19.1-03)
+Machine: this box (win32), Git Bash, 2026-09-05.
+Bring-up: plan 02's evidence/triage-harness.md section (a), run verbatim —
+  npm run db:up ; npm run db:migrate ; npm run db:seed ; rm -rf .next ;
+  netstat -ano | grep -E ':3000[[:space:]]'  ->  "port 3000 is free"
+FITOUT_E2E_REAL_EMAIL was NOT set (harness warning 3).
+================================================================================
+
+################################################################################
+# 1. PRE-REPAIR  —  the spec UNMODIFIED at HEAD
+#    git status --porcelain -- e2e/calendar-hit-area.spec.ts  ->  (no output)
+################################################################################
+
+$ npx playwright test e2e/calendar-hit-area.spec.ts --project=chromium --reporter=list
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[WebServer] ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 4 tests using 4 workers
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  x  1 [chromium] › e2e\calendar-hit-area.spec.ts:274:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › court · the day cell, the nav buttons and the fluid width floor (22.8s)
+  x  4 [chromium] › e2e\calendar-hit-area.spec.ts:274:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › grove · the day cell, the nav buttons and the fluid width floor (22.8s)
+  x  2 [chromium] › e2e\calendar-hit-area.spec.ts:425:9 › AC#15 — the month plate occupies the box the month grid will › court · plate and grid agree within ±2px at 320 / 768 / 1280 (26.2s)
+  x  3 [chromium] › e2e\calendar-hit-area.spec.ts:425:9 › AC#15 — the month plate occupies the box the month grid will › grove · plate and grid agree within ±2px at 320 / 768 / 1280 (26.2s)
+
+
+  1) [chromium] › e2e\calendar-hit-area.spec.ts:274:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › court · the day cell, the nav buttons and the fluid width floor 
+
+    Error: court · 320px: the month grid rendered a row count this file does not expect. The height figures below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has nothing to do with the cell size.
+
+    expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('[data-slot="calendar"] tbody tr')
+    Expected: 6
+    Received: 5
+    Timeout:  15000ms
+
+    Call log:
+      - court · 320px: the month grid rendered a row count this file does not expect. The height figures below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has nothing to do with the cell size. with timeout 15000ms
+      - waiting for locator('[data-slot="calendar"] tbody tr')
+        33 × locator resolved to 5 elements
+           - unexpected value "5"
+
+
+      263 |       "below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has " +
+      264 |       "nothing to do with the cell size.",
+    > 265 |   ).toHaveCount(6, { timeout: 15_000 });
+          |     ^
+      266 | }
+      267 |
+      268 | test.describe("AC#14 — a calendar day cell is 44px tall at every width, in both themes", () => {
+        at reachableCalendar (C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:265:5)
+        at C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:285:9
+
+    Error Context: test-results\calendar-hit-area-AC-14-—--8a0d1-s-and-the-fluid-width-floor-chromium\error-context.md
+
+    Error Context: test-results\calendar-hit-area-AC-14-—--8a0d1-s-and-the-fluid-width-floor-chromium\error-context.md
+
+  2) [chromium] › e2e\calendar-hit-area.spec.ts:274:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › grove · the day cell, the nav buttons and the fluid width floor 
+
+    Error: grove · 320px: the month grid rendered a row count this file does not expect. The height figures below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has nothing to do with the cell size.
+
+    expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('[data-slot="calendar"] tbody tr')
+    Expected: 6
+    Received: 5
+    Timeout:  15000ms
+
+    Call log:
+      - grove · 320px: the month grid rendered a row count this file does not expect. The height figures below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has nothing to do with the cell size. with timeout 15000ms
+      - waiting for locator('[data-slot="calendar"] tbody tr')
+        33 × locator resolved to 5 elements
+           - unexpected value "5"
+
+
+      263 |       "below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has " +
+      264 |       "nothing to do with the cell size.",
+    > 265 |   ).toHaveCount(6, { timeout: 15_000 });
+          |     ^
+      266 | }
+      267 |
+      268 | test.describe("AC#14 — a calendar day cell is 44px tall at every width, in both themes", () => {
+        at reachableCalendar (C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:265:5)
+        at C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:285:9
+
+    Error Context: test-results\calendar-hit-area-AC-14-—--cd228-s-and-the-fluid-width-floor-chromium\error-context.md
+
+    Error Context: test-results\calendar-hit-area-AC-14-—--cd228-s-and-the-fluid-width-floor-chromium\error-context.md
+
+  3) [chromium] › e2e\calendar-hit-area.spec.ts:425:9 › AC#15 — the month plate occupies the box the month grid will › court · plate and grid agree within ±2px at 320 / 768 / 1280 
+
+    Error: court · 320px: the month grid rendered a row count this file does not expect. The height figures below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has nothing to do with the cell size.
+
+    expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('[data-slot="calendar"] tbody tr')
+    Expected: 6
+    Received: 5
+    Timeout:  15000ms
+
+    Call log:
+      - court · 320px: the month grid rendered a row count this file does not expect. The height figures below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has nothing to do with the cell size. with timeout 15000ms
+      - waiting for locator('[data-slot="calendar"] tbody tr')
+        33 × locator resolved to 5 elements
+           - unexpected value "5"
+
+
+      263 |       "below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has " +
+      264 |       "nothing to do with the cell size.",
+    > 265 |   ).toHaveCount(6, { timeout: 15_000 });
+          |     ^
+      266 | }
+      267 |
+      268 | test.describe("AC#14 — a calendar day cell is 44px tall at every width, in both themes", () => {
+        at reachableCalendar (C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:265:5)
+        at C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:472:9
+
+    Error Context: test-results\calendar-hit-area-AC-15-—--b0775-within-±2px-at-320-768-1280-chromium\error-context.md
+
+    Error Context: test-results\calendar-hit-area-AC-15-—--b0775-within-±2px-at-320-768-1280-chromium\error-context.md
+
+  4) [chromium] › e2e\calendar-hit-area.spec.ts:425:9 › AC#15 — the month plate occupies the box the month grid will › grove · plate and grid agree within ±2px at 320 / 768 / 1280 
+
+    Error: grove · 320px: the month grid rendered a row count this file does not expect. The height figures below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has nothing to do with the cell size.
+
+    expect(locator).toHaveCount(expected) failed
+
+    Locator:  locator('[data-slot="calendar"] tbody tr')
+    Expected: 6
+    Received: 5
+    Timeout:  15000ms
+
+    Call log:
+      - grove · 320px: the month grid rendered a row count this file does not expect. The height figures below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has nothing to do with the cell size. with timeout 15000ms
+      - waiting for locator('[data-slot="calendar"] tbody tr')
+        33 × locator resolved to 5 elements
+           - unexpected value "5"
+
+
+      263 |       "below are 6 × (44 + 8), so a five-row month would make them wrong for a reason that has " +
+      264 |       "nothing to do with the cell size.",
+    > 265 |   ).toHaveCount(6, { timeout: 15_000 });
+          |     ^
+      266 | }
+      267 |
+      268 | test.describe("AC#14 — a calendar day cell is 44px tall at every width, in both themes", () => {
+        at reachableCalendar (C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:265:5)
+        at C:\Users\Admin\Roaming\FitOut\e2e\calendar-hit-area.spec.ts:472:9
+
+    Error Context: test-results\calendar-hit-area-AC-15-—--a8258-within-±2px-at-320-768-1280-chromium\error-context.md
+
+    Error Context: test-results\calendar-hit-area-AC-15-—--a8258-within-±2px-at-320-768-1280-chromium\error-context.md
+
+  4 failed
+    [chromium] › e2e\calendar-hit-area.spec.ts:274:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › court · the day cell, the nav buttons and the fluid width floor 
+    [chromium] › e2e\calendar-hit-area.spec.ts:274:9 › AC#14 — a calendar day cell is 44px tall at every width, in both themes › grove · the day cell, the nav buttons and the fluid width floor 
+    [chromium] › e2e\calendar-hit-area.spec.ts:425:9 › AC#15 — the month plate occupies the box the month grid will › court · plate and grid agree within ±2px at 320 / 768 / 1280 
+    [chromium] › e2e\calendar-hit-area.spec.ts:425:9 › AC#15 — the month plate occupies the box the month grid will › grove · plate and grid agree within ±2px at 320 / 768 / 1280 
+
+--------------------------------------------------------------------------------
+PRE-REPAIR TALLY (numbers, not impressions)
+--------------------------------------------------------------------------------
+collected : 4   ("Running 4 tests using 4 workers")
+failed    : 4
+passed    : 0
+exit code : 1
+
+The four, by declaration line:
+  e2e/calendar-hit-area.spec.ts:274  court · the day cell, the nav buttons and the fluid width floor
+  e2e/calendar-hit-area.spec.ts:274  grove · the day cell, the nav buttons and the fluid width floor
+  e2e/calendar-hit-area.spec.ts:425  court · plate and grid agree within ±2px at 320 / 768 / 1280
+  e2e/calendar-hit-area.spec.ts:425  grove · plate and grid agree within ±2px at 320 / 768 / 1280
+
+All four fail at the SAME frame:
+  at reachableCalendar (e2e/calendar-hit-area.spec.ts:265:5)
+and all four report:
+  Expected: 6
+  Received: 5
+
+--------------------------------------------------------------------------------
+DIAGNOSIS
+--------------------------------------------------------------------------------
+1. OBSERVED ROW COUNT = 5. The month grid rendered five week rows, because the
+   month currently under test has five: `locator('[data-slot="calendar"] tbody tr')`
+   "resolved to 5 elements" on 33 consecutive polls in every one of the four
+   failures. September 2026 starts on a Tuesday and runs 30 days, so a
+   Sunday-start grid needs five rows and not six.
+
+2. ASSUMED ROW COUNT = 6. `WEEK_ROWS` is declared at :178 as a constant six —
+   "Six, because a month grid always renders six week rows (`reachableCalendar`
+   asserts it)" — and every height figure below the guard is computed from it.
+   The guard at :261-265 is what pins the assumption; the spec's own failure
+   message spells the arithmetic out: "The height figures below are 6 × (44 + 8)".
+
+3. THE REPAIR DERIVES, IT DOES NOT RETUNE. `reachableCalendar` returns the
+   observed row count read from that same locator, and each call site computes
+   rows × (CELL_PX + WEEK_GAP_PX) = rows × (44 + 8) — the arithmetic the message
+   already names, with `rows` supplied by the page instead of by the calendar the
+   file was written in. NO TOLERANCE CHANGES: TOLERANCE_PX (1),
+   SKELETON_TOLERANCE_PX (2), CELL_PX (44), WCAG_AA_TARGET_PX (24) and
+   WEEK_GAP_PX (8) are all left at their HEAD values, and no assertion is deleted.
+
