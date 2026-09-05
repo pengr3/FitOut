@@ -599,3 +599,207 @@ DEFERRAL CANDIDATE FOR: the wave AFTER `gate-e2e` becomes a required check (19.1
 DEFERRAL requirement; enforcement is the wave after it). ⚠ It must not be deferred indefinitely: once
 DEFERRAL the gate is required, a test that passes two runs in three blocks merges one run in three,
 DEFERRAL which is `T-19.1-63` and is a self-inflicted denial of service on the merge queue.
+
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+FINAL — THE RUN SC4 IS DECIDED AGAINST
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+$ gh run view 33976831607 --json conclusion,headSha,createdAt,updatedAt
+failure  c42cc3ab7b82e61cc19a016feac88c7642a5fb4b  2026-09-05T16:06:35Z  2026-09-05T16:32:55Z
+
+  FINAL RUN     33976831607
+  BRANCH        dev
+  HEAD SHA      c42cc3ab7b82e61cc19a016feac88c7642a5fb4b   (this plan's three commits, pushed)
+  WALL          26m 20s
+  CONCLUSION    failure
+
+$ gh run view 33976831607 --json jobs --jq '.jobs[] | "\(.name)|\(.conclusion)|\(.startedAt)|\(.completedAt)"'
+gate-price-parity (DB-vs-DOM price, 1 spec)|success|2026-09-05T16:06:39Z|2026-09-05T16:08:54Z
+gate-visual (GATE-01 visual regression)|failure|2026-09-05T16:06:39Z|2026-09-05T16:11:41Z
+gate-e2e (functional Playwright suite)|failure|2026-09-05T16:06:39Z|2026-09-05T16:32:55Z
+gate-db (vitest against PostGIS 18)|success|2026-09-05T16:06:40Z|2026-09-05T16:14:38Z
+gate-db-free (lint + design + build + workflow parse)|success|2026-09-05T16:06:39Z|2026-09-05T16:10:16Z
+
+  | # | display name                                          | conclusion | duration |
+  |---|-------------------------------------------------------|------------|----------|
+  | 1 | gate-db-free (lint + design + build + workflow parse)  | success    |  3m 37s  |
+  | 2 | gate-visual (GATE-01 visual regression)                | FAILURE    |  5m 02s  |
+  | 3 | gate-price-parity (DB-vs-DOM price, 1 spec)            | success    |  2m 15s  |
+  | 4 | gate-e2e (functional Playwright suite)                 | FAILURE    | 26m 16s  |
+  | 5 | gate-db (vitest against PostGIS 18)                    | success    |  7m 58s  |
+
+$ gh run view --job 101334901018 --log     # gate-e2e, run 33976831607
+Running 460 tests using 1 worker
+...
+  4 failed
+    [chromium] › e2e/confirmation-decay.spec.ts:151:7 › BFLOW-08 — the confirmation moment fills the first screen and then decays › the moment is a full screen, the detail starts below the fold, and a reload shows the ordinary page
+    [chromium] › e2e/hold-countdown.spec.ts:292:9 › SHELL-03 — the checkout header does not reflow once per session › court · the header and countdown boxes are identical in all four states
+    [chromium] › e2e/host-headings.spec.ts:1052:7 › AC#35 — one first-level heading per document, one size across five surfaces › wizard · whole space, every step
+    [chromium] › e2e/overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · court
+  2 flaky
+    [chromium] › e2e/host-listing-grid.spec.ts:312:7 › HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 320x800 — the 320px floor, one column: guard A clause 2 and guard B
+    [chromium] › e2e/shell.spec.ts:291:11 › AC#3 — the header does not move when the auth slot resolves › host · grove · the header and brand boxes are byte-identical
+  52 skipped
+  25 did not run
+  377 passed (24.4m)
+##[error]Process completed with exit code 1.
+
+$ gh run view --job 101334900981 --log     # gate-visual, run 33976831607
+Running 85 tests using 1 worker
+  4 failed
+  42 skipped
+  39 passed (3.3m)                         the four D-19.1-D clock rows; D-19.1-E did not fire this run
+
+$ node scripts/verify-workflows.mjs ; echo "EXIT=$?"
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+EXIT=0            zero lines beginning FAIL
+
+$ git diff -- .github/workflows/ci.yml
+(no output — the workflow is byte-identical to HEAD, and `timeout-minutes: 90` at :1602 with it)
+
+THE THREE RUNS SIDE BY SIDE, so the effect of this plan's own commits is separable
+────────────────────────────────────────────────────────────────────────────────────────────────────
+  | term            | 33848750657 (prior) | 33972688199 (Task 1) | 33975274855 | 33976831607 (FINAL) |
+  |-----------------|---------------------|----------------------|-------------|---------------------|
+  | failed          |                  14 |                    3 |           3 |                   4 |
+  | flaky           |                   2 |                    3 |           1 |                   2 |
+  | skipped         |                  52 |                   52 |          52 |                  52 |
+  | did not run     |                  25 |                   22 |          22 |                  25 |
+  | passed          |                 367 |                  380 |         382 |                 377 |
+  | collected       |                 460 |                  460 |         460 |                 460 |
+  | suite wall      |               44.1m |                24.4m |       23.9m |               24.4m |
+  | job wall        |             50m 29s |              26m 37s |     25m 40s |             26m 16s |
+  | retries         |                 134 |                   94 |          92 |                  98 |
+
+  ⚠ `failed` WENT 3 -> 4 BETWEEN THE LAST TWO RUNS, AND IT IS THIS PLAN'S DOING. Read it before
+  reading it as a regression. `confirmation-decay.spec.ts:151` was FLAKY in every run before this one
+  because `boxOf` used `document.querySelector` and sometimes drew the visible one of the TWO
+  `confirmation-moment` sections in the document. The settle this plan added made the second section
+  visible to the reporter, so the case now fails all three attempts instead of passing on retry. THE
+  DEFECT IS UNCHANGED AND IS OLDER THAN THIS PLAN; what changed is that it is now named. This is the
+  phase's own rule applied to its own work — a green a duplicate can counterfeit is not a green — and
+  the alternative (scope the locator to `main`) would have restored the green by deleting the only
+  instrument that has ever identified the defect.
+
+  ⚠ THE FLAKY SET IS NOT STABLE ACROSS RUNS, and that is a finding for 19.1-15 rather than noise.
+  Across three runs of the same tree the flaky list was {collision-court, confirmation-decay},
+  {avatar-crop, confirmation-decay, price-parity}, {confirmation-decay}, {host-listing-grid,
+  shell:291}. SIX DIFFERENT TESTS have been flaky in four runs and only ONE recurred. `shell.spec.ts:291`
+  is `host · grove`, and `host-listing-grid.spec.ts:312` is a host surface — both are on the layout
+  (2b) measured a hydration failure in, which is a lead for the plan proposed below rather than a
+  verdict. A required check whose flaky set is drawn fresh each run blocks merges on a different test
+  every time; this is `T-19.1-63` with a measured population instead of an estimate.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────
+CLOSURE — stated against SC4's own wording
+────────────────────────────────────────────────────────────────────────────────────────────────────
+
+  SC4, verbatim from `.planning/ROADMAP.md:616-619`:
+
+    "4. The `ci` workflow run is **not red on every push**. The 14 pre-existing e2e failures are either
+        repaired or recorded in a checked-in known-failures allowlist, and the allowlist itself is
+        asserted so it cannot silently grow. A gate that is red unconditionally carries zero signal —
+        this is the item that makes every other gate in this phase worth having."
+
+  (i) IS THE RUN RED, AND IF SO WHICH JOB AND WHY?
+      YES. Two of five jobs are red in 33976831607.
+      • `gate-e2e (functional Playwright suite)` — 4 failures, listed above. Two are members of the
+        original fourteen that prior plans recorded as repaired and that a real run says are not
+        (O11, O12); one is newly surfaced (N1); one is a pre-existing duplicate-mount defect this
+        plan's settle promoted from a flake to a named failure (confirmation-decay:151).
+      • `gate-visual (GATE-01 visual regression)` — the four baselines 19.1-12 deliberately left red
+        under `D-19.1-D` because their references encode the calendar day and the seed month. That
+        was a recorded decision, not an oversight, and it is owned by the plan
+        `evidence/rows-9-12-fixture-probe.txt` specifies in six points.
+      Three of five are green: `gate-db-free`, `gate-db`, `gate-price-parity`.
+
+  (ii) REPAIRED VERSUS RECORDED, WITH THE ALLOWLIST'S FINAL PINNED NUMBER.
+      Of the fourteen: 10 REPAIRED (they pass in 33976831607 — the four `calendar-hit-area` cases,
+      `cancel:232`, `collision-in-place:240 grove`, `skeleton-geometry:1807`, `avatar-crop:2675` and
+      `:2747`, and `hold-countdown:443`, which now passes when it is reached at all); 2 RECORDED in
+      the allowlist (`avatar-crop:1109` and `tabular-figures:412`, each running exactly once in CI
+      and consuming no retries — measured in (1d)); 2 NEITHER — `host-headings` and
+      `overflow-320`, both still red, both barred from the allowlist for written reasons (VERDICT
+      O11, O12). FINAL PINNED NUMBER: **`PINNED_ENTRY_TOTAL = 2`**, unchanged by this plan.
+
+  (iii) THE ALLOWLIST IS CHECKED IN AND ASSERTED, AND THE FILE THAT ASSERTS IT IS NAMED.
+      `tests/design/e2e-known-failures.test.ts` — seven assertions including the pinned total, run by
+      `npm run test:design` inside `npm run build`, which is the step `.github/workflows/ci.yml:1022`
+      names "Build (lint + design gate + next build)" on `gate-db-free`. That job is GREEN in
+      33976831607, so the census RAN ON THE RUNNER and passed — the guarantee is exercised by the
+      final run rather than asserted from a local invocation. Locally: `7 passed (7)`.
+      This half of SC4 IS MET.
+
+  (iv) THE FINAL WALL-CLOCK AND THE HEADROOM.
+      `gate-e2e` = 26m 16s (job) / 24.4m (Playwright), against the 90-minute cap at
+      `.github/workflows/ci.yml:1602`. HEADROOM 63m 44s; the job uses 29.2% of its cap. THE CAP WAS
+      NOT RAISED AND WAS NOT TOUCHED — `git diff -- .github/workflows/ci.yml` is empty in all three
+      of this plan's tasks. Against the prior run's 50m 29s the merge wait fell 47%.
+
+SC4 OPEN — run 33976831607 is red. Four `gate-e2e` failures and four `gate-visual` baselines remain,
+every one of them with a verdict above and a named owning plan below. The criterion is NOT softened:
+"not red on every push" is a property of the RUN, the run is red, and no reading of the sentence makes
+three-of-five green sufficient. What this phase HAS closed is stated exactly: eleven of the fourteen
+failures are gone, the allowlist exists at two entries and is asserted by a build-blocking census that
+ran green on the runner, the cap held with 63 minutes of headroom, and the merge wait halved.
+
+THE PLANS THIS PHASE MUST GROW BY — D-02, which authorises the phase to run to 10-15 plans rather than
+push real bugs behind a green check. Three root causes, three plans, each named with what it owns:
+
+  PROPOSED 19.1-16 — "the `(host)` layout mounts its nav twice and hydration fails"
+    OWNS: O11 `e2e/host-headings.spec.ts:1052`, O12 `e2e/overflow-320.spec.ts:3434` (which alone
+    blocks 24 tests of the AC#36 serial group), and as LEADS the two host-surface flakes this run
+    produced, `e2e/shell.spec.ts:291` (host · grove) and `e2e/host-listing-grid.spec.ts:312`.
+    THE DEFECT: `src/app/(host)/host/layout.tsx:95` renders `<Suspense fallback={<SiteNav …/>}>` over
+    `<AmbientHostNav/>`, which is another `SiteNav`. Both mount `NavDrawer` -> `ResponsiveDialog` ->
+    Radix `DialogTrigger`, which carries a GENERATED `aria-controls` id, so the two renders cannot
+    agree and React reports "Hydration failed … this tree will be regenerated on the client" on every
+    `(host)` route. Reproduced on this box, transcript in (2b). The layout's own comment at `:90-93`
+    claims the fallback is "byte-identical to the resolved zero-count markup" — true of the links and
+    the badge, false of the id.
+    WHY IT IS A PLAN AND NOT AN INLINE FIX: it is PRODUCTION SOURCE and the fix is a product question
+    (which id the two renders should share, or whether the boundary should wrap less). D-02 exactly.
+
+  PROPOSED 19.1-17 — "two of the same section in one document, on the booker surfaces"
+    OWNS: `e2e/confirmation-decay.spec.ts:151` (two `confirmation-moment` sections, one hidden;
+    deterministic in 33976831607, reproducible on this box cold) and N2 `e2e/avatar-crop.spec.ts:1558`
+    (two `input[type="file"]`, IDENTICAL in-`main` / not-in-`main` signature).
+    THE MEASUREMENT IT STARTS FROM: `toHaveCount(1)` passes and two statements later the count is 2,
+    so the second copy appears DURING the surface's own streaming. It is NOT the `(host)` layout
+    defect — `src/app/(app)/layout.tsx:89` wraps a `BellSlotSkeleton`, and the booker checkout route
+    emits zero hydration failures (control in (2b)).
+    ⚠ ITS FIRST INSTRUCTION: do NOT scope either locator to `main`. Both would go green and the only
+    instruments that have named this defect would be gone.
+    ⚠ AND ITS SECOND: whoever runs 19.1-16 first should test whether these are ONE defect. They have
+    the same shape and different layout trees, and this plan did not settle that.
+
+  PROPOSED 19.1-18 — "the day click that does not select, on the checkout path"
+    OWNS: N1 `e2e/hold-countdown.spec.ts:292`, and with it the two tests its position in the
+    file-scoped serial group currently blocks (`:292 grove`, `:443`).
+    ITS FIRST STEP IS NAMED: reproduce in `mcr.microsoft.com/playwright:v1.60.0-noble` by 19.1-09's
+    recipe. It is green on this box over the whole file at CI's worker and retry counts and
+    deterministic on the runner, which is exactly the claim shape that container exists to settle,
+    and 19.1-08 refused to add a retry without it. That refusal is inherited, not revisited.
+
+  ALREADY SPECIFIED, NOT PROPOSED HERE — `gate-visual`'s four. `evidence/rows-9-12-fixture-probe.txt`
+  carries the six-point specification and `D-19.1-D` carries the decision. Its point (a) is a product
+  question for the PM (should the availability calendar's today ring follow venue-local today rather
+  than the rendering host's clock). Until that lands, `gate-visual` is red on every push by design.
+
+HANDOFF gate-e2e duration = 26m 16s (job wall-clock, run 33976831607; Playwright's own suite figure
+HANDOFF is 24.4m). THAT IS THE MERGE WAIT 19.1-15 INSTALLS once the job is a required check, and it is
+HANDOFF measured on a tree whose failures are named rather than on the red baseline — the prior 50m 29s
+HANDOFF is an upper bound for a red tree and must not be used. Headroom against the 90-minute cap is
+HANDOFF 63m 44s; if a future run approaches the cap that is D-13's sharding conversation and NEVER a
+HANDOFF reason to move the number.
+HANDOFF The five required-status-check contexts, verbatim as GitHub matches them (the job `name:`,
+HANDOFF never the YAML key — `scripts/verify-workflows.mjs` pins each one):
+HANDOFF   gate-db-free (lint + design + build + workflow parse)
+HANDOFF   gate-db (vitest against PostGIS 18)
+HANDOFF   gate-price-parity (DB-vs-DOM price, 1 spec)
+HANDOFF   gate-visual (GATE-01 visual regression)
+HANDOFF   gate-e2e (functional Playwright suite)
+HANDOFF ⚠ TWO OF THE FIVE ARE RED TODAY. Requiring `gate-e2e` or `gate-visual` before the plans above
+HANDOFF land would block every merge on `main`, which is why 19.1-15's decision needs this line and not
+HANDOFF a summary of it.
