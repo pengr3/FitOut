@@ -1,0 +1,557 @@
+TRIAGE — THE FOUR "UPLOAD-DEPENDENT" CI FAILURES (19.1-10)
+================================================================================================
+
+  e2e/avatar-crop.spec.ts:974    Delta-3 — the three dismiss affordances are inert mid-save
+  e2e/avatar-crop.spec.ts:2675   GATE-A11Y — the removal confirm's open-time focus, axe and tab walk
+  e2e/avatar-crop.spec.ts:2747   GATE-A11Y — focus after a SUCCESSFUL removal (CR-03)
+  e2e/overflow-320.spec.ts:3400  AC#36 — /host/listings/[id]/edit · photos step · court|grove · 320px
+
+RESEARCH.md § Cause B groups all four as ONE class: "an environment capability CI structurally cannot
+have". THE MEASUREMENT BELOW SPLITS THEM INTO TWO, and the split decides three of the four routes.
+
+TRANSCRIPT CONVENTION. Every run below is printed as the literal command line followed by the run's
+own output. ONE filter is applied and it is named here rather than left to be discovered: lines
+carrying the dev server's `[WebServer]` prefix are removed. They are the pre-existing
+`site-chrome.tsx:308` → `button.tsx:143` hydration dump that 19.1-08 recorded and 19.1-09 re-confirmed
+— thousands of lines, identical on runs that pass and runs that fail, and a term in no measurement
+here. Nothing else is edited, reordered or summarised. ANSI colour codes are stripped.
+
+
+§ 1 — PLAN 02's AVATAR VERDICT, QUOTED VERBATIM
+================================================================================================
+
+This plan does not re-litigate whether the avatar cases pass locally. Plan 02 measured it. From
+`.planning/phases/19.1-…/evidence/tnum-phase17-probe.txt`, its VERDICT paragraph and the three
+transcript lines it is read from, verbatim:
+
+    VERDICT (avatar upload) — THE THREE CASES PASS LOCALLY. A3 IS CONFIRMED: the CI failures at
+    `e2e/avatar-crop.spec.ts:974`, `:2675` and `:2747` are an ENVIRONMENT-CAPABILITY GAP, not broken
+    specs, so plan 10 REPAIRS NOTHING and instead chooses among the three routes RESEARCH.md § Cause B
+    lists — a `page.route` intercept over the Cloudinary endpoint, a locally-served committed asset,
+    or an annotation carrying the invariant-forbidden-credential reason.
+
+      QUOTED FROM THE TRANSCRIPT IN 2b — the three cases by name, each `ok`:
+
+        ok 15 [chromium] › e2e\avatar-crop.spec.ts:974:7 › CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert › Escape, the overlay click and the close control all do nothing while a save is in flight (20.4s)
+        ok 31 [chromium] › e2e\avatar-crop.spec.ts:2675:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated (18.0s)
+        ok 32 [chromium] › e2e\avatar-crop.spec.ts:2747:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) (13.5s)
+
+      AND THE NON-VACUITY CHECK ON THIS RUN — it collected something, and every case in the file passed:
+
+        Running 33 tests using 4 workers
+        33 passed (2.2m)
+
+      Exit code 0. Zero failed, zero flaky, zero skipped.
+
+    DOES NOT SETTLE — `e2e/overflow-320.spec.ts:3400` was NOT run here; it is the fourth Cause-B item
+    and plan 10 owns it. Its reproduction line is in `evidence/triage-harness.md` § (c) item 4.
+
+So: NO case is routed to REPAIR on the strength of "it fails locally too" — because none of the three
+does. R1 below re-runs the three on this box unchanged and reproduces plan 02's result, so the control
+for this session's matrix is this session's own, not a citation.
+
+⚠ AND THE HALF PLAN 02 EXPLICITLY LEFT OPEN IS THE HALF THAT MOVES. `overflow-320.spec.ts:3400` had
+never been run by anyone before this plan. R4–R6 are its first measurement, and they falsify the
+route this plan was written expecting for it. See § 3.
+
+
+§ 2 — THE MEASUREMENT MATRIX (six runs, three environments × two specs)
+================================================================================================
+
+THE INSTRUMENT, AND WHY IT IS NOT THE CONTAINER. Plan 09 settled its "green here, red in CI" case by
+reproducing inside `mcr.microsoft.com/playwright:v1.60.0-noble`, because its cause was a RASTERISER
+difference that only that image has. This plan's hypothesised cause is an ABSENT ENVIRONMENT VARIABLE,
+which is reproducible on any machine by absenting it — and absenting it is a sharper instrument than
+the container, because the container would vary the rasteriser as well and could not tell the two
+apart. Each variable is set to the EMPTY STRING rather than deleted, for the reason
+`playwright.config.ts` records for `RESEND_API_KEY`: `webServer.env` merges over `process.env`, and
+`@next/env` re-supplies a `.env.local` value only when the key is `undefined`, so a DELETED variable
+would be silently re-supplied from this box's live `.env.local` and the run would measure nothing.
+
+Three environments:
+
+  AS IT STANDS  — this box's `.env.local`, untouched. The control.
+  CI's SHAPE    — every Cloudinary variable emptied. `gate-e2e`'s job-level `env:` in
+                  `.github/workflows/ci.yml:1526` declares exactly one key, `DATABASE_URL`; a grep of
+                  the whole file for `CLOUDINARY` returns nothing. So this is the state the gate runs in.
+  DISCRIMINATOR — the PUBLIC identifier `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` supplied as the invented
+                  literal `fitout-ci-placeholder`, with both SECRETS still absent. This is the run
+                  that separates "needs a credential" from "needs a name".
+
+───────────────────────────────────────────────────────────────────────────────
+R1 — avatar x3, THIS BOX AS IT STANDS (credentials present). The control.
+───────────────────────────────────────────────────────────────────────────────
+$ npx playwright test e2e/avatar-crop.spec.ts --project=chromium --reporter=list --grep "save is in flight|the removal confirm:"
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+
+Running 3 tests using 3 workers
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  ok 2 [chromium] › e2e\avatar-crop.spec.ts:2747:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) (11.5s)
+  ok 1 [chromium] › e2e\avatar-crop.spec.ts:974:7 › CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert › Escape, the overlay click and the close control all do nothing while a save is in flight (11.7s)
+  ok 3 [chromium] › e2e\avatar-crop.spec.ts:2675:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated (12.9s)
+
+  3 passed (19.6s)
+EXIT=0
+
+───────────────────────────────────────────────────────────────────────────────
+R2 — avatar x3, EVERY Cloudinary variable emptied. CI's shape.
+───────────────────────────────────────────────────────────────────────────────
+$ CLOUDINARY_CLOUD_NAME= CLOUDINARY_API_KEY= CLOUDINARY_API_SECRET= NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME= npx playwright test e2e/avatar-crop.spec.ts --project=chromium --reporter=list --grep "save is in flight|the removal confirm:"
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+
+Running 3 tests using 3 workers
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  x  2 [chromium] › e2e\avatar-crop.spec.ts:2675:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated (31.2s)
+  x  1 [chromium] › e2e\avatar-crop.spec.ts:974:7 › CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert › Escape, the overlay click and the close control all do nothing while a save is in flight (31.2s)
+  x  3 [chromium] › e2e\avatar-crop.spec.ts:2747:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) (31.2s)
+
+
+  1) [chromium] › e2e\avatar-crop.spec.ts:974:7 › CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert › Escape, the overlay click and the close control all do nothing while a save is in flight 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: the avatar circle still shows initials after a successful save.
+
+    expect(locator).toBeVisible() failed
+
+    Locator: getByRole('main').locator('img[alt="Your avatar"]')
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+      - the avatar circle still shows initials after a successful save. with timeout 30000ms
+      - waiting for getByRole('main').locator('img[alt="Your avatar"]')
+
+
+      1073 |       page.getByRole("main").locator('img[alt="Your avatar"]'),
+      1074 |       "the avatar circle still shows initials after a successful save.",
+    > 1075 |     ).toBeVisible({ timeout: 30_000 });
+           |       ^
+      1076 |
+      1077 |     // ── TEARDOWN (D-192) — NOT HERE ANY MORE (WR-07) ─────────────────────────────────────────────
+      1078 |     // The release above sent the held request to the REAL action, which really stored a 400x400 JPEG
+        at C:\Users\Admin\Roaming\FitOut\e2e\avatar-crop.spec.ts:1075:7
+
+    Error Context: test-results\avatar-crop-CROP-01-Delta--55315-g-while-a-save-is-in-flight-chromium\error-context.md
+
+  2) [chromium] › e2e\avatar-crop.spec.ts:2675:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: the save did not land, so there is no photo to remove and no confirm to audit.
+
+    expect(locator).toBeVisible() failed
+
+    Locator: getByRole('main').locator('img[alt="Your avatar"]')
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+      - the save did not land, so there is no photo to remove and no confirm to audit. with timeout 30000ms
+      - waiting for getByRole('main').locator('img[alt="Your avatar"]')
+        - waiting for" http://localhost:3000/profile" navigation to finish...
+        - navigated to "http://localhost:3000/profile"
+
+
+      2695 |       page.getByRole("main").locator('img[alt="Your avatar"]'),
+      2696 |       "the save did not land, so there is no photo to remove and no confirm to audit.",
+    > 2697 |     ).toBeVisible({ timeout: 30_000 });
+           |       ^
+      2698 |
+      2699 |     await page
+      2700 |       .getByRole("main")
+        at C:\Users\Admin\Roaming\FitOut\e2e\avatar-crop.spec.ts:2697:7
+
+    Error Context: test-results\avatar-crop-CROP-01-GATE-A-f91d6-and-every-stop-is-indicated-chromium\error-context.md
+
+  3) [chromium] › e2e\avatar-crop.spec.ts:2747:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: the save did not land, so there is no photo to remove.
+
+    expect(locator).toBeVisible() failed
+
+    Locator: getByRole('main').locator('img[alt="Your avatar"]')
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+      - the save did not land, so there is no photo to remove. with timeout 30000ms
+      - waiting for getByRole('main').locator('img[alt="Your avatar"]')
+        - waiting for" http://localhost:3000/profile" navigation to finish...
+        - navigated to "http://localhost:3000/profile"
+
+
+      2777 |       page.getByRole("main").locator('img[alt="Your avatar"]'),
+      2778 |       "the save did not land, so there is no photo to remove.",
+    > 2779 |     ).toBeVisible({ timeout: 30_000 });
+           |       ^
+      2780 |
+      2781 |     await page
+      2782 |       .getByRole("main")
+        at C:\Users\Admin\Roaming\FitOut\e2e\avatar-crop.spec.ts:2779:7
+
+    Error Context: test-results\avatar-crop-CROP-01-GATE-A-e5da8-eal-control-not-body-CR-03--chromium\error-context.md
+
+  3 failed
+    [chromium] › e2e\avatar-crop.spec.ts:974:7 › CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert › Escape, the overlay click and the close control all do nothing while a save is in flight 
+    [chromium] › e2e\avatar-crop.spec.ts:2675:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated 
+    [chromium] › e2e\avatar-crop.spec.ts:2747:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) 
+EXIT=1
+
+───────────────────────────────────────────────────────────────────────────────
+R3 — avatar x3, PUBLIC cloud name supplied as a placeholder, SECRETS still absent. The discriminator.
+───────────────────────────────────────────────────────────────────────────────
+$ CLOUDINARY_CLOUD_NAME= CLOUDINARY_API_KEY= CLOUDINARY_API_SECRET= NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=fitout-ci-placeholder npx playwright test e2e/avatar-crop.spec.ts --project=chromium --reporter=list --grep "save is in flight|the removal confirm:"
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+
+Running 3 tests using 3 workers
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  x  3 [chromium] › e2e\avatar-crop.spec.ts:2675:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated (31.1s)
+  x  1 [chromium] › e2e\avatar-crop.spec.ts:2747:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) (31.2s)
+  x  2 [chromium] › e2e\avatar-crop.spec.ts:974:7 › CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert › Escape, the overlay click and the close control all do nothing while a save is in flight (31.3s)
+
+
+  1) [chromium] › e2e\avatar-crop.spec.ts:974:7 › CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert › Escape, the overlay click and the close control all do nothing while a save is in flight 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: the avatar circle still shows initials after a successful save.
+
+    expect(locator).toBeVisible() failed
+
+    Locator: getByRole('main').locator('img[alt="Your avatar"]')
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+      - the avatar circle still shows initials after a successful save. with timeout 30000ms
+      - waiting for getByRole('main').locator('img[alt="Your avatar"]')
+
+
+      1073 |       page.getByRole("main").locator('img[alt="Your avatar"]'),
+      1074 |       "the avatar circle still shows initials after a successful save.",
+    > 1075 |     ).toBeVisible({ timeout: 30_000 });
+           |       ^
+      1076 |
+      1077 |     // ── TEARDOWN (D-192) — NOT HERE ANY MORE (WR-07) ─────────────────────────────────────────────
+      1078 |     // The release above sent the held request to the REAL action, which really stored a 400x400 JPEG
+        at C:\Users\Admin\Roaming\FitOut\e2e\avatar-crop.spec.ts:1075:7
+
+    Error Context: test-results\avatar-crop-CROP-01-Delta--55315-g-while-a-save-is-in-flight-chromium\error-context.md
+
+  2) [chromium] › e2e\avatar-crop.spec.ts:2675:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: the save did not land, so there is no photo to remove and no confirm to audit.
+
+    expect(locator).toBeVisible() failed
+
+    Locator: getByRole('main').locator('img[alt="Your avatar"]')
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+      - the save did not land, so there is no photo to remove and no confirm to audit. with timeout 30000ms
+      - waiting for getByRole('main').locator('img[alt="Your avatar"]')
+        - waiting for" http://localhost:3000/profile" navigation to finish...
+        - navigated to "http://localhost:3000/profile"
+
+
+      2695 |       page.getByRole("main").locator('img[alt="Your avatar"]'),
+      2696 |       "the save did not land, so there is no photo to remove and no confirm to audit.",
+    > 2697 |     ).toBeVisible({ timeout: 30_000 });
+           |       ^
+      2698 |
+      2699 |     await page
+      2700 |       .getByRole("main")
+        at C:\Users\Admin\Roaming\FitOut\e2e\avatar-crop.spec.ts:2697:7
+
+    Error Context: test-results\avatar-crop-CROP-01-GATE-A-f91d6-and-every-stop-is-indicated-chromium\error-context.md
+
+  3) [chromium] › e2e\avatar-crop.spec.ts:2747:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: the save did not land, so there is no photo to remove.
+
+    expect(locator).toBeVisible() failed
+
+    Locator: getByRole('main').locator('img[alt="Your avatar"]')
+    Expected: visible
+    Error: element(s) not found
+
+    Call log:
+      - the save did not land, so there is no photo to remove. with timeout 30000ms
+      - waiting for getByRole('main').locator('img[alt="Your avatar"]')
+
+
+      2777 |       page.getByRole("main").locator('img[alt="Your avatar"]'),
+      2778 |       "the save did not land, so there is no photo to remove.",
+    > 2779 |     ).toBeVisible({ timeout: 30_000 });
+           |       ^
+      2780 |
+      2781 |     await page
+      2782 |       .getByRole("main")
+        at C:\Users\Admin\Roaming\FitOut\e2e\avatar-crop.spec.ts:2779:7
+
+    Error Context: test-results\avatar-crop-CROP-01-GATE-A-e5da8-eal-control-not-body-CR-03--chromium\error-context.md
+
+  3 failed
+    [chromium] › e2e\avatar-crop.spec.ts:974:7 › CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert › Escape, the overlay click and the close control all do nothing while a save is in flight 
+    [chromium] › e2e\avatar-crop.spec.ts:2675:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated 
+    [chromium] › e2e\avatar-crop.spec.ts:2747:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) 
+EXIT=1
+
+───────────────────────────────────────────────────────────────────────────────
+R4 — overflow-320 photos step, THIS BOX AS IT STANDS. The control.
+───────────────────────────────────────────────────────────────────────────────
+$ npx playwright test e2e/overflow-320.spec.ts --project=chromium --reporter=list --workers=1 --grep "photos step"
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+
+Running 2 tests using 1 worker
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  ok 1 [chromium] › e2e\overflow-320.spec.ts:3400:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · court (2.9s)
+  ok 2 [chromium] › e2e\overflow-320.spec.ts:3400:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · grove (1.5s)
+
+  2 passed (13.9s)
+EXIT=0
+
+───────────────────────────────────────────────────────────────────────────────
+R5 — overflow-320 photos step, EVERY Cloudinary variable emptied. CI's shape.
+───────────────────────────────────────────────────────────────────────────────
+$ CLOUDINARY_CLOUD_NAME= CLOUDINARY_API_KEY= CLOUDINARY_API_SECRET= NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME= npx playwright test e2e/overflow-320.spec.ts --project=chromium --reporter=list --workers=1 --grep "photos step"
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+
+Running 2 tests using 1 worker
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  x  1 [chromium] › e2e\overflow-320.spec.ts:3400:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · court (33.4s)
+  -  2 [chromium] › e2e\overflow-320.spec.ts:3400:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · grove
+
+
+  1) [chromium] › e2e\overflow-320.spec.ts:3400:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · court 
+
+    Error: /host/listings/[id]/edit · photos step · court · 320px: the walk did not reach the surface this row measures — the cover preview's own heading, which ONLY the photos step renders and only once the listing has at least one photo (`photo-uploader.tsx:199` returns its empty state before the preview exists). The wizard's first step — the one this route mounts on and the row above measures — renders no such heading, so this is what tells the two apart. Imported from `cover-frames.ts`, never re-typed: a spec carrying its own copy of a heading reports ARRIVAL the day the heading changes while the walk is still standing on the wrong step. Without this the case would measure the state the route MOUNTS on, which an earlier row already covers, and report green having measured the same pixels twice.
+
+    expect(locator).toBeVisible() failed
+
+    Locator: getByRole('heading', { name: 'How your cover appears' })
+    Expected: visible
+    Timeout: 30000ms
+    Error: element(s) not found
+
+    Call log:
+      - /host/listings/[id]/edit · photos step · court · 320px: the walk did not reach the surface this row measures — the cover preview's own heading, which ONLY the photos step renders and only once the listing has at least one photo (`photo-uploader.tsx:199` returns its empty state before the preview exists). The wizard's first step — the one this route mounts on and the row above measures — renders no such heading, so this is what tells the two apart. Imported from `cover-frames.ts`, never re-typed: a spec carrying its own copy of a heading reports ARRIVAL the day the heading changes while the walk is still standing on the wrong step. Without this the case would measure the state the route MOUNTS on, which an earlier row already covers, and report green having measured the same pixels twice. with timeout 30000ms
+      - waiting for getByRole('heading', { name: 'How your cover appears' })
+
+
+      3429 |               "Without this the case would measure the state the route MOUNTS on, which an earlier " +
+      3430 |               "row already covers, and report green having measured the same pixels twice.",
+    > 3431 |           ).toBeVisible({ timeout: 30_000 });
+           |             ^
+      3432 |         }
+      3433 |
+      3434 |         await expectNoOverflow(page, where);
+        at C:\Users\Admin\Roaming\FitOut\e2e\overflow-320.spec.ts:3431:13
+
+    Error Context: test-results\overflow-320-AC-36-—-every-c09db--edit-·-photos-step-·-court-chromium\error-context.md
+
+    Error Context: test-results\overflow-320-AC-36-—-every-c09db--edit-·-photos-step-·-court-chromium\error-context.md
+
+  1 failed
+    [chromium] › e2e\overflow-320.spec.ts:3400:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · court 
+  1 did not run
+EXIT=1
+
+───────────────────────────────────────────────────────────────────────────────
+R6 — overflow-320 photos step, PUBLIC cloud name supplied as a placeholder, SECRETS still absent. The discriminator.
+───────────────────────────────────────────────────────────────────────────────
+$ CLOUDINARY_CLOUD_NAME= CLOUDINARY_API_KEY= CLOUDINARY_API_SECRET= NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=fitout-ci-placeholder npx playwright test e2e/overflow-320.spec.ts --project=chromium --reporter=list --workers=1 --grep "photos step"
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+
+Running 2 tests using 1 worker
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  ok 1 [chromium] › e2e\overflow-320.spec.ts:3400:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · court (2.9s)
+  ok 2 [chromium] › e2e\overflow-320.spec.ts:3400:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · grove (1.4s)
+
+  2 passed (13.5s)
+EXIT=0
+
+§ 3 — WHAT THE MATRIX SETTLES: THESE ARE TWO CLASSES, NOT ONE
+================================================================================================
+
+                              AS IT STANDS   CI's SHAPE   DISCRIMINATOR
+  avatar-crop  :974/:2675/:2747     PASS         FAIL          FAIL       ← needs a CREDENTIAL
+  overflow-320 :3400                PASS         FAIL          PASS       ← needs a NAME
+
+THE AVATAR THREE NEED A SECRET. `src/lib/cloudinary.ts` configures `api_key` and `api_secret` and
+uploads with `cloudinary.uploader.upload_stream` — SERVER-SIDE, from the Next process, reached only
+through the `"use server"` action `src/app/actions/avatar.ts`. Supplying the public identifier and
+nothing else (R3) changes nothing: all three still fail, and `:974` fails with CI's message word for
+word — `Error: the avatar circle still shows initials after a successful save.` (matrix R3 case 1,
+`at e2e/avatar-crop.spec.ts:1075`, against RESEARCH.md § Cause B's quoted CI failure). This is a
+credential, and § 5 is why it can never be supplied.
+
+⚠ AND R3 NARROWS `:974` FURTHER, WHICH THE ANNOTATION REASON HAD BETTER SAY. The case reports exactly
+ONE error, at `:1075`. Everything before it therefore held WITHOUT any credential: the busy label
+(`:1005`), `Cancel` disabled (`:1013`), all three `expect.soft` inertness assertions (`:1038`,
+`:1045`, `:1055` — a soft failure would have been reported as an extra error and none was), the
+close-on-success at `:1059-1063`, and `heldActions > 0` at `:1065`. So the DELTA-3 GUARD ITSELF
+(`src/components/profile/image-crop-dialog.tsx:276`, `if (!next && saving) return;`) is fully
+exercised in CI's shape. The single assertion CI cannot reach is `:1072-1075` — that the round trip
+really stored an avatar. That is one assertion, and deleting it is prohibited.
+
+THE PHOTOS STEP NEEDS NO CREDENTIAL AT ALL — AND THE PLAN'S PRESCRIBED ROUTE FOR IT IS FALSIFIED.
+This plan was written expecting to SEED a listing photo here, on the reading that the cover-preview
+heading is absent because the listing has none. IT ALREADY HAS ONE. `e2e/overflow-320.spec.ts:2731-2755`
+seeds exactly one `listing_photo` row, pointed at the committed local asset `/vrt/photo-0.svg`, under a
+comment headed "⚠ EXACTLY ONE PHOTO, AND THE COUNT IS LOAD-BEARING IN BOTH DIRECTIONS (D10)". Seeding a
+second one would change nothing. What R5 actually printed, on the dev server's stderr, immediately
+above the failure:
+
+    [browser] [boundary] (host)/host Error: A Cloudinary Cloud name is required, please make sure
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is set and configured in your environment.
+
+`src/components/listing/photo-uploader.tsx` renders `<CldUploadWidget>`, and `next-cloudinary` THROWS
+at render when that variable is absent. The throw takes the photos step's subtree down through the
+route's error boundary, so `CoverFramePreview` — and its heading — never render. The spec's own
+failure message names the photo count, because that is the condition it was written to catch; it is
+not what happened. This is the fourth time this phase that a failure message has named the wrong
+cause, and the phase's own rule applies: READ WHAT IT MEASURED, NOT WHAT IT SAYS.
+
+⚠ AND `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` IS NOT A CREDENTIAL. It is a `NEXT_PUBLIC_` variable — by
+construction inlined into the client bundle and served to every browser that loads the site. R6 proves
+the value need not even be real: the invented literal `fitout-ci-placeholder` makes both themes pass
+with both secrets still absent. So the zero-`secrets.` invariant does NOT forbid supplying it, this
+case is NOT a capability CI structurally lacks, and under plan 19.1-08's rule — a repaired spec defect
+is not an annotation candidate — it must be repaired rather than annotated. An allowlist entry here
+would carry a false reason, which is the defect plan 02 caught one paragraph before it shipped.
+
+
+§ 3a — THE SEED ROUTE, PROVED BEFORE IT WAS CHOSEN (throwaway probe, created and deleted in this task)
+================================================================================================
+
+`:2675` and `:2747` do not need an upload. They need the STATE an upload produces: a `user` row
+carrying an avatar, because `avatar-field.tsx` renders the removal affordance only when there is a
+photo to remove. Whether that state can be written directly — and whether the removal then still
+LANDS with no credential to destroy with — was measured rather than assumed, with a probe written
+under `e2e/`, run under CI's exact shape, and deleted in the same task (19.1-02's probe-and-delete
+idiom, with the collected count compared before and after so a rename could not pass as a removal).
+
+$ npx playwright test --project=chromium --list | tail -1   # BEFORE
+Total: 461 tests in 40 files
+
+$ CLOUDINARY_CLOUD_NAME= CLOUDINARY_API_KEY= CLOUDINARY_API_SECRET= NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME= npx playwright test e2e/__scratch-avatar-seed-probe.spec.ts --project=chromium --reporter=list
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+
+Running 1 test using 1 worker
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+PROBE rows-updated=1
+PROBE OK
+  ok 1 [chromium] › e2e\__scratch-avatar-seed-probe.spec.ts:15:5 › probe: a seeded avatar row renders the circle and the removal affordance (4.2s)
+
+  1 passed (10.3s)
+
+$ rm e2e/__scratch-avatar-seed-probe.spec.ts
+$ test ! -e e2e/__scratch-avatar-seed-probe.spec.ts; echo "absent=$?"
+absent=0
+$ npx playwright test --project=chromium --list | tail -1   # AFTER
+Total: 460 tests in 39 files
+$ git status --porcelain -- e2e
+(no output above = clean)
+
+The probe's own body, so the reading above can be checked rather than trusted: sign up through the
+shipped form, `UPDATE "user" SET avatar_url = '/vrt/photo-0.svg', avatar_public_id =
+'fitout/avatars/probe-not-a-real-asset'` on the minted row, reload `/profile`, then press
+`Remove photo` and confirm.
+
+  MEASURED: `PROBE rows-updated=1`, `PROBE OK`, `1 passed`. So, with every Cloudinary variable empty:
+    • the circle renders from a committed local asset (Radix `AvatarImage` loads the SVG);
+    • the removal affordance renders, so the confirm `:2675` audits is reachable;
+    • the removal LANDS with a `public_id` naming no asset and no credential to destroy with — which
+      is `src/app/actions/avatar.ts` behaving exactly as its own docblock says it must: the columns are
+      nulled FIRST and the destroy is best-effort, "AND THE DESTROY NEVER CHANGES THIS ACTION'S RESULT".
+      That is the property `:2747` depends on, and it is covered independently by
+      `tests/profile/avatar-remove.test.ts:202-241` ("a Cloudinary failure never changes the result").
+
+
+§ 4 — THE FOUR ROUTES
+================================================================================================
+
+Permitted routes in preference order: REPAIR > SEED > INTERCEPT > ANNOTATE. One line per case.
+
+ROUTE e2e/avatar-crop.spec.ts:974 — ANNOTATE — Delta-3's subject is a save that really lands: the case holds the server action open to make the pending window, then releases it and asserts at :1072-1075 that the round trip stored an avatar. That needs `CLOUDINARY_API_KEY`/`CLOUDINARY_API_SECRET` in the Next process (`src/lib/cloudinary.ts`), which is a credential and is closed by § 5. SEED is unavailable because the subject is the save itself, not a state a save leaves behind. INTERCEPT is unavailable because there is nothing browser-visible to intercept: the provider call is made by `upload_stream` from the SERVER, so `page.route` — which sees only the browser's own requests — can never reach it, and the only browser-visible request is the `next-action` POST, whose fabrication the file's own header refuses as "asserting against our own forgery" and which would run none of the product's upload path. R3 measured that everything except :1072-1075 passes without a credential, so the reason string names that one assertion rather than the whole case.
+
+ROUTE e2e/avatar-crop.spec.ts:2675 — SEED — the case needs an avatar to exist, not an upload to happen: it audits the removal confirm's open-time focus, axe and tab walk, and reaches that overlay only because `avatar-field.tsx` renders the removal affordance when the row carries a photo. § 3a measured that writing that row directly, pointed at the committed local asset `public/vrt/photo-0.svg`, renders the circle and the affordance with every Cloudinary variable empty. SEED outranks INTERCEPT and ANNOTATE, so it is taken.
+
+ROUTE e2e/avatar-crop.spec.ts:2747 — SEED — same state, same asset, one step further: it presses `Remove photo` and reads where focus lands. § 3a measured that the removal lands with a `public_id` that names no asset and no credential to destroy with, because `removeAvatarAction` nulls the columns first and treats the destroy as best-effort. The focus behaviour this case exists for is downstream of the removal's RESULT, which the absent destroy cannot change.
+
+ROUTE e2e/overflow-320.spec.ts:3400 — REPAIR — NOT the seed this plan prescribed, and not an annotation. The fixture already seeds the photo (`:2731-2755`); the walk fails because `<CldUploadWidget>` throws at render when `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` is absent, taking the photos step down through the route's error boundary. R6 measured that an invented placeholder for that PUBLIC, non-secret identifier makes both themes pass with both secrets still absent. So the capability is one CI can have, the invariant does not forbid it, and REPAIR — which outranks every other route — applies. The repair supplies the placeholder from `playwright.config.ts`'s `webServer.env`, which is the file that already exists to make the booted server's environment "a STATIC PROPERTY OF THIS FILE" and is the same env block that injects `RESEND_API_KEY: ""`. It is not `.github/workflows/ci.yml`, which this plan does not own, and it needs no workflow edit at all: `gate-e2e` boots its server through this very config (`npx playwright test --project=chromium`).
+
+
+§ 5 — WHY THE CREDENTIAL ROUTE IS CLOSED
+================================================================================================
+
+The fastest way to make the avatar three pass is to give `gate-e2e` a live Cloudinary credential.
+It is closed on two grounds, and THE SECOND IS THE ONE THAT MATTERS.
+
+GROUND 1 — IT WOULD TURN THIS PHASE'S OWN CHECKER RED BY DESIGN.
+A real credential can only reach a workflow as `${{ secrets.X }}`, and `scripts/verify-workflows.mjs`
+asserts, over `.github/workflows/ci.yml`:
+
+    scripts/verify-workflows.mjs:813-819
+      check(
+        "zero `secrets.` references in any env / run / with VALUE, across every job",
+        ciSecretHits.length === 0,
+        …"scanned workflow env, every job env, every container env, every service env, and every step
+          run/env/with — 0 hits"…
+      );
+
+with the same assertion made a second time over `baselines.yml` at `:596-603`. `secretHitsIn(doc)`
+(`:439`) walks every one of those surfaces, so there is no corner of the file a credential could be
+written into that the check does not see. The comment directly above it states the intent this plan
+must not defeat: "The build step's three visibly-fake literals are LITERALS, so this passes today and
+fires the day somebody 'promotes them to secrets'." Plans 19.1-01 and 19.1-05 spent this phase
+strengthening the job that runs that checker; adding a credential now would redden the instrument the
+phase exists to make trustworthy.
+
+⚠ THE CITATION EVERY EARLIER DOCUMENT USES IS STALE, AND IT IS RECORDED HERE SO NOBODY RE-DERIVES IT.
+RESEARCH.md § Cause B cites this invariant as `verify-workflows.mjs:538`. That was true when
+RESEARCH.md was written; it is not true now. Plans 01, 05 and 06 added invariants above it and the
+check moved to `:813`. What lives at `scripts/verify-workflows.mjs:538` TODAY is part of
+`baselines.yml`'s trigger/permissions block ("workflow-level permissions.contents is 'read'"). Any
+reason string that must survive this drift should quote the invariant's PRINTED NAME — "zero
+`secrets.` references in any env / run / with VALUE, across every job" — which is stable, alongside
+the line.
+
+GROUND 2, AND THE ONE THAT MATTERS — THE REPOSITORY IS ABOUT TO BE PUBLISHED.
+D-07 and D-08 take this repository public within this phase. A credential added to a workflow now is a
+credential published, in a file whose history is published with it — and unlike a red checker, that
+cannot be undone by reverting the commit. The first ground says the fix would fail; the second says it
+would be a disclosure. A phase whose subject is making CI signal REAL does not buy a green by shipping
+a live third-party key into a repository it is opening.
+
+WHAT IS PERMITTED AND WHAT IS NOT, so the distinction survives:
+  • FORBIDDEN — any `secrets.` reference, and any real `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET`
+    value, anywhere in either workflow file. Neither is added by this plan; § 6 re-runs the checker.
+  • PERMITTED — a visibly-invented literal for the PUBLIC identifier
+    `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`, which is served to every browser by construction and is not a
+    credential. This plan supplies it from the test harness rather than from a workflow, so not even a
+    workflow edit is needed; the precedent for the shape is `ci.yml:1076-1078`'s three
+    `ci-build-only-placeholder-not-a-real-*` literals, which exist precisely so that promoting them to
+    secrets goes red.
