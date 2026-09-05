@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 15
+open_count: 16
 waived_count: 0
 fixed_count: 0
-total_count: 15
-last_updated: 2026-09-05T05:46:15.519Z
+total_count: 16
+last_updated: 2026-09-05T06:36:41.350Z
 ---
 
 # Broken Windows Ledger
@@ -30,6 +30,7 @@ last_updated: 2026-09-05T05:46:15.519Z
 | 13 | 19 | unmet-truth | .github/workflows/ci.yml |  | 19-11: WR-02's hole in the D-14 mail scan (verify-workflows.mjs does not walk container.env or services.*.env) is NAMED in ci.yml's header but NOT closed. A container-level RESEND_* key would pass both halves of the assertion. | open |  | 2026-09-04T12:34:46.969Z |  |
 | 14 | 19 | deviation | scripts/refuse-mail-credential.mjs |  | READ hard-stop remedy sentence corrected: 'fix the path in ci.yml' became false when the argv override was removed | open |  | 2026-09-04T16:11:09.561Z |  |
 | 15 | 19.1 | deviation | scripts/verify-workflows.mjs | 741 | T-11-DBFREE locates the build job by a SUBSTRING of a run: body (r.includes("npm run build")) — the CR-02 idiom used for a positive assertion; satisfied by every softened form of the step and by moving the build to another job. Logged as D-19.1-C for plan 06. | open |  | 2026-09-05T05:46:15.519Z |  |
+| 16 | 19.1 | deviation | e2e/helpers/booker-seed.ts | 180 | pickWindow's tz-note assertion matches TEXT, so it stays strict-mode ambiguous after 19.1-04's id-only repair; two elements resolve while the served shell and resolved content overlap. Handed to plan 08 (19.1-PATTERNS section 7 charters that helper). | open |  | 2026-09-05T06:36:41.350Z |  |
 
 ````json
 [
@@ -211,6 +212,18 @@ last_updated: 2026-09-05T05:46:15.519Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-05T05:46:15.519Z",
+    "resolved_at": null
+  },
+  {
+    "id": 16,
+    "kind": "deviation",
+    "phase": "19.1",
+    "file": "e2e/helpers/booker-seed.ts",
+    "line": 180,
+    "description": "pickWindow's tz-note assertion matches TEXT, so it stays strict-mode ambiguous after 19.1-04's id-only repair; two elements resolve while the served shell and resolved content overlap. Handed to plan 08 (19.1-PATTERNS section 7 charters that helper).",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-05T06:36:41.350Z",
     "resolved_at": null
   }
 ]

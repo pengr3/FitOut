@@ -120,3 +120,28 @@ rather than fixed, per the executor scope boundary.
 - **Suggested disposition:** whichever 19.1 plan owns the type gate. Note that this makes the
   plan-level verification line "`npx tsc --noEmit` exits 0" unachievable for any 19.1 plan until it
   is closed; the achievable form is "contributes no new `error TS` lines".
+
+## 19.1-04 — DEFECT 3: `pickWindow`'s tz-note assertion is strict-mode ambiguous on TEXT
+
+**Found:** 19.1-04 Task 3, post-repair. Transcript in
+`evidence/triage-collision-in-place.txt` section 7 and VERDICT DEFECT 3.
+
+`e2e/helpers/booker-seed.ts:180` asserts on the timezone note with an UNSCOPED
+`getByText`. Two elements carry that text whenever two booking surfaces are in
+the document — the responsive sheet below `lg:`, and the streaming overlap of
+the served shell with the resolved content (the same mechanism already recorded
+for `#search-category` at `booker-seed.ts:363-373`). 19.1-04 made the two ids
+unique, which closes the HTML-validity and `aria-describedby` half; it does NOT
+change the TEXT, so the locator still resolves to 2 and the assertion is still
+strict-mode ambiguous. The plan's key-link claim that this repair "removes the
+strict-mode ambiguity" is falsified by the transcript.
+
+**Not repaired here:** outside 19.1-04's `files_modified`, shared by many specs,
+and 19.1-PATTERNS section 7 charters **plan 08** to harden that helper.
+
+**Brief for plan 08:** scope or settle the assertion the way `selectTargetDayIn`
+already takes a scope. Do NOT weaken it to `.first()` — that goes green against
+a page that renders only the pending shell.
+
+**Severity:** flake, not a hard failure (it passed on retry, both variants green
+overall with CI's `--retries=2`).
