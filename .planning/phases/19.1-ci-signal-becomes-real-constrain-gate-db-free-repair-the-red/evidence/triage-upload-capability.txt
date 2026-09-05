@@ -781,3 +781,36 @@ raised alongside the annotation, so the inner assertion expires first.
 PROHIBITION — `e2e/avatar-crop.spec.ts:2675` and `:2747` are PERMANENTLY INELIGIBLE for the allowlist
 under D-01: they are green without any credential, measured. `e2e/overflow-320.spec.ts:3400` is
 likewise ineligible, and for a stronger reason — the capability it needs is not one CI lacks.
+
+
+§ 10 — A RUN-CONDITION NOTE ON THE PLAN-LEVEL VERIFICATION (adds no allowlist entry, changes no route)
+================================================================================================
+
+The plan's own verification runs BOTH specs in one invocation. On this box that command defaults to
+FOUR workers, and in that shape it goes red — twice, on DIFFERENT rows each time, none of them a case
+this plan touched:
+
+    run 1:  1 failed — /host/listings/[id]/edit · court        …19 did not run, 117 passed (5.6m)
+    run 2:  2 failed — the receipt · court, and the same wizard row …29 did not run, 107 passed (5.0m)
+
+Both failures are the same shape and it is not this plan's: `the route rendered no <tell>` — the
+route did not RESOLVE inside its 20 s / 60 s budget. `overflow-320.spec.ts`'s own message anticipates
+it in as many words: "If this is the first run since a dev-server restart, the route may still be
+compiling: these five are among the heaviest in the app and the timeout is sized for a cold one."
+Neither failing row has anything to do with Cloudinary, an avatar or a photo, and the pair is not
+stable across runs — a defect would be.
+
+THE SAME COMMAND AT CI's WORKER COUNT IS GREEN:
+
+    $ npx playwright test e2e/avatar-crop.spec.ts e2e/overflow-320.spec.ts --project=chromium --reporter=list --workers=1
+      7 skipped
+      137 passed (7.6m)
+
+Zero failed, zero unexpected passes, and the seven skips are the pre-existing conditional rows. This
+is 19.1-02's measured environment delta doing exactly what it warned about — this laptop derives 4
+workers from its cores where the 2-core CI runner derives 1 — arriving from the other direction:
+compile contention on ONE dev server shared by four browsers. `gate-e2e` runs the whole suite at one
+worker, so it does not have this shape.
+
+⚠ FOR ANYONE RE-RUNNING THIS PLAN'S VERIFICATION: pass `--workers=1`. A four-worker run of two heavy
+specs measures this box's compile throughput, not the product.
