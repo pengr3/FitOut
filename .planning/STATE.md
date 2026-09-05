@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: Completed 19.1-04-PLAN.md — collision-in-place closed (duplicate id + missing settle); DEFECT 3 handed to plan 08
-last_updated: "2026-09-05T06:39:19.397Z"
+stopped_at: Completed 19.1-07-PLAN.md — cancel.spec refund disjunction repaired; PROHIBITION line recorded for plan 11
+last_updated: "2026-09-05T07:00:25.401Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 19.1 plan 02 complete — Wave 0 measurement
-state_head: 0eba9c99d0db3afe3d32b3811433e90942b891c4
+state_head: dc3a8e9554c6cdecea75c546ac5f69ab28179998
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,7 +18,7 @@ progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 60
-  completed_plans: 50
+  completed_plans: 51
   percent: 13
 ---
 
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19.1 (CI signal becomes real) — EXECUTING
-Plan: 6 of 15
+Plan: 7 of 15
 Status: Ready to execute
 Last activity: 2026-09-05 — Phase 19.1 plan 02 complete (Wave 0 measurement)
 
@@ -442,6 +442,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P05 | 25 min | 3 tasks | 6 files |
 | Phase 19.1 P03 | 22min | 3 tasks | 3 files |
 | Phase 19.1 P04 | 42 min | 3 tasks | 8 files |
+| Phase 19.1 P07 | 30 min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -1445,6 +1446,8 @@ Recent decisions affecting current work:
 - [Phase 19.1]: 19.1-04: the availability timezone-note id is derived per instance with React.useId() in BOTH booking surfaces, not declared as a module-level literal; a module literal is only safe for a component mounted at most once per document, which on a streaming route is no component
 - [Phase 19.1]: 19.1-04: collision-in-place's court failure is a MISSING SETTLE, not the stale-grid defect — the spec's own watched red R1 carries found:true on both sides of its diff while the observed failure carried found:false; closed with a presence-only post-condition, 10/10 green
 - [Phase 19.1]: 19.1-04: DEFECT 3 (pickWindow's tz-note assertion is strict-mode ambiguous on TEXT, so an id-only repair cannot close it) is handed to plan 08 rather than repaired here — booker-seed.ts is outside this plan's files and 19.1-PATTERNS section 7 charters plan 08 to harden it
+- [Phase 19.1]: 19.1-07: the refund-path e2e assertion is a named disjunction with a per-branch consequence, not a two-string text search — A bare either-or passes on a page rendering the wrong sentence for its audit state. Identifying the branch and then asserting what that branch owes (the needs_attention audit row, in the manual-return case) is what makes the repair stronger than the assertion it replaces rather than a weakening dressed as one.
+- [Phase 19.1]: 19.1-07: e2e/cancel.spec.ts is permanently ineligible for the known-failures allowlist (D-01), and the prohibition is recorded OUTSIDE the file — The D-01 citation now lives in the spec's docblock, so an edit that strips the disjunction strips the citation with it. Plan 11 encodes the recorded PROHIBITION line as a forbidden-file constant matching on a PATH, so the prohibition survives an edit to the file it protects.
 
 ### Pending Todos
 
@@ -1628,8 +1631,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-05T06:39:18.728Z
-Stopped at: Completed 19.1-04-PLAN.md — collision-in-place closed (duplicate id + missing settle); DEFECT 3 handed to plan 08
+Last session: 2026-09-05T07:00:05.657Z
+Stopped at: Completed 19.1-07-PLAN.md — cancel.spec refund disjunction repaired; PROHIBITION line recorded for plan 11
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
