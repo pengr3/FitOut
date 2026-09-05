@@ -1,0 +1,181 @@
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+19.1-08 TASK 1 — e2e/hold-countdown.spec.ts:443, Cause F, the ~9-minute timeout
+Triage transcript. Command lines above unedited output, per evidence/triage-harness.md §(d).
+Box: win32, 2026-09-05. Bring-up: npm run db:up / db:migrate / db:seed / rm -rf .next / :3000 free.
+═══════════════════════════════════════════════════════════════════════════════════════════════════
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+PRE-REPAIR — THE CANONICAL RUN (CI's retry shape and CI's worker count)
+───────────────────────────────────────────────────────────────────────────────────────────────────
+
+$ npx playwright test e2e/hold-countdown.spec.ts --project=chromium --retries=2 --trace on \
+    --workers=1 --reporter=list
+
+  --workers=1 is NOT decoration. playwright.config.ts leaves `workers` unset, so it is derived from
+  cores: the 2-core CI runner yields 1, this laptop yields 4 (evidence/testfail-behaviour.txt).
+  Every ordering-dependent hypothesis below needs CI's ordering, so it is pinned.
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[WebServer] ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 4 tests using 1 worker
+
+  ok 1 [chromium] › e2e\hold-countdown.spec.ts:292:9 › SHELL-03 — the checkout header does not reflow once per session › court · the header and countdown boxes are identical in all four states (38.3s)
+  ok 2 [chromium] › e2e\hold-countdown.spec.ts:292:9 › SHELL-03 — the checkout header does not reflow once per session › grove · the header and countdown boxes are identical in all four states (17.7s)
+  ok 3 [chromium] › e2e\hold-countdown.spec.ts:443:7 › GATE-03 — the countdown announces exactly once › the sr-only region's text changes ONCE across the hold, and not at expiry (15.8s)
+  ok 4 [chromium] › e2e\hold-countdown.spec.ts:552:7 › D-49 — the digits exist exactly once on the checkout › [data-testid="hold-countdown"] resolves to exactly 1, and the rail carries no digits (14.2s)
+
+  4 passed (2.4m)
+
+⚠ THE FAILURE DID NOT REPRODUCE. :443 passed in 15.8 s, first attempt, no retry consumed. There is
+therefore NO local DOM-at-the-timeout to read, and the four required observations are taken from the
+mechanism instead — measured with throwaway probes against the same fixture, on the same box, in the
+same session. Each is recorded below with the measurement it rests on. A cause read off a trace that
+never fired would be a hypothesis wearing a transcript.
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+THE PROBES — three throwaway spec runs, deleted before this task's commit, never committed
+───────────────────────────────────────────────────────────────────────────────────────────────────
+
+$ npx playwright test e2e/zz-probe-19108.spec.ts --project=chromium --workers=1 --reporter=list
+
+Probe A — the listing page, target day NOT yet selected, then clicking the caller's own locator:
+
+    PROBE-A twoPmCountBeforeDaySelect=0
+    PROBE-A anyHourCountBeforeDaySelect=3
+    PROBE-A elapsedMs=15018
+    PROBE-A callLog>>>
+    locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '2:00 PM', exact: true })
+
+    <<<PROBE-A callLog
+
+Probe F — the same page AFTER selectTargetDay returns (the target day was Tue 8 Sep 2026; today
+Sat 5 Sep 2026):
+
+    PROBE-F twoPmCountImmediatelyAfterHelperReturns=0
+    PROBE-F msUntilTwoPmPresent=683
+
+    and the day grid's own attributes, dumped from the live document:
+
+      aria-label="Tuesday, September 8th, 2026, selected"   data-selected-single="true"
+      aria-label="Wednesday, September 9th, 2026"           (no selected attribute of any kind)
+      aria-label="Today, Saturday, September 5th, 2026"     (no selected attribute of any kind)
+      … 33 day buttons dumped; EXACTLY ONE carries data-selected-single.
+
+    NOTE, because RESEARCH.md's recommendation guessed and the guess is wrong: react-day-picker v9
+    emits NO `aria-selected` and NO `data-selected` on these buttons. The selected state is
+    `data-selected-single="true"` — the same attribute availability-calendar.tsx:690 styles on
+    (`data-[selected-single=true]:bg-brand`) — plus a `, selected` suffix on the aria-label.
+
+Probe G — a hold placed on 2:00 PM–3:00 PM by a first booker; a SECOND booker then opens the same
+listing and selects the same target day:
+
+    PROBE-G chipsOnHeldDay=[
+      {"label":"6:00 AM","ariaDisabled":null,"disabled":false},
+      … {"label":"1:00 PM","ariaDisabled":null,"disabled":false},
+      {"label":"2:00 PM — Unavailable","ariaDisabled":"true","disabled":true},
+      {"label":"3:00 PM — Unavailable","ariaDisabled":"true","disabled":true},
+      {"label":"4:00 PM","ariaDisabled":null,"disabled":false}, … ]
+    PROBE-G exactNameCountTwoPm=0
+
+Probe E (first probe run, same shape as G) — clicking the caller's locator on a HELD slot:
+
+    PROBE-E twoPmCountWhileHeld=0
+    PROBE-E elapsedMs=15016
+    PROBE-E callLog>>>
+    locator.click: Timeout 15000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: '2:00 PM', exact: true })
+
+    <<<PROBE-E callLog
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+THE FOUR REQUIRED OBSERVATIONS
+───────────────────────────────────────────────────────────────────────────────────────────────────
+
+(1) IS A DAY IN THE MONTH GRID SELECTED AT THE MOMENT OF THE TIMEOUT?
+    Not answerable from a trace that never timed out. What IS measured is the window in which the
+    answer can be "no": `selectTargetDayIn` returns while the hour chips are still absent —
+    `twoPmCountImmediatelyAfterHelperReturns=0`, and 683 ms elapse before the chip exists (Probe F).
+    The helper asserts nothing about its own effect, so a click that did not register and a click
+    whose effect has not landed yet are the same observation to every caller. On a 2-core runner
+    that 683 ms is unbounded.
+
+(2) IS THE 2:00 PM BUTTON ABSENT, OR PRESENT AND DISABLED?
+    ABSENT — and, decisively, ABSENT IN BOTH HYPOTHESES. A held 2:00 PM IS in the document, disabled
+    and aria-disabled, but its accessible name is "2:00 PM — Unavailable" (slot-picker.tsx:336-341
+    composes `${timeLabel} — ${tooltipFor(...)}`), so the caller's `{ name: "2:00 PM", exact: true }`
+    does not match it: `exactNameCountTwoPm=0` (Probe G).
+    ⚠ THIS FALSIFIES THE DISCRIMINATOR evidence/triage-harness.md §(c)2 and RESEARCH.md Cause F both
+    name. "Absent or present-but-disabled" cannot separate the two hypotheses, because the caller's
+    own locator reports ABSENT either way, and the two call logs are byte-identical (Probe A vs
+    Probe E — both a bare `- waiting for getByRole(...)` with no `resolved to` line, which is also
+    the exact shape RESEARCH.md quotes from CI). No trace of this failure could ever have settled it
+    on that observation. The separating observation is the DAY: is there a
+    `button[data-selected-single="true"]`, and is there a chip named `2:00 PM — …`?
+
+(3) WAS A MONTH-CROSSING CLICK NEEDED, AND DID IT LAND?
+    Not needed, and not exercised. `crossesMonth` is false for this run: today Sat 5 Sep 2026,
+    target Tue 8 Sep 2026, one month. The CI failure ran in the same month for the same reason
+    (now + 3 days, booker-seed.ts:63-70). The month-crossing branch was not on the failing path.
+
+(4) DID AN EARLIER SPEC LEAVE A HOLD ON THE SHARED TARGET SLOT?
+    No, and it cannot. Three independent grounds, all read from source this session:
+      a. There is no shared listing. `seedBookableListing` mints a per-run UUID host + listing on
+         every call (booker-seed.ts, "IDS ARE PER-RUN UUIDS"), so a hold placed by another spec is
+         on another listing.
+      b. Within this file the windows are disjoint by construction: WINDOWS = courtGeometry 8-9 AM,
+         groveGeometry 11 AM-12 PM, announce 2-3 PM, count 5-6 PM (hold-countdown.spec.ts:117-122),
+         under the comment "One window per test, so two live holds on one exclusive listing never
+         overlap". 2:00 PM is reached by exactly one test — the one that failed.
+      c. Retries cannot self-collide. The first attempt timed out at the START anchor, before any
+         hold was placed, and Playwright restarts the worker for a retry, re-running `beforeAll`
+         onto a fresh seed.
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+WALL-CLOCK COST
+───────────────────────────────────────────────────────────────────────────────────────────────────
+
+CI (the number plan 13 re-measures against):
+    per-attempt 3.0 min (the 180 000 ms test timeout, exhausted) × 3 attempts = ~9.0 min
+    of the gate-e2e job's 44 min. Source: 19.1-RESEARCH.md §Cause F, over the gate-e2e job log whose
+    failure list is at evidence/../19-.../gate-e2e-wallclock.txt:152 (item 10).
+
+This box, PASSING, canonical run above:
+    per-attempt 15.8 s × 1 attempt = 15.8 s. Zero retries consumed.
+
+The delta is not a repair — the test passes here either way. What Task 2 removes is the 180 000 ms
+ceiling on the failure: a lost day-click can no longer cost three minutes before it is named.
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+
+VERDICT: NOT REPRODUCIBLE ON THIS BOX (1 canonical attempt, CI's retry shape and worker count, 15.8 s
+green) — AND LIVE HYPOTHESIS 2 IS NOW REFUTED, leaving live hypothesis 1, THE UNGUARDED DAY CLICK, as
+the only cause the evidence still supports. The mechanism is measured rather than assumed:
+`selectTargetDayIn` returns 683 ms before its own effect is observable in the document (Probe F) and
+asserts nothing about it, so a click that never registered is indistinguishable from one whose effect
+has not landed — and both present three minutes later as `locator.click` timing out on `2:00 PM` in a
+different helper, which is byte-for-byte the call log CI recorded (Probe A). This is the same
+React-replaces-the-node race `openBookingSheet` already retries for at booker-seed.ts:118-160, on a
+page (`/listings/[id]`) that plan 19.1-04 measured streaming a pending shell and a resolved copy of
+the same booking surface concurrently. I am NOT claiming the CI timeout was proven to be a lost click;
+I am recording that it is the last hypothesis standing, that its precondition exists and is measured,
+and that no observation available from that CI transcript could ever have distinguished it from the
+one now refuted.
+
+REFUTED — do not re-open either of these without NEW evidence: (i) PARALLEL-WORKER INTERFERENCE —
+`playwright.config.ts` leaves `workers` unset, so the 2-core CI runner derives exactly 1 worker
+(evidence/testfail-behaviour.txt:227, and the canonical run above was pinned to --workers=1 anyway);
+(ii) A DAY-OF-WEEK GAP IN THE SEEDED HOURS — the fixture inserts 06:00–21:00 for all seven days,
+`for (let dow = 0; dow < 7; dow++)` at e2e/helpers/booker-seed.ts:303-309, and Probe G shows the full
+06:00–20:00 chip row rendering on the target day. A THIRD is refuted here for the first time:
+(iii) AN EARLIER SPEC'S HOLD OCCUPYING THE SHARED 2:00 PM SLOT — refuted by observation (4) above on
+three independent grounds (per-run UUID listings; the disjoint WINDOWS map at
+e2e/hold-countdown.spec.ts:117-122; a first attempt that timed out before placing any hold).
+
+───────────────────────────────────────────────────────────────────────────────────────────────────
+NO FILE UNDER e2e/ WAS EDITED BY THIS TASK. The three probes were written to
+e2e/zz-probe-19108.spec.ts, run, and deleted; `git status --porcelain -- e2e` is empty at commit.
+───────────────────────────────────────────────────────────────────────────────────────────────────
