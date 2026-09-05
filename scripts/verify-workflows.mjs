@@ -95,6 +95,50 @@ const CI_VISUAL_JOB = "gate-visual";
 const CI_E2E_JOB = "gate-e2e";
 const CI_E2E_CONTEXT = "gate-e2e (functional Playwright suite)";
 
+// THE JOB THAT RUNS THIS SCRIPT, AND THE DISPLAY NAME BRANCH PROTECTION MATCHES ON (plan 19.1-01,
+// CI-01/SC1, review finding CR-03). The same two spellings as the pair above, deliberately, and for
+// the same two reasons:
+//   * `CI_CHECKER_JOB` is the YAML job KEY. Its absence is a hard stop below.
+//   * `CI_CHECKER_CONTEXT` is the job's `name:` — the string a REQUIRED STATUS CHECK is matched by.
+// GitHub matches a required check by its display name and not by the job key, so an edit to `name:`
+// alone silently unbinds this job from branch protection while leaving the job — and every other
+// invariant in this file — perfectly intact.
+//
+// ⚠ THIS IS THE JOB THAT EXECUTES THE FILE YOU ARE READING, AND UNTIL THIS PLAN NOTHING READ IT.
+// Measured twice, by the reviewer and independently by the verifier (CR-03): delete the two-line
+// step named below from `gate-db-free`, run this script, and it printed `All 50 invariants hold`
+// and exited 0. Every other invariant in this file was enforced by a step whose existence nothing
+// asserted — so the whole file's signal was conditional on a two-line edit nobody would be told
+// about. That is the same vacuity class as a deleted job, one layer further out: the assertions
+// were not wrong, they were never going to run.
+const CI_CHECKER_JOB = "gate-db-free";
+const CI_CHECKER_CONTEXT = "gate-db-free (lint + design + build + workflow parse)";
+const CHECKER_STEP_NAME = "Verify the workflow invariants (parse, not grep)";
+
+// This script's own path, spelled ONCE, and the EXACT invocation that step must carry — composed
+// from the path exactly as `MAIL_REFUSAL_RUN` is composed below, so the path is spelled once here
+// too.
+//
+// ⚠ THE INVARIANT COMPARES THE STEP'S `run:` AGAINST THIS FOR EQUALITY AND NEVER FOR CONTAINMENT,
+// and that is the whole of the conjunct's value. `run` is a PERMITTED key on that step, so the
+// allow-list below sees the step's key SET and not its values, and is blind to an appended argument
+// BY CONSTRUCTION. Only an exact comparison puts `node scripts/verify-workflows.mjs` and
+// `node scripts/verify-workflows.mjs <anything>` on opposite sides. A containment test — which every
+// argument list in the world satisfies — is review finding WR-01, and writing this one that way
+// would ship that defect in a new place on the day it is being closed in the old one.
+const CHECKER_SCRIPT = "scripts/verify-workflows.mjs";
+const CHECKER_RUN = `node ${CHECKER_SCRIPT}`;
+
+// THE CHECKER STEP'S PERMITTED KEY SURFACE, STATED POSITIVELY. Identical in shape and in argument to
+// `MAIL_STEP_ALLOWED_KEYS` below — see the "THIS IS AN ALLOW-LIST AND NOT A DENY-LIST" block there,
+// which transfers to this step unchanged and is not restated at length here. Only these two keys may
+// appear on the step that runs this script. A `shell:` that prints it instead of executing it, a
+// `working-directory:` that points it at a different tree, an `if:` that skips it, a
+// `continue-on-error:` that makes its non-zero exit advisory — each is a change to HOW this gate
+// executes rather than to what it says, and each is red by default here rather than red only if
+// somebody had already thought of it.
+const CHECKER_STEP_ALLOWED_KEYS = ["name", "run"];
+
 // The snapshot-update flag, spelled ONCE, here. It is deliberately never spelled in `ci.yml` —
 // including in that file's comments — because the cheapest audit of "this file cannot mint a
 // baseline" is a grep for the token returning 0, and prose about a forbidden token is still the
@@ -1023,6 +1067,101 @@ if (sections.includes("ci")) {
       `precedes=[${e2ePrecede.map(describeStep).join(", ") || "(none)"}]  ` +
       `permitted=[${E2E_PRECEDE_USES_OK.map((u) => `${u}@…`).join(", ")}, run:${E2E_PRECEDE_RUN_OK}]  ` +
       `and that holds=${onlySetupBefore}`,
+  );
+
+  // ── THE JOB THAT RUNS THIS SCRIPT EXISTS. ITS ABSENCE IS A HARD STOP, NOT A FAILED CHECK ──────
+  // ADDED BY PLAN 19.1-01 (CI-01/SC1, review finding CR-03).
+  //
+  // THE ARGUMENT IS THE `gate-e2e` ONE ABOVE, IN ITS OWN WORDS, AND IT IS WORSE HERE. Every other
+  // assertion in this section is universally quantified over the jobs that REMAIN — "every
+  // containerized job pins the image", "no job holds contents: write", "no `secrets.` anywhere". A
+  // deleted job satisfies all of them vacuously, so removing `gate-db-free` in one commit would
+  // leave this script printing a clean green over the four jobs left. It is worse than the
+  // `gate-e2e` case because `gate-db-free` is the job that RUNS THIS SCRIPT: deleting it does not
+  // just remove one gate, it removes the thing that evaluates every invariant here, and this file
+  // would say so nowhere. The green it printed would be the green of a check that no longer runs.
+  //
+  // ⚠ A HARD STOP IS NOT A COUNTED INVARIANT (see `hardStop` above), matching the `gate-e2e`
+  // precedent exactly: adding this did not move the printed count. The count moved by the ONE
+  // `check()` below, not by two. A stop and a check answer different questions — the stop says "the
+  // subject is absent, so every assertion is meaningless", the check says "the subject is present
+  // and wrong".
+  const checker = doc?.jobs?.[CI_CHECKER_JOB];
+  if (!checker) {
+    hardStop([
+      `job "${CI_CHECKER_JOB}" not found in ${CI}.`,
+      `Jobs present: [${jobs.map(([n]) => n).join(", ") || "(none)"}]`,
+      ``,
+      `This job is the one that RUNS ${CHECKER_SCRIPT} — the script printing this message — as`,
+      `well as lint, the design gate and the Next build. Deleting it removes the evaluation of`,
+      `every invariant in this file, and it removes it INVISIBLY: every other assertion in this`,
+      `section is universally quantified over the jobs that remain, so all of them would still`,
+      `pass, in a run that no longer happens on any push or pull request.`,
+      ``,
+      `If this job is genuinely being retired, that is a decision to record — not a deletion to`,
+      `absorb. Remove this hard stop in the same commit, and say why in it.`,
+    ]);
+  }
+
+  // ── AND THE STEP THAT MAKES IT THE CHECKER'S JOB RATHER THAN JUST A BUILD JOB ─────────────────
+  // The stop above closes DELETION OF THE JOB. It does not close the job being kept, correctly
+  // named, and made to no longer run this script — which is the cheaper edit and the one CR-03
+  // actually performed: two lines, in a job full of comments, under a green build.
+  //
+  // ANCHORED BY THE STEP'S EXACT `name:`, NEVER BY A SUBSTRING OF ANY `run:` BODY (the `:890` idiom,
+  // and PATTERNS.md §F applied on arrival rather than retrofitted). This job's FIRST step already
+  // carries a multi-line `run:` of free text — `git config` lines, `echo`s and a here-doc-shaped
+  // control block — so a substring anchor in this job would have been capturable on the day it was
+  // written, by a step that merely MENTIONS this script's path. A positive assertion must never
+  // locate its subject by a substring of a `run:` body: substring matching is safe only in the deny
+  // direction, where over-matching produces a false red and therefore fails closed. Used to FIND the
+  // thing being asserted about, it hands the anchor to whoever writes the next step.
+  //
+  // THE THREE CONJUNCTS, AND WHY EACH IS SEPARATELY NECESSARY:
+  //   * the step is DEFINED — so an empty or emptied `gate-db-free` makes this FALSE rather than
+  //     vacuously true. `Array.prototype.find` over no matching step yields `undefined`, and the key
+  //     filter below over `{}` is empty, so without this conjunct the assertion would pass over
+  //     nothing. That is the same vacuity the stop above exists to remove, one level in.
+  //   * its `run:` is EXACTLY the no-argument invocation, compared after `.trim()` and nothing else.
+  //     `.trim()` because a block scalar carries its trailing newline; NO comment-stripping and NO
+  //     whitespace collapsing, because a `run:` body is executable text and any further
+  //     normalisation would make two genuinely different commands compare equal. See `CHECKER_RUN`
+  //     above for why this is equality and never containment.
+  //   * it carries NO KEY outside the permitted surface — the allow-list, for the reason stated at
+  //     `CHECKER_STEP_ALLOWED_KEYS`.
+  // They are ANDed because any one alone is satisfiable by the inert shape: the step existed, and it
+  // ran something.
+  const checkerSteps = stepsOf(checker);
+  const checkerStep = checkerSteps.find((s) => String(s?.name ?? "") === CHECKER_STEP_NAME);
+  const checkerStepRun = String(checkerStep?.run ?? "");
+  // Sorted, because YAML mapping order is an authoring accident and a diagnostic that changes with
+  // it is not stable across runs. Membership is EXACT string equality, so a differently-cased or
+  // differently-suffixed spelling of a permitted key lands OUTSIDE the allow-list and is red.
+  const checkerStepKeys = Object.keys(checkerStep ?? {}).sort();
+  const checkerStepExtraKeys = checkerStepKeys.filter(
+    (k) => !CHECKER_STEP_ALLOWED_KEYS.includes(k),
+  );
+  // Computed HERE rather than inline in the evidence string below, so the predicate region of the
+  // `check()` contains NOT ONE containment- or search-shaped call in any spelling. That is checkable
+  // by anybody with a grep over the region, which is the point: the one property this invariant most
+  // needs a reader to be able to confirm at a glance is that its invocation conjunct is an equality.
+  // An `Array.prototype.indexOf` reporting a step's POSITION is not a containment test, but it reads
+  // like one to an audit that counts method names, and a reader who has to make that distinction has
+  // already lost the glance.
+  const checkerStepIndex = checkerSteps.indexOf(checkerStep);
+  check(
+    `"${CI_CHECKER_JOB}" carries the step that RUNS this checker, under its exact name, with the EXACT no-argument invocation, and NO KEY OUTSIDE [${CHECKER_STEP_ALLOWED_KEYS.join(", ")}]`,
+    checkerStep !== undefined &&
+      checkerStepRun.trim() === CHECKER_RUN &&
+      checkerStepExtraKeys.length === 0,
+    `step=${checkerStep ? `index ${checkerStepIndex}` : "(ABSENT)"}  ` +
+      `expected-name=${JSON.stringify(CHECKER_STEP_NAME)}  ` +
+      `run=${JSON.stringify(checkerStep ? checkerStepRun.trim() : null)}  ` +
+      `expected-run=${JSON.stringify(CHECKER_RUN)}  ` +
+      `keys=[${checkerStepKeys.join(", ") || "(none)"}]  ` +
+      `permitted=[${CHECKER_STEP_ALLOWED_KEYS.join(", ")}]  ` +
+      `unexpected=[${checkerStepExtraKeys.join(", ") || "(none)"}]  ` +
+      `(of ${checkerSteps.length} steps in "${CI_CHECKER_JOB}")`,
   );
 
   // ── THE COMPARISON JOB EXISTS. ITS ABSENCE IS A HARD STOP, NOT A FAILED CHECK ─────────────────

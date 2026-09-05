@@ -97,25 +97,42 @@ const REPO_REFUSAL = resolve(process.cwd(), "scripts/refuse-mail-credential.mjs"
  * which is the intended property rather than an inconvenience: it is what stops a future round from
  * adding a check and leaving a stale total sentence behind somewhere else.
  */
-const EXPECTED_GREEN = "All 50 invariants hold across 3 section(s) (baselines=11, ci=31, cross=8).";
+const EXPECTED_GREEN = "All 51 invariants hold across 3 section(s) (baselines=11, ci=32, cross=8).";
 
 /**
- * The refusal step's `name:`, READ from the checker that already spells it once as
- * `CI_E2E_MAIL_STEP`, rather than typed a second time here. A copy would be a second source of truth
- * wearing the costume of a constant — the drift class this phase has spent four plans on.
+ * Reads a single-line `const <NAME> = "<value>";` declaration out of the SHIPPED checker, so a string
+ * this file must anchor a mutation on is spelled ONCE — in the checker — and READ here rather than
+ * typed a second time. A copy would be a second source of truth wearing the costume of a constant,
+ * which is the drift class this phase has spent five plans on.
+ *
+ * ⚠ IT THROWS AND DOES NOT FALL BACK, DELIBERATELY. A default would turn every red case anchored on
+ * the missing string into a mutation that does not apply — and `withMutatedWorkflows`'s
+ * differs-from-input assertion would then be the only thing between this file and a suite of greens
+ * that mean nothing. Failing here, loudly, names the real cause: the declaration moved.
  */
-const MAIL_STEP_NAME = (() => {
-  const decl = /^const CI_E2E_MAIL_STEP = "(.+)";$/m;
+function constFromChecker(declName: string): string {
+  const decl = new RegExp(`^const ${declName} = "(.+)";$`, "m");
   const match = decl.exec(readFileSync(CHECKER, "utf8").replace(/\r\n/g, "\n"));
   if (!match || !match[1]) {
     throw new Error(
-      `could not read the refusal step's name from ${CHECKER} with ${decl.source} — this test ` +
-        `cannot anchor a mutation on a string it could not read, and guessing one would make every ` +
-        `red case below a green that means nothing`,
+      `could not read ${declName} from ${CHECKER} with ${decl.source} — this test cannot anchor a ` +
+        `mutation on a string it could not read, and guessing one would make every red case below ` +
+        `a green that means nothing`,
     );
   }
   return match[1];
-})();
+}
+
+/** The refusal step's `name:`, read from the checker that already spells it once. */
+const MAIL_STEP_NAME = constFromChecker("CI_E2E_MAIL_STEP");
+
+/**
+ * The checker step's `name:` inside `gate-db-free` — the step that RUNS the script this file spawns.
+ * Read from the checker for the same reason as above, and load-bearing for a second one: the
+ * invariant added by plan 19.1-01 anchors on this EXACT string, so a test that guessed it would be
+ * mutating a step the checker is not looking at.
+ */
+const CHECKER_STEP_NAME = constFromChecker("CHECKER_STEP_NAME");
 
 /**
  * `.gitattributes` declares `* text=auto` and this working tree checks `ci.yml` out with CRLF. Every
@@ -259,6 +276,28 @@ function withStepBeforeRefusal(stepLines: string[]): (ci: string) => string {
 }
 
 /**
+ * Removes `gate-db-free`'s checker step — BOTH of its lines, the `- name:` and the `run:` beneath it
+ * — INCLUDING their line terminators, so no orphaned fragment is left behind to change the job's
+ * shape for a reason unrelated to the property under test. Returns the input unchanged when the
+ * anchor is absent, so a drifted anchor lands on `withMutatedWorkflows`'s differs-from-input
+ * assertion rather than silently deleting something else.
+ *
+ * This is 19-REVIEW.md CR-03's mutation, verbatim: the two-line edit that left the checker printing
+ * a clean green over the job that no longer ran it.
+ */
+function withoutCheckerStep(): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const anchor = `      - name: ${CHECKER_STEP_NAME}${eol}`;
+    const at = ci.indexOf(anchor);
+    if (at < 0) return ci;
+    const runEnd = ci.indexOf(eol, at + anchor.length);
+    if (runEnd < 0) return ci;
+    return `${ci.slice(0, at)}${ci.slice(runEnd + eol.length)}`;
+  };
+}
+
+/**
  * Shared insertion primitive. Returns the input UNCHANGED when the anchor is absent, so a drifted
  * anchor lands on `withMutatedWorkflows`'s differs-from-input assertion rather than producing a
  * quietly-different mutation somewhere else in the file.
@@ -283,6 +322,8 @@ const MAIL_REFUSAL = "mail refusal reads the REAL process environment";
 const EXECUTION_DEFAULTS = "runs its steps with the runner's DEFAULT interpreter";
 /** A fragment of the trigger invariant's printed name (new in plan 19-15). */
 const CI_TRIGGERS = "runs on BOTH push and pull_request";
+/** A fragment of the checker-step invariant's printed name (new in plan 19.1-01, CR-03). */
+const CHECKER_STEP = "carries the step that RUNS this checker";
 
 describe("the workflow checker's own predicates, measured against a mutated copy", () => {
   // THE CONTROL. An identity mutation is impossible by construction (the differs-from-input
@@ -421,6 +462,20 @@ describe("the workflow checker's own predicates, measured against a mutated copy
   it("case 12: deleting the pull_request trigger is red", () => {
     withMutatedWorkflows(withoutPullRequestTrigger(), (result) => {
       expectRed(result, CI_TRIGGERS);
+    });
+  });
+
+  // CR-03, AND THE ONE MUTATION THAT DELETES THE CHECKER ITSELF RATHER THAN ANYTHING IT CHECKS.
+  // Every case above mutates something `gate-e2e` declares and measures the checker's answer. This
+  // one deletes the two lines that RUN the checker, from `gate-db-free`, and measures the same
+  // thing — because for the whole of plans 19-11 through 19-15 that edit was GREEN. It was
+  // reproduced twice on the tracked file, by the reviewer and independently by the verifier: exit
+  // 0, no FAIL line, and the summary line unchanged at all 50 invariants, over a workflow in which
+  // nothing would ever evaluate them again. Every other red in this file was conditional on a step
+  // whose existence nothing asserted.
+  it("case 13 (CR-03): deleting gate-db-free's checker step is red", () => {
+    withMutatedWorkflows(withoutCheckerStep(), (result) => {
+      expectRed(result, CHECKER_STEP);
     });
   });
 });
