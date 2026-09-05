@@ -627,11 +627,25 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 0 plans
+**Plans:** 15 plans (7 waves)
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 19.1 to break down)
+- [ ] 19.1-01-PLAN.md — TRACER · SC1: constrain `gate-db-free`'s checker step end-to-end (hard stop, display-name pin, exact-invocation invariant, anchor control)
+- [ ] 19.1-02-PLAN.md — Wave 0: the two expected-failure behaviours, the local-repro recipe, the Phase-17 tabular-figure verdict, the avatar local run
+- [ ] 19.1-03-PLAN.md — Cause A: the five-row month — derive calendar geometry from the rendered grid (4 of the 14)
+- [ ] 19.1-04-PLAN.md — Cause D1: the duplicated `availability-tz-note` id — per-instance ids in both components + a census
+- [ ] 19.1-05-PLAN.md — Harness memory (`constFromChecker`, `withJobKey`/IN-02) + SC1 completion + SC3's dropped case
+- [ ] 19.1-06-PLAN.md — SC2: the axis-vs-property audit — trigger filters (CR-01), sequence form (WR-02), anchor repairs (CR-02), inventory
+- [ ] 19.1-07-PLAN.md — Cause C: `cancel.spec.ts:232` refund disjunction + audit row (D-01 protected, never allowlisted)
+- [ ] 19.1-08-PLAN.md — Cause F + #11: trace the hold-countdown timeout, post-condition the day-select helper, triage the wizard refusal
+- [ ] 19.1-09-PLAN.md — Cause D2: `skeleton-geometry:1807` — reproduce, name the wrapped cell, repair the right tier
+- [ ] 19.1-10-PLAN.md — Cause B: the four upload-dependent failures — route per case, no credential
+- [ ] 19.1-11-PLAN.md — D-03: the known-failures allowlist + its growth census + Cause E
+- [ ] 19.1-12-PLAN.md — D-04: upload the visual diffs, classify all twelve, restore point, regenerate on the sanctioned path
+- [ ] 19.1-13-PLAN.md — SC4 close: full-suite re-measurement, the 25 released tests, the two flaky
+- [ ] 19.1-14-PLAN.md — SC5 pre-flight: fresh secret scan, ruleset payload, checklist, handover checkpoint (D-07/D-08)
+- [ ] 19.1-15-PLAN.md — SC5 enforcement: apply the `main` ruleset, read it back, probe direct-push (D-05/D-06)
 
 ### Phase 20: Ops Gets Its Own Front Door — the `ops.` Host, Sign-In & Staff Onboarding
 
