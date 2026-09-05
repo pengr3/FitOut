@@ -375,3 +375,49 @@ purpose is that `gate-visual` stops being red on every push; regeneration alone 
 
 **Severity:** high for the plan — it is the difference between a gate that is green and a gate that is
 green until tomorrow.
+
+## 19.1-12 — the SC2 guard suite is a WINDOWS-ONLY green: 6 of its 36 cases are red on every LF checkout
+
+**Found during:** 19.1-12 Task 1, reading `gate-db-free`'s log after the first push of this phase's work
+(run `33968421339`, job `101312530095`). This is the first time plans 19.1-01 through 19.1-11 have run
+in CI at all — `dev` was 125 commits ahead of `origin/dev`, so every one of them was validated on this
+laptop only.
+
+**Measured, not suspected.** `npm run test:design` is 36/36 here and **6 failed | 30 passed** on the
+runner, with `YAMLParseError: All mapping items must start at the same column`:
+
+    × case 7:  continue-on-error as an Actions expression on the JOB is red
+    × case 11: a job-level defaults: block on gate-e2e is red
+    × case 18 (CR-03): a literal continue-on-error on the gate-db-free JOB is red
+    × case 19 (CR-03): continue-on-error as an Actions expression on the gate-db-free JOB is red
+    × case 22 (CR-03): a job-level defaults: block on gate-db-free is red
+    × case 25 (CR-01): a nothing-matching branch list on the pull-request trigger is red
+
+**Reproduced locally and controlled, in that order.** Converting `ci.yml` and `baselines.yml` to LF in
+the working tree reproduces **exactly those six**, same names, nothing else. Then the control: the SAME
+six fail at `f03be7b^` — the tree WITHOUT this plan's upload step — so 19.1-12's edit is exonerated by
+measurement rather than by argument. The working tree was restored from a pre-measurement copy and the
+suite verified back at 36/36 with an empty `git diff HEAD -- .github/`.
+
+**The cause, and it is one class:** the mutation builders that insert a key at JOB scope or into the
+`on:` block reassemble the file around a hardcoded `\n`. On a CRLF working tree the surviving `\r`
+happens to keep the emitted YAML well-formed; on an LF checkout the inserted line lands at the wrong
+column and `yaml` refuses the document. STEP-scope builders are unaffected, which is why all twelve of
+plan 06's own cases (25–36) survive except 25, the one trigger-level case among them.
+
+**Why it is not fixed here:** `tests/design/workflow-invariants.test.ts` is not in 19.1-12's
+`files_modified`, the defect is not caused by this plan's task, and the scope boundary says an
+out-of-scope discovery is logged rather than repaired. Repairing six mutation builders in the phase's
+most sensitive file, inside a plan halted at a blocking-human checkpoint, is scope creep on exactly the
+artifact that is supposed to be trustworthy.
+
+**Why it matters more than its size suggests.** These six cases are the standing memory of CR-01 and
+CR-03 — the trigger-neutering vectors and the job-level softening vectors. On the machine that gates the
+repository they do not run; they error. A guard suite that is green only on its author's laptop is the
+same category of defect as plan 19.1-06's row 6: a check whose printed name claims a property it is not,
+on that machine, testing. It should be fixed by making the builders use `eolOf(text)` — the idiom
+19.1-12 used for its own `ci.yml` insertion precisely because of the note in this phase's own
+environment brief — and re-run somewhere with an LF checkout before being believed.
+
+**Severity:** high. It is not a broken product; it is a broken instrument, and the instrument is the one
+this whole phase is building.
