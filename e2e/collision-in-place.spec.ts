@@ -310,6 +310,38 @@ test.describe("STATE-07 — a lost race becomes a result, in place", () => {
         `/listings/${seed.listingId}`,
       );
 
+      // ── POST-CONDITION: THE DAY PANEL HAS RE-RENDERED ITS CHIPS ──────────────────────────────
+      // ⚠ THIS WAIT IS A MEASURED REQUIREMENT, NOT A HEDGE, AND IT ASSERTS PRESENCE ONLY — never
+      // state. It is the fifth sighting in this repository of "the observable state the next step
+      // depends on, asserted before proceeding" (`openBookingSheet`, `reduced-motion.spec.ts`'s
+      // `advanceMonth`, `shell.spec.ts:558`, and step 3's own retry above).
+      //
+      // MEASURED, 19.1-04 Task 3, recorded verbatim in
+      // `.planning/phases/19.1-…/evidence/triage-collision-in-place.txt` section 6. The court variant
+      // failed at the evaluate below with the SAME message CI recorded for this spec — "the hours the
+      // booker just lost are still selectable" — and then passed on retry. But the RECEIVED value
+      // refutes that message: both chips came back `found: false`, not `found: true, disabled:
+      // false`. They were ABSENT, not stale. `router.refresh()` puts the day panel through its
+      // loading state and remounts the picker (the `pickerKey` collision suffix in
+      // `availability-calendar.tsx`), so for a beat after the notice mounts the grid holds no hour
+      // chips at all — and the one synchronous evaluate below can land in that beat.
+      //
+      // THIS DOES NOT WEAKEN AC#34, AND THE DISTINCTION IS THE WHOLE POINT. The defect the evaluate
+      // exists to catch is a grid that CAME BACK still offering the lost hours; that grid mounts its
+      // chips, so it satisfies this post-condition and is then failed by the evaluate exactly as
+      // before. What this removes is only the race against an empty intermediate frame, which is a
+      // loading state rather than a claim about availability. A grid that never re-mounts its chips
+      // fails HERE, with this sentence, instead of one floor down wearing a message about staleness
+      // that its own received value contradicts.
+      await expect(
+        page.getByRole("button", { name: new RegExp(`^${win.startLabel}`) }),
+        `the day panel never re-rendered its hour chips after the refusal: no \`${win.startLabel}\` ` +
+          "chip is mounted at all. That is NOT the stale-grid defect the assertion below is about — " +
+          "a stale grid still mounts its chips — it is a grid that emptied and did not come back, " +
+          "which would mean the collision refresh left the booker with no hours on a day that has " +
+          "them. Read the trace before touching the evaluate below.",
+      ).toHaveCount(1, { timeout: 15_000 });
+
       // ── (a) SAME PAINT + (b) FOCUS, READ IN ONE `page.evaluate` ───────────────────────────────
       // ⚠ ONE EVALUATE IS THE ASSERTION. Two awaited Playwright expectations would each retry until
       // true and would be perfectly green against a notice that arrived a beat BEFORE the grid caught

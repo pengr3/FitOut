@@ -228,8 +228,266 @@ here, and this one has no failing transcript on this machine to attach an
 annotation's reason to.
 
 ################################################################################
-# 5. VERDICTS
+# 5. POST-REPAIR — DEFECT 1 IS CLOSED AT RUNTIME
 ################################################################################
 
-VERDICT DEFECT 1 (duplicate id `availability-tz-note`) — REAL PRODUCT BUG, REPRODUCED, REPAIRABLE HERE. Read from the section 3 transcript: "PROBE BEFORE sheet open: #availability-tz-note=1 tz-note <p>=1" then "PROBE AFTER sheet open: #availability-tz-note=2 tz-note <p>=2", and "strict mode violation: getByText(/Times shown in .*Makati.*\(GMT\+8\)/i) resolved to 2 elements:" with both quoted elements carrying id="availability-tz-note". It is a module-level id literal in a component mounted twice on one route, so it is an HTML-validity and aria-describedby defect independent of any test. NOT an allowlist candidate (D-01) — repaired by this plan's Task 2.
-VERDICT DEFECT 2 (the court variant's stale grid) — NOT REPRODUCED ON THIS BOX; CARRIED, NOT CLOSED. Read from the section 1 transcripts: "2 passed (41.2s)" and "6 passed (1.1m)", with zero occurrences of "the notice is on screen but the grid under it has NOT caught up" in either. CI recorded it once and RESEARCH.md records the court variant as flaky (passed on retry), so it is a race against `router.refresh()` (12-RESEARCH Pitfall 3), not a deterministic defect this box can settle. No settle is added to the spec: a wait added to an assertion that has never failed here would be a hedge against a failure nobody measured, which is the one thing Task 3 forbids. NOT an allowlist candidate and NOT closed — carried forward as an open, unreproduced flake.
+The same probe as section 3, re-run against the repaired components and deleted
+again (`git status --porcelain -- e2e` empty; it is not committed):
+
+$ npx playwright test e2e/__tznote-probe.spec.ts --project=chromium --reporter=list
+
+Running 1 test using 1 worker
+
+PROBE AFTER sheet open: {"retiredLiteralCount":0,"noteCount":2,"ids":["_R_16b9bnabn5ritulb_-tz-note","_r_0_-tz-note"],"distinctIds":2,"everyIdNonEmpty":true,"eachDescribed":[1,1]}
+PROBE: pickWindow's unscoped TEXT locator still resolves to 2
+  ok 1 [chromium] › e2e\__tznote-probe.spec.ts:10:5 › probe: the tz-note id census with the responsive sheet open (3.3s)
+
+  1 passed (9.7s)
+
+  * `retiredLiteralCount: 0` — no element carries `availability-tz-note` any more.
+  * `noteCount: 2, distinctIds: 2, everyIdNonEmpty: true` — the two mounted
+    surfaces now carry two DIFFERENT, non-empty ids.
+  * `eachDescribed: [1,1]` — and each note's own id is the target of exactly one
+    `aria-describedby`. The association did not break while the id was made
+    unique, which is the failure mode that would have been strictly worse than
+    the duplicate, because nothing on screen observes it.
+
+⚠ AND THE HALF THIS REPAIR DOES NOT CLOSE, MEASURED RATHER THAN ASSUMED:
+
+    PROBE: pickWindow's unscoped TEXT locator still resolves to 2
+
+`pickWindow` (`e2e/helpers/booker-seed.ts:180`) matches on TEXT, not on the id:
+
+    await expect(page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)).toBeVisible();
+
+The repair changed an `id` attribute. The note's TEXT is byte-identical before
+and after, so the number of elements this locator resolves to is unchanged by
+it — necessarily, not incidentally. See section 7.
+
+################################################################################
+# 6. POST-REPAIR — DEFECT 2 REPRODUCED, AND IT IS A MISSING SETTLE
+################################################################################
+
+$ rm -rf .next
+$ npx playwright test e2e/collision-in-place.spec.ts --project=chromium --retries=2 --reporter=list
+
+  x  1 › the collision lands in place · court (13.7s)
+  -  2 › the collision lands in place · grove
+  ok 3 › the collision lands in place · court (retry #1) (12.3s)
+  ok 4 › the collision lands in place · grove (retry #1) (11.5s)
+
+  1) › the collision lands in place · court
+
+    Error: the notice is on screen but the grid under it has NOT caught up: the
+    hours the booker just lost are still selectable. `router.refresh()` merges
+    the RSC payload without losing client `useState`, and the day's slots ARE
+    that state — so the grid it updates is not this one (12-RESEARCH Pitfall 3).
+    AC#34 asks for both in the SAME paint, which is why both are read in one
+    evaluate.
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 8
+    + Received  + 8
+
+      Object {
+        "chips": Array [
+          Object {
+    -       "ariaDisabled": "true",
+    -       "disabled": true,
+    -       "found": true,
+    +       "ariaDisabled": null,
+    +       "disabled": false,
+    +       "found": false,
+            "label": "9:00 AM",
+    -       "lineThrough": "line-through",
+    +       "lineThrough": "none",
+          },
+          Object {
+    -       "ariaDisabled": "true",
+    -       "disabled": true,
+    -       "found": true,
+    +       "ariaDisabled": null,
+    +       "disabled": false,
+    +       "found": false,
+            "label": "10:00 AM",
+    -       "lineThrough": "line-through",
+    +       "lineThrough": "none",
+          },
+        ],
+        "notice": Object {
+          "focused": true,
+          "present": true,
+
+  1 flaky
+  1 passed (55.6s)
+
+THE MESSAGE IS REFUTED BY ITS OWN RECEIVED VALUE, AND THE SPEC ITSELF HOLDS THE
+CONTROL. Read `found`: it is **false** on both chips. The buttons were ABSENT
+from `main`, not present-and-still-selectable.
+
+The file's own header records what the genuine stale-grid defect looks like —
+watched red R1, produced deliberately by deleting `await refreshDay();` from
+`src/components/booking/book-cta.tsx` (`collision-in-place.spec.ts:86-110`):
+
+        - Expected  - 6      + Received  + 6
+          "chips": Array [
+            Object {
+        -     "ariaDisabled": "true",      +     "ariaDisabled": null,
+        -     "disabled": true,            +     "disabled": false,
+              "found": true,   "label": "9:00 AM",
+        -     "lineThrough": "line-through",  +     "lineThrough": "none",
+
+`"found": true` sits on BOTH sides of R1's diff — unchanged, because a stale
+grid still MOUNTS its chips and merely reports them free. The failure above has
+`found: false`, which R1 never produced. So this is not R1's defect wearing R1's
+message; it is a DIFFERENT state that inherited R1's message because the
+assertion had no instrument to tell the two apart.
+
+That state is a MISSING SETTLE. `router.refresh()` puts the day panel through
+its loading state and the picker is deliberately remounted on a collision (the
+`pickerKey` collision suffix in `availability-calendar.tsx`), so for a beat
+after the notice mounts the grid holds no hour chips at all — and the ONE
+synchronous evaluate, which is correctly synchronous, can land in that beat.
+
+REPAIR, in the established shape: a post-condition before the evaluate asserting
+PRESENCE ONLY — never state — with a docblock stating it is a measured
+requirement and not a hedge. It does not weaken AC#34: a grid that comes back
+still offering the lost hours mounts its chips, satisfies the post-condition,
+and is then failed by the evaluate exactly as before. What it removes is only
+the race against an empty intermediate frame, which is a loading state rather
+than a claim about availability.
+
+$ npx playwright test e2e/collision-in-place.spec.ts --project=chromium --retries=2 --repeat-each=5 --workers=1 --reporter=list
+
+Running 10 tests using 1 worker
+
+  ok  1 › the collision lands in place · court (11.3s)
+  ok  2 › the collision lands in place · grove (8.9s)
+  ok  3 › the collision lands in place · court (8.9s)
+  ok  4 › the collision lands in place · grove (8.9s)
+  ok  5 › the collision lands in place · court (9.3s)
+  ok  6 › the collision lands in place · grove (9.0s)
+  ok  7 › the collision lands in place · court (9.1s)
+  ok  8 › the collision lands in place · grove (8.9s)
+  ok  9 › the collision lands in place · court (9.3s)
+  ok 10 › the collision lands in place · grove (4.7s)
+
+  10 passed (1.7m)
+
+10/10 with no attempt consumed by a retry. RED-THEN-GREEN for the post-condition:
+the red is the transcript at the top of this section, produced on the file WITHOUT
+it; the green is the 10 invocations directly above, with it.
+
+WATCHED RED — the post-condition itself can fail, with its OWN sentence. The
+locator was mutated to look for a chip label that cannot exist
+(`^${win.startLabel}` -> `^ZZ${win.startLabel}`) and the spec run alone:
+
+    Error: the day panel never re-rendered its hour chips after the refusal: no
+    `9:00 AM` chip is mounted at all. That is NOT the stale-grid defect the
+    assertion below is about — a stale grid still mounts its chips — it is a
+    grid that emptied and did not come back, which would mean the collision
+    refresh left the booker with no hours on a day that has them. Read the trace
+    before touching the evaluate below.
+
+    expect(locator).toHaveCount(expected) failed
+    Locator:  getByRole('button', { name: /^ZZ9:00 AM/ })
+    Expected: 1     Received: 0     Timeout: 15000ms
+      - 33 × locator resolved to 0 elements
+
+  1 failed
+
+It fails at ITS OWN line with ITS OWN message, 15s rather than at the evaluate,
+and the message names `9:00 AM` while the mutated locator hunts `ZZ9:00 AM` —
+so the sentence a future reader gets is about the product, not about the probe.
+
+REVERT PROOF (the 19.1-03 idiom, content rather than bytes, because
+`core.autocrlf` rewrites line endings on any `git`-mediated restore):
+
+    PRE_MUTATION_CONTENT_SHA256 = ef33c5909fa4a79123361b2f0766a84724195574b2dd57c9cc02403a0e7aa443
+    POST_REVERT_CONTENT_SHA256  = ef33c5909fa4a79123361b2f0766a84724195574b2dd57c9cc02403a0e7aa443
+    CHECKSUMS MATCH — mutation fully reverted
+    grep -c "ZZ" e2e/collision-in-place.spec.ts   ->  0
+    git diff --stat -- e2e/collision-in-place.spec.ts
+      e2e/collision-in-place.spec.ts | 32 ++++++++++++++++++++++++++++++++
+      1 file changed, 32 insertions(+)
+
+32 insertions and ZERO deletions: the post-condition is the only change to this
+spec. No assertion was deleted, no tolerance moved, no message weakened.
+
+################################################################################
+# 7. A THIRD FINDING — THE TEXT LOCATOR IS AMBIGUOUS INDEPENDENTLY OF THE id,
+#    AND IT IS NOT THIS PLAN'S FILE
+################################################################################
+
+The canonical post-repair run of this spec:
+
+$ npx playwright test e2e/collision-in-place.spec.ts --project=chromium --retries=2 --reporter=list
+
+  ok 1 › the collision lands in place · court (12.3s)
+  x  2 › the collision lands in place · grove (2.7s)
+  ok 3 › the collision lands in place · court (retry #1) (12.0s)
+  ok 4 › the collision lands in place · grove (retry #1) (11.0s)
+
+  2) › the collision lands in place · grove
+
+    Error: expect(locator).toBeVisible() failed
+    Locator: getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)
+    Expected: visible
+    Error: strict mode violation: getByText(/Times shown in .*Makati.*\(GMT\+8\)/i) resolved to 2 elements:
+        1) <p id="_r_c_-tz-note" class="text-sm text-muted-foreground">Times shown in Makati time (GMT+8)</p> aka locator('[id="_r_c_-tz-note"]')
+        2) <p id="_R_16b9bnabn5ritulb_-tz-note" class="text-sm text-muted-foreground">…</p> aka locator('[id="_R_16b9bnabn5ritulb_-tz-note"]')
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)
+        2 × locator resolved to <p id="_R_16b9bnabn5ritulb_-tz-note" …>…</p>
+          - unexpected value "hidden"
+
+       at helpers\booker-seed.ts:180
+    > 180 |   await expect(page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)).toBeVisible();
+        at pickWindow (e2e\helpers\booker-seed.ts:180:72)
+        at e2e\collision-in-place.spec.ts:248:23
+
+  1 flaky
+  1 passed (46.8s)
+
+THIS IS THE RESEARCH.md CAUSE D1 FAILURE, REPRODUCED IN THE SPEC AT LAST — and
+it reproduces AFTER the id repair, which is the point. Read the two ids: one is
+React's SERVER id form (`_R_…`) and hidden, the other its CLIENT form (`_r_c_`)
+and visible. Two React trees, not one: while `/listings/[id]` streams, the
+served shell and the resolved content are BOTH in the document for a beat. That
+is the second mechanism, and the repository already has it on the record for a
+different id — `e2e/helpers/booker-seed.ts:363-373`, where the served document
+"holds `id=\"search-category\"` at byte 11,713 (the pending fallback) and again
+at … while the boundary is still resolving BOTH are in the DOM."
+
+So the duplicate had TWO producers all along: the responsive sheet (section 3)
+and this streaming overlap. The id repair closes both, as an id: the two
+elements above carry two different ids where at HEAD they carried one, and
+RESEARCH.md's own quote of this failure at HEAD shows two `<p
+id="availability-tz-note">`.
+
+WHAT IT DOES NOT CLOSE — AND WHY THAT IS NOT A REGRESSION. `pickWindow`'s
+assertion matches on TEXT. This plan changed an `id` attribute; the note's text
+is byte-identical before and after; therefore the element count this locator
+resolves to is unchanged by the repair, necessarily rather than incidentally.
+The plan's own key-link expected otherwise ("the strict-mode ambiguity this plan
+removes"), and that expectation is FALSIFIED by the transcript above.
+
+NOT REPAIRED HERE, DELIBERATELY. `e2e/helpers/booker-seed.ts` is not in this
+plan's `files_modified`, it is shared by many specs, and 19.1-PATTERNS section 7
+assigns it to PLAN 08, which already notes that "the tz-note assertion in
+`pickWindow` is the same locator that goes strict-mode-ambiguous under the
+section 5 duplicate-id bug — the two repairs interact." Reaching into it here
+would be a second, uncoordinated edit to the file plan 08 is chartered to
+harden. The brief for plan 08 is in the VERDICT below, measured rather than
+inferred.
+
+################################################################################
+# 8. VERDICTS
+################################################################################
+
+VERDICT DEFECT 1 (duplicate id `availability-tz-note`) — REAL PRODUCT BUG, REPRODUCED, AND CLOSED BY REPAIR. Read from the section 3 transcript: "PROBE BEFORE sheet open: #availability-tz-note=1 tz-note <p>=1" then "PROBE AFTER sheet open: #availability-tz-note=2 tz-note <p>=2", and "strict mode violation: getByText(...) resolved to 2 elements:" with both quoted elements carrying id="availability-tz-note". Two producers were measured, not one: the responsive sheet below `lg:` (section 3) and the streaming overlap of the served shell with the resolved content (section 7, where the two ids are React's server and client forms). Both were served by the same module-level id literal in components mounted more than once per document, so it was an HTML-validity and `aria-describedby` defect independent of any test. CLOSED: section 5 measures `retiredLiteralCount: 0`, `distinctIds: 2`, `eachDescribed: [1,1]` — two different ids, each still the target of exactly one describedby — and `tests/design/availability-tz-note-id.test.ts` is build-blocking against the shape's return. NOT an allowlist candidate (D-01) at any point.
+VERDICT DEFECT 2 (the court variant's stale grid) — REPRODUCED, AND IT IS A MISSING SETTLE RATHER THAN A PRODUCT DEFECT; CLOSED BY REPAIR. Not reproduced in 8 pre-repair invocations (section 1: "2 passed (41.2s)", "6 passed (1.1m)"); reproduced on the 9th, in section 6, with CI's exact message. The message is refuted by its own received value: both chips came back `"found": false`, i.e. ABSENT, where the spec's own watched red R1 — the deliberately-induced stale grid — carries `"found": true` UNCHANGED on both sides of its diff. A stale grid mounts its chips and reports them free; this grid had no chips at all, because `router.refresh()` puts the day panel through its loading state and the collision remounts the picker. Repaired with a presence-only post-condition in the established shape, with a docblock naming the measurement: 10/10 invocations green with no retry consumed (section 6), and the post-condition proved able to fail with its own sentence under a watched red, reverted with matching content checksums and a 32-insertion/0-deletion diff. NOT an allowlist candidate and NOT a product defect — the phase does NOT grow a plan for it.
+VERDICT DEFECT 3 (NEW, found post-repair) — `pickWindow`'s TEXT LOCATOR IS STRICT-MODE AMBIGUOUS INDEPENDENTLY OF THE id. NOT REPAIRED HERE; HANDED TO PLAN 08 WITH A MEASUREMENT. Read from section 7: after the id repair the grove variant still failed at `e2e/helpers/booker-seed.ts:180` with "strict mode violation: getByText(/Times shown in .*Makati.*\(GMT\+8\)/i) resolved to 2 elements", the two elements now carrying DIFFERENT ids (`_r_c_-tz-note` visible, `_R_16b9bnabn5ritulb_-tz-note` hidden). The locator matches TEXT; this plan changed an `id`; the note's text is byte-identical before and after, so the resolution count is unchanged by the repair necessarily rather than incidentally, and the plan's key-link claim that this plan "removes the strict-mode ambiguity" is FALSIFIED by that transcript. It is a flake, not a hard failure — it passed on retry, and it is one of the two mechanisms already documented for `#search-category` at `e2e/helpers/booker-seed.ts:363-373`. Not repaired here because `booker-seed.ts` is outside this plan's `files_modified`, is shared by many specs, and 19.1-PATTERNS section 7 charters PLAN 08 to harden that exact helper. THE BRIEF FOR PLAN 08: scope or settle the tz-note assertion the way `selectTargetDayIn` already takes a scope and the way the `#search-category` note already handles the pending/resolved overlap — do NOT weaken it to `.first()`, which would make it green against a page that renders only the pending shell.
