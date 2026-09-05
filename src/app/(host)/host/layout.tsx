@@ -28,8 +28,8 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { AmbientHostNav, AmbientNotifications } from "@/components/patterns/ambient-notifications";
-import { BellSlotSkeleton } from "@/components/patterns/auth-slot-skeleton";
-import { ProfileLink, SiteChrome, SiteNav } from "@/components/patterns/site-chrome";
+import { BellSlotSkeleton, NavSlotSkeleton } from "@/components/patterns/auth-slot-skeleton";
+import { ProfileLink, SiteChrome } from "@/components/patterns/site-chrome";
 import { SiteFooter } from "@/components/patterns/site-footer";
 import { ModeSwitch } from "@/components/mode-switch";
 import { HOST_NAV_LINKS } from "@/lib/nav";
@@ -87,12 +87,34 @@ export default async function HostLayout({
         brandHref="/host"
         surface="muted"
         nav={
-          // The nav's LINKS are static (`src/lib/nav.ts`) and only the D-65 count is not, so the
-          // fallback is the identical `SiteNav` with no badges — which is byte-identical to the
-          // resolved zero-count markup, because D-65 hides the badge at zero. The `<nav>` landmark
-          // itself is rendered by `SiteChrome` around this boundary, so it is present from the first
-          // byte and the landmark count is 1 at every viewport whether the count has landed or not.
-          <Suspense fallback={<SiteNav links={HOST_NAV_LINKS} />}>
+          // ⚠ THIS COMMENT USED TO CLAIM THE FALLBACK WAS A SECOND `SiteNav` AND THAT THIS WAS SAFE:
+          // *"the fallback is the identical `SiteNav` with no badges — which is byte-identical to the
+          // resolved zero-count markup, because D-65 hides the badge at zero."* THAT CLAIM WAS
+          // MEASURED AND IT IS FALSE, and it is replaced here rather than deleted so the next reader
+          // inherits the correction instead of an absence.
+          //
+          // It was true of the LINKS and true of the BADGE — the two axes its author was thinking
+          // about. It is false of the one axis that decides whether the two renders can be hydrated
+          // against each other: `SiteNav` mounts `NavDrawer` -> `ResponsiveDialog` -> the app's one
+          // Radix dialog below `md:`, and that dialog's trigger carries an `aria-controls` id
+          // GENERATED PER RENDER. With a second `SiteNav` in the fallback, every `(host)` route
+          // reported *"Hydration failed because the server rendered HTML didn't match the client. As
+          // a result this tree will be regenerated on the client"*, with React's own diff naming
+          // `<button … aria-label="Menu" … aria-controls="radix-_R_ad5ritulb_">` as client-only.
+          // Cold cache and a production-build cache both, 1 each; the booker checkout route, whose
+          // fallback is a plain box, 0. Transcript:
+          // `.planning/phases/19.1-…/evidence/triage-host-hydration.txt`.
+          //
+          // So the fallback is now `NavSlotSkeleton` — the same static links from the same one
+          // renderer, and the drawer trigger's `size-8` BOX instead of a second live trigger. The
+          // boundary is unchanged in position and unchanged in what it wraps; what changed is that
+          // only ONE side of it mounts the overlay. `tests/design/suspense-fallback-overlay.test.ts`
+          // is what stops the second copy coming back.
+          //
+          // Unchanged and still true: the `<nav>` landmark itself is rendered by `SiteChrome` AROUND
+          // this boundary, so it is present from the first byte and the landmark count is 1 at every
+          // viewport whether the count has landed or not.
+          <Suspense fallback={<NavSlotSkeleton links={HOST_NAV_LINKS} />}>
             <AmbientHostNav userId={session.user.id} />
           </Suspense>
         }

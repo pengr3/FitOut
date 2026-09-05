@@ -1374,3 +1374,114 @@ test.describe("AC#6 — the host composition stays visually distinct", () => {
     }
   });
 });
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+// SHELL-01 / CI-01 — the host composition hydrates without React throwing the tree away (19.1-16).
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// NOT SERIAL, AND BESIDE THE OTHER HOST-COMPOSITION CASES ON PURPOSE. It seeds nothing and shares
+// nothing; a failure here must not skip anything and must not be skipped by anything.
+//
+// WHAT IT IS ABOUT. `patterns/site-chrome.tsx` is a Server Component and `ResponsiveDialog` forwards
+// its `trigger` into `DialogTrigger asChild`, which is Radix's `Slot` — a CLONE, not a render. While
+// the nav drawer's trigger element was created in that server module it could not be cloned during
+// the SSR pass, so `/host` served an empty `<div class="md:hidden"></div>` and the client rendered the
+// button into it. React answered with *"Hydration failed … this tree will be regenerated on the
+// client"* on EVERY `(host)` route, and a regenerated tree is a tree whose buttons are replaced —
+// which `e2e/helpers/booker-seed.ts:118-160` already records as the mechanism that LOSES a click
+// rather than queueing it. Measured, with the served bytes and two controls, in
+// `.planning/phases/19.1-…/evidence/triage-host-hydration.txt`.
+//
+// MODELLED CLAUSE FOR CLAUSE ON `e2e/public-listing.spec.ts`'s case (8) — the same four moves in the
+// same order, for the same three reasons that file gives at its own site.
+
+test.describe("SHELL-01 — the host composition raises no hydration mismatch (CI-01)", () => {
+  test("a full load of /host regenerates no tree, on a page proven to have hydrated", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+
+    // 375px, BELOW `md:` DELIBERATELY. That is the width at which `SiteNav` renders the DRAWER
+    // placement rather than the inline bar, and the drawer is the subtree the mismatch was measured
+    // in. At 1280 this case would load a composition that never mounts the overlay at all and would
+    // report green without visiting the node it is about.
+    await page.setViewportSize({ width: 375, height: 900 });
+    await signUp(page, "host");
+
+    // LISTENERS ARMED BEFORE THE NAVIGATION. A hydration error is thrown during the FIRST client
+    // render, so a listener registered after `goto` resolves can miss the only message it wants —
+    // `public-listing.spec.ts:329-330`'s own stated reason for the same ordering.
+    const messages: string[] = [];
+    page.on("console", (m) => messages.push(m.text()));
+    page.on("pageerror", (e) => messages.push(e.message));
+
+    const res = await page.goto(`${BASE}/host`);
+    expect(res?.status(), "/host did not answer 200").toBe(200);
+
+    // PRESENCE FIRST, so the absence below is not measured against an empty page or a redirect to
+    // /login. TRAP 1 in this file's own idiom.
+    await expectShellReachable(page, "/host · 375px");
+    await expect(
+      page.getByTestId("site-nav"),
+      "/host · 375px: the host composition rendered no [data-testid=\"site-nav\"], so this run never " +
+        "reached the subtree the mismatch lives in",
+    ).toHaveCount(1);
+
+    // PROVE THE PAGE HYDRATED BEFORE ASSERTING AN ABSENCE ON IT. `12-07` recorded this the third time
+    // this repository met it: an absence assertion against a page that has not hydrated measures the
+    // pre-hydration document, where no client render has happened and no mismatch can have been
+    // reported. Opening and closing the nav drawer needs live client JavaScript in BOTH directions,
+    // and it is the very subtree under suspicion — the cheapest available proof is also the most
+    // relevant one here.
+    await page.getByRole("button", { name: "Menu" }).click();
+    await expect(page.locator('[data-testid="responsive-dialog"]')).toHaveCount(1);
+    await page.keyboard.press("Escape");
+    await expect(page.locator('[data-testid="responsive-dialog"]')).toHaveCount(0);
+
+    // ─────────────────────────────────────────────────────────────────────────────────────────────
+    // THE DETERMINISTIC CLAUSE, AND WHY IT IS HERE RATHER THAN THE MESSAGE CLAUSE ALONE.
+    // ─────────────────────────────────────────────────────────────────────────────────────────────
+    // The console/pageerror clause below is the one that names the user-visible symptom, but it is
+    // RACED and that was measured rather than assumed (19.1-16 STEP 4, against the pre-repair tree):
+    // React does not hydrate a Suspense boundary that is still pending when hydration begins — it
+    // client-renders the contents when they arrive, and a client render has nothing to disagree with.
+    // So on a dev server whose compile cache is cold the boundary is often still pending, and the
+    // same broken tree reports ZERO mismatches. `rm -rf .next` → PASSED; the route already compiled
+    // → FAILED with 1. A warm-up navigation was tried and did NOT make it deterministic either.
+    //
+    // What IS deterministic is the CAUSE, read off the served bytes: with the trigger element created
+    // in a server module, Radix's `Slot` cannot clone it during SSR and the drawer placement is
+    // served EMPTY — `<div class="md:hidden"></div>` — in the fallback and in the resolved boundary
+    // alike. Post-repair neither is empty: the fallback holds `NavSlotSkeleton`'s reserved box and the
+    // resolved child holds the real `<button aria-label="Menu">`. That is true whether the boundary
+    // resolved before the response ended or not, which is exactly what the message clause is not.
+    const served = await (await page.request.get(`${BASE}/host`)).text();
+    expect(
+      served.length,
+      "the served /host document was empty, so the assertion below would pass over nothing",
+    ).toBeGreaterThan(1000);
+    expect(
+      served.match(/<div class="md:hidden"><\/div>/g) ?? [],
+      "the served /host document holds an EMPTY drawer placement `<div class=\"md:hidden\"></div>`. " +
+        "The nav drawer's trigger is passed to `ResponsiveDialog`'s `trigger` prop and forwarded into " +
+        "`DialogTrigger asChild` — Radix's `Slot`, which CLONES an element rather than rendering one. " +
+        "An element created in a SERVER module cannot be cloned during the SSR pass, so the button is " +
+        "absent from the server HTML and appears only on the client, and React throws the tree away " +
+        "and regenerates it. The fix is not to weaken this assertion: it is to author the cloned " +
+        "element on the client side of the boundary, which is what " +
+        "`src/components/patterns/nav-drawer-shell.tsx` exists for.",
+    ).toEqual([]);
+
+    const hydrationErrors = messages.filter((m) => m.includes("Hydration failed"));
+    expect(
+      hydrationErrors,
+      `/host reported ${hydrationErrors.length} hydration mismatch(es). React's own remedy is "this ` +
+        `tree will be regenerated on the client", and a regenerated tree is the duplicate-node / ` +
+        `replaced-control mechanism this repository has chased before: a press that lands on a node ` +
+        `on its way out is LOST, not queued (e2e/helpers/booker-seed.ts:118-160). The known cause on ` +
+        `this surface is a trigger element created in a SERVER module and handed to Radix's ` +
+        `\`asChild\` \`Slot\`, which cannot clone it during SSR — see ` +
+        `src/components/patterns/nav-drawer-shell.tsx. Messages: ${JSON.stringify(hydrationErrors)}`,
+    ).toEqual([]);
+  });
+});

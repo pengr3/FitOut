@@ -78,12 +78,11 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { MenuIcon, UserIcon } from "lucide-react";
+import { UserIcon } from "lucide-react";
 
-import { ResponsiveDialog } from "@/components/patterns/responsive-dialog";
+import { NavDrawerShell } from "@/components/patterns/nav-drawer-shell";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { AUTH_SLOT_BOX, AUTH_SLOT_ICON, HEADER_HEIGHT } from "@/lib/design/measurements";
+import { AUTH_SLOT_BOX, HEADER_HEIGHT } from "@/lib/design/measurements";
 import type { HostNavId, NavLink } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
@@ -290,12 +289,20 @@ function navIdOf(link: NavLink): HostNavId {
  *
  * `ResponsiveDialog` rather than a second mechanism — `ui/sheet.tsx` is asserted absent by
  * `tests/design/sheet-absent.test.ts`, and adding one here would give the app two focus traps and two
- * escape behaviours for one concept. `hideTitle` because a visible "Menu" line above a list of two
- * links is redundant chrome; the accessible name still reaches assistive technology, which is why the
- * title is hidden rather than omitted (a dialog with no accessible name is a WCAG 4.1.2 failure).
+ * escape behaviours for one concept.
  *
- * The trigger carries `aria-label="Menu"` and its glyph `aria-hidden`, for the same reason the
- * profile control below does: an icon-only control has no accessible name otherwise.
+ * ⚠ THE TRIGGER IS NOT WRITTEN HERE ANY MORE, AND THE REASON IS A MEASUREMENT (19.1-16). This file is
+ * a SERVER COMPONENT, `ResponsiveDialog` forwards `trigger` into `DialogTrigger asChild`, and
+ * `asChild` is Radix's `Slot` — which CLONES an element rather than rendering one. A trigger element
+ * created here crossed the RSC boundary and could not be cloned during the SSR pass, so the served
+ * HTML for `/host` carried an EMPTY `<div class="md:hidden"></div>` while the client rendered the
+ * button into it, and React reported a hydration failure and regenerated the tree on every `(host)`
+ * route. `patterns/nav-drawer-shell.tsx` carries the trigger on the client side of the boundary and
+ * its header carries the full account, the served bytes and the one-exception census.
+ *
+ * WHAT STAYS HERE IS THE CONTENT. `NavLinks` is still a Server Component and still renders the one
+ * inventory; it reaches the drawer as ordinary `children`, which crosses the boundary unchanged and
+ * needs no cloning. Only the cloned element had to move.
  */
 export function NavDrawer({
   links,
@@ -305,17 +312,9 @@ export function NavDrawer({
   badges?: Partial<Record<HostNavId, number>>;
 }) {
   return (
-    <ResponsiveDialog
-      title="Menu"
-      hideTitle
-      trigger={
-        <Button variant="ghost" size="icon" aria-label="Menu" className={AUTH_SLOT_ICON}>
-          <MenuIcon aria-hidden="true" />
-        </Button>
-      }
-    >
+    <NavDrawerShell>
       <NavLinks links={links} badges={badges} orientation="stacked" />
-    </ResponsiveDialog>
+    </NavDrawerShell>
   );
 }
 

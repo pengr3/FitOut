@@ -159,3 +159,248 @@ THE TWO READINGS AGREE — 1 and 1. There is no disagreement to record, and ther
 artefact: the defect survives both a cache removed seconds earlier and a `.next` a production build
 has just rewritten. The same `aria-controls="radix-…"` node is named in the dirty-cache transcript
 (3 occurrences of `aria-controls="radix-` in that run's output).
+
+------------------------------------------------------------------------------------------------
+STEP 2 · THE FIRST REPAIR ATTEMPT, AND THE MEASUREMENT THAT REFUTED THE INHERITED DIAGNOSIS
+------------------------------------------------------------------------------------------------
+
+The shape plan 19.1-13 named, and the one this plan's own must_haves name, is: *the fallback and the
+resolved child BOTH mount the overlay primitive, whose Radix-generated attribute the two renders
+cannot agree on.* The first repair applied exactly that shape — a new `NavSlotSkeleton` beside
+`BellSlotSkeleton` reserving the drawer trigger's `size-8` box without mounting `ResponsiveDialog`,
+with the host layout's fallback switched to it.
+
+$ rm -rf .next
+$ npx playwright test e2e/zz-hydration-probe.spec.ts --project=chromium --workers=1 --reporter=list
+
+IMAGE=local
+COLD-CACHE=yes
+ROUTE=/host
+ATTEMPT=fallback-placeholder-only
+HYDRATION-COUNT=1
+EXIT=0
+
+UNCHANGED. Same count, same node, and — decisively — the SAME GENERATED VALUE,
+aria-controls="radix-_R_ad5ritulb_", byte-for-byte with the pre-repair run. Two renders that
+disagreed about a generated id would not produce the same id after one of them stopped existing.
+
+WARNING: THE INHERITED DIAGNOSIS IS THEREFORE REFUTED AS A CAUSE, AND CONFIRMED ONLY AS A
+DESCRIPTION. 19.1-13 recorded it as the LEADING CANDIDATE and said the causal link had not been
+observed; this is what observing it produced. The node and the attribute React names ARE the ones 13
+named. What is false is the mechanism: it is not two renders disagreeing about an id. It is ONE
+RENDER MISSING.
+
+------------------------------------------------------------------------------------------------
+STEP 2 · WHAT THE SERVED BYTES SAID, WHICH IS WHAT ACTUALLY NAMED THE SITE
+------------------------------------------------------------------------------------------------
+
+The probe was extended to read the SERVED document for /host rather than the hydrated DOM.
+
+$ npx playwright test e2e/zz-hydration-probe.spec.ts --project=chromium --workers=1 --reporter=list --grep "probe host route"
+
+  @@@SERVED-BEGIN len=68373
+  @@@SERVED-ARIA aria-controls="radix-_R_bd5ritulb_"
+  @@@SERVED-MENU-BUTTONS 0
+  @@@SERVED-SEGMENTS ["id=\"S:2\"","id=\"S:1\"","id=\"S:0\"","id=\"S:3\""]
+  @@@SERVED-BOUNDARIES ["id=\"B:0\"","id=\"B:1\"","id=\"B:2\""]
+  @@@SERVED-S0 id="S:0"><div class="hidden md:flex"><div class="flex gap-3 items-center"><a class="text-sm font-medium underline-offset-4 hover:underline" href="/host/earnings">Earnings</a><a class="text-sm font-medium underline-offset-4 hover:underline" href="/host/requests">Requests</a></div></div><div class="md:hidden"></div></div><script>$RC("B:0","S:0")</script>
+
+THREE FACTS IN THOSE FIVE LINES, AND THEY SETTLE IT.
+
+  1. @@@SERVED-MENU-BUTTONS 0 — the served HTML for /host contains NO aria-label="Menu" button
+     ANYWHERE. Not in the fallback, not in the resolved boundary.
+  2. S:0, the resolved nav boundary's own completion segment, ends with
+     <div class="md:hidden"></div> — the drawer placement is served EMPTY.
+  3. The ONE aria-controls in the whole document belongs to the NOTIFICATION BELL's popover trigger
+     (aria-label="Notifications, 0 unread", in S:1), not to the drawer. So the "two ids disagree"
+     reading had nothing to disagree about: the drawer had no server id at all.
+
+That is precisely what React's + meant, and what this plan's Step 1 wrote down without yet knowing
+why: CLIENT-ONLY. The client renders <button aria-label="Menu"> into a div the server left empty.
+
+WHY THE SERVER LEFT IT EMPTY. ResponsiveDialog forwards its `trigger` prop into
+`DialogTrigger asChild`, and `asChild` is Radix's `Slot` — which CLONES an element rather than
+rendering one. `patterns/site-chrome.tsx` is a SERVER COMPONENT (its own header says so, of every
+export in it), so `NavDrawer` created the trigger element on the server and handed it across the RSC
+boundary into a client component, where it could not be cloned during the SSR pass.
+
+THE CENSUS THAT MAKES THIS THE SITE RATHER THAN A STORY — every adopter of ResponsiveDialog in src/,
+with the first line of its module:
+
+$ grep -rln "ResponsiveDialog" src/ | while read f; do printf "%s | %s\n" "$(head -1 "$f")" "$f"; done
+
+  "use client";  | src/components/availability/blocks-editor.tsx
+  "use client";  | src/components/availability/copy-hours-dialog.tsx
+  "use client";  | src/components/booking/booking-sticky-bar.tsx
+  "use client";  | src/components/host/request-row.tsx
+  "use client";  | src/components/listing/photo-lightbox.tsx
+  "use client";  | src/components/ops/ops-reject-dialog.tsx
+  "use client";  | src/components/profile/avatar-field.tsx
+  "use client";  | src/components/profile/image-crop-dialog.tsx
+  // SHELL-01 — ONE header geometry, THREE compositions…  | src/components/patterns/site-chrome.tsx
+
+EIGHT CLIENT MODULES AND ONE SERVER MODULE. One exception in the tree, one route in the app
+reporting the mismatch. The census is the argument.
+
+------------------------------------------------------------------------------------------------
+STEP 2 · THE CHOSEN SHAPE, AND THE SHAPES REJECTED WITH THE CONSTRAINT THAT DECIDED EACH
+------------------------------------------------------------------------------------------------
+
+CHOSEN — move the CLONED ELEMENT, and only it, to the client side of the boundary.
+  `src/components/patterns/nav-drawer-shell.tsx`, a new "use client" module holding the
+  <Button aria-label="Menu"> trigger and composing the same ResponsiveDialog. `NavDrawer` stays in
+  `site-chrome.tsx`, stays a Server Component, and passes `NavLinks` down as ordinary children —
+  children cross the boundary unchanged and are never cloned, so only the trigger had to move.
+  Constraint (e) holds exactly: ONE overlay mechanism, ONE focus trap, `ui/sheet.tsx` still absent,
+  the vendored dialog untouched. Constraint (f) holds: no composition merged.
+
+REJECTED — a placeholder fallback ALONE.  Decided by: THE MEASUREMENT ABOVE. It leaves
+  HYDRATION-COUNT at 1. It is KEPT as a second, smaller change (below) but it is not the repair.
+
+REJECTED — turn `asChild` off and let Radix render its own trigger button.  Decided by: the drawer's
+  accessible name and its AUTH_SLOT_ICON box are the caller's, and Radix's own button carries
+  neither. That trades a hydration failure for a WCAG 4.1.2 failure and a reflow.
+
+REJECTED — wrap the trigger in a <span class="contents"> so Slot has something real to clone.
+  Decided by: the aria wiring (aria-haspopup, aria-expanded, aria-controls) would land on the span
+  rather than on the button. Same category of trade as above.
+
+REJECTED — make `site-chrome.tsx` itself a client module.  Decided by: `SiteChrome` and `NavLinks`
+  are Server Components by design and the file's header states it; converting them would ship the
+  whole header inventory to the browser to fix one cloned element.
+
+REJECTED — edit the vendored `ui/dialog.tsx`.  Decided by: the plan's prohibition, and RESP-01's own
+  record that nothing under src/components/ui/** is edited by this layer.
+
+KEPT ALONGSIDE — `NavSlotSkeleton`. It is not the repair and is not claimed to be. It is kept on its
+own merits, stated narrowly: while the boundary is pending there is now NO button[aria-label="Menu"]
+in the document at all, where before there was one that React then replaced — and a control that is
+absent and then appears is one Playwright's auto-waiting handles, whereas a control that is present
+and then swapped is the LOST-CLICK shape `e2e/helpers/booker-seed.ts:118-160` records.
+
+------------------------------------------------------------------------------------------------
+STEP 2 · READING 4 — /host AFTER THE REPAIR
+------------------------------------------------------------------------------------------------
+
+$ rm -rf .next
+$ npx playwright test e2e/zz-hydration-probe.spec.ts --project=chromium --workers=1 --reporter=list
+
+IMAGE=local
+COLD-CACHE=yes
+ROUTE=/host
+HYDRATION-COUNT=0
+EXIT=0
+
+  @@@SERVED-BEGIN len=68248
+  @@@SERVED-MENU-BUTTONS 1
+  @@@SERVED-S0 id="S:0">…<div class="md:hidden"><button data-slot="dialog-trigger" data-variant="ghost" data-size="icon" class="group/button inline-flex shrink-0 items-center justify-center rounded-lg …
+
+  ok 1 [chromium] › e2e\zz-hydration-probe.spec.ts:49:5 › probe host route
+  ok 2 [chromium] › e2e\zz-hydration-probe.spec.ts:86:5 › probe booker checkout control
+  2 passed (39.8s)
+
+The drawer placement is no longer served empty, the trigger is in the server HTML, and the route
+reports zero regenerations. The booker control stays at zero, unmoved by any of this.
+
+$ npx tsc --noEmit | grep -c "error TS"
+7                     the same seven pre-existing tests/design/ errors. No new error.
+
+------------------------------------------------------------------------------------------------
+STEP 3 · THE END-TO-END ASSERTION, AND THE RACE THAT MADE IT TWO CLAUSES
+------------------------------------------------------------------------------------------------
+
+One case added to `e2e/shell.spec.ts`, in a NON-SERIAL describe beside the other host-composition
+cases: listeners armed before the navigation, a presence assertion, an interactive hydration proof
+(open and close the nav drawer below md: — the very subtree under suspicion), then the absence.
+
+WARNING: ONE THING THE PLAN DID NOT ANTICIPATE, MEASURED HERE RATHER THAN ASSUMED. The message
+clause ALONE IS RACED. React does not hydrate a Suspense boundary that is still pending when
+hydration begins — it client-renders the contents when they arrive, and a client render has nothing
+to disagree with. So on a cold compile cache the same broken tree reports ZERO mismatches:
+
+  reverted tree, rm -rf .next, message clause only     -> PASSED   (a green for the wrong reason)
+  reverted tree, route already compiled                -> FAILED   1 mismatch
+  a warm-up navigation added before the measured load  -> still PASSED cold; NOT deterministic
+
+So the case carries a SECOND clause, on the served bytes, which reads the CAUSE rather than the
+symptom: the served document must contain no EMPTY drawer placement <div class="md:hidden"></div>.
+Pre-repair that string is present whether the boundary resolved or not (the fallback and the resolved
+child are both served empty); post-repair neither is (the fallback holds the reserved box, the
+resolved child holds the button). Both clauses ship; the deterministic one is what makes the red
+reliable and the symptom clause is what names what a user would see.
+
+------------------------------------------------------------------------------------------------
+STEP 4 · WATCHED RED — THE REPAIR REVERTED FROM BYTE COPIES, NEVER FROM A CHECKOUT
+------------------------------------------------------------------------------------------------
+
+The working tree is mixed-EOL and a checkout silently rewrites a line-feed file while `git status`
+stays clean, so the reversion is `cp` from byte copies taken before the edit.
+
+$ sha256sum "src/app/(host)/host/layout.tsx" src/components/patterns/site-chrome.tsx   # BEFORE
+CHECKSUM-BEFORE src/app/(host)/host/layout.tsx = 00a6d8e4844b4b8727cfa0b13f74b098d0cb57f731f510210c0c974f982b2480
+CHECKSUM-BEFORE src/components/patterns/site-chrome.tsx = 148cd8ccbc388507eb270de932fe46a454cc9fe352fbaccd971cb7a63e2432af
+
+$ cp /tmp/19116/layout.pre.tsx "src/app/(host)/host/layout.tsx"
+$ cp /tmp/19116/site-chrome.pre.tsx src/components/patterns/site-chrome.tsx
+$ mv src/components/patterns/nav-drawer-shell.tsx /tmp/19116/nav-drawer-shell.parked.tsx
+$ git status --porcelain -- src
+ M src/components/patterns/auth-slot-skeleton.tsx
+                      <- the two reverted files are byte-identical to HEAD again, which is itself the
+                         proof the byte copies restored the pre-repair bytes exactly, EOLs included.
+
+$ rm -rf .next
+$ npx playwright test e2e/shell.spec.ts --project=chromium --workers=1 --reporter=list --grep "regenerates no tree"
+
+IMAGE=local
+COLD-CACHE=yes
+ROUTE=/host
+STATE=reverted
+HYDRATION-COUNT=1
+EXIT=1
+
+  Error: the served /host document holds an EMPTY drawer placement <div class="md:hidden"></div>.
+  The nav drawer's trigger is passed to ResponsiveDialog's `trigger` prop and forwarded into
+  `DialogTrigger asChild` — Radix's `Slot`, which CLONES an element rather than rendering one. An
+  element created in a SERVER module cannot be cloned during the SSR pass, so the button is absent
+  from the server HTML and appears only on the client, and React throws the tree away and regenerates
+  it. …
+  1 failed
+
+…and the symptom clause, from the warm-cache run of the same reverted tree, verbatim, for the record:
+
+  Error: /host reported 1 hydration mismatch(es). … Messages: ["Hydration failed because the server
+  rendered HTML didn't match the client. As a result this tree will be regenerated on the client. …
+  <nav data-testid=\"site-nav\" …><Suspense fallback={[...]}><div><div className=\"md:hidden\">
+  <NavDrawer><ResponsiveDialog title=\"Menu\" hideTitle={true} trigger={<button>}> … <DialogTrigger
+  asChild={true}> … <Primitive.button.SlotClone …> +<button data-slot=\"button\" … aria-label=\"Menu\"
+  … aria-controls=\"radix-_R_ad5ritulb_\" …>"]
+
+$ cp /tmp/19116/layout.post.tsx "src/app/(host)/host/layout.tsx"    # restored from the byte copy
+$ cp /tmp/19116/site-chrome.post.tsx src/components/patterns/site-chrome.tsx
+$ mv /tmp/19116/nav-drawer-shell.parked.tsx src/components/patterns/nav-drawer-shell.tsx
+$ sha256sum "src/app/(host)/host/layout.tsx" src/components/patterns/site-chrome.tsx   # AFTER
+CHECKSUM-AFTER src/app/(host)/host/layout.tsx = 00a6d8e4844b4b8727cfa0b13f74b098d0cb57f731f510210c0c974f982b2480
+CHECKSUM-AFTER src/components/patterns/site-chrome.tsx = 148cd8ccbc388507eb270de932fe46a454cc9fe352fbaccd971cb7a63e2432af
+
+THE PAIR IS EQUAL. The repair came back byte-for-byte.
+
+$ git status --porcelain -- src
+ M src/app/(host)/host/layout.tsx
+ M src/components/patterns/auth-slot-skeleton.tsx
+ M src/components/patterns/site-chrome.tsx
+?? src/components/patterns/nav-drawer-shell.tsx
+
+$ rm -rf .next
+$ npx playwright test e2e/shell.spec.ts --project=chromium --workers=1 --reporter=list
+  1 skipped
+  25 passed (2.4m)          zero failed, zero flaky; 24 passed before this task, 25 after — the new
+                            case is the +1, and the file declares one more test than at plan start.
+
+$ npx vitest run --config vitest.design.config.ts tests/design/blocking-session-gate.test.ts
+  Tests  17 passed (17)     the two gates did not move; neither sits inside a streamed subtree.
+
+$ git status --porcelain -- .github scripts
+                            (no output — no workflow and no checker file moved.)
+
+$ rm e2e/zz-hydration-probe.spec.ts
+                            the throwaway probe, deleted in the task that created it.

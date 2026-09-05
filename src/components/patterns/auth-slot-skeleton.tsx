@@ -56,6 +56,38 @@
 // reflow on every authenticated page. `BellSlotSkeleton` is the bell's own box and nothing else, so
 // the pending and resolved widths are equal.
 
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+// THE THIRD FALLBACK: A SLOT WHOSE RESOLVED CHILD MOUNTS AN OVERLAY, AND WHOSE FALLBACK MUST NOT
+// ═════════════════════════════════════════════════════════════════════════════════════════════════
+//
+// `NavSlotSkeleton` is the host nav slot's fallback, and it exists because of a MEASUREMENT rather
+// than because the slot wanted a shimmer. `(host)/host/layout.tsx` used to pass a whole second
+// `SiteNav` as its fallback, which mounts `NavDrawer` -> `ResponsiveDialog` -> the app's one Radix
+// dialog below `md:`. A Radix dialog trigger carries an `aria-controls` id GENERATED PER RENDER from
+// React's own id hook, so the fallback render and the resolved render cannot agree on it, and every
+// `(host)` route reported *"Hydration failed … this tree will be regenerated on the client"* with
+// that button and that attribute named in React's own diff. Transcript:
+// `.planning/phases/19.1-…/evidence/triage-host-hydration.txt`.
+//
+// The shape of the repair is not a preference either — it is the one the CONTROL in that same
+// transcript selects. `(app)/layout.tsx` streams too, and it emits zero mismatches, and the only
+// structural difference is that its fallback is `BellSlotSkeleton`: a box, not a second copy of an
+// id-bearing subtree. So this file gains a third fallback of exactly that kind rather than the app
+// gaining a second overlay mechanism (RESP-01 forbids one) or the vendored dialog being edited.
+//
+// WHAT IT RESERVES, AND WHY IT IS NOT A BLANK. Above `md:` the nav's LINKS are the same static
+// inventory in both states — they read no session, generate no id and are safe to render in a
+// fallback — so they are rendered here, from the ONE `NavLinks` renderer, never a second copy of the
+// markup. Below `md:` the live drawer trigger is replaced by its own `AUTH_SLOT_ICON` box, which is
+// byte-identical geometry to the `Button size="icon"` that lands: `size-8` on both sides, so the nav
+// does not reflow when the badge count arrives.
+//
+// ⚠ THE BADGE IS DELIBERATELY ABSENT HERE AND THAT IS NOT A REGRESSION. D-65 hides the badge at zero,
+// so a fallback with no badges is identical to the resolved ZERO-count nav; a non-zero count is the
+// only thing that changes the nav's width when it lands, and that was already true before this file
+// owned the fallback.
+
+import { NavLinks } from "@/components/patterns/site-chrome";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AUTH_SLOT_BOX,
@@ -63,6 +95,7 @@ import {
   AUTH_SLOT_ICON,
   NOTIFICATION_BELL_BOX,
 } from "@/lib/design/measurements";
+import type { NavLink } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
 export function AuthSlotSkeleton() {
@@ -90,4 +123,40 @@ export function AuthSlotSkeleton() {
  */
 export function BellSlotSkeleton() {
   return <Skeleton aria-hidden="true" className={cn(NOTIFICATION_BELL_BOX, "rounded-lg")} />;
+}
+
+/**
+ * The host nav slot's `<Suspense>` fallback: the static links, and the drawer trigger's box.
+ *
+ * See the block above this file's imports for the measurement that produced it. The property it
+ * exists to hold is narrow and it should be stated narrowly: **a streaming boundary's fallback and
+ * its resolved child must not both mount the subtree that composes the app's one overlay primitive**,
+ * because that primitive carries a per-render generated identity attribute the two renders cannot
+ * agree on. It is NOT "do not stream a nav slot" — the slot still streams, and the links in it still
+ * render before the count lands.
+ *
+ * `aria-hidden` on the placeholder, for `BellSlotSkeleton`'s reason and not a weaker one: it stands in
+ * for a single header affordance that resolves in milliseconds on every navigation of the host
+ * surface, and the resolved control announces itself (`aria-label="Menu"`). `rounded-lg` matches
+ * `ui/button.tsx`'s base radius, because what lands here is a ghost icon BUTTON.
+ *
+ * A SECOND PROPERTY FALLS OUT OF THIS, AND IT IS THE ONE THE E2E SUITE CARES ABOUT. While the slot is
+ * pending there is now NO `button[aria-label="Menu"]` in the document at all — where before there was
+ * one that React then replaced. `e2e/helpers/booker-seed.ts:118-160` records that exact shape as the
+ * lost-click mechanism ("the control EXISTS in the server-rendered document and is then replaced
+ * while React finishes with it, so under load the click lands on a node on its way out"). A control
+ * that is absent and then appears is one Playwright's own auto-waiting handles; a control that is
+ * present and then swapped is not.
+ */
+export function NavSlotSkeleton({ links }: { links: readonly NavLink[] }) {
+  return (
+    <>
+      <div className="hidden md:flex">
+        <NavLinks links={links} />
+      </div>
+      <div className="md:hidden">
+        <Skeleton aria-hidden="true" className={cn(AUTH_SLOT_ICON, "rounded-lg")} />
+      </div>
+    </>
+  );
 }
