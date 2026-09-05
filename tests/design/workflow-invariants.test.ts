@@ -374,10 +374,18 @@ function withAppendedRefusalArgument(argument: string): (ci: string) => string {
  */
 function withJobKey(jobKey: string, lines: string | string[]): (ci: string) => string {
   return (ci) => {
-    const block = (Array.isArray(lines) ? lines : [lines])
-      .map((l) => `    ${l}`)
-      .join(eolOf(ci));
-    return insertAfterLineContaining(ci, `\n  ${jobKey}:`, block);
+    const eol = eolOf(ci);
+    const block = (Array.isArray(lines) ? lines : [lines]).map((l) => `    ${l}`).join(eol);
+    // The leading terminator is what pins `  <jobKey>:` to JOB level. It is composed from the EOL
+    // of the file being mutated rather than hardcoded as `\n`, and the reason is NOT that the
+    // hardcode was the defect — it was measured not to be (control B, 2026-09-05: with
+    // `insertAfterLineContaining` repaired, restoring the `\n` anchor here leaves all 38 cases
+    // green). The reason is that `\n` is a terminator on ONE of the two checkouts this repository
+    // is built on, so anchor arithmetic spelled against it is right on that one and accidental on
+    // the other. Composed from `eolOf`, an arithmetic error becomes EOL-SYMMETRIC: red on both
+    // checkouts rather than red only on the runner. That difference is the whole subject of the
+    // repair these lines come from.
+    return insertAfterLineContaining(ci, `${eol}  ${jobKey}:`, block);
   };
 }
 
@@ -425,7 +433,13 @@ function withoutPullRequestTrigger(): (ci: string) => string {
  * `withMutatedWorkflows`'s differs-from-input assertion.
  */
 function withPullRequestFilter(filterLine: string): (ci: string) => string {
-  return (ci) => insertAfterLineContaining(ci, "\n  pull_request:", `    ${filterLine}`);
+  // The anchor's leading terminator is composed from the file's own EOL for the reason given at
+  // `withJobKey` — symmetry, not correctness. What this builder ACTUALLY did wrong on an LF
+  // checkout was inherited from `insertAfterLineContaining`: the filter landed one line EARLY,
+  // under `push:`, where `branches:` already exists, so `yaml` rejected the document with
+  // `Map keys must be unique` and case 25 measured a parse error instead of the trigger invariant.
+  return (ci) =>
+    insertAfterLineContaining(ci, `${eolOf(ci)}  pull_request:`, `    ${filterLine}`);
 }
 
 /**
@@ -821,12 +835,38 @@ function withAppendedRunArgumentInJob(
  * Shared insertion primitive. Returns the input UNCHANGED when the anchor is absent, so a drifted
  * anchor lands on `withMutatedWorkflows`'s differs-from-input assertion rather than producing a
  * quietly-different mutation somewhere else in the file.
+ *
+ * ⚠ THE SEARCH FOR THE LINE END STARTS **AFTER** THE ANCHOR, AND THAT IS NOT A MICRO-OPTIMISATION.
+ * Some callers anchor on `${eol}  <key>:` — a leading line terminator is how a two-space-indented
+ * key is pinned to JOB level rather than matched inside a deeper block. For such an anchor `at` is
+ * the offset OF a line terminator, so a search that began at `at` returned `at` itself on an LF
+ * tree: `cut` became the START of the anchored line and the insertion landed one line EARLY, at
+ * the tail of whatever came before. On the CRLF checkout this working tree uses, the same search
+ * skipped the `\r` and stopped at the `\n` one byte later — inside the SAME terminator — so `cut`
+ * came out correct and the defect was invisible here. That is the entire mechanism behind the six
+ * cases that were green on this box and red on the runner (phase 19.1 `deferred-items.md`,
+ * "the SC2 guard suite is a WINDOWS-ONLY green"), and it is why the LF/CRLF equivalence case at the
+ * end of this file exists: EOL-dependent behaviour in the harness is invisible to every case that
+ * only ever runs on one kind of checkout.
+ *
+ * Searching from `at + anchor.length` is correct for BOTH anchor shapes — no anchor in this file
+ * contains a line terminator anywhere but its first character — and is byte-for-byte identical to
+ * the old behaviour for every anchor that carries no terminator at all.
+ *
+ * THIS LINE IS THE WHOLE REPAIR, and that was established by isolation rather than by argument
+ * (2026-09-05, three controls run against an LF working tree):
+ *   • both this line and the two `\n` anchors reverted → the six cases fail, case 37 fails;
+ *   • ONLY the `\n` anchors reverted, this line repaired → all 38 green. The hardcoded anchors are
+ *     NOT the defect;
+ *   • ONLY this line reverted, the anchors composed from `eolOf` → the same six fail, and they fail
+ *     on a CRLF checkout too. That is the shape a symmetric error takes: loud everywhere.
+ * The phase's `deferred-items.md` attributed the failure to the anchors. It is the primitive.
  */
 function insertAfterLineContaining(ci: string, anchor: string, insertion: string): string {
   const eol = eolOf(ci);
   const at = ci.indexOf(anchor);
   if (at < 0) return ci;
-  const lineEnd = ci.indexOf(eol, at);
+  const lineEnd = ci.indexOf(eol, at + anchor.length);
   if (lineEnd < 0) return ci;
   const cut = lineEnd + eol.length;
   return `${ci.slice(0, cut)}${insertion}${eol}${ci.slice(cut)}`;
@@ -1580,5 +1620,286 @@ describe("the workflow checker's own predicates, measured against a mutated copy
         expectRed(result, "migrate run commands are byte-identical");
       },
     );
+  });
+
+  // ── THE LINE-ENDING EQUIVALENCE CASES ─────────────────────────────────────────────────────────
+  //
+  // WHY THESE EXIST, AND WHY THEY ARE NOT DECORATION. Every case above runs against `ci.yml` and
+  // `baselines.yml` AS THIS WORKING TREE CHECKED THEM OUT. `.gitattributes` declares `* text=auto`,
+  // so that is CRLF on Windows and LF on the Ubuntu runner that actually gates the repository. The
+  // 35 cases above therefore measure ONE line-ending convention per machine, and can say nothing
+  // about the other — which is how six of them (7, 11, 18, 19, 22 and 25) came to be 36/36 green on
+  // the author's laptop and `6 failed | 30 passed` in CI for the whole of phase 19.1, unnoticed
+  // until the first push. The mechanism is written up at `insertAfterLineContaining`.
+  //
+  // TWO OF THE SIX WERE NOT PARSE ERRORS. Cases 7 and 11 target `gate-e2e`; on an LF tree their
+  // mutation landed at the tail of the PRECEDING job, `gate-price-parity`, which no invariant in
+  // the checker watches for softening — so the checker exited 0 and the cases failed on "the
+  // checker exited 0 under a mutation that should be RED". A misplaced mutation is not merely a
+  // noisier red than a correct one: it is a case measuring a property nobody named.
+  //
+  // These two cases close the class rather than the six instances. They are pure-function checks —
+  // no temp tree, no spawned checker — so they cost milliseconds and, unlike everything above,
+  // their subject is the HARNESS: a builder is EOL-correct or it is not, independently of which
+  // argument a case happens to hand it, and independently of which machine is running.
+
+  /** Every line terminator in `text` is a CRLF — no bare LF was written into a CRLF document. */
+  function isPureCrlf(text: string): boolean {
+    return text.split("\n").length === text.split("\r\n").length;
+  }
+
+  /** A COMPACT description of the first line at which two texts diverge, or null when identical. */
+  function firstDifferingLine(expected: string, actual: string): string | null {
+    if (expected === actual) return null;
+    const e = expected.split("\n");
+    const a = actual.split("\n");
+    for (let i = 0; i < Math.max(e.length, a.length); i += 1) {
+      if (e[i] !== a[i]) {
+        return (
+          `first divergence at line ${i + 1} — ` +
+          `LF tree produced ${JSON.stringify(e[i] ?? "(past end of file)")}, ` +
+          `CRLF tree produced ${JSON.stringify(a[i] ?? "(past end of file)")}`
+        );
+      }
+    }
+    return `identical lines but different lengths (${expected.length} vs ${actual.length})`;
+  }
+
+  /**
+   * One entry per MUTATION BUILDER declared in this file, with a representative argument. The
+   * argument is representative rather than exhaustive on purpose: the EOL dependence lives in the
+   * builder's anchor arithmetic, not in the string a case hands it, so exercising each builder once
+   * measures the property. `withJobKey` appears TWICE because its two argument shapes take
+   * different code paths — the array form additionally JOINS the inserted lines, and joining with
+   * the wrong terminator is the sibling defect of anchoring with one.
+   *
+   * Case 38 below asserts this table is a COMPLETE census of the builders in this file, so a
+   * builder added later without an entry here is a RED rather than a silent gap.
+   */
+  const EOL_BUILDER_CENSUS: Array<{
+    name: string;
+    file: "ci" | "baselines";
+    mutate: (text: string) => string;
+  }> = [
+    { name: "withRefusalStepKey", file: "ci", mutate: withRefusalStepKey("continue-on-error: true") },
+    { name: "withAppendedRefusalArgument", file: "ci", mutate: withAppendedRefusalArgument("--decoy") },
+    { name: "withJobKey (string form)", file: "ci", mutate: withJobKey(E2E_JOB, "continue-on-error: true") },
+    {
+      name: "withJobKey (array form)",
+      file: "ci",
+      mutate: withJobKey(CHECKER_JOB, ["defaults:", "  run:", "    shell: cat {0}"]),
+    },
+    {
+      name: "withWorkflowLevelBlock",
+      file: "ci",
+      mutate: withWorkflowLevelBlock(["defaults:", "  run:", "    shell: cat {0}"]),
+    },
+    { name: "withoutPullRequestTrigger", file: "ci", mutate: withoutPullRequestTrigger() },
+    {
+      name: "withPullRequestFilter",
+      file: "ci",
+      mutate: withPullRequestFilter("branches: [does-not-exist]"),
+    },
+    { name: "withPushBranches", file: "ci", mutate: withPushBranches([CHECKER_DEV_BRANCH]) },
+    { name: "withSequenceFormTriggerBlock", file: "ci", mutate: withSequenceFormTriggerBlock() },
+    {
+      name: "withStepBeforeRefusal",
+      file: "ci",
+      mutate: withStepBeforeRefusal(["- uses: actions/github-script@v7"]),
+    },
+    { name: "withoutCheckerStep", file: "ci", mutate: withoutCheckerStep() },
+    {
+      name: "withAppendedCheckerArgument",
+      file: "ci",
+      mutate: withAppendedCheckerArgument("/tmp/decoy.mjs"),
+    },
+    {
+      name: "withStepFirstInCheckerJob",
+      file: "ci",
+      mutate: withStepFirstInCheckerJob([
+        "- name: A step inserted by the EOL equivalence case",
+        '  run: echo "eol"',
+      ]),
+    },
+    { name: "withBuildStepKey", file: "ci", mutate: withBuildStepKey("if: false") },
+    { name: "withAppendedBuildArgument", file: "ci", mutate: withAppendedBuildArgument("--decoy") },
+    { name: "withoutBuildStep", file: "ci", mutate: withoutBuildStep() },
+    { name: "withRenamedCheckerJobName", file: "ci", mutate: withRenamedCheckerJobName() },
+    {
+      name: "withStepAfterInJob",
+      file: "ci",
+      mutate: withStepAfterInJob(E2E_JOB, E2E_PLAY_STEP, [
+        "- name: A decoy step inserted by the EOL equivalence case",
+        '  run: echo "eol"',
+      ]),
+    },
+    {
+      name: "withStepBeforeInJob",
+      file: "ci",
+      mutate: withStepBeforeInJob(VISUAL_JOB, VISUAL_MIGRATE_STEP, [
+        "- name: A decoy step inserted by the EOL equivalence case",
+        '  run: echo "eol"',
+      ]),
+    },
+    {
+      name: "withStepMovedAfterInJob",
+      file: "ci",
+      mutate: withStepMovedAfterInJob(E2E_JOB, MAIL_STEP_NAME, E2E_PLAY_STEP),
+    },
+    {
+      name: "withStepMovedFirstInJob",
+      file: "ci",
+      mutate: withStepMovedFirstInJob(E2E_JOB, MAIL_STEP_NAME),
+    },
+    {
+      name: "withStepRunReplacedInJob",
+      file: "ci",
+      mutate: withStepRunReplacedInJob(
+        VISUAL_JOB,
+        VISUAL_PLAY_STEP,
+        VISUAL_PROJECT,
+        "--project=chromium",
+      ),
+    },
+    {
+      name: "withAppendedRunArgumentInJob",
+      file: "ci",
+      mutate: withAppendedRunArgumentInJob(VISUAL_JOB, VISUAL_MIGRATE_STEP, "--ci-only"),
+    },
+    // The one builder no case points at `ci.yml` — audit row 11 renames a step of `baselines.yml`.
+    {
+      name: "withRenamedStepInJob",
+      file: "baselines",
+      mutate: withRenamedStepInJob(
+        BASELINES_JOB,
+        BASELINES_STAGE_STEP,
+        `${BASELINES_STAGE_STEP} (renamed)`,
+      ),
+    },
+  ];
+
+  // THE REPAIR'S OWN STANDING MEMORY. Reproduced before the fix by converting the two workflow
+  // files to LF in the working tree; with the hardcoded `\n` anchors restored, this case fails on
+  // `withJobKey` and `withPullRequestFilter` and NOTHING ELSE — which is what makes it a measurement
+  // of the defect rather than a restatement of it.
+  it("case 37 (EOL): every mutation builder produces the SAME mutation on an LF copy as on a CRLF one", () => {
+    const sources = {
+      ci: readFileSync(REPO_CI, "utf8").replace(/\r\n/g, "\n"),
+      baselines: readFileSync(REPO_BASELINES, "utf8").replace(/\r\n/g, "\n"),
+    };
+    for (const { name, file, mutate } of EOL_BUILDER_CENSUS) {
+      const lf = sources[file];
+      const crlf = lf.replace(/\n/g, "\r\n");
+      const onLf = mutate(lf);
+      const onCrlf = mutate(crlf);
+
+      // A builder that no-ops is measuring nothing, on either tree. This is the same guarantee
+      // `withMutatedWorkflowPair` gives the cases above, restated here because these two cases do
+      // not go through it — without it, deleting a builder's body would turn this case green.
+      expect(onLf, `${name}: produced no change against an LF copy of ${file}.yml`).not.toBe(lf);
+      expect(onCrlf, `${name}: produced no change against a CRLF copy of ${file}.yml`).not.toBe(crlf);
+
+      // The property. Normalising the CRLF result is the ONLY licensed difference between the two.
+      expect(
+        firstDifferingLine(onLf, onCrlf.replace(/\r\n/g, "\n")),
+        `${name}: mutated ${file}.yml DIFFERENTLY depending on the checkout's line endings. ` +
+          `Every case that uses this builder therefore measures a different tree on the CI runner ` +
+          `than it measures here`,
+      ).toBe(null);
+
+      // The sibling defect: a builder that anchors correctly but JOINS its inserted lines with a
+      // hardcoded `\n` writes bare LFs into a CRLF document. That parses, so it would survive the
+      // equivalence check above under normalisation — it is caught only by looking at the bytes.
+      expect(
+        isPureCrlf(onCrlf),
+        `${name}: wrote a bare LF into a CRLF copy of ${file}.yml — an inserted line was joined ` +
+          `or terminated with a hardcoded "\\n" instead of the EOL of the file being mutated`,
+      ).toBe(true);
+    }
+  });
+
+  // THE CENSUS, so case 37 cannot rot into a partial one. A builder added above without a
+  // representative entry in `EOL_BUILDER_CENSUS` is the exact shape of the gap this repair closed,
+  // and an untested new builder must be a RED rather than a silence.
+  it("case 38 (EOL census): the equivalence table names every mutation builder declared in this file", () => {
+    const source = readFileSync(resolve(process.cwd(), "tests/design/workflow-invariants.test.ts"), "utf8");
+    const declared = [...source.matchAll(/^function (with[A-Za-z]+)\(/gm)].map((m) => m[1]);
+    expect(
+      declared.length,
+      "no `function with…(` declarations were found — this census read the wrong file, and a " +
+        "census that reads nothing passes trivially",
+    ).toBeGreaterThan(0);
+
+    // The two harness entry points are not builders: they take a mutator rather than being one.
+    const HARNESS = new Set(["withMutatedWorkflows", "withMutatedWorkflowPair"]);
+    const builders = declared.filter((n) => !HARNESS.has(n)).sort();
+    // Table entries carry a parenthesised argument-shape suffix (`withJobKey (array form)`).
+    const covered = [...new Set(EOL_BUILDER_CENSUS.map((e) => e.name.replace(/ \(.*\)$/, "")))].sort();
+
+    expect(
+      builders.filter((n) => !covered.includes(n)),
+      "these mutation builders are declared in this file but carry no entry in " +
+        "`EOL_BUILDER_CENSUS`, so nothing measures whether they behave the same on the LF checkout " +
+        "the CI runner uses as they do on this CRLF one",
+    ).toEqual([]);
+    expect(
+      covered.filter((n) => !builders.includes(n)),
+      "`EOL_BUILDER_CENSUS` names builders that no longer exist — the table has drifted from the " +
+        "file and is no longer a census of it",
+    ).toEqual([]);
+  });
+
+  /** The line immediately following the first line EQUAL to `key`, or null when there is none. */
+  function lineAfter(text: string, key: string): string | null {
+    const lines = text.split(eolOf(text));
+    const i = lines.indexOf(key);
+    if (i < 0 || i + 1 >= lines.length) return null;
+    return lines[i + 1];
+  }
+
+  // WHY THIS CASE EXISTS BESIDE CASE 37 RATHER THAN INSTEAD OF IT. Case 37 measures whether a
+  // builder behaves the SAME on both checkouts; it cannot see a builder that is wrong on both.
+  // Control C above is exactly that file: with `insertAfterLineContaining` reverted and the anchors
+  // composed from `eolOf`, case 37 is GREEN and the six cases are red on every platform. That is
+  // the fail-closed direction and much the lesser evil — but "the guard was green while the thing
+  // it guards was broken" is the defect this whole phase exists to delete, so the placement claim
+  // is asserted directly.
+  //
+  // ONLY TWO BUILDERS ARE LISTED, AND THAT IS NOT AN OVERSIGHT. These are the only two in the file
+  // whose anchor's first character is a line terminator, which is the precondition for the
+  // arithmetic defect: for every other anchor the search for the line end cannot degenerate,
+  // because there is no terminator inside the anchor to find. Case 38's census is what keeps that
+  // claim honest as builders are added — a new terminator-anchored builder arrives with an entry
+  // there, and this case is the second thing its author must read.
+  it("case 39 (EOL placement): the terminator-anchored builders insert on the line AFTER the key they name, on BOTH checkouts", () => {
+    const lf = readFileSync(REPO_CI, "utf8").replace(/\r\n/g, "\n");
+    for (const [flavour, ci] of [
+      ["LF", lf],
+      ["CRLF", lf.replace(/\n/g, "\r\n")],
+    ] as const) {
+      expect(
+        lineAfter(withJobKey(E2E_JOB, "continue-on-error: true")(ci), `  ${E2E_JOB}:`),
+        `${flavour}: withJobKey did not put its key on the line after "  ${E2E_JOB}:" — on an LF ` +
+          `tree it used to land at the tail of the PRECEDING job, where cases 7 and 11 then ` +
+          `measured a job no invariant watches and the checker exited 0`,
+      ).toBe("    continue-on-error: true");
+
+      const defaults = withJobKey(CHECKER_JOB, ["defaults:", "  run:", "    shell: cat {0}"])(ci);
+      expect(
+        [1, 2, 3].map((n) => defaults.split(eolOf(defaults))[
+          defaults.split(eolOf(defaults)).indexOf(`  ${CHECKER_JOB}:`) + n
+        ]),
+        `${flavour}: withJobKey's array form did not put its three lines directly under ` +
+          `"  ${CHECKER_JOB}:"`,
+      ).toEqual(["    defaults:", "      run:", "        shell: cat {0}"]);
+
+      expect(
+        lineAfter(withPullRequestFilter("branches: [does-not-exist]")(ci), "  pull_request:"),
+        `${flavour}: withPullRequestFilter did not put its filter on the line after ` +
+          `"  pull_request:" — on an LF tree it used to land under "push:", which already has a ` +
+          `branches: key, and case 25 measured "Map keys must be unique" instead of the trigger ` +
+          `invariant`,
+      ).toBe("    branches: [does-not-exist]");
+    }
   });
 });
