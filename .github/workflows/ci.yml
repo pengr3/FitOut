@@ -1481,6 +1481,49 @@ jobs:
       - name: Playwright — visual regression (GATE-01)
         run: npx playwright test --project=visual
 
+      # THE DIFFS SURVIVE THE RUN, WHICH THEY DID NOT BEFORE (19.1-12). Playwright writes its
+      # comparison output to `test-results/` inside this container and the runner then throws the
+      # whole directory away, so the images that answer “is this drift or a regression?” were
+      # produced and destroyed on every red run. Twelve baselines sat unreviewed behind that for
+      # five days while the job stayed red — and a job that is red every push is a job everyone
+      # learns to ignore, which is the habit SC4 exists to break.
+      #
+      # `-expected`, `-actual` AND `-diff`, NOT THE DIFF ALONE. The diff is a red mask: it says
+      # WHERE pixels changed and never WHAT they changed to. Telling a reflow (one shared block grew
+      # a row, every surface below it shifted down) from a content change needs the before and the
+      # after side by side. That classification is a blocking HUMAN decision — a pixel comparison
+      # cannot classify itself — and this artifact is the only thing that makes it answerable.
+      #
+      # `if: failure()` IS LEGAL HERE, AND THE REASON IS A PREDICATE RATHER THAN A PREFERENCE. The
+      # unconditional invariants in `scripts/verify-workflows.mjs` are scoped BY ARGUMENT to
+      # `gate-e2e` (:1137) and to `gate-db-free` (:1584); neither quantifies over this job. ⚠ DO NOT
+      # COPY THIS STEP INTO EITHER OF THOSE JOBS: a conditional step there is exactly what those two
+      # invariants forbid, and both were measured green while a gate could no longer fail.
+      #
+      # NO `permissions:` BLOCK, AND NONE IS NEEDED. An invariant asserts `visual?.permissions ==
+      # null` (:1655) and another asserts `ci.yml` holds zero `contents: write` jobs (:673). Artifact
+      # upload authenticates with the job's own token and requires no added scope. Granting one here
+      # would hand the compare workflow the write access that is `baselines.yml`'s alone.
+      #
+      # THE MAJOR WAS CONFIRMED AGAINST THE ACTION'S OWN REPOSITORY, NOT TAKEN FROM RESEARCH.
+      # `gh api repos/actions/upload-artifact/releases/latest` → `v7.0.1` (`using: node24`),
+      # 2026-09-05. 19.1-RESEARCH.md assumption A7 says the current major is v4; it is three majors
+      # stale. First-party, so the supply-chain invariant (:787) holds.
+      #
+      # `if-no-files-found` is left at its default `warn`: this step also fires when the job fails
+      # for a reason that produces no diffs at all, and an upload that turns THAT into a second red
+      # would bury the first one.
+      - name: Upload the visual diffs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-diffs
+          path: |
+            test-results/**/*-diff.png
+            test-results/**/*-actual.png
+            test-results/**/*-expected.png
+          retention-days: 14
+
   # ------------------------------------------------------------------------------------------
   # JOB 5 — THE FUNCTIONAL PLAYWRIGHT SUITE (CI-01 / D-24's remaining half).
   #
