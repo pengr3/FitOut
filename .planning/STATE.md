@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: HALTED at 19.1-14-PLAN.md Task 3 — PM decision hold. SC4 and SC5 OPEN.
-last_updated: "2026-09-05T17:16:56.558Z"
+stopped_at: HALTED at 19.1-14-PLAN.md Task 3 — PM decision hold. SC4 and SC5 OPEN. Gap plans 19.1-16..19 planned and checker-passed (2026-09-06); next is `/gsd-execute-phase 19.1 --gaps-only`.
+last_updated: "2026-09-05T22:43:01.861Z"
 last_activity: 2026-09-06
-last_activity_desc: Phase 19.1 plan 14 HALTED at its blocking-human checkpoint — scan clean over 2244 commits and ruleset payload checked in, but the PM held publication because SC4 is open
-state_head: 86fa0f0d330631a4f0bd39e6d9a0253110f10da0
+last_activity_desc: Phase 19.1 gap planning finished — 19.1-16..19 revised so each closes on a REAL push-triggered ci run (48016ed), plan-checker PASSED on iteration 2, decision coverage 8/8, CI-01 covered. Plan 14 stays HALTED on the PM publication hold; 15 stays blocked by construction.
+state_head: 48016edde9bdcb4ccbad5e19d3ca9fe322f6a643
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -17,7 +17,7 @@ progress:
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 8
   completed_phases: 1
-  total_plans: 60
+  total_plans: 64
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
   # A halted plan counted as a completed one is the same fabricated counter this file
@@ -77,7 +77,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19.1 (CI signal becomes real) — EXECUTING
+Phase: 19.1 (CI signal becomes real) — EXECUTING · 14/19 done · 15 blocked (PM hold) · gap plans 16–19 READY TO EXECUTE
 Plan: 14 of 15
 Status: Ready to execute
 Last activity: 2026-09-05 — Phase 19.1 plan 02 complete (Wave 0 measurement)
@@ -1568,7 +1568,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - gate-visual remains RED on 4 baselines (listing-detail x3, collision-notice-1280). Blocked on the rows 9-12 fixture work specified in 19.1 evidence/rows-9-12-fixture-probe.txt; its point (a) is a product decision for the PM.
 - D-19.1-E: dev-theme-320-court is flaky on gate-visual (Failed to take two consecutive stable screenshots, 21109px between consecutive captures; the committed reference is byte-correct). Absorbed today by two retries and reported flaky rather than red.
 - Two of the five required-status-check contexts (gate-e2e, gate-visual) are RED today, and the flaky set is redrawn each run - six different tests across four runs of one tree. 19.1-15 must not make either a required check before the three D-02 plans land.
-- Publication HOLD (PM, 2026-09-06) blocks SC5: the repository stays PRIVATE, so 19.1-15 cannot install the branch ruleset (gh api repos/pengr3/FitOut/rulesets => 403). Unblocks only after SC4 closes via 19.1-16/-17/-18, which do not exist yet and are owed to gap planning.
+- Publication HOLD (PM, 2026-09-06) blocks SC5: the repository stays PRIVATE, so 19.1-15 cannot install the branch ruleset (gh api repos/pengr3/FitOut/rulesets => 403). Unblocks only after SC4 closes via 19.1-16/-17/-18 (+ 19.1-19 for the gate-visual half) — PLANNED and checker-passed 2026-09-06 (`ff10020`, revised `48016ed`), not yet executed.
 
 ### Quick Tasks Completed
 
@@ -1823,7 +1823,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: None — next step is gap planning for 19.1-16/-17/-18
+Resume file: None — gap plans 19.1-16..19 exist; next step is `/gsd-execute-phase 19.1 --gaps-only`
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
