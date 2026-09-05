@@ -525,6 +525,26 @@ EOL-agnostic, so there is no known instance; it is a gap in coverage, not a susp
   `evidence/rows-9-12-fixture-probe.txt` is written so a follow-up plan does not have to re-derive
   any of this. Point (a) is a product decision and should be put to the PM, not assumed.
 
+### ✅ DECIDED — point (a) is answered. The ring follows VENUE-LOCAL today.
+
+- **Decided by:** the PM, 2026-09-06, at plan 19.1-14's handover checkpoint. Recorded by plan
+  19.1-14 so that whichever follow-up plan inherits this entry inherits the ANSWER rather than
+  re-opening the question — the failure mode this line exists to prevent.
+- **The decision:** the availability calendar's today-ring **should follow venue-local today**, the
+  same value `startMonth`, `endMonth` and `disabled` already use — not the rendering host's clock.
+  Concretely, point (a)'s conditional resolves to its `if yes` branch: pass `today={todayStart}`.
+- **The PM's stated reasoning:** the two clocks differ **only** where the server and venue timezones
+  already disagree, and that divergence is arguably the bug itself. Making the ring agree with the
+  three props beside it removes an inconsistency rather than introducing a behaviour.
+- **Scope of the decision:** it settles point (a) ONLY. Points (b) through (f) are unchanged and
+  still owed — the seam note, the pinned `created_at`, the `&today=` URL parameter and its
+  assertion, the clock-independence test, and the post-mint crop that confirms the ring landed on
+  the pinned day rather than on the dispatch day.
+- **NOT implemented by 19.1-14.** `availability-calendar.tsx` is production source with a product
+  consequence, and it is outside this plan's `files_modified` (three evidence artefacts). The change
+  belongs to a planned plan under D-02 — expected to be **19.1-16**, which already owns the two
+  still-red originals. The six-point spec above stays authoritative for the mechanics.
+
 ---
 
 ## D-19.1-E — `dev-theme-320-court` cannot hold still long enough to be photographed

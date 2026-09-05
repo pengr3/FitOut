@@ -281,3 +281,79 @@ records the answer.
    available in this state.
 
 ---
+
+## ⛔ DECISION TAKEN — `hold`. The repository was NOT made public.
+
+**Decided by:** the PM · **Date:** 2026-09-06 · **Repository visibility at the time of writing:**
+`PRIVATE`, read back with `gh repo view --json visibility --jq .visibility`.
+
+**This section exists so that a later reader does not mistake this document for a pending checklist.**
+The decision has been taken once. It came back `hold`.
+
+**The PM's stated reasoning, recorded rather than paraphrased into agreement:**
+
+> SC4 is open — `gate-e2e` and `gate-visual` are red — so publishing today would put a red badge in
+> front of every arrival. That is the exact cost D-08's ordering exists to avoid.
+
+That reasoning takes the argument this document makes in point 3 above and treats it as decisive
+rather than as a caveat. The pre-flight is not wrong and is not stale: the scan, the vector closure
+and the payload are independent of whether the suite is green, which is exactly why this document
+said a pre-flight against a partly-red CI is still a valid pre-flight. What the `hold` answers is the
+separate question of **timing**, and the answer is *not yet*.
+
+**No flip command was run — not by the PM, and not by the executor.** Nothing outward-facing
+happened. This document therefore deliberately carries **no handover-result section**, because there
+was no flip to read back and a fabricated one would be a false record of an irreversible act.
+
+> ⚠ **The heading that section would have used is deliberately not written anywhere in this file** —
+> not even to say it is absent. Plan 19.1-14's Task 3 verifies the handover by grepping this document
+> for that exact heading string, so a prose mention denying the flip happened would satisfy the check
+> that was supposed to prove it did. An instrument whose green is satisfiable without the property
+> holding is this phase's entire subject; it would be a poor place to plant one.
+
+### What the hold is waiting on
+
+**The hold lifts when SC4 closes**, which is scheduled work rather than an open question. Plan 19.1-13
+proposed three follow-up plans under D-02, and the PM confirmed at this same checkpoint that all three
+**will be created inside phase 19.1**:
+
+| plan | what it owns |
+|---|---|
+| **19.1-16** | host-layout hydration — **both still-red originals** (`host-headings`, `overflow-320`) plus the 24 blocked tests |
+| **19.1-17** | the duplicated booker mounts |
+| **19.1-18** | the lost day click |
+
+None of the three exists yet. They are produced by the gap-planning step that runs after plan 19.1-14
+closes — **not** by plan 19.1-14, which owns three evidence artefacts and a checkpoint.
+
+### This checklist does not go stale — reuse it
+
+Re-take the decision with **this same document** once SC4 closes. Three of its four sections are
+durable and require no re-derivation:
+
+- **(a) vector closure** — durable. The three live vectors are closed by standing invariants with
+  standing cases; nothing about publishing changes that.
+- **(b) criteria state** — **re-measure this one.** It is the section the hold is about. SC4's verdict
+  and the run identifier behind it must be re-read against the run current at that time.
+- **(c) the scan** — durable in its finding, but **re-run it before the flip anyway.** D-08 requires
+  the scan be *fresh* rather than a reference to an earlier one, and commits will have accumulated.
+  The command shape, the mount confirmation, the non-vacuity check and the three passes are all
+  recorded in `evidence/secret-scan-pre-public.txt` and can be replayed as written.
+- **(d) the flip** — durable. The command, the read-back commands and the leading-slash gotcha are
+  unchanged.
+
+### The knock-on: plan 19.1-15 is BLOCKED, not skipped
+
+**Plan 19.1-15 installs the branch ruleset, and it cannot run.** `gh api repos/pengr3/FitOut/rulesets`
+returns `403 "Upgrade to GitHub Pro or make this repository public to enable this feature"` while the
+repository is private. The plan is therefore **blocked by construction** — by an API that refuses, not
+by a choice anyone made about it.
+
+**Its inputs are already prepared and are waiting, not missing.** The payload is checked in at
+`evidence/ruleset-main.json`; the five context strings and their measured statuses are in section (d)
+of this document, under "The five context strings, each with its CURRENT measured status". When the
+hold lifts, 19.1-15 runs against them unchanged — with the caveat it already carries: one of the four
+checks it makes required (`gate-e2e`) was red at measurement time, which is 19.1-15's decision to take
+with that number in front of it.
+
+---

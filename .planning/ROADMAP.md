@@ -627,9 +627,12 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 13/15 plans executed (7 waves)
+**Plans:** 14/15 plans executed (7 waves)
 
 Plans:
+
+- [x] 19.1-14-PLAN.md
+
 **Wave 1**
 
 - [x] 19.1-01-PLAN.md — TRACER · SC1: constrain `gate-db-free`'s checker step end-to-end (hard stop, display-name pin, exact-invocation invariant, anchor control)
@@ -660,11 +663,29 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 19.1-14-PLAN.md — SC5 pre-flight: fresh secret scan, ruleset payload, checklist, handover checkpoint (D-07/D-08)
+- [~] 19.1-14-PLAN.md — SC5 pre-flight: fresh secret scan, ruleset payload, checklist, handover checkpoint (D-07/D-08)
+      — **HALTED at Task 3 (designed stop).** Tasks 1–2 complete (`3a3639b`, `a75e1ce`); the scan is
+      clean over 2244 commits and the ruleset payload is checked in. The `blocking-human` checkpoint
+      D-08 reserves for the PM returned **`hold`**: SC4 is open (`gate-e2e` and `gate-visual` red), so
+      publishing would put a red badge in front of every arrival — the exact cost D-08's ordering
+      exists to avoid. **The repository remains `PRIVATE`.** See `19.1-14-SUMMARY.md` (`status: halted`).
 
-**Wave 7** *(blocked on Wave 6 completion)*
+**Wave 7** *(BLOCKED — see below, not merely awaiting Wave 6)*
 
 - [ ] 19.1-15-PLAN.md — SC5 enforcement: apply the `main` ruleset, read it back, probe direct-push (D-05/D-06)
+      — ⛔ **BLOCKED BY CONSTRUCTION, not skipped.** `gh api repos/pengr3/FitOut/rulesets` returns
+      `403 "Upgrade to GitHub Pro or make this repository public to enable this feature"` while the
+      repository is private, so this plan's precondition is unmet and it cannot start. Its inputs are
+      **prepared and waiting**: the payload at `evidence/ruleset-main.json`, and the five context
+      strings with their measured statuses in `evidence/preflight-public.md` §(d). Unblocks only if
+      the publication hold lifts.
+
+**⚠ SC4 and SC5 are OPEN. Phase 19.1 is NOT complete.** The route out is the three follow-up plans
+19.1-13 proposed and the PM confirmed as in-phase — **19.1-16** (host-layout hydration; owns both
+still-red originals `host-headings` and `overflow-320`, plus the 24 blocked tests), **19.1-17**
+(duplicated booker mounts), **19.1-18** (the lost day click). None exists yet; they are owed to the
+gap-planning step that runs after 19.1-14 closes. SC4 closes when they land, which is what lifts the
+publication hold, which is what unblocks 19.1-15.
 
 ### Phase 20: Ops Gets Its Own Front Door — the `ops.` Host, Sign-In & Staff Onboarding
 
@@ -974,7 +995,7 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified & COMPLETE** — 17/17 requirements, 0 code-level blockers. The checkbox was held from 2026-09-01 until 18.1 shipped the missing submission path, then briefly re-held on PM decision D-274 (the `/ops` contact surface). **18.1-16 shipped D-274 on 2026-09-03 and phase 18.1 verified passed 9/9, so both holds are discharged.** | verified 2026-09-03 |
 | 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | Complete    | 2026-09-03 |
 | 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 11/11 | In Progress|  |
-| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 10/15 | In Progress|  |
+| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 13/15 | In Progress — 19.1-14 HALTED (`hold`), 19.1-15 BLOCKED (403); SC4 + SC5 OPEN |  |
 | 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | Not started | - |
 | 21. The Host Can See Where They Stand | v1.2 | 0/TBD | Not started | - |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |

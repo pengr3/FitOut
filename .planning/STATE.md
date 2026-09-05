@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: Completed 19.1-13-PLAN.md
-last_updated: "2026-09-05T16:39:56.086Z"
-last_activity: 2026-09-05
-last_activity_desc: Phase 19.1 plan 02 complete — Wave 0 measurement
-state_head: 6fb637624dd19fbd4ccd67c651f7f6915a6ae081
+stopped_at: HALTED at 19.1-14-PLAN.md Task 3 — PM decision hold. SC4 and SC5 OPEN.
+last_updated: "2026-09-05T17:16:56.558Z"
+last_activity: 2026-09-06
+last_activity_desc: Phase 19.1 plan 14 HALTED at its blocking-human checkpoint — scan clean over 2244 commits and ruleset payload checked in, but the PM held publication because SC4 is open
+state_head: 86fa0f0d330631a4f0bd39e6d9a0253110f10da0
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -18,6 +18,10 @@ progress:
   total_phases: 8
   completed_phases: 1
   total_plans: 60
+  # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
+  # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
+  # A halted plan counted as a completed one is the same fabricated counter this file
+  # already records an incident of below — see the v1.1 note on a fabricated +6.
   completed_plans: 58
   percent: 13
 ---
@@ -450,6 +454,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P11 | 36 min | 3 tasks | 3 files |
 | Phase 19.1 P12 | 40 min | 3 tasks | 13 files |
 | Phase 19.1 P13 | 1h 52m | 3 tasks | 3 files |
+| Phase 19.1 P14 | 10min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1474,6 +1479,9 @@ Recent decisions affecting current work:
 - [Phase 19.1]: SC4 is OPEN: run 33976831607 is red in gate-e2e (4 failures) and gate-visual (the four D-19.1-D clock rows). The phase grows by three plans under D-02 (19.1-16 host-layout hydration, 19.1-17 duplicated booker mounts, 19.1-18 the lost day click).
 - [Phase 19.1]: The known-failures allowlist stays pinned at 2. Two of the original fourteen that 19.1-11's derivation records as repaired (host-headings, overflow-320) are still red in CI; the prose is contradicted, the number is not edited, and neither failure is allowlist-eligible.
 - [Phase 19.1]: gate-e2e's merge wait is 26m16s measured on a named-failure tree (run 33976831607), down 47% from the red baseline's 50m29s, with 63m44s of headroom against the untouched 90-minute cap. This is the number 19.1-15 uses.
+- [Phase 19.1]: 19.1-14: PUBLICATION HELD. The PM declined to make the repository public — SC4 is open (gate-e2e and gate-visual red), so publishing would put a red badge in front of every arrival, the exact cost D-08's ordering exists to avoid. Repository stays PRIVATE; the hold lifts when 19.1-16/-17/-18 land.
+- [Phase 19.1]: 19.1-14: D-19.1-D point (a) DECIDED by the PM — the availability calendar's today-ring follows VENUE-LOCAL today (matching startMonth/endMonth/disabled), not the rendering host's clock, because the two differ only where server and venue timezones already disagree, which is arguably the bug. Recorded in the ledger; NOT implemented (production source, belongs to 19.1-16).
+- [Phase 19.1]: 19.1-14: plan 19.1-15 is BLOCKED BY CONSTRUCTION, not skipped — the rulesets API returns 403 while the repository is private. Its payload (evidence/ruleset-main.json) and its five measured context strings (evidence/preflight-public.md §d) are prepared and waiting.
 
 ### Pending Todos
 
@@ -1560,6 +1568,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - gate-visual remains RED on 4 baselines (listing-detail x3, collision-notice-1280). Blocked on the rows 9-12 fixture work specified in 19.1 evidence/rows-9-12-fixture-probe.txt; its point (a) is a product decision for the PM.
 - D-19.1-E: dev-theme-320-court is flaky on gate-visual (Failed to take two consecutive stable screenshots, 21109px between consecutive captures; the committed reference is byte-correct). Absorbed today by two retries and reported flaky rather than red.
 - Two of the five required-status-check contexts (gate-e2e, gate-visual) are RED today, and the flaky set is redrawn each run - six different tests across four runs of one tree. 19.1-15 must not make either a required check before the three D-02 plans land.
+- Publication HOLD (PM, 2026-09-06) blocks SC5: the repository stays PRIVATE, so 19.1-15 cannot install the branch ruleset (gh api repos/pengr3/FitOut/rulesets => 403). Unblocks only after SC4 closes via 19.1-16/-17/-18, which do not exist yet and are owed to gap planning.
 
 ### Quick Tasks Completed
 
@@ -1660,8 +1669,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-05T16:39:25.609Z
-Stopped at: Completed 19.1-13-PLAN.md
+Last session: 2026-09-05T17:16:55.823Z
+Stopped at: HALTED at 19.1-14-PLAN.md Task 3 — PM decision hold. SC4 and SC5 OPEN.
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1814,7 +1823,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: None
+Resume file: None — next step is gap planning for 19.1-16/-17/-18
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
