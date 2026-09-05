@@ -524,3 +524,39 @@ EOL-agnostic, so there is no known instance; it is a gap in coverage, not a susp
 - **Suggested disposition:** the six-point specification in
   `evidence/rows-9-12-fixture-probe.txt` is written so a follow-up plan does not have to re-derive
   any of this. Point (a) is a product decision and should be put to the PM, not assumed.
+
+---
+
+## D-19.1-E — `dev-theme-320-court` cannot hold still long enough to be photographed
+
+- **Found during:** plan 19.1-12, Task 3's verifying run on the final head (`33972688199`).
+- **Observed:** `gate-visual` reports `4 failed / 1 flaky / 42 skipped / 38 passed`. The flaky one is
+  `dev-theme-320-court`, which failed attempt 1 in 10.1 s and passed `retry #1` in 4.3 s.
+- **It is NOT a baseline mismatch, and this was measured before the log was read.** A full-image
+  comparison of the failed attempt's `actual` against the committed regenerated reference returns
+  **0 differing pixels, max channel delta 0** over 320×24842. The reference is correct.
+- **The real reason, from the log:** `Failed to take two consecutive stable screenshots` —
+  `21109 pixels (ratio 0.01 of all image pixels) are different` **between two consecutive captures of
+  the page**, not against the baseline. `toHaveScreenshot` polls for two identical frames and timed
+  out at 5000 ms. The attachment list naming a `-previous.png` is the signature of this failure mode
+  rather than of a comparison failure.
+- **Where the instability lives:** six bands — four **44 px tall** at y≈2542, 2594, 14597, 14649 (the
+  slot-picker rows; 44 px is the `h-11` cell height) and two 10 px at y≈3746, 15849. `/dev/theme` at
+  320 px is the tallest surface in the inventory at 24,842 px.
+- **Why it is not fixed here:** plan 19.1-12 owns `.github/workflows/ci.yml`'s upload step, the
+  baseline images and its own evidence files. The unstable thing is `/dev/theme`'s slot-picker
+  preview — a surface this plan neither owns nor changed, and whose instability predates the
+  regeneration (the reference matches; only the page's settling does not). Widening a timeout or a
+  threshold on a file this plan does not own is precisely the green-chasing edit the phase's
+  prohibitions exist to prevent.
+- **⚠ Note the shape, because it is the phase's own subject.** This is a test that goes green when
+  you press the button again. It is currently absorbed by `gate-visual`'s two retries and reported as
+  `flaky` rather than red, so nothing stops it — and a surface that needs a retry today needs two
+  tomorrow. Both `injectFreezeStylesheet` and Playwright's own "disabled all CSS animations" were
+  active and did not settle it, so whatever is moving is not a CSS animation.
+- **Suggested disposition:** find what changes between two consecutive captures in those four 44 px
+  slot rows. One hypothesis worth testing first and cheaply, NOT asserted here: if the slot-picker
+  preview derives which slots are struck through from the current time, the strike-through set can
+  change between two captures taken either side of a boundary — which would make this a third
+  instance of the clock-dependence `D-19.1-D` records, on a surface nobody suspected. Confirm or
+  refute before reaching for a timeout.

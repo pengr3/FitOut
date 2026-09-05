@@ -326,6 +326,49 @@ touch. The count moved 12 → 4 for stated reasons, not by a threshold moving.
 
 VERIFIED — the regenerated reference set has been compared against by a real workflow run (`33971883942`), not merely committed. Eight baselines are green against images minted in the pinned Linux container by the sanctioned dispatch path; four remain red by decision, and `evidence/rows-9-12-fixture-probe.txt` says what would have to happen before they can be minted honestly.
 
+## ⚠ A SECOND verifying run, on the final head — and it corrects the paragraph above
+
+Run `33971883942` was **cancelled** partway through, by my own subsequent push: `ci.yml`'s concurrency
+group is `workflow-ref-event` with `cancel-in-progress: true`, so pushing the SUMMARY commit killed
+its still-running `gate-e2e`. `gate-visual` had already completed, so its result stands — but a run
+whose overall conclusion is `cancelled` is a weak thing to rest a verification on, and the honest
+move is to name the run that completed instead.
+
+**Run `33972688199`** (head `832927e`, the final head) is that run. Its `gate-visual` reports:
+
+```
+4 failed
+1 flaky
+42 skipped
+38 passed (3.4m)
+```
+
+Against the pre-regeneration baseline of **12 failing / 31 passing** on run `33968421339`, that
+reconciles exactly: eight references were regenerated, **seven now pass cleanly, and the eighth is
+flaky.**
+
+**The flaky one is `dev-theme-320-court`, and it is NOT a baseline mismatch.** This was measured
+before the log was read, and the two agree:
+
+* Its failed attempt's `actual` is **byte-identical to the committed regenerated reference** — a
+  full-image comparison over 320×24842 returns **0 differing pixels, max channel delta 0**. The
+  regenerated reference for this row is correct.
+* The log names the real reason: `Failed to take two consecutive stable screenshots`, with
+  `21109 pixels (ratio 0.01 of all image pixels) are different` — that count is between **two
+  consecutive captures of the page**, not between the page and the baseline. `toHaveScreenshot`
+  polled, never got two identical frames within its 5000 ms, and timed out.
+* It passed on `retry #1` in 4.3 s, which is why it is `flaky` and not `failed`.
+* The instability is confined to six bands: four **44 px tall** (the slot-picker rows, at y≈2542,
+  2594, 14597, 14649) and two 10 px. `/dev/theme` at 320 is the tallest surface in the set at
+  24,842 px.
+
+So the claim "the eight regenerated references were compared against and agreed with" holds for the
+reference images themselves — all eight, including this one, match what the runner renders. What does
+**not** hold is that all eight are stable: one surface cannot hold still long enough to be
+photographed reliably. That is a different defect from the one this plan set out to fix, it is
+logged as `D-19.1-E`, and it is exactly the "gets retried until green" pathology this phase exists to
+surface rather than absorb.
+
 ## What this plan did NOT achieve, said plainly
 
 `gate-visual` is still red. D-04's goal is that it stops being red on every push, and this plan gets

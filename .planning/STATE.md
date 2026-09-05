@@ -6,10 +6,10 @@ current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
 stopped_at: Completed 19.1-12-PLAN.md
-last_updated: "2026-09-05T14:43:56.535Z"
+last_updated: "2026-09-05T15:04:49.027Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 19.1 plan 02 complete — Wave 0 measurement
-state_head: f51b04de23b49b46d378ab0ec0f79036fd37fede
+state_head: 832927eccc6c522f5557971785f246f9e78a85cf
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -1554,6 +1554,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - ~~19.1-03 D-A2: CalendarMonthSkeleton's six hard-coded week rows vs a five-row grid (52.81px shift)~~ — CLEARED 2026-09-05. Repaired by deriving the row count from a server-single-sourced month prop; the two calendar-hit-area AC#15 tests are green (now at :492). Evidence: evidence/triage-plate-month.txt. Residuals stated, not blocking: the listing's own zone and the ?date= searched month are both unknowable from a loading.tsx, and neither can reintroduce a server/client disagreement.
 - 19.1-04 DEFECT 3 — e2e/helpers/booker-seed.ts:180 pickWindow's unscoped getByText on the timezone note resolves to 2 elements whenever two booking surfaces are in the document (responsive sheet, or the served-shell/resolved-content streaming overlap). A flake, green under CI's --retries=2. Owned by plan 08; brief in evidence/triage-collision-in-place.txt VERDICT DEFECT 3.
 - gate-visual remains RED on 4 baselines (listing-detail x3, collision-notice-1280). Blocked on the rows 9-12 fixture work specified in 19.1 evidence/rows-9-12-fixture-probe.txt; its point (a) is a product decision for the PM.
+- D-19.1-E: dev-theme-320-court is flaky on gate-visual (Failed to take two consecutive stable screenshots, 21109px between consecutive captures; the committed reference is byte-correct). Absorbed today by two retries and reported flaky rather than red.
 
 ### Quick Tasks Completed
 
