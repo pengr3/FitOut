@@ -627,7 +627,7 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 1/15 plans executed (7 waves)
+**Plans:** 3/15 plans executed (7 waves)
 
 Plans:
 **Wave 1**
@@ -639,7 +639,7 @@ Plans:
 - [x] 19.1-02-PLAN.md — Wave 0: the two expected-failure behaviours, the local-repro recipe, the Phase-17 tabular-figure verdict, the avatar local run
 - [ ] 19.1-03-PLAN.md — Cause A: the five-row month — derive calendar geometry from the rendered grid (4 of the 14)
 - [ ] 19.1-04-PLAN.md — Cause D1: the duplicated `availability-tz-note` id — per-instance ids in both components + a census
-- [ ] 19.1-05-PLAN.md — Harness memory (`constFromChecker`, `withJobKey`/IN-02) + SC1 completion + SC3's dropped case
+- [x] 19.1-05-PLAN.md — Harness memory (`constFromChecker`, `withJobKey`/IN-02) + SC1 completion + SC3's dropped case
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -974,7 +974,7 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified & COMPLETE** — 17/17 requirements, 0 code-level blockers. The checkbox was held from 2026-09-01 until 18.1 shipped the missing submission path, then briefly re-held on PM decision D-274 (the `/ops` contact surface). **18.1-16 shipped D-274 on 2026-09-03 and phase 18.1 verified passed 9/9, so both holds are discharged.** | verified 2026-09-03 |
 | 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | Complete    | 2026-09-03 |
 | 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 11/11 | In Progress|  |
-| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 2/15 | In Progress | - |
+| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 3/15 | In Progress|  |
 | 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | Not started | - |
 | 21. The Host Can See Where They Stand | v1.2 | 0/TBD | Not started | - |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |

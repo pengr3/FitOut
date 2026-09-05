@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: Completed 19.1-02-PLAN.md
-last_updated: "2026-09-05T05:22:00.000Z"
+stopped_at: Completed 19.1-05-PLAN.md
+last_updated: "2026-09-05T05:45:58.223Z"
 last_activity: 2026-09-05
 last_activity_desc: Phase 19.1 plan 02 complete — Wave 0 measurement
-state_head: c0f7bc23322df44ebb5e20b86b73f41a80d4e40f
+state_head: 729925dddd93a88b3923087c82b719a3a5fefbd3
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -74,7 +74,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19.1 (CI signal becomes real) — EXECUTING
-Plan: 3 of 15
+Plan: 4 of 15
 Status: Ready to execute
 Last activity: 2026-09-05 — Phase 19.1 plan 02 complete (Wave 0 measurement)
 
@@ -439,6 +439,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19 P15 | 24 min | 2 tasks | 5 files |
 | Phase 19.1 P01 | 25 min | 3 tasks | 5 files |
 | Phase 19.1 P02 | 16 min | 3 tasks | 3 files |
+| Phase 19.1 P05 | 25 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1434,6 +1435,9 @@ Recent decisions affecting current work:
 - [Phase 19.1]: 19.1-02 REVERSAL — e2e/tabular-figures.spec.ts:361 is NEITHER a stale spec NOR a known open finding. Phase 13 settled the tnum finding GREEN (13-16-SUMMARY.md:356, "No Phase-17 finding to hand forward") and the spec passes locally at 0px spread. The CI red is a container-specific font-pipeline failure, Cause-B class. RESEARCH.md Cause E read the spec FAILURE MESSAGE as a standing statement of fact; it is text printed on failure.
 - [Phase 19.1]: 19.1-02 A3 CONFIRMED — all 33 e2e/avatar-crop cases pass locally including the three real-upload ones (:974, :2675, :2747), so the CI failures are an environment-capability gap and plan 10 repairs nothing. Local Cloudinary config is real, not dummy.
 - [Phase 19.1]: 19.1-02 local runs use 4 workers where CI uses 1 (workers is unset; Playwright derives it from cores). Ordering-dependent hypotheses need --workers=1 to reproduce CI.
+- [Phase 19.1]: The invariant total is 55 (baselines=11, ci=36, cross=8), taken from the checker's printed line at each step and never computed — Plan 19.1-05 added three counted gate-db-free checks; all three spellings (checker summary, ci.yml verbatim quote, EXPECTED_GREEN) moved in the same commit, with the control case as the instrument that makes divergence impossible
+- [Phase 19.1]: gate-db-free's build step gets its own three-key allow-list, kept SEPARATE from the checker step's two-key one — The two differ by exactly one key (env). Merging them would silently permit an environment map on the step whose entire property is that it takes none
+- [Phase 19.1]: MEASURED CORRECTION: deleting gate-db-free's build step was NOT green before this plan — T-11-DBFREE's substring-anchored predicate catches it for a different property; the softening vectors on that step WERE green — Recorded rather than papered over; the substring anchor is logged as D-19.1-C for plan 06's audit
 
 ### Pending Todos
 
@@ -1615,8 +1619,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-05T05:22:00.000Z
-Stopped at: Completed 19.1-02-PLAN.md
+Last session: 2026-09-05T05:45:57.549Z
+Stopped at: Completed 19.1-05-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
