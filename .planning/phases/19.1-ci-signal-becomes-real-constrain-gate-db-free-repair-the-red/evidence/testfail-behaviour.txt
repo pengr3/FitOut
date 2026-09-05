@@ -1,0 +1,228 @@
+19.1-02 Task 1 — MEASURED BEHAVIOUR OF `test.fail(condition, reason)`
+=====================================================================
+
+WHY THIS FILE EXISTS
+  19.1-RESEARCH.md § "D-03 — the known-failures allowlist" recommends option A
+  (`test.fail(cond, reason)` in-file, paired with a build-blocking design test) and lists TWO
+  behaviours beneath the recommendation as ASSUMED — Assumptions Log rows A1 and A2. Neither is
+  documented clearly enough to assume, and both change the allowlist design if wrong. This file
+  settles them by measurement, not by reading.
+
+WHAT WAS RUN
+  A throwaway spec `e2e/__scratch-known-failure.spec.ts` with SIX tests in four constructs and NO
+  product interaction — no navigation, no fixtures, no database access:
+    (1) a standalone expected failure whose body THROWS               → measures A1 (retries)
+    (2) a standalone expected failure whose body PASSES               → measures the stale-entry guard
+    (3) a `describe.serial` group of three, the FIRST an expected
+        failure whose body throws, the other two ordinary passes      → measures A2 (serial tail)
+    (4) one plain passing test outside both                           → the NON-VACUITY ANCHOR
+  Every annotation was called with a condition AND a reason string; none bare.
+
+  The spec was DELETED at the end of the task. It is not in git history and is not on disk.
+
+  Collected-spec-file count on the chromium project, BEFORE the probe was written:
+      $ npx playwright test --project=chromium --list
+      Total: 460 tests in 39 files
+  (The same command is re-run after the deletion at the foot of this file.)
+
+  Environment banner note: `[playwright] project "visual" is NOT collected on win32: ...` is printed
+  by playwright.config.ts on every non-Linux run and is reproduced below unedited, per the Phase 19
+  `evidence/guards-pre-fix.txt` convention — the transcript is the output, not a summary of it.
+
+
+════════════════════════════════════════════════════════════════════════════════════════════
+RUN 1 — default local retry count (playwright.config.ts: `retries: process.env.CI ? 2 : 0`)
+════════════════════════════════════════════════════════════════════════════════════════════
+
+$ npx playwright test e2e/__scratch-known-failure.spec.ts --project=chromium --reporter=list
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[33m[1m⚠[22m[39m The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 6 tests using 4 workers
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  x  1 [chromium] › e2e\__scratch-known-failure.spec.ts:35:7 › A2 · serial group whose FIRST test is an expected failure › serial 1 · expected failure whose body throws (7ms)
+  x  2 [chromium] › e2e\__scratch-known-failure.spec.ts:14:5 › A1 · standalone expected failure whose body throws (9ms)
+  ok 3 [chromium] › e2e\__scratch-known-failure.spec.ts:54:5 › non-vacuity anchor · plain passing test outside both (21ms)
+  ok 5 [chromium] › e2e\__scratch-known-failure.spec.ts:43:7 › A2 · serial group whose FIRST test is an expected failure › serial 2 · ordinary passing test (14ms)
+  ok 4 [chromium] › e2e\__scratch-known-failure.spec.ts:24:5 › stale-entry guard · standalone expected failure whose body PASSES (23ms)
+  ok 6 [chromium] › e2e\__scratch-known-failure.spec.ts:47:7 › A2 · serial group whose FIRST test is an expected failure › serial 3 · ordinary passing test (5ms)
+
+
+  1) [chromium] › e2e\__scratch-known-failure.spec.ts:24:5 › stale-entry guard · standalone expected failure whose body PASSES 
+
+    Expected to fail, but passed.
+
+  1 failed
+    [chromium] › e2e\__scratch-known-failure.spec.ts:24:5 › stale-entry guard · standalone expected failure whose body PASSES 
+  5 passed (15.0s)
+
+$ echo $?
+1
+
+════════════════════════════════════════════════════════════════════════════════════════════
+RUN 2 — CI's retry shape reproduced locally (--retries=2)
+════════════════════════════════════════════════════════════════════════════════════════════
+
+$ npx playwright test e2e/__scratch-known-failure.spec.ts --project=chromium --reporter=list --retries=2
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[2m[WebServer] [22m[33m[1m⚠[22m[39m The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+Running 6 tests using 4 workers
+
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  x  1 [chromium] › e2e\__scratch-known-failure.spec.ts:14:5 › A1 · standalone expected failure whose body throws (7ms)
+  ok 2 [chromium] › e2e\__scratch-known-failure.spec.ts:54:5 › non-vacuity anchor · plain passing test outside both (21ms)
+  x  4 [chromium] › e2e\__scratch-known-failure.spec.ts:35:7 › A2 · serial group whose FIRST test is an expected failure › serial 1 · expected failure whose body throws (9ms)
+  ok 3 [chromium] › e2e\__scratch-known-failure.spec.ts:24:5 › stale-entry guard · standalone expected failure whose body PASSES (18ms)
+  ok 5 [chromium] › e2e\__scratch-known-failure.spec.ts:43:7 › A2 · serial group whose FIRST test is an expected failure › serial 2 · ordinary passing test (16ms)
+  ok 6 [chromium] › e2e\__scratch-known-failure.spec.ts:47:7 › A2 · serial group whose FIRST test is an expected failure › serial 3 · ordinary passing test (4ms)
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  ok 7 [chromium] › e2e\__scratch-known-failure.spec.ts:24:5 › stale-entry guard · standalone expected failure whose body PASSES (retry #1) (8ms)
+[playwright] project "visual" is NOT collected on win32: baselines are generated and compared ONLY in mcr.microsoft.com/playwright:v1.60.0-noble (D-27/D-29); a non-Linux run would compare against, or be tempted to mint, a platform baseline that can never be committed.
+  ok 8 [chromium] › e2e\__scratch-known-failure.spec.ts:24:5 › stale-entry guard · standalone expected failure whose body PASSES (retry #2) (7ms)
+
+
+  1) [chromium] › e2e\__scratch-known-failure.spec.ts:24:5 › stale-entry guard · standalone expected failure whose body PASSES 
+
+    Expected to fail, but passed.
+
+    Retry #1 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Expected to fail, but passed.
+
+    attachment #1: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results\__scratch-known-failure-st-f384d-d-failure-whose-body-PASSES-chromium-retry1\trace.zip
+    Usage:
+
+        npx playwright show-trace test-results\__scratch-known-failure-st-f384d-d-failure-whose-body-PASSES-chromium-retry1\trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Retry #2 ───────────────────────────────────────────────────────────────────────────────────────
+
+    Expected to fail, but passed.
+
+  1 failed
+    [chromium] › e2e\__scratch-known-failure.spec.ts:24:5 › stale-entry guard · standalone expected failure whose body PASSES 
+  5 passed (10.0s)
+
+$ echo $?
+1
+
+════════════════════════════════════════════════════════════════════════════════════════════
+POST-DELETION — the probe left no residue
+════════════════════════════════════════════════════════════════════════════════════════════
+
+$ rm -f e2e/__scratch-known-failure.spec.ts
+$ test -e e2e/__scratch-known-failure.spec.ts && echo "STILL PRESENT" || echo "DELETED: e2e/__scratch-known-failure.spec.ts absent"
+DELETED: e2e/__scratch-known-failure.spec.ts absent
+
+$ npx playwright test --project=chromium --list 2>&1 | tail -1
+Total: 460 tests in 39 files
+
+  → identical to the pre-probe count quoted in the header (460 tests in 39 files). The chromium
+    project collects exactly what it collected before this task, so the probe cannot have been
+    renamed rather than removed.
+
+$ git status --porcelain          # no line for e2e/, tracked or untracked
+(no e2e/ entry)
+
+
+════════════════════════════════════════════════════════════════════════════════════════════
+VERDICT — the four questions, each answered by the quoted summary line
+════════════════════════════════════════════════════════════════════════════════════════════
+
+Q1. DOES AN EXPECTED FAILURE CONSUME ITS CONFIGURED RETRIES?
+    ANSWER: NO. It runs exactly once even at --retries=2.
+
+    Read from RUN 2 (`--retries=2`). The two expected-failure tests each appear ONCE in the
+    attempt list, with no `(retry #N)` line anywhere for either:
+
+        x  1 [chromium] › e2e\__scratch-known-failure.spec.ts:14:5 › A1 · standalone expected failure whose body throws (7ms)
+        x  4 [chromium] › e2e\__scratch-known-failure.spec.ts:35:7 › A2 · serial group whose FIRST test is an expected failure › serial 1 · expected failure whose body throws (9ms)
+
+    The ONLY test that consumed retries in that run was the UNEXPECTED PASS:
+
+        ok 7 [chromium] › e2e\__scratch-known-failure.spec.ts:24:5 › stale-entry guard · standalone expected failure whose body PASSES (retry #1) (8ms)
+        ok 8 [chromium] › e2e\__scratch-known-failure.spec.ts:24:5 › stale-entry guard · standalone expected failure whose body PASSES (retry #2) (7ms)
+
+    → 19.1-RESEARCH.md Assumptions Log A1 is CONFIRMED. An annotated `hold-countdown.spec.ts:443`
+      would burn ONE 3-minute timeout in CI instead of three, so the ~6-minute wall-clock saving
+      RESEARCH.md attributes to it is REAL and plan 13 may assume it.
+
+Q2. DOES AN UNEXPECTED PASS FAIL THE RUN?
+    ANSWER: YES — with a named error and a non-zero exit, in BOTH runs.
+
+        1) [chromium] › e2e\__scratch-known-failure.spec.ts:24:5 › stale-entry guard · standalone expected failure whose body PASSES
+
+            Expected to fail, but passed.
+
+        1 failed
+          [chromium] › e2e\__scratch-known-failure.spec.ts:24:5 › stale-entry guard · standalone expected failure whose body PASSES
+        5 passed (15.0s)
+
+    and the shell reported `RUN1 EXIT=1` / `RUN2 EXIT=1`.
+
+    → The stale-entry guard that D-03 option A rests on EXISTS and is loud. An allowlist entry whose
+      test starts passing turns `gate-e2e` red by name, without any custom reporter.
+
+    ⚠ AND THE COST IS NAMED: an unexpected pass DOES consume its retries (the `retry #1` / `retry #2`
+      lines above, plus a trace attachment written on retry #1). A stale entry therefore costs THREE
+      attempts in CI, not one — the opposite of Q1's saving. Cheap here (8ms); not cheap on a spec
+      that times out.
+
+Q3. DOES AN EXPECTED FAILURE STOP THE REMAINDER OF ITS `describe.serial` GROUP?
+    ANSWER: NO. Both following tests in the group ran and passed, in both runs.
+
+    Read from RUN 2:
+
+        x  4 [chromium] › ... › serial 1 · expected failure whose body throws (9ms)
+        ok 5 [chromium] › ... › serial 2 · ordinary passing test (16ms)
+        ok 6 [chromium] › ... › serial 3 · ordinary passing test (4ms)
+
+    and the summary reports no "did not run" bucket at all:
+
+        5 passed (10.0s)
+
+    → 19.1-RESEARCH.md Assumptions Log A2 is CONFIRMED. An allowlisted entry does NOT keep hiding the
+      tail of its serial group, so an in-file annotation does not mask more than it declares. This is
+      the behaviour D-03 option A needed, and it is why the in-file annotation stays the right
+      mechanism rather than the reporter (option D).
+
+Q4. WHAT WAS THE COLLECTED-TEST COUNT? (the non-vacuity check on this experiment itself)
+    ANSWER: SIX, in both runs — non-zero, so neither transcript is a vacuous green.
+
+        Running 6 tests using 4 workers
+
+    and the anchor test is present in both attempt lists:
+
+        ok 3 [chromium] › e2e\__scratch-known-failure.spec.ts:54:5 › non-vacuity anchor · plain passing test outside both (21ms)
+
+
+────────────────────────────────────────────────────────────────────────────────────────────
+TWO MEASURED DELTAS AGAINST WHAT RESEARCH.md ASSUMED — recorded because the measurement wins
+────────────────────────────────────────────────────────────────────────────────────────────
+
+D1. AN EXPECTED FAILURE IS COUNTED UNDER `passed`, NOT UNDER A SEPARATE BUCKET.
+    Run 1 collected 6 tests: 1 unexpected pass (`1 failed`) and `5 passed` — and those five include
+    the TWO expected failures. Playwright's list summary has no "expected failure" line. Plan 11
+    must therefore NOT expect the `gate-e2e` summary to name its allowlisted entries; the pinned
+    count in `tests/design/e2e-known-failures.test.ts` is the only place the list is visible, which
+    strengthens rather than weakens the case for that design test.
+
+D2. LOCAL WORKER COUNT IS 4, NOT 1.
+        Running 6 tests using 4 workers
+    19.1-RESEARCH.md § Cause F states "the suite runs on 1 worker" — true of the 2-core CI runner
+    (`workers` is unset, so Playwright derives it from cores), but NOT of this laptop. A local
+    reproduction of any ordering-dependent failure (Cause F live hypothesis 2, "a hold placed by an
+    earlier spec still occupies 2:00 PM") therefore does NOT reproduce CI's ordering by default.
+    `--workers=1` is what reproduces it; this is carried into `evidence/triage-harness.md`.
