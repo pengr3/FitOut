@@ -43,3 +43,25 @@ rather than fixed, per the executor scope boundary.
   plan is positioned to make.
 - **Suggested disposition:** run `/gsd-health` or a deliberate prune pass; correct the Phase 19
   row at that phase's verification, not from inside 19.1.
+
+## D-19.1-C — `T-11-DBFREE` anchors on a substring of a `run:` body (the CR-02 idiom, one job over)
+
+- **Found during:** plan 19.1-05, Task 2's pre-fix evidence capture.
+- **Observed:** `scripts/verify-workflows.mjs:741-751` locates the build job with
+  `ciRunsByJob.filter(([, rs]) => rs.some((r) => r.includes("npm run build")))`. That is
+  19-REVIEW.md CR-02's substring-anchor idiom used for a POSITIVE assertion, which
+  `19.1-PATTERNS.md` §F forbids. Three consequences, all measured:
+  1. It is why deleting `gate-db-free`'s build step was already red before this plan — a red
+     that arrives by accident rather than an invariant about that step.
+  2. It is satisfied by every SOFTENED form of the step: `npm run build --decoy` and
+     `if: false` both left it green (evidence/guards-05-pre-fix.txt, MUTATIONS 5 and 6).
+  3. Moving `npm run build` into a DIFFERENT job would keep it green while `gate-db-free`'s own
+     gate is gone. Plan 19.1-05's build-step invariant closes 2 and 3 for `gate-db-free`; the
+     anchor itself is untouched.
+- **Why not fixed here:** the predicate's subject is the DB-free property, not this plan's, and
+  repairing `gate-e2e`-era substring anchors is explicitly plan 06's scope (19-REVIEW.md CR-02).
+  Widening or re-anchoring it from inside this plan would edit a predicate whose comment argues a
+  scope this plan did not measure.
+- **Suggested disposition:** plan 06's audit. The fix shape is the one PATTERNS.md §F names —
+  find the job by key (`CI_CHECKER_JOB`) and assert `npm run build` on it, keeping the substring
+  filter only in the deny direction where over-matching fails closed.
