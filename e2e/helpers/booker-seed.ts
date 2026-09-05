@@ -215,17 +215,92 @@ export async function openBookingSheet(page: Page, where: string): Promise<Locat
   return sheet;
 }
 
+/** Regex-escape an hour label so it can anchor a `getByRole` name pattern. */
+function escapeForName(label: string): string {
+  return label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Click one hour chip, and SAY WHICH OF THE THREE STATES the grid was actually in when it could not.
+ *
+ * ⚠ "NOT FOUND" IS THE ONE ANSWER THAT SENDS THE NEXT READER TO THE WRONG FILE, and it is the answer
+ * the caller used to give for all three causes. MEASURED 2026-09-05
+ * (evidence/triage-hold-countdown.txt, probes E and G): an hour that is already held renders with
+ * `disabled` and `aria-disabled="true"` and an accessible name of `"2:00 PM — Unavailable"` —
+ * `slot-picker.tsx:336-341` composes it as `${timeLabel} — ${tooltipFor(...)}` — so the caller's own
+ * `{ name: "2:00 PM", exact: true }` does NOT match it and reports the chip ABSENT. A taken slot and a
+ * grid with no selected day therefore produced BYTE-IDENTICAL call logs: a bare
+ * `- waiting for getByRole('button', { name: '2:00 PM', exact: true })` with no `resolved to` line.
+ * That is the same log CI recorded for `hold-countdown.spec.ts:443`, and it is why no trace of that
+ * failure could ever have separated the two causes — the distinction has to be MADE here.
+ *
+ * The three states and what each one means:
+ *   present                          — the happy path.
+ *   present-but-disabled             — the slot is TAKEN (a live hold or a booking on this listing).
+ *   absent-while-other-hours-render  — a day IS selected but this hour is outside operating hours.
+ *   absent-with-no-hours-at-all      — no day is selected, or the listing has no hours that day.
+ */
+async function clickHourChip(page: Page, label: string, which: string): Promise<void> {
+  const chip = page.getByRole("button", { name: label, exact: true });
+  const taken = page.getByRole("button", { name: new RegExp(`^${escapeForName(label)}\\s+—\\s`) });
+  const anyHour = page.getByRole("button", { name: /^\d{1,2}:00 (AM|PM)(\s|$)/ });
+
+  await expect
+    .poll(
+      async () => {
+        if ((await chip.count()) > 0) return "present";
+        if ((await taken.count()) > 0) return "present-but-disabled";
+        if ((await anyHour.count()) > 0) return "absent-while-other-hours-render";
+        return "absent-with-no-hours-at-all";
+      },
+      {
+        timeout: 15_000,
+        message:
+          `the \`${label}\` ${which} chip is not clickable, and the state below says which cause. ` +
+          "`present-but-disabled` means the slot is TAKEN — a live hold or a booking already covers " +
+          `it, and the chip is on screen named "${label} — Unavailable" rather than "${label}". ` +
+          "`absent-while-other-hours-render` means a day IS selected but this hour is outside the " +
+          "listing's operating hours for it. `absent-with-no-hours-at-all` means no day is selected " +
+          "(see `selectTargetDayIn`'s post-condition, which should have caught that one line earlier) " +
+          "or the listing has no hours on the target day at all. Three different files.",
+      },
+    )
+    .toBe("present");
+
+  await chip.click();
+}
+
 /** Open the listing, navigate to the target day, and pick the [startLabel, endLabel] hourly run. */
-// VERBATIM from price-parity.spec.ts:185-192 — see the header's copy note.
+// Was VERBATIM from price-parity.spec.ts:185-192; the two settles below are this file's own (19.1-08).
 export async function pickWindow(
   page: Page,
   startLabel: string,
   endLabel: string,
 ): Promise<void> {
-  await expect(page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)).toBeVisible();
+  // ⚠ THE COUNT SETTLE IS `openSeededListing`'s `#search-category` IDIOM, ONE ROUTE OVER, AND IT CLOSES
+  // A MEASURED FLAKE. Plan 19.1-04 measured `/listings/[id]` holding TWO copies of this note while the
+  // route streams — React's server and client forms of the same booking surface — and this assertion
+  // then failed Playwright's strict mode: `getByText(/Times shown in .*Makati.*\(GMT\+8\)/i) resolved
+  // to 2 elements` at this line (that plan's DEFECT 3, evidence/triage-collision-in-place.txt §7). The
+  // repair it shipped derived the note's `id` per instance, which fixes the HTML and the
+  // `aria-describedby` — and CANNOT fix this, because this locator matches TEXT and the text is
+  // byte-identical before and after. Waiting for the count to come back to 1 is the wait this needs.
+  //
+  // ⚠ NOT `.first()`, and that is plan 19.1-04's explicit brief rather than a preference: `.first()`
+  // goes green against a page rendering ONLY the pending shell, which is exactly the state the day
+  // click below must not run against. A persistent 2 still fails here, as it should.
+  const tzNote = page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i);
+  await expect(
+    tzNote,
+    "`/listings/[id]` still holds two venue-timezone notes — the streaming boundary's pending copy " +
+      "and the resolved page's. This waits for the boundary to resolve; a persistent 2 means the " +
+      "fallback stopped being replaced, and a 0 means the booking surface never mounted.",
+  ).toHaveCount(1, { timeout: 15_000 });
+  await expect(tzNote).toBeVisible();
+
   await selectTargetDay(page);
-  await page.getByRole("button", { name: startLabel, exact: true }).click(); // start anchor
-  await page.getByRole("button", { name: endLabel, exact: true }).click(); // end → fills the run
+  await clickHourChip(page, startLabel, "start anchor"); // start anchor
+  await clickHourChip(page, endLabel, "end anchor"); // end → fills the run
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
