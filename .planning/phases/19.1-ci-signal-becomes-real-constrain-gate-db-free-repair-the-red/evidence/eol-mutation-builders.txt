@@ -1,0 +1,271 @@
+SIX STANDING DESIGN CASES DID NOT RUN ON THE CI RUNNER — TRIAGE AND REPAIR
+Orchestrator-directed repair inside phase 19.1, between waves. Not a numbered plan.
+Date: 2026-09-05.  Base commit: 79572cf35cc43402d576bdc54b4cc723ac4a02a5 (dev).
+Subject: tests/design/workflow-invariants.test.ts — the harness, NOT the checker.
+Finding repaired: deferred-items.md, "19.1-12 — the SC2 guard suite is a WINDOWS-ONLY green".
+
+
+================================================================================
+SECTION 0 — THE TREE BEFORE ANYTHING WAS TOUCHED
+================================================================================
+
+sha256, as this working tree checks the two workflow files out:
+  79647e93a8d180b8ab5ea52e13e172fefcacb89d61b88de5aa780a4a0a431d82  .github/workflows/ci.yml
+  93f9306eeb4a695aacd4674f6edfd70ec847214c106aeeb41dc46c927bf553fe  .github/workflows/baselines.yml
+
+EOL census — pure CRLF, every LF paired with a CR:
+  ci.yml         LF=1722  CR=1722
+  baselines.yml  LF=418   CR=418
+
+git status --porcelain (tracked): (no tracked modifications)
+
+CRLF control run, the tracked tree, before any edit:
+  npx vitest run --config vitest.design.config.ts tests/design/workflow-invariants.test.ts
+  → Test Files 1 passed (1)   Tests 36 passed (36)
+
+That green is the defect. It is the green the deferred item calls "a broken instrument".
+
+
+================================================================================
+SECTION 1 — REPRODUCTION ON AN LF TREE, BEFORE ANY FIX. THE SIX, NAMED.
+================================================================================
+
+Method: `tr -d '\r'` over .github/workflows/{ci,baselines}.yml ONLY. No source file
+touched, nothing else in the tree changed. This is 19.1-12's method, re-run from scratch
+rather than inherited.
+
+  → Test Files 1 failed (1)   Tests 6 failed | 30 passed (36)
+
+Exactly the six the deferred item names, and no others:
+
+  case 7   continue-on-error as an Actions expression on the JOB is red
+  case 11  a job-level defaults: block on gate-e2e is red
+  case 18  (CR-03) a literal continue-on-error on the gate-db-free JOB is red
+  case 19  (CR-03) continue-on-error as an Actions expression on the gate-db-free JOB is red
+  case 22  (CR-03) a job-level defaults: block on gate-db-free is red
+  case 25  (CR-01) a nothing-matching branch list on the pull-request trigger is red
+
+⚠ THE DEFERRED ITEM RECORDED ONE FAILURE MODE. THERE ARE TWO, AND THE UNRECORDED ONE IS
+  THE WORSE OF THEM. The item reports `YAMLParseError: All mapping items must start at
+  the same column` for the class. Measured here, per case:
+
+  case 7   AssertionError: the checker exited 0 under a mutation that should be RED.
+  case 11  AssertionError: the checker exited 0 under a mutation that should be RED.
+  case 18  no FAIL line named "\"gate-db-free\" is unconditional".
+             stderr: YAMLParseError: All mapping items must start at the same column
+                     at line 830, column 1
+  case 19  no FAIL line named "\"gate-db-free\" is unconditional".        (same, line 830)
+  case 22  no FAIL line named "\"gate-db-free\" runs its steps with the runner's DEFAULT
+             interpreter".                                                (same, line 832)
+  case 25  no FAIL line named "runs on BOTH push and pull_request".
+             stderr: YAMLParseError: Map keys must be unique at line 780, column 5
+
+  Cases 7 and 11 are NOT parse errors. Their mutation targets `gate-e2e`; on an LF tree it
+  landed one line early, at the tail of the PRECEDING job (`gate-price-parity`), which no
+  invariant in the checker watches for softening. So the checker parsed a valid file,
+  found nothing wrong, and EXITED 0. A misplaced mutation is worse than a noisy one: the
+  case did not merely fail, it spent its run measuring a property nobody named.
+
+  Case 25's error is `Map keys must be unique`, not the column error — the filter landed
+  under `push:`, which already carries a `branches:` key.
+
+  Neither correction changes the disposition. Both sharpen what was actually broken.
+
+
+================================================================================
+SECTION 2 — THE AUDIT. EVERY MUTATION BUILDER, NOT THE TWO NAMED.
+================================================================================
+
+25 `^function with…(` declarations in the file; two of them (`withMutatedWorkflows`,
+`withMutatedWorkflowPair`) are the harness rather than builders, leaving 23 builders.
+Every one was read for the hardcoded-terminator shape.
+
+Hardcoded `\n` in an ANCHOR — exactly two sites, both confirmed by regex over the whole
+file (`\\n|\\r` matched 13 lines; 11 are assertion-message formatting or `eolOf`'s own
+definition):
+
+  :380  withJobKey            insertAfterLineContaining(ci, `\n  ${jobKey}:`, block)
+  :428  withPullRequestFilter insertAfterLineContaining(ci, "\n  pull_request:", …)
+
+The other 21 builders derive every terminator from `eolOf(text)` and were left alone.
+Checked individually — anchor composition, offset arithmetic, and any split/join:
+
+  withRefusalStepKey            anchor carries no terminator                     OK
+  withAppendedRefusalArgument   indexOf(eol, at + anchor.length)                 OK
+  withWorkflowLevelBlock        `${eol}jobs:${eol}`, joins with eol              OK
+  withoutPullRequestTrigger     `${eol}  pull_request:${eol}`                    OK
+  withPushBranches              full-line anchor, both terminators from eol      OK
+  withSequenceFormTriggerBlock  block anchor joined with eol                     OK
+  withStepBeforeRefusal         anchor carries no terminator, joins with eol     OK
+  withoutCheckerStep            indexOf(eol, at + anchor.length)                 OK
+  withAppendedCheckerArgument   indexOf(eol, at + anchor.length)                 OK
+  withStepFirstInCheckerJob     both anchors composed from eol                   OK
+  withBuildStepKey              anchor carries no terminator                     OK
+  withAppendedBuildArgument     indexOf(eol, at + anchor.length)                 OK
+  withoutBuildStep              split(eol) … join(eol)                           OK
+  withRenamedCheckerJobName     anchor carries no terminator                     OK
+  jobKeyAt / stepSpan           composed from eol; searches past the anchor      OK
+  withStepAfterInJob            joins with eol, spans from stepSpan              OK
+  withStepBeforeInJob           joins with eol, spans from stepSpan              OK
+  withStepMovedAfterInJob       pure span moves                                  OK
+  withStepMovedFirstInJob       anchors composed from eol                        OK
+  withStepRunReplacedInJob      operates inside a span                           OK
+  firstRunLineOf   (reader)     split(eol)                                       OK
+  withRenamedStepInJob          eolOf(text) at both offsets                      OK
+  withAppendedRunArgumentInJob  span.end − eol.length                            OK
+
+And one primitive they all share:
+
+  :825  insertAfterLineContaining   const lineEnd = ci.indexOf(eol, at);      ← DEFECT
+
+That search begins AT the anchor's own first byte. For an anchor whose first character is
+a line terminator, `at` IS the offset of a terminator, so on an LF tree the search returns
+`at` itself: `cut` becomes the START of the anchored line and the insertion lands one line
+early. On CRLF the same search skips the `\r` and stops at the `\n` one byte later —
+inside the SAME terminator — so `cut` comes out correct. The defect is invisible on a CRLF
+checkout by one byte.
+
+
+================================================================================
+SECTION 3 — WHICH EDIT IS THE FIX. THREE CONTROLS, RUN AGAINST AN LF TREE.
+================================================================================
+
+The deferred item attributes the failure to the hardcoded anchors. That was tested rather
+than assumed, by reverting each half of the repair independently.
+
+  CONTROL A — both the primitive and the two `\n` anchors reverted (i.e. HEAD's behaviour)
+    → 7 failed | 31 passed.  The six, plus the new case 37.
+    case 37's message: withJobKey (string form): mutated ci.yml DIFFERENTLY depending on
+      the checkout's line endings … first divergence at line 1569 — LF tree produced
+      "    continue-on-error: true", CRLF tree produced "  gate-e2e:"
+
+  CONTROL B — ONLY the two `\n` anchors reverted; the primitive repaired
+    → 39 passed (39).
+    ⇒ THE HARDCODED ANCHORS ARE NOT THE DEFECT. With the primitive correct, a `\n` anchor
+      is harmless on both checkouts, because the search no longer starts inside it.
+
+  CONTROL C — ONLY the primitive reverted; both anchors composed from `eolOf`
+    → the SAME SIX cases fail … and they fail on a CRLF checkout too.
+    ⇒ THE PRIMITIVE IS THE DEFECT. Composing the anchor from `eolOf` does not make the
+      builder correct; it makes it EOL-SYMMETRIC — wrong on both checkouts instead of
+      wrong on one. That is the fail-closed direction (a red everywhere is a red the
+      author sees), but it is not correctness.
+
+Both edits ship, each for its own measured reason:
+  • `indexOf(eol, at + anchor.length)`  — this is the repair. It makes the builders right.
+  • anchors composed from `eolOf(ci)`   — this is the insurance. It makes any FUTURE
+    anchor-arithmetic error red on this laptop as well as on the runner, which is the one
+    property whose absence let this survive eleven plans.
+
+Case 37 alone would NOT have caught control C — it measures the split, and control C is
+symmetric. That gap is why case 39 exists (section 4).
+
+
+================================================================================
+SECTION 4 — WHAT WAS ADDED, SO THE CLASS CANNOT RETURN
+================================================================================
+
+Three new cases. They are pure-function checks over the builders — no temp tree, no
+spawned checker — and they construct BOTH an LF and a CRLF copy themselves, so their
+verdict does not depend on the machine running them.
+
+  case 37 (EOL)          every builder produces the same mutation on an LF copy as on a
+                         CRLF one, and writes no bare LF into a CRLF document. Iterates a
+                         23-entry table (24 rows; `withJobKey` appears twice because its
+                         string and array forms take different code paths). Also asserts
+                         each builder still CHANGES its input on both — a deleted body
+                         must not turn this green.
+                         CATCHES: control A. MISSES: control C (symmetric error).
+
+  case 38 (EOL census)   the table names every `function with…` in the file, minus the two
+                         harness entry points. Reads this file's own source. A builder
+                         added later without an entry is RED, not a silence.
+
+  case 39 (EOL placement) the two terminator-anchored builders put their insertion on the
+                         line immediately AFTER the key they name, on both an LF and a
+                         CRLF copy. This is the correctness claim rather than the symmetry
+                         one.
+                         CATCHES: control C — re-run after adding it:
+                           × case 39 … LF: withJobKey did not put its key on the line
+                             after "  gate-e2e:" … expected '    name: gate-e2e (functional
+                             Playwr…' to be '    continue-on-error: true'
+                         7 failed | 32 passed (39).
+
+Only two builders are listed in case 39, and that is derived rather than chosen: they are
+the only two whose anchor's first character is a line terminator, which is the
+precondition for the arithmetic defect. Case 38's census is what keeps that claim honest
+as builders are added.
+
+
+================================================================================
+SECTION 5 — THE CASES STILL DO THEIR JOB. GATES, ON BOTH CHECKOUTS.
+================================================================================
+
+The concern this section answers: a builder that quietly produced a NO-OP would make all
+six pass while testing nothing. Three independent things forbid that.
+
+  1. `withMutatedWorkflowPair`'s differs-from-input assertion — "the single most important
+     line in this file" — fails any mutation identical to its input.
+  2. `expectRed` requires BOTH a non-zero exit AND a FAIL line naming that case's own
+     invariant, with the job key composed in. A mutation landing in the wrong job cannot
+     satisfy it; that is precisely how cases 18/19/22 failed in section 1.
+  3. Case 37 re-asserts (1) for every builder, outside the spawning harness.
+
+Measured, after the repair:
+
+  LF tree,   workflow-invariants.test.ts              39 passed (39)
+  CRLF tree, workflow-invariants.test.ts              39 passed (39)
+  LF tree,   npm run test:design      81 files, 1416 passed | 3 skipped (1419)
+  CRLF tree, npm run test:design      81 files, 1416 passed | 3 skipped (1419)
+  LF tree,   node scripts/verify-workflows.mjs        exit 0
+  CRLF tree, node scripts/verify-workflows.mjs        exit 0
+             "All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8)."
+
+The invariant total did not move. Nothing in this repair touches ci.yml, baselines.yml or
+scripts/verify-workflows.mjs — the subject was the harness throughout.
+
+Type gate:  npx tsc --noEmit → 7 `error TS` lines, all pre-existing:
+              5  tests/design/mail-credential-refusal.test.ts
+              2  tests/design/workflow-invariants.test.ts   (the `spawnSync` generic pair
+                 the `CheckerRun` alias already reduced from four)
+            Zero new. The bar stated in the environment brief is met exactly.
+
+Lint:       npx eslint tests/design/workflow-invariants.test.ts → 0 errors, 3 warnings,
+            all three pre-existing unused consts (E2E_MIGRATE_STEP, VISUAL_SEED_STEP,
+            VISUAL_ORDERING — one occurrence each in HEAD and in the working copy, i.e.
+            the declaration alone). Not introduced here and not touched.
+
+
+================================================================================
+SECTION 6 — THE TEMPORARY CONVERSION IS FULLY REVERTED, AND HERE IS THE PROOF
+================================================================================
+
+Byte copies of both files were taken BEFORE the first conversion and restored from those
+copies rather than from git, so the restore cannot be confused with a `git checkout --`
+that would also have discarded working-tree edits (the procedure 19.1-01 learned).
+
+  sha256 after the final restore:
+    79647e93a8d180b8ab5ea52e13e172fefcacb89d61b88de5aa780a4a0a431d82  .github/workflows/ci.yml
+    93f9306eeb4a695aacd4674f6edfd70ec847214c106aeeb41dc46c927bf553fe  .github/workflows/baselines.yml
+  Identical to section 0, both files.
+
+  git diff --stat -- .github/   → (empty)
+  git status --porcelain, tracked → exactly one line:
+    M tests/design/workflow-invariants.test.ts
+
+
+================================================================================
+VERDICT
+================================================================================
+
+The six cases were red on the runner because `insertAfterLineContaining` searched for the
+end of the anchored line starting AT the anchor, and two builders anchor on a string whose
+first character is a line terminator. On CRLF the search lands one byte into the same
+terminator and comes out right; on LF it returns the terminator itself and the insertion
+goes one line early. Two of the six then measured a job no invariant watches and the
+checker exited 0 — a false green inside a case whose whole purpose is to prove a red.
+
+Repaired at the primitive, with the anchors composed from `eolOf` so a future arithmetic
+error is red on both checkouts rather than only on the one that gates the repository.
+Three new cases hold the class closed: equivalence, census, placement. Each was proved to
+catch the defect it exists for by putting the defect back.

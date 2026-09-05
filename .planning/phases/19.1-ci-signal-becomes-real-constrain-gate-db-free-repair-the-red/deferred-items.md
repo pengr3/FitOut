@@ -421,3 +421,67 @@ environment brief — and re-run somewhere with an LF checkout before being beli
 
 **Severity:** high. It is not a broken product; it is a broken instrument, and the instrument is the one
 this whole phase is building.
+
+#### CLOSED — repair 2026-09-05, orchestrator-directed between waves
+
+Full transcript: `evidence/eol-mutation-builders.txt` (6 sections + VERDICT).
+
+**Reproduced first, from scratch, on an LF tree** — `tr -d '\r'` over the two workflow files and
+nothing else. Exactly the six named above, and no others: **6 failed | 30 passed (36)**, against
+**36/36** on the untouched CRLF checkout at the same commit.
+
+**⚠ THE DIAGNOSIS ABOVE WAS HALF RIGHT, AND THE HALF THAT WAS WRONG MATTERS.**
+
+1. **Two of the six were never parse errors.** Cases 7 and 11 target `gate-e2e`; on an LF tree their
+   mutation landed one line early, at the tail of the PRECEDING job (`gate-price-parity`), which no
+   invariant watches for softening. The checker parsed a valid file and **exited 0**. So two of the
+   six did not error on the runner — they went green over a mutation they were written to redden,
+   which is a worse failure than the four that threw. (Case 25's error is also not the column error
+   but `Map keys must be unique`: its filter landed under `push:`, which already has `branches:`.)
+2. **The hardcoded `\n` anchors are NOT the defect** — measured, not argued. The cause is one line
+   in the shared primitive `insertAfterLineContaining`: `ci.indexOf(eol, at)` began the search for
+   the anchored line's end **at the anchor's own first byte**. For the two builders whose anchor
+   starts with a terminator, `at` IS a terminator on LF, so the search returns `at` and the
+   insertion goes one line early. On CRLF the same search skips the `\r` and stops at the `\n` one
+   byte later — inside the SAME terminator — and comes out correct. **The bug hid behind one byte.**
+
+**Three controls, each reverting one half of the repair, run against an LF tree:**
+
+| control | reverted | result |
+| --- | --- | --- |
+| A | the primitive AND both `\n` anchors (= HEAD) | 7 failed / 31 — the six, plus new case 37 |
+| B | ONLY the `\n` anchors; primitive repaired | **39 passed** — the anchors are not the defect |
+| C | ONLY the primitive; anchors composed from `eolOf` | the same six fail — **and on CRLF too** |
+
+Control C is the one worth remembering: `eolOf`-composed anchors do not make a builder correct, they
+make it **EOL-symmetric** — wrong on both checkouts instead of wrong on one. That is the fail-closed
+direction, and it is why both edits shipped: the primitive fix is the repair, the `eolOf` anchors are
+the insurance that a future arithmetic slip is red on this laptop as well as on the runner.
+
+**Three new cases hold the class closed, and each was proved by putting the defect back:**
+`case 37` (every builder mutates an LF copy and a CRLF copy identically, and writes no bare LF into a
+CRLF document — a 24-row table over all 23 builders); `case 38` (that table is a census of the file's
+own `function with…` declarations, so a builder added later without an entry is RED); `case 39` (the
+two terminator-anchored builders insert on the line AFTER the key they name — the correctness claim,
+added because case 37 is green under control C and would have missed it).
+
+**Every builder was audited, not just the two named** — all 23, listed one by one in section 2 of the
+evidence with the reason each is safe. Exactly two carried a hardcoded terminator; one primitive
+carried the arithmetic.
+
+**Gates, on BOTH checkouts:** `workflow-invariants.test.ts` **39/39 on LF and 39/39 on CRLF**;
+`npm run test:design` **81 files / 1416 passed | 3 skipped** on LF and on CRLF; `verify-workflows.mjs`
+exit 0 on both, still printing `All 55 invariants hold … (baselines=11, ci=36, cross=8)` — the total
+did not move, and nothing outside `tests/design/workflow-invariants.test.ts` was edited.
+`npx tsc --noEmit` still exactly the seven pre-existing `error TS` lines, **zero new**.
+
+**The temporary conversion is fully reverted**, restored from byte copies taken before the first
+conversion rather than via `git checkout --`: both files' sha256 are identical to the pre-measurement
+values (`79647e93…` / `93f9306e…`), `git diff --stat -- .github/` is empty, and the only tracked
+modification is the test file itself.
+
+**Residual, stated not closed:** case 37 and case 39 measure the BUILDERS. The 36 spawning cases
+still run against the workflow files exactly as the local checkout stores them, so a defect that
+lives in the CHECKER's own handling of line endings — rather than in this harness — would still be
+platform-split and still invisible here. `scripts/verify-workflows.mjs` reads with `yaml`, which is
+EOL-agnostic, so there is no known instance; it is a gap in coverage, not a suspected bug.
