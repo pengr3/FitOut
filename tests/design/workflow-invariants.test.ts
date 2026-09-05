@@ -159,6 +159,15 @@ const CHECKER_JOB = constFromChecker("CI_CHECKER_JOB");
 const CHECKER_CONTEXT = constFromChecker("CI_CHECKER_CONTEXT");
 
 /**
+ * The build step's `name:` inside `gate-db-free` — the step that runs lint, the design suite and the
+ * Next build. Read from the checker for the same reason as every constant above, and load-bearing
+ * for a reason peculiar to this one: this is the step that runs THIS FILE. A case that guessed the
+ * name would mutate a step nothing is looking at and report a green for a job in which the
+ * instrument no longer runs at all.
+ */
+const BUILD_STEP_NAME = constFromChecker("BUILD_STEP_NAME");
+
+/**
  * `.gitattributes` declares `* text=auto` and this working tree checks `ci.yml` out with CRLF. Every
  * inserted line uses the EOL detected from the file it is being inserted into; a harness that
  * normalised line endings would rewrite the whole copy and make every red red for the wrong reason.
@@ -402,6 +411,65 @@ function withStepFirstInCheckerJob(stepLines: string[]): (ci: string) => string 
   };
 }
 
+/** Inserts `line`, indented eight spaces, immediately after the BUILD step's `- name:` line. */
+function withBuildStepKey(line: string): (ci: string) => string {
+  return (ci) => insertAfterLineContaining(ci, `- name: ${BUILD_STEP_NAME}`, `        ${line}`);
+}
+
+/**
+ * Appends `argument` to the BUILD step's `run:` line — the adjacency probe, one step over from
+ * `withAppendedCheckerArgument`. Same construction and same blind spot being measured: `run` is a
+ * PERMITTED key on this step too, so the allow-list compares KEY SETS and cannot see a changed
+ * value; only the trimmed exact-equality conjunct can.
+ *
+ * Returns the input unchanged when the anchor is absent, so a drifted anchor lands on
+ * `withMutatedWorkflows`'s differs-from-input assertion.
+ */
+function withAppendedBuildArgument(argument: string): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const anchor = `      - name: ${BUILD_STEP_NAME}${eol}`;
+    const at = ci.indexOf(anchor);
+    if (at < 0) return ci;
+    const runEnd = ci.indexOf(eol, at + anchor.length);
+    if (runEnd < 0) return ci;
+    return `${ci.slice(0, runEnd)} ${argument}${ci.slice(runEnd)}`;
+  };
+}
+
+/**
+ * Removes `gate-db-free`'s BUILD step — the WHOLE step, not just its first two lines.
+ *
+ * ⚠ THE "WHOLE STEP" PART IS NOT TIDINESS, IT IS THE DIFFERENCE BETWEEN MEASURING THIS PROPERTY AND
+ * MEASURING A DIFFERENT ONE. This step carries an `env:` map, and it is the LAST step of the job.
+ * Deleting only its `- name:` and `run:` lines — the shape `withoutCheckerStep` uses, correctly,
+ * for a two-line step — would leave that map orphaned at a deeper indent under the PRECEDING step,
+ * where YAML attaches it to the CHECKER step. The checker would then go red on the checker step's
+ * key-surface allow-list, and a case named for the build step would be passing on somebody else's
+ * failure. That was observed while capturing this plan's evidence and is why the boundary below is
+ * computed from indentation rather than assumed to be two lines.
+ *
+ * The step runs from its `- name:` line up to (not including) the first following line that is
+ * non-blank and indented SIX SPACES OR LESS — i.e. the next step, the next comment at step level,
+ * or the end of the job. Trailing blank lines are left in place so the separation before whatever
+ * follows is unchanged.
+ *
+ * Returns the input unchanged when the anchor is absent, so a drifted anchor lands on
+ * `withMutatedWorkflows`'s differs-from-input assertion.
+ */
+function withoutBuildStep(): (ci: string) => string {
+  return (ci) => {
+    const eol = eolOf(ci);
+    const lines = ci.split(eol);
+    const start = lines.findIndex((l) => l === `      - name: ${BUILD_STEP_NAME}`);
+    if (start < 0) return ci;
+    let end = start + 1;
+    while (end < lines.length && (lines[end].trim() === "" || /^ {7,}/.test(lines[end]))) end += 1;
+    while (end > start + 1 && lines[end - 1].trim() === "") end -= 1;
+    return [...lines.slice(0, start), ...lines.slice(end)].join(eol);
+  };
+}
+
 /**
  * Renames `gate-db-free`'s `name:` — and NOTHING else. The job key does not move, the steps do not
  * move, the checker invocation does not move: this is the edit that leaves the job perfectly intact
@@ -451,6 +519,21 @@ const CHECKER_STEP = "carries the step that RUNS this checker";
  * whose printed name is otherwise identical — a bare fragment would be satisfied by the wrong red.
  */
 const CHECKER_DISPLAY_NAME = `"${CHECKER_JOB}" declares the exact display name`;
+/**
+ * A fragment of the build-step invariant's printed name (new in plan 19.1-05). Unique without the
+ * job key — no other invariant in the checker names lint and the design suite — so the fragment is
+ * the distinguishing clause itself rather than a composition.
+ */
+const BUILD_STEP = "carries the step that runs lint, the design suite and the build";
+/**
+ * Fragments of `gate-db-free`'s unconditional and job-defaults invariants (new in plan 19.1-05).
+ * The job key is COMPOSED IN for the `CHECKER_DISPLAY_NAME` reason, and here it is not merely
+ * prudent but REQUIRED: `gate-e2e` carries a sibling of each, and the two printed names share every
+ * word after the job key. A bare fragment would be satisfied by the wrong job's red, which is the
+ * one way a case in this file can pass while measuring nothing.
+ */
+const CHECKER_UNCONDITIONAL = `"${CHECKER_JOB}" is unconditional`;
+const CHECKER_JOB_DEFAULTS = `"${CHECKER_JOB}" runs its steps with the runner's DEFAULT interpreter`;
 
 describe("the workflow checker's own predicates, measured against a mutated copy", () => {
   // THE CONTROL. An identity mutation is impossible by construction (the differs-from-input
@@ -703,6 +786,130 @@ describe("the workflow checker's own predicates, measured against a mutated copy
   it("case 17 (WR-01, SC3): appending an argument to the mail refusal invocation is red", () => {
     withMutatedWorkflows(withAppendedRefusalArgument("--decoy"), (result) => {
       expectRed(result, MAIL_REFUSAL);
+    });
+  });
+
+  // ── CR-03's REMAINING VECTORS, PLAN 19.1-05 ───────────────────────────────────────────────────
+  //
+  // Cases 18–24 are the standing half of this plan's watched-red pairs. Every one of them was
+  // measured on the TRACKED file BEFORE the predicate it names existed, and every one of those
+  // measurements is in `evidence/guards-05-pre-fix.txt` with an md5 pair and an empty porcelain.
+  // Five of the six greens recorded there are below; the sixth (the build step DELETED) is case 24,
+  // and its docblock says why its pre-fix result was a red that proves nothing.
+
+  // WHAT WAS MEASURED (guards-05-pre-fix.txt, MUTATION 2): this single line on `gate-db-free` left
+  // the checker at exit 0 with all 52 invariants reported holding — over a job that could no longer
+  // fail a pull request, and that runs lint, the whole design suite, the Next build and the very
+  // script printing that green.
+  //
+  // ISOLATED BY CONSTRUCTION. A job-level key is outside every step allow-list in the file, so this
+  // mutation can redden exactly one invariant and does. The literal-boolean spelling is the one
+  // plan 19-13 closed for `gate-e2e`; it is first here so cases 19 and 20 are visibly the SAME
+  // defeat in other clothes rather than three unrelated inputs.
+  it("case 18 (CR-03): a literal continue-on-error on the gate-db-free JOB is red", () => {
+    withMutatedWorkflows(withJobKey(CHECKER_JOB, "continue-on-error: true"), (result) => {
+      expectRed(result, CHECKER_UNCONDITIONAL);
+    });
+  });
+
+  // THE SECOND SPELLING, AND THE ONE THAT PROVES THE TEST IS A PRESENCE TEST. An Actions expression
+  // parses to a STRING, so a value comparison against the JavaScript boolean is green in BOTH
+  // directions — `=== true` false and `!== true` true, for the same input. `${{ matrix.experimental }}`
+  // is GitHub's own canonical example for this key, so this is the DOCUMENTED spelling rather than
+  // an exotic one. It is kept as its own case for the reason cases 4 and 5 are two: "the predicate
+  // catches the literal form" is not evidence that it catches the expression form, and that
+  // inference is what cost rounds 2 and 3.
+  it("case 19 (CR-03): continue-on-error as an Actions expression on the gate-db-free JOB is red", () => {
+    withMutatedWorkflows(withJobKey(CHECKER_JOB, "continue-on-error: ${{ true }}"), (result) => {
+      expectRed(result, CHECKER_UNCONDITIONAL);
+    });
+  });
+
+  // THE QUANTIFIER, ISOLATED. Cases 18 and 19 soften the JOB; this softens ONE STEP of it, and does
+  // so on a step INSERTED for the purpose rather than on either of the two the allow-lists cover.
+  // That isolation is the whole design of this case: a condition key on the checker step or on the
+  // build step ALSO breaks that step's key-surface conjunct, so a red would arrive whether or not
+  // the quantifier reached steps at all, and the case would be passing on somebody else's failure.
+  // Here nothing but the unconditional predicate can see this step, so the red is the property.
+  it("case 20 (CR-03): a condition key on ANY step of gate-db-free is red, on a step no allow-list covers", () => {
+    withMutatedWorkflows(
+      withStepFirstInCheckerJob([
+        "- name: A step inserted by the quantifier case",
+        "  if: false",
+        '  run: echo "no allow-list covers this step; only the unconditional predicate can see it"',
+      ]),
+      (result) => {
+        expectRed(result, CHECKER_UNCONDITIONAL);
+      },
+    );
+  });
+
+  // THE SAME DEFEAT ON THE STEP THAT MATTERS MOST, kept BESIDE case 20 rather than instead of it.
+  // WHAT WAS MEASURED (guards-05-pre-fix.txt, MUTATION 6): `if: false` on the build step ALONE left
+  // the checker at exit 0 with all 52 reported holding — with lint, the entire design suite (this
+  // file included) and the Next build all skipped, in a job GitHub still reported as passing.
+  //
+  // ⚠ THIS MUTATION REDDENS TWO INVARIANTS AND THE CASE ASSERTS ONE BY NAME. `if:` is outside
+  // `BUILD_STEP_ALLOWED_KEYS`, so the build-step invariant fails here too. That is why `expectRed`
+  // matches a FAIL line by the invariant's NAME and not merely a non-zero exit: this case is about
+  // the quantifier reaching the load-bearing step, and it says so in the line it requires.
+  it("case 21 (CR-03): a condition key on gate-db-free's BUILD step is red on the unconditional invariant", () => {
+    withMutatedWorkflows(withBuildStepKey("if: false"), (result) => {
+      expectRed(result, CHECKER_UNCONDITIONAL);
+    });
+  });
+
+  // WHAT WAS MEASURED (guards-05-pre-fix.txt, MUTATION 3): these three lines on `gate-db-free` left
+  // the checker at exit 0 with all 52 reported holding. `cat {0}` writes each step's `run:` body to
+  // a temp file and PRINTS it instead of executing it, so every step in the job — lint, the design
+  // suite, the build, and the invocation of the checker printing that green — becomes a no-op that
+  // exits 0. The `run:` strings stay byte-identical, no `env:` appears, no key lands on any step:
+  // this is invisible to every allow-list in the file BY CONSTRUCTION, which is why it needs a
+  // predicate of its own one level out.
+  //
+  // The block-insertion shape is case 11's, with the job key as a parameter rather than a fallback.
+  it("case 22 (CR-03): a job-level defaults: block on gate-db-free is red", () => {
+    withMutatedWorkflows(
+      withJobKey(CHECKER_JOB, ["defaults:", "  run:", "    shell: cat {0}"]),
+      (result) => {
+        expectRed(result, CHECKER_JOB_DEFAULTS);
+      },
+    );
+  });
+
+  // THE ADJACENCY PROBE — the same property case 15 asserts for the checker step, one step over, on
+  // the step whose allow-list differs from that one by exactly one key. WHAT WAS MEASURED
+  // (guards-05-pre-fix.txt, MUTATION 5): appending an argument to this step's `run:` left the
+  // checker at exit 0 with all 52 reported holding.
+  //
+  // It is green to two of the three conjuncts by construction and that is the point: the step keeps
+  // its exact `name:`, keeps its position, and keeps its key set — `run` is PERMITTED here, so the
+  // allow-list compares KEY SETS and no key moved. Only the trimmed exact-equality comparison of
+  // the `run` VALUE can discriminate. Note also what does NOT catch it: `the job that runs
+  // \`npm run build\` exists and declares NO services:` locates its subject with a SUBSTRING of a
+  // `run:` body, and `npm run build --decoy` contains `npm run build`.
+  it("case 23 (CR-03): appending an argument to gate-db-free's build invocation is red", () => {
+    withMutatedWorkflows(withAppendedBuildArgument("--decoy"), (result) => {
+      expectRed(result, BUILD_STEP);
+    });
+  });
+
+  // THE STRUCTURAL MUTATION, AND THE ONE WHOSE PRE-FIX MEASUREMENT DISAGREED WITH THE PLAN THAT
+  // ASKED FOR IT. WHAT WAS MEASURED (guards-05-pre-fix.txt, MUTATION 4): deleting this step was
+  // ALREADY red before this plan — but on `the job that runs \`npm run build\` exists and declares
+  // NO services: (T-11-DBFREE)`, a predicate whose subject is the DB-free property, which finds
+  // that subject with `r.includes("npm run build")` over every job's run commands, and which is
+  // satisfied by every SOFTENED form of this step (cases 21 and 23 are the proof). It goes red here
+  // only because its own existence conjunct is falsified as a side effect. A red that arrives by
+  // accident is not an invariant, and moving the build to a different job would take that accident
+  // away while leaving this file's own gate deleted.
+  //
+  // So this case asserts the FAIL line names the BUILD-STEP invariant. Before this plan it would
+  // have gone red on the wrong line — which is exactly the distinction `expectRed` exists to make,
+  // and the reason it takes a fragment rather than just an exit code.
+  it("case 24 (CR-03): deleting gate-db-free's build step is red ON THE BUILD-STEP INVARIANT", () => {
+    withMutatedWorkflows(withoutBuildStep(), (result) => {
+      expectRed(result, BUILD_STEP);
     });
   });
 });
