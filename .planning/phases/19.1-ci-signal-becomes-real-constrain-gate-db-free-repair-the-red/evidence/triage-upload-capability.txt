@@ -555,3 +555,100 @@ WHAT IS PERMITTED AND WHAT IS NOT, so the distinction survives:
     workflow edit is needed; the precedent for the shape is `ci.yml:1076-1078`'s three
     `ci-build-only-placeholder-not-a-real-*` literals, which exist precisely so that promoting them to
     secrets goes red.
+
+
+§ 6 — POST-ROUTE: THE THREE AVATAR CASES (Task 2)
+================================================================================================
+
+WHAT WAS DONE, PER THE ROUTE LINES IN § 4:
+  :974   ANNOTATE — `test.fail(!!process.env.CI, <reason>)` at the head of the body, with a docblock
+                    above the case carrying the capability, the invariant, the intercept refusal and
+                    the covering tests.
+  :2675  SEED     — `seedStoredAvatar(email)` writes `avatar_url = '/vrt/photo-0.svg'` and
+                    `avatar_public_id` on the minted row; the pick-and-confirm upload is gone and the
+                    precondition assertion is KEPT, retargeted.
+  :2747  SEED     — the same, and it additionally presses `Remove photo`, so it exercises
+                    `removeAvatarAction`'s destroy branch against an id naming no asset.
+
+⚠ AND ONE THING THE FIRST ATTEMPT MEASURED THAT NOTHING IN THIS PHASE KNEW — PLAN 11 NEEDS IT.
+`test.fail()` covers an ASSERTION failure. It does NOT cover a TIMEOUT. The excerpt immediately below
+is the FIRST CI-shape run after the annotation was added — the transcript of it not working (6b, two
+blocks down, is the re-run after the fix): `:974`'s final `toBeVisible` is given a 30 000 ms
+timeout inside a test whose own budget is 30 000 ms, so the TEST expires before the ASSERTION does,
+Playwright reports `Test timeout of 30000ms exceeded`, and an annotated case is still reported as
+`1 failed` — retried twice, all three attempts burnt.
+
+    x  1 … › Escape, the overlay click and the close control all do nothing while a save is in flight (30.4s)
+    x  2 … › Escape, the overlay click and the close control all do nothing while a save is in flight (retry #1) (31.0s)
+    x  3 … › Escape, the overlay click and the close control all do nothing while a save is in flight (retry #2) (30.6s)
+      Test timeout of 30000ms exceeded.
+      Error: the avatar circle still shows initials after a successful save.
+    1 failed
+    2 passed (1.9m)
+
+  This is NOT the same finding as 19.1-02's A1. That plan measured that an expected failure does not
+  consume its retries, and it is right — it measured a scratch spec whose annotated cases failed on a
+  plain `expect`. The timeout case was never in front of it. THE CONSEQUENCE FOR PLAN 11 AND PLAN 13,
+  stated here because it changes a number they are both budgeting against:
+  `e2e/hold-countdown.spec.ts:443` — the entry the ~6-minute wall-clock saving is attributed to — is a
+  TIMEOUT failure. Annotating it with a bare `test.fail(cond, reason)` will NOT suppress its retries,
+  and the saving will not appear. It needs the same treatment applied here: raise the CASE's budget so
+  the inner assertion expires first and the failure becomes an assertion.
+
+  THE FIX, AND IT IS ALSO THE CHEAPER SHAPE: `if (process.env.CI) test.setTimeout(90_000);` beside the
+  annotation. The inner `toBeVisible` then expires at its own 30 s, the failure is an assertion,
+  `test.fail` covers it, and the case runs ONCE — 34.2 s instead of 3 × 30 s.
+
+────────────────────────────────────────────────────────────────────────────────────────────────
+6a — POST-ROUTE, THIS BOX AS IT STANDS (credentials present; `CI` unset, so nothing is annotated)
+────────────────────────────────────────────────────────────────────────────────────────────────
+$ npx playwright test e2e/avatar-crop.spec.ts --project=chromium --reporter=list --grep "save is in flight|the removal confirm:"   # POST-ROUTE, this box as it stands
+
+Running 3 tests using 3 workers
+
+  ok 2 [chromium] › e2e\avatar-crop.spec.ts:2902:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) (9.6s)
+  ok 1 [chromium] › e2e\avatar-crop.spec.ts:2821:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated (10.9s)
+  ok 3 [chromium] › e2e\avatar-crop.spec.ts:1109:7 › CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert › Escape, the overlay click and the close control all do nothing while a save is in flight (11.6s)
+
+  3 passed (18.7s)
+EXIT=0
+
+────────────────────────────────────────────────────────────────────────────────────────────────
+6b — POST-ROUTE, CI'S EXACT SHAPE (every Cloudinary variable empty, CI=1 so retries=2 and the
+     annotation is live). `x 1` is the EXPECTED failure; note it runs ONCE.
+────────────────────────────────────────────────────────────────────────────────────────────────
+$ CI=1 CLOUDINARY_CLOUD_NAME= CLOUDINARY_API_KEY= CLOUDINARY_API_SECRET= NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME= npx playwright test e2e/avatar-crop.spec.ts --project=chromium --reporter=list --workers=1 --grep "save is in flight|the removal confirm:"   # POST-ROUTE, CI shape, after the timeout fix
+
+Running 3 tests using 1 worker
+
+  x  1 [chromium] › e2e\avatar-crop.spec.ts:1109:7 › CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert › Escape, the overlay click and the close control all do nothing while a save is in flight (34.2s)
+  ok 2 [chromium] › e2e\avatar-crop.spec.ts:2834:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated (6.4s)
+  ok 3 [chromium] › e2e\avatar-crop.spec.ts:2915:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) (4.2s)
+
+  3 passed (51.5s)
+EXIT=0
+
+────────────────────────────────────────────────────────────────────────────────────────────────
+6c — THE WHOLE FILE, THIS BOX AS IT STANDS. The non-vacuity control: 33 cases, the same count and
+     the same green 19.1-02 recorded before any of this, so nothing else in the file moved.
+────────────────────────────────────────────────────────────────────────────────────────────────
+  ok 28 [chromium] › e2e\avatar-crop.spec.ts:2469:7 › CROP-01 / GATE-STATES + rule F5 — a failed save keeps the work on screen › the refusal is announceable, has a box, and the framing the person chose is untouched (13.7s)
+  ok 30 [chromium] › e2e\avatar-crop.spec.ts:2780:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the crop dialog: zero axe violations, and every stop paints a DS-05 indicator (13.8s)
+  ok 31 [chromium] › e2e\avatar-crop.spec.ts:2834:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: `Keep photo` holds focus on open, and every stop is indicated (15.2s)
+  ok 33 [chromium] › e2e\avatar-crop.spec.ts:3001:5 › harness: the dev server this file measures is the one the helpers name (3.8s)
+  ok 32 [chromium] › e2e\avatar-crop.spec.ts:2915:7 › CROP-01 / GATE-A11Y — the open dialog passes axe and is operable by keyboard alone › the removal confirm: a SUCCESSFUL removal returns focus to a real control, not `<body>` (CR-03) (7.2s)
+
+  33 passed (1.9m)
+EXIT=0
+
+$ node scripts/verify-workflows.mjs | tail -1
+All 55 invariants hold across 3 section(s) (baselines=11, ci=36, cross=8).
+$ git status --porcelain -- .github scripts src
+(no output — no workflow, checker or product file was touched)
+
+$ npx tsc --noEmit | grep -c "error TS"
+7   (all seven in tests/design/, the pre-existing baseline 19.1-09 recorded; none in a touched file)
+
+$ grep -cF "Your avatar" e2e/avatar-crop.spec.ts   # at HEAD, then in the working copy
+5
+5   — no upload assertion was deleted; the two seeded cases keep theirs, retargeted

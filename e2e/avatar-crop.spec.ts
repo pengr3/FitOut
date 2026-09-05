@@ -105,6 +105,9 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+// 19.1-10 — the ONLY reason this file talks to Postgres. Two cases need the STATE a stored avatar
+// leaves on the row, not the upload that produces it; see `seedStoredAvatar` for the whole argument.
+import postgres from "postgres";
 
 import { BASE, signUpAndReachProfile } from "./helpers/avatar-session";
 // The ONE definition of "a visible focus indicator" in this suite, shared with the auth walk's 59
@@ -157,6 +160,81 @@ const fixture = (name: string): string => path.join(FIXTURES, name);
  */
 async function pick(page: Page, name: string): Promise<void> {
   await page.locator('input[type="file"]').setInputFiles(fixture(name));
+}
+
+/**
+ * The ONE environment input this file's seeding path takes. Same literal and same fallback as
+ * `e2e/helpers/booker-seed.ts:55-56`, so a container run that sets `DATABASE_URL` to the service
+ * label reaches the same database from the TEST process as the app under test does.
+ */
+const DATABASE_URL =
+  process.env.DATABASE_URL ?? "postgresql://fitout:fitout@localhost:5432/fitout";
+
+/**
+ * The local, committed asset a seeded avatar points at. `public/vrt/photo-0.svg` is tracked and is
+ * served by the dev server, so this needs no upload, no credential and no network — the same
+ * precedent, on the same asset, that `e2e/overflow-320.spec.ts:2740-2744` records for the listing
+ * photo it seeds ("A LOCAL URL, NOT A CLOUDINARY ONE").
+ */
+const SEEDED_AVATAR_URL = "/vrt/photo-0.svg";
+
+/**
+ * Write the state a stored avatar leaves on the signed-in person's row, WITHOUT performing an upload.
+ *
+ * ⚠ WHY THIS EXISTS, AND WHY IT IS NOT A SHORTCUT (19.1-10, D-01 / CI-01). Two cases in this file —
+ * the removal confirm's accessibility audit and its focus-after-removal case — do not measure the
+ * upload at all. They measure an overlay that `avatar-field.tsx` renders ONLY when the row carries a
+ * photo, so a real upload was previously the only way to reach them. That upload needs
+ * `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` in the Next process (`src/lib/cloudinary.ts` uploads
+ * SERVER-SIDE through `upload_stream`), and `gate-e2e` structurally cannot carry either: a real
+ * credential can only reach `.github/workflows/ci.yml` as a `secrets.` reference, and
+ * `scripts/verify-workflows.mjs:813` asserts "zero `secrets.` references in any env / run / with
+ * VALUE, across every job". Seeding the state reaches the same overlay with no credential and no
+ * network — and it is the route the phase's own preference order requires, above an intercept and far
+ * above an allowlist entry.
+ *
+ * ⚠ WHAT THE TWO SEEDED CASES THEREFORE NO LONGER PROVE, said out loud rather than absorbed: that a
+ * real upload lands and produces this state. That claim now lives in exactly three places, none of
+ * them here — `e2e/avatar-crop.spec.ts:974` (which still performs a real upload and is annotated as
+ * an expected failure in CI for that reason), `tests/profile/avatar.test.ts:137` ("uploads via
+ * Cloudinary (mocked) and stores secure_url + public_id on the user row"), and
+ * `tests/profile/avatar-field.test.tsx:309` ("swaps the preview and re-labels the control once the
+ * save lands"). Neither seeded case may be read as evidence about the upload path.
+ *
+ * ⚠ BOTH COLUMNS, BECAUSE THAT IS WHAT AN UPLOAD WRITES. `uploadAvatarAction` sets `avatarUrl` AND
+ * `avatarPublicId` in one statement, so seeding only the first would be a state no upload produces —
+ * and it would silently skip `removeAvatarAction`'s destroy branch, which is precisely the branch the
+ * focus case's removal has to survive. The id names no asset, which is the honest shape here: the
+ * destroy is best-effort by design ("AND THE DESTROY NEVER CHANGES THIS ACTION'S RESULT",
+ * `src/app/actions/avatar.ts`), and that property is covered independently by
+ * `tests/profile/avatar-remove.test.ts:202-241`. Measured with every Cloudinary variable empty: the
+ * removal still lands.
+ *
+ * ⚠ THE CLIENT IS OPENED AND CLOSED AROUND ONE STATEMENT. `deferred-items.md` warns against another
+ * DB-seeding spec holding a `postgres({ max: 1 })` client for its whole lifetime; this file holds one
+ * for the duration of a single `UPDATE`. The RETURNING count is asserted because an `UPDATE` that
+ * matched no row is not an error in SQL — it is a silent no-op, and every assertion downstream would
+ * then be about a profile with no photo, failing for a reason that looks like a product bug.
+ */
+async function seedStoredAvatar(email: string): Promise<void> {
+  const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {} });
+  try {
+    const rows = await sql`
+      UPDATE "user"
+      SET avatar_url = ${SEEDED_AVATAR_URL},
+          avatar_public_id = ${`fitout/avatars/e2e-seeded-not-a-real-asset`}
+      WHERE email = ${email}
+      RETURNING id
+    `;
+    expect(
+      rows.length,
+      `the avatar seed matched no \`user\` row for ${email}. An UPDATE that matches nothing is a ` +
+        "silent no-op in SQL, so without this the case would go on to audit a profile with no photo " +
+        "and report a missing overlay as though the product had stopped rendering it.",
+    ).toBe(1);
+  } finally {
+    await sql.end();
+  }
 }
 
 /**
@@ -319,9 +397,18 @@ async function computed<K extends string>(
 // THE TEARDOWN (D-192) — IT RUNS AFTER EVERY CASE, INCLUDING THE ONES THAT FAILED
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// WHAT IT CLEANS AND WHY THERE IS ANYTHING TO CLEAN. Three cases in this file perform a REAL avatar
-// upload, and in each one the upload is unavoidable rather than convenient — the argument is written
-// at the head of each. A save that really lands stores a 400x400 JPEG at
+// ⚠ THE COUNT IN THE NEXT PARAGRAPH WAS THREE UNTIL 19.1-10 AND IS NOW ONE. Two of the three —
+// the removal confirm's audit and its focus-after-removal case — never measured the upload; they
+// measured an overlay that only exists once the row carries a photo, and they now reach it through
+// `seedStoredAvatar` instead. Read that function's docblock for what they consequently stopped
+// proving and where that claim lives now. Only `:974` still uploads, because a save that really
+// lands IS its subject. The historical sentence is kept below rather than rewritten away, because
+// the teardown's design argument was made against three uploading cases and is unchanged by there
+// being one: a hook cannot be skipped by a failing body, and that is why it is a hook.
+//
+// WHAT IT CLEANS AND WHY THERE IS ANYTHING TO CLEAN. One case in this file performs a REAL avatar
+// upload, and in it the upload is unavoidable rather than convenient — the argument is written
+// at its head. A save that really lands stores a 400x400 JPEG at
 // `fitout/avatars/<the throwaway signup's user id>`, and nothing ever reads that signup's row again,
 // so the asset is abandoned the instant the case ends. It is abandoned-but-REFERENCED (the `user`
 // row still carries the id), so an Admin-API diff sweep would never have found it either — and that
@@ -333,9 +420,11 @@ async function computed<K extends string>(
 // `expect`. So any earlier failure (a flaky 30s avatar-visible wait, an axe regression, a
 // focus assertion) skipped the cleanup entirely and the run leaked the billed asset again. Failures
 // are exactly when a case gets re-run, so the leak multiplied precisely when the mechanism was most
-// needed. A hook cannot be skipped that way, and being file-scoped it also covers the third
-// uploading case, whose own removal is an ASSERTION rather than a cleanup and therefore does not run
-// when the case fails before it.
+// needed. A hook cannot be skipped that way, and being file-scoped it also covers the third of those
+// cases, whose own removal is an ASSERTION rather than a cleanup and therefore does not run when the
+// case fails before it. ⚠ 19.1-10: that third case is now SEEDED rather than uploaded, so what its
+// failure would leave behind is a row pointing at a committed local asset rather than a billed one —
+// but the hook still runs for it, still asserts, and is still what proves the removal happened.
 //
 // WHY IT DRIVES THE SHIPPED CONTROL RATHER THAN CALLING THE CREDENTIALED DESTROY HELPER IN
 // `src/lib/cloudinary.ts`. That helper would need `CLOUDINARY_API_SECRET` inside the e2e process, and
@@ -971,9 +1060,79 @@ test.describe("CROP-01 / D-174 — the same file, picked twice, opens the croppe
 // `deferred-items.md` is discharged accordingly.
 
 test.describe("CROP-01 / Delta-3 — one guard makes all three dismiss affordances inert", () => {
+  /**
+   * ⚠ ANNOTATED AS AN EXPECTED FAILURE ON CI ONLY (19.1-10, D-01 / D-03 / CI-01). Read this before
+   * changing anything below it, and before adding a second entry anywhere in this suite.
+   *
+   * WHAT CI CANNOT DO, PRECISELY. This case holds the server action open to make the pending window
+   * real, releases it, and then asserts at the two `expect`s below that the round trip REALLY STORED
+   * an avatar. Storing it needs `CLOUDINARY_API_KEY` and `CLOUDINARY_API_SECRET` in the Next process:
+   * `src/lib/cloudinary.ts` uploads SERVER-SIDE through `upload_stream`, reached only from the
+   * `"use server"` action `src/app/actions/avatar.ts`. That is a live third-party credential.
+   *
+   * WHY IT CANNOT SIMPLY BE SUPPLIED, with the invariant that forbids it. A real credential can only
+   * reach `.github/workflows/ci.yml` as a `${{ secrets.X }}` reference, and
+   * `scripts/verify-workflows.mjs:813` asserts, over every job — "zero `secrets.` references in any
+   * env / run / with VALUE, across every job" — scanning workflow env, job env, container env,
+   * service env and every step's run/env/with. Adding one would turn this repository's own workflow
+   * checker red BY DESIGN. And the repository is being published (D-07 / D-08), so the credential
+   * would be published with it, which is the ground that actually decides it.
+   *
+   * ⚠ WHY AN INTERCEPT IS NOT AVAILABLE HERE, so nobody re-proposes it. RESEARCH.md § Cause B's first
+   * route is a `page.route` intercept "over the Cloudinary endpoint". There is no such request to
+   * intercept: the provider call is made by the SERVER, and `page.route` sees only the browser's own
+   * requests. The one browser-visible request is the `next-action` POST this case already holds — and
+   * fabricating its response would run NONE of the product's upload path while asserting against our
+   * own forgery, which is the trade the block above this describe already refuses in as many words.
+   *
+   * WHAT IS STILL EXERCISED IN CI, AND IT IS ALMOST ALL OF IT — measured under CI's exact credential
+   * shape and transcribed in `.planning/phases/19.1-…/evidence/triage-upload-capability.txt` § 3, run
+   * R3. With both secrets absent this case reports exactly ONE error, at the avatar-circle assertion.
+   * Everything above it holds: the busy label, `Cancel` disabled, all three `expect.soft` inertness
+   * assertions, the close-on-success, and `heldActions > 0`. So Delta-3's actual subject — the one
+   * line `image-crop-dialog.tsx:276` (`if (!next && saving) return;`) — IS exercised on the gate. What
+   * is annotated away is the final round-trip assertion, and nothing else.
+   *
+   * WHERE THE ANNOTATED HALF IS COVERED. `tests/profile/avatar.test.ts:137` ("uploads via Cloudinary
+   * (mocked) and stores secure_url + public_id on the user row") and
+   * `tests/profile/avatar-field.test.tsx:309` ("swaps the preview and re-labels the control once the
+   * save lands"). Both run in `gate-db`, which is not credential-gated.
+   *
+   * ⚠ THE CONDITION IS `CI`, NOT "the credential is missing", AND THAT IS DELIBERATE. The test process
+   * does not load `.env.local` — only the dev server does, through `@next/env` — so a condition read
+   * from `process.env.CLOUDINARY_API_KEY` would be true on a developer machine whose server has the
+   * credential, the case would pass while annotated, and Playwright reports an UNEXPECTED PASS as a
+   * failure that burns all three attempts (measured, 19.1-02 `evidence/testfail-behaviour.txt`). The
+   * annotation must be false exactly where the capability exists, and `CI` is the only signal in the
+   * test process that tracks it.
+   */
   test("Escape, the overlay click and the close control all do nothing while a save is in flight", async ({
     page,
   }) => {
+    // ⚠ THE TIMEOUT IS RAISED WITH THE ANNOTATION, AND IT IS THE ANNOTATION'S OTHER HALF RATHER THAN
+    // a hedge. MEASURED (evidence/triage-upload-capability.txt § 6): `test.fail()` covers an
+    // ASSERTION failure and does NOT cover a TIMEOUT. Without this line the case dies of
+    // `Test timeout of 30000ms exceeded` — the final `toBeVisible` is given the whole 30s budget the
+    // test itself has — and Playwright reports that as a plain `1 failed`, retries it twice, and the
+    // annotation buys nothing at all. With the budget raised the inner assertion expires FIRST, the
+    // failure is the assertion, `test.fail` covers it, and the case runs ONCE. So this is also the
+    // cheaper shape: one ~45s run instead of three ~30s ones.
+    //
+    // ⚠ PLAN 11 INHERITS THIS. Any known-failure entry whose failure mode is a timeout needs the same
+    // treatment; `e2e/hold-countdown.spec.ts:443`, the entry the wall-clock saving is attributed to,
+    // is exactly that shape.
+    if (process.env.CI) test.setTimeout(90_000);
+    test.fail(
+      !!process.env.CI,
+      "requires a live Cloudinary credential (CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET) in the " +
+        "server process for the save at :1072-1075 to land. `ci.yml` cannot carry one: " +
+        "`scripts/verify-workflows.mjs:813` asserts \"zero `secrets.` references in any env / run / " +
+        "with VALUE, across every job\", and the repository is being published under D-07/D-08. The " +
+        "guard this case is named for is still exercised here without a credential; only the " +
+        "round-trip assertion is not. That half is covered by tests/profile/avatar.test.ts:137 and " +
+        "tests/profile/avatar-field.test.tsx:309.",
+    );
+
     await signUpAndReachProfile(page);
 
     let release!: () => void;
@@ -2675,25 +2834,30 @@ test.describe("CROP-01 / GATE-A11Y — the open dialog passes axe and is operabl
   test("the removal confirm: `Keep photo` holds focus on open, and every stop is indicated", async ({
     page,
   }) => {
-    await signUpAndReachProfile(page);
+    const email = await signUpAndReachProfile(page);
 
-    // ⚠ THIS CASE PERFORMS ONE REAL UPLOAD, AND IT IS UNAVOIDABLE RATHER THAN CONVENIENT. The removal
-    // affordance is rendered only when there is a photo to remove (`avatar-field.tsx`: there is no
+    // ⚠ THIS CASE USED TO PERFORM ONE REAL UPLOAD; SINCE 19.1-10 IT SEEDS THE STATE INSTEAD, AND THE
+    // ARGUMENT FOR THE UPLOAD IS WHAT CHANGED. The paragraph here read "unavoidable rather than
+    // convenient", and the first half of its reasoning is still exactly right: the removal affordance
+    // is rendered only when there is a photo to remove (`avatar-field.tsx`: there is no
     // disabled-but-present spelling of a control that would act on nothing), and the profile's avatar
-    // comes from the server-rendered row. So reaching this overlay at all requires a save that really
-    // landed. Fabricating one would mean asserting against our own forgery. That cost USED to be a
-    // second abandoned `fitout/avatars/*` asset per run, on top of the one the Delta-3 case left; the
-    // file-scoped `test.afterEach` ends it for every case at once (D-192). Neither defers to the
-    // sweep D4 pointed at: Phase 16.1 declined it (D-187), and it would never have reached these
-    // assets anyway, because each is still REFERENCED by its throwaway `user` row. D4 is discharged.
-    await pick(page, "square-400.png");
-    await expect(stageOf(page)).toBeVisible();
-    await dialogOf(page)
-      .getByRole("button", { name: AVATAR_CROP_CONFIRM, exact: true })
-      .click();
+    // comes from the SERVER-rendered row. What was wrong was the conclusion that only an upload could
+    // produce that row. Writing the row directly does, from a committed local asset, with no
+    // credential and no network — which is what lets this audit run on a gate that structurally
+    // cannot hold a Cloudinary key. See `seedStoredAvatar` for the invariant that forbids the
+    // credential and for what this case therefore no longer proves about the upload path.
+    //
+    // ⚠ WHAT THIS CASE MEASURES IS UNCHANGED — the overlay, not the road to it. Open-time focus, axe
+    // and the tab walk are all assertions about the confirm dialog, and none of them was ever about
+    // how the photo got there. The assertion below is kept, retargeted: it still proves there is a
+    // photo before anything is audited, which is the property that stops this case auditing an empty
+    // profile and reporting a missing overlay as a product regression.
+    await seedStoredAvatar(email);
+    await page.goto(`${BASE}/profile`);
     await expect(
       page.getByRole("main").locator('img[alt="Your avatar"]'),
-      "the save did not land, so there is no photo to remove and no confirm to audit.",
+      "the seeded avatar did not reach the server-rendered row, so there is no photo to remove and " +
+        "no confirm to audit.",
     ).toBeVisible({ timeout: 30_000 });
 
     await page
@@ -2737,8 +2901,12 @@ test.describe("CROP-01 / GATE-A11Y — the open dialog passes axe and is operabl
     expectEveryStopIndicated(steps, "the removal confirm");
 
     // ── TEARDOWN (D-192) — NOT HERE ANY MORE (WR-07) ─────────────────────────────────────────────
-    // This case's real upload is unavoidable (see the paragraph at its head, still true), so its
-    // asset has to be removed. That removal used to be the last statements of this body — after the
+    // ⚠ 19.1-10: this case no longer uploads, so what the hook removes is a SEEDED row pointing at a
+    // committed local asset rather than a billed `fitout/avatars/*` one. The hook is kept for it
+    // unchanged, and not only out of caution: it is what proves the removal path still works from the
+    // seeded state, and it leaves the dev database in the state it found it. The paragraph below is
+    // the original argument for hoisting it, which is unaffected by where the photo came from.
+    // That removal used to be the last statements of this body — after the
     // axe audit and the tab walk, either of which can fail — so a regression in EITHER skipped the
     // cleanup and leaked the asset. It is now the file-scoped `test.afterEach`, which also means
     // this case can end while standing in the open confirm without owing anything.
@@ -2758,24 +2926,30 @@ test.describe("CROP-01 / GATE-A11Y — the open dialog passes axe and is operabl
     // assertion that stops at the audit.
     //
     // This case is therefore about the ONE press the sibling case does not make.
-    await signUpAndReachProfile(page);
+    const email = await signUpAndReachProfile(page);
 
-    // The same unavoidable real upload the sibling case documents — the removal affordance exists
-    // only when there is a photo to remove.
+    // The same seed the sibling case documents — the removal affordance exists only when there is a
+    // photo to remove, and 19.1-10 established that writing the row is enough to produce one.
+    //
+    // ⚠ AND THE SEED CARRIES A `public_id` THAT NAMES NO ASSET, WHICH THIS CASE IN PARTICULAR HAS TO
+    // SURVIVE. It presses `Remove photo`, so `removeAvatarAction` reaches its destroy branch with an
+    // id no provider will recognise and, on the gate, no credential to try it with. That is
+    // deliberate rather than tolerated: the action nulls both columns FIRST and treats the destroy as
+    // best-effort — "AND THE DESTROY NEVER CHANGES THIS ACTION'S RESULT" — so the removal still lands
+    // and the focus reading below is about the same DOM it always was. Measured with every Cloudinary
+    // variable empty (evidence/triage-upload-capability.txt § 3a); the property itself is covered by
+    // `tests/profile/avatar-remove.test.ts:202-241`.
     //
     // ⚠ THIS CASE'S OWN REMOVAL IS AN ASSERTION, NOT A CLEANUP, and the distinction is why WR-07
     // matters here too. It presses `Remove photo` because the FOCUS BEHAVIOUR after a successful
-    // removal is the subject; when the case fails before that press — on the save wait, say — the
-    // asset was leaked with nothing to catch it, because this file had no hook. It has one now, and
-    // on the happy path the hook finds the photo already gone and does nothing.
-    await pick(page, "square-400.png");
-    await expect(stageOf(page)).toBeVisible();
-    await dialogOf(page)
-      .getByRole("button", { name: AVATAR_CROP_CONFIRM, exact: true })
-      .click();
+    // removal is the subject; when the case fails before that press the row was left carrying a photo
+    // with nothing to catch it, because this file had no hook. It has one now, and on the happy path
+    // the hook finds the photo already gone and does nothing.
+    await seedStoredAvatar(email);
+    await page.goto(`${BASE}/profile`);
     await expect(
       page.getByRole("main").locator('img[alt="Your avatar"]'),
-      "the save did not land, so there is no photo to remove.",
+      "the seeded avatar did not reach the server-rendered row, so there is no photo to remove.",
     ).toBeVisible({ timeout: 30_000 });
 
     await page
