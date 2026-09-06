@@ -707,3 +707,58 @@ CRLF** while `git status` still reads clean, because the clean filter normalises
 same blob. It happened once here, to `e2e/price-parity.spec.ts` (388 CR bytes where there had been
 none); the file was restored to its original bytes and every probe since reverts from a byte copy. **A
 clean `git status` is not a proof of a byte-exact revert on this tree — use a sha256 pair.**
+
+## 19.1-16 — `/dev/theme` HANDS RADIX'S `asChild` AN ELEMENT FROM A SERVER MODULE, AND ITS TRIGGER IS NOT SERVED
+
+**Found during:** 19.1-16 Task 3, writing the census that pins the property Task 1 repaired.
+**Full transcript:** `evidence/triage-host-hydration.txt`; the exemption is named in
+`tests/design/suspense-fallback-overlay.test.ts` (`SERVER_ADOPTER_EXEMPTIONS`).
+
+`src/app/dev/theme/page.tsx:646-656` renders `<ResponsiveDialog … trigger={<Button …>Open the
+overlay</Button>}>`. That page is a **Server Component**, so the trigger element crosses the RSC
+boundary into a client component and reaches Radix's `Slot`, which CLONES rather than renders — the
+exact defect 19.1-16 repaired on the `(host)` nav drawer. It is the ONE remaining server-side adopter
+in the tree.
+
+**Measured, 2026-09-06, not inferred:**
+
+```
+$ fetch http://localhost:3000/dev/theme
+STATUS 200  LEN 435458
+"Open the overlay"            3      (all three occurrences are in the RSC flight payload)
+data-slot="dialog-trigger"    0      <- the trigger button is NOT in the served HTML
+```
+
+**Why it is deferred rather than repaired in 19.1-16.** Two reasons, both stated so the next reader
+can disagree with them. (a) It is a DEV-ONLY preview surface (D-09 / D-10); no booker, host or
+operator reaches it, and it is outside 19.1-16's `files_modified`. (b) The repair the `(host)` drawer
+got was a purpose-built client module (`patterns/nav-drawer-shell.tsx`) that owns one specific
+trigger. `/dev/theme` needs a GENERIC client-side trigger on the `ResponsiveDialog` pattern, and
+whether that pattern should grow one is an API decision rather than a bug fix — D-02's shape.
+
+**What the follow-up owns, and its first instrument.** It owns `src/app/dev/theme/page.tsx`'s overlay
+demo and the `SERVER_ADOPTER_EXEMPTIONS` entry that currently names it. FIRST INSTRUMENT: delete the
+exemption and run
+`npx vitest run --config vitest.design.config.ts tests/design/suspense-fallback-overlay.test.ts` —
+it goes red naming the file and the property. Then decide between a generic client trigger export on
+the pattern and a one-off client wrapper for the preview, apply it, and confirm on the served bytes
+that `data-slot="dialog-trigger"` is no longer 0.
+
+**Severity:** latent, dev-surface only. `/dev/theme` is a `visual` baseline surface, so a regenerated
+tree there is a plausible contributor to baseline instability — that is a hypothesis, not a
+measurement, and it is not claimed as one.
+
+## 19.1-16 — THE TWO HOST-SURFACE FLAKES 19.1-13 NAMED WERE NOT REPRODUCED, AND ARE NOT CLOSED
+
+**Found during:** 19.1-16 Task 3 Step 3.
+`e2e/shell.spec.ts:291` (`AC#3 … host · grove`) and `e2e/host-listing-grid.spec.ts:312`
+(`320x800 — the 320px floor`) were run at the runner's own shape (`--workers=1 --retries=2`) with
+`--repeat-each=3` and again with `--repeat-each=5` — **sixteen draws, sixteen first-attempt passes,
+zero `(retry #N)` lines**. They are recorded as UNAFFECTED by the hydration repair rather than closed
+by it: the repair removes a real mechanism that could produce a replaced control on these surfaces,
+but neither case was ever observed failing on this box, before or after, so no before/after
+difference exists to attribute.
+
+**What would settle them:** they were drawn flaky on the RUNNER, once each, in a full-suite run. The
+instrument is a real `ci` run's `gate-e2e` job, read across several runs — not a local repeat. That is
+`19.1-15`'s subject (the flaky-set stability finding, `T-19.1-63`), not a defect this plan can close.

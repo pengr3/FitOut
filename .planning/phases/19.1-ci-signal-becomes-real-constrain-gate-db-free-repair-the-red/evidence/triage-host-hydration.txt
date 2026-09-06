@@ -612,3 +612,220 @@ $ npx vitest run --config vitest.design.config.ts tests/design/e2e-known-failure
 
 $ git diff --stat HEAD -- tests/design/e2e-known-failures.test.ts
                             (no output — the allowlist file is unmodified by this plan.)
+
+================================================================================================
+TASK 3 — THE STANDING TEST, THE TWO LEADS, AND THE CLOSING SUMMARY
+================================================================================================
+
+------------------------------------------------------------------------------------------------
+STEP 1 · THE STANDING TEST — AND THE CORRECTION IT FORCED ON TASK 2's OWN CENSUS
+------------------------------------------------------------------------------------------------
+
+`tests/design/suspense-fallback-overlay.test.ts`. Collected automatically by the design suite; no
+config edit was made and none is permitted.
+
+It pins TWO properties, and the first is the one Task 1 actually repaired rather than the one this
+plan was written around:
+
+  P1  An element handed to `ResponsiveDialog`'s `trigger` prop MUST be created in a client module,
+      because `trigger` is forwarded into `DialogTrigger asChild` — Radix's `Slot`, a CLONE and not
+      a render — and an element created across the RSC boundary cannot be cloned during SSR.
+  P2  A `<Suspense>` fallback and its resolved child must not BOTH mount the overlay primitive.
+      This is the shape the plan asked for. The host layout satisfies it and the hazard is real, so
+      it is pinned; it is NOT the mechanism that produced the defect.
+
+⚠ THE FILENAME IS A FOSSIL OF THE HYPOTHESIS AND THE FILE SAYS SO IN ITS FIRST PARAGRAPH. It is kept
+because the plan named it, not because it describes the property.
+
+⚠ AND IT CORRECTED THIS PLAN'S OWN TASK-2 CENSUS, WHICH IS WRITTEN HERE RATHER THAN QUIETLY FIXED
+ABOVE. Task 2 derived its adopter list from `grep -rln "ResponsiveDialog" src/` and reported "EIGHT
+CLIENT MODULES AND ONE SERVER MODULE". The AST says something different in both directions:
+
+  • NINE modules render `ResponsiveDialog`; only SEVEN hand it an element through `trigger`. The
+    other three — `availability/copy-hours-dialog.tsx`, `listing/photo-lightbox.tsx` and
+    `profile/image-crop-dialog.tsx` — are CONTROLLED overlays with no trigger element at all, each
+    saying so in its own docblock. They never reach `Slot`, so the defect cannot occur in them.
+  • There were TWO server-side adopters, not one. `src/app/dev/theme/page.tsx:646` also passes a
+    trigger and is not a client module. The grep output in Task 2 PRINTED that row; the prose that
+    followed it counted nine lines and said "one server module". A grep counts mentions; the
+    property is about a prop, and only the AST reads props.
+
+MEASURED on the second server adopter, so the deferral below is a reading rather than a judgement:
+
+$ fetch http://localhost:3000/dev/theme
+STATUS 200  LEN 435458
+"Open the overlay"            3      (all three occurrences are in the RSC flight payload)
+data-slot="dialog-trigger"    0      <- the trigger button is NOT in the served HTML
+
+`/dev/theme` therefore carries the SAME defect, confirmed. It is EXEMPTED BY NAME in
+`SERVER_ADOPTER_EXEMPTIONS` with that measurement written at the site, and recorded in
+`deferred-items.md` with what the follow-up owns and its first instrument. The exemption is not a
+quarantine: the test asserts the exempted file is STILL an adopter and STILL not a client module, so
+a stale exemption is itself a red.
+
+The file is built in the census idiom:
+  • a recursive walk over `src/`, comment-stripped with the shared helper, with a case proving the
+    stripping is load-bearing — the UNSTRIPPED candidate set is strictly larger and the extra
+    members are named (`site-chrome.tsx` and `auth-slot-skeleton.tsx`, whose PROSE discusses the
+    primitive and whose code no longer mounts it);
+  • an EXPORT-LEVEL render graph rather than an import graph, and that was measured rather than
+    preferred: `auth-slot-skeleton.tsx` imports `NavLinks` from `site-chrome.tsx`, which renders the
+    overlay-bearing drawer, so an import-reachability walk reports the box-reserving PLACEHOLDER as
+    an overlay mount and P2 goes red on a tree that satisfies it perfectly;
+  • both declaration forms, also measured: the first draft collected `function X() {}` only and
+    reported SEVEN adopters where the tree has ten `ResponsiveDialog` sites, because three are
+    `export const X = (…) => …`;
+  • a non-vacuity guard asserted FIRST — the walk must open >200 files, must find the overlay
+    primitive as a graph root, must find both group layouts and at least one `<Suspense>` — plus a
+    permanent fixture that runs the scanner over an EMPTY tree and shows both absence clauses
+    reporting a perfect `[]`, which is the failure they structurally cannot notice;
+  • a pinned discovered-set constant (`TRIGGER_ADOPTERS`, 7) with a written reason per member, and a
+    second pinned list of the three controlled non-adopters so that "seven" cannot silently mean
+    "the walk stopped seeing three files";
+  • failure messages that state what would have to be true, what the correct response is
+    (author the trigger in a `"use client"` module, as `nav-drawer-shell.tsx` does) and what the
+    wrong response would be (delete the assertion; turn `asChild` off; ban streaming).
+
+$ npx vitest run --config vitest.design.config.ts tests/design/suspense-fallback-overlay.test.ts
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+
+------------------------------------------------------------------------------------------------
+STEP 2 · PUT THE DEFECT BACK — THE SHIPPED CLAUSE, RUN AGAINST A MUTATED COPY
+------------------------------------------------------------------------------------------------
+
+MUTATION: the host layout's nav slot restored to its pre-repair shape on a MUTATED COPY of the tree —
+`fallback={<NavSlotSkeleton links={HOST_NAV_LINKS} />}` back to `fallback={<SiteNav links={HOST_NAV_LINKS} />}`,
+with the `SiteNav` import restored so the tag resolves (without it the mutation is defanged by an
+import line and the case measures a no-op).
+
+APPLIED=true   the mutated text differed from its input at BOTH anchors, asserted before anything
+APPLIED=true   else in the case. A mutation whose anchor has drifted applies nothing, and this phase
+               has already watched a case survive the deletion of its own conjunct.
+
+The RED the shipped clause printed under that mutation, verbatim:
+
+$ npx vitest run --config vitest.design.config.ts tests/design/suspense-fallback-overlay.test.ts
+
+ FAIL  tests/design/suspense-fallback-overlay.test.ts > CI-01 — an element handed to Radix's `asChild`
+ is created on the client side of the boundary > lets no <Suspense> fallback and its resolved child
+ BOTH mount the overlay
+ AssertionError: expected [ Array(1) ] to deeply equal []
+
+ - []
+ + [
+ +   "src/app/(host)/host/layout.tsx:117 — the <Suspense> slot's fallback <SiteNav> AND its resolved
+ +    child <AmbientHostNav> BOTH mount the app's one overlay primitive. Give the fallback a
+ +    placeholder that reserves the control's box without mounting the overlay — `NavSlotSkeleton` in
+ +    `src/components/patterns/auth-slot-skeleton.tsx` is the shipped one — or narrow the boundary so
+ +    the overlay mounts once, outside it. This is NOT a ban on streaming the slot: a fallback that
+ +    streams a box-reserving placeholder is green here."
+ + ]
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 10 passed (11)
+
+It names the LAYOUT, the SLOT and the PROPERTY, which is what the plan asked of the message.
+
+SECOND MUTATION, for P1: the drawer's trigger authored back into the SERVER module —
+`<NavDrawerShell>` in `site-chrome.tsx` replaced by `<ResponsiveDialog … trigger={<Button …/>}>` with
+the imports swapped to match. APPLIED=true at both anchors, and the scanner reports one violation
+naming `src/components/patterns/site-chrome.tsx`, `asChild`, and the module that is the correct home
+for the element. Both mutation cases ship as permanent fixtures.
+
+⚠ ONE THING THE MUTATION HARNESS TAUGHT, WORTH THE LINE. The first draft's multi-line anchor was
+joined with `\n` and matched NOTHING — this working tree checks the app source out with CRLF. The
+`APPLIED=` assertion caught it on the first run; without that assertion the case would have reported
+the defect "caught" over a tree it never modified. The anchors are now joined with the file's own EOL,
+which is `workflow-invariants.test.ts:216`'s rule applied a second time.
+
+THE TWO GREEN CONTROLS, each with its own docblock saying why it asserts green:
+  • an UNMUTATED spread of the same tree through the same harness — the null run of the mutation
+    machinery itself, which is what catches a spread that dropped a key or a memo leaking across
+    calls and producing a red unrelated to the mutation;
+  • A SECOND LAYOUT THAT LEGITIMATELY STREAMS, and this is the most important case in the file: a
+    fixture layout whose boundary streams `AmbientHostNav` behind the box-reserving `NavSlotSkeleton`
+    stays GREEN, and the case asserts SEPARATELY that the fixture's boundary was really collected and
+    that its streamed child really does reach the overlay. Without it the property reads as "do not
+    stream a nav slot", and the next author closes a red by deleting a `<Suspense>` — putting four
+    database reads back on the host layout's critical path and making every `loading.tsx` under
+    `(host)` useless again (STATE-01, plan 11-12).
+
+------------------------------------------------------------------------------------------------
+STEP 3 · THE TWO LEADS, MEASURED AND GIVEN AN OUTCOME
+------------------------------------------------------------------------------------------------
+
+They are LEADS, not owned failures. 19.1-13 named them as adjacent to the layout the mismatch was
+measured on and explicitly did not attribute them.
+
+$ npx playwright test e2e/shell.spec.ts e2e/host-listing-grid.spec.ts --project=chromium --workers=1 --retries=2 --repeat-each=3 --grep "host · grove · the header and brand boxes|320x800 — the 320px floor"
+  6 passed (31.2s)
+$ npx playwright test … --repeat-each=5 …
+  10 passed (54.7s)
+$ grep -c "retry #" <both transcripts>
+0
+
+LEAD e2e/shell.spec.ts:291 "AC#3 — the header does not move when the auth slot resolves › host · grove · the header and brand boxes are byte-identical" | 8 draws, 8 first-attempt passes, 0 retries | VERDICT: UNAFFECTED
+LEAD e2e/host-listing-grid.spec.ts:312 "HSURF-01 — the host listing grid's footer is flush and its controls are not clipped › 320x800 — the 320px floor, one column: guard A clause 2 and guard B" | 8 draws, 8 first-attempt passes, 0 retries | VERDICT: UNAFFECTED
+
+"UNAFFECTED" is chosen deliberately over "closed by this repair", and the difference matters. The
+repair removes a mechanism that COULD produce a replaced control on these surfaces. Neither case was
+ever observed failing on this box — before the repair or after — so there is no before/after
+difference here to attribute to anything. Each was drawn flaky ONCE, on the runner, in a full-suite
+run, and the instrument that would settle them is several real `ci` runs read for flaky-set
+stability. That is 19.1-15's subject (`T-19.1-63`), not this plan's. Both are recorded in
+`deferred-items.md` in the proposed-follow-up shape, with what they own and their first instrument.
+NEITHER IS ANNOTATED, and neither joins any allowlist.
+
+------------------------------------------------------------------------------------------------
+STEP 4 · THE CLOSING SUMMARY
+------------------------------------------------------------------------------------------------
+
+THE CHOSEN REPAIR SHAPE: move the CLONED ELEMENT to the client side of the RSC boundary —
+`src/components/patterns/nav-drawer-shell.tsx`, a `"use client"` module owning the drawer's trigger.
+`NavDrawer` stays a Server Component and passes `NavLinks` down as ordinary children.
+KEPT ALONGSIDE: `NavSlotSkeleton`, the fallback's box-reserving placeholder — not the repair, kept on
+its own merits (no control is present-then-replaced while the slot is pending).
+REJECTED, each with the constraint that decided it:
+  the placeholder fallback ALONE            — the measurement: HYDRATION-COUNT stayed 1
+  `asChild` off, Radix's own trigger button — the caller's accessible name and its box are lost
+  a `<span class="contents">` wrapper       — the aria wiring lands on the span, not the button
+  `site-chrome.tsx` as a client module      — ships the whole header inventory to the browser
+  editing the vendored `ui/dialog.tsx`      — the plan's prohibition and RESP-01's own record
+
+THE FOUR HYDRATION READINGS: cold `/host` 1 · booker checkout control 0 · dirty-cache `/host` 1 ·
+post-repair `/host` 0. Plus the served bytes: `<div class="md:hidden"></div>` empty and zero
+`aria-label="Menu"` before; the real `<button data-slot="dialog-trigger">` after.
+
+THE BEFORE/AFTER CONTAINER RESULTS: identical. 118 passed / 7 skipped / 0 failed in
+`mcr.microsoft.com/playwright:v1.60.0-noble` at `--workers=1 --retries=2`, on the pre-repair tree AND
+on the repaired one. The container does not separate this claim.
+
+THE RELEASED SET: empty. RELEASED-TOTAL=0, DELTA-VS-13=-24 — nothing was blocked in the container to
+release, and the 24 is a figure about the runner.
+
+THE LEADS' VERDICTS: both UNAFFECTED, 8 clean draws each.
+
+SC4-TERM=This plan closed a real production defect — every `(host)` route served an empty drawer placement and had its tree regenerated on the client — and pinned it with an end-to-end case and a standing census; it did NOT close `e2e/host-headings.spec.ts` or `e2e/overflow-320.spec.ts`, because the pinned runner image passes both on the broken tree and on the repaired one, so whether the repair reaches them is a question only the real `ci` run in Task 4 can answer.
+
+------------------------------------------------------------------------------------------------
+TASK 3 · THE VERIFICATIONS
+------------------------------------------------------------------------------------------------
+
+$ npx vitest run --config vitest.design.config.ts tests/design/suspense-fallback-overlay.test.ts
+      Tests  11 passed (11)          the property, the load-bearing-stripping proof, the non-vacuity
+                                     guard, the pinned set, two mutations and two green controls
+
+$ npm run test:design
+ Test Files  82 passed (82)
+      Tests  1442 passed | 3 skipped (1445)      1431 -> 1442, +11, and 82 files where there were 81
+
+$ npm test
+ Test Files  219 passed | 2 skipped (221)
+      Tests  2721 passed | 5 skipped (2726)      unchanged; `npm test` does not collect tests/design
+
+$ node scripts/verify-workflows.mjs
+All 57 invariants hold across 3 section(s) (baselines=11, ci=38, cross=8).      exit 0, total unmoved
+
+$ npx tsc --noEmit | grep -c "error TS"
+7                                    the same seven pre-existing tests/design/ errors, zero new
