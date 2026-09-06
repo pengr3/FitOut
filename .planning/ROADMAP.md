@@ -627,7 +627,7 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 16/19 plans executed (11 waves)
+**Plans:** 17/19 plans executed (11 waves)
 
 Plans:
 
@@ -695,11 +695,17 @@ Plans:
 
 **Wave 10** *(blocked on Wave 9 completion)*
 
-- [ ] 19.1-18-PLAN.md — the day click that does not select on the checkout path: reproduce in
+- [~] 19.1-18-PLAN.md — the day click that does not select on the checkout path: reproduce in
       `mcr.microsoft.com/playwright:v1.60.0-noble` first (19.1-08's refusal to retry without an OBSERVED
       lost click is inherited), account for the siblings the file-scoped serial group blocked, then CLOSE
       SC4's functional half — `gate-e2e (functional Playwright suite)` reads `success` on a real
       push-triggered `ci` run, with all five specs the three e2e plans own absent from its failure list
+      — **EXECUTED, HALTED on Task 4.** The click was received and refused because the fake clock covered
+      availability selection; moving clock installation to the checkout boundary makes all four cases
+      first-attempt green in the runner image, and `hold-countdown.spec.ts` is absent on real push run
+      `34008844133`. But `gate-e2e` is still `failure`: seven host-wizard/edit-route cases failed, including
+      19.1-16's `host-headings` and `overflow-320`; two cases were flaky and 26 did not run. See
+      `19.1-18-SUMMARY.md` (`status: halted`) and `evidence/ci-run-after-18.txt`.
 
 **Wave 11** *(blocked on Wave 10 completion)*
 
@@ -707,14 +713,13 @@ Plans:
       fixture and the two reference URLs are pinned, clock-independence proved three ways, then rows 9–12
       are minted via `baselines.yml` and READ out of the pixels *(carries a `blocking-human` checkpoint)*
 
-**⚠ SC4 and SC5 are OPEN. Phase 19.1 is NOT complete.** The route out is the three follow-up plans
-19.1-13 proposed and the PM confirmed as in-phase — **19.1-16** (host-layout hydration; owns both
-still-red originals `host-headings` and `overflow-320`, plus the blocked `AC#36` tail), **19.1-17**
-(duplicated booker mounts), **19.1-18** (the lost day click) — plus **19.1-19**, which implements the
-`gate-visual` half the same measurement specified: `D-19.1-D`'s decided point (a) and the five mechanical
-points beside it, which 19.1-12 measured as NOT small and localised and therefore refused to fold in.
-**All four now exist** and are numbered from 19.1-16 in their own waves above. SC4 closes when they land,
-which is what lifts the publication hold, which is what unblocks 19.1-15.
+**⚠ SC4 and SC5 are OPEN. Phase 19.1 is NOT complete.** Plans 19.1-16 through 19.1-18 have now all
+executed and each closed its measured local defect, but each terminal real-run criterion halted: on the
+latest SHA-matched push run (`34008844133`) the checkout-path case is gone while seven failures remain
+across the host listing wizard/edit route. That cluster requires a new measured follow-up (proposed
+**19.1-20**, beginning with route/module reachability rather than a timeout change). **19.1-19** still
+owns the separate `gate-visual` half specified by `D-19.1-D`. SC4 closes only when the functional job and
+the visual job are green; that lifts the publication hold and then unblocks 19.1-15.
 
 ⚠ **Each is its own wave deliberately, and it is not conservatism.** Every one of the four closes by
 reading a real `ci` run or a `baselines` dispatch, and the workflow's concurrency group cancels an
@@ -1034,7 +1039,7 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified & COMPLETE** — 17/17 requirements, 0 code-level blockers. The checkbox was held from 2026-09-01 until 18.1 shipped the missing submission path, then briefly re-held on PM decision D-274 (the `/ops` contact surface). **18.1-16 shipped D-274 on 2026-09-03 and phase 18.1 verified passed 9/9, so both holds are discharged.** | verified 2026-09-03 |
 | 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | Complete    | 2026-09-03 |
 | 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 11/11 | In Progress|  |
-| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 16/19 | In Progress — 19.1-14 HALTED (`hold`), 19.1-15 BLOCKED (403); 19.1-16 executed but HALTED — the `(host)` hydration regeneration is repaired and proven on the runner (110 → 0) yet BOTH specs it owned are still red, so its gap is NOT closed; 19.1-17 executed but HALTED — both booker specs ARE closed on run 34004929856 (absent from the failure AND flaky lists, the streaming commit window measured and asserted) but its criterion also required 19.1-16's two, which it inherited already red; 19.1-18…19 remain (waves 10–11); SC4 + SC5 OPEN |  |
+| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 17/19 | In Progress — 19.1-14 HALTED (`hold`), 19.1-15 BLOCKED (403); 19.1-16 and 19.1-17 executed but HALTED on inherited host-wizard reds; 19.1-18 executed and HALTED — its fake-clock checkout defect is repaired and `hold-countdown` is absent on run 34008844133, but `gate-e2e` still has seven host-wizard/edit-route failures, two flaky and 26 not run; proposed 19.1-20 owns that cluster, while 19.1-19 still owns visual; SC4 + SC5 OPEN |  |
 | 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | Not started | - |
 | 21. The Host Can See Where They Stand | v1.2 | 0/TBD | Not started | - |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |

@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: "Completed 19.1-17-PLAN.md — HALTED: both booker specs closed on run 34004929856 (absent from the failure AND flaky lists), but the task also required 19.1-16's two host specs to be absent and they are inherited already-red."
-last_updated: "2026-09-06T02:24:09.941Z"
+stopped_at: "Completed 19.1-18-PLAN.md execution — HALTED: the checkout day-click defect is closed and absent on run 34008844133, but gate-e2e remains red on seven host-wizard/edit-route failures; a measured follow-up is required before SC4 can close."
+last_updated: "2026-09-06T10:00:42.0108399Z"
 last_activity: 2026-09-06
-last_activity_desc: "19.1-16 executed and HALTED. The `(host)` hydration failure is REPAIRED and proven on the runner — `gate-e2e`'s own log went from 110 `regenerated on the client` messages to 0 (run 34000975768 vs 33976831607) — but the SAME measurement REFUTES it as the cause of the two failures 16 owned: `host-headings:1052` and `overflow-320:3434 photos step` are byte-identically red. Gap NOT closed; follow-up proposed in the D-02 shape. Next: 19.1-17."
-state_head: f44d002488d80f5078a14216d1591bad6432de3b
+last_activity_desc: "19.1-18 executed and HALTED. The day click was received and refused because page.clock.install() covered availability selection; moving it to the checkout boundary makes all four hold-countdown cases first-attempt green and the spec is absent on SHA-matched push run 34008844133. The same run leaves gate-e2e red: seven host-wizard/edit-route failures, two flaky, 26 not run. Proposed 19.1-20 owns the functional cluster; 19.1-19 still owns visual."
+state_head: b710cae8c23952ee6d02617b9ab7e717be0bf113
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -45,7 +45,13 @@ progress:
   # all four tasks executed and a SUMMARY produced, with only Task 4's acceptance
   # criterion unmet — and in 17's case unmet for two specs it INHERITED already red and
   # was forbidden from touching.
-  completed_plans: 60
+  #
+  # 2026-09-06, 19.1-18: counted at +1 on the same explicit basis as 16 and 17: all
+  # four tasks executed and the missing terminal evidence/SUMMARY were recovered by
+  # hand. Its own checkout-path defect is closed; Task 4's gate-e2e=success acceptance
+  # remains unmet on run 34008844133, so the SUMMARY is `status: halted` and no
+  # requirement is claimed complete.
+  completed_plans: 61
   percent: 13
 ---
 
@@ -100,10 +106,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19.1 (CI signal becomes real) — EXECUTING · gap plans 16–19 · 16/19 done · 14 halted (PM hold) · 15 blocked (construction) · 16 and 17 both HALTED on the same criterion
+Phase: 19.1 (CI signal becomes real) — EXECUTING · 17/19 done · 14 halted mid-plan (PM hold) · 15 blocked (construction) · 16, 17 and 18 executed but HALTED on terminal real-run criteria
 Plan: 18 of 19
-Status: Ready to execute 19.1-18 (17 is done but HALTED — its OWN two specs are closed; the two it also had to guarantee are 19.1-16's, inherited already red)
-Last activity: 2026-09-06 — 19.1-17 executed: the booker "resolved to 2 elements" defect measured as React's streaming commit window (`div#S:1[hidden]`, PERSISTS=no), both cases repaired by asserting the commit and both absent from run 34004929856's failure AND flaky lists; SHARED-CAUSE=no against 19.1-16
+Status: 19.1-18 HALTED — checkout day-click closed, but `gate-e2e` remains red; proposed 19.1-20 must repair the host-wizard/edit-route cluster before Wave 10 can close
+Last activity: 2026-09-06 — run 34008844133 matched pushed SHA 2d944c0: hold-countdown absent, seven host-wizard/edit-route failures, two flaky, 26 not run, 374 passed; gate-e2e failure, gate-visual failure
 
 ## Performance Metrics
 
