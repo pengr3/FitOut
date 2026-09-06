@@ -536,9 +536,11 @@ export const VISUAL_SURFACES = {
     // renders `todayLocal` (`(detail)/page.tsx` → `initialDate`), so the month grid, the highlighted
     // day and the set of disabled past days all change WITH THE WALL CLOCK — a baseline that goes red
     // tomorrow for no reason, which is the flake that gets a threshold widened. The date is the
-    // fixture's own `VRT_COLLISION.dayIso`, so the hour grid underneath it also shows the seeded
-    // conflict's two struck-through hours: a picture of real availability, not of an empty day.
-    url: "/listings/vrt_listing_exclusive?date=2026-09-16",
+    // fixture's own collision day, so the hour grid underneath it also shows the seeded conflict's
+    // two struck-through hours: a picture of real availability, not of an empty day. `today` is its
+    // sibling pin: without it the opening month, disabled past days and ring move with the dispatch
+    // clock. The fixture-contract assertion checks both literals against the seed's exported values.
+    url: "/listings/vrt_listing_exclusive?date=2026-09-16&today=2026-09-15",
     hook: '[data-testid="listing-key-facts"]',
     hookWhy:
       "the key-facts strip — BFLOW-02's `<dl>`, which only the RESOLVED page renders. This route has a " +
@@ -608,7 +610,9 @@ export const VISUAL_SURFACES = {
     // The surface is a STATE of the listing page, not a route: a hold that was refused because the
     // hours went while the booker was looking at them. STATE-07 / D-55's requirement is that it lands
     // IN PLACE, so the URL is deliberately the listing page's own.
-    url: "/listings/vrt_listing_exclusive?date=2026-09-16",
+    // `today` pins the same opening month, disabled set and ring as listing-detail above. Dropping it
+    // makes this reference clock-dependent again; the spec checks its VALUE, not mere presence.
+    url: "/listings/vrt_listing_exclusive?date=2026-09-16&today=2026-09-15",
     hook: '[data-testid="collision-notice"]',
     hookWhy:
       "the notice, which exists ONLY after a hold has been refused. Everything weaker is satisfied by " +

@@ -18,3 +18,21 @@ CHECKSUM-AFTER=sha256 78632263ee36784ea648f212d3aa6bc50216f9f635de0ef1752be798a2
 
 RING-AFTER=clock 2026-09-05T15:59:00.000Z marked 2026-09-14
 RING-AFTER=clock 2026-09-05T16:01:00.000Z marked 2026-09-14
+
+PINNED-TODAY=2026-09-15 Asia/Manila; September 2026 renders 5 week rows, 14 disabled days before today, and the ring on cell 15. The adjacent fixture booking day is 2026-09-16.
+CLOCK-READ user.created_at=pinned to explicit 2024-01-15T00:00:00+08:00; renders Host since January 2024
+CLOCK-READ user.updated_at=may vary; not selected or rendered by a baseline surface
+CLOCK-READ host_payout.created_at=may vary; row state, not timestamp, feeds deriveBookable
+CLOCK-READ host_payout.updated_at=may vary; not selected or rendered by a baseline surface
+CLOCK-READ host_verification.created_at=may vary; private audit metadata excluded from the public projection
+CLOCK-READ host_verification.updated_at=may vary; private audit metadata excluded from the public projection
+CLOCK-READ rival.created_at=may vary; the rival is never rendered
+CLOCK-READ rival.updated_at=may vary; the rival is never rendered
+CLOCK-READ listing.published_at=may vary; publication state is rendered, not its instant
+CLOCK-READ listing.created_at=may vary; not selected or rendered on these baselines
+CLOCK-READ listing.updated_at=may vary; not selected or rendered on these baselines
+MINT-ENV=development — .github/workflows/baselines.yml runs Playwright, whose playwright.config.ts webServer.command is "npm run dev"; Next dev sets NODE_ENV=development, so the production guard is not armed.
+OVERRIDE-REACHES-RING=yes
+OVERRIDE-PROOF=listing-detail and collision-notice were driven against localhost:3000 under `next dev`; both rendered data-today=true on data-day=2026-09-15. September 1–14 were disabled before the ring; the two adjacent out-of-month cells were also disabled.
+TEST-DESIGN=82 files passed; 1,442 tests passed and 3 skipped.
+TEST-UNIT=220 files passed and 2 skipped; 2,726 tests passed and 5 skipped. The existing test-db containment report found 2 public audit rows, both inside fitout_test.

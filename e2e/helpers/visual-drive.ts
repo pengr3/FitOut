@@ -124,6 +124,7 @@ import {
   VRT_COLLISION,
   VRT_EXCLUSIVE_TITLE,
   VRT_HOST_ID,
+  VRT_TODAY_ISO,
   VRT_IDS,
   VRT_RIVAL_ID,
 } from "../../scripts/seed-baseline-fixtures";
@@ -341,10 +342,9 @@ async function expectMapSettled(page: Page, where: string): Promise<void> {
  * on `listing-sheet-375` and on `collision-notice-1280`, and nobody noticed for four days because
  * nothing was pushed. A baseline that expires overnight trains its readers to expect red.
  *
- * THE PIN IS THE FIXTURE'S OWN DAY, deliberately: the same literal the seeded collision window uses,
- * so the calendar's "today", the day the URL selects and the day the fixture books are one date and
- * cannot drift apart. If the fixture's day ever moves, this moves with it — that is why it reads
- * `VRT_COLLISION.dayIso` rather than a second copy of the literal.
+ * THE PIN IS THE FIXTURE'S OWN ADJACENT DAY, deliberately: the seed exports it beside the collision
+ * window so the calendar's "today" stays on or before the day the URL selects and the fixture books.
+ * If either fixture day moves, the spec's value assertion makes the relationship loud.
  *
  * ⚠ DO NOT REACH FOR `page.clock` HERE. It was the first prescription and it was MEASURED WRONG:
  * with the browser clock moved two months, the in-page `new Date()` moved and the rendered calendar
@@ -358,7 +358,7 @@ async function expectMapSettled(page: Page, where: string): Promise<void> {
  * `npm run dev`, so the pin is live exactly where the baselines are shot and inert where it ships.
  */
 function listingUrl(slot?: Slot): string {
-  const base = `/listings/${LISTING_ID}?date=${VRT_COLLISION.dayIso}&today=${VRT_COLLISION.dayIso}`;
+  const base = `/listings/${LISTING_ID}?date=${VRT_COLLISION.dayIso}&today=${VRT_TODAY_ISO}`;
   return slot === undefined ? base : `${base}&start=${slot.start}&end=${slot.end}`;
 }
 
@@ -972,5 +972,6 @@ export function swapWidthFor(surfaceId: SurfaceId): number {
 export const FIXTURE_URL_CONTRACT = {
   listingId: LISTING_ID,
   dayIso: VRT_COLLISION.dayIso,
+  todayIso: VRT_TODAY_ISO,
   title: VRT_EXCLUSIVE_TITLE,
 } as const;

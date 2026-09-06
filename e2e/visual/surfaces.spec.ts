@@ -385,8 +385,12 @@ test.describe("GATE-01 — the declared baseline inventory", () => {
       ).toContain(`/listings/${FIXTURE_URL_CONTRACT.listingId}`);
     }
 
-    // The DAY, separately: it is what makes the calendar deterministic, and a row that lost it would
-    // silently start baselining whatever month it is today.
+    // The DAY, separately: it selects the fixture's booked day. The two surfaces that render the
+    // calendar before/after a collision also carry TODAY, whose exact seed value pins the opening
+    // month, disabled past-day set and ring. Presence alone is insufficient: a parser-rejected value
+    // silently degrades to the wall clock.
+    const clockBearingSurfaces = new Set(["listing-detail", "collision-notice"]);
+    expect(clockBearingSurfaces.size, "the clock-bearing surface census became empty").toBe(2);
     for (const row of listingRows.filter((r) => (VISUAL_SURFACES[r.surface].url ?? "").includes("?"))) {
       expect(
         VISUAL_SURFACES[row.surface].url,
@@ -394,6 +398,13 @@ test.describe("GATE-01 — the declared baseline inventory", () => {
           "the fixture's own day the hour grid does not show the seeded conflict, and without a day " +
           "at all the month grid changes with the wall clock.",
       ).toContain(`date=${FIXTURE_URL_CONTRACT.dayIso}`);
+      if (clockBearingSurfaces.has(row.surface)) {
+        expect(
+          VISUAL_SURFACES[row.surface].url,
+          `${row.surface} does not pin venue-local today to ${FIXTURE_URL_CONTRACT.todayIso}; ` +
+            "without that exact accepted value the ring returns to the renderer's clock.",
+        ).toContain(`today=${FIXTURE_URL_CONTRACT.todayIso}`);
+      }
     }
   });
 });

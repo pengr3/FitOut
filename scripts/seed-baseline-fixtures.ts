@@ -75,6 +75,19 @@ const DATABASE_URL =
 export const VRT_CLOCK_ISO = "2026-09-15T04:00:00Z";
 
 /**
+ * THE VENUE-LOCAL TODAY THE CLOCK-BEARING REFERENCES PHOTOGRAPH. Asia/Manila has no DST, so this
+ * date is the local day containing VRT_CLOCK_ISO; it is adjacent to the collision day below and
+ * keeps that booking day selectable inside the 90-day horizon.
+ */
+export const VRT_TODAY_ISO = "2026-09-15";
+
+/**
+ * THE BASELINE HOST'S CREATION INSTANT. Explicitly +08:00 (Asia/Manila), never evaluated at seed
+ * time, so `Host since January 2024` is stable across dispatches and runner timezones.
+ */
+export const VRT_HOST_CREATED_AT_ISO = "2024-01-15T00:00:00+08:00";
+
+/**
  * THE COLLISION WINDOW — 09:00–11:00 Asia/Manila on 2026-09-16, i.e. the morning AFTER the frozen
  * instant. Inside the 06:00–21:00 operating hours below, and in the future relative to the frozen
  * clock, so the day is selectable and the hours would be bookable were they not already taken.
@@ -188,13 +201,17 @@ async function reset(): Promise<void> {
 }
 
 async function seedUsers(): Promise<void> {
+  // `created_at` reaches HostBlock's member-since month and is pinned. `updated_at` reaches no
+  // baseline projection or pixel, so it may describe the idempotent seed run that last touched it.
   await sql`
     INSERT INTO "user" (id, name, email, email_verified, first_name, can_host, can_book, created_at, updated_at)
-    VALUES (${VRT_HOST_ID}, ${"Baseline Host"}, ${`${VRT_HOST_ID}@fitout.invalid`}, ${true}, ${"Vera"}, ${true}, ${false}, now(), now())
+    VALUES (${VRT_HOST_ID}, ${"Baseline Host"}, ${`${VRT_HOST_ID}@fitout.invalid`}, ${true}, ${"Vera"}, ${true}, ${false}, ${VRT_HOST_CREATED_AT_ISO}::timestamptz, now())
   `;
   // AN ACTIVATED PAYOUT WALLET IS WHAT MAKES THE LISTING BOOKABLE (`deriveBookable` / the
   // `payouts_enabled` gate). Without it `/listings/[id]/book` answers a redirect, and the checkout
   // baseline would capture that redirect as its reference — green forever, of the wrong page.
+  // Both payout timestamps reach the sell gate only as row presence/state; no baselined surface
+  // selects or renders either instant, so they may record this seed run.
   await sql`
     INSERT INTO "host_payout" (user_id, paymongo_account_id, activation_status, payouts_enabled, onboarding_complete, created_at, updated_at)
     VALUES (${VRT_HOST_ID}, ${"acct_vrt_1"}, ${"activated"}, ${true}, ${true}, now(), now())
@@ -202,11 +219,14 @@ async function seedUsers(): Promise<void> {
   // AND SO IS AN OPS-APPROVED host_verification ROW, for exactly the same reason (phase 18, D-224 — the
   // SIXTH deriveBookable term). A host with no row reads as 'unverified', the listing stops being
   // bookable, and every checkout baseline would silently re-capture a redirect instead of the page.
+  // Both verification timestamps are private audit metadata and never enter the public listing
+  // projection, so they may record this seed run without moving a pixel.
   await sql`
     INSERT INTO "host_verification" (user_id, status, provider, created_at, updated_at)
     VALUES (${VRT_HOST_ID}, ${"approved"}::host_verification_status, ${"manual"}, now(), now())
   `;
   // The rival who already holds the collision window. `can_book` so the row is a legitimate booker.
+  // The rival is never rendered; both timestamps may vary because only its id owns the conflict rows.
   await sql`
     INSERT INTO "user" (id, name, email, email_verified, first_name, can_host, can_book, created_at, updated_at)
     VALUES (${VRT_RIVAL_ID}, ${"Baseline Rival"}, ${`${VRT_RIVAL_ID}@fitout.invalid`}, ${true}, ${"Rhea"}, ${false}, ${true}, now(), now())
@@ -214,6 +234,9 @@ async function seedUsers(): Promise<void> {
 }
 
 async function seedListing(l: VrtListing): Promise<void> {
+  // `published_at`, `created_at` and `updated_at` are not selected by any clock-bearing baseline
+  // surface. Publication state is rendered, but none of these instants is, so they may record the
+  // current idempotent seed run without affecting pixels.
   await sql`
     INSERT INTO "listing" (
       id, host_id, title, description, primary_space_type,
