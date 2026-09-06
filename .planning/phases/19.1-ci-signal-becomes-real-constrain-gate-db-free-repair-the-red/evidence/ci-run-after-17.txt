@@ -1,0 +1,187 @@
+19.1-17 TASK 4 — THE TWO BOOKER REPAIRS READ ON A REAL, PUSH-TRIGGERED `ci` RUN, JOINED BY THE PUSHED HEAD SHA
+=============================================================================================================
+
+Convention: identical to `evidence/ci-run-after-16.txt` one wave earlier — `19.1-PATTERNS.md` §A, the
+command line above its own unedited output, line-anchored markers at column zero. The join key is the
+SHA, never the clock. This repeats that convention; it does not invent a second one.
+
+------------------------------------------------------------------------------------------------
+STEP 1 — THE PUSH, AND WHAT WENT WITH IT
+------------------------------------------------------------------------------------------------
+
+$ git log origin/dev..HEAD --oneline             # before the push
+216eace test(19.1-17): both instruments watched red against a genuine duplicate
+a92160b fix(19.1-17): the profile picker's second copy is the same staging window
+d672ff1 fix(19.1-17): the confirmation moment's second copy is React's streaming staging area
+
+$ git push origin dev
+   9738a21..216eace  dev -> dev
+
+CI-HEAD-SHA=216eace4836eb94ed661a87691217d9e754bf668
+
+Three commits, all this plan's. Two touch `e2e/` and one touches a COMMENT in
+`src/components/profile/avatar-field.tsx`; nothing touches `.github/workflows/ci.yml`,
+`scripts/verify-workflows.mjs`, `drizzle/` or `package.json`. `9738a21` is where 19.1-16's own
+close-out pushes left the remote, and this run is the first to measure this tree.
+
+------------------------------------------------------------------------------------------------
+STEP 2 — THE RUN, SELECTED BY SHA AND NEVER BY RECENCY
+------------------------------------------------------------------------------------------------
+
+$ gh run list --workflow ci.yml --commit 216eace4836eb94ed661a87691217d9e754bf668 --json databaseId,headSha,event,status,conclusion,createdAt --limit 10
+[{"conclusion":"","createdAt":"2026-09-06T01:50:36Z","databaseId":34004929856,"event":"push","headSha":"216eace4836eb94ed661a87691217d9e754bf668","status":"queued"}]
+
+Exactly one run for that SHA. Selection is by SHA equality, not by position in the list.
+
+$ gh run view 34004929856 --json databaseId,headBranch,headSha,event,createdAt,updatedAt,conclusion,url
+{"conclusion":"failure","createdAt":"2026-09-06T01:50:36Z","databaseId":34004929856,"event":"push","headBranch":"dev","headSha":"216eace4836eb94ed661a87691217d9e754bf668","updatedAt":"2026-09-06T02:16:55Z","url":"https://github.com/pengr3/FitOut/actions/runs/34004929856"}
+
+CI-RUN-ID=34004929856
+CI-EVENT=push
+CI-CONCLUSION=failure
+
+The event is the push event and the run's own head SHA equals the recorded `CI-HEAD-SHA=`.
+
+------------------------------------------------------------------------------------------------
+STEP 3 — THE CONCURRENCY ACCOUNTING
+------------------------------------------------------------------------------------------------
+
+The workflow's concurrency group is keyed on workflow, ref and event with `cancel-in-progress: true`.
+Two runs died that way earlier in this phase (`33971557439`, `33971883942`). This one did not: its
+conclusion is `failure`, not `cancelled`, it ran 26m 19s of wall clock, and all five jobs reached a
+terminal state. No push was made while it was in flight — the plan's one push is the one above.
+
+CANCELLED-DISCARDED=0
+
+------------------------------------------------------------------------------------------------
+STEP 4 — ALL FIVE JOBS (D-04: the criterion is about the RUN, not about one job)
+------------------------------------------------------------------------------------------------
+
+$ gh run view 34004929856 --json jobs --jq '.jobs[] | "\(.name)|\(.conclusion)|\(.startedAt)|\(.completedAt)"'
+
+JOB gate-db-free (lint + design + build + workflow parse) | success | 3m 58s (01:50:40 -> 01:54:38)
+JOB gate-db (vitest against PostGIS 18) | success | 7m 40s (01:50:41 -> 01:58:21)
+JOB gate-price-parity (DB-vs-DOM price, 1 spec) | success | 2m 34s (01:50:41 -> 01:53:15)
+JOB gate-visual (GATE-01 visual regression) | failure | 5m 02s (01:50:41 -> 01:55:43)
+JOB gate-e2e (functional Playwright suite) | failure | 26m 14s (01:50:40 -> 02:16:54)
+
+GATE-E2E=failure
+
+`gate-db-free` green again means the design gate ran ON THE RUNNER and passed, including the untouched
+known-failures census — so `PINNED_ENTRY_TOTAL` is still 2 on the runner and not only on this laptop.
+
+$ gh run view --job 101410270414 --log     # the functional job's own output, summary block verbatim
+
+  3 failed
+    [chromium] › e2e/hold-countdown.spec.ts:292:9 › SHELL-03 — the checkout header does not reflow once per session › court · the header and countdown boxes are identical in all four states
+    [chromium] › e2e/host-headings.spec.ts:1052:7 › AC#35 — one first-level heading per document, one size across five surfaces › wizard · whole space, every step
+    [chromium] › e2e/overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · photos step · court
+  1 flaky
+    [chromium] › e2e/overflow-320.spec.ts:933:11 › AC#29 — nothing scrolls sideways at 320px › /profile · crop dialog open · court
+  52 skipped
+  22 did not run
+  383 passed (24.2m)
+  ##[error]Process completed with exit code 1.
+
+$ gh run view --job 101410270472 --log     # gate-visual, for completeness
+  4 failed
+  39 passed (3.3m)
+  … Expect "toHaveScreenshot(collision-notice-1280-court.png)" …
+
+------------------------------------------------------------------------------------------------
+STEP 4a — THE FOUR ACCOUNTABILITY LINES. TWO CLOSED BY THIS PLAN, TWO INHERITED AND STILL OPEN.
+------------------------------------------------------------------------------------------------
+
+OWNED e2e/confirmation-decay.spec.ts|absent
+OWNED e2e/avatar-crop.spec.ts|absent
+OWNED e2e/host-headings.spec.ts|present
+OWNED e2e/overflow-320.spec.ts|present
+
+WHICH TWO ARE THIS PLAN'S, AND WHICH TWO ARE NOT — stated plainly, because the two words above do not
+distinguish them and the difference is the whole reading.
+
+  THIS PLAN'S TWO ARE ABSENT, AND ABSENT FROM THE FLAKY LIST TOO. `confirmation-decay.spec.ts:151` was
+  `1 flaky` on run 34000975768 and appears in neither list here. `avatar-crop.spec.ts:1419` was `1 flaky`
+  on that run and appears in neither list here. Absence from the FAILED list is what the criterion
+  asks for; absence from the FLAKY list as well is the stronger result, because a flake is exactly how
+  a commit-window race presents and it is what both cases had been drawing for three runs.
+
+  PLAN 16'S TWO ARE PRESENT, AND THIS WAVE DID NOT PUT THEM THERE. `host-headings.spec.ts:1052` and
+  `overflow-320.spec.ts:3434 · photos step · court` were BOTH already in run 34000975768's failure list,
+  recorded there as `OWNED …|present` by 19.1-16 itself, which halted on exactly that. They are
+  byte-identically red here: same file, same line, same title, same theme. Nothing in this plan touches
+  `/host/listings/[id]/edit`, `e2e/host-headings.spec.ts` or `e2e/overflow-320.spec.ts`; the three
+  commits pushed above are two booker specs and one comment. So this is an INHERITED failure carried
+  forward, not a regression this wave caused, and the distinction is measurable rather than asserted:
+  a regression would be a spec that passed on 34000975768 and fails here, and there is none.
+
+  ⚠ AND THE TASK'S OWN VERIFY THEREFORE FAILS, ON PURPOSE AND WITHOUT SOFTENING:
+    $ grep -cE '^OWNED .+\|present$' evidence/ci-run-after-17.txt   ->  2      REQUIRED 0
+  The plan's rule is that a `present` line means the task is not finished. It is not finished, and the
+  cause standing between it and finished is the one 19.1-16 named and handed to a follow-up: the listing
+  wizard does not advance on the runner although the press was received. That work is not this plan's
+  and was explicitly barred from it — no locator scoped, no timeout widened, no entry allowlisted, and
+  no speculative repair pushed at a site no measurement here names.
+
+------------------------------------------------------------------------------------------------
+STEP 4b — WHAT MOVED, KEYED ON FILE AND FULL TITLE
+------------------------------------------------------------------------------------------------
+
+                       34000975768 (before)      34004929856 (this run)     delta
+  failed                        3                          3                  0
+  flaky                         3                          1                 -2
+  did not run                  22                         22                  0
+  passed                      381                        383                 +2
+  skipped                      52                         52                  0
+  wall clock                24.9m                      24.2m
+
+COLLECTED 461 this run (3 + 1 + 52 + 22 + 383) vs 461 on 34000975768 (3 + 3 + 52 + 22 + 381) — delta 0. No shortfall; the whole suite was collected on both runs.
+
+LEFT THE FLAKY SET, both of them this plan's own and both now first-attempt passes:
+  e2e/confirmation-decay.spec.ts | "BFLOW-08 … › the moment is a full screen, the detail starts below the fold, and a reload shows the ordinary page"
+  e2e/avatar-crop.spec.ts        | "CROP-01 / D-178 … › Shift makes the step FINER, which is the shipped contract D-178 accepted"
+
+ALSO LEFT THE FLAKY SET, and NOT this plan's to claim:
+  e2e/shell.spec.ts:291 | "AC#3 … › host · court · the header and brand boxes are byte-identical" — a
+  LEAD 19.1-16 carried with verdict UNAFFECTED. It drew grove one run, court the next and passed on
+  first attempt this one, which is a timing signature moving around, not a repair landing. The number
+  is whatever the run prints and the attribution is not edited to fit.
+
+JOINED THE FLAKY SET — one, and the reading names it rather than shrugging at it:
+  e2e/overflow-320.spec.ts:933 | "AC#29 … › /profile · crop dialog open · court", failing attempt 1 at
+  `openAvatarCropDialog` (`overflow-320.spec.ts:412`) with *"the crop dialog did not open after a valid
+  fixture was staged"*, then passing on retry.
+  ⚠ THAT IS THIS PLAN'S DEFECT ON A THIRD SITE, IN A FILE THIS PLAN DOES NOT OWN AND DID NOT TOUCH.
+  `overflow-320.spec.ts` carries its OWN file-handing helper, and that helper has no commit
+  precondition — so it can hand the fixture to the STAGED picker, the copy React is about to discard,
+  and the change event dies with the node. That is precisely the failure mode `expectPickerCommitted`
+  removes on `avatar-crop.spec.ts`, and it is the same `div#S:1[hidden]` window Task 1 walked.
+  It is recorded in `deferred-items.md` with a named first instrument rather than repaired here: the
+  file is not in this plan's `files_modified`, it is the file 19.1-16 owns a separate failure in, and a
+  spec edit made AFTER the run this plan is read on would not be covered by any measurement in it.
+
+REGRESSED: none. Nothing that passed on 34000975768 stopped passing here.
+
+------------------------------------------------------------------------------------------------
+STEP 5 — WHAT IS STILL RED, AND WHO OWNS IT
+------------------------------------------------------------------------------------------------
+
+STILL-RED e2e/hold-countdown.spec.ts:292 "SHELL-03 — the checkout header does not reflow once per session › court · the header and countdown boxes are identical in all four states" | owner: PROPOSED 19.1-18 (N1, the day click that does not select, on the checkout path)
+STILL-RED e2e/host-headings.spec.ts:1052 "AC#35 … › wizard · whole space, every step" | owner: 19.1-16, NOT CLOSED and inherited by this run — the follow-up it proposed ("the listing wizard does not advance on the runner, and the press was received") is the named owner of the surviving cause.
+STILL-RED e2e/overflow-320.spec.ts:3434 "AC#36 … › /host/listings/[id]/edit · photos step · court" | owner: 19.1-16, NOT CLOSED and inherited, same sentence and same follow-up.
+STILL-RED gate-visual (GATE-01 visual regression) — 4 failed / 39 passed, the same four baselines whose references encode the calendar day and the seed month | owner: PROPOSED 19.1-19, specified in six points by evidence/rows-9-12-fixture-probe.txt under D-19.1-D. Red on every push by design until it mints.
+
+SC4-RUN-TERM=Run 34004929856 proved on the runner that both booker specs this plan owns are gone from `gate-e2e`'s failure list AND from its flaky list — `confirmation-decay` and `avatar-crop` had drawn flaky on the previous run and are first-attempt passes here, with the collected total unmoved at 461 and nothing that passed before stopping — and it proved, by the same reading, that plan 16's two host specs are STILL red, byte-identically to the run 19.1-16 halted on, which this wave inherited rather than caused; SC4 therefore stays OPEN, `gate-e2e` and `gate-visual` are both still red, this plan's Task 4 criterion is NOT met and the plan is recorded as halted rather than complete.
+
+------------------------------------------------------------------------------------------------
+ADDENDUM — THE CLOSE-OUT PUSHES, RECORDED SO A LATER `gh run list` IS NOT CONFUSING
+------------------------------------------------------------------------------------------------
+
+Run 34004929856 was read to a terminal conclusion BEFORE anything else was pushed, and no push happened
+while it was in flight — the constraint the concurrency group imposes, honoured. The pushes that follow
+it carry this evidence file, the SUMMARY, `STATE.md`, `ROADMAP.md` and `deferred-items.md`, are
+documentation-only, and each starts a `ci` run of its own because the workflow runs on every `dev` push
+(D-06). Those runs are NOT this plan's measurement: the plan is read on 34004929856 and on nothing else.
+19.1-16's own addendum made the same note and it is repeated deliberately — the rule that matters is ONE
+push while a run is IN FLIGHT, not one push per plan, which is unsatisfiable for any plan that must also
+commit its own SUMMARY and leave `git log origin/dev..HEAD` empty.

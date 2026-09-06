@@ -762,3 +762,36 @@ difference exists to attribute.
 **What would settle them:** they were drawn flaky on the RUNNER, once each, in a full-suite run. The
 instrument is a real `ci` run's `gate-e2e` job, read across several runs — not a local repeat. That is
 `19.1-15`'s subject (the flaky-set stability finding, `T-19.1-63`), not a defect this plan can close.
+
+## 19.1-17 — THE STREAMING COMMIT WINDOW HAS A THIRD SITE, IN A FILE THIS PLAN DOES NOT OWN
+
+**Found during:** 19.1-17 Task 4, reading run `34004929856`'s `gate-e2e` log.
+
+`e2e/overflow-320.spec.ts:933` (`AC#29 … › /profile · crop dialog open · court`) JOINED the flaky set
+on this run: attempt 1 failed at `openAvatarCropDialog` (`overflow-320.spec.ts:412`) with *"the crop
+dialog did not open after a valid fixture was staged"*, and the retry passed.
+
+**Why this is the defect 19.1-17 measured, and not a new one.** That spec carries its OWN
+file-handing helper, independent of `e2e/avatar-crop.spec.ts`'s `pick()`. It has no commit
+precondition, so it can hand the fixture to the STAGED `input[type="file"]` — the copy React writes
+into `div#S:1[hidden]` at the end of `<body>` while a boundary is resolving and then discards. The
+change event dies with the node, the decode never starts, and the dialog never opens. That is exactly
+the window `evidence/triage-duplicate-mount.txt` walks on both booker surfaces, and exactly the
+failure mode `expectPickerCommitted` removes on the spec 19.1-17 did repair.
+
+**Why it was not repaired in 19.1-17.** `e2e/overflow-320.spec.ts` is not in that plan's
+`files_modified`; it is the file 19.1-16 owns a SEPARATE, still-open failure in (`:3434 · photos step
+· court`); and a spec edit made after the run the plan is read on would be covered by no measurement
+in it. Repairing it inside 19.1-17 would have meant claiming a fix no run in that plan measured.
+
+**What the follow-up owns, and its first instrument.** It owns `openAvatarCropDialog` in
+`e2e/overflow-320.spec.ts`. FIRST INSTRUMENT: apply the same classification precondition — poll until
+no `input[type="file"]` has a `[hidden]` ancestor and at least one does not — immediately before the
+helper stages its fixture, on the default expect budget, and then watch the shipped helper still go
+red against a genuine second picker cloned into the settled document (the injection idiom in
+`evidence/triage-duplicate-mount.txt` Task 3). **May not:** scope the locator to a landmark, take
+`.first()`, widen `:412`'s budget, add a retry, or allowlist the row.
+
+**Severity:** a flake on a required check, on the profile surface, drawn once. It is not a product
+defect — nobody using FitOut can reach the staged copy — and it is not a regression 19.1-17 caused:
+the file is untouched by that plan's three commits.
