@@ -1,0 +1,9 @@
+{
+  "command": ".\\node_modules\\.bin\\vitest.cmd run tests/availability/calendar-today-ring.test.tsx -t \"the hourly calendar marks the same venue-local cell under two system clocks\" --reporter=tap --no-file-parallelism",
+  "exitCode": 1,
+  "targetFile": "tests/availability/calendar-today-ring.test.tsx",
+  "targetTest": "the hourly calendar marks the same venue-local cell under two system clocks",
+  "expected": "[2026-09-14, 2026-09-14]",
+  "actual": "[2026-09-05, 2026-09-06]",
+  "output": "TAP version 13\nnot ok 1 - the hourly calendar marks the same venue-local cell under two system clocks\n# tests 1\n# pass 0\n# fail 1\n# cancelled 0\n"
+}
