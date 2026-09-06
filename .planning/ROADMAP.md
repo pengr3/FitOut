@@ -627,7 +627,7 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 14/19 plans executed (11 waves)
+**Plans:** 15/19 plans executed (11 waves)
 
 Plans:
 
@@ -682,7 +682,7 @@ Plans:
 
 **Wave 8** *(gap closure — the SC4 route out)*
 
-- [ ] 19.1-16-PLAN.md — TRACER · the `(host)` layout hydration: reproduce cold and in the pinned image,
+- [x] 19.1-16-PLAN.md — TRACER · the `(host)` layout hydration: reproduce cold and in the pinned image,
       repair the streamed nav slot, settle `host-headings` + `overflow-320` and the blocked `AC#36` tail,
       then read both owned specs absent from `gate-e2e` on a real push-triggered `ci` run joined by head SHA
 
@@ -1034,7 +1034,7 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified & COMPLETE** — 17/17 requirements, 0 code-level blockers. The checkbox was held from 2026-09-01 until 18.1 shipped the missing submission path, then briefly re-held on PM decision D-274 (the `/ops` contact surface). **18.1-16 shipped D-274 on 2026-09-03 and phase 18.1 verified passed 9/9, so both holds are discharged.** | verified 2026-09-03 |
 | 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | Complete    | 2026-09-03 |
 | 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 11/11 | In Progress|  |
-| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 13/19 | In Progress — 19.1-14 HALTED (`hold`), 19.1-15 BLOCKED (403); gap-closure plans 19.1-16…19 planned (waves 8–11); SC4 + SC5 OPEN |  |
+| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 15/19 | In Progress — 19.1-14 HALTED (`hold`), 19.1-15 BLOCKED (403); 19.1-16 executed but HALTED — the `(host)` hydration regeneration is repaired and proven on the runner (110 → 0) yet BOTH specs it owned are still red, so its gap is NOT closed; 19.1-17…19 remain (waves 9–11); SC4 + SC5 OPEN |  |
 | 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | Not started | - |
 | 21. The Host Can See Where They Stand | v1.2 | 0/TBD | Not started | - |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |

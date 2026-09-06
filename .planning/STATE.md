@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: HALTED at 19.1-14-PLAN.md Task 3 — PM decision hold. SC4 and SC5 OPEN. Gap plans 19.1-16..19 planned and checker-passed (2026-09-06); next is `/gsd-execute-phase 19.1 --gaps-only`.
-last_updated: "2026-09-05T22:43:01.861Z"
+stopped_at: "Completed 19.1-16-PLAN.md — HALTED: repair proven on the runner (110 hydration regenerations -> 0), but both owned specs still red in run 34000975768; gap NOT closed, follow-up proposed."
+last_updated: "2026-09-06T00:55:37.169Z"
 last_activity: 2026-09-06
-last_activity_desc: Phase 19.1 gap planning finished — 19.1-16..19 revised so each closes on a REAL push-triggered ci run (48016ed), plan-checker PASSED on iteration 2, decision coverage 8/8, CI-01 covered. Plan 14 stays HALTED on the PM publication hold; 15 stays blocked by construction.
-state_head: 48016edde9bdcb4ccbad5e19d3ca9fe322f6a643
+last_activity_desc: "19.1-16 executed and HALTED. The `(host)` hydration failure is REPAIRED and proven on the runner — `gate-e2e`'s own log went from 110 `regenerated on the client` messages to 0 (run 34000975768 vs 33976831607) — but the SAME measurement REFUTES it as the cause of the two failures 16 owned: `host-headings:1052` and `overflow-320:3434 photos step` are byte-identically red. Gap NOT closed; follow-up proposed in the D-02 shape. Next: 19.1-17."
+state_head: a59dcf92202371ecf21bbbd221aee64b88c8acff
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -22,7 +22,22 @@ progress:
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
   # A halted plan counted as a completed one is the same fabricated counter this file
   # already records an incident of below — see the v1.1 note on a fabricated +6.
-  completed_plans: 58
+  #
+  # 2026-09-06, 19.1-16: `state.advance-plan` bumped this 58 -> 60 in ONE call, i.e. +2
+  # for one plan. Corrected by hand to 59. Third recorded over-reach by these verbs on
+  # this counter; the rule stands — diff against a pre-verb copy and repair by hand.
+  #
+  # ⚠ 19.1-16 IS COUNTED at +1 EVEN THOUGH ITS SUMMARY READS `status: halted`, and the
+  # difference from 19.1-14 is deliberate rather than drift: 14 stopped MID-PLAN with
+  # tasks unexecuted, while 16 executed all four tasks and produced its SUMMARY — only
+  # Task 4's acceptance criterion (both owned specs absent from the real run's failure
+  # list) is unmet. Flagged here so a later reader treats it as a decision.
+  #
+  # ⚠ AND IT WAS RE-BUMPED TO 60 A SECOND TIME, by a LATER verb in the same close-out —
+  # the hand repair to 59 was made, and `state.add-decision` / `roadmap.update-plan-progress`
+  # put 60 back. So the rule needs a second half: re-read this counter AFTER the last
+  # state verb has run, not after the first one. Corrected by hand again, last.
+  completed_plans: 59
   percent: 13
 ---
 
@@ -77,10 +92,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19.1 (CI signal becomes real) — EXECUTING · 14/19 done · 15 blocked (PM hold) · gap plans 16–19 READY TO EXECUTE
-Plan: 14 of 15
-Status: Ready to execute
-Last activity: 2026-09-05 — Phase 19.1 plan 02 complete (Wave 0 measurement)
+Phase: 19.1 (CI signal becomes real) — EXECUTING · gap plans 16–19 · 15/19 done · 14 halted (PM hold) · 15 blocked (construction)
+Plan: 17 of 19
+Status: Ready to execute 19.1-17 (16 is done but HALTED — its gap is NOT closed)
+Last activity: 2026-09-06 — 19.1-16 executed: (host) hydration repaired and proven on the runner (110 → 0); both owned specs still red, gap not closed
 
 ## Performance Metrics
 
@@ -455,6 +470,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P12 | 40 min | 3 tasks | 13 files |
 | Phase 19.1 P13 | 1h 52m | 3 tasks | 3 files |
 | Phase 19.1 P14 | 10min | 2 tasks | 4 files |
+| Phase 19.1 P16 | 122 min | 4 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -1482,6 +1498,8 @@ Recent decisions affecting current work:
 - [Phase 19.1]: 19.1-14: PUBLICATION HELD. The PM declined to make the repository public — SC4 is open (gate-e2e and gate-visual red), so publishing would put a red badge in front of every arrival, the exact cost D-08's ordering exists to avoid. Repository stays PRIVATE; the hold lifts when 19.1-16/-17/-18 land.
 - [Phase 19.1]: 19.1-14: D-19.1-D point (a) DECIDED by the PM — the availability calendar's today-ring follows VENUE-LOCAL today (matching startMonth/endMonth/disabled), not the rendering host's clock, because the two differ only where server and venue timezones already disagree, which is arguably the bug. Recorded in the ledger; NOT implemented (production source, belongs to 19.1-16).
 - [Phase 19.1]: 19.1-14: plan 19.1-15 is BLOCKED BY CONSTRUCTION, not skipped — the rulesets API returns 403 while the repository is private. Its payload (evidence/ruleset-main.json) and its five measured context strings (evidence/preflight-public.md §d) are prepared and waiting.
+- [Phase 19.1]: 19.1-16: the (host) hydration failure was Radix asChild cloning a trigger created in a Server Component, NOT two renders disagreeing about a generated id — measured, 110 regenerations to 0 on the runner
+- [Phase 19.1]: 19.1-16: the regeneration is REFUTED as the cause of host-headings:1052 and overflow-320:3434 — both are byte-identically red once it is gone; neither is annotated, allowlisted or retried
 
 ### Pending Todos
 
@@ -1669,8 +1687,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-05T17:16:55.823Z
-Stopped at: HALTED at 19.1-14-PLAN.md Task 3 — PM decision hold. SC4 and SC5 OPEN.
+Last session: 2026-09-06T00:54:32.255Z
+Stopped at: Completed 19.1-16-PLAN.md — HALTED: repair proven on the runner (110 hydration regenerations -> 0), but both owned specs still red in run 34000975768; gap NOT closed, follow-up proposed.
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1823,7 +1841,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: None — gap plans 19.1-16..19 exist; next step is `/gsd-execute-phase 19.1 --gaps-only`
+Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
