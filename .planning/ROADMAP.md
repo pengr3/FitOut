@@ -627,7 +627,7 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 15/19 plans executed (11 waves)
+**Plans:** 16/19 plans executed (11 waves)
 
 Plans:
 
@@ -688,7 +688,7 @@ Plans:
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
-- [ ] 19.1-17-PLAN.md — two of the same element in one document on the booker surfaces
+- [x] 19.1-17-PLAN.md — two of the same element in one document on the booker surfaces
       (`confirmation-decay`, `avatar-crop`): read the second copy's provenance, answer the shared-cause
       question 19.1-13 left open, repair, prove both instruments can still fail, then read its own real
       push-triggered `ci` run — both booker specs absent, and 19.1-16's two still absent
@@ -1034,7 +1034,7 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified & COMPLETE** — 17/17 requirements, 0 code-level blockers. The checkbox was held from 2026-09-01 until 18.1 shipped the missing submission path, then briefly re-held on PM decision D-274 (the `/ops` contact surface). **18.1-16 shipped D-274 on 2026-09-03 and phase 18.1 verified passed 9/9, so both holds are discharged.** | verified 2026-09-03 |
 | 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | Complete    | 2026-09-03 |
 | 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 11/11 | In Progress|  |
-| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 15/19 | In Progress — 19.1-14 HALTED (`hold`), 19.1-15 BLOCKED (403); 19.1-16 executed but HALTED — the `(host)` hydration regeneration is repaired and proven on the runner (110 → 0) yet BOTH specs it owned are still red, so its gap is NOT closed; 19.1-17…19 remain (waves 9–11); SC4 + SC5 OPEN |  |
+| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 16/19 | In Progress — 19.1-14 HALTED (`hold`), 19.1-15 BLOCKED (403); 19.1-16 executed but HALTED — the `(host)` hydration regeneration is repaired and proven on the runner (110 → 0) yet BOTH specs it owned are still red, so its gap is NOT closed; 19.1-17 executed but HALTED — both booker specs ARE closed on run 34004929856 (absent from the failure AND flaky lists, the streaming commit window measured and asserted) but its criterion also required 19.1-16's two, which it inherited already red; 19.1-18…19 remain (waves 10–11); SC4 + SC5 OPEN |  |
 | 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | Not started | - |
 | 21. The Host Can See Where They Stand | v1.2 | 0/TBD | Not started | - |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |

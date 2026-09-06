@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: "Completed 19.1-16-PLAN.md — HALTED: repair proven on the runner (110 hydration regenerations -> 0), but both owned specs still red in run 34000975768; gap NOT closed, follow-up proposed."
-last_updated: "2026-09-06T00:55:37.169Z"
+stopped_at: "Completed 19.1-17-PLAN.md — HALTED: both booker specs closed on run 34004929856 (absent from the failure AND flaky lists), but the task also required 19.1-16's two host specs to be absent and they are inherited already-red."
+last_updated: "2026-09-06T02:24:09.941Z"
 last_activity: 2026-09-06
 last_activity_desc: "19.1-16 executed and HALTED. The `(host)` hydration failure is REPAIRED and proven on the runner — `gate-e2e`'s own log went from 110 `regenerated on the client` messages to 0 (run 34000975768 vs 33976831607) — but the SAME measurement REFUTES it as the cause of the two failures 16 owned: `host-headings:1052` and `overflow-320:3434 photos step` are byte-identically red. Gap NOT closed; follow-up proposed in the D-02 shape. Next: 19.1-17."
-state_head: a59dcf92202371ecf21bbbd221aee64b88c8acff
+state_head: f44d002488d80f5078a14216d1591bad6432de3b
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -37,7 +37,15 @@ progress:
   # the hand repair to 59 was made, and `state.add-decision` / `roadmap.update-plan-progress`
   # put 60 back. So the rule needs a second half: re-read this counter AFTER the last
   # state verb has run, not after the first one. Corrected by hand again, last.
-  completed_plans: 59
+  #
+  # 2026-09-06, 19.1-17: FOURTH over-reach on this counter, same shape as 19.1-16's —
+  # `state.advance-plan` moved it 59 -> 61, i.e. +2 for one plan. Corrected by hand to
+  # 60 AFTER the last state verb (`roadmap.update-plan-progress`) had run, per the rule
+  # the note above establishes. 19.1-17 is counted at +1 on the same basis 19.1-16 was:
+  # all four tasks executed and a SUMMARY produced, with only Task 4's acceptance
+  # criterion unmet — and in 17's case unmet for two specs it INHERITED already red and
+  # was forbidden from touching.
+  completed_plans: 60
   percent: 13
 ---
 
@@ -92,10 +100,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19.1 (CI signal becomes real) — EXECUTING · gap plans 16–19 · 15/19 done · 14 halted (PM hold) · 15 blocked (construction)
-Plan: 17 of 19
-Status: Ready to execute 19.1-17 (16 is done but HALTED — its gap is NOT closed)
-Last activity: 2026-09-06 — 19.1-16 executed: (host) hydration repaired and proven on the runner (110 → 0); both owned specs still red, gap not closed
+Phase: 19.1 (CI signal becomes real) — EXECUTING · gap plans 16–19 · 16/19 done · 14 halted (PM hold) · 15 blocked (construction) · 16 and 17 both HALTED on the same criterion
+Plan: 18 of 19
+Status: Ready to execute 19.1-18 (17 is done but HALTED — its OWN two specs are closed; the two it also had to guarantee are 19.1-16's, inherited already red)
+Last activity: 2026-09-06 — 19.1-17 executed: the booker "resolved to 2 elements" defect measured as React's streaming commit window (`div#S:1[hidden]`, PERSISTS=no), both cases repaired by asserting the commit and both absent from run 34004929856's failure AND flaky lists; SHARED-CAUSE=no against 19.1-16
 
 ## Performance Metrics
 
@@ -471,6 +479,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P13 | 1h 52m | 3 tasks | 3 files |
 | Phase 19.1 P14 | 10min | 2 tasks | 4 files |
 | Phase 19.1 P16 | 122 min | 4 tasks | 9 files |
+| Phase 19.1 P17 | 90 min | 4 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1500,6 +1509,7 @@ Recent decisions affecting current work:
 - [Phase 19.1]: 19.1-14: plan 19.1-15 is BLOCKED BY CONSTRUCTION, not skipped — the rulesets API returns 403 while the repository is private. Its payload (evidence/ruleset-main.json) and its five measured context strings (evidence/preflight-public.md §d) are prepared and waiting.
 - [Phase 19.1]: 19.1-16: the (host) hydration failure was Radix asChild cloning a trigger created in a Server Component, NOT two renders disagreeing about a generated id — measured, 110 regenerations to 0 on the runner
 - [Phase 19.1]: 19.1-16: the regeneration is REFUTED as the cause of host-headings:1052 and overflow-320:3434 — both are byte-identically red once it is gone; neither is annotated, allowlisted or retried
+- [Phase 19.1]: The two booker duplicate-element failures are a React streaming commit window, not duplicated mounts: both matches walk to div#S:1[hidden] at <body>, PERSISTS=no. Repaired by asserting the commit (a staged/committed classification) rather than sleeping past it; SHARED-CAUSE=no against 19.1-16. — Measured on both sides of 19.1-16's repair with a byte-copy revert and equal checksums; (app)/layout.tsx passes no nav, so the component 19.1-16 repaired never renders on the booker shell.
 
 ### Pending Todos
 
@@ -1587,6 +1597,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - D-19.1-E: dev-theme-320-court is flaky on gate-visual (Failed to take two consecutive stable screenshots, 21109px between consecutive captures; the committed reference is byte-correct). Absorbed today by two retries and reported flaky rather than red.
 - Two of the five required-status-check contexts (gate-e2e, gate-visual) are RED today, and the flaky set is redrawn each run - six different tests across four runs of one tree. 19.1-15 must not make either a required check before the three D-02 plans land.
 - Publication HOLD (PM, 2026-09-06) blocks SC5: the repository stays PRIVATE, so 19.1-15 cannot install the branch ruleset (gh api repos/pengr3/FitOut/rulesets => 403). Unblocks only after SC4 closes via 19.1-16/-17/-18 (+ 19.1-19 for the gate-visual half) — PLANNED and checker-passed 2026-09-06 (`ff10020`, revised `48016ed`), not yet executed.
+- 19.1-17 Task 4 criterion UNMET: run 34004929856 records OWNED host-headings|present and OWNED overflow-320|present. Both are 19.1-16's, inherited already-red and byte-identical to run 34000975768; this plan's own two specs are absent from the failure AND the flaky lists.
 
 ### Quick Tasks Completed
 
@@ -1687,8 +1698,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-06T00:54:32.255Z
-Stopped at: Completed 19.1-16-PLAN.md — HALTED: repair proven on the runner (110 hydration regenerations -> 0), but both owned specs still red in run 34000975768; gap NOT closed, follow-up proposed.
+Last session: 2026-09-06T02:24:09.119Z
+Stopped at: Completed 19.1-17-PLAN.md — HALTED: both booker specs closed on run 34004929856 (absent from the failure AND flaky lists), but the task also required 19.1-16's two host specs to be absent and they are inherited already-red.
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
