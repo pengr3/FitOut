@@ -1,15 +1,15 @@
 ---
-gsd_state_version: 1.0
+gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
-current_phase: 19.1
+current_phase: "19.1"
 current_phase_name: CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes
 status: executing
 stopped_at: Phase 19.1 UI-SPEC approved
-last_updated: "2026-09-06T13:04:36.442Z"
+last_updated: "2026-09-06T13:29:44.442Z"
 last_activity: 2026-09-06
-last_activity_desc: "19.1-18 executed and HALTED. The day click was received and refused because page.clock.install() covered availability selection; moving it to the checkout boundary makes all four hold-countdown cases first-attempt green and the spec is absent on SHA-matched push run 34008844133. The same run leaves gate-e2e red: seven host-wizard/edit-route failures, two flaky, 26 not run. Proposed 19.1-20 owns the functional cluster; 19.1-19 still owns visual."
-state_head: e304ea2637953d3c4c12031fe7bab30f0d312a8d
+last_activity_desc: "Phase 19.1 gap closure execution started: Plan 19 visual closure, then Plan 20 functional repair."
+state_head: 5b985a52f19de9d8ab799c9fed4335db598f9d0a
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -106,10 +106,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19.1 (CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes) — READY TO EXECUTE
-Plan: 18 of 20
-Status: 19.1-20 planned and checker-approved — execute 19.1-19 visual closure first, then the measured host-wizard/edit-route functional repair
-Last activity: 2026-09-06 — run 34008844133 matched pushed SHA 2d944c0: hold-countdown absent, seven host-wizard/edit-route failures, two flaky, 26 not run, 374 passed; gate-e2e failure, gate-visual failure
+Phase: 19.1 (CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes) — EXECUTING
+Plan: 19 of 20
+Status: Executing 19.1-19 visual closure; 19.1-20 follows after its blocking-human checkpoint is approved
+Last activity: 2026-09-06 — gap closure dependency repaired; Plan 19 is runnable and Plan 20 remains ordered behind it
 
 ## Performance Metrics
 
