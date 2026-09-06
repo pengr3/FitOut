@@ -1,0 +1,106 @@
+19.1-18 TASK 4 — REAL PUSH-RUN READING; DAY-CLICK CLOSED, FUNCTIONAL SC4 STILL OPEN
+===================================================================================
+
+This is the manual recovery record for the terminal task. The implementation commits were already
+on `dev` and the SHA-matched push run had finished, but this file and the plan SUMMARY were missing.
+The run is read by head SHA, not by recency.
+
+STEP 1 — THE PUSHED TREE
+------------------------
+
+$ git log --format='%H %s' 40aceda..2d944c0
+41b7153a903f21e58a1e2de0bd49ea08bf7a14e6 fix(19.1-18): the day click was received and refused — by the fake clock, not by the page
+eea83ad53d54cafe8e1fe361e9299b70abaac303 docs(19.1-18): the three cases the serial group blocked, named, and the second copy filed
+2d944c0863a0a7aa584426c88e7ed8a77bc669bd test(19.1-18): the day guard watched red in both directions, and an empty grid made to say so
+
+CI-HEAD-SHA=2d944c0863a0a7aa584426c88e7ed8a77bc669bd
+
+$ git log origin/dev..HEAD --oneline
+
+(no output; the measured implementation tree was already pushed to `origin/dev`)
+
+STEP 2 — THE RUN, SELECTED BY SHA
+---------------------------------
+
+$ gh run view 34008844133 --repo pengr3/FitOut --json databaseId,headBranch,headSha,event,createdAt,updatedAt,conclusion,url
+{"conclusion":"failure","createdAt":"2026-09-06T03:22:47Z","databaseId":34008844133,"event":"push","headBranch":"dev","headSha":"2d944c0863a0a7aa584426c88e7ed8a77bc669bd","updatedAt":"2026-09-06T04:03:30Z","url":"https://github.com/pengr3/FitOut/actions/runs/34008844133"}
+
+CI-RUN-ID=34008844133
+CI-EVENT=push
+CI-CONCLUSION=failure
+CANCELLED-DISCARDED=0
+
+The run is not cancelled, its event is `push`, and its own head SHA equals `CI-HEAD-SHA=`.
+
+STEP 3 — ALL FIVE JOBS
+----------------------
+
+$ gh run view 34008844133 --repo pengr3/FitOut --json jobs --jq '.jobs[] | "\(.name)|\(.conclusion)|\(.startedAt)|\(.completedAt)"'
+
+JOB gate-db-free (lint + design + build + workflow parse) | success | 3m 44s (03:22:50 -> 03:26:34)
+JOB gate-e2e (functional Playwright suite) | failure | 40m 38s (03:22:51 -> 04:03:29)
+JOB gate-price-parity (DB-vs-DOM price, 1 spec) | success | 2m 46s (03:22:50 -> 03:25:36)
+JOB gate-visual (GATE-01 visual regression) | failure | 5m 12s (03:22:51 -> 03:28:03)
+JOB gate-db (vitest against PostGIS 18) | success | 7m 44s (03:22:51 -> 03:30:35)
+
+GATE-E2E=failure
+
+STEP 4 — THE FUNCTIONAL JOB'S OWN SUMMARY
+------------------------------------------
+
+$ gh run view 34008844133 --repo pengr3/FitOut --job 101420933484 --log
+
+  7 failed
+    [chromium] › e2e/axe-sweep.spec.ts:1153:11 › AC#16 — zero axe violations in court at 320 and 1280px › /host/listings/[id]/edit · wizard · court · 320px
+    [chromium] › e2e/axe-sweep.spec.ts:1153:11 › AC#16 — zero axe violations in court at 320 and 1280px › /host/listings/[id]/edit · wizard · court · 1280px
+    [chromium] › e2e/host-headings.spec.ts:1052:7 › AC#35 — one first-level heading per document, one size across five surfaces › wizard · whole space, every step
+    [chromium] › e2e/host-route-reachability.spec.ts:87:7 › /host/listings/route-reachability/edit resolves to its module (anonymous ⇒ 307)
+    [chromium] › e2e/keyboard-composites.spec.ts:1403:7 › GATE-02 keyboard — the listing wizard and its drawer › /host/listings/[id]/edit · the wizard at 320 — 14 stops, in order
+    [chromium] › e2e/one-tree.spec.ts:998:9 › RESP-04 AC#12 — one instance in the document · host surfaces › wizard · /host/listings/[id]/edit
+    [chromium] › e2e/overflow-320.spec.ts:3434:11 › AC#36 — every Phase-14 host surface at 320px, in both themes › /host/listings/[id]/edit · court
+  2 flaky
+    [chromium] › e2e/confirmation-decay.spec.ts:209:7 › BFLOW-08 — the confirmation moment fills the first screen and then decays › the moment is a full screen, the detail starts below the fold, and a reload shows the ordinary page
+    [chromium] › e2e/shell.spec.ts:291:11 › AC#3 — the header does not move when the auth slot resolves › host · court · the header and brand boxes are byte-identical
+  52 skipped
+  26 did not run
+  374 passed (38.8m)
+
+COLLECTED 461 this run (7 + 2 + 52 + 26 + 374) vs 461 on run 34004929856 — delta 0
+NOT-RUN=26
+WALLCLOCK functional job 40m38s; Playwright 38.8m; HEADROOM=49m22s against the 90-minute cap
+
+The full suite was collected. Its total did not shrink, so the red cannot be explained as a short run.
+
+STEP 5 — THE FIVE SPECS THE THREE E2E REPAIR PLANS OWN
+------------------------------------------------------
+
+OWNED e2e/hold-countdown.spec.ts|absent
+OWNED e2e/host-headings.spec.ts|present
+OWNED e2e/overflow-320.spec.ts|present
+OWNED e2e/confirmation-decay.spec.ts|absent
+OWNED e2e/avatar-crop.spec.ts|absent
+
+`hold-countdown.spec.ts`, this plan's checkout-path subject, is absent: the fake-clock repair held on
+the runner. `confirmation-decay.spec.ts` is absent from the failure list but drew one flake, so the
+stronger “absent from both failed and flaky” result from run 34004929856 did not hold. `avatar-crop`
+remains absent. The two host specs inherited from 19.1-16 remain present, so the plan's terminal
+acceptance criterion is unmet.
+
+STEP 6 — EVERY REMAINING FAILURE GETS A VERDICT
+------------------------------------------------
+
+VERDICT e2e/axe-sweep.spec.ts 320px | listing-wizard route did not reach the measured wizard surface; outside 19.1-18's checkout-path scope; owner PROPOSED 19.1-20, first instrument the route/module resolution and step-rail presence before axe runs
+VERDICT e2e/axe-sweep.spec.ts 1280px | same listing-wizard surface, independently red at the second viewport; outside 19.1-18's checkout-path scope; owner PROPOSED 19.1-20, do not infer a shared cause until the route probe measures it
+VERDICT e2e/host-headings.spec.ts | 19.1-16's inherited host-wizard failure remains; outside 19.1-18's checkout-path scope; owner PROPOSED 19.1-20, beginning with the already-named route-resolution/step-rail instrument
+VERDICT e2e/host-route-reachability.spec.ts | the anonymous edit route failed its explicit 307 module-reachability contract; outside 19.1-18's checkout-path scope; owner PROPOSED 19.1-20 and the first discriminator for the cluster
+VERDICT e2e/keyboard-composites.spec.ts | listing wizard at 320px did not reach the composite measurement; outside 19.1-18's checkout-path scope; owner PROPOSED 19.1-20 after route resolution is established
+VERDICT e2e/one-tree.spec.ts | listing-wizard document-tree measurement remains red; outside 19.1-18's checkout-path scope; owner PROPOSED 19.1-20 after route resolution is established
+VERDICT e2e/overflow-320.spec.ts | 19.1-16's inherited host-wizard failure remains and the run's log reports no wizard step rail after 60s; outside 19.1-18's checkout-path scope; owner PROPOSED 19.1-20, starting from the route/module probe rather than widening the timeout
+
+No failure was allowlisted and the checked-in known-failures census remains pinned at two entries.
+The four non-Playwright-functional jobs divide cleanly: the two database jobs, price parity, and the
+db-free design/build/checker gate are green; visual remains the planned Plan 19 handoff.
+
+SC4-E2E OPEN — run 34008844133: axe-sweep wizard court at 320px and 1280px, host-headings wizard whole-space/every-step, host-route-reachability anonymous edit ⇒ 307, keyboard-composites wizard at 320, one-tree wizard, and overflow-320 wizard court remain failed; PROPOSED 19.1-20 owns the host-wizard route-resolution cluster, while no failure is quarantined
+SC4-VISUAL failure — 4 failed, 42 skipped, 39 passed (3.4m); Plan 19 owns the sanctioned baseline mint and pixel read
+HANDOFF functional duration 40m38s; required contexts: gate-db-free (lint + design + build + workflow parse) | gate-e2e (functional Playwright suite) | gate-price-parity (DB-vs-DOM price, 1 spec) | gate-visual (GATE-01 visual regression) | gate-db (vitest against PostGIS 18)
