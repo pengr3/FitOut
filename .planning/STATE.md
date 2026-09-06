@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
 current_phase_name: CI signal becomes real
 status: executing
-stopped_at: "Completed 19.1-18-PLAN.md execution — HALTED: the checkout day-click defect is closed and absent on run 34008844133, but gate-e2e remains red on seven host-wizard/edit-route failures; a measured follow-up is required before SC4 can close."
-last_updated: "2026-09-06T10:00:42.0108399Z"
+stopped_at: Phase 19.1 UI-SPEC approved
+last_updated: "2026-09-06T12:24:03.574Z"
 last_activity: 2026-09-06
 last_activity_desc: "19.1-18 executed and HALTED. The day click was received and refused because page.clock.install() covered availability selection; moving it to the checkout boundary makes all four hold-countdown cases first-attempt green and the spec is absent on SHA-matched push run 34008844133. The same run leaves gate-e2e red: seven host-wizard/edit-route failures, two flaky, 26 not run. Proposed 19.1-20 owns the functional cluster; 19.1-19 still owns visual."
-state_head: b710cae8c23952ee6d02617b9ab7e717be0bf113
+state_head: 7d49adc61dc2cdf02978b9e32d1a858b747560e4
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -1704,8 +1704,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-06T02:24:09.119Z
-Stopped at: Completed 19.1-17-PLAN.md — HALTED: both booker specs closed on run 34004929856 (absent from the failure AND flaky lists), but the task also required 19.1-16's two host specs to be absent and they are inherited already-red.
+Last session: 2026-09-06T12:24:02.531Z
+Stopped at: Phase 19.1 UI-SPEC approved
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1858,7 +1858,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: None
+Resume file: .planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/19.1-UI-SPEC.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
