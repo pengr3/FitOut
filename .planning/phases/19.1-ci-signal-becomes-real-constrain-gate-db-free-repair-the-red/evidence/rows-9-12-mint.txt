@@ -3,3 +3,18 @@ Plan 19.1-19. Started 2026-09-06.
 
 RING-BEFORE=clock 2026-09-05T15:59:00.000Z marked 2026-09-05
 RING-BEFORE=clock 2026-09-05T16:01:00.000Z marked 2026-09-06
+
+=== MUTATION: remove today from availability-calendar.tsx ===
+APPLIED=1 explicit today prop removed from the hourly calendar
+RED=target test "the hourly calendar marks the same venue-local cell under two system clocks" exited 1; expected [2026-09-14, 2026-09-14], received [2026-09-05, 2026-09-06]
+CHECKSUM-BEFORE=sha256 6a26f9a447f76f01a1b72d91300a1c31e88f294b3c683b052606813df77fd773
+CHECKSUM-AFTER=sha256 6a26f9a447f76f01a1b72d91300a1c31e88f294b3c683b052606813df77fd773
+
+=== MUTATION: remove today from date-pass-picker.tsx ===
+APPLIED=1 explicit today prop removed from the drop-in twin
+RED=target test "the drop-in twin marks the same venue-local cell under two system clocks" exited 1; expected [2026-09-14, 2026-09-14], received [2026-09-05, 2026-09-06]
+CHECKSUM-BEFORE=sha256 78632263ee36784ea648f212d3aa6bc50216f9f635de0ef1752be798a2e116c2
+CHECKSUM-AFTER=sha256 78632263ee36784ea648f212d3aa6bc50216f9f635de0ef1752be798a2e116c2
+
+RING-AFTER=clock 2026-09-05T15:59:00.000Z marked 2026-09-14
+RING-AFTER=clock 2026-09-05T16:01:00.000Z marked 2026-09-14

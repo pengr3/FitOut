@@ -61,6 +61,8 @@ type DatePassPickerProps = {
   /** deriveBookable for the LISTING. False renders the real availability read-only (no stepper, no CTA). */
   bookable: boolean;
   initialDate: DayLocal;
+  /** Venue-local today, distinct from the searched/opening day in `initialDate`. */
+  todayDate: DayLocal;
   initialDay: DayAvailability | null;
   /** The initial month's fully-booked venue-local `YYYY-MM-DD` dates, computed server-side (OC-11). */
   initialFullDates: string[];
@@ -112,6 +114,7 @@ export function DatePassPicker({
   gmtLabel,
   bookable,
   initialDate,
+  todayDate,
   initialDay,
   initialFullDates,
   onSelectionChange,
@@ -142,18 +145,18 @@ export function DatePassPicker({
   // Venue-local "today" and the 90-day horizon end (D-26), built as venue-tz instants so the day matchers
   // compare in the venue tz — never the browser tz. Same construction as the hourly calendar's.
   const todayStart = React.useMemo(
-    () => new TZDate(initialDate.year, initialDate.month - 1, initialDate.day, timezone),
-    [initialDate, timezone],
+    () => new TZDate(todayDate.year, todayDate.month - 1, todayDate.day, timezone),
+    [todayDate, timezone],
   );
   const horizonEnd = React.useMemo(
     () =>
       new TZDate(
-        initialDate.year,
-        initialDate.month - 1,
-        initialDate.day + BOOKING_HORIZON_DAYS,
+        todayDate.year,
+        todayDate.month - 1,
+        todayDate.day + BOOKING_HORIZON_DAYS,
         timezone,
       ),
-    [initialDate, timezone],
+    [todayDate, timezone],
   );
   const selectedDate = React.useMemo(
     () => new TZDate(day.year, day.month - 1, day.day, timezone),
@@ -274,6 +277,11 @@ export function DatePassPicker({
         <Calendar
           mode="single"
           timeZone={timezone}
+          // D-19.1-D — this and availability-calendar.tsx are one convention: the ring reads the
+          // venue-local today handed down by the hourly parent, not this picker's opening day. In
+          // production that is byte-equivalent whenever server and venue share a day; it differs
+          // only at the timezone divergence the PM already decided is the bug.
+          today={todayStart}
           selected={selectedDate}
           onSelect={handleDaySelect}
           month={viewMonthDate}

@@ -8,6 +8,12 @@
 // alone, and nobody noticed because nothing was pushed for four days. A gate whose baselines expire
 // within a day trains its readers to expect red.
 //
+// WHAT THE SEAM REACHES, MEASURED BY PLAN 19.1-19. The override moves the month bounds, the disabled
+// matchers and the opening day. Until that plan, it did NOT reach the today ring: when its prop was
+// absent, the vendored react-day-picker layer injected its own wall-clock today. Both availability
+// calendar twins now pass the venue-local instant explicitly, completing the seam that was originally
+// built to keep the four listing-detail references from expiring at the day rollover.
+//
 // ⚠ WHY IT IS A SERVER SEAM AND NOT A PLAYWRIGHT CLOCK — MEASURED, AND THE FIRST PRESCRIPTION WAS
 // WRONG. `[17-D26]`'s first draft prescribed `page.clock.install()` on the three calendar-bearing
 // visual drives. Probed before it was written: with the browser clock moved to 2026-11-05, the

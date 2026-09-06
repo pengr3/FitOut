@@ -596,6 +596,7 @@ export function AvailabilityCalendar({
           initialDate={initialDate}
           initialDay={initialDay}
           initialFullDates={initialFullDates ?? []}
+          todayDate={today}
           // Same seam SlotPicker uses one screen down: the picker writes the lifted selection through a
           // callback instead of reaching into the context itself, so the two modules stay acyclic and the
           // picker renders standalone in a test.
@@ -652,6 +653,11 @@ export function AvailabilityCalendar({
         <Calendar
           mode="single"
           timeZone={timezone}
+          // D-19.1-D — this and date-pass-picker.tsx are one convention: the ring reads the same
+          // venue-local today as the bounds beside it. In production the dev override is always
+          // absent, so this changes nothing when server and venue already share a day; it differs
+          // only where those clocks disagree, which is the bug this explicit prop removes.
+          today={todayStart}
           selected={selectedDate}
           onSelect={handleDaySelect}
           startMonth={todayStart}

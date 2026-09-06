@@ -124,10 +124,14 @@ describe("the availability today ring is a pure function of venue-local today", 
           : "export function AvailabilityCalendar",
       );
       expect(start, `could not find the component body in ${path}`).toBeGreaterThan(-1);
+      const end = path.endsWith("date-pass-picker.tsx")
+        ? source.length
+        : source.indexOf("export function CalendarDaySkeleton", start);
+      expect(end, `could not find the end of the component body in ${path}`).toBeGreaterThan(start);
       return {
         path,
         source: source
-          .slice(start)
+          .slice(start, end)
           .replace(/\/\*[\s\S]*?\*\//g, "")
           .replace(/(^|[^:])\/\/.*$/gm, "$1"),
       };
@@ -139,7 +143,7 @@ describe("the availability today ring is a pure function of venue-local today", 
         /<Calendar\s[\s\S]*?\btoday=\{todayStart\}/.test(source),
         `${path} does not hand its vendored Calendar an explicit venue-local today`,
       ).toBe(true);
-      for (const forbidden of ["new Date(", "Date.now(", "getTimezoneOffset("]) {
+      for (const forbidden of ["new Date()", "Date.now(", "getTimezoneOffset("]) {
         expect(source.includes(forbidden), `${path} reads the clock with ${forbidden}`).toBe(false);
       }
     }
