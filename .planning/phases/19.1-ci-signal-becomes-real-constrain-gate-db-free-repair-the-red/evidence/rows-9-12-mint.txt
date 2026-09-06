@@ -36,3 +36,13 @@ OVERRIDE-REACHES-RING=yes
 OVERRIDE-PROOF=listing-detail and collision-notice were driven against localhost:3000 under `next dev`; both rendered data-today=true on data-day=2026-09-15. September 1–14 were disabled before the ring; the two adjacent out-of-month cells were also disabled.
 TEST-DESIGN=82 files passed; 1,442 tests passed and 3 skipped.
 TEST-UNIT=220 files passed and 2 skipped; 2,726 tests passed and 5 skipped. The existing test-db containment report found 2 public audit rows, both inside fitout_test.
+
+RESTORE-COMMIT=5d9e90f68db4a67be8dc5a65a0cb5f27ebe79168 — current 36-reference set before this mint.
+TRACKED-REFERENCES=36 via `git ls-files -- 'e2e/visual/surfaces.spec.ts-snapshots/*-visual-linux.png'`.
+RESTORE-WHOLE=`git checkout 5d9e90f68db4a67be8dc5a65a0cb5f27ebe79168 -- 'e2e/**/*-visual-linux.png'`
+RESTORE-FOUR=`git checkout 5d9e90f68db4a67be8dc5a65a0cb5f27ebe79168 -- e2e/visual/surfaces.spec.ts-snapshots/listing-detail-320-court-visual-linux.png e2e/visual/surfaces.spec.ts-snapshots/listing-detail-768-court-visual-linux.png e2e/visual/surfaces.spec.ts-snapshots/listing-detail-1280-court-visual-linux.png e2e/visual/surfaces.spec.ts-snapshots/collision-notice-1280-court-visual-linux.png`
+RESTORE-CHECKSUM=listing-detail-320 before=e3c5db59d03f05c7588de1b015e7241fd10aeb7e02a290c69cfec6168c1d80c6 after=e3c5db59d03f05c7588de1b015e7241fd10aeb7e02a290c69cfec6168c1d80c6 byte-identical=yes
+RESTORE-CHECKSUM=listing-detail-768 before=9c700df991e98c10176ef5346221effe5d36cbad286ae2168e487a50332e9b0a after=9c700df991e98c10176ef5346221effe5d36cbad286ae2168e487a50332e9b0a byte-identical=yes
+RESTORE-CHECKSUM=listing-detail-1280 before=ba500347a03bde87efaf5302122f3b83c279f01d4864cf794d678be396cb12b7 after=ba500347a03bde87efaf5302122f3b83c279f01d4864cf794d678be396cb12b7 byte-identical=yes
+RESTORE-CHECKSUM=collision-notice-1280 before=cffdca5d0e8f2bcd3d56001b8ee5738508564802410a95375e18a3fc27d759e6 after=cffdca5d0e8f2bcd3d56001b8ee5738508564802410a95375e18a3fc27d759e6 byte-identical=yes
+RESTORE-NEGATIVE=exit 1; pathspec `e2e/**/*-NOSUCHTHING.png` did not match any file known to git.
