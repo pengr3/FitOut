@@ -300,3 +300,85 @@ AFTER ATTEMPT 1 e2e/hold-countdown.spec.ts "D-49 — the digits exist exactly on
 Every case is a FIRST-ATTEMPT pass. Nothing in the file needed a retry to go green, which is the
 distinction 19.1-16 had to draw and could not: a case that only passes on a retry is a different
 finding from a case that now simply executes.
+
+================================================================================================
+TASK 2 — THE SIBLINGS THE SERIAL GROUP COULD NOT REACH, AND THE DIVERGENT SECOND COPY
+================================================================================================
+
+------------------------------------------------------------------------------------------------
+STEP 1 · THE RELEASED SET, BY NAME
+------------------------------------------------------------------------------------------------
+
+Computed from Task 1's BEFORE and AFTER container runs, keyed on FILE and FULL TITLE and never on
+`file:line` — the 19.1-13 rule, and this plan moved two of this file's own line numbers (292 -> 319,
+443 -> 470, 552 -> 579), which is exactly the drift that rule exists for.
+
+RELEASED e2e/hold-countdown.spec.ts | "SHELL-03 — the checkout header does not reflow once per session › grove · the header and countdown boxes are identical in all four states" | first-attempt PASS (15.9s) | declaration position 2 of 4
+RELEASED e2e/hold-countdown.spec.ts | "GATE-03 — the countdown announces exactly once › the sr-only region's text changes ONCE across the hold, and not at expiry" | first-attempt PASS (14.0s) | declaration position 3 of 4
+RELEASED e2e/hold-countdown.spec.ts | "D-49 — the digits exist exactly once on the checkout › [data-testid=\"hold-countdown\"] resolves to exactly 1, and the rail carries no digits" | first-attempt PASS (13.7s) | declaration position 4 of 4
+
+REGRESSED: none. Nothing that ran before stopped running or stopped passing. The one case that ran
+BEFORE — position 1, `SHELL-03 … court` — is itself a first-attempt pass AFTER (13.5s).
+
+RELEASED-TOTAL=3
+DELTA-VS-13=+1
+
+WHAT ACCOUNTS FOR THE DIFFERENCE, with the run winning and the earlier figure NOT edited into
+agreement: 19.1-13 recorded TWO blocked siblings, counting the two DESCRIBES declared after the
+failing one (`GATE-03`, `D-49`). The serial mode is FILE-scoped (`:105`), not describe-scoped, so it
+also stopped the failing case's OWN sibling — `SHELL-03 … grove`, the second arm of the `for (const
+theme of THEMES)` loop at the same `test()` declaration. A count of describes cannot see a
+parameterised second case; the run can. Three is the number.
+
+⚠ ALL THREE ARE FIRST-ATTEMPT PASSES, AND THAT DISTINCTION IS RECORDED DELIBERATELY. 19.1-16 had to
+report the opposite — its `RELEASED-TOTAL=3` was three cases freed because an earlier case flipped
+from a hard failure to a FLAKE, which is a different and much weaker result. Nothing here needed a
+retry, so nothing here is a case that "only passes at a particular position".
+
+------------------------------------------------------------------------------------------------
+STEP 2 · WHAT A RED AT THAT ROW NOW MEANS, SAID AT THE SITE
+------------------------------------------------------------------------------------------------
+
+A comment block was added at the previously failing case in `e2e/hold-countdown.spec.ts`, in the
+shape 19.1-10 used on the photos-step row: what was measured, why the row's own four-times-repeated
+accusation ("the day click is LOST on a streamed surface") was wrong rather than incomplete, and the
+correct response to a future red there in three ordered steps. No assertion, constant or fixture moved.
+
+$ git diff -U0 -- e2e/hold-countdown.spec.ts | grep -E '^[+-][^+-]' | grep -cv '^[+-][[:space:]]*[/*]'
+0
+
+------------------------------------------------------------------------------------------------
+STEP 3 · THE MONEY-PATH SPEC'S DIVERGENT COPY — RECORDED, NOT WIDENED
+------------------------------------------------------------------------------------------------
+
+`e2e/price-parity.spec.ts:181-192` carries its own byte-identical copy of the day-selection walk with
+NO post-condition, by the explicit decision recorded in `booker-seed.ts`'s header (that spec is the
+one e2e spec that runs in CI as its own job, D-35, and is byte-frozen). Filed in `deferred-items.md`
+with a disposition and a severity.
+
+$ git diff --exit-code -- e2e/price-parity.spec.ts ; echo "EXIT=$?"
+EXIT=0
+                            byte-unchanged, as T-19.1-94 requires.
+
+⚠ THE EXPOSURE IS SCOPED HONESTLY RATHER THAN INFLATED. This plan's defect needs a fake clock, and
+`grep -c clock e2e/price-parity.spec.ts` is 0 — so that spec is NOT exposed to what was measured here.
+What it IS exposed to is the SILENCE the post-condition removed: any failure of its day click surfaces
+three minutes later on an unrelated hour-chip locator. That is the divergence being filed, and it is a
+legibility gap rather than a live red.
+
+------------------------------------------------------------------------------------------------
+STEP 4 · THE WHOLE FILE ON THIS BOX TOO
+------------------------------------------------------------------------------------------------
+
+The laptop is not the verdict — this phase has twice watched a laptop and a runner disagree — but a
+regression introduced here would show up on it first and cheapest.
+
+$ npx playwright test e2e/hold-countdown.spec.ts --project=chromium --workers=1 --retries=2
+  ok 1 [chromium] › e2e\hold-countdown.spec.ts:319:9 › SHELL-03 … › court · the header and countdown boxes are identical in all four states (10.9s)
+  ok 2 [chromium] › e2e\hold-countdown.spec.ts:319:9 › SHELL-03 … › grove · the header and countdown boxes are identical in all four states (7.2s)
+  ok 3 [chromium] › e2e\hold-countdown.spec.ts:470:7 › GATE-03 … › the sr-only region's text changes ONCE across the hold, and not at expiry (7.1s)
+  ok 4 [chromium] › e2e\hold-countdown.spec.ts:579:7 › D-49 … › [data-testid="hold-countdown"] resolves to exactly 1, and the rail carries no digits (5.9s)
+
+  4 passed (38.2s)
+
+EXIT=0

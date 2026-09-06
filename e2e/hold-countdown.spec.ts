@@ -315,6 +315,46 @@ async function reachCheckout(
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 
 test.describe("SHELL-03 — the checkout header does not reflow once per session", () => {
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // WHAT A RED AT THIS ROW MEANS NOW — 19.1-18, measured in the runner's own image
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // This row was `gate-e2e`'s longest-standing red. It was named four times across this phase and
+  // each time the accusation was the same, and WRONG: "the day click is LOST on a streamed surface".
+  //
+  // WHAT WAS MEASURED. `mcr.microsoft.com/playwright:v1.60.0-noble`, whole file, `--workers=1
+  // --retries=2` — the failure reproduced on the FIRST run, byte-identically to runner 34004929856
+  // (1 failed, 3 did not run, `booker-seed.ts:148`, ~7s). The CLICK's own call log, read out of the
+  // trace rather than inferred: `element is visible, enabled and stable` … `click action done`. No
+  // detachment, no instability, no retry. `DETACHED=no`. The click was RECEIVED AND REFUSED.
+  //
+  // WHAT REFUSED IT: this file's own `page.clock.install()`. With Playwright's fake clock in force
+  // over `/listings/[id]`, the availability calendar's venue-day arithmetic lands one day early —
+  // the grid arrives with YESTERDAY marked selected and a click on the target marks its neighbour
+  // (measured: `9/5` on arrival, `9/8` after clicking "September 9th"; without the clock, `9/6` then
+  // `9/9`). Three conditions, and the clock is the only variable: 375px and 1280px both reproduce.
+  // See the header's install-order block, and `evidence/triage-day-click-container.txt`.
+  //
+  // WHY THE EARLIER ACCUSATION WAS WRONG RATHER THAN MERELY INCOMPLETE. It named a mechanism this
+  // repository had genuinely measured ELSEWHERE — `openBookingSheet`'s detached trigger, and
+  // 19.1-17's `div#S:1[hidden]` staging window — and both are measured ABSENT here:
+  // `dayStagedHidden=0`, one month grid, one matching day button, and all 33 day buttons carrying
+  // React fibers AND props before the click. A repair shaped like those two would have been a retry,
+  // and a retry would have turned this row green while the cause stayed live.
+  //
+  // ⚠ THE CORRECT RESPONSE TO A FUTURE RED HERE, IN ORDER. (1) Read the CLICK's call log in the
+  // trace, not the assertion's — they answer different questions, and the reporter only prints the
+  // assertion's. (2) If it says `click action done`, read WHICH day carries
+  // `data-selected-single="true"`: the day BEFORE the target means a fake clock is in force over the
+  // calendar again, and the fix is where the clock is installed, never a retry and never a wider
+  // budget. The budget was re-measured on this image — worst click-to-selected 350ms against
+  // 2,000ms — so widening it fixes nothing; with the clock installed the day never selects at all.
+  // (3) Only a call log naming a detachment reopens the lost-click reading, and 19.1-08's standing
+  // condition for a retry still applies.
+  //
+  // WHAT THIS ROW DOES NOT IMPLY. It is not a product defect and never was: nobody using FitOut has
+  // a faked `Date`. `deriveBookable`, every production source file and `.github/` are untouched by
+  // the repair, which is entirely test-side.
   for (const theme of THEMES) {
     test(`${theme} · the header and countdown boxes are identical in all four states`, async ({
       page,

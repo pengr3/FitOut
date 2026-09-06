@@ -795,3 +795,53 @@ red against a genuine second picker cloned into the settled document (the inject
 **Severity:** a flake on a required check, on the profile surface, drawn once. It is not a product
 defect — nobody using FitOut can reach the staged copy — and it is not a regression 19.1-17 caused:
 the file is untouched by that plan's three commits.
+
+## 19.1-18 — THE MONEY-PATH GATE SPEC CARRIES THE DAY-SELECTION WALK WITHOUT ITS POST-CONDITION
+
+**Found during:** 19.1-18 Task 2 Step 3.
+**Full transcript:** `evidence/triage-day-click-container.txt`, TASK 2 STEP 3.
+
+`e2e/price-parity.spec.ts:181-192` holds a byte-identical copy of `selectTargetDay` / `pickWindow`
+— the same three-condition intersection, the same `day.first().click()` — and **nothing after the
+click**. `e2e/helpers/booker-seed.ts:93-95` records that the post-condition 19.1-08 added is
+deliberately NOT copied back into it, because that spec is the ONE e2e spec that runs in CI as its
+own job (D-35), its contract is that `DATABASE_URL` is its only environment input, and it is kept
+byte-frozen rather than migrated onto the shared helper.
+
+**The exact divergence:**
+
+```
+booker-seed.ts   selectTargetDayIn : click -> expect(selectedDay).toHaveCount(1, { timeout: 2_000 })
+price-parity.ts  selectTargetDay   : click -> (nothing)
+```
+
+**The measurement that makes it matter, scoped honestly.** 19.1-18 measured what the missing
+post-condition costs: without it, a day click that does not take surfaces **three minutes later**, in
+a different helper, on an hour-chip locator, as `2:00 PM resolved to 0 elements` — a message that
+names neither the day nor the cause and sent four separate plans to the wrong file. With it, the same
+defect fails in **about one second** at the line that caused it. That is the whole gap.
+
+⚠ **It is NOT exposed to the defect 19.1-18 actually repaired**, and that is stated so nobody files
+this as a live red. This plan's cause is `page.clock.install()` shifting the calendar's venue-day
+arithmetic; `grep -c clock e2e/price-parity.spec.ts` is **0**. What `price-parity.spec.ts` is exposed
+to is the SILENCE, not the shift — a legibility gap on the money path, not a failure waiting to happen.
+
+**Why it was not fixed here.** Three reasons, all stated so the next reader can disagree with them.
+(a) The walk lives in two files by a RECORDED decision, and reversing that decision is not a side
+effect of a plan whose subject is the checkout path's helper. (b) `price-parity.spec.ts` is a
+**required-status-check gate** (D-05) with its own CI job; editing its walk needs its own watched red,
+which this plan has no run budget to produce. (c) `T-19.1-94` in this plan's own threat register
+asserts that file byte-unchanged, verified by a task verify.
+
+**Suggested disposition.** Copy the post-condition — and only the post-condition — into
+`price-parity.spec.ts:181-192`, keeping the copy note in both files honest about what is now shared
+and what is still duplicated. FIRST INSTRUMENT: make the day genuinely unselectable in a mutated copy
+of that spec (intercept the selection so the attribute never lands, the idiom in
+`evidence/triage-day-click-container.txt` TASK 3) and confirm the shipped spec fails at its own line
+inside its own budget rather than three minutes later at `2:00 PM`. **May not:** migrate that spec onto
+`booker-seed.ts` (its single-environment-input contract is the reason it is the CI money gate), add a
+retry, or widen any budget in it.
+
+**Severity:** legibility, on the money path. No red today and no product exposure; the cost is paid
+only when that spec next fails, and it is paid in triage hours — four plans' worth, on the evidence of
+the copy that DID have the post-condition and still took this phase four attempts to read correctly.
