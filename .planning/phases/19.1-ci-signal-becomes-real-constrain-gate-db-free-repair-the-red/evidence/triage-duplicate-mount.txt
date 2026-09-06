@@ -1,0 +1,258 @@
+19.1-17 — THE "ONE ELEMENT RESOLVES TO TWO" DEFECT ON THE TWO BOOKER SURFACES, READ RATHER THAN INFERRED
+=======================================================================================================
+
+Convention: `19.1-PATTERNS.md` §A — the command line above its own unedited output, line-anchored
+markers at column zero. Raw excerpts from the throwaway probe are INDENTED by two spaces so that a
+grep over a marker cannot be satisfied by a block that merely quotes one; the markers this plan's
+acceptance criteria count are the un-indented ones.
+
+MARKER BUDGET, STATED SO A LATER READER IS NOT SURPRISED. Task 1 writes exactly one `ARRIVAL-MS=` and
+exactly one `PERSISTS=` (the confirmation surface). Task 2 writes one more of each under its own
+heading, because its acceptance criterion requires them for the profile surface. So the finished file
+carries two of each, one per surface, and that is by design rather than a duplicate answer. There is
+exactly ONE `SHARED-CAUSE=` and exactly ONE `SAME-BRANCH=` in the whole file, and those two are the
+questions that may only be answered once.
+
+-------------------------------------------------------------------------------------------------
+TASK 1 — STEP 1. REPRODUCED UNDER BOTH CACHE CONDITIONS, ON THE CONFIRMATION SURFACE ONLY.
+-------------------------------------------------------------------------------------------------
+
+Bring-up per `evidence/triage-harness.md` §(a): `npm run db:up` (already up — `fitout-db-1`
+postgis/postgis:18-3.6, 15h), `npm run db:migrate`, `npm run db:seed`, `rm -rf .next`, port 3000 free.
+Run at the runner's own shape: one worker, two retries.
+
+The compile-pressure condition is reported first, per this plan's ordering truth; the cold run is
+below it and was executed first in wall-clock order, which is recorded rather than tidied.
+
+CONDITION=dirty
+$ npm run build            # leaves .next as a production build — the compile-pressure condition
+  BUILD_EXIT=0
+$ npx playwright test e2e/confirmation-decay.spec.ts --project=chromium --workers=1 --retries=2
+
+  Error: court · 320×568: the moment must resolve to exactly ONE laid-out section before anything
+  below measures its box. …
+  Error: strict mode violation: getByTestId('confirmation-moment') resolved to 2 elements:
+      1) <section data-testid="confirmation-moment" class="min-h-[calc(100svh-3.5rem)] …">…</section>
+         aka getByRole('main').getByTestId('confirmation-moment')
+      2) <section data-testid="confirmation-moment" class="min-h-[calc(100svh-3.5rem)] …">…</section>
+         aka getByTestId('confirmation-moment').nth(1)
+  1 flaky
+  3 passed (38.7s)
+
+COUNT-AT-ASSERTION=2
+EXIT=0
+
+CONDITION=cold
+$ rm -rf .next
+$ npx playwright test e2e/confirmation-decay.spec.ts --project=chromium --workers=1 --retries=2
+
+  Error: grove · 375×667: the moment must resolve to exactly ONE laid-out section …
+  Error: strict mode violation: getByTestId('confirmation-moment') resolved to 2 elements:
+      1) … aka getByRole('main').getByTestId('confirmation-moment')
+      2) … aka getByTestId('confirmation-moment').nth(1)
+  1 flaky
+  3 passed (51.3s)
+
+COUNT-AT-ASSERTION=2
+EXIT=0
+
+BOTH CONDITIONS REPRODUCE, and the exit code is zero in both because the retry passes — which is the
+whole reason CI has only ever reported this as flaky. The shape the case's own note recorded holds:
+intermittent at rest, deterministic under compile pressure (5 of 6 loads below, versus 1 of 6 on the
+warm-at-rest probe run). The viewport and theme it lands on MOVE between runs — court·320×568 under
+compile pressure, grove·375×667 cold — which is a timing signature, not a viewport defect.
+
+-------------------------------------------------------------------------------------------------
+TASK 1 — STEP 2. BOTH MATCHES' PROVENANCE. THIS IS THE MEASUREMENT THE WHOLE PLAN TURNS ON.
+-------------------------------------------------------------------------------------------------
+
+Instrument: a throwaway probe (`e2e/zz-probe-dup-mount.spec.ts`, deleted in Task 3, never committed)
+that installs a document-start script before navigation. The script observes the whole document with a
+MutationObserver plus a 4ms interval, records one sample per count change, and — the first time the
+count exceeds one — walks BOTH matches to `<html>`, one ancestor per line, recording each ancestor's
+tag, identifier, class list, whether it declares the `hidden` attribute ITSELF (the attribute's
+presence, never a computed style, because a node inside a hidden container computes as hidden without
+carrying the attribute), and whether it is the page's main landmark. It also records the comment-node
+siblings of the outermost DIVERGING ancestor.
+
+The dump below is `grove · 375×667` under the dirty-cache condition. Eleven of the twelve loads across
+two probe runs produced a byte-identical chain shape; the twelfth never exceeded one.
+
+  $ PROBE_OUT=probe-conf-dirty.txt npx playwright test e2e/zz-probe-dup-mount.spec.ts --project=chromium --workers=1
+    1 passed (33.9s)
+
+  ### SURFACE=confirmation THEME=grove VIEWPORT=375x667
+  MAX-COUNT=2
+
+SAMPLE 0ms count=0
+SAMPLE 155ms count=1
+SAMPLE 193ms count=2
+SAMPLE 338ms count=1
+SAMPLE 757ms count=1
+SAMPLE 1173ms count=1
+SAMPLE 2005ms count=1
+SAMPLE 3237ms count=1
+
+ARRIVAL-MS=193
+PERSISTS=no (count after a 3000ms bounded wait: 1)
+
+ANCESTOR match=1 depth=0 tag=section id=(none) class="min-h-[calc(100svh-3.5rem)] sm:min-h-[calc(100svh-4rem)] flex flex-col items-center justify-center gap-6 text-center" hiddenAttr=no isMain=no
+ANCESTOR match=1 depth=1 tag=div id=(none) class="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12" hiddenAttr=no isMain=no
+ANCESTOR match=1 depth=2 tag=main id=(none) class="flex flex-1 flex-col" hiddenAttr=no isMain=yes
+ANCESTOR match=1 depth=3 tag=div id=(none) class="flex min-h-full flex-col" hiddenAttr=no isMain=no
+ANCESTOR match=1 depth=4 tag=body id=(none) class="min-h-full flex flex-col" hiddenAttr=no isMain=no
+ANCESTOR match=1 depth=5 tag=html id=(none) class="geist_… geist_mono_… h-full antialiased" hiddenAttr=no isMain=no
+ANCESTOR match=2 depth=0 tag=section id=(none) class="min-h-[calc(100svh-3.5rem)] sm:min-h-[calc(100svh-4rem)] flex flex-col items-center justify-center gap-6 text-center" hiddenAttr=no isMain=no
+ANCESTOR match=2 depth=1 tag=div id=(none) class="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12" hiddenAttr=no isMain=no
+ANCESTOR match=2 depth=2 tag=div id=S:1 class="(none)" hiddenAttr=yes isMain=no
+ANCESTOR match=2 depth=3 tag=body id=(none) class="min-h-full flex flex-col" hiddenAttr=no isMain=no
+ANCESTOR match=2 depth=4 tag=html id=(none) class="geist_… geist_mono_… h-full antialiased" hiddenAttr=no isMain=no
+
+  DIVERGE-AT match=1 tag=div parent=body
+  DIVERGE-AT match=2 tag=div parent=body
+  (no comment-node siblings at the divergence point: the two chains diverge at `<body>`'s OWN
+   children, and the delivery mechanism's marker here is not a comment — it is the identifier and the
+   attribute on the diverging element itself, `div#S:1[hidden]`.)
+
+THE READING, IN THE WALK'S OWN TERMS.
+
+The two chains are identical for two levels — `section[data-testid=confirmation-moment]` inside
+`div.mx-auto.w-full.max-w-2xl` — and then diverge at `<body>`:
+
+    match 1 :  … → MAIN.flex.flex-1.flex-col → div.flex.min-h-full.flex-col → body
+    match 2 :  … → DIV#S:1[hidden]                                          → body
+
+`div#S:1[hidden]` is React's OUT-OF-ORDER STREAMING STAGING AREA. Content for a Suspense boundary that
+resolves after the shell has been flushed is written at the END of `<body>` inside a hidden div with a
+generated `S:n` identifier, and an inline script then commits those children into the boundary and
+drops the staging div. The two "copies" are therefore ONE section in two places for one frame: staged
+and committed.
+
+THE BRANCH THIS SELECTS, from the three this plan stated in advance:
+  • the second copy goes away on its own — `PERSISTS=no`, measured on every load, gone within ~150ms
+    of arriving (193ms → 338ms in the samples above);
+  • its ancestor chain carries the delivery mechanism's own marker — `div#S:1`, `hidden`, a direct
+    child of `<body>`, which no page composition in this repository produces;
+  • the browser reported NOTHING about regenerating the tree on this route — `HYDRATION-MSGS=0` on
+    both trees (see Step 3), so the third branch is excluded by measurement and not by argument.
+
+→ IT IS A COMMIT-WINDOW ARTEFACT. It is NOT a duplicated mount, and it is NOT a regenerated tree. The
+defect is that the measurement runs before the surface has committed.
+
+AND IT EXPLAINS THE ONE THING NO DUPLICATE-MOUNT THEORY EVER DID — the original `0px tall` reports.
+While only the STAGED copy exists the count really is one, `boxOf`'s `document.querySelector` takes it,
+and a node inside a `hidden` container has a zero rect. The case's note read that as "the box of the
+WRONG section", which was right about the section and wrong about why there were two. Both readings
+are kept at the site; see Task 3.
+
+WHY THE COUNT ASSERTION PASSES AND THE VISIBILITY ASSERTION THEN FINDS TWO — the window, named. The
+samples say the count is 0 → 1 → 2 → 1. `toHaveCount(1)` retries until it sees ONE, and one is exactly
+what the document holds while the staged copy is present and the committed one is not. Two statements
+later the commit lands, the staged div has not yet been dropped, and the strict-mode resolution reports
+both. The window is not between two renders; it is between the flush and the commit.
+
+-------------------------------------------------------------------------------------------------
+TASK 1 — STEP 3. THE SHARED-CAUSE QUESTION PLAN 13 HANDED FORWARD, ANSWERED WITH A PAIR.
+-------------------------------------------------------------------------------------------------
+
+Method: byte copy out, byte copy back — never a checkout, because this working tree is mixed-EOL and a
+checkout silently rewrites a line-feed file while `git status` reads clean.
+
+  $ cp src/components/patterns/site-chrome.tsx  <scratch>/site-chrome.repaired.bytes
+  $ sha256sum src/components/patterns/site-chrome.tsx
+    148cd8ccbc388507eb270de932fe46a454cc9fe352fbaccd971cb7a63e2432af
+
+CHECKSUM-BEFORE=148cd8ccbc388507eb270de932fe46a454cc9fe352fbaccd971cb7a63e2432af
+
+  $ git cat-file -p 282073c^:src/components/patterns/site-chrome.tsx > src/components/patterns/site-chrome.tsx
+  $ grep -c "NavDrawerShell" src/components/patterns/site-chrome.tsx
+    0                     # plan 16's repair is out of the tree
+  $ sha256sum src/components/patterns/site-chrome.tsx
+    347e543c3c958f9b99534c73946cfe18339dc995efd53040eee1b1bc4f2dca68
+
+Both sides measured with the SAME probe, at the same six theme×viewport loads, on a dirty cache:
+
+  WITH plan 16's repair (HEAD)          : loads reaching count 2 = 5 of 6 ; HYDRATION-MSGS=0
+  WITHOUT plan 16's repair (282073c^)   : loads reaching count 2 = 6 of 6 ; HYDRATION-MSGS=0
+  match-2 ancestor chain, both trees    : section → div.mx-auto → div#S:1[hidden] → body → html
+                                          (byte-identical shape on both sides)
+
+SHARED-CAUSE=no
+  counts, both trees: repaired 5/6 loads at count 2, ARRIVAL-MS 193–273ms; pre-repair 6/6 loads at
+  count 2, ARRIVAL-MS 198–1883ms. The defect is present in equal measure on BOTH sides of plan 16's
+  repair, with the same ancestor chain, so plan 16's repair neither caused it nor closes it.
+
+AND THE STRUCTURAL READING AGREES WITH THE MEASUREMENT, which is why this null result is a finding and
+not a failed attempt. Plan 16's defect is a trigger element crossing the RSC boundary into Radix's
+`asChild` clone, inside `NavDrawer` → `NavDrawerShell`. `NavDrawer` is reached only through `SiteNav`,
+and `SiteNav` is reached only through `SiteChrome`'s `nav` prop — which `src/app/(app)/layout.tsx` does
+NOT pass. It passes `actions` only. So the booker shell never renders the component plan 16 repaired,
+and `HYDRATION-MSGS=0` on the booker route on BOTH trees is that structural fact measured rather than
+argued. The two defects share a visible signature — one match in `main`, one outside it, one hidden —
+and nothing else.
+
+  $ cp <scratch>/site-chrome.repaired.bytes src/components/patterns/site-chrome.tsx
+  $ sha256sum src/components/patterns/site-chrome.tsx
+    148cd8ccbc388507eb270de932fe46a454cc9fe352fbaccd971cb7a63e2432af
+  $ git status --porcelain -- src/components/patterns/site-chrome.tsx
+    (empty)
+
+CHECKSUM-AFTER=148cd8ccbc388507eb270de932fe46a454cc9fe352fbaccd971cb7a63e2432af
+CHECKSUM-EQUAL=yes
+
+-------------------------------------------------------------------------------------------------
+TASK 1 — STEP 4. THE REPAIR THE READING SELECTED, AND THE CONSTRAINT SET IT SATISFIES.
+-------------------------------------------------------------------------------------------------
+
+CHOSEN: a precondition in `e2e/confirmation-decay.spec.ts` that ASSERTS THE COMMIT — a new helper
+`expectStreamCommitted(page, testId, where)` that polls a CLASSIFICATION of every match: a match with a
+`[hidden]` ancestor is STAGED, one without is COMMITTED, and the precondition is *zero staged and at
+least one committed*. It runs on the default expect budget and is called immediately after each
+`page.goto` on this surface, ahead of the count assertion.
+
+  This is a repair to the INSTRUMENT and not to the product, and the reading is why: nothing in the
+  delivered page is wrong. A booker never sees two confirmation sections; the staged copy is hidden,
+  belongs to the framework's delivery mechanism, and is gone within ~150ms. What was wrong is that the
+  measurement started before the surface had committed.
+
+REJECTED, each with the constraint that decided it:
+
+  1. Scope the locator to the main landmark — PROHIBITED at the case's own site, and rightly: it
+     deletes the only instrument that has ever named this defect. Also wrong on the reading: it would
+     hide a genuine duplicate outside `main` forever.
+  2. Hand `boxOf` the visible match — PROHIBITED at the same site, and it would silently pass over a
+     staged copy rather than notice one.
+  3. Widen the expect budget, or the case's own budget — forbidden by this plan, and it would not have
+     worked: the count is ONE during the window, so a longer wait on `toHaveCount(1)` returns sooner,
+     not later.
+  4. `waitForTimeout` past the window — the constraint that kills it is (d). A sleep long enough to
+     outlast the commit also outlasts a genuine duplicate injected afterwards, and the case stops being
+     able to see the thing it exists to see. This is the difference between asserting the commit and
+     waiting it out, and it is why Task 3's second control exists.
+  5. Change the route's streaming structure so the moment is never streamed — this is production
+     source, it moves a surface above a gate for a test's convenience, and the measurement names no
+     product defect to justify it. Constraint (e) and the plan's own prohibition on crediting a repair
+     to the wrong change.
+
+THE CONSTRAINT SET, EACH SATISFIED AND HOW:
+
+  (a) The case's locator is untouched and unscoped; `boxOf` still takes `document.querySelector`'s
+      first match. The helper classifies matches, it does not select one for the case.
+        $ git diff -- e2e/confirmation-decay.spec.ts | grep -cE '^\+.*getByRole\(.main.\)'   ->  0
+  (b) No timeout widened. The helper takes no explicit budget; `expect.poll` uses the configured
+      expect default, the same one `toBeVisible()` above it already used.
+        $ git diff -U0 -- e2e/confirmation-decay.spec.ts | grep -E '^\+' | grep -cE 'timeout: *[0-9_]+'  ->  0
+  (c) The height floor (`height - 64`) and the fold position (`>= height`) are byte-unchanged.
+  (d) The case still fails against a genuine second copy present after the surface has settled: the
+      precondition passes (`staged=0`, `committed=2`) and `toHaveCount(1)` then reddens. Watched in
+      Task 3.
+  (e) No production source changed in this task. The confirmation component's single mount site is
+      still single and nothing in the route's streaming structure moved.
+
+VERIFICATION, BOTH CONDITIONS, AFTER THE REPAIR:
+
+  $ npx playwright test e2e/confirmation-decay.spec.ts --project=chromium --workers=1 --retries=2
+    (dirty cache)  4 passed (28.3s)   — 0 failed, 0 flaky, first attempt
+  $ rm -rf .next && npx playwright test e2e/confirmation-decay.spec.ts --project=chromium --workers=1 --retries=2
+    (cold cache)   4 passed (43.9s)   — 0 failed, 0 flaky, first attempt
+EXIT=0

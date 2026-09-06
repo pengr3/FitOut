@@ -72,6 +72,64 @@ async function boxOf(page: Page, testId: string) {
 }
 
 /**
+ * Block until the streamed surface has COMMITTED, and assert the commit rather than sleep through it.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * WHAT THIS IS, IN THE ANCESTOR WALK'S OWN TERMS (19.1-17 Task 1, `evidence/triage-duplicate-mount.txt`)
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ *
+ * The "second copy" of the moment is not a second mount. Both matches were walked to `<html>` and the
+ * chains diverge at `<body>`'s own children:
+ *
+ *   match 1:  section → div.mx-auto → MAIN → div.flex → body → html
+ *   match 2:  section → div.mx-auto → div#S:1[hidden] → body → html
+ *
+ * `div#S:1[hidden]` is React's out-of-order streaming STAGING area: content for a Suspense boundary
+ * that resolved after the shell was flushed arrives at the end of `<body>` inside a hidden div, and an
+ * inline script then commits it into the boundary. So the document holds the same section twice for
+ * one frame — once staged, once committed — and `PERSISTS=no`: the staged copy is gone on its own
+ * within ~100ms of arriving (`ARRIVAL-MS` measured at 193–1883ms across twelve loads).
+ *
+ * That also explains the ORIGINAL `0px tall` readings, which no duplicate-mount theory ever did:
+ * while only the staged copy exists the count really is one, `boxOf`'s `document.querySelector` takes
+ * it, and a node inside a `hidden` container has a zero rect.
+ *
+ * WHY THIS ASSERTS RATHER THAN WAITS. A `waitForTimeout` long enough to outlast the commit would also
+ * outlast a GENUINE duplicate, and the case would stop being able to see the thing it exists to see.
+ * This polls a classification instead: every match is either STAGED (it has a `[hidden]` ancestor) or
+ * COMMITTED (it does not), and the precondition is *zero staged, at least one committed*. It runs on
+ * the default expect budget — nothing here is widened.
+ *
+ * IT DOES NOT DECIDE THE CASE'S COUNT. `>= 1` committed, deliberately: two committed copies satisfy
+ * this and are then caught by the `toHaveCount(1)` / `toBeVisible()` pair below, which stay exactly as
+ * they are. Scoping the case's locator or handing `boxOf` the visible match remain prohibited — see
+ * the note at the assertion itself.
+ */
+async function expectStreamCommitted(page: Page, testId: string, where: string) {
+  await expect
+    .poll(
+      () =>
+        page.evaluate((id) => {
+          const all = Array.from(document.querySelectorAll(`[data-testid="${id}"]`));
+          const staged = all.filter((el) => el.closest("[hidden]") !== null);
+          return staged.length === 0 && all.length > 0
+            ? "committed"
+            : `staged=${staged.length} committed=${all.length - staged.length}`;
+        }, testId),
+      {
+        message:
+          `${where}: \`${testId}\` never committed out of React's streaming staging area. A match ` +
+          "with a `[hidden]` ancestor is a section the server flushed late into `div#S:n[hidden]` at " +
+          "the end of `<body>`; the inline commit script moves it into the boundary and drops the " +
+          "staging div. `staged=` above zero here means that never happened — the page is still " +
+          "mid-stream, and every box read below would be the staged copy's zero rect. `committed=0` " +
+          "with `staged=0` means the surface never rendered at all.",
+      },
+    )
+    .toBe("committed");
+}
+
+/**
  * Every element inside the moment that is actually animating, with the two properties DS-04's global
  * reset sets.
  *
@@ -172,6 +230,13 @@ test.describe("BFLOW-08 — the confirmation moment fills the first screen and t
         await page.goto(`${BASE}/bookings/${confirmedId}?paid=1`);
 
         const where = `${theme} · ${width}×${height}`;
+
+        // ⚠ THE PRECONDITION THE TWO ASSERTIONS BELOW ALWAYS NEEDED, AND THE ONLY LINE 19.1-17 ADDED
+        // HERE. Read `expectStreamCommitted`'s block for the ancestor walk that named it. Everything
+        // below this line — the count, the visibility, the height floor, the fold position — is
+        // byte-unchanged.
+        await expectStreamCommitted(page, "confirmation-moment", where);
+
         await expect(
           page.getByTestId("confirmation-moment"),
           `${where}: the moment did not render on ?paid=1 + a confirmed booking. Its trigger is the ` +
@@ -461,6 +526,10 @@ test.describe("BFLOW-08 — the confirmation moment fills the first screen and t
       //    scan that found nothing to look at.
       await page.emulateMedia({ reducedMotion: "no-preference" });
       await page.goto(url);
+      // `animationsInsideMoment` also reads `document.querySelector`'s first match, so it has the
+      // same exposure to the staging window the geometry case measured — a scan of the STAGED copy
+      // would report on a subtree that is about to be moved. Same precondition, same reason.
+      await expectStreamCommitted(page, "confirmation-moment", `${theme} · no-preference`);
       await expect(page.getByTestId("confirmation-moment")).toHaveCount(1);
       await expectReducedMotion(page, false);
 
@@ -491,6 +560,7 @@ test.describe("BFLOW-08 — the confirmation moment fills the first screen and t
       // ── THE SUPPRESSED DIRECTION.
       await page.emulateMedia({ reducedMotion: "reduce" });
       await page.goto(url);
+      await expectStreamCommitted(page, "confirmation-moment", `${theme} · reduce`);
       await expect(page.getByTestId("confirmation-moment")).toHaveCount(1);
       await expectReducedMotion(page, true);
 
