@@ -102,6 +102,28 @@ export async function selectTargetDayIn(scope: Page | Locator): Promise<void> {
     .getByRole("button", { name: targetDayLabel })
     .and(scope.locator("td:not([data-outside='true']) button"))
     .and(scope.locator("button:not([disabled])"));
+
+  // ⚠ A PRE-CONDITION ON THE GRID, BECAUSE AN INTERSECTION THAT MATCHES NOTHING IS A SILENT ZERO.
+  // `day` is an intersection of THREE conditions, and `.first().click()` on a locator that matches
+  // none of them does not say so: it waits out the whole action timeout and then reports a generic
+  // locator timeout at the click line — which reads exactly like the lost click this helper spent
+  // four plans being wrongly accused of. The two states are different defects in different files:
+  // an EMPTY grid is the calendar never rendering (a route, a fixture or a seed), while a day that
+  // refuses to become selected is the post-condition below. Measured 19.1-18 Task 3: with every
+  // enabled in-month day removed, the click line alone reported `locator resolved to 0 elements` and
+  // named neither the grid nor the day. This line makes the empty grid fail AS an empty grid, in
+  // about a second, before the click that cannot land.
+  await expect(
+    day,
+    `the calendar rendered NO enabled, in-month day matching ${targetDayLabel}, so there is nothing ` +
+      `for this helper to click and the failure below would otherwise be a bare action timeout. ` +
+      `This is an EMPTY GRID, not a refused or lost click: the month grid never rendered, the ` +
+      `target day fell outside the rendered month, or every occurrence of it is \`disabled\` — the ` +
+      `90-day horizon and the past-day guard are what disable one (\`availability-calendar.tsx\`'s ` +
+      `\`{ before: todayStart }\` / \`{ after: horizonEnd }\`). A day that IS present and refuses to ` +
+      `select fails one assertion later, with its own message.`,
+  ).not.toHaveCount(0, { timeout: 10_000 });
+
   await day.first().click();
 
   // ⚠ THE POST-CONDITION IS A MEASURED REQUIREMENT, NOT A HEDGE, AND IT IS `openBookingSheet`'s FINDING

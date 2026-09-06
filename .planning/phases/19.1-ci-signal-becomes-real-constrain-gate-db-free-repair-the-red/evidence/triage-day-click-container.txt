@@ -382,3 +382,130 @@ $ npx playwright test e2e/hold-countdown.spec.ts --project=chromium --workers=1 
   4 passed (38.2s)
 
 EXIT=0
+
+================================================================================================
+TASK 3 — THE GUARD PROVED IN BOTH DIRECTIONS, AND THE FOUR GRID STATES RE-DRIVEN
+================================================================================================
+
+Throwaway probe `e2e/zz-guard-probe.spec.ts`, created and deleted in this task, driving the SHIPPED
+helpers rather than a copy of them. Every mutation carries an `APPLIED=` count READ BACK FROM THE
+DOCUMENT (`documentElement.dataset.probeApplied`), never from the mutation script — the rule
+`evidence/eol-mutation-builders.txt` bought after a mutation silently matched nothing and its result
+was very nearly recorded as evidence.
+
+$ npx playwright test e2e/zz-guard-probe.spec.ts --project=chromium --workers=1 --retries=0
+  6 passed (1.5m)
+
+------------------------------------------------------------------------------------------------
+STEP 1 · WATCHING THE GUARD RED, IN THE TWO DIRECTIONS THAT MATTER
+------------------------------------------------------------------------------------------------
+
+(a) THE UNSELECTABLE DAY. A capture-phase listener swallows the click before React's root listener
+    sees it. The click is still DELIVERED — the button stays visible, enabled and stable, so
+    Playwright's actionability checks pass and the click is really performed — so this reproduces the
+    STATE the runner was in and not its CAUSE. Stated explicitly, as 19.1-08 required of the same
+    manoeuvre: the runner's cause was `page.clock.install()`; no fake clock is installed here.
+
+APPLIED=1
+GUARD=red (a) unselectable-day ELAPSED-MS=2105 FIRED=post-condition FRAME=booker-seed.ts:205:5 NAMES-DAY=true NAMES-ATTR=true
+
+    the calendar has no day carrying `data-selected-single="true"` matching
+    /September\s+9(st|nd|rd|th)?,?\s+2026/ after this helper clicked it. TWO CAUSES REACH THIS LINE …
+
+    It fires at the helper's OWN line, inside its OWN budget (2,105ms observed against a 2,000ms
+    timeout — the residue is the round trip, not a widened budget), and its message names the day and
+    the attribute. Before this assertion existed the identical state cost 3.0 MINUTES and surfaced on
+    an hour-chip locator in a different helper.
+
+(b) THE EMPTY GRID. Every enabled, in-month day button removed and kept removed by a MutationObserver,
+    because React owns and re-renders that subtree.
+
+APPLIED=25
+GUARD=red (b) empty-grid ELAPSED-MS=10017 FIRED=pre-condition FRAME=booker-seed.ts:125:9 NAMES-EMPTY=true
+
+    the calendar rendered NO enabled, in-month day matching … so there is nothing for this helper to
+    click … This is an EMPTY GRID, not a refused or lost click: the month grid never rendered, the
+    target day fell outside the rendered month, or every occurrence of it is `disabled` …
+
+THIS DIRECTION FOUND A REAL DEFECT IN THE HELPER'S OWN REPORTING, AND IT WAS REPAIRED HERE — which is
+what this task's second direction exists for. Before the repair, an empty grid did NOT reach the
+post-condition at all: `day.first().click()` on a three-condition intersection matching NOTHING is a
+SILENT ZERO, so the helper waited out the whole action timeout and reported a bare
+`locator resolved to 0 elements` at the click line, naming neither the grid nor the day. That reads
+exactly like the lost click this helper spent four plans being wrongly accused of — one failure
+wearing another's message, which is the class T-19.1-93 names. The repair is a positive count
+pre-condition on the enabled in-month day, BEFORE the click, with its own message. The two directions
+now land on two different assertions at two different lines: `booker-seed.ts:125` for an empty grid,
+`booker-seed.ts:205` for a day that refuses to select.
+
+RECOVERED=n/a — no retry was added, because Task 1's branch was `DETACHED=no`: the runner's own click
+call log reads `element is visible, enabled and stable` and `click action done`, with no detachment
+and no retry line. 19.1-08's inherited condition for a retry is therefore still unmet, and the first
+behaviour this task was written to prove ("a day button replaced under the pointer once, then settles,
+is recovered") is OUT OF SCOPE rather than unproven. There is no polled click to exercise.
+
+------------------------------------------------------------------------------------------------
+STEP 2 · THE FOUR GRID STATES STAY FOUR
+------------------------------------------------------------------------------------------------
+
+Each state driven into the SHIPPED `clickHourChip` and read from the poll's own `Received:` value —
+never from the failure prose, which lists all four state names and would match any regex put to it.
+(That trap was hit on the first pass of this probe and is recorded rather than quietly fixed: the
+first reading reported all three failing states as "correct" because the message MENTIONS them.)
+
+STATE present                          | APPLIED=1  | RECEIVED=present                         | the happy path, no failure
+STATE present-but-disabled             | APPLIED=1  | RECEIVED=present-but-disabled            | the `8:00 AM` chip renamed "8:00 AM — Unavailable" + aria-disabled, as a taken slot renders
+STATE absent-while-other-hours-render  | APPLIED=15 | RECEIVED=absent-while-other-hours-render | `3:00 AM` requested against 06:00-21:00 hours; 15 other chips rendered
+STATE absent-with-no-hours-at-all      | APPLIED=30 | RECEIVED=absent-with-no-hours-at-all     | every hour chip removed and kept removed
+
+Four inputs, four distinct answers, zero collapses. This is the anti-regression proof for the
+distinction 19.1-08 bought after measuring that a taken slot and a grid with no selected day produced
+BYTE-IDENTICAL call logs — the observation everyone nominated could not separate them, so the
+separation has to be made in this helper, and a collapse back to one message would send the next
+reader to the wrong file.
+
+------------------------------------------------------------------------------------------------
+STEP 3 · THE THROWAWAY IS GONE, PROVED THE SAME WAY THE HARNESS WAS
+------------------------------------------------------------------------------------------------
+
+$ rm -f e2e/zz-guard-probe.spec.ts
+$ npx playwright test --project=chromium --list | tail -1
+Total: 461 tests in 39 files
+                            the figure recorded before any probe existed.
+
+$ git status --porcelain
+ M e2e/helpers/booker-seed.ts
+?? .gsd/
+?? .planning/milestone.lock
+?? .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-PATTERNS.md
+?? .planning/state.json
+                            no throwaway harness, config, forwarder or probe. The four untracked
+                            entries predate this plan — 19.1-16's transcript records the same four —
+                            and none of them is a file this plan created.
+
+------------------------------------------------------------------------------------------------
+CLOSING — WHAT THIS PLAN MEASURED, IN ONE PLACE
+------------------------------------------------------------------------------------------------
+
+THE BRANCH TAKEN, AND WHY. Task 1's STEP 3 offers three branches. This plan took the SECOND:
+`DETACHED=no` with `SELECTED=no` — the click was received and refused. No retry was added. The cause
+was named (`page.clock.install()` in force over the availability calendar shifts its venue-day
+arithmetic one day early) and repaired in the file that owns it, by moving where the clock is
+installed rather than by touching the calendar, the assertion or the budget.
+
+THE TWO INTERVALS, on the runner's image rather than this laptop: click-to-selected worst 350ms,
+selected-to-first-hour-chip worst 315ms, against the laptop's 683ms for the combined leg and the
+post-condition's 2,000ms budget. THE BUDGET DID NOT MOVE and both numbers are why: 5.7x headroom, and
+widening it would not have helped anyway because under the fake clock the day never selects at all.
+
+THE GUARD'S TWO REDS: 2,105ms at `booker-seed.ts:205` for a day that will not select (naming the day
+and the attribute), 10,017ms at `booker-seed.ts:125` for an empty grid (naming the empty grid). Two
+assertions, two lines, two messages — no longer one message for two defects.
+
+RECOVERY: n/a, with the branch that made it so recorded above.
+
+THE FOUR GRID STATES: four distinct `Received:` values, listed in STEP 2.
+
+THE RELEASED SET: 3, all first-attempt passes, `DELTA-VS-13=+1`, named individually in TASK 2 STEP 1.
+
+SC4-TERM=This plan closed the last of the four `gate-e2e` failures 19.1-13 left with a named owner: the checkout path's day click is repaired at its measured cause (a fake clock over the availability calendar, NOT a lost click, NOT a streaming window, NOT a hydration race), the whole spec runs to completion in the runner's own image at the runner's own shape with all four cases first-attempt green, the three cases the file-scoped serial group had blocked are released by name, and the helper's guard is proved to fail in two directions at two different lines — but SC4 itself is NOT closed here, because the criterion is a property of the RUN and `gate-visual` is red by construction until plan 19 mints its baselines, and because whether `gate-e2e`'s own conclusion reads success additionally depends on 19.1-16's two host specs, which this plan neither owns nor touches (see `evidence/ci-run-after-18.txt` for what the real run said).
