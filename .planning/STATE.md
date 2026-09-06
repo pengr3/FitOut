@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 19.1
-current_phase_name: CI signal becomes real
+current_phase_name: CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes
 status: executing
 stopped_at: Phase 19.1 UI-SPEC approved
-last_updated: "2026-09-06T12:24:03.574Z"
+last_updated: "2026-09-06T13:04:36.442Z"
 last_activity: 2026-09-06
 last_activity_desc: "19.1-18 executed and HALTED. The day click was received and refused because page.clock.install() covered availability selection; moving it to the checkout boundary makes all four hold-countdown cases first-attempt green and the spec is absent on SHA-matched push run 34008844133. The same run leaves gate-e2e red: seven host-wizard/edit-route failures, two flaky, 26 not run. Proposed 19.1-20 owns the functional cluster; 19.1-19 still owns visual."
-state_head: 7d49adc61dc2cdf02978b9e32d1a858b747560e4
+state_head: e304ea2637953d3c4c12031fe7bab30f0d312a8d
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -17,7 +17,7 @@ progress:
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 8
   completed_phases: 1
-  total_plans: 64
+  total_plans: 65
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
   # A halted plan counted as a completed one is the same fabricated counter this file
@@ -106,9 +106,9 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19.1 (CI signal becomes real) — EXECUTING · 17/19 done · 14 halted mid-plan (PM hold) · 15 blocked (construction) · 16, 17 and 18 executed but HALTED on terminal real-run criteria
-Plan: 18 of 19
-Status: 19.1-18 HALTED — checkout day-click closed, but `gate-e2e` remains red; proposed 19.1-20 must repair the host-wizard/edit-route cluster before Wave 10 can close
+Phase: 19.1 (CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes) — READY TO EXECUTE
+Plan: 18 of 20
+Status: 19.1-20 planned and checker-approved — execute 19.1-19 visual closure first, then the measured host-wizard/edit-route functional repair
 Last activity: 2026-09-06 — run 34008844133 matched pushed SHA 2d944c0: hold-countdown absent, seven host-wizard/edit-route failures, two flaky, 26 not run, 374 passed; gate-e2e failure, gate-visual failure
 
 ## Performance Metrics
