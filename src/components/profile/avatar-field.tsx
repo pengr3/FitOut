@@ -454,7 +454,18 @@ export function AvatarField({
         {/* The only `<input type="file">` in `src/`. `accept` is narrowed to the three types the
             allow-list declares — it was `image/*`, which offered the person HEIC and TIFF and then
             refused them after the fact. It is a hint to the picker and nothing more, which is why
-            guard 1 re-reads the list anyway. */}
+            guard 1 re-reads the list anyway.
+
+            ⚠ "THE ONLY ONE IN `src/`" IS A CLAIM ABOUT THIS TREE, NOT ABOUT THE DELIVERED DOCUMENT,
+            and 19.1-17 measured the difference. This route has a `loading.tsx`, so React may flush
+            the shell first and write this subtree into its streaming staging area at the end of the
+            body; for one frame the document then holds this input TWICE — once staged, once
+            committed — and it settles to one on its own within a few hundred milliseconds. Nothing
+            here is wrong and nobody using the product can reach the staged copy. It is recorded
+            because a reader who takes the sentence above as a statement about the DOM will misread
+            a strict-mode violation in `e2e/avatar-crop.spec.ts` as a double mount, which is exactly
+            what happened once. The walk is in
+            `.planning/phases/19.1-…/evidence/triage-duplicate-mount.txt`. */}
         <input
           ref={fileInput}
           type="file"

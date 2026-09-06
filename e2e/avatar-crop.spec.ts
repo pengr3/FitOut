@@ -153,12 +153,75 @@ const FIXTURES = path.join(__dirname, "fixtures");
 const fixture = (name: string): string => path.join(FIXTURES, name);
 
 /**
+ * The picker has COMMITTED out of React's out-of-order streaming staging area.
+ *
+ * ═══════════════════════════════════════════════════════════════════════════════════════════════
+ * THE SAME REPAIR AS `e2e/confirmation-decay.spec.ts`'s, BECAUSE IT IS THE SAME BRANCH. The reading
+ * that chose it lives in
+ * `.planning/phases/19.1-…/evidence/triage-duplicate-mount.txt` (19.1-17, Tasks 1 and 2) — both
+ * matches walked to `<html>` on BOTH surfaces, and both times the chains diverge at `<body>`'s own
+ * children:
+ *
+ *     match 1 :  input.hidden → … → form → … → MAIN            → div.flex → body
+ *     match 2 :  input.hidden → … → form → … → DIV#S:1[hidden]            → body
+ *
+ * `div#S:1[hidden]` is where React writes content for a Suspense boundary that resolved after the
+ * shell was flushed; an inline script then commits it into the boundary and drops the div. So the
+ * document holds the same input twice for one frame — `ARRIVAL-MS=347`, `PERSISTS=no`, gone on its
+ * own. `src/app/(app)/profile/loading.tsx` is the boundary. `SAME-BRANCH=yes`.
+ *
+ * WHY THIS ASSERTS RATHER THAN WAITS. A sleep long enough to outlast the commit also outlasts a
+ * GENUINE second picker, and the strict-mode assertion below would stop being able to see one. This
+ * polls a CLASSIFICATION instead: a match with a `[hidden]` ancestor is staged, one without is
+ * committed, and the precondition is *zero staged, at least one committed*. `class="hidden"` on the
+ * input itself is a CSS class and not the attribute, so it is correctly not counted as staged. No
+ * budget is set here — `expect.poll` uses the configured expect default.
+ */
+async function expectPickerCommitted(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const all = Array.from(document.querySelectorAll('input[type="file"]'));
+          const staged = all.filter((el) => el.closest("[hidden]") !== null);
+          return staged.length === 0 && all.length > 0
+            ? "committed"
+            : `staged=${staged.length} committed=${all.length - staged.length}`;
+        }),
+      {
+        message:
+          "the file picker never committed out of React's streaming staging area. `staged=` above " +
+          "zero means the page is still mid-stream and the picker below would be handed a node that " +
+          "is about to be moved; `committed=0` with `staged=0` means the profile surface never " +
+          "rendered a picker at all, which is a reachability failure and not this one.",
+      },
+    )
+    .toBe("committed");
+}
+
+/**
  * Hand a fixture to the shipped picker.
  *
- * `input[type="file"]` is unambiguous by construction — `avatar-field.tsx` records that it is the
- * only one in `src/` — so Playwright's strict mode is the assertion that it stays that way.
+ * ⚠ THE DOCBLOCK'S ORIGINAL CLAIM WAS TRUE OF THE SOURCE AND FALSE OF THE DELIVERED DOCUMENT, and
+ * that distinction is the whole of 19.1-17. It read: *"`input[type="file"]` is unambiguous by
+ * construction — `avatar-field.tsx` records that it is the only one in `src/`"*. The source claim
+ * still holds and is still checked; what it does not license is a claim about the DOCUMENT, which
+ * CI refuted in run 33972688199 (`resolved to 2 elements`, both `aria-label="Upload avatar"`).
+ *
+ * MEASURED: the second one is not a second mount. It is this one, staged in
+ * `div#S:1[hidden]` for one frame during React's streaming commit — see `expectPickerCommitted`
+ * above for the ancestor walk and the transcript it lives in.
+ *
+ * ⚠ STRICT MODE STAYS, AND IT IS THE ASSERTION RATHER THAN AN INCONVENIENCE. The locator below is
+ * deliberately UNQUALIFIED by any landmark: it is what fails if a second picker is ever genuinely
+ * mounted, and two pickers in one document means a person can operate one while the application
+ * reads the other. Do NOT scope it to `main`, do NOT take `.first()`, and do NOT add a retry — the
+ * precondition above removes the streaming race WITHOUT removing the assertion, which a scoped
+ * locator would. `19.1-17` Task 3 injects a genuine second picker into the settled document and
+ * watches this line go red, so the claim that it can still fail is measured rather than asserted.
  */
 async function pick(page: Page, name: string): Promise<void> {
+  await expectPickerCommitted(page);
   await page.locator('input[type="file"]').setInputFiles(fixture(name));
 }
 

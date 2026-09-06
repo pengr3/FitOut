@@ -256,3 +256,95 @@ VERIFICATION, BOTH CONDITIONS, AFTER THE REPAIR:
   $ rm -rf .next && npx playwright test e2e/confirmation-decay.spec.ts --project=chromium --workers=1 --retries=2
     (cold cache)   4 passed (43.9s)   — 0 failed, 0 flaky, first attempt
 EXIT=0
+
+=================================================================================================
+TASK 2 — THE PROFILE SURFACE: MEASURED ON ITS OWN BEFORE ANYTHING WAS INHERITED
+=================================================================================================
+
+SURFACE=profile (`/profile`, `src/components/profile/avatar-field.tsx`'s `input[type="file"]`)
+
+Instrument: a second throwaway probe (`e2e/zz-probe-dup-picker.spec.ts`, deleted in Task 3, never
+committed) with the same document-start observer and the same `ANCESTOR ` marker shape as Task 1's,
+plus a served-bytes read. It signs up WITHOUT visiting `/profile`, so the first read below lands on a
+route the dev server has never compiled — the condition CI is permanently in.
+
+  $ rm -rf .next            # cold
+  $ PROBE_OUT=probe-picker-cold2.txt npx playwright test e2e/zz-probe-dup-picker.spec.ts --project=chromium --workers=1
+    1 passed (36.6s)
+
+  SERVED-BYTES total=64372 occurrences-of-type-file=1 offsets=11665
+  SERVED-STAGING-DIVS=2
+
+  ⚠ THE SERVED-BYTES READ DID NOT ANSWER IT, AND THAT IS RECORDED RATHER THAN DROPPED. A buffered
+  read of the whole response collapses the flush ORDER, so a single occurrence there is consistent
+  with both a boundary emitted inline and one emitted into a staging div. The DOM observer is the
+  instrument that answered; the byte read is kept because it rules out the other shape this
+  repository has measured before — `/`'s `loading.tsx` renders a SECOND copy of a control
+  (`booker-seed.ts:481-495`), which would have shown TWO occurrences here. It shows one, so
+  `profile/loading.tsx` is NOT a second mount site. VERDICT N2's open question — "why two mount" —
+  is answered: they do not. One mounts, and it is momentarily in two places.
+
+  ### SURFACE=profile PASS=2   (six passes; PASS=2 is the one that caught it — the shape is
+                                intermittent at rest here exactly as the confirmation surface's is)
+  MAX-COUNT=2
+
+  SAMPLE 0ms count=0
+  SAMPLE 312ms count=1
+  SAMPLE 347ms count=2
+  SAMPLE 421ms count=1
+
+ARRIVAL-MS=347
+PERSISTS=no (count after a 2000ms bounded wait: 1)
+
+ANCESTOR match=1 depth=0 tag=input id=(none) class="hidden" hiddenAttr=no isMain=no
+ANCESTOR match=1 depth=5 tag=form id=(none) class="space-y-6" hiddenAttr=no isMain=no
+ANCESTOR match=1 depth=7 tag=div id=(none) class="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12" hiddenAttr=no isMain=no
+ANCESTOR match=1 depth=8 tag=main id=(none) class="flex flex-1 flex-col" hiddenAttr=no isMain=yes
+ANCESTOR match=1 depth=9 tag=div id=(none) class="flex min-h-full flex-col" hiddenAttr=no isMain=no
+ANCESTOR match=1 depth=10 tag=body id=(none) class="min-h-full flex flex-col" hiddenAttr=no isMain=no
+ANCESTOR match=2 depth=0 tag=input id=(none) class="hidden" hiddenAttr=no isMain=no
+ANCESTOR match=2 depth=5 tag=form id=(none) class="space-y-6" hiddenAttr=no isMain=no
+ANCESTOR match=2 depth=7 tag=div id=(none) class="mx-auto w-full max-w-2xl px-4 py-8 sm:py-12" hiddenAttr=no isMain=no
+ANCESTOR match=2 depth=8 tag=div id=S:1 class="(none)" hiddenAttr=yes isMain=no
+ANCESTOR match=2 depth=9 tag=body id=(none) class="min-h-full flex flex-col" hiddenAttr=no isMain=no
+ANCESTOR match=2 depth=10 tag=html id=(none) class="geist_… geist_mono_… h-full antialiased" hiddenAttr=no isMain=no
+
+  (depths 1–4 and 6 are identical on both matches — `div.space-y-1`, `div.flex.items-center.gap-4`,
+   the card's two divs, `div.space-y-8` — and are elided here only for width. The full twelve- and
+   eleven-line walks are in the probe output; nothing differs below the divergence point.)
+
+  DIVERGE-AT match=1 tag=div parent=body
+  DIVERGE-AT match=2 tag=div parent=body
+  (no comment-node siblings at the divergence point, same as the confirmation surface.)
+
+  HYDRATION-MSGS=0 — the browser reported nothing about regenerating the tree on this route either.
+
+SAME-BRANCH=yes
+  The term that decided it: the DIVERGENCE POINT. On both surfaces the two chains are identical from
+  the element up through the page's own container and then split at `<body>`'s own children — one
+  through `MAIN`, one through `DIV#S:1[hidden]` — and on both surfaces `PERSISTS=no`. Two surfaces
+  with the same visible signature and DIFFERENT delivery structures is exactly the situation where a
+  shared cause gets assumed and never checked; this one was checked, on this surface's own walk,
+  before any repair was carried across. Both routes carry a `loading.tsx`, which is the boundary the
+  staging area belongs to.
+
+THE REPAIR ON THIS SURFACE — the same shape, in this file's idiom.
+
+`expectPickerCommitted(page)` in `e2e/avatar-crop.spec.ts`, called from `pick()` ahead of
+`setInputFiles`. Same classification (a match with a `[hidden]` ancestor is staged), same default
+expect budget, no explicit budget anywhere. `class="hidden"` on the input itself is a CSS class and
+NOT the attribute, so it is correctly not counted as staged — confirmed by the walk above, which
+records `hiddenAttr=no` on the input in both matches.
+
+  • The fixture-handing helper's locator is still `page.locator('input[type="file"]')`, unqualified
+    by any landmark. Strict mode remains the assertion that the picker stayed unique.
+  • The docblock is corrected AT THE SITE: the "unambiguous by construction" sentence is kept and
+    labelled as a claim about the SOURCE, with the measurement of what the DOCUMENT held beside it.
+  • `src/components/profile/avatar-field.tsx` carries the same correction beside its own "the only
+    one in `src/`" comment, because that is the sentence the spec was citing.
+  • The file's ONE expected-failure annotation, its `CI` condition and its raised budget are
+    byte-unchanged, and no entry was added to the known-failures allowlist.
+
+  $ npx playwright test e2e/avatar-crop.spec.ts --project=chromium --workers=1
+    33 passed (1.9m)
+EXIT=0
