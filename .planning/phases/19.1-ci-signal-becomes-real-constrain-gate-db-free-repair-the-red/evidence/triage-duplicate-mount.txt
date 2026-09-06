@@ -348,3 +348,143 @@ records `hiddenAttr=no` on the input in both matches.
   $ npx playwright test e2e/avatar-crop.spec.ts --project=chromium --workers=1
     33 passed (1.9m)
 EXIT=0
+
+=================================================================================================
+TASK 3 — BOTH INSTRUMENTS WATCHED RED AGAINST A GENUINE DUPLICATE, AND GREEN AGAINST THE TRANSIENT
+=================================================================================================
+
+⚠ THE RED SIMULATES THE STATE, NOT THE CAUSE — 19.1-08's requirement, stated here explicitly. Nothing
+below reproduces the route delivering two committed sections; each injection PUTS the document into the
+state that would produce, and then runs the SHIPPED case against it. That is what "the instrument can
+still fail" means and it is all it means.
+
+METHOD: mutate-a-copy-then-run, the idiom of `tests/design/workflow-invariants.test.ts`. A script
+copies the shipped spec, inserts one line at a single unique anchor, and REFUSES TO WRITE THE COPY if
+the mutated text equals its input — `evidence/eol-mutation-builders.txt` records what a silently
+unapplied mutation once cost this phase (a case reported as surviving the deletion of its own
+conjunct). Every injection additionally reports `APPLIED=`, the number of nodes actually added as read
+back from the document, so a probe that ran and changed nothing cannot be mistaken for a result. The
+copies are `e2e/zz-mutant-*.spec.ts` and they are deleted below.
+
+-------------------------------------------------------------------------------------------------
+(1) A GENUINE SECOND COPY, CLONED INTO THE SETTLED DOCUMENT
+-------------------------------------------------------------------------------------------------
+
+Injected AFTER the commit precondition, as a sibling of the original with NO hidden ancestor — so it
+is not a copy the delivery mechanism would ever remove on its own.
+
+  $ node mutate.mjs confirmation genuine
+    MUTATED e2e/confirmation-decay.spec.ts -> e2e/zz-mutant-confirmation.spec.ts (genuine);
+    text-differs=yes; bytes 36864 -> 37291
+  $ npx playwright test e2e/zz-mutant-confirmation.spec.ts --project=chromium --workers=1 --grep "the moment is a full screen"
+    PROBE-APPLIED=1
+    Error: court · 320×568: the moment must be in the document exactly once. ZERO means it did not
+    render on ?paid=1 + a confirmed booking … MORE THAN ONE means a GENUINE second copy, because the
+    precondition above has already established that nothing is left staged in React's streaming area;
+    two committed confirmation sections on the surface a booker lands on after paying is a defect in
+    the route, not a race. Do not make either direction pass by scoping the locator.
+        14 × locator resolved to 2 elements
+    1 failed
+
+INJECT=confirmation-genuine
+APPLIED=1
+RESULT=red
+
+  ⚠ AND THE MESSAGE IS THE POINT, NOT A DETAIL. Before Task 3 this same red printed *"the moment did
+  not render … either a broken mount or a 404 from the owner gate"* — a sentence that names a cause the
+  document refutes, on a document holding TWO of the thing it says did not render. It now names the
+  duplicate, in both directions, and it does not name a height. That correction is the plan's
+  prohibition against leaving a failure message asserting a refuted cause, applied to the case that
+  needed it.
+
+  $ node mutate.mjs picker genuine
+    MUTATED e2e/avatar-crop.spec.ts -> e2e/zz-mutant-picker.spec.ts (genuine);
+    text-differs=yes; bytes 170579 -> 170949
+  $ npx playwright test e2e/zz-mutant-picker.spec.ts --project=chromium --workers=1 --grep "undiluted indicator"
+    PROBE-APPLIED=1
+    Error: locator.setInputFiles: Error: strict mode violation: locator('input[type="file"]')
+    resolved to 2 elements:
+        at pick (…/e2e/zz-mutant-picker.spec.ts:226:3)
+    1 failed
+
+INJECT=profile-genuine
+APPLIED=1
+RESULT=red
+
+  It fails AT THE FIXTURE-HANDING HELPER, which is where the behaviour said it must: strict mode is
+  still the assertion that the picker stayed unique, and it is still unqualified by any landmark.
+
+-------------------------------------------------------------------------------------------------
+(2) CONTROL A — THE TRANSIENT FORM. A copy the delivery mechanism itself produces AND REMOVES.
+-------------------------------------------------------------------------------------------------
+
+Injected BEFORE the commit precondition, inside a hidden staging div appended to the body with the
+generated identifier — the shape the walk in Task 1 measured — and removed 400ms later, as the
+mechanism removes its own. This is what separates "the instrument still catches the defect" from "the
+instrument catches any transient", and it is the control that forbids a repair which merely sleeps.
+
+  $ node mutate.mjs confirmation transient    # text-differs=yes; bytes 36864 -> 37472
+  $ npx playwright test e2e/zz-mutant-confirmation.spec.ts … --grep "the moment is a full screen"
+    PROBE-APPLIED=1  (×6, one per theme×viewport load)
+    1 passed (24.8s)
+
+INJECT=confirmation-transient
+APPLIED=1
+RESULT=green
+
+  $ node mutate.mjs picker transient          # text-differs=yes; bytes 170579 -> 171130
+  $ npx playwright test e2e/zz-mutant-picker.spec.ts … --grep "undiluted indicator"
+    PROBE-APPLIED=1
+    1 passed (13.9s)
+
+INJECT=profile-transient
+APPLIED=1
+RESULT=green
+
+-------------------------------------------------------------------------------------------------
+(3) CONTROL B — NO INJECTION AT ALL. Both shipped cases, together, at the runner's shape.
+-------------------------------------------------------------------------------------------------
+
+  $ npx playwright test e2e/confirmation-decay.spec.ts e2e/avatar-crop.spec.ts --project=chromium --workers=1 --retries=2
+    37 passed (2.3m)          — 0 failed, 0 flaky, 0 did not run
+
+RESULT=green   (control B, confirmation surface — no injection)
+RESULT=green   (control B, profile surface — no injection)
+
+-------------------------------------------------------------------------------------------------
+(4) THE PROBES ARE GONE, AND THE COLLECTED COUNT IS THE PROOF
+-------------------------------------------------------------------------------------------------
+
+Four throwaway files existed during this plan and none was ever committed:
+`e2e/zz-probe-dup-mount.spec.ts`, `e2e/zz-probe-dup-picker.spec.ts`,
+`e2e/zz-mutant-confirmation.spec.ts`, `e2e/zz-mutant-picker.spec.ts`.
+
+  $ npx playwright test --project=chromium --list | tail -1
+    Total: 461 tests in 39 files          # recorded BEFORE the probes existed
+    Total: 461 tests in 39 files          # after they were deleted
+  $ git status --porcelain
+    (no e2e/ entry beyond the shipped specs this plan modified)
+
+-------------------------------------------------------------------------------------------------
+CLOSING — BOTH SURFACES, BOTH REPAIRS, WHAT WAS REJECTED, AND WHAT THIS DID NOT CLOSE
+-------------------------------------------------------------------------------------------------
+
+BRANCH VERDICTS      : confirmation = commit-window artefact ; profile = commit-window artefact.
+SHARED-CAUSE (vs 16) : no. Measured on both sides of 19.1-16's repair, same chain, HYDRATION-MSGS=0 on
+                       the booker route on both trees; `(app)/layout.tsx` passes no `nav`, so the
+                       component 19.1-16 repaired never renders on this shell.
+SAME-BRANCH (17↔17)  : yes, decided by the divergence point, measured on each surface's own walk.
+REPAIRS              : `expectStreamCommitted` in `e2e/confirmation-decay.spec.ts`;
+                       `expectPickerCommitted` in `e2e/avatar-crop.spec.ts`. Both assert the commit.
+                       Both notes rewritten to what was measured, both prohibitions kept, the refuted
+                       "missing settle" hypothesis kept as history.
+REJECTED             : scoping to `main`; handing `boxOf` the visible match; widening a budget;
+                       sleeping past the window; changing the route's streaming structure. Each with
+                       the constraint that decided it, in Task 1 Step 4 above.
+PRODUCTION SOURCE    : one comment in `src/components/profile/avatar-field.tsx`, correcting a sentence
+                       the spec was citing. No behaviour changed, no dependency added, no migration.
+ALLOWLIST            : untouched. PINNED_ENTRY_TOTAL still 2; `tests/design/e2e-known-failures.test.ts`
+                       9 passed. `e2e/avatar-crop.spec.ts`'s one annotation, its `CI` condition and its
+                       raised budget are byte-unchanged.
+
+SC4-TERM=19.1-17 closed the two booker "one element resolved to two" failures by measuring that neither is a duplicate mount — both are the same React streaming commit window, staged in a hidden div at the end of the body and gone on their own — and by giving each case a precondition that ASSERTS the commit, proved still able to redden against a genuine injected duplicate and proved NOT to redden against the transient form; it did NOT close SC4, which stays open on gate-e2e's remaining failures and on gate-visual, and it did not touch the two host specs 19.1-16 owns or the wizard-advance cause they are waiting on.

@@ -239,9 +239,13 @@ test.describe("BFLOW-08 — the confirmation moment fills the first screen and t
 
         await expect(
           page.getByTestId("confirmation-moment"),
-          `${where}: the moment did not render on ?paid=1 + a confirmed booking. Its trigger is the ` +
-            "parameter AND the DB status, both — so this is either a broken mount or a 404 from the " +
-            "owner gate.",
+          `${where}: the moment must be in the document exactly once. ZERO means it did not render ` +
+            "on ?paid=1 + a confirmed booking — its trigger is the parameter AND the DB status, " +
+            "both — so that is either a broken mount or a 404 from the owner gate. MORE THAN ONE " +
+            "means a GENUINE second copy, because the precondition above has already established " +
+            "that nothing is left staged in React's streaming area; two committed confirmation " +
+            "sections on the surface a booker lands on after paying is a defect in the route, not " +
+            "a race. Do not make either direction pass by scoping the locator.",
         ).toHaveCount(1);
 
         // ⚠ THIS LINE EXISTS BECAUSE `toHaveCount(1)` ABOVE IS NOT ENOUGH, AND WHAT IT CAUGHT IS NOT
@@ -276,16 +280,45 @@ test.describe("BFLOW-08 — the confirmation moment fills the first screen and t
         // that `toHaveCount(1)` two statements above PASSED: the second copy appears BETWEEN the two
         // assertions, so it is an overlap during the route's own streaming and not a static duplicate.
         //
+        // ═══ AND 19.1-17 WENT AND READ WHICH OVERLAP, WHICH IS THE HALF THE PARAGRAPH ABOVE GUESSED ═══
+        //
+        // The paragraph above was right that it is an overlap and right that the box read was the wrong
+        // section's; where it hedged — "the route's own streaming" — is now measured, and the words
+        // "duplicate mount" that this note used elsewhere were WRONG and are removed. Both matches were
+        // walked to `<html>` and the chains diverge at `<body>`'s own children:
+        //
+        //     match 1 :  section → div.mx-auto → MAIN → div.flex → body
+        //     match 2 :  section → div.mx-auto → DIV#S:1[hidden]  → body
+        //
+        // `div#S:1[hidden]` is React's out-of-order streaming STAGING AREA: content for a Suspense
+        // boundary (`bookings/[id]/loading.tsx`) that resolves after the shell was flushed is written
+        // at the end of `<body>` in a hidden div, and an inline script commits it into the boundary and
+        // drops the div. `ARRIVAL-MS` 193–1883ms, `PERSISTS=no` — the staged copy leaves on its own
+        // within ~150ms. There is ONE mount. It is momentarily in two places.
+        //
+        // The full walk, both cache conditions, the before/after pair against 19.1-16's repair
+        // (`SHARED-CAUSE=no`) and the rejected alternatives are in
+        // `.planning/phases/19.1-…/evidence/triage-duplicate-mount.txt`.
+        //
+        // THE REPAIR IS THE PRECONDITION ABOVE, and it ASSERTS the commit rather than sleeping past it
+        // — see `expectStreamCommitted`. A sleep long enough to outlast the staging window also outlasts
+        // a genuine duplicate, and this assertion would stop being able to see one. It still can: 19.1-17
+        // Task 3 clones a second section into the SETTLED document and both assertions go red (`APPLIED=1`,
+        // `resolved to 2 elements`), while a copy injected in the STAGED form and then removed does not
+        // redden anything. Both results are in the transcript.
+        //
         // WHY THIS ASSERTION STAYS, EXACTLY AS IT IS. Strict mode is what turned a vague, viewport-
         // shaped number into a named defect with both elements printed. That is the whole value.
         //
         // ⚠ DO NOT "FIX" THIS BY SCOPING THE LOCATOR (`getByRole('main').getByTestId(...)`) OR BY
-        // GIVING `boxOf` THE VISIBLE ONE. Either turns the suite green and deletes the only instrument
-        // that has ever named this defect — and the same two-elements-one-in-`main` signature is live
-        // in `e2e/avatar-crop.spec.ts:162` (`input[type="file"]` resolved to 2, run 33972688199). The
-        // duplicate mount is handed forward as a defect to be MEASURED, not waited out;
-        // `.planning/phases/19.1-…/evidence/suite-remeasurement.txt` VERDICT N2 and the FINAL section
-        // name the plan that owns it.
+        // GIVING `boxOf` THE VISIBLE ONE. Both prohibitions still bind, and the measurement makes them
+        // sharper rather than weaker: the staged copy is the one OUTSIDE `main`, so scoping to `main`
+        // would have hidden this window AND would hide a genuine second copy delivered outside the
+        // landmark for good. The same signature was live in `e2e/avatar-crop.spec.ts`'s picker helper
+        // (`input[type="file"]` resolved to 2, run 33972688199); 19.1-17 measured that surface on its
+        // own walk, found the same divergence point (`SAME-BRANCH=yes`) and applied the same
+        // precondition there. `evidence/suite-remeasurement.txt` VERDICT N2 asked why two MOUNT; the
+        // answer is that they do not.
         //
         // WHAT THIS DELIBERATELY IS NOT: no timeout is widened (the default `expect` timeout is used,
         // and the case's own `test.setTimeout(240_000)` is untouched), and no expected height is
@@ -293,12 +326,13 @@ test.describe("BFLOW-08 — the confirmation moment fills the first screen and t
         await expect(
           page.getByTestId("confirmation-moment"),
           `${where}: the moment must resolve to exactly ONE laid-out section before anything below ` +
-            "measures its box. A `strict mode violation … resolved to 2 elements` here is the known " +
-            "duplicate mount (run 33975274855), and it is why the earlier `0px tall` reports were the " +
-            "box of the WRONG section rather than an unsettled box of the right one — `boxOf` takes " +
-            "`document.querySelector`'s first match. An `unexpected value \"hidden\"` with a count of " +
-            "one instead means the moment renders and never takes a box. Do not scope this locator to " +
-            "make it pass: see the note above this line.",
+            "measures its box. A `strict mode violation … resolved to 2 elements` here is now a " +
+            "GENUINE second copy rather than the streaming window — the precondition above has " +
+            "already established that nothing is left staged — and it is why the earlier `0px tall` " +
+            "reports were the box of the WRONG section rather than an unsettled box of the right " +
+            "one: `boxOf` takes `document.querySelector`'s first match. An `unexpected value " +
+            '"hidden"` with a count of one instead means the moment renders and never takes a box. ' +
+            "Do not scope this locator to make it pass: see the note above this line.",
         ).toBeVisible();
 
         const moment = await boxOf(page, "confirmation-moment");
