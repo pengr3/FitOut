@@ -124,13 +124,43 @@ export async function selectTargetDayIn(scope: Page | Locator): Promise<void> {
   // shell and a resolved copy of this very booking surface concurrently, which is the same subtree the
   // day button lives in.
   //
-  // ⚠ NO RETRY, DELIBERATELY, AND THE SIBLING'S PRECEDENT IS WHY. `openBookingSheet` retries because
-  // its lost click was OBSERVED, with Playwright's own call log naming the detachment. This one was
-  // not: the plan authorising this change gated the retry on a trace showing the click genuinely lost,
-  // and the canonical run did not reproduce the failure at all
-  // (evidence/triage-hold-countdown.txt, VERDICT). A retry added on the strength of a mechanism that
-  // fits rather than one that was seen would be a hedge, and would make the next red unreadable. The
-  // assertion below is justified independently of that diagnosis; the retry is not, yet.
+  // ⚠ NO RETRY — AND AS OF 19.1-18 THAT IS A MEASUREMENT RATHER THAN AN OUTSTANDING QUESTION.
+  // `openBookingSheet` retries because its lost click was OBSERVED, with Playwright's own call log
+  // naming the detachment. 19.1-08 gated a retry HERE on the same observation and could not get it.
+  // 19.1-18 reproduced the failure in the runner's own image
+  // (`mcr.microsoft.com/playwright:v1.60.0-noble`, whole file, `--workers=1 --retries=2`, three
+  // attempts, all red) and read the CLICK's own call log out of the trace. Verbatim:
+  //
+  //     - locator resolved to <button … data-day="9/9/2026" aria-label="Wednesday, September 9th,
+  //       2026" …>9</button>
+  //     - attempting click action
+  //       - waiting for element to be visible, enabled and stable
+  //       - element is visible, enabled and stable
+  //       - scrolling into view if needed
+  //       - done scrolling
+  //       - performing click action
+  //       - click action done
+  //
+  // No "element is not stable". No "retrying click action". No "element was detached from the DOM".
+  // `DETACHED=no`. The click was RECEIVED AND REFUSED, which is a different defect from a lost one,
+  // and a retry would have re-sent a click that was never the problem — hiding the real cause behind
+  // a green. The evidence is `evidence/triage-day-click-container.txt`.
+  //
+  // ⚠ WHAT REFUSED IT, MEASURED: `page.clock.install()`. With Playwright's fake clock in force this
+  // calendar's venue-timezone arithmetic lands ONE VENUE-DAY EARLY, so the page arrives with
+  // YESTERDAY marked selected and a click on the target day marks the day BEFORE it:
+  //
+  //     clock installed :  arrives selected 9/5/2026 ; click "September 9th" -> selected 9/8/2026
+  //     no clock        :  arrives selected 9/6/2026 ; click "September 9th" -> selected 9/9/2026
+  //
+  // `data-day` and `aria-label` AGREE on every cell in both conditions, so the locator resolves the
+  // right button — `availability-calendar.tsx:537` recomputes `selectedDate` as
+  // `new TZDate(day.year, day.month - 1, day.day, timezone)`, and that constructor is what shifts
+  // under a replaced global `Date`. `install({ time: new Date() })` does NOT help; the instant is not
+  // the variable, the fake `Date` is. NOBODY USING FitOut HAS A FAKED CLOCK, so this is a defect in
+  // the INSTRUMENT and not in the route — the repair is `placeHold`'s `beforeCheckoutNavigation` hook
+  // below, which lets the one spec that needs a fake clock install it AFTER the calendar and still
+  // before the page whose timers it exists to drive.
   //
   // THE ATTRIBUTE IS READ OFF THE COMPONENT, NOT GUESSED. react-day-picker v9 emits NO `aria-selected`
   // and NO `data-selected` on these buttons — the selected day carries `data-selected-single="true"`
@@ -141,10 +171,15 @@ export async function selectTargetDayIn(scope: Page | Locator): Promise<void> {
   await expect(
     selectedDay,
     `the calendar has no day carrying \`data-selected-single="true"\` matching ${targetDayLabel} ` +
-      `after this helper clicked it. The click did not register — see this function's note: on this ` +
-      `route the day button is replaced while React finishes with the streamed page, and a click on a ` +
-      `departing node is LOST rather than queued. Without this line the next thing to fail would be ` +
-      `the caller's hour-button click, three minutes later, on a grid that never rendered any hours.`,
+      `after this helper clicked it. TWO CAUSES REACH THIS LINE and the note above says how to tell ` +
+      `them apart. (1) THE CLICK WAS REFUSED — read the CLICK's own call log in the trace: if it ` +
+      `says "click action done" with no "detached"/"not stable", the button took the click and the ` +
+      `page declined to move the selection. 19.1-18 measured exactly that, caused by a ` +
+      `\`page.clock.install()\` in force over this calendar, which shifts its venue-day arithmetic ` +
+      `back by one — check which day IS marked: the day BEFORE the target means a fake clock. ` +
+      `(2) THE CLICK WAS LOST — the call log names a detachment, the shape \`openBookingSheet\` ` +
+      `documents below. Without this line the next thing to fail would be the caller's hour-button ` +
+      `click, three minutes later, on a grid that never rendered any hours.`,
   ).toHaveCount(1, { timeout: 2_000 });
 }
 
@@ -509,11 +544,34 @@ export async function openSeededListing(page: Page, seed: SeededListing): Promis
  * Returns the minted hold id, read off the URL `placeHold` redirected to. The caller is expected to have
  * signed a booker up already — the two are separate because a spec that drives two windows signs up once.
  */
+export type PlaceHoldOptions = {
+  /**
+   * Run immediately BEFORE the click that navigates to `/listings/[id]/book`, and after every
+   * calendar interaction this helper performs.
+   *
+   * ⚠ THIS EXISTS FOR EXACTLY ONE REASON AND IT IS MEASURED, NOT SPECULATIVE. `hold-countdown.spec.ts`
+   * is this repository's only `page.clock` user; it needs a fake clock to drive the checkout
+   * countdown's `setInterval`, and Playwright's own caveat is that the clock must be installed BEFORE
+   * the page that creates those timers is navigated to. Installing it before the SIGNUP navigation —
+   * which is what that spec did until 19.1-18 — puts the fake clock in force over the availability
+   * calendar too, and `selectTargetDayIn` above records what that costs: the calendar's venue-day
+   * arithmetic lands one day early, the day click marks the target's neighbour, and the spec dies at
+   * the post-condition on all three attempts. Measured in the runner's own image; see
+   * `evidence/triage-day-click-container.txt`.
+   *
+   * The hook is the narrowest seam that satisfies both facts: no clock while the calendar is driven,
+   * clock installed before the checkout navigation. It is optional and every other caller is
+   * unaffected — `beforeCheckoutNavigation` absent means this helper behaves exactly as it did.
+   */
+  beforeCheckoutNavigation?: () => Promise<void>;
+};
+
 export async function placeHold(
   page: Page,
   seed: SeededListing,
   startLabel: string,
   endLabel: string,
+  options: PlaceHoldOptions = {},
 ): Promise<string> {
   await openSeededListing(page, seed);
   await pickWindow(page, startLabel, endLabel);
@@ -540,6 +598,11 @@ export async function placeHold(
       "`Book this space`. More than one means the placement that should be `hidden` is not.",
   ).toHaveCount(1);
   await expect(bookBtn).toBeEnabled();
+
+  // The last point at which a caller can still act on the LISTING page and have whatever it does
+  // apply to the checkout navigation below. See `PlaceHoldOptions.beforeCheckoutNavigation`.
+  await options.beforeCheckoutNavigation?.();
+
   await bookBtn.click();
 
   await page.waitForURL(/\/book\?hold=/);

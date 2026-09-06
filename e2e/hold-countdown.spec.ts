@@ -21,11 +21,32 @@
 //    before the intended test time. This ensures that all timers run normally during page loading,
 //    preventing the page from getting stuck."
 //
-// So `page.clock.install()` is called BEFORE the first `goto` in every test below — before the signup
-// navigation, not merely before the checkout one. A clock installed after navigation does not control
-// the timers the page already created, and the countdown's `setInterval` is exactly such a timer: the
-// spec would then be measuring a real fifteen-minute wall clock and would pass by never reaching any
-// state at all.
+// So `page.clock.install()` is called BEFORE the navigation to the page whose timers it must control.
+// A clock installed after that navigation does not control the timers the page already created, and
+// the countdown's `setInterval` is exactly such a timer: the spec would then be measuring a real
+// fifteen-minute wall clock and would pass by never reaching any state at all.
+//
+// ⚠ "BEFORE THE FIRST `goto` IN EVERY TEST" IS WHAT THIS BLOCK USED TO SAY, AND IT WAS TOO WIDE BY
+// THREE NAVIGATIONS. THAT OVER-APPLICATION IS WHAT MADE THIS FILE RED ON THE RUNNER FOR FOUR PLANS.
+// Installing before the SIGNUP navigation also puts the fake clock in force over `/listings/[id]`'s
+// availability calendar — a surface this file never asserts anything about and merely walks through.
+// 19.1-18 measured, in the runner's own image, what the fake clock does to it:
+//
+//     clock installed :  the grid arrives with YESTERDAY marked selected (9/5), and a click on the
+//                        target day "September 9th, 2026" marks 9/8 — one venue-day early
+//     no clock        :  the grid arrives with today marked (9/6); the same click marks 9/9
+//
+// `data-day` and `aria-label` agree on every cell in both conditions, so nothing was mis-targeted:
+// `availability-calendar.tsx:537` rebuilds the selection as `new TZDate(y, m - 1, d, timezone)`, and
+// that constructor shifts under a replaced global `Date`. `install({ time: new Date() })` does not
+// help — the instant is not the variable, the fake `Date` is. The click itself was RECEIVED on every
+// attempt (`DETACHED=no`, the trace's own click call log), so no retry was warranted and none was
+// added. Transcript: `.planning/phases/19.1-…/evidence/triage-day-click-container.txt`.
+//
+// The narrowest fix that keeps BOTH facts true is `placeHold`'s `beforeCheckoutNavigation` hook: the
+// calendar is walked with a real clock, and the fake one is installed on the listing page immediately
+// before the click that navigates to `/…/book`. Proved in the container to still drive the countdown
+// — a 60-second `fastForward` moved it `14:57 → 13:56`.
 //
 // The other half of that caveat is why the states are reached with `pauseAt` / `fastForward` and NEVER
 // with a wait: a paused clock fires no timers, so a NAVIGATION under a paused clock can hang React's
@@ -277,10 +298,16 @@ async function reachCheckout(
   page: Page,
   window: readonly [string, string] | readonly string[],
 ): Promise<string> {
-  // BEFORE the first navigation — see the header. `signUpBooker` is the first `goto` in this flow.
-  await page.clock.install();
+  // ⚠ THE CLOCK IS INSTALLED BEFORE THE CHECKOUT NAVIGATION, NOT BEFORE THE SIGNUP ONE — see the
+  // header's install-order block for what that distinction cost and how it was measured. Playwright's
+  // caveat is about the page whose timers the clock has to control, and that page is `/…/book`.
+  // `placeHold` runs this hook after the last calendar interaction and immediately before the click
+  // that navigates there, so the countdown's `setInterval` is created under the fake clock exactly as
+  // it was before, and the availability calendar is never driven under one.
   await signUpBooker(page, seed);
-  return placeHold(page, seed, window[0], window[1]);
+  return placeHold(page, seed, window[0], window[1], {
+    beforeCheckoutNavigation: () => page.clock.install(),
+  });
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════

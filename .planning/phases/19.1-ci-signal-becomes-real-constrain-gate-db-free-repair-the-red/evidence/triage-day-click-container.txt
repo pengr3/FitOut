@@ -1,0 +1,302 @@
+19.1-18 — THE DAY CLICK THAT DOES NOT SELECT ON THE CHECKOUT PATH, REPRODUCED IN THE RUNNER'S OWN IMAGE
+=======================================================================================================
+
+Convention: `19.1-PATTERNS.md` §A — the command line above its own unedited output, line-anchored
+markers at column zero. Two runs are compared on FILE and FULL TITLE, never on `file:line`: six specs
+moved their line numbers inside this phase (19.1-13), and this plan moved two more.
+
+The inherited instruction this transcript exists to satisfy: 19.1-08 REFUSED to add a retry to
+`selectTargetDayIn` because the click being lost was a mechanism that FIT rather than one that had been
+SEEN. It gated the retry on the runner's own call log naming the detachment. That condition is answered
+below in one word, from the trace, before any repair.
+
+================================================================================================
+TASK 1 — THE CONTAINER REPRODUCTION, THE CALL LOG, AND THE REPAIR IT JUSTIFIED
+================================================================================================
+
+------------------------------------------------------------------------------------------------
+STEP 1 · THE HARNESS: BUILT, USED, AND DELETED IN THIS TASK
+------------------------------------------------------------------------------------------------
+
+Built to 19.1-09's recipe as `deferred-items.md` records it and as 19.1-16 re-used it: the dev server
+and Postgres on the HOST; the pinned image mounted at the repository root; a ~20-line in-container Node
+loopback forwarder mapping 127.0.0.1:3000 and :5432 to `host.docker.internal` (because
+`e2e/helpers/served-document.ts:39` and the seed helpers hardcode the localhost origin); and a
+throwaway config importing the real `playwright.config.ts` with ONLY its `webServer` block removed.
+`reuseExistingServer` was NOT flipped ([17-D24] / [17-D28]).
+
+The host dev server was booted with the same two variables `playwright.config.ts`'s `webServer.env`
+injects — `RESEND_API_KEY=""` and the public Cloudinary placeholder — so the harness inherits the
+transactional-mail SILENCE rule rather than opting out of it. `FITOUT_E2E_REAL_EMAIL` was never set.
+
+Two throwaway files, both at the repository root so the mount reaches them:
+  pw-container.config.ts     - `const { webServer: _webServer, ...rest } = base; export default rest;`
+  container-forward.cjs      - two `net.createServer` pipes, no dependencies
+
+⚠ ONE MSYS-SPECIFIC ADDITION TO THE RECIPE, RECORDED BECAUSE IT COST A RUN: `docker run … -w /repo`
+must be prefixed `MSYS_NO_PATHCONV=1` in Git Bash on this box, or the shell rewrites `/repo` into
+`C:/Program Files/Git/repo` and the daemon refuses with
+`the working directory 'C:/Program Files/Git/repo' is invalid`.
+
+THE DELETION IS PROVED, NOT ASSERTED — the collected count on either side of their existence:
+
+$ npx playwright test --project=chromium --list | tail -1        # before they existed
+Total: 461 tests in 39 files
+$ rm -f pw-container.config.ts container-forward.cjs e2e/zz-day-click-probe.spec.ts e2e/zz-day-click-probe2.spec.ts
+$ npx playwright test --project=chromium --list | tail -1        # after they were deleted
+Total: 461 tests in 39 files
+
+THE TREE EVERY CONTAINER RUN MEASURED, asserted before believing any of them:
+
+$ git rev-parse HEAD
+40acedaa193c0fdd22b3416ac0e265936009b95a
+
+$ git status --porcelain -- src e2e tests      # before the BEFORE run
+                            (empty — the reproduction measures HEAD, unmodified)
+
+------------------------------------------------------------------------------------------------
+STEP 2 · BEFORE — THE WHOLE FILE, IN THE PINNED IMAGE, AT THE RUNNER'S OWN SHAPE, TRACING ON
+------------------------------------------------------------------------------------------------
+
+The WHOLE FILE, not the one case: `hold-countdown.spec.ts:105` is
+`test.describe.configure({ mode: "serial" })` at FILE scope, so the failure's cost is its position in
+the group and a single-case run would report a green that says nothing about it.
+
+$ MSYS_NO_PATHCONV=1 docker run --rm --ipc=host --add-host=host.docker.internal:host-gateway -v "C:/Users/Admin/Roaming/FitOut:/repo" -w /repo -e PLAYWRIGHT_BROWSERS_PATH=/ms-playwright -e DATABASE_URL=… mcr.microsoft.com/playwright:v1.60.0-noble bash -lc 'node container-forward.cjs & sleep 2; npx playwright test e2e/hold-countdown.spec.ts --config=pw-container.config.ts --project=chromium --workers=1 --retries=2 --trace on --reporter=list'
+
+IMAGE=mcr.microsoft.com/playwright:v1.60.0-noble
+TREE=40acedaa193c0fdd22b3416ac0e265936009b95a
+STATE=pre-repair
+CONTAINER-EXIT=1
+
+REPRODUCED=yes
+
+⚠ THIS IS THE FIRST TIME THIS PHASE'S CONTAINER HAS REPRODUCED AN OWNED `gate-e2e` FAILURE. 19.1-16
+recorded the opposite outcome for its two specs (green in the image on the broken tree, "the container
+is not the instrument that separates this claim"). It is the instrument for this one, and it separated
+it on the FIRST run — which is why no part of the diagnosis below rests on a laptop reading.
+
+ATTEMPT 1 e2e/hold-countdown.spec.ts "SHELL-03 — the checkout header does not reflow once per session › court · the header and countdown boxes are identical in all four states" | FAILED
+ATTEMPT 2 e2e/hold-countdown.spec.ts "SHELL-03 — the checkout header does not reflow once per session › court · the header and countdown boxes are identical in all four states" | FAILED (retry #1)
+ATTEMPT 3 e2e/hold-countdown.spec.ts "SHELL-03 — the checkout header does not reflow once per session › court · the header and countdown boxes are identical in all four states" | FAILED (retry #2)
+ATTEMPT 1 e2e/hold-countdown.spec.ts "SHELL-03 — the checkout header does not reflow once per session › grove · the header and countdown boxes are identical in all four states" | DID NOT RUN
+ATTEMPT 1 e2e/hold-countdown.spec.ts "GATE-03 — the countdown announces exactly once › the sr-only region's text changes ONCE across the hold, and not at expiry" | DID NOT RUN
+ATTEMPT 1 e2e/hold-countdown.spec.ts "D-49 — the digits exist exactly once on the checkout › [data-testid=\"hold-countdown\"] resolves to exactly 1, and the rail carries no digits" | DID NOT RUN
+
+  1 failed
+  3 did not run
+
+The failure is BYTE-IDENTICAL to the runner's, on file, full title, failing line, message and count —
+run `34004929856`, job `101410270414`, `19 × locator resolved to 0 elements`. The container run reads
+`18 ×` on attempt 1 and `17 ×` / `16 ×` on the retries; the poll count is a function of machine speed
+and is the only thing that differs.
+
+SELECTED=no
+
+POSTCOND-BEGIN
+    Error: the calendar has no day carrying `data-selected-single="true"` matching /September\s+9(st|nd|rd|th)?,?\s+2026/ after this helper clicked it. The click did not register — see this function's note: on this route the day button is replaced while React finishes with the streamed page, and a click on a departing node is LOST rather than queued. Without this line the next thing to fail would be the caller's hour-button click, three minutes later, on a grid that never rendered any hours.
+
+    expect(locator).toHaveCount(expected) failed
+
+    Locator:  getByRole('button', { name: /September\s+9(st|nd|rd|th)?,?\s+2026/ }).and(locator('td:not([data-outside=\'true\']) button')).and(locator('button:not([disabled])')).and(locator('button[data-selected-single="true"]'))
+    Expected: 1
+    Received: 0
+    Timeout:  2000ms
+
+       at helpers/booker-seed.ts:148
+        at selectTargetDayIn (/repo/e2e/helpers/booker-seed.ts:148:5)
+        at selectTargetDay (/repo/e2e/helpers/booker-seed.ts:153:3)
+        at pickWindow (/repo/e2e/helpers/booker-seed.ts:301:3)
+        at placeHold (/repo/e2e/helpers/booker-seed.ts:519:3)
+        at /repo/e2e/hold-countdown.spec.ts:300:22
+POSTCOND-END
+
+⚠ THE POST-CONDITION IS DOING EXACTLY WHAT 19.1-08 BUILT IT FOR, and this run is the proof that was
+never available before. The case fails in 7.4s on the runner and ~7s here, at `booker-seed.ts:148`,
+naming the day and the attribute. Before that line existed the same defect cost 3.0 MINUTES per
+attempt, three attempts, ~9 minutes of `gate-e2e`'s budget, and surfaced on an unrelated hour-chip
+locator in a different helper. Nothing below weakens it, moves its budget, or replaces it.
+
+------------------------------------------------------------------------------------------------
+STEP 2a · THE CLICK'S OWN CALL LOG — THE ONE WORD 19.1-08 GATED A RETRY ON
+------------------------------------------------------------------------------------------------
+
+The reporter prints the ASSERTION's call log, not the CLICK's. The click's own log lives in the trace,
+so it was read out of the trace rather than inferred from the absence of an error:
+
+$ unzip -q test-results/hold-countdown-…-chromium/trace.zip && node -e '<parse 0-trace.trace, group before/log/after by callId>'
+
+CALLLOG-BEGIN
+    waiting for getByRole('button', { name: /September\s+9(st|nd|rd|th)?,?\s+2026/ }).and(locator('td:not([data-outside=\'true\']) button')).and(locator('button:not([disabled])')).first()
+      locator resolved to <button type="button" tabindex="-1" data-size="icon" data-slot="button" data-day="9/9/2026" data-variant="ghost" aria-label="Wednesday, September 9th, 2026" class="group/button shrink-0 …">9</button>
+    attempting click action
+      waiting for element to be visible, enabled and stable
+      element is visible, enabled and stable
+      scrolling into view if needed
+      done scrolling
+      performing click action
+      click action done
+      waiting for scheduled navigations to finish
+      navigations have finished
+CALLLOG-END
+
+DETACHED=no
+
+Read it against the sibling that DOES retry. `openBookingSheet`'s call log, quoted in its own docblock,
+carries `element is not stable`, `retrying click action` and `element was detached from the DOM,
+retrying`. This one carries `element is visible, enabled and stable` and `click action done`, with the
+resolved node's `data-day` and `aria-label` printed and AGREEING (`9/9/2026` / `September 9th, 2026`).
+The whole click took 221ms.
+
+⚠ SO NO RETRY IS ADDED, AND THAT IS NOW A MEASUREMENT RATHER THAN AN OPEN QUESTION. 19.1-08's condition
+was the call log naming the detachment. The call log names the opposite. A retry here would have
+re-sent a click that was never the problem and turned this red green while the cause stayed live —
+precisely the unreadable next-red 19.1-08 refused to buy.
+
+------------------------------------------------------------------------------------------------
+STEP 2b · THE CLICK WAS RECEIVED AND REFUSED. BY WHAT — MEASURED, THREE CONDITIONS
+------------------------------------------------------------------------------------------------
+
+Throwaway probe `e2e/zz-day-click-probe.spec.ts`, run in the SAME image, mirroring the failing case's
+own shape (court theme cookie, 375px viewport) and reading the document rather than arguing about it.
+
+$ npx playwright test e2e/zz-day-click-probe.spec.ts --config=pw-container.config.ts --project=chromium --workers=1 --retries=0
+
+IMAGE=mcr.microsoft.com/playwright:v1.60.0-noble
+CONTAINER-EXIT=0
+
+PROBE A-375-clock  PAGE-CLOCK {"now":"2026-09-06T02:36:59.880Z","tzOffset":0,"resolvedTz":"UTC"}
+PROBE A-375-clock  NODE-CLOCK 2026-09-06T02:36:59.882Z
+PROBE A-375-clock  GRID ["9/5/2026|Saturday, September 5th, 2026, selected","9/6/2026|Today, Sunday, September 6th, 2026","9/8/2026|Tuesday, September 8th, 2026","9/9/2026|Wednesday, September 9th, 2026"]
+PROBE A-375-clock  BEFORE-CLICK {"dayTotal":33,"dayVisible":33,"dayStagedHidden":0,"grids":1,"selected":["9/5/2026"],"hydratedDays":33,"handlerDays":33,"hourChips":15}
+PROBE A-375-clock  AFTER-CLICK  {"dayTotal":33,"dayVisible":33,"dayStagedHidden":0,"grids":1,"selected":["9/8/2026"],"hydratedDays":33,"handlerDays":33,"hourChips":15}
+PROBE A-375-clock  SELECTED=no
+
+PROBE B-375-noclock PAGE-CLOCK {"now":"2026-09-06T02:37:18.902Z","tzOffset":0,"resolvedTz":"UTC"}
+PROBE B-375-noclock GRID ["9/5/2026|Saturday, September 5th, 2026","9/6/2026|Today, Sunday, September 6th, 2026, selected","9/8/2026|Tuesday, September 8th, 2026","9/9/2026|Wednesday, September 9th, 2026"]
+PROBE B-375-noclock BEFORE-CLICK {"…","selected":["9/6/2026"],"hydratedDays":33,"handlerDays":33,"hourChips":15}
+PROBE B-375-noclock AFTER-CLICK  {"…","selected":["9/9/2026"],"hydratedDays":33,"handlerDays":33,"hourChips":15}
+PROBE B-375-noclock SELECTED=yes
+
+PROBE C-1280-clock  BEFORE-CLICK selected ["9/5/2026"]   AFTER-CLICK selected ["9/8/2026"]   SELECTED=no
+
+VERDICT  THE CLICK IS RECEIVED AND REFUSED, AND `page.clock.install()` IS WHAT REFUSES IT. With
+         Playwright's fake clock in force over `/listings/[id]`, the availability calendar's
+         venue-timezone arithmetic lands ONE VENUE-DAY EARLY: the grid arrives with YESTERDAY (9/5)
+         carrying `data-selected-single="true"` — a day that is `disabled` by
+         `{ before: todayStart }` — and a click on the cell labelled "September 9th, 2026" marks
+         9/8. Without the clock the same walk marks 9/6 on arrival and 9/9 after the click. The
+         viewport is NOT the variable (C reproduces at 1280px); the clock is the only difference
+         between B and A/C.
+
+         THE FILE THAT OWNS IT IS `e2e/hold-countdown.spec.ts` — the repository's ONLY `page.clock`
+         user among the twelve specs that reach this helper, and the only one of them that is red.
+         It is an INSTRUMENT defect, not a product one: nobody using FitOut has a faked `Date`, and
+         `deriveBookable` and every production source file are untouched by this plan.
+
+FOUR THINGS THIS MEASUREMENT REFUTES, each of which was a live hypothesis when the plan was written:
+
+  • NOT A LOST CLICK. `DETACHED=no`, above. The docblock's standing accusation is withdrawn at the
+    site rather than left to mislead the next reader.
+  • NOT 19.1-17'S STREAMING COMMIT WINDOW. `dayStagedHidden=0` on every read: no day button has a
+    `[hidden]` ancestor, there is exactly ONE month grid in the document (`grids:1`), and the day
+    locator resolves to exactly one node (`DAY-MATCHES=1`). The class the last two waves kept finding
+    is measured ABSENT here — which is why this repair looks nothing like theirs.
+  • NOT A HYDRATION RACE. All 33 day buttons carry `__reactFiber$` AND `__reactProps$` before the
+    click (`hydratedDays:33, handlerDays:33`). The handler was attached; it ran; it computed the
+    wrong day.
+  • NOT A SHIFTED CLOCK. Page and Node agree to 2ms (`02:36:59.880Z` vs `.882Z`), the browser zone is
+    UTC in both conditions, and both grids mark 9/6 as `Today`. Only the SELECTION moves.
+
+The mechanism, named at the line: `availability-calendar.tsx:537` rebuilds the selection as
+`new TZDate(day.year, day.month - 1, day.day, timezone)`, and `handleDaySelect` (:613-621) feeds it
+back through the same constructor. That numeric-plus-zone constructor is what shifts under a replaced
+global `Date`; one defect, both symptoms (the arrival state and the click result), which is why they
+are off by exactly the same one day.
+
+------------------------------------------------------------------------------------------------
+STEP 2c · THE TWO INTERVALS, RE-MEASURED ON THE RUNNER'S IMAGE
+------------------------------------------------------------------------------------------------
+
+The laptop measured 683ms from the click returning to the first hour chip existing (19.1-08, probe F),
+and the post-condition's budget is 2,000ms. Both legs re-measured in the container, on the WORKING
+(no-clock) path — the only path where the interval exists at all — polled at 50ms, worst of the
+samples taken:
+
+INTERVAL-SELECTED-MS=350
+INTERVAL-HOURS-MS=315
+
+  click returns -> target day carries `data-selected-single="true"` :  16, 17, 350 ms
+  from there    -> the first hour chip exists                       : 215, 293, 315 ms
+
+THE BUDGET DOES NOT MOVE, AND THE NUMBERS ARE WHY. Worst observed click-to-selected is 350ms against a
+2,000ms budget — 5.7× headroom on a two-core image under load. The combined click-to-hours worst case
+is 565ms, which brackets the laptop's 683ms rather than exceeding it, so the laptop figure was not
+optimistic and nothing about this budget was resting on it. Widening the budget would ALSO not have
+fixed the failure: with the clock installed the target day never becomes selected at all, so a longer
+wait returns the same zero later. That is recorded because "widen the timeout" is the repair this
+failure shape usually attracts, and here it is measurably useless.
+
+------------------------------------------------------------------------------------------------
+STEP 2d · THE TWO CANDIDATE REPAIRS, DISCRIMINATED
+------------------------------------------------------------------------------------------------
+
+Throwaway probe `e2e/zz-day-click-probe2.spec.ts`, same image, same shape.
+
+IMAGE=mcr.microsoft.com/playwright:v1.60.0-noble
+CONTAINER-EXIT=0
+
+PROBE2 D-explicit-time  SELECTED=no  MARKED=["9/8/2026"]
+PROBE2 E-late-install   SELECTED=yes MARKED=["9/9/2026"]
+PROBE2 E-late-install   CHECKOUT {"present":true,"text":"Time left to confirm14:57"}
+PROBE2 E-late-install   CLOCK-CONTROLS-COUNTDOWN before="Time left to confirm14:57" after60s="Time left to confirm13:56" moved=true
+
+  D — `page.clock.install({ time: new Date() })` before the first navigation. REJECTED, measured:
+      still marks 9/8. The instant is not the variable; the fake `Date` is.
+  E — no clock while the calendar is driven; `install()` on the listing page immediately BEFORE the
+      click that navigates to `/…/book`. ACCEPTED: marks 9/9, reaches a live checkout, and the fake
+      clock still owns the countdown's `setInterval` — a 60-second `fastForward` moved the rendered
+      remainder `14:57 → 13:56`, which is the ONLY property the clock is installed for.
+
+Rejected without a probe, each with the constraint that decided it: changing
+`availability-calendar.tsx` to avoid the `TZDate` constructor (production source, and the measurement
+names no product defect — the same call 19.1-17 made under constraint (e)); adding a retry
+(`DETACHED=no`, and 19.1-08's inherited refusal); widening the post-condition's budget (measured
+useless, see STEP 2c, and prohibited); allowlisting the row (this is the path a booker walks to pay,
+and the pinned entry total does not move in this plan).
+
+------------------------------------------------------------------------------------------------
+STEP 3 · THE REPAIR, AND THE AFTER RUN
+------------------------------------------------------------------------------------------------
+
+`e2e/helpers/booker-seed.ts` — `placeHold` gains an optional `beforeCheckoutNavigation` hook, run
+after the last calendar interaction and immediately before the CTA click that navigates to the
+checkout. Absent, every existing caller behaves byte-identically. `selectTargetDayIn`'s docblock now
+quotes the call log above and states why no retry was warranted; its failure message names BOTH
+directions instead of asserting the one the measurement refuted.
+
+`e2e/hold-countdown.spec.ts` — `reachCheckout` installs the clock through that hook instead of before
+the signup navigation. The header's install-order block records what the over-application cost.
+
+⚠ THE SECOND FILE IS A DEVIATION FROM THIS TASK'S DECLARED FILE SET, RECORDED RATHER THAN SMOOTHED.
+The plan's `files_modified` named `booker-seed.ts` for Task 1. The measurement named the CALLER as the
+owner of the defect, and a hook with nobody passing it repairs nothing. Task 2's edit to the same file
+is still comment-only, because this change is committed in Task 1.
+
+$ MSYS_NO_PATHCONV=1 docker run … mcr.microsoft.com/playwright:v1.60.0-noble bash -lc 'node container-forward.cjs & sleep 2; npx playwright test e2e/hold-countdown.spec.ts --config=pw-container.config.ts --project=chromium --workers=1 --retries=2 --trace on --reporter=list'
+
+IMAGE=mcr.microsoft.com/playwright:v1.60.0-noble
+TREE=40acedaa193c0fdd22b3416ac0e265936009b95a (+ the two test-side files this task edited)
+STATE=post-repair
+CONTAINER-EXIT=0
+
+AFTER ATTEMPT 1 e2e/hold-countdown.spec.ts "SHELL-03 — the checkout header does not reflow once per session › court · the header and countdown boxes are identical in all four states" | PASSED (13.5s)
+AFTER ATTEMPT 1 e2e/hold-countdown.spec.ts "SHELL-03 — the checkout header does not reflow once per session › grove · the header and countdown boxes are identical in all four states" | PASSED (15.9s)
+AFTER ATTEMPT 1 e2e/hold-countdown.spec.ts "GATE-03 — the countdown announces exactly once › the sr-only region's text changes ONCE across the hold, and not at expiry" | PASSED (14.0s)
+AFTER ATTEMPT 1 e2e/hold-countdown.spec.ts "D-49 — the digits exist exactly once on the checkout › [data-testid=\"hold-countdown\"] resolves to exactly 1, and the rail carries no digits" | PASSED (13.7s)
+
+  4 passed (1.2m)
+
+Every case is a FIRST-ATTEMPT pass. Nothing in the file needed a retry to go green, which is the
+distinction 19.1-16 had to draw and could not: a case that only passes on a retry is a different
+finding from a case that now simply executes.
