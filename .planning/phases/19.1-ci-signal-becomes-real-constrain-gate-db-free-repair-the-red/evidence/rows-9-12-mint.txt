@@ -46,3 +46,71 @@ RESTORE-CHECKSUM=listing-detail-768 before=9c700df991e98c10176ef5346221effe5d36c
 RESTORE-CHECKSUM=listing-detail-1280 before=ba500347a03bde87efaf5302122f3b83c279f01d4864cf794d678be396cb12b7 after=ba500347a03bde87efaf5302122f3b83c279f01d4864cf794d678be396cb12b7 byte-identical=yes
 RESTORE-CHECKSUM=collision-notice-1280 before=cffdca5d0e8f2bcd3d56001b8ee5738508564802410a95375e18a3fc27d759e6 after=cffdca5d0e8f2bcd3d56001b8ee5738508564802410a95375e18a3fc27d759e6 byte-identical=yes
 RESTORE-NEGATIVE=exit 1; pathspec `e2e/**/*-NOSUCHTHING.png` did not match any file known to git.
+
+MINT-RUN=34043526827 — https://github.com/pengr3/FitOut/actions/runs/34043526827; workflow_dispatch on dev at b71505da7773257bc12ae0f079a48fd4f6307221; conclusion success; Playwright 43 passed and 42 skipped.
+MINT-COMMIT=e07e0eccd556228ccfbf58281d3abb7ea52bdf8c — bot commit pushed by the successful baselines workflow.
+MINT-CHANGED=e2e/visual/surfaces.spec.ts-snapshots/collision-notice-1280-court-visual-linux.png
+MINT-CHANGED=e2e/visual/surfaces.spec.ts-snapshots/listing-detail-1280-court-visual-linux.png
+MINT-CHANGED=e2e/visual/surfaces.spec.ts-snapshots/listing-detail-320-court-visual-linux.png
+MINT-CHANGED=e2e/visual/surfaces.spec.ts-snapshots/listing-detail-768-court-visual-linux.png
+MINT-CHANGED=e2e/visual/surfaces.spec.ts-snapshots/listing-sheet-375-court-visual-linux.png
+OTHER-ROW auth-forgot-1280-court-visual-linux.png unchanged
+OTHER-ROW auth-forgot-320-court-visual-linux.png unchanged
+OTHER-ROW auth-login-1280-court-visual-linux.png unchanged
+OTHER-ROW auth-login-320-court-visual-linux.png unchanged
+OTHER-ROW auth-reset-1280-court-visual-linux.png unchanged
+OTHER-ROW auth-reset-320-court-visual-linux.png unchanged
+OTHER-ROW auth-signup-1280-court-visual-linux.png unchanged
+OTHER-ROW auth-signup-320-court-visual-linux.png unchanged
+OTHER-ROW booking-not-found-1280-court-visual-linux.png unchanged
+OTHER-ROW checkout-1280-court-visual-linux.png unchanged
+OTHER-ROW checkout-320-court-visual-linux.png unchanged
+OTHER-ROW dev-theme-1280-court-visual-linux.png unchanged
+OTHER-ROW dev-theme-320-court-visual-linux.png unchanged
+OTHER-ROW dev-theme-768-court-visual-linux.png unchanged
+OTHER-ROW listing-lightbox-1280-court-visual-linux.png unchanged
+OTHER-ROW listing-sheet-375-court-visual-linux.png changed — the pixel diff is confined to y=401..444 (1,900 pixels): the selected booking day remains 16 while the regenerated shared calendar adds the neutral venue-local today ring to pinned day 15. This is the intended shared-clock repair, not a regression.
+OTHER-ROW og-invite-1200-court-visual-linux.png unchanged
+OTHER-ROW og-listing-1200-court-visual-linux.png unchanged
+OTHER-ROW og-root-1200-court-visual-linux.png unchanged
+OTHER-ROW privacy-1280-court-visual-linux.png unchanged
+OTHER-ROW privacy-320-court-visual-linux.png unchanged
+OTHER-ROW privacy-768-court-visual-linux.png unchanged
+OTHER-ROW root-not-found-1280-court-visual-linux.png unchanged
+OTHER-ROW root-not-found-320-court-visual-linux.png unchanged
+OTHER-ROW search-relax-band-1280-court-visual-linux.png unchanged
+OTHER-ROW search-relax-band-320-court-visual-linux.png unchanged
+OTHER-ROW search-results-1280-court-visual-linux.png unchanged
+OTHER-ROW search-results-320-court-visual-linux.png unchanged
+OTHER-ROW search-results-768-court-visual-linux.png unchanged
+OTHER-ROW terms-1280-court-visual-linux.png unchanged
+OTHER-ROW terms-320-court-visual-linux.png unchanged
+OTHER-ROW terms-768-court-visual-linux.png unchanged
+
+MINTED-RING=listing-detail-320-court-visual-linux.png day 15 in September 2026
+MINTED-SINCE=listing-detail-320-court-visual-linux.png Host since January 2024
+MINTED-RING=listing-detail-768-court-visual-linux.png day 15 in September 2026
+MINTED-SINCE=listing-detail-768-court-visual-linux.png Host since January 2024
+MINTED-RING=listing-detail-1280-court-visual-linux.png day 15 in September 2026
+MINTED-SINCE=listing-detail-1280-court-visual-linux.png Host since January 2024
+MINTED-RING=collision-notice-1280-court-visual-linux.png day 15 in September 2026
+MINTED-SINCE=collision-notice-1280-court-visual-linux.png Host since January 2024
+EXPIRES=nothing — the calendar ring derives from the pinned 2026-09-15 Asia/Manila override, the host line derives from pinned user.created_at=2024-01-15T00:00:00+08:00, and every other audited clock read is excluded from these rendered fields.
+
+CROP=.planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/evidence/minted-listing-detail-320-clock-fields.png
+CROP=.planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/evidence/minted-listing-detail-768-clock-fields.png
+CROP=.planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/evidence/minted-listing-detail-1280-clock-fields.png
+CROP=.planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/evidence/minted-collision-notice-1280-clock-fields.png
+VERIFY-HEAD=dad26b61d2230977c8653c698448bc837cad2cd1 — dedicated push commit used to compare the regenerated references.
+VERIFY-REFERENCES=36 tracked Linux references via `git ls-files -- 'e2e/visual/surfaces.spec.ts-snapshots/*-visual-linux.png'`.
+VERIFY-DESIGN=82 files passed; 1,442 tests passed and 3 skipped with `node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design --maxWorkers=1` after two default-parallel Windows scheduler timeouts; the Linux gate-db-free design run passed without modification.
+VERIFY-RUN=34043991189 https://github.com/pengr3/FitOut/actions/runs/34043991189 — push run on dev at dad26b61d2230977c8653c698448bc837cad2cd1; overall conclusion FAILURE.
+VERIFY-VISUAL=job 101515676520 SUCCESS — 43 passed, 42 skipped, 0 failed, 0 flaky; no diff artifact was uploaded because every regenerated reference matched.
+VERIFY-ARTIFACTS=0 — the run exposed no downloadable artifacts; the visual job's `Upload the visual diffs` step was SKIPPED because its comparison was green.
+VERIFY-DB-FREE=job 101515676579 SUCCESS — lint, design, build, and workflow-parse gate completed green.
+VERIFY-DB=job 101515676351 SUCCESS — full Vitest suite against PostGIS 18 completed green.
+VERIFY-PRICE-PARITY=job 101515676576 SUCCESS — DB-versus-DOM price parity completed green.
+VERIFY-E2E=job 101515676552 FAILURE — 2 failed, 3 flaky, 385 passed, 52 skipped, 19 did not run (22.1m Playwright time; about 24m job elapsed).
+VERIFY-E2E-FAIL=e2e/host-headings.spec.ts:1052:7 — wizard whole-space step 3 of 9 stayed on "Where is it?" after the advance press on all three attempts; save-state region was empty; the heading did not change within 30s.
+VERIFY-E2E-FAIL=e2e/overflow-320.spec.ts:3434:11 — edit photos-step court row never reached the surface on all three attempts; heading "How your cover appears" was absent after 30s.
+HANDOFF-PLAN-19.1-20=The measuring run's overall conclusion remains FAILURE, honestly preserved here. gate-e2e job 101515676552 is the only failed job, and its exact failed cases are the two `VERIFY-E2E-FAIL=` lines above; both are in Plan 19.1-20's owned host-wizard/edit-route cluster. gate-visual, gate-db-free, gate-db, and gate-price-parity all succeeded, so repaired Task 3 Step 4 assigns this functional red to Plan 19.1-20 and proceeds to the blocking-human PM checkpoint without claiming the overall run was green.
