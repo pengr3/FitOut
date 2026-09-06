@@ -404,3 +404,211 @@ $ git status --porcelain -- .github scripts
 
 $ rm e2e/zz-hydration-probe.spec.ts
                             the throwaway probe, deleted in the task that created it.
+
+================================================================================================
+TASK 2 — THE TWO OWNED SPECS IN THE RUNNER'S OWN IMAGE, BEFORE AND AFTER
+================================================================================================
+
+------------------------------------------------------------------------------------------------
+STEP 1 · THE CONTAINER HARNESS: BUILT, USED, AND DELETED IN THIS TASK
+------------------------------------------------------------------------------------------------
+
+Built to 19.1-09's recipe as `deferred-items.md` records it: the dev server and Postgres on the
+HOST; the pinned image mounted at the repository root; a ~15-line in-container Node loopback
+forwarder mapping 127.0.0.1:3000 and :5432 to host.docker.internal (because
+`e2e/helpers/served-document.ts:39` and the seed helpers hardcode localhost); and a throwaway config
+importing the real `playwright.config.ts` with ONLY its `webServer` block removed.
+`reuseExistingServer` was NOT flipped ([17-D24] / [17-D28]).
+
+Two throwaway files, both at the repository root so the mount reaches them:
+  pw-container.config.ts     - `const { webServer, ...rest } = base; export default rest;`
+  container-forward.cjs      - two `net.createServer` pipes, no dependencies
+
+THE DELETION IS PROVED, NOT ASSERTED — the collected count on either side of their existence:
+
+$ npx playwright test --project=chromium --list | tail -1        # before they existed
+Total: 461 tests in 39 files
+$ rm -f pw-container.config.ts container-forward.cjs
+$ npx playwright test --project=chromium --list | tail -1        # after they were deleted
+Total: 461 tests in 39 files
+
+$ git status --porcelain
+ M .planning/STATE.md
+?? .gsd/
+?? .planning/milestone.lock
+?? .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-PATTERNS.md
+?? .planning/state.json
+                            no throwaway config, no forwarder, no scratch byte copy. The four
+                            untracked entries predate this plan and are not its files.
+
+THE TREE EVERY CONTAINER RUN MEASURED, asserted before believing any of them:
+
+$ git status --porcelain -- src e2e tests      (before the BEFORE run, with the pre-repair copies applied)
+ M src/app/(host)/host/layout.tsx
+ D src/components/patterns/nav-drawer-shell.tsx
+ M src/components/patterns/site-chrome.tsx
+                            exactly the three files the reversion touches and nothing else.
+
+------------------------------------------------------------------------------------------------
+STEP 2 · BEFORE — THE PRE-REPAIR TREE, IN THE PINNED IMAGE, AT THE RUNNER'S OWN SHAPE
+------------------------------------------------------------------------------------------------
+
+The one source file Task 1 edited turned out to be three, so all three were applied from the byte
+copies taken before the edit (never a checkout — the tree is mixed-EOL).
+
+$ docker run --rm --ipc=host --add-host=host.docker.internal:host-gateway -v "C:/Users/Admin/Roaming/FitOut:/repo" -w /repo -e PLAYWRIGHT_BROWSERS_PATH=/ms-playwright -e DATABASE_URL=... mcr.microsoft.com/playwright:v1.60.0-noble bash -lc 'node container-forward.cjs & sleep 2; npx playwright test e2e/host-headings.spec.ts e2e/overflow-320.spec.ts --config=pw-container.config.ts --project=chromium --workers=1 --retries=2 --reporter=list'
+
+IMAGE=mcr.microsoft.com/playwright:v1.60.0-noble
+TREE=282073c1c10bf3484f62ce48de20d5a19f804e00 (+ the three files reverted to their pre-repair bytes)
+STATE=pre-repair
+CONTAINER-EXIT=0
+
+  [forward] 127.0.0.1:3000 -> host.docker.internal:3000
+  [forward] 127.0.0.1:5432 -> host.docker.internal:5432
+  ✓    12 [chromium] › e2e/host-headings.spec.ts:1052:7 › AC#35 … › wizard · whole space, every step (16.1s)
+  ✓    13 [chromium] › e2e/host-headings.spec.ts:1056:7 › AC#35 … › wizard · drop-in, every step (10.0s)
+  ✓    96 [chromium] › e2e/overflow-320.spec.ts:3434:11 › AC#36 … › /host/listings/[id]/edit · photos step · court (2.3s)
+  ✓    97 [chromium] › e2e/overflow-320.spec.ts:3434:11 › AC#36 … › /host/listings/[id]/edit · photos step · grove (2.2s)
+
+  7 skipped
+  118 passed (4.8m)
+
+⚠⚠ THE PRE-REPAIR RUN DOES NOT REPRODUCE EITHER OWNED FAILURE IN THE CONTAINER. ZERO FAILED.
+
+That is the finding, and this plan's STEP 2 named it in advance as a finding rather than a problem:
+the container is NOT the instrument that separates this claim, and the plan's verdict on the two
+owned specs therefore rests on the REAL `ci` RUN in Task 4. It is written down here rather than
+reached for a second theory.
+
+Both cases the two owned specs are named for pass on the runner's own rasteriser, at the runner's own
+`--workers=1 --retries=2`, on the tree the runner has been failing them on. The wizard walk
+(`host-headings:1052`) completes all nine steps; the publish-checklist seam
+(`overflow-320:3434 · photos step`) arrives, in both themes, first attempt, no retry line.
+
+BEFORE e2e/host-headings.spec.ts | FAILED: none
+BEFORE e2e/overflow-320.spec.ts | FAILED: none
+BEFORE e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › payment state: not completed · court"
+BEFORE e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › payment state: not completed · grove"
+BEFORE e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › payment state: reversed, AUTOMATIC branch · court"
+BEFORE e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › payment state: reversed, AUTOMATIC branch · grove"
+BEFORE e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › payment state: reversed, MANUAL branch · court"
+BEFORE e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › payment state: reversed, MANUAL branch · grove"
+BEFORE e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › D-83 — the support control sits above the coral primary in the reversed manual branch"
+
+$ sha256sum "src/app/(host)/host/layout.tsx" src/components/patterns/site-chrome.tsx   # restored from the byte copies
+CHECKSUM-AFTER src/app/(host)/host/layout.tsx = 00a6d8e4844b4b8727cfa0b13f74b098d0cb57f731f510210c0c974f982b2480
+CHECKSUM-AFTER src/components/patterns/site-chrome.tsx = 148cd8ccbc388507eb270de932fe46a454cc9fe352fbaccd971cb7a63e2432af
+                            equal to the pair recorded in Task 1 STEP 4. The repaired tree came back
+                            byte-for-byte a second time.
+
+------------------------------------------------------------------------------------------------
+STEP 3 · AFTER — AND THE FALSE RED THAT CAME FIRST, RECORDED RATHER THAN QUIETLY RE-RUN
+------------------------------------------------------------------------------------------------
+
+FIRST AFTER RUN, AGAINST THE DEV SERVER THAT HAD BEEN LIVE ACROSS BOTH MUTATIONS:
+
+IMAGE=mcr.microsoft.com/playwright:v1.60.0-noble
+TREE=282073c1c10bf3484f62ce48de20d5a19f804e00 (repaired)
+STATE=post-repair, dev server NOT restarted
+CONTAINER-EXIT=1
+
+  ✘  104 … AC#36 … › /host/listings · court (1.0m)          all three attempts
+  ✘  … AC#36 … › /host/listings · grove
+  2 failed / 7 skipped / 106 passed (9.0m)   — plus 10 AC#36 cases the serial abort left unrun
+
+  Error: /host/listings · court · 320px: the route rendered no
+  `a[href^="/host/listings/"][href$="/availability"]` … 122 × locator resolved to 0 elements
+
+⚠ THIS IS THE WEDGED-DEV-SERVER TRAP, NOT THE REPAIR, AND IT IS WRITTEN DOWN BECAUSE IT WOULD HAVE
+BEEN VERY EASY TO REPORT AS A REGRESSION. `src/components/patterns/nav-drawer-shell.tsx` was DELETED
+and RECREATED under a live Turbopack session — the reversion moved it out for the BEFORE run and
+moved it back for the AFTER one — and `evidence/triage-harness.md` warning 4 plus `[17-D24]` both
+record this repository serving stale or broken output from exactly that. The failing route is not one
+this repair touches, and the failing assertion is about listing CARDS.
+
+THE SECOND AFTER RUN, ON A FRESH SERVER WITH A COLD CACHE — the correct measurement:
+
+$ taskkill the dev server ; rm -rf .next ; npm run dev            (fresh boot, cold Turbopack cache)
+$ docker run … mcr.microsoft.com/playwright:v1.60.0-noble bash -lc 'node container-forward.cjs & sleep 2; npx playwright test e2e/host-headings.spec.ts e2e/overflow-320.spec.ts --config=pw-container.config.ts --project=chromium --workers=1 --retries=2 --reporter=list'
+
+IMAGE=mcr.microsoft.com/playwright:v1.60.0-noble
+TREE=282073c1c10bf3484f62ce48de20d5a19f804e00 (repaired)
+STATE=post-repair, fresh dev server, cold cache
+CONTAINER-EXIT=0
+
+  7 skipped
+  118 passed (4.7m)             zero failed, zero flaky, zero `✘` in the whole transcript
+
+AFTER e2e/host-headings.spec.ts | FAILED: none
+AFTER e2e/overflow-320.spec.ts | FAILED: none
+AFTER e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › payment state: not completed · court"
+AFTER e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › payment state: not completed · grove"
+AFTER e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › payment state: reversed, AUTOMATIC branch · court"
+AFTER e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › payment state: reversed, AUTOMATIC branch · grove"
+AFTER e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › payment state: reversed, MANUAL branch · court"
+AFTER e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › payment state: reversed, MANUAL branch · grove"
+AFTER e2e/overflow-320.spec.ts | did not run: "AC#30 / AC#22 — every Phase-13 surface at 320px, in both themes › D-83 — the support control sits above the coral primary in the reversed manual branch"
+
+THE RELEASED SET, COMPUTED ON FILE AND FULL TITLE AND NEVER ON `file:line`:
+
+$ diff <(sorted BEFORE did-not-run set) <(sorted AFTER did-not-run set)
+                            (no output — the two sets are IDENTICAL, seven members each)
+
+  All seven are `AC#30 / AC#22` payment-state cases that this repository skips by construction, not
+  by serial abort: they are the same seven in both runs and their `-` markers carry no `(retry #N)`.
+  Nothing was released in the container, because nothing was blocked in the container.
+
+RELEASED-TOTAL=0
+DELTA-VS-13=-24 — plan 19.1-13 recorded 24 tests blocked by the publish-checklist row, measured on
+the RUNNER. The container blocked ZERO, because the row it names never failed there. The delta is
+not a disagreement about arithmetic and is not reconciled by argument: it is a disagreement about
+WHERE, and the run wins. 19.1-13's figure stands as a figure about `gate-e2e`; this plan's figure
+stands as a figure about the pinned image on this box, and the two are measurements of different
+things. The runner's own released set is read in Task 4, not here.
+
+------------------------------------------------------------------------------------------------
+STEP 4 · THE VERDICTS
+------------------------------------------------------------------------------------------------
+
+No case failed in the AFTER run, so there is no still-red case to diagnose in this instrument. Both
+owned specs get a verdict anyway, because "the container said nothing" is itself the verdict and it
+has to be written where the next reader will look.
+
+VERDICT e2e/host-headings.spec.ts (O11, `wizard · whole space, every step`) — NOT SEPARATED BY THE
+VERDICT   CONTAINER. Green in `mcr.microsoft.com/playwright:v1.60.0-noble` at `--workers=1 --retries=2`
+VERDICT   on the pre-repair tree AND on the repaired tree, 16.1s and 15.9s, first attempt both times.
+VERDICT   The instrument 19.1-09 built to settle "green here, red in CI" does not reproduce this one,
+VERDICT   which is a fact about the instrument's reach rather than about the defect: the runner is a
+VERDICT   2-core GitHub host under a whole-suite load, and this box is neither. NO REPAIR IS MADE AT A
+VERDICT   SITE NO MEASUREMENT NAMED — the prohibition against weakening the instrument and 19.1-08's
+VERDICT   refusal to add an unobserved retry both bind here, and neither is revisited. The surviving
+VERDICT   cause is unnamed and the file that owns it is unknown; Task 4's real run is the instrument.
+VERDICT   NOT AN ALLOWLIST CANDIDATE — production source, D-02, barred by written verdict.
+
+VERDICT e2e/overflow-320.spec.ts (O12, `AC#36 … /host/listings/[id]/edit · photos step`) — NOT
+VERDICT   SEPARATED BY THE CONTAINER, on the same evidence: green both themes, both trees, first
+VERDICT   attempt, 2.0-3.7s. The `Fix` press lands and `openWizardPhotosStep` arrives. The 24 tests
+VERDICT   19.1-13 recorded this row as blocking are not blocked here because the row does not fail
+VERDICT   here. NOT AN ALLOWLIST CANDIDATE, and barred BY NAME:
+VERDICT   `evidence/triage-upload-capability.txt` § PROHIBITION — "`e2e/overflow-320.spec.ts:3400` is
+VERDICT   likewise ineligible, and for a stronger reason — the capability it needs is not one CI lacks."
+
+WHAT THE REPAIR DID AND DID NOT BUY, STATED PLAINLY. It removed a real production defect that
+reproduces deterministically on every `(host)` route (Task 1, four readings and the served bytes). It
+did NOT produce a before/after difference in these two specs in the container, because there was no
+difference to produce: they were green in the container on both trees. Anyone reading this file for
+"did the repair fix O11 and O12" must read Task 4, and Task 4 must be read on a real `ci` run.
+
+------------------------------------------------------------------------------------------------
+TASK 2 · THE LOCAL AND CENSUS VERIFICATIONS
+------------------------------------------------------------------------------------------------
+
+$ npx playwright test e2e/host-headings.spec.ts e2e/overflow-320.spec.ts --project=chromium --workers=1 --retries=2
+  7 skipped
+  118 passed (3.1m)           zero failed, zero flaky
+
+$ npx vitest run --config vitest.design.config.ts tests/design/e2e-known-failures.test.ts
+  Tests  9 passed (9)         the census ran; `PINNED_ENTRY_TOTAL = 2` is untouched
+
+$ git diff --stat HEAD -- tests/design/e2e-known-failures.test.ts
+                            (no output — the allowlist file is unmodified by this plan.)
