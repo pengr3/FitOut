@@ -232,3 +232,27 @@ PROPOSED — "the listing wizard does not advance on the runner, and the press w
   spec to the known-failures allowlist.
 
 SC4-RUN-TERM=Run 34000975768 proved on the runner itself that the `(host)` hydration regeneration this plan repaired is gone — 110 messages to 0, with `gate-db-free`, `gate-db` and `gate-price-parity` green and this plan's own new case passing first attempt — and it proved, by the same measurement, that the regeneration was NOT the cause of the two failures this plan owns, which are unchanged and still red; SC4 stays OPEN, `gate-e2e` and `gate-visual` are still red, and the two owned specs pass to a named follow-up rather than to an annotation.
+
+------------------------------------------------------------------------------------------------
+ADDENDUM — THE CLOSE-OUT PUSHES, RECORDED SO A LATER `gh run list` IS NOT CONFUSING
+------------------------------------------------------------------------------------------------
+
+Run 34000975768 was read to a terminal conclusion BEFORE anything else was pushed, and no push
+happened while it was in flight — that is the constraint the concurrency group imposes and it was
+honoured.
+
+Two further pushes followed it, both after it was terminal, and neither can have cancelled or altered
+it:
+
+  bdbb0d7  docs(19.1-16): this evidence file
+  8a051dc  docs(19.1-16): the SUMMARY, STATE.md and ROADMAP.md
+
+Both are documentation-only — no `src/`, no `e2e/`, no `tests/`, no `.github/`, no `scripts/`. Each
+starts a `ci` run of its own because the workflow runs on every `dev` push (D-06), and those runs are
+NOT this plan's measurement: the plan is read on 34000975768 and on nothing else. A later run's
+verdict on a docs-only tree is neither evidence for nor against anything recorded above.
+
+The plan's "ONE push" rule is about not cancelling the run being read. It was not violated. The rule
+as written — "nothing after it pushes either" — is unsatisfiable for any plan that must also commit
+its own SUMMARY and leave `git log origin/dev..HEAD` empty, and that is worth carrying forward to
+plans 17, 18 and 19: the constraint that matters is ONE push while a run is IN FLIGHT.
