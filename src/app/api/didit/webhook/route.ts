@@ -4,9 +4,9 @@
 // through `deriveBookable`'s existing verification term. This endpoint is unauthenticated at the
 // network layer and THE SIGNATURE IS THE ONLY AUTHENTICATION IT HAS.
 //
-// NOTE (verified, no code change): `src/middleware.ts` matches ONLY /login and /signup — it does NOT
-// touch /api/didit, so this endpoint is reachable by Didit unauthenticated (correct — Didit is the
-// caller, and the signature is the authentication).
+// NOTE (verified, no code change): `src/proxy.ts` now matches every route, but its explicit public
+// and ops route matrix passes /api/didit through. This endpoint remains reachable by Didit
+// unauthenticated (correct — Didit is the caller, and the signature is the authentication).
 //
 // ⚠ THE VERDICT IS NOT WRITTEN HERE. This route owns the trust boundary — raw-body capture,
 // signature verification, the freshness window, the environment gate and envelope parsing — and then

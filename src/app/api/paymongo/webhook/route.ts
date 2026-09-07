@@ -6,9 +6,9 @@
 // D-14 auto-revert is free — a decline flips every one of the host's listings to not-bookable with
 // ZERO per-listing writes. The webhook is the trust boundary for payout state; nothing else may set it.
 //
-// NOTE (verified, no code change): src/middleware.ts matches ONLY /login and /signup — it does NOT
-// touch /api/paymongo, so this endpoint is reachable by PayMongo unauthenticated (correct — PayMongo
-// is the caller, and the Paymongo-Signature is the authentication).
+// NOTE (verified, no code change): src/proxy.ts now matches every route, but its explicit public and
+// ops route matrix passes /api/paymongo through. This endpoint remains reachable by PayMongo
+// unauthenticated (correct — PayMongo is the caller, and Paymongo-Signature is the authentication).
 //
 // ⚠ THE CONFIRM NO LONGER LIVES HERE (13.1-CONTEXT D-105, plan 13.1-01). The `pending|approved →
 // confirmed` UPDATE, the BOOK-06 confirmed emission and the D-58 gone-slot backstop were MOVED — not
