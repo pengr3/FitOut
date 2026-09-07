@@ -6,6 +6,8 @@ import ts from "typescript";
 
 const ROOT = process.cwd();
 const PROXY_PATH = "src/proxy.ts";
+const AUTH_PATH = "src/lib/auth.ts";
+const APP_ORIGINS_PATH = "src/lib/app-origins.ts";
 const CLOAK_PATH = "src/app/_ops-cloak/page.tsx";
 const ROOT_NOT_FOUND_PATH = "src/app/not-found.tsx";
 const ROOT_NOT_FOUND_SHA256 = "fdd295e842fc7719738c9795231a3b89bf3d1066ec931f9f6a06b1f5157d226d";
@@ -60,6 +62,36 @@ function identifiers(text: string): string[] {
   };
   visit(file);
   return names;
+}
+
+function betterAuthOptions(text: string): ts.ObjectLiteralExpression | undefined {
+  const file = ts.createSourceFile(AUTH_PATH, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  let result: ts.ObjectLiteralExpression | undefined;
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "betterAuth" &&
+      node.arguments[0] !== undefined &&
+      ts.isObjectLiteralExpression(node.arguments[0])
+    ) {
+      result = node.arguments[0];
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return result;
+}
+
+function property(
+  object: ts.ObjectLiteralExpression | undefined,
+  name: string,
+): ts.PropertyAssignment | undefined {
+  return object?.properties.find(
+    (member): member is ts.PropertyAssignment =>
+      ts.isPropertyAssignment(member) && member.name.getText().replace(/["']/g, "") === name,
+  );
 }
 
 describe("OPS-12 exact host partition invariants", () => {
@@ -127,5 +159,42 @@ describe("OPS-12 exact host partition invariants", () => {
       .map((name) => `src/app/actions/${name}`);
     expect(actionFiles.length, "the action guard census cannot be empty").toBeGreaterThan(0);
     for (const path of actionFiles) expect(source(path)).toContain("requireStaff");
+  });
+
+  it("pins one exact dynamic Better Auth origin authority with host-only uncached sessions", () => {
+    const authSource = source(AUTH_PATH);
+    const authOptions = betterAuthOptions(authSource);
+    expect(authOptions, "src/lib/auth.ts must contain the one Better Auth instance").toBeDefined();
+    expect(authSource.match(/\bbetterAuth\s*\(/g)).toHaveLength(1);
+
+    const baseURL = property(authOptions, "baseURL")?.initializer;
+    expect(baseURL !== undefined && ts.isObjectLiteralExpression(baseURL)).toBe(true);
+    const dynamicBaseURL = baseURL && ts.isObjectLiteralExpression(baseURL) ? baseURL : undefined;
+    expect(property(dynamicBaseURL, "allowedHosts")?.initializer.getText()).toBe(
+      "AUTH_ALLOWED_HOSTS",
+    );
+    expect(property(dynamicBaseURL, "fallback")?.initializer.getText()).toBe("PUBLIC_APP_ORIGIN");
+    expect(property(dynamicBaseURL, "protocol")?.initializer.getText()).toBe("\"auto\"");
+    expect(property(authOptions, "trustedOrigins")?.initializer.getText()).toBe(
+      "AUTH_TRUSTED_ORIGINS",
+    );
+
+    const session = property(authOptions, "session")?.initializer;
+    expect(session !== undefined && ts.isObjectLiteralExpression(session)).toBe(true);
+    expect(
+      property(session && ts.isObjectLiteralExpression(session) ? session : undefined, "cookieCache"),
+    ).toBeUndefined();
+
+    const advanced = property(authOptions, "advanced")?.initializer;
+    expect(advanced !== undefined && ts.isObjectLiteralExpression(advanced)).toBe(true);
+    const advancedOptions =
+      advanced && ts.isObjectLiteralExpression(advanced) ? advanced : undefined;
+    expect(property(advancedOptions, "trustedProxyHeaders")?.initializer.getText()).toBe("false");
+    expect(property(advancedOptions, "crossSubDomainCookies")).toBeUndefined();
+
+    const originsSource = source(APP_ORIGINS_PATH);
+    expect(originsSource).toContain("export const AUTH_ALLOWED_HOSTS");
+    expect(originsSource).toContain("export const AUTH_TRUSTED_ORIGINS");
+    expect(originsSource).not.toMatch(/["'`]\*[^"'`]*["'`]/);
   });
 });

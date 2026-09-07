@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/auth/ops-host-auth.test.ts -t \"uses one dynamic exact-host configuration\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - uses one dynamic exact-host configuration with public fallback and no proxy-header override\nAssertionError: expected 'https://app.example.test' to deeply equal { allowedHosts: ['app.example.test', 'ops.example.test', 'fitout-git-preview.example.vercel.app'], fallback: 'https://app.example.test', protocol: 'auto' }\n# tests 8\n# pass 0\n# fail 1\n# skipped 7\n",
+  "targetTest": "uses one dynamic exact-host configuration with public fallback and no proxy-header override",
+  "targetFile": "tests/auth/ops-host-auth.test.ts",
+  "expected": "one dynamic exact-host Better Auth configuration with public fallback, explicit trusted origins, and proxy-host override disabled",
+  "actual": "the production auth instance still used the static public origin string as baseURL"
+}
