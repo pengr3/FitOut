@@ -345,9 +345,11 @@ describe("the submission form's two gates", () => {
     release({ ok: false, error: HOST_VERIFICATION_PHONE_REQUIRED });
     await waitFor(() => expect(screen.getByRole("status")).toBeTruthy());
     // Back to idle: the control is the retry, which is why the refusal region carries none of its own.
-    expect(
-      screen.getByRole("button", { name: VERIFICATION_SIGNAL.unverified.wayOut as string }),
-    ).toBeTruthy();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: VERIFICATION_SIGNAL.unverified.wayOut as string }),
+      ).toBeTruthy(),
+    );
   });
 });
 

@@ -23,3 +23,14 @@ CAUSE_JSON={"case":"verification-panel-phone-pending","ownedFile":"tests/host/ve
 FIX_SITE_JSON={"case":"host-heading-whole-space","ownedFile":"src/components/listing/photo-uploader.tsx","ownedSymbol":"PhotoUploader","observedBoundary":"signed widget aborts the photos step into the host error boundary","rationale":"PhotoUploader is the narrow render boundary for supplying the signed widget's public client configuration because signed widget aborts the photos step into the host error boundary."}
 FIX_SITE_JSON={"case":"overflow-edit-photos-court","ownedFile":"src/components/listing/photo-uploader.tsx","ownedSymbol":"PhotoUploader","observedBoundary":"checklist navigation reaches photos before the signed widget aborts rendering","rationale":"PhotoUploader is the narrow shared render site reached through the real checklist because checklist navigation reaches photos before the signed widget aborts rendering."}
 FIX_SITE_JSON={"case":"verification-panel-phone-pending","ownedFile":"tests/host/verification-panel.test.tsx","ownedSymbol":"waitFor","observedBoundary":"runner order observes refusal status while the control still reads Starting","rationale":"waitFor must synchronize on the restored idle control rather than status insertion because runner order observes refusal status while the control still reads Starting."}
+
+POST_FIX_E2E_FOCUSED_COMMAND=npx playwright test e2e/host-headings.spec.ts e2e/overflow-320.spec.ts --project=chromium --grep "wizard · whole space, every step|/host/listings/\[id\]/edit · photos step · court"
+POST_FIX_E2E_FOCUSED_RESULT=passed; selected wizard rows had failed=0, flaky=0, not-run=0, and no retry artifacts.
+POST_FIX_SIX_GROUPS_COMMAND=npx playwright test e2e/axe-sweep.spec.ts e2e/host-headings.spec.ts e2e/keyboard-composites.spec.ts e2e/one-tree.spec.ts e2e/overflow-320.spec.ts e2e/host-route-reachability.spec.ts --project=chromium
+POST_FIX_SIX_GROUPS_RESULT=passed; all six standing property groups ran in the isolated one-worker runner without retry artifacts.
+POST_FIX_FULL_COMMAND=npx playwright test --project=chromium
+POST_FIX_FULL_RUN_1=408 passed, 52 skipped, 1 unrelated flaky confirmation-decay case; repaired heading and overflow rows had failed=0, flaky=0, not-run=0 and no retry artifacts. This diagnostic is preserved runner-locally and is not accepted as clean full-gate evidence.
+POST_FIX_VERIFICATION_FOCUSED_COMMAND=npx vitest run tests/host/verification-panel.test.tsx -t "hands the typed phone to the action and locks the control while the press is out" --reporter=verbose
+POST_FIX_VERIFICATION_FOCUSED_RESULT=1 passed, 11 filtered by the focused selector; typed phone, disabled pending control, named refusal region, and restored idle control all observed.
+POST_FIX_VERIFICATION_FILE_COMMAND=npx vitest run tests/host/verification-panel.test.tsx --reporter=verbose
+POST_FIX_VERIFICATION_FILE_RESULT=12 passed; no leaked database writes.
