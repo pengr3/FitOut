@@ -776,7 +776,18 @@ phase is the milestone's one hard prerequisite**: nothing ops-side in v1.2 can s
      the three 404 bodies byte-identical by hash**, with **every new ops route in the probe set** — and
      there is still no `(ops)`-scoped `not-found.tsx`.
 
-**Plans**: TBD
+**Plans**: 9 plans
+
+Plans:
+- [ ] 20-01-PLAN.md — Rename middleware to Next.js 16 Proxy as an isolated behavior-preserving tracer.
+- [ ] 20-02-PLAN.md — Partition exact hosts, establish configured origins, and record the first cloak measurement.
+- [ ] 20-03-PLAN.md — Add host-qualified Better Auth, ops sign-in, safe callbacks, and same-host recovery.
+- [ ] 20-04-PLAN.md — Centralize serialized staff-role policy, explicit CLI conversion, and next-request revocation.
+- [ ] 20-05-PLAN.md — Implement the hashed verification-row invitation state machine and atomic acceptance.
+- [ ] 20-06-PLAN.md — Expose protected invitation actions and the scanner-safe recipient setup route.
+- [ ] 20-07-PLAN.md — Add the two-section staff roster and invitation management panel to `/ops`.
+- [ ] 20-08-PLAN.md — Finish sign-out, shell recovery, cross-host exits, and UI design backstops.
+- [ ] 20-09-PLAN.md — Remediate legacy state and close with final cloak, deployed-host, and real-email UAT.
 
 **⚠ `src/middleware.ts` → `src/proxy.ts` FIRST, as its own commit, before any Host logic is written.**
 Next 16.0.0 deprecated the `middleware` convention in favour of `proxy`, this repo runs **16.2.7**, and
