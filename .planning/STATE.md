@@ -6,10 +6,10 @@ current_phase: "19.1"
 current_phase_name: CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes
 status: executing
 stopped_at: Completed 19.1-19-PLAN.md
-last_updated: "2026-09-07T01:38:38.796Z"
+last_updated: "2026-09-07T04:18:29.193Z"
 last_activity: 2026-09-07
-last_activity_desc: "Plan 19 visual closure completed with PM-approved stable references; Plan 20 remains unstarted and owns the two host-wizard/edit-route E2E failures."
-state_head: 6a565031c2dbaeecad84d8660f7bae2835447a0d
+last_activity_desc: "Plan 20/21 repair accepted by the plan checker; Plan 20 is ready to diagnose and repair the two wizard walks plus the verification-panel DB-gate failure."
+state_head: 9f6bb87865d219b95d3660d24328c9a6ab52789a
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -17,7 +17,7 @@ progress:
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 8
   completed_phases: 1
-  total_plans: 65
+  total_plans: 66
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
   # A halted plan counted as a completed one is the same fabricated counter this file
@@ -112,9 +112,9 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19.1 (CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes) — EXECUTING
-Plan: 20 of 20
-Status: Completed 19.1-19 visual closure; 19.1-20 is next and remains unstarted
-Last activity: 2026-09-07 — four stable clock-bearing references approved; gate-visual green on run 34043991189
+Plan: 20 of 21
+Status: Repaired Plans 20/21 passed the checker; Plan 20 is ready to execute
+Last activity: 2026-09-07 — split the disproved server-mode plan into measured repair and exact-SHA closure nodes
 
 ## Performance Metrics
 

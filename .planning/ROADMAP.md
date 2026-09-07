@@ -627,12 +627,13 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 18/20 plans executed (12 waves)
+**Plans:** 19/21 plans executed (13 waves)
 
 Plans:
 
 - [x] 19.1-18-PLAN.md
 - [ ] 19.1-20-PLAN.md
+- [ ] 19.1-21-PLAN.md
 
 - [x] 19.1-14-PLAN.md
 
@@ -717,12 +718,26 @@ Plans:
       are minted via `baselines.yml` and READ out of the pixels *(blocking-human checkpoint APPROVED
       2026-09-07; run 34043991189 job 101515676520: 43 passed, 42 skipped, 0 failed/flaky)*
 
+**Wave 12** *(blocked on Wave 11 completion)*
+
+- [ ] 19.1-20-PLAN.md — diagnose and repair the two stable wizard walks plus the independent
+      verification-panel DB-gate failure, preserve the standing route diagnostics and all six wizard
+      property groups, and finish on one clean locally proven repair head
+
+**Wave 13** *(blocked on Wave 12 completion)*
+
+- [ ] 19.1-21-PLAN.md — derive and approve the exact clean repair SHA without tracking it, push only
+      that SHA, require all five CI jobs plus the owned-case census to be green, then record evidence
+      and the final 63-to-64 plan-count transition
+
 **⚠ SC4 and SC5 are OPEN. Phase 19.1 is NOT complete.** Plan 19.1-19 closed the visual half: all four
 clock-bearing references are stable, read from committed crops and PM-approved, and `gate-visual` is green
-on exact-head run `34043991189`. That run's only failed job is `gate-e2e`, with two recorded cases in the
-host listing wizard/edit-route cluster. **19.1-20** owns those two failures and is the remaining functional
-SC4 route; it has not started. SC4 closes only when Plan 20 produces a wholly green exact-head run. That
-lifts the publication hold and then unblocks 19.1-15 / SC5.
+on exact-head run `34043991189`. The later diagnostic run `34076948628` proved all four host routes
+reachable under the default Turbopack server and retained the two stable wizard failures, while also
+exposing one independent `gate-db` verification-panel failure. **19.1-20** owns measured diagnosis,
+repair, and local proof; **19.1-21** owns the fresh exact-SHA approval and five-job CI closeout. SC4
+closes only when Plan 21 records that wholly green exact-head run. That lifts the publication hold and
+then unblocks 19.1-15 / SC5.
 
 ⚠ **Each is its own wave deliberately, and it is not conservatism.** Every one of the four closes by
 reading a real `ci` run or a `baselines` dispatch, and the workflow's concurrency group cancels an
