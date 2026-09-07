@@ -38,6 +38,15 @@ function inwardHeaders(request: Request): Headers {
 
 async function forwardStaffRequest(request: Request): Promise<Response> {
   const target = new URL(OPS_PATH, request.url);
+  // After a Proxy rewrite, Next's Route Handler URL can carry the server's listening authority
+  // even though the original, already-classified Host header is still correct. Rebuild the inward
+  // authority from that header so the second pass stays on the ops partition.
+  const authority = request.headers.get("host");
+  if (authority) target.host = authority;
+  const forwardedProtocol = request.headers.get("x-forwarded-proto");
+  if (forwardedProtocol === "http" || forwardedProtocol === "https") {
+    target.protocol = `${forwardedProtocol}:`;
+  }
   const headers = inwardHeaders(request);
   headers.set(HANDOFF_HEADER, createOpsGatewayHandoff(request.method, OPS_PATH));
 
@@ -55,6 +64,10 @@ async function forwardStaffRequest(request: Request): Promise<Response> {
   responseHeaders.delete("content-encoding");
   responseHeaders.delete("content-length");
   responseHeaders.delete("transfer-encoding");
+  // Middleware control headers are instructions to Next's router, not end-to-end response data.
+  // Returning either from an App Route Handler is rejected by Next 16.2.7.
+  responseHeaders.delete("x-middleware-next");
+  responseHeaders.delete("x-middleware-rewrite");
 
   return new Response(request.method === "HEAD" ? null : upstream.body, {
     status: upstream.status,
@@ -71,7 +84,8 @@ async function handle(request: Request): Promise<Response> {
   // nonexistent descendants and direct internal-route requests all terminate in the same bytes
   // without touching the session store.
   if (hostClass !== "ops" || source !== OPS_PATH) return notFoundResponse();
-  if (!(await readStaff())) return notFoundResponse();
+  const staff = await readStaff();
+  if (!staff) return notFoundResponse();
 
   // The layout, page and action gates execute again on this inward request. The gateway is an early
   // cloak and routing layer, not a replacement for the existing authorization boundary.

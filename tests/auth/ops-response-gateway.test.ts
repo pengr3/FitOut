@@ -24,7 +24,9 @@ function gatewayRequest({
   method?: string;
   body?: string;
 } = {}): Request {
-  return new Request("http://ops.localhost:3100/ops-gateway", {
+  // Next preserves the original Host header across a Proxy rewrite while the Route Handler URL can
+  // carry the listening/public authority. The gateway must rebuild the inward URL from Host.
+  return new Request("http://localhost:3100/ops-gateway", {
     method,
     body,
     headers: {
@@ -81,7 +83,11 @@ describe("authenticated ops response gateway", () => {
     const upstreamFetch = vi.fn<(target: URL | RequestInfo, init?: RequestInit) => Promise<Response>>(async () =>
       new Response("<html>staff console</html>", {
         status: 200,
-        headers: { "content-type": "text/html; charset=utf-8" },
+        headers: {
+          "content-type": "text/html; charset=utf-8",
+          "x-middleware-next": "1",
+          "x-middleware-rewrite": "http://ops.localhost:3100/ops",
+        },
       }),
     );
     vi.stubGlobal("fetch", upstreamFetch);
@@ -99,6 +105,8 @@ describe("authenticated ops response gateway", () => {
     const headers = new Headers(init?.headers);
     expect(await verifyOpsGatewayHandoff(headers.get("x-fitout-ops-gateway-handoff"), "GET", "/ops")).toBe(true);
     expect(response.status).toBe(200);
+    expect(response.headers.has("x-middleware-next")).toBe(false);
+    expect(response.headers.has("x-middleware-rewrite")).toBe(false);
     expect(await response.text()).toBe("<html>staff console</html>");
   });
 
