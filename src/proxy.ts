@@ -39,12 +39,77 @@ import {
   CHECKED_PARAM,
   LOGGED_OUT_ONLY,
 } from "@/lib/session-check";
+import { classifyRequestHost } from "@/lib/app-origins";
+
+const OPS_AUTH_PREFIX = "/_ops-auth";
+const OPS_CLOAK_PATH = "/_ops-cloak";
+const OPS_PATH = "/ops";
+const AUTH_API_PATH = "/api/auth";
+
+const OPS_VISIBLE_AUTH_PATHS = ["/login", "/forgot-password", "/reset-password"] as const;
+const OPS_PUBLIC_ASSETS = new Set([
+  "/favicon.ico",
+  "/icon-court.svg",
+  "/icon-grove.svg",
+  "/opengraph-image",
+  "/robots.txt",
+  "/sitemap.xml",
+]);
+
+function isPathSegment(pathname: string, segment: string): boolean {
+  return pathname === segment || pathname.startsWith(`${segment}/`);
+}
+
+function rewrite(request: NextRequest, pathname: string): NextResponse {
+  const target = request.nextUrl.clone();
+  target.pathname = pathname;
+  return NextResponse.rewrite(target);
+}
+
+function opsAuthTarget(pathname: string): string | null {
+  if (OPS_VISIBLE_AUTH_PATHS.includes(pathname as (typeof OPS_VISIBLE_AUTH_PATHS)[number])) {
+    return `${OPS_AUTH_PREFIX}${pathname}`;
+  }
+  if (isPathSegment(pathname, "/invite")) return `${OPS_AUTH_PREFIX}${pathname}`;
+  return null;
+}
+
+function isOpsPassPath(pathname: string): boolean {
+  return (
+    isPathSegment(pathname, OPS_PATH) ||
+    isPathSegment(pathname, AUTH_API_PATH) ||
+    isPathSegment(pathname, "/_next") ||
+    OPS_PUBLIC_ASSETS.has(pathname)
+  );
+}
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // The cloak target must be allowed to render its root notFound() response after a rewrite.
+  if (isPathSegment(pathname, OPS_CLOAK_PATH)) return NextResponse.next();
+
+  const hostClass = classifyRequestHost(request.headers.get("host"));
+
+  if (hostClass === "ops") {
+    // Internal route names are never a public API, even on the correct host.
+    if (isPathSegment(pathname, OPS_AUTH_PREFIX)) return rewrite(request, OPS_CLOAK_PATH);
+
+    const authTarget = opsAuthTarget(pathname);
+    if (authTarget !== null) return rewrite(request, authTarget);
+    if (isOpsPassPath(pathname)) return NextResponse.next();
+
+    // The dedicated host exposes only the ops console, its auth surface and required assets.
+    return rewrite(request, OPS_CLOAK_PATH);
+  }
+
+  // Public, exact preview and unknown hosts can never reach the ops segment or internal auth tree.
+  if (isPathSegment(pathname, OPS_PATH) || isPathSegment(pathname, OPS_AUTH_PREFIX)) {
+    return rewrite(request, OPS_CLOAK_PATH);
+  }
+
   // Not a logged-out-only route: nothing to do.
-  if (!LOGGED_OUT_ONLY.some((p) => pathname.startsWith(p))) {
+  if (!LOGGED_OUT_ONLY.includes(pathname as (typeof LOGGED_OUT_ONLY)[number])) {
     return NextResponse.next();
   }
 
@@ -65,8 +130,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Run on the logged-out auth routes only. (forgot/reset-password are intentionally
-  // accessible while logged in — e.g. a user resetting from a verified-but-stale device.)
-  // /auth/session-check must NOT be matched, or the delegation would intercept itself.
-  matcher: ["/login", "/signup"],
+  // Host partitioning must see every route. The explicit matrix above passes required framework,
+  // auth API and public-asset traffic before applying a cloak or visible ops-auth rewrite.
+  matcher: ["/:path*"],
 };

@@ -1,0 +1,97 @@
+import "server-only";
+
+export type RequestHostClass = "ops" | "public" | "unknown";
+
+const LOCAL_PUBLIC_ORIGIN = "http://localhost:3000";
+const LOCAL_OPS_ORIGIN = "http://ops.localhost:3000";
+
+function configuredValue(...values: Array<string | undefined>): string | undefined {
+  return values.map((value) => value?.trim()).find((value) => value !== undefined && value !== "");
+}
+
+function parseOrigin(value: string | undefined, key: string, localFallback?: string): URL {
+  const candidate = configuredValue(value) ?? localFallback;
+  if (candidate === undefined) {
+    throw new Error(`${key} must be configured as an absolute http(s) origin`);
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    throw new Error(`${key} must be configured as an absolute http(s) origin`);
+  }
+
+  if (
+    !["http:", "https:"].includes(parsed.protocol) ||
+    parsed.username !== "" ||
+    parsed.password !== "" ||
+    parsed.pathname !== "/" ||
+    parsed.search !== "" ||
+    parsed.hash !== ""
+  ) {
+    throw new Error(`${key} must contain only an absolute http(s) origin`);
+  }
+
+  return new URL(parsed.origin);
+}
+
+const publicUrl = parseOrigin(
+  configuredValue(process.env.BETTER_AUTH_URL, process.env.NEXT_PUBLIC_APP_URL),
+  "BETTER_AUTH_URL or NEXT_PUBLIC_APP_URL",
+  LOCAL_PUBLIC_ORIGIN,
+);
+
+const opsUrl = parseOrigin(
+  process.env.OPS_APP_URL,
+  "OPS_APP_URL",
+  process.env.NODE_ENV === "production" ? undefined : LOCAL_OPS_ORIGIN,
+);
+
+if (publicUrl.hostname.toLowerCase() === opsUrl.hostname.toLowerCase()) {
+  throw new Error("OPS_APP_URL must use a hostname distinct from the public application origin");
+}
+
+export const PUBLIC_APP_ORIGIN = publicUrl.origin;
+export const OPS_APP_ORIGIN = opsUrl.origin;
+
+const PUBLIC_APP_HOSTNAME = publicUrl.hostname.toLowerCase();
+const OPS_APP_HOSTNAME = opsUrl.hostname.toLowerCase();
+
+function hostnameFromAuthority(rawHost: string | null | undefined): string | null {
+  const authority = rawHost?.trim();
+  if (
+    !authority ||
+    /[\s\\/@,]/.test(authority) ||
+    authority.includes("?") ||
+    authority.includes("#")
+  ) {
+    return null;
+  }
+
+  try {
+    return new URL(`http://${authority}`).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function configuredPreviewHostname(): string | null {
+  return hostnameFromAuthority(process.env.VERCEL_URL);
+}
+
+/**
+ * Classifies only exact configured hostnames. The request Host is attacker-controlled, so this
+ * function deliberately has no suffix, wildcard, substring, or inferred-preview branch.
+ */
+export function classifyRequestHost(rawHost: string | null | undefined): RequestHostClass {
+  const hostname = hostnameFromAuthority(rawHost);
+  if (hostname === null) return "unknown";
+  if (hostname === OPS_APP_HOSTNAME) return "ops";
+  if (hostname === PUBLIC_APP_HOSTNAME || hostname === configuredPreviewHostname()) return "public";
+  return "unknown";
+}
+
+export function absolutePublicUrl(pathname: `/${string}`): string {
+  return new URL(pathname, `${PUBLIC_APP_ORIGIN}/`).toString();
+}
