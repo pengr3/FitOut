@@ -98,11 +98,67 @@ the checked-in Playwright server command, derived mode, live dev manifest state,
 and availability entries once on the edit probe, including when the test passes. On any route-status
 mismatch the same state is attached to the assertion failure. It does not print environment values.
 
-RUNNER-MANIFEST: AWAITING INSTRUMENTED PUSH
+RUNNER-MANIFEST: OBSERVED — DEFAULT MODE IS HEALTHY
+==================================================
+Workflow run: 34076948628
+URL: https://github.com/pengr3/FitOut/actions/runs/34076948628
+Event / branch: push / dev
+Exact head SHA: 809f9488a42efb82d4957f4b2b3cacdf2d8629fa
+gate-e2e job: 101604843931
 
-The next evidence-producing step is an instrumentation-only push of the committed exact SHA to dev,
-allowing the existing push workflow to run on a clean GitHub runner. The push is an external mutation
-and is intentionally left for explicit exact-SHA approval. Until that runner evidence exists, do not
-choose a server-mode repair. If the clean runner passes with both entries present, this plan's
-server-mode branch is contradicted and must be replanned around the two currently failing wizard
-cases. Tasks 2 and 3 were not started.
+The clean GitHub runner emitted:
+  serverCommand=npm run dev
+  serverMode=next-dev-default-turbopack
+  manifestPath=/__w/FitOut/FitOut/.next/dev/server/app-paths-manifest.json
+  manifestState=present
+  editEntry=app/(host)/host/listings/[id]/edit/page.js
+  availabilityEntry=app/(host)/host/listings/[id]/availability/page.js
+
+All four route-reachability cases passed without retry:
+  /host/listings                                      307 (100ms)
+  /host/listings/new                                  307 (183ms)
+  /host/listings/route-reachability/edit              307 (273ms)
+  /host/listings/route-reachability/availability      307 (482ms)
+
+The exact run concluded failure for reasons downstream of, and distinct from, route resolution:
+  JOB gate-db-free=success
+  JOB gate-db=failure
+  JOB gate-price-parity=success
+  JOB gate-visual=success
+  JOB gate-e2e=failure
+
+gate-e2e summary:
+  2 failed
+  2 flaky
+  52 skipped
+  19 did not run
+  386 passed (24.6m)
+
+The two stable failures were:
+  - e2e/host-headings.spec.ts — wizard · whole space, every step
+    Step 3 remained "Where is it?" after the advance control and the save-state region was empty.
+  - e2e/overflow-320.spec.ts — /host/listings/[id]/edit · photos step · court
+    The walk did not reach the photos-step heading "How your cover appears".
+
+The two flaky cases were:
+  - e2e/mobile-booker-path.spec.ts — court · 375px · a confirm bar, a collapsed derivation, and one amount
+  - e2e/overflow-320.spec.ts — /host/bookings · grove
+
+gate-db failed one unrelated component test:
+  tests/host/verification-panel.test.tsx — hands the typed phone to the action and locks the control
+  while the press is out. Testing Library could not find the accessible button "Start the check".
+  The instrumentation commit does not touch that component or test.
+
+FINAL TASK-1 DECISION
+=====================
+PLAYWRIGHT_SERVER_MODE_CHANGE: REJECTED BY LOCAL AND CLEAN-RUNNER EVIDENCE
+
+The exact clean runner used default Turbopack, compiled both route entries, and returned the required
+307 for all four probes. Together with the three-mode local matrix, this directly contradicts the
+only condition under which Plan 20 permits changing Playwright to Webpack. `playwright.config.ts`
+therefore remains unchanged.
+
+Per Task 1's contradiction branch, stop here and replan from the two measured wizard-walk failures
+plus the separate gate-db failure. Do not continue Task 2 as if a server-mode repair had been selected,
+do not create Task 3 all-green evidence from this failed run, and do not edit product UI, route guards,
+assertions, retries, timeouts, job definitions, dependencies, environment, or visual baselines.
