@@ -2,9 +2,9 @@
 schema_version: 1
 open_count: 21
 waived_count: 0
-fixed_count: 1
-total_count: 22
-last_updated: 2026-09-07T21:25:21.877Z
+fixed_count: 4
+total_count: 25
+last_updated: 2026-09-07T23:26:58.731Z
 ---
 
 # Broken Windows Ledger
@@ -37,6 +37,9 @@ last_updated: 2026-09-07T21:25:21.877Z
 | 20 | 19.1 | deviation | e2e/avatar-crop.spec.ts | 162 | locator('input[type=file]') resolved to 2 elements in run 33972688199; the helper's uniqueness claim is about src/, not about the document. Not repaired here - owned by proposed plan 19.1-17. | open |  | 2026-09-05T16:40:07.379Z |  |
 | 21 | 19.1 | deviation | .planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/19.1-19-PLAN.md |  | 19.1-19 Task 3 plan contract required an overall-green CI result while simultaneously permitting the owned Plan 19.1-20 E2E-only red; corrected in b7aaca4 so the four owned/supporting jobs must be green and only the exact handed-off E2E cases may remain red. | fixed |  | 2026-09-07T01:33:56.521Z | 2026-09-07T01:34:06.296Z |
 | 22 | 20 | deviation | tests/design/mail-credential-refusal.test.ts | 115 | Plan 20-10 typecheck encountered seven pre-existing diagnostics across two out-of-scope design tests | open |  | 2026-09-07T21:25:21.877Z |  |
+| 23 | 20 | deviation | src/app/(ops-gateway)/ops-gateway/route.ts |  | 20-11 approved architecture deviation: Next route-state 404 bytes required an authenticated Node constant-response gateway; implemented and production-proven without auth/database work in Proxy | fixed |  | 2026-09-07T23:26:44.941Z | 2026-09-07T23:26:57.336Z |
+| 24 | 20 | deviation | src/app/(ops-gateway)/ops-gateway/route.ts |  | 20-11 production spike found forwarded x-middleware control headers are illegal on Route Handler responses; fixed and pinned by tests | fixed |  | 2026-09-07T23:26:45.619Z | 2026-09-07T23:26:58.018Z |
+| 25 | 20 | deviation | src/app/(ops-gateway)/ops-gateway/route.ts |  | 20-11 production spike found rewritten request.url authority differs from preserved Host; fixed inward routing to use the classified Host and pinned by tests | fixed |  | 2026-09-07T23:26:46.337Z | 2026-09-07T23:26:58.731Z |
 
 ````json
 [
@@ -303,6 +306,42 @@ last_updated: 2026-09-07T21:25:21.877Z
     "reason": "",
     "recorded_at": "2026-09-07T21:25:21.877Z",
     "resolved_at": null
+  },
+  {
+    "id": 23,
+    "kind": "deviation",
+    "phase": "20",
+    "file": "src/app/(ops-gateway)/ops-gateway/route.ts",
+    "line": null,
+    "description": "20-11 approved architecture deviation: Next route-state 404 bytes required an authenticated Node constant-response gateway; implemented and production-proven without auth/database work in Proxy",
+    "status": "fixed",
+    "reason": "",
+    "recorded_at": "2026-09-07T23:26:44.941Z",
+    "resolved_at": "2026-09-07T23:26:57.336Z"
+  },
+  {
+    "id": 24,
+    "kind": "deviation",
+    "phase": "20",
+    "file": "src/app/(ops-gateway)/ops-gateway/route.ts",
+    "line": null,
+    "description": "20-11 production spike found forwarded x-middleware control headers are illegal on Route Handler responses; fixed and pinned by tests",
+    "status": "fixed",
+    "reason": "",
+    "recorded_at": "2026-09-07T23:26:45.619Z",
+    "resolved_at": "2026-09-07T23:26:58.018Z"
+  },
+  {
+    "id": 25,
+    "kind": "deviation",
+    "phase": "20",
+    "file": "src/app/(ops-gateway)/ops-gateway/route.ts",
+    "line": null,
+    "description": "20-11 production spike found rewritten request.url authority differs from preserved Host; fixed inward routing to use the classified Host and pinned by tests",
+    "status": "fixed",
+    "reason": "",
+    "recorded_at": "2026-09-07T23:26:46.337Z",
+    "resolved_at": "2026-09-07T23:26:58.731Z"
   }
 ]
 ````
