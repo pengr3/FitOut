@@ -3,8 +3,8 @@
 // visually consistent and isolated from the (future) logged-in app chrome.
 //
 // NOTE: this layout is purely presentational. The real auth gate is per-page
-// `auth.api.getSession()` and the optimistic redirect in src/middleware.ts — NOT
-// this layout (RESEARCH Anti-Patterns: middleware/layout are not the security boundary).
+// `auth.api.getSession()` and the optimistic redirect in src/proxy.ts — NOT
+// this layout (RESEARCH Anti-Patterns: Proxy/layout are not the security boundary).
 //
 // COLOUR (DS-13 / D-15 / THEME-05): the shell surface reads a semantic token, so it follows a theme
 // switch. It used to be a numbered neutral paired with a dark-mode variant — a frozen value no theme
@@ -54,7 +54,7 @@
 // constant the chrome exports, so "one identity, two surfaces" is a fact about the tree rather than
 // an instruction to whoever edits one of them next.
 //
-// THE ACCEPTED TRADEOFF, WRITTEN DOWN RATHER THAN DISCOVERED LATER. `src/middleware.ts` matches only
+// THE ACCEPTED TRADEOFF, WRITTEN DOWN RATHER THAN DISCOVERED LATER. `src/proxy.ts` matches only
 // `/login` and `/signup`, so a SIGNED-IN visitor can intentionally reach `/forgot-password` and
 // `/reset-password` — the verified-but-stale-device path. On those two routes that visitor loses the
 // header's mode switch, notification bell and profile link for the duration of the reset. The route

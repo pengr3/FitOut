@@ -25,11 +25,11 @@
 //
 // `(auth)/layout.tsx` is purely presentational — a centred column, the wordmark and the one `main`
 // landmark — and its own header says so in as many words: the real auth gate is the per-page session
-// read and the optimistic redirect in `src/middleware.ts`, NOT that layout. Verified rather than
+// read and the optimistic redirect in `src/proxy.ts`, NOT that layout. Verified rather than
 // taken from the comment: there is no session read and no `redirect()` in that file. So this route
 // needs no fixture at all, which makes it and `(legal)` the two cheapest rows in the set.
 //
-// ⚠ `src/middleware.ts` matches `/login` and `/signup` and does not match this path, so a SIGNED-IN
+// ⚠ `src/proxy.ts` matches `/login` and `/signup` and does not match this path, so a SIGNED-IN
 // visitor reaches this route too and sees the same boundary. That is worth one sentence because the
 // group's own layout header records the same asymmetry for `/forgot-password` and `/reset-password`.
 //

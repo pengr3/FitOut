@@ -1,8 +1,8 @@
 // GET /auth/session-check — the ONE place in the App Router where this cookie write is legal.
 //
-// All logic lives in @/lib/session-check (shared with src/middleware.ts so the path/param literals
+// All logic lives in @/lib/session-check (shared with src/proxy.ts so the path/param literals
 // can never drift). This file exists purely because Next.js permits cookie mutation only in
-// middleware, Route Handlers and Server Actions — and a Server Component's cookies().set() is
+// Proxy, Route Handlers and Server Actions — and a Server Component's cookies().set() is
 // swallowed silently by Better Auth's nextCookies() after-hook. See that module's header.
 //
 // NOT mounted under /api/auth/* on purpose: src/app/api/auth/[...all]/route.ts is Better Auth's

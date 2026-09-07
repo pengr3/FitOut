@@ -95,7 +95,7 @@ export const readStaff = cache(async (): Promise<StaffActor | null> => {
  * layout instead of them: Next's own authentication guide says a layout "does not control whether
  * the rest of the route renders … a layout that hides or swaps them does not stop them from running
  * or from appearing in the RSC Payload", and separately that Server Actions must be treated "with
- * the same security considerations as public-facing API endpoints". `src/middleware.ts:1-7` says the
+ * the same security considerations as public-facing API endpoints". `src/proxy.ts:1-7` says the
  * same thing about itself from the other end. There is no third place this decision can live.
  *
  * A refused caller gets `notFound()` — byte-identical to what a URL nobody ever routed produces —
@@ -114,7 +114,7 @@ export async function requireStaff(): Promise<StaffActor> {
 }
 
 /**
- * LAYER 1 — **NOT THE SECURITY BOUNDARY.** Said in `src/middleware.ts:1`'s own words: this is
+ * LAYER 1 — **NOT THE SECURITY BOUNDARY.** Said in `src/proxy.ts:1`'s own words: this is
  * OPTIMISTIC ONLY, it makes no authoritative decision anything may rely on, and nothing sensitive
  * may be gated on it alone. `requireStaff()` above is the gate; this is a status line.
  *

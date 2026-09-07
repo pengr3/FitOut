@@ -1,4 +1,4 @@
-// THE STALE-SESSION SELF-HEAL — shared by src/middleware.ts and src/app/auth/session-check/route.ts.
+// THE STALE-SESSION SELF-HEAL — shared by src/proxy.ts and src/app/auth/session-check/route.ts.
 //
 // PROBLEM (confirmed live 2026-08-05). `revokeSessionsOnPasswordReset: true` (src/lib/auth.ts, D-13)
 // deletes the session ROW. Nothing clears the browser's cookie, and the cookie is httpOnly so client
@@ -7,7 +7,7 @@
 // recover with. Same lockout for any stale cookie: expired session, admin revocation, wiped dev DB.
 //
 // WHY THE CLEARING LIVES IN A ROUTE HANDLER AND NOWHERE ELSE — measured, not theorised.
-// Next.js permits cookie mutation only in middleware, Route Handlers and Server Actions.
+// Next.js permits cookie mutation only in Proxy, Route Handlers and Server Actions.
 //   - NOT a shared requireSession() helper on the gated pages. Better Auth applies its Set-Cookie
 //     headers through the nextCookies() after-hook
 //     (node_modules/better-auth/dist/integrations/next-js.mjs), which calls Next's cookies().set()
@@ -15,11 +15,11 @@
 //     that catch swallows it SILENTLY. Such a helper would compile, run, review as correct — and
 //     clear nothing. It also would not fix the plainest repro: typing /login directly, which touches
 //     no gated page at all.
-//   - NOT middleware doing the check itself. Middleware must stay optimistic and DB-free (it says so
-//     in its own header, and Better Auth documents the cookie check as "NOT SECURE"). There is also
+//   - NOT Proxy doing the check itself. Proxy must stay optimistic and DB-free (it says so in its
+//     own header, and Better Auth documents the cookie check as "NOT SECURE"). There is also
 //     no DB-free way to know: a revoked row still carries a VALID HMAC and session.cookieCache is
 //     off, so nothing in the request distinguishes live from dead.
-// Therefore middleware DEFERS to /auth/session-check, and the authoritative read + the (legal)
+// Therefore Proxy DEFERS to /auth/session-check, and the authoritative read + the (legal)
 // cookie write happen here.
 //
 // WHERE THE CLEARING HEADER COMES FROM. Better Auth already produces exactly the right header:
@@ -40,7 +40,7 @@
 // CONSTRAINT 3, ABSOLUTE: this module must NEVER call a sign-in / sign-up / session-create API. The
 // only cookie mutation it may ever perform is an EXPIRY. Gated by a grep in the plan's verify block.
 //
-// EDGE-SAFETY: the ONLY value import here is next/server, because middleware imports this file into
+// EDGE-SAFETY: the ONLY value import here is next/server, because src/proxy.ts imports this file into
 // the Edge bundle. Better Auth is referenced by STRUCTURAL TYPE only. If a future edit adds
 // @/lib/auth or @/lib/db, `npm run build` breaks LOUDLY — a visible failure mode, chosen on purpose.
 
@@ -54,10 +54,10 @@ export const RETURN_PARAM = "next";
 
 /**
  * One-shot loop guard (threat T-IR9-02). A request already carrying this marker is passed straight
- * through by middleware, so a failure to clear the cookie degrades to "one extra redirect" and NEVER
+ * through by Proxy, so a failure to clear the cookie degrades to "one extra redirect" and NEVER
  * to ERR_TOO_MANY_REDIRECTS — which would be a WORSE failure than the bug this fixes. It is a QUERY
  * PARAM and not a guard cookie precisely so it does not share a failure mode with the Set-Cookie it
- * guards. It is forgeable; that is accepted and documented in src/middleware.ts.
+ * guards. It is forgeable; that is accepted and documented in src/proxy.ts.
  */
 export const CHECKED_PARAM = "_sc";
 
