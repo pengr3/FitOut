@@ -127,10 +127,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Generated build output anywhere in the tree, plus stale git worktrees: the default
-    // `.next/**` only matches the ROOT .next, so a nested `.claude/worktrees/<name>/.next`
-    // full of generated Turbopack JS would otherwise flood lint with thousands of errors.
-    ".claude/worktrees/**",
+    // Local Claude/GSD runtime state is Git-excluded tooling, not application source. Ignoring
+    // only its worktrees still lets the installed runtime (`.claude/gsd-core/**`) flood lint with
+    // CommonJS and host-script errors. Keep the entire local runtime outside the app lint boundary.
+    ".claude/**",
     "**/.next/**",
     // Planning artifacts are not application source and are never shipped.
     //
