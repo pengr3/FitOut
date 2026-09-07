@@ -25,7 +25,9 @@ const PARTITION_CONTROLS = Object.freeze([
   { id: "marketplace-login", surface: "public", path: "/login", actor: "signed-out", expectedStatus: 200 },
   { id: "marketplace-ops", surface: "public", path: "/ops", actor: "signed-out", expectedStatus: 404 },
   { id: "ops-auth-api", surface: "ops", path: "/api/auth/get-session", actor: "signed-out", expectedStatus: 200 },
-  { id: "ops-login", surface: "ops", path: "/login", actor: "signed-out", expectedStatus: 200 },
+  // The partition reading deliberately precedes the ops-auth pages. The visible path is already
+  // isolated to the ops host, but its internal target does not exist until later Phase 20 plans.
+  { id: "ops-login", surface: "ops", path: "/login", actor: "signed-out", expectedStatus: 404 },
   { id: "ops-missing", surface: "ops", path: "/ops/definitely-missing", actor: "signed-out", expectedStatus: 404 },
   { id: "ops-nonstaff", surface: "ops", path: "/ops", actor: "nonstaff", expectedStatus: 404 },
   { id: "ops-signed-out", surface: "ops", path: "/ops", actor: "signed-out", expectedStatus: 404 },
@@ -115,7 +117,11 @@ export function validateRows(rows, { stage }) {
     const hashes = new Set(denialRows.map((row) => row.sha256));
     const byteLengths = new Set(denialRows.map((row) => row.bytes));
     if (hashes.size !== 1 || byteLengths.size !== 1) {
-      errors.push("required denial responses must be byte-identical");
+      errors.push(
+        `required denial responses must be byte-identical (${denialRows
+          .map((row) => `${row.id}=${row.status}/${row.bytes}/${row.sha256}`)
+          .join(", ")})`,
+      );
     }
   }
 
@@ -195,11 +201,17 @@ function selectedHeaders(headers) {
 
 async function readResponse(control, config) {
   const host = control.surface === "ops" ? config.opsHost : config.publicHost;
-  const requestHeaders = new Headers({ host });
+  const requestHeaders = new Headers();
   if (control.actor === "staff") requestHeaders.set("cookie", config.staffCookie);
   if (control.actor === "nonstaff") requestHeaders.set("cookie", config.nonstaffCookie);
 
-  const response = await fetch(new URL(control.path, config.baseUrl), {
+  // Use the actual authority in the request URL. Browser/undici implementations may protect the
+  // Host header from caller overrides; a probe that connected to 127.0.0.1 and merely asked for a
+  // different Host could therefore measure the public partition while labelling it ops.
+  const requestUrl = new URL(control.path, config.baseUrl);
+  requestUrl.host = host;
+
+  const response = await fetch(requestUrl, {
     headers: requestHeaders,
     redirect: "manual",
   });

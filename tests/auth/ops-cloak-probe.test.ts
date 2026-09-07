@@ -41,7 +41,7 @@ function validPartitionRows(): Array<Record<string, unknown>> {
     { id: "ops-signed-out", host: "ops.localhost", path: "/ops", actor: "signed-out", status: 404, headers: { "content-type": "text/html; charset=utf-8" }, bytes: 233, sha256: SHA_404 },
     { id: "ops-missing", host: "ops.localhost", path: "/ops/definitely-missing", actor: "signed-out", status: 404, headers: { "content-type": "text/html; charset=utf-8" }, bytes: 233, sha256: SHA_404 },
     { id: "marketplace-ops", host: "fitout.localhost", path: "/ops", actor: "signed-out", status: 404, headers: { "content-type": "text/html; charset=utf-8" }, bytes: 233, sha256: SHA_404 },
-    { id: "ops-login", host: "ops.localhost", path: "/login", actor: "signed-out", status: 200, headers: { "content-type": "text/html; charset=utf-8" }, bytes: 377, sha256: "c".repeat(64) },
+    { id: "ops-login", host: "ops.localhost", path: "/login", actor: "signed-out", status: 404, headers: { "content-type": "text/html; charset=utf-8" }, bytes: 377, sha256: "c".repeat(64) },
     { id: "marketplace-login", host: "fitout.localhost", path: "/login", actor: "signed-out", status: 200, headers: { "content-type": "text/html; charset=utf-8" }, bytes: 381, sha256: "d".repeat(64) },
     { id: "ops-auth-api", host: "ops.localhost", path: "/api/auth/get-session", actor: "signed-out", status: 200, headers: { "content-type": "application/json" }, bytes: 4, sha256: "e".repeat(64) },
   ];
