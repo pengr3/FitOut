@@ -1,9 +1,12 @@
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
 const PROBE_PATH = "scripts/verify-ops-cloak.mjs";
+const EVIDENCE_PATH =
+  ".planning/phases/20-ops-gets-its-own-front-door-the-ops-host-sign-in-staff-onboa/20-EVIDENCE.md";
 
 type ProbeModule = {
   requiredControls(stage: "partition" | "final"): Array<{
@@ -125,5 +128,18 @@ describe("ops cloak production probe", () => {
     expect(evidence).toContain("16.2.7");
     expect(evidence).toContain(SHA_404);
     expect(evidence).not.toMatch(/cookie|token|password|database_url|bearer|@/i);
+  });
+
+  it("stores a machine-valid immediate partition reading before later ops routes land", () => {
+    expect(existsSync(EVIDENCE_PATH), `${EVIDENCE_PATH} must exist`).toBe(true);
+    if (!existsSync(EVIDENCE_PATH)) return;
+
+    expect(() =>
+      execFileSync(
+        process.execPath,
+        [PROBE_PATH, "--check-evidence", EVIDENCE_PATH, "--stage", "partition"],
+        { encoding: "utf8", stdio: "pipe" },
+      ),
+    ).not.toThrow();
   });
 });

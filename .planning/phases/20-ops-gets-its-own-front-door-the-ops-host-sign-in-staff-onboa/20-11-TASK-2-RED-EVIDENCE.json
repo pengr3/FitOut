@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/auth/ops-cloak-probe.test.ts --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nok 1 - defines a non-empty partition census with one staff 200 control\nok 2 - sorts equivalent rows by host, path, then actor without mutating input\nok 3 - rejects empty census\nok 4 - rejects missing control\nok 5 - rejects streamed 200 denial\nok 6 - rejects invalid origin\nok 7 - rejects unequal denial bytes\nok 8 - accepts the complete partition census only after independent status and hash checks\nok 9 - renders deterministic evidence without credential or PII fields\nnot ok 10 - stores a machine-valid immediate partition reading before later ops routes land\nAssertionError: 20-EVIDENCE.md must exist: expected false to be true\n# tests 10\n# pass 9\n# fail 1\n",
+  "targetTest": "stores a machine-valid immediate partition reading before later ops routes land",
+  "targetFile": "tests/auth/ops-cloak-probe.test.ts",
+  "expected": "a production next start partition transcript exists and passes the machine evidence validator",
+  "actual": "20-EVIDENCE.md did not exist before the production reading"
+}
