@@ -2,14 +2,14 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
-current_phase: "19.1"
-current_phase_name: CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes
+current_phase: 20
+current_phase_name: Ops Gets Its Own Front Door — the ops Host, Sign-In & Staff Onboarding
 status: executing
-stopped_at: Phase 20 context gathered
-last_updated: "2026-09-07T16:44:09.911Z"
+stopped_at: Phase 20 UI-SPEC approved
+last_updated: "2026-09-07T20:34:34.544Z"
 last_activity: 2026-09-07
 last_activity_desc: Plan 20/21 repair accepted by the plan checker; Plan 20 is ready to diagnose and repair the two wizard walks plus the verification-panel DB-gate failure.
-state_head: 52dd4a12a6f4fca29ef01bc505410540df0de26a
+state_head: 2d4c3dd34aae1a8bba3ac221e8c44e99dacd4baf
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -17,7 +17,7 @@ progress:
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 8
   completed_phases: 1
-  total_plans: 66
+  total_plans: 80
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
   # A halted plan counted as a completed one is the same fabricated counter this file
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 62
+  completed_plans: 63
   percent: 13
 ---
 
@@ -111,7 +111,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19.1 (CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes) — EXECUTING
+Phase: 20 (Ops Gets Its Own Front Door — the ops Host, Sign-In & Staff Onboarding) — READY TO EXECUTE
 Plan: 20 of 21
 Status: Repaired Plans 20/21 passed the checker; Plan 20 is ready to execute
 Last activity: 2026-09-07 — split the disproved server-mode plan into measured repair and exact-SHA closure nodes
@@ -1714,8 +1714,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-07T16:44:08.899Z
-Stopped at: Phase 20 context gathered
+Last session: 2026-09-07T18:21:43.932Z
+Stopped at: Phase 20 UI-SPEC approved
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1868,7 +1868,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/20-ops-gets-its-own-front-door-the-ops-host-sign-in-staff-onboa/20-CONTEXT.md
+Resume file: .planning/phases/20-ops-gets-its-own-front-door-the-ops-host-sign-in-staff-onboa/20-UI-SPEC.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
