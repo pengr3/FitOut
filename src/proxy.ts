@@ -40,7 +40,7 @@ import {
   LOGGED_OUT_ONLY,
 } from "@/lib/session-check";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Not a logged-out-only route: nothing to do.
