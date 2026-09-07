@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/auth/login-reachable-after-reset.test.ts --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - uses src/proxy.ts as the sole request interception entry point\n# tests 8\n# pass 7\n# fail 1\n# cancelled 0\n",
+  "targetTest": "uses src/proxy.ts as the sole request interception entry point",
+  "targetFile": "tests/auth/login-reachable-after-reset.test.ts",
+  "expected": "src/proxy.ts exists and src/middleware.ts does not",
+  "actual": "src/proxy.ts was absent and src/middleware.ts was present"
+}

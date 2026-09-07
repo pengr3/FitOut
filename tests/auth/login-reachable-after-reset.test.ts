@@ -58,6 +58,8 @@
 // RESTORE EVIDENCE, and the mutation is restored by EDITING THE FILE BACK — never via git.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { NextRequest } from "next/server";
 import { middleware } from "@/middleware";
@@ -77,6 +79,13 @@ const STALE = "better-auth.session_token=stale.but.validly-shaped";
 
 let testDb: TestDb;
 let auth: TestAuth;
+
+describe("NEXT.JS 16 PROXY CONVENTION", () => {
+  it("uses src/proxy.ts as the sole request interception entry point", () => {
+    expect(existsSync(resolve(process.cwd(), "src/proxy.ts"))).toBe(true);
+    expect(existsSync(resolve(process.cwd(), "src/middleware.ts"))).toBe(false);
+  });
+});
 
 beforeAll(async () => {
   testDb = await setupTestDb();
