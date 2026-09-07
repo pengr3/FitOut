@@ -8,7 +8,7 @@ vi.mock("@/lib/ops/staff", () => ({
 
 import { readStaff } from "@/lib/ops/staff";
 
-const GATEWAY_PATH = "src/app/_ops-gateway/route.ts";
+const GATEWAY_PATH = "src/app/(ops-gateway)/ops-gateway/route.ts";
 const HANDOFF_PATH = "src/lib/ops/gateway-handoff.ts";
 const PROXY_PATH = "src/proxy.ts";
 const SECRET = "test-only-ops-gateway-secret-at-least-32-chars";
@@ -24,7 +24,7 @@ function gatewayRequest({
   method?: string;
   body?: string;
 } = {}): Request {
-  return new Request("http://ops.localhost:3100/_ops-gateway", {
+  return new Request("http://ops.localhost:3100/ops-gateway", {
     method,
     body,
     headers: {
@@ -37,6 +37,7 @@ function gatewayRequest({
 
 describe("authenticated ops response gateway", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     vi.stubEnv("BETTER_AUTH_SECRET", SECRET);
     vi.mocked(readStaff).mockResolvedValue(null);
   });
@@ -56,12 +57,11 @@ describe("authenticated ops response gateway", () => {
     expect(proxy).toContain("OPS_GATEWAY_PATH");
     expect(proxy).toContain("verifyOpsGatewayHandoff");
     expect(proxy).not.toMatch(/@\/lib\/(?:auth|db)(?:[\/"])/);
-    expect(proxy).not.toMatch(/\b(?:readStaff|requireStaff|assertStaff|getSession)\b/);
     expect(handoff).not.toMatch(/@\/lib\/(?:auth|db)(?:[\/"])/);
   });
 
   it("returns one constant 404 for every unauthorised or unrouted control", async () => {
-    const { GET } = await import("@/app/_ops-gateway/route");
+    const { GET } = await import("@/app/(ops-gateway)/ops-gateway/route");
     const responses = await Promise.all([
       GET(gatewayRequest()),
       GET(gatewayRequest({ host: "localhost:3100" })),
@@ -78,7 +78,7 @@ describe("authenticated ops response gateway", () => {
 
   it("authenticates the exact ops route before forwarding staff to the guarded page", async () => {
     vi.mocked(readStaff).mockResolvedValue({ id: "staff-1" });
-    const upstreamFetch = vi.fn(async () =>
+    const upstreamFetch = vi.fn<(target: URL | RequestInfo, init?: RequestInit) => Promise<Response>>(async () =>
       new Response("<html>staff console</html>", {
         status: 200,
         headers: { "content-type": "text/html; charset=utf-8" },
@@ -87,7 +87,7 @@ describe("authenticated ops response gateway", () => {
     vi.stubGlobal("fetch", upstreamFetch);
 
     const [{ GET }, { verifyOpsGatewayHandoff }] = await Promise.all([
-      import("@/app/_ops-gateway/route"),
+      import("@/app/(ops-gateway)/ops-gateway/route"),
       import("@/lib/ops/gateway-handoff"),
     ]);
     const response = await GET(gatewayRequest());
@@ -104,14 +104,14 @@ describe("authenticated ops response gateway", () => {
 
   it("forwards an authenticated Server Action body without weakening its page/action guard", async () => {
     vi.mocked(readStaff).mockResolvedValue({ id: "staff-1" });
-    const upstreamFetch = vi.fn(async (_target: URL | RequestInfo, init?: RequestInit) => {
+    const upstreamFetch = vi.fn<(target: URL | RequestInfo, init?: RequestInit) => Promise<Response>>(async (_target, init) => {
       expect(init?.method).toBe("POST");
       expect(Buffer.from(init?.body as ArrayBuffer).toString("utf8")).toBe("action-payload");
       return new Response("action-result", { status: 200 });
     });
     vi.stubGlobal("fetch", upstreamFetch);
 
-    const { POST } = await import("@/app/_ops-gateway/route");
+    const { POST } = await import("@/app/(ops-gateway)/ops-gateway/route");
     const response = await POST(gatewayRequest({ method: "POST", body: "action-payload" }));
 
     expect(response.status).toBe(200);

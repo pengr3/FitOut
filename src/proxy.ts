@@ -40,11 +40,15 @@ import {
   LOGGED_OUT_ONLY,
 } from "@/lib/session-check";
 import { classifyRequestHost } from "@/lib/app-origins";
+import { verifyOpsGatewayHandoff } from "@/lib/ops/gateway-handoff";
 
 const OPS_AUTH_PREFIX = "/_ops-auth";
 const OPS_CLOAK_PATH = "/_ops-cloak";
+const OPS_GATEWAY_PATH = "/ops-gateway";
 const OPS_PATH = "/ops";
 const AUTH_API_PATH = "/api/auth";
+const OPS_GATEWAY_SOURCE_HEADER = "x-fitout-ops-gateway-source";
+const OPS_GATEWAY_HANDOFF_HEADER = "x-fitout-ops-gateway-handoff";
 
 const OPS_VISIBLE_AUTH_PATHS = ["/login", "/forgot-password", "/reset-password"] as const;
 const OPS_PUBLIC_ASSETS = new Set([
@@ -66,6 +70,22 @@ function rewrite(request: NextRequest, pathname: string): NextResponse {
   return NextResponse.rewrite(target);
 }
 
+function gatewayRewrite(request: NextRequest): NextResponse {
+  const target = request.nextUrl.clone();
+  target.pathname = OPS_GATEWAY_PATH;
+  const headers = new Headers(request.headers);
+  headers.set(OPS_GATEWAY_SOURCE_HEADER, request.nextUrl.pathname);
+  headers.delete(OPS_GATEWAY_HANDOFF_HEADER);
+  return NextResponse.rewrite(target, { request: { headers } });
+}
+
+function nextWithoutGatewayHeaders(request: NextRequest): NextResponse {
+  const headers = new Headers(request.headers);
+  headers.delete(OPS_GATEWAY_SOURCE_HEADER);
+  headers.delete(OPS_GATEWAY_HANDOFF_HEADER);
+  return NextResponse.next({ request: { headers } });
+}
+
 function opsAuthTarget(pathname: string): string | null {
   if (OPS_VISIBLE_AUTH_PATHS.includes(pathname as (typeof OPS_VISIBLE_AUTH_PATHS)[number])) {
     return `${OPS_AUTH_PREFIX}${pathname}`;
@@ -76,7 +96,6 @@ function opsAuthTarget(pathname: string): string | null {
 
 function isOpsPassPath(pathname: string): boolean {
   return (
-    isPathSegment(pathname, OPS_PATH) ||
     isPathSegment(pathname, AUTH_API_PATH) ||
     isPathSegment(pathname, "/_next") ||
     OPS_PUBLIC_ASSETS.has(pathname)
@@ -88,6 +107,9 @@ export function proxy(request: NextRequest) {
 
   // The cloak target must be allowed to render its root notFound() response after a rewrite.
   if (isPathSegment(pathname, OPS_CLOAK_PATH)) return NextResponse.next();
+  // A direct request to the internal gateway is harmless (it only owns the constant 404), but it
+  // must not be allowed to smuggle the private source marker into the handler.
+  if (isPathSegment(pathname, OPS_GATEWAY_PATH)) return nextWithoutGatewayHeaders(request);
 
   const hostClass = classifyRequestHost(request.headers.get("host"));
 
@@ -97,6 +119,13 @@ export function proxy(request: NextRequest) {
 
     const authTarget = opsAuthTarget(pathname);
     if (authTarget !== null) return rewrite(request, authTarget);
+    if (pathname === OPS_PATH) {
+      const handoff = request.headers.get(OPS_GATEWAY_HANDOFF_HEADER);
+      return verifyOpsGatewayHandoff(handoff, request.method, OPS_PATH)
+        ? nextWithoutGatewayHeaders(request)
+        : gatewayRewrite(request);
+    }
+    if (isPathSegment(pathname, OPS_PATH)) return gatewayRewrite(request);
     if (isOpsPassPath(pathname)) return NextResponse.next();
 
     // The dedicated host exposes only the ops console, its auth surface and required assets.
@@ -104,7 +133,8 @@ export function proxy(request: NextRequest) {
   }
 
   // Public, exact preview and unknown hosts can never reach the ops segment or internal auth tree.
-  if (isPathSegment(pathname, OPS_PATH) || isPathSegment(pathname, OPS_AUTH_PREFIX)) {
+  if (isPathSegment(pathname, OPS_PATH)) return gatewayRewrite(request);
+  if (isPathSegment(pathname, OPS_AUTH_PREFIX)) {
     return rewrite(request, OPS_CLOAK_PATH);
   }
 
