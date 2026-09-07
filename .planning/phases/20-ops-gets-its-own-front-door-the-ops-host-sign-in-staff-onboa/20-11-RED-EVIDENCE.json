@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/auth/ops-cloak-probe.test.ts --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - defines a non-empty partition census with one staff 200 control\nAssertionError: scripts/verify-ops-cloak.mjs must exist: expected null not to be null\n# tests 9\n# pass 0\n# fail 9\n",
+  "targetTest": "defines a non-empty partition census with one staff 200 control",
+  "targetFile": "tests/auth/ops-cloak-probe.test.ts",
+  "expected": "the production probe exists and exposes a non-empty partition census with exactly one staff 200 control",
+  "actual": "scripts/verify-ops-cloak.mjs did not exist, so the artifact-presence assertion failed before any probe behavior could pass"
+}
