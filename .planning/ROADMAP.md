@@ -627,9 +627,12 @@ and the scope is different work from closing vectors one at a time.
 `19-VERIFICATION.md` are committed and contain exact payloads for three live vectors. Publishing before
 1–3 land ships an attack recipe alongside the code it applies to.
 
-**Plans:** 17/19 plans executed (11 waves)
+**Plans:** 18/20 plans executed (12 waves)
 
 Plans:
+
+- [x] 19.1-18-PLAN.md
+- [ ] 19.1-20-PLAN.md
 
 - [x] 19.1-14-PLAN.md
 
@@ -709,17 +712,17 @@ Plans:
 
 **Wave 11** *(blocked on Wave 10 completion)*
 
-- [ ] 19.1-19-PLAN.md — D-19.1-D: the today ring follows VENUE-LOCAL today in both calendar twins, the
+- [x] 19.1-19-PLAN.md — D-19.1-D: the today ring follows VENUE-LOCAL today in both calendar twins, the
       fixture and the two reference URLs are pinned, clock-independence proved three ways, then rows 9–12
-      are minted via `baselines.yml` and READ out of the pixels *(carries a `blocking-human` checkpoint)*
+      are minted via `baselines.yml` and READ out of the pixels *(blocking-human checkpoint APPROVED
+      2026-09-07; run 34043991189 job 101515676520: 43 passed, 42 skipped, 0 failed/flaky)*
 
-**⚠ SC4 and SC5 are OPEN. Phase 19.1 is NOT complete.** Plans 19.1-16 through 19.1-18 have now all
-executed and each closed its measured local defect, but each terminal real-run criterion halted: on the
-latest SHA-matched push run (`34008844133`) the checkout-path case is gone while seven failures remain
-across the host listing wizard/edit route. That cluster requires a new measured follow-up (proposed
-**19.1-20**, beginning with route/module reachability rather than a timeout change). **19.1-19** still
-owns the separate `gate-visual` half specified by `D-19.1-D`. SC4 closes only when the functional job and
-the visual job are green; that lifts the publication hold and then unblocks 19.1-15.
+**⚠ SC4 and SC5 are OPEN. Phase 19.1 is NOT complete.** Plan 19.1-19 closed the visual half: all four
+clock-bearing references are stable, read from committed crops and PM-approved, and `gate-visual` is green
+on exact-head run `34043991189`. That run's only failed job is `gate-e2e`, with two recorded cases in the
+host listing wizard/edit-route cluster. **19.1-20** owns those two failures and is the remaining functional
+SC4 route; it has not started. SC4 closes only when Plan 20 produces a wholly green exact-head run. That
+lifts the publication hold and then unblocks 19.1-15 / SC5.
 
 ⚠ **Each is its own wave deliberately, and it is not conservatism.** Every one of the four closes by
 reading a real `ci` run or a `baselines` dispatch, and the workflow's concurrency group cancels an
@@ -1039,7 +1042,7 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 18. Host Verification, Listing Review & FitOut Ops | v1.2 | 14/14 | **Verified & COMPLETE** — 17/17 requirements, 0 code-level blockers. The checkbox was held from 2026-09-01 until 18.1 shipped the missing submission path, then briefly re-held on PM decision D-274 (the `/ops` contact surface). **18.1-16 shipped D-274 on 2026-09-03 and phase 18.1 verified passed 9/9, so both holds are discharged.** | verified 2026-09-03 |
 | 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | Complete    | 2026-09-03 |
 | 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 11/11 | In Progress|  |
-| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 17/19 | In Progress — 19.1-14 HALTED (`hold`), 19.1-15 BLOCKED (403); 19.1-16 and 19.1-17 executed but HALTED on inherited host-wizard reds; 19.1-18 executed and HALTED — its fake-clock checkout defect is repaired and `hold-countdown` is absent on run 34008844133, but `gate-e2e` still has seven host-wizard/edit-route failures, two flaky and 26 not run; proposed 19.1-20 owns that cluster, while 19.1-19 still owns visual; SC4 + SC5 OPEN |  |
+| 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 18/20 | In Progress — Plan 19 visual closure complete and PM-approved; gate-visual green on run 34043991189. Plan 20 remains for the two host-wizard/edit-route E2E failures; SC4 + SC5 OPEN |  |
 | 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | Not started | - |
 | 21. The Host Can See Where They Stand | v1.2 | 0/TBD | Not started | - |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |

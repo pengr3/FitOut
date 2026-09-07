@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: "19.1"
 current_phase_name: CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes
 status: executing
-stopped_at: Phase 19.1 UI-SPEC approved
-last_updated: "2026-09-06T13:29:44.442Z"
-last_activity: 2026-09-06
-last_activity_desc: "Phase 19.1 gap closure execution started: Plan 19 visual closure, then Plan 20 functional repair."
-state_head: 5b985a52f19de9d8ab799c9fed4335db598f9d0a
+stopped_at: Completed 19.1-19-PLAN.md
+last_updated: "2026-09-07T01:38:38.796Z"
+last_activity: 2026-09-07
+last_activity_desc: "Plan 19 visual closure completed with PM-approved stable references; Plan 20 remains unstarted and owns the two host-wizard/edit-route E2E failures."
+state_head: 6a565031c2dbaeecad84d8660f7bae2835447a0d
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -51,7 +51,12 @@ progress:
   # hand. Its own checkout-path defect is closed; Task 4's gate-e2e=success acceptance
   # remains unmet on run 34008844133, so the SUMMARY is `status: halted` and no
   # requirement is claimed complete.
-  completed_plans: 61
+  #
+  # 2026-09-07, 19.1-19: FIFTH over-reach. `state.advance-plan` moved 61 -> 63 for
+  # one completed plan, and `state.record-metric` later rewrote the hand-corrected
+  # 62 back to 63. Corrected after each verb and guarded again after the final verb;
+  # this completed plan contributes exactly one, so the disk-truth total is 62.
+  completed_plans: 62
   percent: 13
 ---
 
@@ -107,9 +112,9 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 19.1 (CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes) — EXECUTING
-Plan: 19 of 20
-Status: Executing 19.1-19 visual closure; 19.1-20 follows after its blocking-human checkpoint is approved
-Last activity: 2026-09-06 — gap closure dependency repaired; Plan 19 is runnable and Plan 20 remains ordered behind it
+Plan: 20 of 20
+Status: Completed 19.1-19 visual closure; 19.1-20 is next and remains unstarted
+Last activity: 2026-09-07 — four stable clock-bearing references approved; gate-visual green on run 34043991189
 
 ## Performance Metrics
 
@@ -486,6 +491,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P14 | 10min | 2 tasks | 4 files |
 | Phase 19.1 P16 | 122 min | 4 tasks | 9 files |
 | Phase 19.1 P17 | 90 min | 4 tasks | 6 files |
+| Phase 19.1 P19 | 11h 49m | 4 tasks | 20 files |
 
 ## Accumulated Context
 
@@ -1516,6 +1522,10 @@ Recent decisions affecting current work:
 - [Phase 19.1]: 19.1-16: the (host) hydration failure was Radix asChild cloning a trigger created in a Server Component, NOT two renders disagreeing about a generated id — measured, 110 regenerations to 0 on the runner
 - [Phase 19.1]: 19.1-16: the regeneration is REFUTED as the cause of host-headings:1052 and overflow-320:3434 — both are byte-identically red once it is gone; neither is annotated, allowlisted or retried
 - [Phase 19.1]: The two booker duplicate-element failures are a React streaming commit window, not duplicated mounts: both matches walk to div#S:1[hidden] at <body>, PERSISTS=no. Repaired by asserting the commit (a staged/committed classification) rather than sleeping past it; SHARED-CAUSE=no against 19.1-16. — Measured on both sides of 19.1-16's repair with a byte-copy revert and equal checksums; (app)/layout.tsx passes no nav, so the component 19.1-16 repaired never renders on the booker shell.
+- [Phase 19.1]: 19.1-19: Both availability calendar twins pass venue-local today explicitly; browser-clock emulation and a second today derivation remain rejected.
+- [Phase 19.1]: 19.1-19: The four regenerated references stand by PM approval; the localhost wording is retained as a non-blocking observation, not a defect claim.
+- [Phase 19.1]: 19.1-19: Run 34043991189 job 101515676520 is the authoritative visual proof (43 passed, 42 skipped, 0 failed/flaky); its two host-wizard/edit-route E2E failures belong to Plan 19.1-20.
+- [Phase 19.1]: 19.1-19: EXPIRES=nothing for the four references; the ring and member-since line derive from pinned literals and every other audited clock read is excluded from rendered fields.
 
 ### Pending Todos
 
@@ -1704,8 +1714,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-06T12:24:02.531Z
-Stopped at: Phase 19.1 UI-SPEC approved
+Last session: 2026-09-07T01:38:36.100Z
+Stopped at: Completed 19.1-19-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1858,7 +1868,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/19.1-UI-SPEC.md
+Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
