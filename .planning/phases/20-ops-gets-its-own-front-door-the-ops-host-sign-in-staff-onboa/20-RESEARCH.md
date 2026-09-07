@@ -405,10 +405,10 @@ This phase is both a convention rename and a policy migration, so repository edi
 **Warning signs:** staff invite uses `void send...` or unconditionally returns success. [ASSUMED]
 
 ### Pitfall 8: Marketplace Staff Session and Server-Action Reachability
-**What goes wrong:** a staff credential signs in through the marketplace login, then a crafted Server Function POST on that host carries a valid staff-role session even though the console UI is partitioned. [ASSUMED]
+**What goes wrong:** a crafted marketplace-host Server Function POST can present a valid staff-role session even though the console UI and ordinary browser cookie jars are partitioned. [ASSUMED]
 **Why it happens:** cookie scope distinguishes hosts, not “marketplace” versus “ops” purpose, and Next says Server Functions are public-facing POST surfaces. [VERIFIED: node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md:217-219]
-**How to avoid:** add an empirical cross-host action probe in Wave 0; if it reaches the action, either neutrally reject staff credentials on marketplace sign-in or introduce a separately approved host-binding check without weakening the role guard. This is an open decision because the locked guard is Host-agnostic. [ASSUMED]
-**Warning signs:** tests cover cookie transfer only, not direct action POST behavior or staff credentials at marketplace login. [ASSUMED]
+**How to avoid:** every privileged ops Server Function must first verify the exact configured ops Host and Origin server-side, then call `requireStaff()`, then parse or mutate. Proxy remains routing only. A focused integration probe must capture a real ops action dispatch and replay it on the marketplace host with a staff cookie deliberately presented; the request must be refused before domain work and leave state unchanged. [RESOLVED: binding resolution 2026-09-08]
+**Warning signs:** tests cover cookie transfer only, the host/origin check follows `requireStaff()` or parsing, or a marketplace-host action POST reaches a domain spy. [RESOLVED]
 
 ## Code Examples
 
@@ -506,11 +506,11 @@ The existing helper already normalizes and rechecks the returned URL; the additi
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
 | A1 | The complete proposed verification-row state machine is acceptable: deterministic email-derived id, token digest identifier, JSON payload, SQL-clock expiry, conditional invite/resend/cancel, GET read-only, and transactional consume/account/grant. | Summary / Pattern 4 / security | If Better Auth or another flow assumes opaque/random verification ids globally, or product needs another inactive-state representation, the uniqueness and lifecycle technique must change. |
-| A2 | `DELETE ... RETURNING` in the account-creation transaction is the accepted equivalent of `accepted_at`; the audit row is sufficient durable history. | Summary / Pattern 4 / open questions | If product requires retained invitation history beyond audit, zero migration and durable acceptance history conflict and need a user decision. |
+| A2 | `DELETE ... RETURNING` in the account-creation transaction is the accepted equivalent of `accepted_at`; active verification rows are live state and immutable audit events are sufficient durable invitation history. | Summary / Pattern 4 / resolved questions | Resolved: inactive invitation listing and a new history table are outside Phase 20; any accept/cancel/expiry deletion must be paired atomically with its nonsecret audit event. |
 | A3 | A shared transaction-scoped serialization lock is acceptable for the rare staff-role mutation path. | Pattern 5 | Without serialization, concurrent different-target revokes can empty the staff set; with a poorly chosen lock, unrelated operations could contend. |
 | A4 | The proposed origin authority, exact-host normalization, public-preview classification, full route matrix, visible ops auth URLs, internal `_ops-auth` paths, and suggested filenames are acceptable. | Structure / Pattern 1 / runtime | Different URL/config naming changes proxy, environment, callback, and probe tasks but not the tier boundaries. |
 | A5 | The existing email sender may be extended with a delivery result while other fire-and-forget auth mail behavior remains unchanged. | Pitfall 7 | A broader transport refactor could violate established timing/retry decisions. |
-| A6 | A staff user can currently authenticate through the marketplace email/password endpoint, and a crafted marketplace-host Server Function POST may carry that role. | Pitfall 8 | If Proxy rewrites prevent dispatch or marketplace staff login is intentionally allowed, mitigation scope differs; this must be measured before planning the fix. |
+| A6 | A crafted marketplace-host Server Function POST may present a staff-role cookie regardless of ordinary browser cookie isolation. | Pitfall 8 | Resolved conservatively: exact ops Host+Origin validation is mandatory inside every privileged Server Function before `requireStaff()` or domain mutation, and an integration probe must prove marketplace dispatch is inert. |
 | A7 | `ops.localhost` resolves in the execution browser without a hosts-file entry. | Runtime inventory | If it does not, local browser tests need a mapping or host-routing fixture. |
 | A8 | Ops sign-in should be server-controlled, perform a read-back role check, clear nonstaff sessions immediately, and use the proposed `/ops` callback allowlist. | Pattern 3 / code examples | If Better Auth cookie propagation does not permit sign-in then sign-out in one Server Action, the flow needs a dedicated route handler or after-hook. |
 | A9 | Shared staff grant policy should require both capabilities false; explicit conversion clears both; revoke retains no capabilities; invitation-created users are inserted with no capabilities. | Pattern 5 / validation | A different reversal policy would change CLI/UI outcomes and seed remediation. |
@@ -519,17 +519,16 @@ The existing helper already normalizes and rechecks the returned URL; the additi
 | A12 | The uninspected production database, Vercel, DNS/TLS, Neon, and Resend state should be handled by the listed operator checkpoints, while stale `.next` output should be rebuilt. | Runtime State / Environment | Missing or different external state can block final UAT or require a deployment-specific step. |
 | A13 | The proposed Wave 0 filenames, focused commands, sampling cadence, and threat mitigations fit the existing test architecture. | Validation / Security | Existing source gates may require expanding current files instead of creating the named files; behavior coverage remains mandatory. |
 
-## Open Questions
+## Resolved Research Questions
 
 1. **Does a marketplace-host staff session reach an ops Server Function?**
    - What we know: Server Functions are public-facing POSTs to their used route, Proxy is not authorization, and the role guard is intentionally Host-agnostic. [VERIFIED: node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md:217-219]
-   - What's unclear: whether the final rewrite matrix prevents action dispatch before the action id is resolved, and whether staff credentials must be neutrally rejected by marketplace sign-in. [ASSUMED]
-   - Recommendation: make this a Wave 0 production/integration probe. If reachable, prefer rejecting/clearing staff sessions on marketplace sign-in rather than weakening or replacing `requireStaff()`; if that product change is not authorized, return to discuss-phase. [ASSUMED]
+   - Resolution: do not depend on the rewrite matrix or browser cookie scoping. Add a reusable server-side action-origin guard that requires both the exact configured ops Host and exact ops Origin before `requireStaff()`, parsing, rate limiting, or domain mutation. Apply it to every existing and Phase 20 privileged ops Server Function while retaining the positive staff-role guard immediately afterward. [RESOLVED: binding resolution 2026-09-08]
+   - Required proof: a focused integration probe obtains a real ops Server Function action id, deliberately presents an ops staff cookie to the same POST on the marketplace host, and proves a neutral refusal plus zero domain/audit mutation. The final Phase 20 E2E evidence reruns this probe. [RESOLVED]
 
 2. **Is deletion plus audit sufficient invitation history?**
    - What we know: zero migrations is locked, verification has no `accepted_at`, and audit stores actor/action/outcome/meta with ids and enum-shaped values. Exact audit columns are quoted as `"id"`, `"created_at"`, `"actor_id"`, `"action"`, `"outcome"`, `"meta"`, `"resolved_at"`, and `"resolved_by"`. [VERIFIED: src/lib/db/schema.ts:574-587]
-   - What's unclear: whether operators need to list expired/cancelled/used invitation history after the row is removed; CONTEXT only requires active pending rows. [VERIFIED: 20-CONTEXT.md D-15..D-20]
-   - Recommendation: treat audit as durable history and verification as live state; do not retain inactive rows unless the user expands scope. [ASSUMED]
+   - Resolution: active unexpired verification rows are the live Pending invitations state. Acceptance, cancellation, and optional expired-row pruning may delete the row only in the same transaction that records the corresponding immutable, nonsecret audit event. The audit event is the durable history. The roster lists no inactive invitations, and Phase 20 adds neither an inactive-history surface nor a table. [RESOLVED: binding resolution 2026-09-08]
 
 ## Environment Availability
 

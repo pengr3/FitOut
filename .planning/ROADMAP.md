@@ -776,18 +776,23 @@ phase is the milestone's one hard prerequisite**: nothing ops-side in v1.2 can s
      the three 404 bodies byte-identical by hash**, with **every new ops route in the probe set** — and
      there is still no `(ops)`-scoped `not-found.tsx`.
 
-**Plans**: 9 plans
+**Plans**: 14 plans
 
 Plans:
 - [ ] 20-01-PLAN.md — Rename middleware to Next.js 16 Proxy as an isolated behavior-preserving tracer.
-- [ ] 20-02-PLAN.md — Partition exact hosts, establish configured origins, and record the first cloak measurement.
-- [ ] 20-03-PLAN.md — Add host-qualified Better Auth, ops sign-in, safe callbacks, and same-host recovery.
+- [ ] 20-02-PLAN.md — Partition exact hosts, establish configured origins, and converge denied paths on one cloak target.
+- [ ] 20-03-PLAN.md — Configure the single Better Auth instance for exact dynamic origins and host-only sessions.
 - [ ] 20-04-PLAN.md — Centralize serialized staff-role policy, explicit CLI conversion, and next-request revocation.
 - [ ] 20-05-PLAN.md — Implement the hashed verification-row invitation state machine and atomic acceptance.
 - [ ] 20-06-PLAN.md — Expose protected invitation actions and the scanner-safe recipient setup route.
 - [ ] 20-07-PLAN.md — Add the two-section staff roster and invitation management panel to `/ops`.
-- [ ] 20-08-PLAN.md — Finish sign-out, shell recovery, cross-host exits, and UI design backstops.
+- [ ] 20-08-PLAN.md — Finish sign-out, shell recovery, and absolute cross-host exits.
 - [ ] 20-09-PLAN.md — Remediate legacy state and close with final cloak, deployed-host, and real-email UAT.
+- [ ] 20-10-PLAN.md — Retarget remaining Proxy tests and comments immediately after the isolated rename.
+- [ ] 20-11-PLAN.md — Build the production cloak probe and record the first partition-stage reading.
+- [ ] 20-12-PLAN.md — Add origin-bound ops sign-in, safe callbacks, and same-host recovery/reset UI.
+- [ ] 20-13-PLAN.md — Enroll every completed ops/auth/management surface in the exact design inventories.
+- [ ] 20-14-PLAN.md — Enforce exact ops Host+Origin inside every privileged Server Function and probe marketplace dispatch.
 
 **⚠ `src/middleware.ts` → `src/proxy.ts` FIRST, as its own commit, before any Host logic is written.**
 Next 16.0.0 deprecated the `middleware` convention in favour of `proxy`, this repo runs **16.2.7**, and
