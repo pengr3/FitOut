@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/auth/ops-host-routing.test.ts --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - ships one validated server-only origin authority\nAssertionError: src/lib/app-origins.ts is the required authority: expected false to be true\nnot ok 2 - routes ops login\nAssertionError: expected { kind: 'next', path: null } to deeply equal { kind: 'rewrite', path: '/_ops-auth/login' }\n# tests 36\n# pass 10\n# fail 26\n",
+  "targetTest": "routes ops login",
+  "targetFile": "tests/auth/ops-host-routing.test.ts",
+  "expected": "the exact configured ops Host rewrites visible /login to /_ops-auth/login",
+  "actual": "the existing Proxy returned NextResponse.next() for the same request"
+}
