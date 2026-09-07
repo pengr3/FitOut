@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/auth/ops-response-gateway.test.ts --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - has one Node gateway and keeps Proxy free of auth and database imports\nError: ENOENT: src/app/_ops-gateway/route.ts\nnot ok 2 - returns one constant 404 for every unauthorised or unrouted control\nError: Cannot find package '@/app/_ops-gateway/route'\nnot ok 3 - authenticates the exact ops route before forwarding staff to the guarded page\nError: Cannot find package '@/app/_ops-gateway/route'\nnot ok 4 - forwards an authenticated Server Action body without weakening its page/action guard\nError: Cannot find package '@/app/_ops-gateway/route'\n# tests 4\n# pass 0\n# fail 4\n",
+  "targetTest": "returns one constant 404 for every unauthorised or unrouted control",
+  "targetFile": "tests/auth/ops-response-gateway.test.ts",
+  "expected": "an authenticated Node gateway returns one constant non-empty 404 body for public-host, nonstaff, nonexistent, and direct-unrouted controls",
+  "actual": "src/app/_ops-gateway/route.ts and src/lib/ops/gateway-handoff.ts did not exist, so all four gateway contract tests failed"
+}
