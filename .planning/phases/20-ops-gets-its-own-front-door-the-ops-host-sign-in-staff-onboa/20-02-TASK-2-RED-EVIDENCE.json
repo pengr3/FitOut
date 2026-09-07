@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design/ops-host-invariants.test.ts --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - has a real, non-empty internal route census with one shared cloak target\nAssertionError: expected [] to deeply equal [ 'src/app/_ops-cloak/page.tsx' ]\nnot ok 2 - terminates the cloak page with root notFound() before any JSX can stream\nAssertionError: src/app/_ops-cloak/page.tsx must exist: expected false to be true\n# tests 5\n# pass 3\n# fail 2\n",
+  "targetTest": "terminates the cloak page with root notFound() before any JSX can stream",
+  "targetFile": "tests/design/ops-host-invariants.test.ts",
+  "expected": "one top-level internal cloak page calls Next's root notFound() before returning any JSX",
+  "actual": "src/app/_ops-cloak/page.tsx did not exist, while root-404 and guard invariants passed"
+}
