@@ -273,7 +273,7 @@ describe("17-D18 — the dev-only PayMongo interception seam", () => {
       // assertion rather than noise.
       //
       // TWO names, not one, and the second is admitted for a stated reason: NEXT_RUNTIME is set by the
-      // FRAMEWORK per invocation (src/middleware.ts exists, so register() is invoked for a non-nodejs
+      // FRAMEWORK per invocation (src/proxy.ts exists, so register() is invoked for a non-nodejs
       // runtime too, where the mock dispatcher cannot load). It narrows the guard and cannot widen it.
       // A THIRD name would mean the seam can be switched on by configuration on a money-adjacent path.
       const envReads = CODE.match(/process\.env\.[A-Za-z_][A-Za-z0-9_]*/g) ?? [];

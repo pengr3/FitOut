@@ -30,7 +30,7 @@
 //
 //   LAYER 1  `assertStaff()` in `(ops)/ops/layout.tsx`, ABOVE the Suspense boundary `loading.tsx`
 //            creates. It exists ONLY to win the status line and its own header says — in
-//            `src/middleware.ts:1`'s words — that it is NOT the security boundary. Asserted here as a
+//            `src/proxy.ts:1`'s words — that it is NOT the security boundary. Asserted here as a
 //            POSITION, not merely a presence: inside the default export's body, awaited, with no JSX
 //            ancestor of any kind.
 //   LAYER 2  `requireStaff()` in every `(ops)` page, independently, every render. Next's own

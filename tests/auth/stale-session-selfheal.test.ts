@@ -2,11 +2,11 @@
 //
 // THE BUG THIS LOCKS DOWN (confirmed live 2026-08-05, by a human, doing the boring thing):
 // `revokeSessionsOnPasswordReset: true` (src/lib/auth.ts) deletes the session ROW; nothing clears the
-// browser's httpOnly cookie. src/middleware.ts does a PRESENCE-only check, sees the stale cookie,
+// browser's httpOnly cookie. src/proxy.ts does a PRESENCE-only check, sees the stale cookie,
 // concludes "logged in", and bounces /login -> /. The user lands on the public search home and can
 // never get back to /login for the 30-day cookie lifetime. There is no sign-out to recover with.
 //
-// The fix: middleware DELEGATES to /auth/session-check, whose body is `sessionCheckResponse` here.
+// The fix: Proxy DELEGATES to /auth/session-check, whose body is `sessionCheckResponse` here.
 // It runs the AUTHORITATIVE auth.api.getSession({asResponse:true}) — the only way Better Auth's own
 // deleteSessionCookie headers become reachable — and carries them onto a redirect back to /login.
 //
@@ -14,7 +14,8 @@
 //   - Case 1 reproduces the bug through a REAL requestPasswordReset + resetPassword, NOT by deleting
 //     the session row with SQL. The whole point is that the SHIPPED reset produces this state.
 //   - Case 1 asserts the CLEARED cookie name is byte-identical to the name `getSessionCookie` (the
-//     function middleware calls) actually reads. The entire fix hinges on those two strings being
+//     function the `proxy` export calls) actually reads. The entire fix hinges on those two strings
+//     being
 //     the same one; a mismatch would clear a cookie nobody looks at and the lockout would survive.
 //   - Case 2 is the CONVERSE and it is not optional (constraint 4): a VALID session must still be
 //     bounced to / and must come back UNDAMAGED. Otherwise this endpoint would be a CSRF-style
@@ -118,7 +119,7 @@ function tokenFromLink(link: string | null): string {
   return url.searchParams.get("token") ?? url.pathname.split("/").pop() ?? "";
 }
 
-/** Build the GET /auth/session-check request a delegating middleware would produce. */
+/** Build the GET /auth/session-check request a delegating Proxy would produce. */
 function checkRequest(next: string | null, cookie: string): NextRequest {
   const url = new URL(SESSION_CHECK_PATH, ORIGIN);
   if (next !== null) url.searchParams.set(RETURN_PARAM, next);
@@ -156,7 +157,8 @@ describe("stale session self-heal (/auth/session-check)", () => {
     expect(cookieA).toContain("better-auth.session_token=");
     const cookieName = cookieA.slice(0, cookieA.indexOf("="));
 
-    // THE NAME LINKAGE: this is the exact cookie middleware's presence check reads. If the cleared
+    // THE NAME LINKAGE: this is the exact cookie the `proxy` export's presence check reads. If the
+    // cleared
     // name below is not this name, the lockout survives the "fix".
     expect(
       getSessionCookie(new NextRequest(new URL("/login", ORIGIN), { headers: { cookie: cookieA } })),
@@ -248,7 +250,7 @@ describe("stale session self-heal (/auth/session-check)", () => {
       "/login",
     );
 
-    // /signup IS honored (it is the other logged-out-only route middleware delegates for).
+    // /signup IS honored (it is the other logged-out-only route Proxy delegates for).
     expect(safeReturnPath("/signup")).toBe(`/signup?${CHECKED_PARAM}=1`);
     expect(locationOf(await sessionCheckResponse(injected(), checkRequest("/signup", "")))
       .pathname).toBe("/signup");

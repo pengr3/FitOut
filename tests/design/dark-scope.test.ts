@@ -181,7 +181,7 @@ function count(text: string, re: RegExp): number {
 function scanSrc() {
   const vendored = emptyPartition();
   const app = emptyPartition();
-  /** Everything under `src/` that is in NEITHER tree — `src/lib/`, `src/middleware.ts`, and so on. */
+  /** Everything under `src/` that is in NEITHER tree — `src/lib/`, `src/proxy.ts`, and so on. */
   const outside = emptyPartition();
 
   for (const file of collectSourceFiles(SRC_DIR)) {
