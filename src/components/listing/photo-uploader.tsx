@@ -74,6 +74,20 @@ import { cn } from "@/lib/utils";
 
 const MIN_PHOTOS = 3; // D-02/D-04 — minimum to publish.
 
+const PLAYWRIGHT_CLOUDINARY_CLOUD_NAME = "fitout-e2e-placeholder-not-a-real-cloud";
+const PLAYWRIGHT_CLOUDINARY_API_KEY = "fitout-e2e-placeholder-not-a-real-key";
+
+function cloudinaryWidgetConfig() {
+  const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const apiKey =
+    process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY ??
+    (cloudName === PLAYWRIGHT_CLOUDINARY_CLOUD_NAME
+      ? PLAYWRIGHT_CLOUDINARY_API_KEY
+      : undefined);
+
+  return { cloud: { cloudName, apiKey } };
+}
+
 /**
  * THE PHOTO-REQUIREMENT REGION'S NAME, which is a different mechanism from its CONTENT.
  *
@@ -186,6 +200,7 @@ export function PhotoUploader({
 
   const uploader = (
     <CldUploadWidget
+      config={cloudinaryWidgetConfig()}
       signatureEndpoint={`/api/cloudinary/sign?listingId=${encodeURIComponent(listingId)}`}
       // D-194 — THE PRESET IS A TOP-LEVEL PROP, AND ITS POSITION IS AS LOAD-BEARING AS ITS VALUE.
       // Inside `next-cloudinary` the widget's option object is composed with the preset taken from
