@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 20
 current_phase_name: Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding
 status: executing
-stopped_at: Completed 20-10-PLAN.md
-last_updated: "2026-09-07T21:25:36.529Z"
+stopped_at: Completed 20-02-PLAN.md
+last_updated: "2026-09-07T21:54:54.613Z"
 last_activity: 2026-09-08
 last_activity_desc: Phase 20 execution started
-state_head: 858ef512bf40c9c892af9195c22c022c15d9b836
+state_head: 515375215cecfcc5e3e78209e4acdc3b80731ece
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 65
+  completed_plans: 66
   percent: 13
 ---
 
@@ -112,7 +112,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 20 (Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding) — EXECUTING
-Plan: 3 of 14
+Plan: 4 of 14
 Status: Ready to execute
 Last activity: 2026-09-08 — Phase 20 execution started
 
@@ -494,6 +494,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P19 | 11h 49m | 4 tasks | 20 files |
 | Phase 20 P01 | 14 min | 1 tasks | 4 files |
 | Phase 20 P10 | 15 min | 2 tasks | 9 files |
+| Phase 20 P02 | 18 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -1533,6 +1534,9 @@ Recent decisions affecting current work:
 - [Phase 20]: Plan 20-10: retargeted only comments and source citations; no runtime expression, JSX node, assertion count, or authorization predicate changed.
 - [Phase 20]: Plan 20-10: ran design files with vitest.design.config.ts so all four requested suites were actually discovered.
 - [Phase 20]: Plan 20-10: deferred seven pre-existing TypeScript diagnostics in two out-of-scope design tests.
+- [Phase 20]: Unknown and non-allowlisted preview hosts retain marketplace routing but can never reach /ops or internal ops-auth routes.
+- [Phase 20]: OPS_APP_URL is server-only, exact, mandatory in production, and has only an explicit ops.localhost development fallback.
+- [Phase 20]: The all-route Proxy matcher uses explicit pass cells while layout, page, and action guards remain the authorization boundary.
 
 ### Pending Todos
 
@@ -1721,8 +1725,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-07T21:25:34.870Z
-Stopped at: Completed 20-10-PLAN.md
+Last session: 2026-09-07T21:54:53.073Z
+Stopped at: Completed 20-02-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.

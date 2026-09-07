@@ -776,7 +776,7 @@ phase is the milestone's one hard prerequisite**: nothing ops-side in v1.2 can s
      the three 404 bodies byte-identical by hash**, with **every new ops route in the probe set** — and
      there is still no `(ops)`-scoped `not-found.tsx`.
 
-**Plans**: 2/14 plans executed
+**Plans**: 3/14 plans executed
 
 Plans:
 **Wave 1**
@@ -789,7 +789,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 20-02-PLAN.md — Partition exact hosts, establish configured origins, and converge denied paths on one cloak target.
+- [x] 20-02-PLAN.md — Partition exact hosts, establish configured origins, and converge denied paths on one cloak target.
 
 **Wave 4** *(blocked on Wave 3 completion)*
 

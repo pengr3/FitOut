@@ -200,7 +200,7 @@ categories Phase 18/18.1 opened; `STATE-05` and `TRUST-01` keep their v1.1 IDs.
 - [ ] **OPS-11** — A **staff account may not simultaneously be a booker or a host** (D-275,
       reversing PM-B on the PM's 2026-09-04 ruling). Enforced at grant time; the reversal is recorded
       as such rather than silently applied.
-- [ ] **OPS-12** — The **404 cloak is re-measured** with every new ops route in the probe set —
+- [x] **OPS-12** — The **404 cloak is re-measured** with every new ops route in the probe set —
       staff `200`, non-staff `404`, signed-out `404`, nonexistent `404`, with the three 404 bodies
       byte-identical by hash — and there is still **no `(ops)`-scoped `not-found.tsx`**.
       *D-275's non-negotiable condition.*
@@ -318,7 +318,7 @@ Explicitly excluded, with the reasoning, so they are not re-added by a later pla
 | OPS-09 | Phase 20 | Pending |
 | OPS-10 | Phase 20 | Pending |
 | OPS-11 | Phase 20 | Pending |
-| OPS-12 | Phase 20 | Pending |
+| OPS-12 | Phase 20 | Complete |
 | HVER-09 | Phase 21 | Pending |
 | HVER-10 | Phase 21 | Pending |
 | HVER-11 | Phase 21 | Pending |
