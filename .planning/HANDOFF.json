@@ -1,0 +1,90 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-09-07T15:18:15.980Z",
+  "phase": "19.1",
+  "phase_name": "CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes",
+  "phase_dir": ".planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red",
+  "plan": 20,
+  "task": 3,
+  "total_tasks": 3,
+  "status": "paused",
+  "completed_tasks": [
+    {
+      "id": 1,
+      "name": "Reproduce all three owned reds and locate their causal boundaries",
+      "status": "done",
+      "commit": "502dcef"
+    },
+    {
+      "id": 2,
+      "name": "Repair the measured wizard-walk causes without changing the UI contract",
+      "status": "done",
+      "commit": "ddee6cc"
+    },
+    {
+      "id": 3,
+      "name": "Repair the verification-panel cause and finish one clean locally proven repair head",
+      "status": "in_progress",
+      "progress": "The verification transition repair is committed at adf5e4c. Focused E2E cases, the six standing property groups, and the verification-panel file passed. The full Chromium run retained one unrelated confirmation-decay flaky result, and Plan 20 closeout/summary/bookkeeping have not been completed."
+    }
+  ],
+  "remaining_tasks": [
+    {
+      "id": 3,
+      "name": "Complete Plan 20's remaining clean verification, causal evidence, summary, and bookkeeping",
+      "status": "paused"
+    },
+    {
+      "id": 21,
+      "name": "Approve an exact clean SHA, push it, and capture the five-job CI result",
+      "status": "not_started"
+    },
+    {
+      "id": 15,
+      "name": "Apply the default-branch ruleset after an explicit repository-publication decision",
+      "status": "blocked"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Plan 15 remains blocked by the recorded PM decision to keep the repository private.",
+      "type": "human_action",
+      "workaround": "Leave Plan 15 and SC5 open; do not represent Phase 19.1 as complete."
+    },
+    {
+      "description": "Local refs currently show HEAD and origin/dev at adf5e4c even though Plan 20's contract forbids pushing its repair before Plan 21 approval.",
+      "type": "external",
+      "workaround": "If Phase 19.1 is resumed, verify the live remote SHA and reconstruct the approval boundary before running Plan 21."
+    }
+  ],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {
+      "action": "Make a fresh explicit decision before publishing the repository or applying the default-branch ruleset.",
+      "context": "The prior decision was hold; Plan 15 requires public visibility.",
+      "blocking": true
+    },
+    {
+      "action": "Approve the exact clean Plan 20 closeout SHA before any Plan 21 push.",
+      "context": "Any intervening tracked change invalidates approval.",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Pause Phase 19.1 without marking it complete and prioritize Phase 20's product objectives.",
+      "rationale": "The user determined that further Phase 19.1 infrastructure work is consuming disproportionate time and resources without enough immediate product value.",
+      "phase": "19.1"
+    }
+  ],
+  "uncommitted_files": [
+    "?? .agents/",
+    "?? .codex/",
+    "?? .gsd/",
+    "?? .planning/milestone.lock",
+    "?? .planning/phases/19-host-listing-surfaces-gates-that-actually-run/19-PATTERNS.md",
+    "?? .planning/state.json"
+  ],
+  "next_action": "Do not resume Phase 19.1 automatically. If the product decision changes, begin with $gsd-resume-work and verify remote dev identity before any Plan 21 action.",
+  "context_notes": "Phase 19.1 is deliberately parked as unfinished. Preserve all existing commits, evidence, plans, verification debt, and open-window entries. The active product direction is Phase 20: the ops subdomain, sign-in, and staff onboarding."
+}
