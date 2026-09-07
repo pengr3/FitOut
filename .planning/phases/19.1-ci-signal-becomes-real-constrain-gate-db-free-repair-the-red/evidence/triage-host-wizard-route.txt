@@ -1,0 +1,108 @@
+Phase 19.1 Plan 20 — host wizard route triage
+Captured: 2026-09-07 (Asia/Manila)
+Matrix source SHA: fd387faf90af9dc64e3dd4fea0f8f7a438821760
+
+WATCHED-RED RUN
+===============
+Workflow run: 34008844133
+Job: 101420933484
+Event / branch: push / dev
+Runner SHA: 2d944c0863a0a7aa584426c88e7ed8a77bc669bd
+Playwright webServer command at that SHA: npm run dev
+Installed Next.js 16 documentation says `next dev` uses Turbopack by default.
+
+The edit reachability assertion reported the same result on its initial attempt and both retries:
+  /host/listings/route-reachability/edit answered 404. Expected 307.
+
+RUNNER-MANIFEST: UNOBSERVED
+The watched-red revision did not emit the active server mode or the live
+.next/dev/server/app-paths-manifest.json entries. No manifest value can be reconstructed from
+that log without inventing evidence.
+
+CURRENT CI NARROWING
+====================
+The later authoritative Phase 19 proof run 34043991189 no longer failed route reachability.
+Its only remaining failures were the two Plan 20 host-wizard cases. gate-visual and the other
+non-E2E jobs were green. This narrows the current failure set and means the historical 404 is not
+evidence that every clean default-dev boot still loses the dynamic route.
+
+READ-ONLY USER-SERVER PROBE
+===========================
+The existing user-driven localhost:3000 process was not started, stopped, or reused by this work.
+Read-only anonymous probes returned:
+  /host/listings                                      307
+  /host/listings/new                                  307
+  /host/listings/route-reachability/edit              307
+  /host/listings/route-reachability/availability      307
+
+Its .next/dev/server/app-paths-manifest.json contained:
+  /(host)/host/listings/[id]/edit/page
+    app/(host)/host/listings/[id]/edit/page.js
+  /(host)/host/listings/[id]/availability/page
+    app/(host)/host/listings/[id]/availability/page.js
+
+CLEAN ISOLATED MATRIX
+=====================
+Checkout:
+  C:\Users\Admin\AppData\Local\Temp\fitout-plan20-matrix-e313252da70340d49b5b15c805bbbe66\checkout
+
+Preparation:
+  - populated from `git archive HEAD` at the matrix source SHA
+  - copied the installed node_modules tree (63,707 files; 765,033,914 bytes)
+  - removed only the isolated checkout's exact .next directory between legs
+  - used ports 3101, 3102, and 3103 so localhost:3000 remained untouched
+
+Leg A — configured default development server
+  Command: node node_modules/next/dist/bin/next dev -p 3101
+  Reported engine: Next.js 16.2.7 (Turbopack)
+  Anonymous status, all four routes: 307
+  Dev manifest edit entry: present, exact value
+    app/(host)/host/listings/[id]/edit/page.js
+  Dev manifest availability entry: present, exact value
+    app/(host)/host/listings/[id]/availability/page.js
+  Shutdown: exact listener PID stopped; port 3101 confirmed closed
+
+Leg B — explicit Webpack development server
+  Command: node node_modules/next/dist/bin/next dev --webpack -p 3102
+  On cold compilation, two 30-second client requests timed out; the server later logged a cold edit
+  request as 200 after 28.8 seconds. After compilation settled, a raw no-follow warm probe returned
+  307 for all four routes.
+  Dev manifest edit entry: present, exact value
+    app/(host)/host/listings/[id]/edit/page.js
+  Dev manifest availability entry: present, exact value
+    app/(host)/host/listings/[id]/availability/page.js
+  Shutdown: exact listener PID stopped; port 3102 confirmed closed
+
+Leg C — clean production build and start
+  Build command: node node_modules/next/dist/bin/next build
+  Start command: node node_modules/next/dist/bin/next start -p 3103
+  The sandboxed build first failed because Google Geist font fetches were denied. The identical build
+  was rerun with approved network access and passed compilation, type checking, and static generation.
+  The build route table included /host/listings/[id]/edit and /host/listings/[id]/availability.
+  Anonymous status, all four routes: 307
+  Production app-paths manifest: exact edit and availability entries present
+  Production app-path-routes manifest: exact edit and availability routes present
+  Shutdown: exact listener PID stopped; port 3103 confirmed closed
+
+DECISION
+========
+PLAYWRIGHT_SERVER_MODE_CHANGE: REJECTED BY MATRIX
+
+Default Turbopack, explicit Webpack, and production all compiled the two dynamic routes and returned
+the required warm anonymous 307 responses. The local matrix therefore does not select Webpack and
+does not justify editing playwright.config.ts. No product source, retry, timeout, expectation, or
+visual baseline was changed.
+
+Task 1's clean-runner discriminator has been added to e2e/host-route-reachability.spec.ts. It prints
+the checked-in Playwright server command, derived mode, live dev manifest state, and the exact edit
+and availability entries once on the edit probe, including when the test passes. On any route-status
+mismatch the same state is attached to the assertion failure. It does not print environment values.
+
+RUNNER-MANIFEST: AWAITING INSTRUMENTED PUSH
+
+The next evidence-producing step is an instrumentation-only push of the committed exact SHA to dev,
+allowing the existing push workflow to run on a clean GitHub runner. The push is an external mutation
+and is intentionally left for explicit exact-SHA approval. Until that runner evidence exists, do not
+choose a server-mode repair. If the clean runner passes with both entries present, this plan's
+server-mode branch is contradicted and must be replanned around the two currently failing wizard
+cases. Tasks 2 and 3 were not started.

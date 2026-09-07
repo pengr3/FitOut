@@ -1,3 +1,6 @@
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
+
 import { expect, test } from "@playwright/test";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -54,6 +57,67 @@ const ROUTES = [
   { path: "/host/listings/route-reachability/availability", expect: 307 },
 ] as const;
 
+const HOST_ROUTE_MANIFEST_PATH = resolve(
+  process.cwd(),
+  ".next/dev/server/app-paths-manifest.json",
+);
+const PLAYWRIGHT_CONFIG_PATH = resolve(process.cwd(), "playwright.config.ts");
+const EDIT_ROUTE_KEY = "/(host)/host/listings/[id]/edit/page";
+const AVAILABILITY_ROUTE_KEY = "/(host)/host/listings/[id]/availability/page";
+
+type AppPathsManifest = Record<string, string>;
+
+/**
+ * Read only the non-secret runner state that distinguishes a router miss from a page refusal.
+ *
+ * This deliberately reads the checked-in Playwright command rather than an environment variable:
+ * the command is the launch boundary under test, while dumping the environment would risk turning
+ * a route diagnostic into a credential disclosure. The two route values are emitted verbatim when
+ * present so a future red records what the running server actually compiled rather than only a
+ * lossy yes/no interpretation.
+ */
+async function readHostRouteManifestState(): Promise<string> {
+  let serverCommand = "<unreadable>";
+  try {
+    const config = await readFile(PLAYWRIGHT_CONFIG_PATH, "utf8");
+    serverCommand =
+      config.match(/webServer:\s*\{[\s\S]*?command:\s*"([^"]+)"/)?.[1] ?? "<missing>";
+  } catch {
+    // The explicit state below keeps an unreadable config distinct from a configured command.
+  }
+
+  const serverMode = serverCommand.includes("--webpack")
+    ? "next-dev-webpack"
+    : serverCommand.includes("npm run dev")
+      ? "next-dev-default-turbopack"
+      : "unknown";
+
+  let manifestState = "unreadable";
+  let editEntry = "<unavailable>";
+  let availabilityEntry = "<unavailable>";
+
+  try {
+    const manifest = JSON.parse(
+      await readFile(HOST_ROUTE_MANIFEST_PATH, "utf8"),
+    ) as AppPathsManifest;
+    manifestState = "present";
+    editEntry = manifest[EDIT_ROUTE_KEY] ?? "<absent>";
+    availabilityEntry = manifest[AVAILABILITY_ROUTE_KEY] ?? "<absent>";
+  } catch (error) {
+    manifestState = error instanceof SyntaxError ? "invalid-json" : "missing-or-unreadable";
+  }
+
+  return [
+    "Live host-route runner state:",
+    `  serverCommand=${serverCommand}`,
+    `  serverMode=${serverMode}`,
+    `  manifestPath=${HOST_ROUTE_MANIFEST_PATH}`,
+    `  manifestState=${manifestState}`,
+    `  editEntry=${editEntry}`,
+    `  availabilityEntry=${availabilityEntry}`,
+  ].join("\n");
+}
+
 /**
  * The leading sentence, chosen by the status actually observed.
  *
@@ -90,11 +154,23 @@ for (const r of ROUTES) {
     // vacuous. Its non-vacuity was proven by deleting this option and watching the assertion report
     // 200 where 307 was expected (19-PATTERNS § F — watch the guard go red before trusting it).
     const res = await request.get(r.path, { maxRedirects: 0 });
+    const shouldReadLiveRouteState =
+      r.path === "/host/listings/route-reachability/edit" || res.status() !== r.expect;
+    const manifestState = shouldReadLiveRouteState ? await readHostRouteManifestState() : "";
+
+    // Emit the discriminator once even on green clean runners. The watched-red run predated this
+    // instrumentation, so a passing retry alone cannot tell us whether its dev manifest recovered.
+    if (r.path === "/host/listings/route-reachability/edit") {
+      console.log(`[host-route-manifest]\n${manifestState}`);
+    }
+
+    const liveRouteState = res.status() === r.expect ? "" : `\n${manifestState}\n`;
 
     expect(
       res.status(),
       `${r.path} answered ${res.status()}. Expected ${r.expect}.\n` +
         `${leadingSentence(res.status())}\n` +
+        liveRouteState +
         `Check the RUNNING server's manifest before reading this as an application bug:\n` +
         `  grep -c 'listings/\\[id\\]/edit' .next/dev/server/app-paths-manifest.json   # 0 = absent (dev)\n` +
         `  grep -c 'listings/\\[id\\]/edit' .next/app-path-routes-manifest.json        # prod\n` +
