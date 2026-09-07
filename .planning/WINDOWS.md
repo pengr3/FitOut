@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 20
+open_count: 21
 waived_count: 0
 fixed_count: 1
-total_count: 21
-last_updated: 2026-09-07T01:34:06.296Z
+total_count: 22
+last_updated: 2026-09-07T21:25:21.877Z
 ---
 
 # Broken Windows Ledger
@@ -36,6 +36,7 @@ last_updated: 2026-09-07T01:34:06.296Z
 | 19 | 19.1 | deviation | src/app/(host)/host/layout.tsx | 95 | Hydration failure on every (host) route: the Suspense fallback and its resolved content each mount a Radix DialogTrigger with a generated id. Reproduced locally. Leading candidate for host-headings:1052 and overflow-320:3434 remaining red. Owned by proposed plan 19.1-16. | open |  | 2026-09-05T16:40:06.818Z |  |
 | 20 | 19.1 | deviation | e2e/avatar-crop.spec.ts | 162 | locator('input[type=file]') resolved to 2 elements in run 33972688199; the helper's uniqueness claim is about src/, not about the document. Not repaired here - owned by proposed plan 19.1-17. | open |  | 2026-09-05T16:40:07.379Z |  |
 | 21 | 19.1 | deviation | .planning/phases/19.1-ci-signal-becomes-real-constrain-gate-db-free-repair-the-red/19.1-19-PLAN.md |  | 19.1-19 Task 3 plan contract required an overall-green CI result while simultaneously permitting the owned Plan 19.1-20 E2E-only red; corrected in b7aaca4 so the four owned/supporting jobs must be green and only the exact handed-off E2E cases may remain red. | fixed |  | 2026-09-07T01:33:56.521Z | 2026-09-07T01:34:06.296Z |
+| 22 | 20 | deviation | tests/design/mail-credential-refusal.test.ts | 115 | Plan 20-10 typecheck encountered seven pre-existing diagnostics across two out-of-scope design tests | open |  | 2026-09-07T21:25:21.877Z |  |
 
 ````json
 [
@@ -290,6 +291,18 @@ last_updated: 2026-09-07T01:34:06.296Z
     "reason": "",
     "recorded_at": "2026-09-07T01:33:56.521Z",
     "resolved_at": "2026-09-07T01:34:06.296Z"
+  },
+  {
+    "id": 22,
+    "kind": "deviation",
+    "phase": "20",
+    "file": "tests/design/mail-credential-refusal.test.ts",
+    "line": 115,
+    "description": "Plan 20-10 typecheck encountered seven pre-existing diagnostics across two out-of-scope design tests",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-07T21:25:21.877Z",
+    "resolved_at": null
   }
 ]
 ````

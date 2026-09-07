@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 20
 current_phase_name: Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding
 status: executing
-stopped_at: Completed 20-01-PLAN.md
-last_updated: "2026-09-07T20:59:14.581Z"
+stopped_at: Completed 20-10-PLAN.md
+last_updated: "2026-09-07T21:25:36.529Z"
 last_activity: 2026-09-08
 last_activity_desc: Phase 20 execution started
-state_head: b5ef41c04e9b70d9c96df7e3c73f1c662c8c69c2
+state_head: 858ef512bf40c9c892af9195c22c022c15d9b836
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 64
+  completed_plans: 65
   percent: 13
 ---
 
@@ -112,7 +112,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 20 (Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding) — EXECUTING
-Plan: 2 of 14
+Plan: 3 of 14
 Status: Ready to execute
 Last activity: 2026-09-08 — Phase 20 execution started
 
@@ -493,6 +493,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P17 | 90 min | 4 tasks | 6 files |
 | Phase 19.1 P19 | 11h 49m | 4 tasks | 20 files |
 | Phase 20 P01 | 14 min | 1 tasks | 4 files |
+| Phase 20 P10 | 15 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -1529,6 +1530,9 @@ Recent decisions affecting current work:
 - [Phase 19.1]: 19.1-19: EXPIRES=nothing for the four references; the ring and member-since line derive from pinned literals and every other audited clock read is excluded from rendered fields.
 - [Phase 20]: Changed only the Next.js convention filename, named export, and direct test references; host routing remains deferred to Plan 20-02.
 - [Phase 20]: Used the checked-in Vitest entrypoint because the machine npx shim targets a missing npm installation.
+- [Phase 20]: Plan 20-10: retargeted only comments and source citations; no runtime expression, JSX node, assertion count, or authorization predicate changed.
+- [Phase 20]: Plan 20-10: ran design files with vitest.design.config.ts so all four requested suites were actually discovered.
+- [Phase 20]: Plan 20-10: deferred seven pre-existing TypeScript diagnostics in two out-of-scope design tests.
 
 ### Pending Todos
 
@@ -1717,8 +1721,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-07T20:59:12.993Z
-Stopped at: Completed 20-01-PLAN.md
+Last session: 2026-09-07T21:25:34.870Z
+Stopped at: Completed 20-10-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
