@@ -776,12 +776,12 @@ phase is the milestone's one hard prerequisite**: nothing ops-side in v1.2 can s
      the three 404 bodies byte-identical by hash**, with **every new ops route in the probe set** — and
      there is still no `(ops)`-scoped `not-found.tsx`.
 
-**Plans**: 14 plans
+**Plans**: 1/14 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 20-01-PLAN.md — Rename middleware to Next.js 16 Proxy as an isolated behavior-preserving tracer.
+- [x] 20-01-PLAN.md — Rename middleware to Next.js 16 Proxy as an isolated behavior-preserving tracer.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -1109,7 +1109,7 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 18.1 Close Phase 18 — verification path (INSERTED) | v1.2 | 16/16 | Complete    | 2026-09-03 |
 | 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 11/11 | In Progress|  |
 | 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 18/20 | In Progress — Plan 19 visual closure complete and PM-approved; gate-visual green on run 34043991189. Plan 20 remains for the two host-wizard/edit-route E2E failures; SC4 + SC5 OPEN |  |
-| 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | Not started | - |
+| 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | In Progress|  |
 | 21. The Host Can See Where They Stand | v1.2 | 0/TBD | Not started | - |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |
 | 23. The Support Path Becomes Reachable | v1.2 | 0/TBD | **Blocked on a business fact** — a monitored support address (D-64 forbids a placeholder) | - |

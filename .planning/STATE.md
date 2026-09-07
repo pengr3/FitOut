@@ -3,13 +3,13 @@ gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 20
-current_phase_name: Ops Gets Its Own Front Door — the ops Host, Sign-In & Staff Onboarding
+current_phase_name: Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding
 status: executing
-stopped_at: Phase 20 UI-SPEC approved
-last_updated: "2026-09-07T20:34:34.544Z"
-last_activity: 2026-09-07
-last_activity_desc: Plan 20/21 repair accepted by the plan checker; Plan 20 is ready to diagnose and repair the two wizard walks plus the verification-panel DB-gate failure.
-state_head: 2d4c3dd34aae1a8bba3ac221e8c44e99dacd4baf
+stopped_at: Completed 20-01-PLAN.md
+last_updated: "2026-09-07T20:59:14.581Z"
+last_activity: 2026-09-08
+last_activity_desc: Phase 20 execution started
+state_head: b5ef41c04e9b70d9c96df7e3c73f1c662c8c69c2
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 63
+  completed_plans: 64
   percent: 13
 ---
 
@@ -67,7 +67,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 19.1 — CI signal becomes real
+**Current focus:** Phase 20 — Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues
 from 19; coverage is 25/25 with no orphans and no duplicates. The order is dependency-derived, not
 brief-derived: **19** (cheap independents — the `/host/listings` card fix, the reproduction-gated
@@ -111,10 +111,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 20 (Ops Gets Its Own Front Door — the ops Host, Sign-In & Staff Onboarding) — READY TO EXECUTE
-Plan: 20 of 21
-Status: Repaired Plans 20/21 passed the checker; Plan 20 is ready to execute
-Last activity: 2026-09-07 — split the disproved server-mode plan into measured repair and exact-SHA closure nodes
+Phase: 20 (Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding) — EXECUTING
+Plan: 2 of 14
+Status: Ready to execute
+Last activity: 2026-09-08 — Phase 20 execution started
 
 ## Performance Metrics
 
@@ -492,6 +492,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 19.1 P16 | 122 min | 4 tasks | 9 files |
 | Phase 19.1 P17 | 90 min | 4 tasks | 6 files |
 | Phase 19.1 P19 | 11h 49m | 4 tasks | 20 files |
+| Phase 20 P01 | 14 min | 1 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1526,6 +1527,8 @@ Recent decisions affecting current work:
 - [Phase 19.1]: 19.1-19: The four regenerated references stand by PM approval; the localhost wording is retained as a non-blocking observation, not a defect claim.
 - [Phase 19.1]: 19.1-19: Run 34043991189 job 101515676520 is the authoritative visual proof (43 passed, 42 skipped, 0 failed/flaky); its two host-wizard/edit-route E2E failures belong to Plan 19.1-20.
 - [Phase 19.1]: 19.1-19: EXPIRES=nothing for the four references; the ring and member-since line derive from pinned literals and every other audited clock read is excluded from rendered fields.
+- [Phase 20]: Changed only the Next.js convention filename, named export, and direct test references; host routing remains deferred to Plan 20-02.
+- [Phase 20]: Used the checked-in Vitest entrypoint because the machine npx shim targets a missing npm installation.
 
 ### Pending Todos
 
@@ -1714,8 +1717,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-07T18:21:43.932Z
-Stopped at: Phase 20 UI-SPEC approved
+Last session: 2026-09-07T20:59:12.993Z
+Stopped at: Completed 20-01-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1868,7 +1871,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/20-ops-gets-its-own-front-door-the-ops-host-sign-in-staff-onboa/20-UI-SPEC.md
+Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
