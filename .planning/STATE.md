@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: "19.1"
 current_phase_name: CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, and close the checker's own coverage holes
 status: executing
-stopped_at: Completed 19.1-19-PLAN.md
-last_updated: "2026-09-07T04:18:29.193Z"
+stopped_at: Phase 20 context gathered
+last_updated: "2026-09-07T16:44:09.911Z"
 last_activity: 2026-09-07
-last_activity_desc: "Plan 20/21 repair accepted by the plan checker; Plan 20 is ready to diagnose and repair the two wizard walks plus the verification-panel DB-gate failure."
-state_head: 9f6bb87865d219b95d3660d24328c9a6ab52789a
+last_activity_desc: Plan 20/21 repair accepted by the plan checker; Plan 20 is ready to diagnose and repair the two wizard walks plus the verification-panel DB-gate failure.
+state_head: 52dd4a12a6f4fca29ef01bc505410540df0de26a
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -1714,8 +1714,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-07T01:38:36.100Z
-Stopped at: Completed 19.1-19-PLAN.md
+Last session: 2026-09-07T16:44:08.899Z
+Stopped at: Phase 20 context gathered
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1868,7 +1868,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: None
+Resume file: .planning/phases/20-ops-gets-its-own-front-door-the-ops-host-sign-in-staff-onboa/20-CONTEXT.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
