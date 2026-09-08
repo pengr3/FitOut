@@ -51,6 +51,7 @@ async function send(
   subject: string,
   html: string,
   text: string,
+  options: { allowDevelopmentBodyLog?: boolean } = {},
 ): Promise<EmailDeliveryResult> {
   if (!resend) {
     // WR-02 — the dev fallback logs the FULL email body, which includes the single-use
@@ -63,7 +64,14 @@ async function send(
       );
       return { delivered: false };
     }
-    // Dev/test only: log the link instead of delivering so the flow can be followed locally.
+    if (options.allowDevelopmentBodyLog === false) {
+      // Staff invitations cross an elevation-of-privilege boundary. Unlike the
+      // legacy verification/reset fallback, their bearer credential may not be
+      // copied to a terminal even during local development.
+      console.error("staff invitation email transport is not configured");
+      return { delivered: false };
+    }
+    // Dev/test only: log legacy public-auth links so those flows remain followable locally.
     console.log(`[email:dev] to=${to} ${subject}\n${html}`);
     return { delivered: true, transport: "development" };
   }
@@ -123,7 +131,9 @@ export const sendStaffInviteEmail = async (
       paragraphs: ["You were invited to join FitOut Ops. This invitation expires in 24 hours."],
       cta: { label: "Create staff account", href: url },
     });
-    return await send(to, "You're invited to FitOut Ops", html, text);
+    return await send(to, "You're invited to FitOut Ops", html, text, {
+      allowDevelopmentBodyLog: false,
+    });
   } catch {
     // The URL contains a live credential and `to` is PII. Deliberately omit
     // both from transport/logging failures.

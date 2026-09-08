@@ -58,4 +58,26 @@ describe("email dev-fallback production guard (WR-02)", () => {
     expect(logged).toContain("[email:dev]");
     expect(logged).toContain("SECRET-LIVE-TOKEN-123");
   });
+
+  it("never logs a staff invitation bearer credential in development", async () => {
+    vi.stubEnv("RESEND_API_KEY", "");
+    vi.stubEnv("NODE_ENV", "development");
+
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { sendStaffInviteEmail } = await import("@/lib/email");
+    const result = await sendStaffInviteEmail(
+      "staff-secret@example.com",
+      "http://ops.localhost:3000/invite/SECRET-LIVE-STAFF-TOKEN",
+    );
+
+    expect(result).toEqual({ delivered: false });
+    const logged = [...logSpy.mock.calls.flat(), ...errorSpy.mock.calls.flat()]
+      .map((value) => String(value))
+      .join("\n");
+    expect(logged).not.toContain("staff-secret@example.com");
+    expect(logged).not.toContain("SECRET-LIVE-STAFF-TOKEN");
+    expect(logSpy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+  });
 });
