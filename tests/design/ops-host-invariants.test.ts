@@ -11,7 +11,12 @@ const APP_ORIGINS_PATH = "src/lib/app-origins.ts";
 const CLOAK_PATH = "src/app/_ops-cloak/page.tsx";
 const ROOT_NOT_FOUND_PATH = "src/app/not-found.tsx";
 const ROOT_NOT_FOUND_SHA256 = "fdd295e842fc7719738c9795231a3b89bf3d1066ec931f9f6a06b1f5157d226d";
-const EXPECTED_INTERNAL_ROUTE_PAGES = [CLOAK_PATH];
+const EXPECTED_INTERNAL_ROUTE_PAGES = [
+  "src/app/(ops-auth)/_ops-auth/forgot-password/page.tsx",
+  "src/app/(ops-auth)/_ops-auth/login/page.tsx",
+  "src/app/(ops-auth)/_ops-auth/reset-password/page.tsx",
+  CLOAK_PATH,
+];
 
 function source(path: string): string {
   return readFileSync(resolve(ROOT, path), "utf8");
@@ -158,7 +163,13 @@ describe("OPS-12 exact host partition invariants", () => {
       .filter((name) => /^ops-.*\.ts$/.test(name))
       .map((name) => `src/app/actions/${name}`);
     expect(actionFiles.length, "the action guard census cannot be empty").toBeGreaterThan(0);
-    for (const path of actionFiles) expect(source(path)).toContain("requireStaff");
+    for (const path of actionFiles) {
+      if (path.endsWith("/ops-auth.ts")) {
+        expect(source(path)).toContain("requireOpsMutationOrigin");
+      } else {
+        expect(source(path)).toContain("requireStaff");
+      }
+    }
   });
 
   it("pins one exact dynamic Better Auth origin authority with host-only uncached sessions", () => {

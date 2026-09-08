@@ -133,7 +133,8 @@ const OPS_LAYOUT = "src/app/(ops)/ops/layout.tsx";
 const EXTRA_OPS_ACTIONS: readonly { readonly file: string; readonly name: string }[] = [
   { file: "src/app/actions/cancel-booking.ts", name: "cancelBookingAsOps" },
 ];
-const EXPECTED_OPS_ACTIONS = 7;
+const EXPECTED_OPS_ACTIONS = 11;
+const OPS_AUTH_ACTION_FILE = "src/app/actions/ops-auth.ts";
 
 /** D-246. One queue, one page. Every extra page costs a `loading.tsx` and moves three pinned counts. */
 const EXPECTED_OPS_PAGES = 1;
@@ -423,6 +424,7 @@ type ActionRow = {
   readonly file: string;
   readonly name: string;
   readonly guardsFirst: boolean;
+  readonly originFirst: boolean;
   readonly originFirstStaffSecond: boolean;
   readonly bound: boolean;
 };
@@ -441,6 +443,7 @@ const ACTIONS: ActionRow[] = (() => {
         file: label,
         name,
         guardsFirst: guardsFirst(fn, bindings),
+        originFirst: guardsFirst(fn, originBindings),
         originFirstStaffSecond: guardsFirstAndSecond(fn, originBindings, bindings),
         bound: bindings.size > 0,
       });
@@ -589,9 +592,9 @@ describe("OPS-02 — the three-layer guard, as a property of the source tree", (
   // ───────────────────────────────────────────────────────────────────────────────────────────────
 
   it("makes the exact origin guard first and staff guard second in every privileged ops action", () => {
-    const bad = ACTIONS.filter((action) => !action.originFirstStaffSecond).map(
-      (action) => `${action.file}:${action.name}`,
-    );
+    const bad = ACTIONS.filter(
+      (action) => action.file !== OPS_AUTH_ACTION_FILE && !action.originFirstStaffSecond,
+    ).map((action) => `${action.file}:${action.name}`);
     expect(
       bad,
       `these ops server actions do not open with a resolved ${BOUNDARY_GUARD}() call. Next requires ` +
@@ -600,6 +603,21 @@ describe("OPS-02 — the three-layer guard, as a property of the source tree", (
         "the layout nor the page covers it. FIRST, before the parse and before the rate limit: ops " +
         "standing is a property of the caller alone, so settling it first refuses a non-staff caller " +
         "without consuming anybody's budget and without telling them whether the ids they sent exist.",
+    ).toEqual([]);
+  });
+
+  it("makes the exact origin guard first in every signed-out ops authentication action", () => {
+    const authActions = ACTIONS.filter((action) => action.file === OPS_AUTH_ACTION_FILE);
+    expect(authActions.map((action) => action.name).sort()).toEqual([
+      "requestOpsPasswordReset",
+      "resetOpsPassword",
+      "signInOps",
+      "signOutOps",
+    ]);
+    expect(
+      authActions.filter((action) => !action.originFirst).map((action) => action.name),
+      "signed-out ops authentication cannot require staff, but every mutation must reject a wrong " +
+        "Host/Origin before parsing credentials or calling Better Auth",
     ).toEqual([]);
   });
 
