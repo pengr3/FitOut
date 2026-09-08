@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/ops/staff-invitation.test.ts --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 2 - inspect, accept, concurrent, and inactive staff invitations (OPS-09)\nnot ok 3 - accepts once into a verified staff-only Better Auth credential\nAssertionError: expected 'inactive' to be 'accepted'\nnot ok 4 - allows exactly one of two concurrent accepts to create the staff identity\nAssertionError: expected [] to have a length of 1 but got 0\nnot ok 5 - consumes a newly conflicting account with one nonsecret refusal audit and no mutation\nAssertionError: expected inactive to deeply equal refused\nnot ok 6 - rolls back consume, user, account, role, and audits when the final audit write fails\nAssertionError: promise resolved inactive instead of rejecting\n# tests 13\n# pass 9\n# fail 4",
+  "targetTest": "accepts once into a verified staff-only Better Auth credential",
+  "targetFile": "tests/ops/staff-invitation.test.ts",
+  "expected": "acceptStaffInvitation atomically consumes one live credential and creates a verified staff-only Better Auth credential account",
+  "actual": "the pre-implementation acceptance stub returned inactive and created no identity"
+}

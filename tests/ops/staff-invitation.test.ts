@@ -223,7 +223,7 @@ describe("staff invitation issue, resend, cancel, conflict, and delivery (OPS-09
   });
 });
 
-describe.skip("inspect, accept, concurrent, and inactive staff invitations (OPS-09)", () => {
+describe("inspect, accept, concurrent, and inactive staff invitations (OPS-09)", () => {
   it("inspection is read-only and missing, malformed, null, and unknown credentials are identical", async () => {
     const issued = await issue("inspect@example.com");
     const before = (await rowsForInvite())[0];
