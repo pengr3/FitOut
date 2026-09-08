@@ -59,7 +59,7 @@ import { emitGuestEmail } from "@/lib/group/guest-notify";
 import { listReachableYesAttendees } from "@/lib/group/rsvp";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { opsRefundBasisCents, PAYOUT_ALREADY_LEFT_REASON } from "@/lib/ops/cancel-impact";
-import { requireStaff } from "@/lib/ops/staff";
+import { requireOpsMutationOrigin, requireStaff } from "@/lib/ops/staff";
 import { quoteRefund, tierOrDefault } from "@/lib/payments/cancellation";
 import { HOST_CANCEL_FEE_CENTS } from "@/lib/payments/fees";
 import { isApiRefundable } from "@/lib/payments/refund-rail";
@@ -1509,14 +1509,13 @@ async function explainOpsNoRows(
  * control, which is why the trail row below is not optional and is written on BOTH branches.
  */
 export async function cancelBookingAsOps(input: OpsCancelInput): Promise<CancelActionResult> {
-  // ── THE STAFF GATE, FIRST — before the parse, before the rate limit, before any read. ──────────────
+  // ── EXACT OPS AUTHORITY FIRST, THEN STAFF — before parse, limiter, booking, or money. ──────────────
   //
-  // This is `ops-review.ts`'s order rather than this file's, and the difference is deliberate. The three
-  // actions above gate on OWNERSHIP, so they must load the row before they can gate at all; ops standing
-  // is a property of the CALLER alone, so it can be settled without touching a single id — and settling
-  // it first means a non-staff caller is refused without consuming anybody's budget and without learning
-  // whether the ids they guessed exist. `requireStaff` answers with `notFound()`, byte-identical to a
-  // route nobody ever created (D-219), so a prober cannot tell an ops action from a typo.
+  // The three owner/host actions above keep their ownership-first contracts. This public ops POST has
+  // a different boundary: Proxy is routing only, so the exact configured Host+Origin must be proved
+  // inside the action before a deliberately supplied staff cookie is even read. `requireStaff` remains
+  // immediately second and answers with the same neutral `notFound()` control flow.
+  await requireOpsMutationOrigin();
   const staff = await requireStaff();
 
   // Re-parse EVERY field that crossed the boundary — a `"use server"` export is reachable by POST

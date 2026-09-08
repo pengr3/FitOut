@@ -36,18 +36,16 @@
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // THE ORDER IS LOAD-BEARING — `src/app/actions/ops-review.ts:19-38`'s rule, verb by verb
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-//   1. THE STAFF GATE, FIRST. Before the parse and before the rate limit, so a non-staff caller is
-//      refused without consuming anybody's budget and without learning whether the id they sent
-//      exists. Every action gates ITSELF (D-216): the `(ops)` route group is not the gate, because a
-//      `"use server"` export is reachable by POST whatever the UI shows. Pinned syntactically by
-//      `guardsFirst()` in the build-blocking census (`tests/design/ops-guard-coverage.test.ts`) and
-//      behaviourally by a refused-before-any-read case with a positive staff control in
-//      `tests/ops/host-contact-reveal.test.ts`.
-//   2. RE-PARSE, bounded. A malformed argument is a calm typed denial with an audited record.
-//   3. RATE-LIMIT, keyed on the AUTHENTICATED staff id and never on IP, with the refusal itself
+//   1. THE EXACT OPS HOST+ORIGIN GATE, FIRST. Proxy only routes; this public POST must bind itself to
+//      the configured ops authority before even looking at a deliberately supplied session cookie.
+//   2. THE STAFF GATE, IMMEDIATELY SECOND. Before the parse and rate limit, so a non-staff caller is
+//      refused without consuming anybody's budget or learning whether the id exists. Pinned by the
+//      two-stage AST census and the refused-before-any-read behavioral matrix.
+//   3. RE-PARSE, bounded. A malformed argument is a calm typed denial with an audited record.
+//   4. RATE-LIMIT, keyed on the AUTHENTICATED staff id and never on IP, with the refusal itself
 //      audited so a flood is non-repudiable.
-//   4. THE READ, explicit columns only.
-//   5. THE TRAIL ROW — on the success branch AND on every denial branch.
+//   5. THE READ, explicit columns only.
+//   6. THE TRAIL ROW — on the success branch AND on every denial branch.
 //
 // ⚠ A NON-STAFF CALLER GETS `notFound()`, NEVER A SENTENCE. `requireStaff()` already does that
 // (`src/lib/ops/staff.ts:110-114`) and `FORBIDDEN_REFUSALS = ["forbidden","redirect"]` bans the other
@@ -88,7 +86,7 @@ import { z } from "zod";
 import { recordAudit } from "@/lib/audit";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
-import { requireStaff } from "@/lib/ops/staff";
+import { requireOpsMutationOrigin, requireStaff } from "@/lib/ops/staff";
 import { rateLimit } from "@/lib/rate-limit";
 import { ID_MAX } from "@/lib/validation/ops";
 
@@ -183,13 +181,13 @@ export type RevealHostContactInput = z.infer<typeof revealHostContactSchema>;
  * INVISIBLE to the ops census's AST walk (`exportedFunctions` collects `FunctionDeclaration` nodes
  * only), so that spelling would silently reduce guard coverage while the count still read 7.
  *
- * ⚠ AND `requireStaff()` IS THE FIRST STATEMENT. See the header's numbered ordering: the census
- * resolves the binding through the import and requires the call to open the body, so a locally
- * declared same-named helper or an `await gate()` re-export satisfies nothing.
+ * ⚠ The exact request-authority guard is first and `requireStaff()` is second. The census resolves
+ * both bindings through this import, so a locally declared decoy or re-export satisfies nothing.
  */
 export async function revealHostContact(
   input: RevealHostContactInput,
 ): Promise<OpsContactResult> {
+  await requireOpsMutationOrigin();
   const staff = await requireStaff();
 
   const parsed = revealHostContactSchema.safeParse(input);
