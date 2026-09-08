@@ -30,6 +30,7 @@ afterEach(() => {
 describe("Better Auth secret/baseURL config (WR-03)", () => {
   it("throws at boot in production when BETTER_AUTH_SECRET is missing (fail closed)", async () => {
     vi.stubEnv("BETTER_AUTH_SECRET", "");
+    vi.stubEnv("OPS_APP_URL", "https://ops.example.com");
     vi.stubEnv("NODE_ENV", "production");
 
     await expect(import("@/lib/auth")).rejects.toThrow(/BETTER_AUTH_SECRET/);
@@ -42,15 +43,25 @@ describe("Better Auth secret/baseURL config (WR-03)", () => {
     await expect(import("@/lib/auth")).resolves.toBeDefined();
   }, COLD_IMPORT_TIMEOUT_MS);
 
-  it("wires the explicit secret, baseURL, and trustedOrigins onto the auth options", async () => {
+  it("wires the explicit secret, exact dynamic hosts, and trusted origins onto auth", async () => {
     vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-value-at-least-32-chars-long-xx");
     vi.stubEnv("BETTER_AUTH_URL", "https://app.example.com");
+    vi.stubEnv("OPS_APP_URL", "https://ops.example.com");
+    vi.stubEnv("VERCEL_URL", "fitout-preview.vercel.app");
     vi.stubEnv("NODE_ENV", "test");
 
     const { auth } = await import("@/lib/auth");
     const options = (auth as unknown as { options: Record<string, unknown> }).options;
     expect(options.secret).toBe("test-secret-value-at-least-32-chars-long-xx");
-    expect(options.baseURL).toBe("https://app.example.com");
-    expect(options.trustedOrigins).toEqual(["https://app.example.com"]);
+    expect(options.baseURL).toEqual({
+      allowedHosts: ["app.example.com", "ops.example.com", "fitout-preview.vercel.app"],
+      fallback: "https://app.example.com",
+      protocol: "auto",
+    });
+    expect(options.trustedOrigins).toEqual([
+      "https://app.example.com",
+      "https://ops.example.com",
+      "https://fitout-preview.vercel.app",
+    ]);
   }, COLD_IMPORT_TIMEOUT_MS);
 });

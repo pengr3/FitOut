@@ -17,10 +17,20 @@ import * as schema from "@/lib/db/schema";
 import type { TestDb } from "./db";
 
 /** Build a Better Auth instance using the production options against the test-schema db. */
-export function makeTestAuth(testDb: TestDb) {
+export function makeTestAuth(
+  testDb: TestDb,
+  testOptions: { enforceOriginCheck?: boolean } = {},
+) {
   const options = (prodAuth as unknown as { options: Record<string, unknown> }).options;
   return betterAuth({
     ...options,
+    advanced: {
+      ...(options.advanced as Record<string, unknown> | undefined),
+      // Better Auth deliberately skips origin checks under NODE_ENV=test unless this option is
+      // explicit. Security-boundary tests opt in without changing the behavior of older fixtures
+      // whose hand-built cookie requests predate browser Origin headers.
+      ...(testOptions.enforceOriginCheck ? { disableOriginCheck: false } : {}),
+    },
     // Override the database to point at the isolated test schema. The test db is created
     // via drizzle(client) WITHOUT a bound schema, so we pass the schema to the adapter
     // explicitly so it can resolve the user/session/account/verification models.

@@ -12,6 +12,7 @@ const PASSWORD = "averylongpassword";
 let testDb: TestDb;
 let auth: TestAuth;
 let userId: string;
+let requestSequence = 82;
 
 type ProductionAuthOptions = {
   baseURL?: unknown;
@@ -28,14 +29,12 @@ beforeAll(async () => {
   vi.stubEnv("NEXT_PUBLIC_APP_URL", PUBLIC_ORIGIN);
   vi.stubEnv("OPS_APP_URL", OPS_ORIGIN);
   vi.stubEnv("VERCEL_URL", new URL(PREVIEW_ORIGIN).host);
-  vi.resetModules();
-
   const [{ setupTestDb }, { makeTestAuth, signUp }] = await Promise.all([
     import("../helpers/db"),
     import("../helpers/auth"),
   ]);
   testDb = await setupTestDb();
-  auth = makeTestAuth(testDb);
+  auth = makeTestAuth(testDb, { enforceOriginCheck: true });
 
   const created = (await signUp(auth, {
     email: "ops.host.auth@example.com",
@@ -80,7 +79,11 @@ async function signInAt(origin: string): Promise<Response> {
   );
 }
 
-async function requestResetAt(requestOrigin: string, host = new URL(requestOrigin).host) {
+async function requestResetAt(
+  requestOrigin: string,
+  host = new URL(requestOrigin).host,
+  extraHeaders: Record<string, string> = {},
+) {
   const { mockResend } = await import("../helpers/mocks");
   mockResend.reset();
 
@@ -91,7 +94,8 @@ async function requestResetAt(requestOrigin: string, host = new URL(requestOrigi
         "content-type": "application/json",
         host,
         origin: requestOrigin,
-        "x-forwarded-for": "203.0.113.82",
+        "x-forwarded-for": `203.0.113.${requestSequence++}`,
+        ...extraHeaders,
       },
       body: JSON.stringify({
         email: "ops.host.auth@example.com",
@@ -154,6 +158,15 @@ describe("OPS-08 Better Auth exact-host authority", () => {
     expect(resetUrl.origin).not.toBe(OPS_ORIGIN);
   });
 
+  it("ignores a forged forwarded host instead of minting an ops URL", async () => {
+    const resetUrl = await requestResetAt(PUBLIC_ORIGIN, new URL(PUBLIC_ORIGIN).host, {
+      "x-forwarded-host": new URL(OPS_ORIGIN).host,
+      "x-forwarded-proto": "https",
+    });
+    expect(resetUrl.origin).toBe(PUBLIC_ORIGIN);
+    expect(resetUrl.origin).not.toBe(OPS_ORIGIN);
+  });
+
   it("rejects an untrusted Origin identically on public and ops hosts", async () => {
     const [publicResponse, opsResponse] = await Promise.all([
       rejectedOriginResponse(PUBLIC_ORIGIN),
@@ -179,24 +192,28 @@ describe("OPS-08 host-only sessions", () => {
     expect(publicSetCookie).not.toMatch(/(?:^|;)\s*Domain=/i);
     expect(opsSetCookie).not.toMatch(/(?:^|;)\s*Domain=/i);
 
-    const hostOnlyJar = new Map<string, string>([
-      [new URL(PUBLIC_ORIGIN).host, sessionCookie(publicSetCookie)],
-      [new URL(OPS_ORIGIN).host, sessionCookie(opsSetCookie)],
-    ]);
-    expect(hostOnlyJar.get(new URL(OPS_ORIGIN).host)).not.toBe(
-      hostOnlyJar.get(new URL(PUBLIC_ORIGIN).host),
-    );
-
-    const publicCookieSentToOps = hostOnlyJar.get(new URL(FORGED_ORIGIN).host) ?? "";
-    const opsCookieSentToPublic = hostOnlyJar.get("marketplace.example.invalid") ?? "";
+    const publicJar = new Map([[new URL(PUBLIC_ORIGIN).host, sessionCookie(publicSetCookie)]]);
+    const opsJar = new Map([[new URL(OPS_ORIGIN).host, sessionCookie(opsSetCookie)]]);
+    const publicCookieSentToOps = publicJar.get(new URL(OPS_ORIGIN).host) ?? "";
+    const opsCookieSentToPublic = opsJar.get(new URL(PUBLIC_ORIGIN).host) ?? "";
     expect(publicCookieSentToOps).toBe("");
     expect(opsCookieSentToPublic).toBe("");
 
     expect(
-      await auth.api.getSession({ headers: new Headers({ host: new URL(OPS_ORIGIN).host }) }),
+      await auth.api.getSession({
+        headers: new Headers({
+          cookie: publicCookieSentToOps,
+          host: new URL(OPS_ORIGIN).host,
+        }),
+      }),
     ).toBeNull();
     expect(
-      await auth.api.getSession({ headers: new Headers({ host: new URL(PUBLIC_ORIGIN).host }) }),
+      await auth.api.getSession({
+        headers: new Headers({
+          cookie: opsCookieSentToPublic,
+          host: new URL(PUBLIC_ORIGIN).host,
+        }),
+      }),
     ).toBeNull();
   });
 
@@ -208,11 +225,11 @@ describe("OPS-08 host-only sessions", () => {
 
     await testDb.db.update(user).set({ role: "staff" }).where(eq(user.id, userId));
     const granted = await auth.api.getSession({ headers });
-    expect(granted?.user.role).toBe("staff");
+    expect((granted?.user as { role?: string } | undefined)?.role).toBe("staff");
 
     await testDb.db.update(user).set({ role: "user" }).where(eq(user.id, userId));
     const revoked = await auth.api.getSession({ headers });
-    expect(revoked?.user.role).toBe("user");
+    expect((revoked?.user as { role?: string } | undefined)?.role).toBe("user");
     expect(options().session?.cookieCache).toBeUndefined();
   });
 });

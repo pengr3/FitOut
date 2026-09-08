@@ -89,9 +89,14 @@ beforeAll(async () => {
   vi.resetModules();
   ({ requireStaff, readStaff } = await import("@/lib/ops/staff"));
 
+  const configuredBaseURL = (
+    testAuth as unknown as {
+      options: { baseURL?: string | { fallback?: string } };
+    }
+  ).options.baseURL;
   baseURL =
-    ((testAuth as unknown as { options: { baseURL?: string } }).options.baseURL ??
-      "http://localhost:3000");
+    (typeof configuredBaseURL === "string" ? configuredBaseURL : configuredBaseURL?.fallback) ??
+    "http://localhost:3000";
 
   const res = (await signUp(testAuth, {
     email: EMAIL,

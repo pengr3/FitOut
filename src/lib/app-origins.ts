@@ -76,9 +76,35 @@ function hostnameFromAuthority(rawHost: string | null | undefined): string | nul
   }
 }
 
-function configuredPreviewHostname(): string | null {
-  return hostnameFromAuthority(process.env.VERCEL_URL);
+function configuredPreviewUrl(): URL | null {
+  const authority = configuredValue(process.env.VERCEL_URL);
+  if (hostnameFromAuthority(authority) === null) return null;
+
+  // Vercel supplies VERCEL_URL as one exact deployment authority without a scheme. Preview
+  // authentication is HTTPS-only; no suffix or wildcard is inferred from this value.
+  return new URL(`https://${authority}`);
 }
+
+const previewUrl = configuredPreviewUrl();
+const PREVIEW_APP_HOSTNAME = previewUrl?.hostname.toLowerCase() ?? null;
+
+/** Exact authorities Better Auth may derive a request-specific base URL from. */
+export const AUTH_ALLOWED_HOSTS = Array.from(
+  new Set(
+    [publicUrl.host.toLowerCase(), opsUrl.host.toLowerCase(), previewUrl?.host.toLowerCase()].filter(
+      (host): host is string => host !== undefined,
+    ),
+  ),
+);
+
+/** Exact browser origins accepted for Better Auth mutation and callback validation. */
+export const AUTH_TRUSTED_ORIGINS = Array.from(
+  new Set(
+    [PUBLIC_APP_ORIGIN, OPS_APP_ORIGIN, previewUrl?.origin].filter(
+      (origin): origin is string => origin !== undefined,
+    ),
+  ),
+);
 
 /**
  * Classifies only exact configured hostnames. The request Host is attacker-controlled, so this
@@ -88,7 +114,7 @@ export function classifyRequestHost(rawHost: string | null | undefined): Request
   const hostname = hostnameFromAuthority(rawHost);
   if (hostname === null) return "unknown";
   if (hostname === OPS_APP_HOSTNAME) return "ops";
-  if (hostname === PUBLIC_APP_HOSTNAME || hostname === configuredPreviewHostname()) return "public";
+  if (hostname === PUBLIC_APP_HOSTNAME || hostname === PREVIEW_APP_HOSTNAME) return "public";
   return "unknown";
 }
 

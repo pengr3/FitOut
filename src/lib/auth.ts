@@ -30,6 +30,11 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/lib/db";
 import { sendVerificationEmail, sendResetPassword } from "@/lib/email";
+import {
+  AUTH_ALLOWED_HOSTS,
+  AUTH_TRUSTED_ORIGINS,
+  PUBLIC_APP_ORIGIN,
+} from "@/lib/app-origins";
 
 // WR-03 — fail CLOSED on a missing signing secret in production.
 //
@@ -47,20 +52,29 @@ if (!BETTER_AUTH_SECRET && process.env.NODE_ENV === "production") {
   );
 }
 
-// Base URL of the app (OAuth callbacks, email links, and CSRF origin validation are built from it).
-// Falls back to localhost in dev so local runs work without extra config.
-const BETTER_AUTH_URL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg" }),
 
-  // WR-03 — set the signing secret, base URL, and trusted origins explicitly (no silent defaults).
+  // WR-03 / OPS-08 — set the signing secret, dynamic base URL, and trusted origins explicitly.
   // `secret` is undefined only in dev/test (guarded above for production); Better Auth then uses its
-  // dev default, which is acceptable locally. baseURL/trustedOrigins make OAuth redirect + CSRF
-  // origin validation deterministic in every environment.
+  // dev default, which is acceptable locally. `allowedHosts` contains exact authorities only, so an
+  // incoming Host may select public, preview, or ops URL generation but cannot mint an attacker URL.
+  // Unknown/missing hosts fall back to the public origin for direct auth.api calls.
   secret: BETTER_AUTH_SECRET,
-  baseURL: BETTER_AUTH_URL,
-  trustedOrigins: [BETTER_AUTH_URL],
+  baseURL: {
+    allowedHosts: AUTH_ALLOWED_HOSTS,
+    fallback: PUBLIC_APP_ORIGIN,
+    protocol: "auto",
+  },
+  trustedOrigins: AUTH_TRUSTED_ORIGINS,
+
+  advanced: {
+    // Better Auth 1.6.14 otherwise trusts x-forwarded-host by default for dynamic base URLs. FitOut
+    // derives authority only from the incoming exact Host (or Request URL protocol), never from a
+    // caller-supplied forwarding header.
+    trustedProxyHeaders: false,
+    // Keep crossSubDomainCookies absent: the browser must retain a separate host-only cookie jar.
+  },
 
   emailAndPassword: {
     enabled: true,
