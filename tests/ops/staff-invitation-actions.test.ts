@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const calls = vi.hoisted(() => [] as string[]);
-const originGate = vi.hoisted(() => vi.fn(async () => calls.push("origin")));
+const originGate = vi.hoisted(() =>
+  vi.fn(async () => {
+    calls.push("origin");
+  }),
+);
 const staffGate = vi.hoisted(() =>
   vi.fn(async () => {
     calls.push("staff");
@@ -154,6 +158,7 @@ describe("OPS-09 staff invitation Server Function boundaries", () => {
       actions.acceptStaffInviteAction({ token: "", name: "", password: "" }),
     ).resolves.toEqual({ outcome: "invalid" });
 
+    acceptInvitation.mockReset();
     acceptInvitation.mockResolvedValueOnce({ outcome: "inactive" });
     await expect(
       actions.acceptStaffInviteAction({

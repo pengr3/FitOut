@@ -9,6 +9,7 @@ import { auth } from "@/lib/auth";
 import { safeOpsCallback } from "@/lib/ops/ops-callback";
 import { STAFF_ROLE } from "@/lib/ops/grant";
 import { requireOpsMutationOrigin } from "@/lib/ops/staff";
+import { acceptStaffInvitation } from "@/lib/ops/invitations";
 import {
   loginSchema,
   requestResetSchema,
@@ -17,6 +18,10 @@ import {
   type RequestResetInput,
   type ResetInput,
 } from "@/lib/validation/auth";
+import {
+  acceptStaffInvitationInput,
+  type AcceptStaffInvitationInput,
+} from "@/lib/validation/ops-staff";
 
 export type OpsSignInInput = LoginInput & { callbackURL?: string | null };
 
@@ -34,6 +39,11 @@ export type OpsRecoveryResult =
 export type OpsResetResult =
   | { ok: true }
   | { ok: false; reason: "invalid-input" | "invalid-token" };
+
+export type OpsStaffInviteAcceptanceResult = Exclude<
+  Awaited<ReturnType<typeof acceptStaffInvitation>>,
+  { outcome: "accepted" }
+>;
 
 function responseCookies(responseHeaders: Headers): string[] {
   if (typeof responseHeaders.getSetCookie === "function") {
@@ -134,4 +144,24 @@ export async function resetOpsPassword(input: ResetInput): Promise<OpsResetResul
   } catch {
     return { ok: false, reason: "invalid-token" };
   }
+}
+
+/**
+ * Accept a staff invitation only on the exact ops authority.
+ *
+ * Email, row id, invitation version, actor id, and target user id are deliberately absent from this
+ * interface. The bearer token selects the verification row and the transaction derives every target
+ * fact from that row; extra runtime fields are discarded by the bounded schema before domain work.
+ */
+export async function acceptStaffInviteAction(
+  input: AcceptStaffInvitationInput,
+): Promise<OpsStaffInviteAcceptanceResult> {
+  await requireOpsMutationOrigin();
+
+  const parsed = acceptStaffInvitationInput.safeParse(input);
+  if (!parsed.success) return { outcome: "invalid" };
+
+  const result = await acceptStaffInvitation(parsed.data);
+  if (result.outcome === "accepted") redirect("/login?accepted=1");
+  return result;
 }
