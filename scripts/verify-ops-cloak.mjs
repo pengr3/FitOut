@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const STAGES = new Set(["partition", "final"]);
-const DENIAL_IDS = new Set([
+const PARTITION_DENIAL_IDS = new Set([
   "marketplace-ops",
   "ops-missing",
   "ops-nonstaff",
@@ -19,7 +20,8 @@ const SELECTED_HEADERS = [
   "vary",
   "x-nextjs-cache",
 ];
-const UNSAFE_EVIDENCE = /(?:authorization|bearer|cookie|database_url|password|secret|set-cookie|token)|(?:[\w.+-]+@[\w.-]+\.[A-Za-z]{2,})/i;
+const UNSAFE_EVIDENCE =
+  /(?:"(?:authorization|cookie|database_url|password|secret|set-cookie|token)"\s*:)|(?:\bBearer\s+[A-Za-z0-9._~-]+)|(?:[\w.+-]+@[\w.-]+\.[A-Za-z]{2,})/i;
 
 const PARTITION_CONTROLS = Object.freeze([
   { id: "marketplace-login", surface: "public", path: "/login", actor: "signed-out", expectedStatus: 200 },
@@ -34,11 +36,72 @@ const PARTITION_CONTROLS = Object.freeze([
   { id: "ops-staff", surface: "ops", path: "/ops", actor: "staff", expectedStatus: 200 },
 ]);
 
+const OPS_AUTH_SOURCE_ROOT = resolve("src/app/(ops-auth)/%5Fops-auth");
+const EXPECTED_OPS_AUTH_SOURCE_ROUTES = Object.freeze([
+  "forgot-password",
+  "invite/[token]",
+  "login",
+  "reset-password",
+]);
+const UNKNOWN_INVITE = "00000000000000000000";
+const FINAL_CONTROLS = Object.freeze([
+  { id: "marketplace-login", surface: "public", path: "/login", actor: "signed-out", expectedStatus: 200 },
+  { id: "marketplace-ops", surface: "public", path: "/ops", actor: "signed-out", expectedStatus: 404 },
+  { id: "marketplace-ops-auth-login", surface: "public", path: "/_ops-auth/login", actor: "signed-out", expectedStatus: 404 },
+  { id: "marketplace-ops-auth-forgot-password", surface: "public", path: "/_ops-auth/forgot-password", actor: "signed-out", expectedStatus: 404 },
+  { id: "marketplace-ops-auth-reset-password", surface: "public", path: "/_ops-auth/reset-password", actor: "signed-out", expectedStatus: 404 },
+  { id: "marketplace-ops-auth-invite", surface: "public", path: `/_ops-auth/invite/${UNKNOWN_INVITE}`, actor: "signed-out", expectedStatus: 404 },
+  { id: "marketplace-auth-session", surface: "public", path: "/api/auth/get-session", actor: "signed-out", expectedStatus: 200 },
+  { id: "ops-login", surface: "ops", path: "/login", actor: "signed-out", expectedStatus: 200 },
+  { id: "ops-forgot-password", surface: "ops", path: "/forgot-password", actor: "signed-out", expectedStatus: 200 },
+  { id: "ops-reset-password", surface: "ops", path: "/reset-password", actor: "signed-out", expectedStatus: 200 },
+  { id: "ops-invite", surface: "ops", path: `/invite/${UNKNOWN_INVITE}`, actor: "signed-out", expectedStatus: 200 },
+  { id: "ops-direct-auth-login", surface: "ops", path: "/_ops-auth/login", actor: "signed-out", expectedStatus: 404 },
+  { id: "ops-direct-auth-forgot-password", surface: "ops", path: "/_ops-auth/forgot-password", actor: "signed-out", expectedStatus: 404 },
+  { id: "ops-direct-auth-reset-password", surface: "ops", path: "/_ops-auth/reset-password", actor: "signed-out", expectedStatus: 404 },
+  { id: "ops-direct-auth-invite", surface: "ops", path: `/_ops-auth/invite/${UNKNOWN_INVITE}`, actor: "signed-out", expectedStatus: 404 },
+  { id: "ops-auth-session", surface: "ops", path: "/api/auth/get-session", actor: "signed-out", expectedStatus: 200 },
+  { id: "ops-missing", surface: "ops", path: "/ops/definitely-missing", actor: "signed-out", expectedStatus: 404 },
+  { id: "ops-nonstaff", surface: "ops", path: "/ops", actor: "nonstaff", expectedStatus: 404 },
+  { id: "ops-signed-out", surface: "ops", path: "/ops", actor: "signed-out", expectedStatus: 404 },
+  { id: "ops-staff", surface: "ops", path: "/ops", actor: "staff", expectedStatus: 200 },
+]);
+const FINAL_DENIAL_IDS = new Set([
+  ...PARTITION_DENIAL_IDS,
+  "marketplace-ops-auth-login",
+  "marketplace-ops-auth-forgot-password",
+  "marketplace-ops-auth-reset-password",
+  "marketplace-ops-auth-invite",
+  "ops-direct-auth-login",
+  "ops-direct-auth-forgot-password",
+  "ops-direct-auth-reset-password",
+  "ops-direct-auth-invite",
+]);
+
+function discoverOpsAuthSourceRoutes(dir = OPS_AUTH_SOURCE_ROOT, out = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) discoverOpsAuthSourceRoutes(path, out);
+    else if (entry.name === "page.tsx") {
+      out.push(relative(OPS_AUTH_SOURCE_ROOT, dir).replaceAll("\\", "/"));
+    }
+  }
+  return out.sort();
+}
+
 export function requiredControls(stage) {
   assertStage(stage);
-  // Plan 20-09 extends the final census after every ops-auth route exists. Until then, final retains
-  // the proven partition floor so callers can never accidentally validate an empty stage.
-  return PARTITION_CONTROLS.map((control) => ({ ...control }));
+  if (stage === "partition") return PARTITION_CONTROLS.map((control) => ({ ...control }));
+
+  const discoveredRoutes = discoverOpsAuthSourceRoutes();
+  if (discoveredRoutes.length === 0) throw new Error("final ops-auth source census is empty");
+  if (JSON.stringify(discoveredRoutes) !== JSON.stringify(EXPECTED_OPS_AUTH_SOURCE_ROUTES)) {
+    throw new Error(
+      `final ops-auth source census changed: expected ${EXPECTED_OPS_AUTH_SOURCE_ROUTES.join(", ")}; ` +
+        `received ${discoveredRoutes.join(", ")}`,
+    );
+  }
+  return FINAL_CONTROLS.map((control) => ({ ...control }));
 }
 
 export function sortRows(rows) {
@@ -112,8 +175,9 @@ export function validateRows(rows, { stage }) {
     }
   }
 
-  const denialRows = [...DENIAL_IDS].map((id) => byId.get(id)).filter(Boolean);
-  if (denialRows.length === DENIAL_IDS.size) {
+  const denialIds = stage === "final" ? FINAL_DENIAL_IDS : PARTITION_DENIAL_IDS;
+  const denialRows = [...denialIds].map((id) => byId.get(id)).filter(Boolean);
+  if (denialRows.length === denialIds.size) {
     const hashes = new Set(denialRows.map((row) => row.sha256));
     const byteLengths = new Set(denialRows.map((row) => row.bytes));
     if (hashes.size !== 1 || byteLengths.size !== 1) {

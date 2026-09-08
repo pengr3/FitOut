@@ -68,11 +68,13 @@ describe("authenticated ops response gateway", () => {
       GET(gatewayRequest()),
       GET(gatewayRequest({ host: "localhost:3100" })),
       GET(gatewayRequest({ source: "/ops/definitely-missing" })),
+      GET(gatewayRequest({ source: "/_ops-auth/login" })),
+      GET(gatewayRequest({ source: "/_ops-cloak" })),
       GET(gatewayRequest({ source: "" })),
     ]);
     const bodies = await Promise.all(responses.map((response) => response.text()));
 
-    expect(responses.map((response) => response.status)).toEqual([404, 404, 404, 404]);
+    expect(responses.map((response) => response.status)).toEqual([404, 404, 404, 404, 404, 404]);
     expect(new Set(bodies).size).toBe(1);
     expect(bodies[0].length).toBeGreaterThan(0);
     expect(responses.every((response) => response.headers.get("cache-control") === "private, no-store")).toBe(true);

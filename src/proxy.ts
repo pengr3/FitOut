@@ -105,8 +105,9 @@ function isOpsPassPath(pathname: string): boolean {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // The cloak target must be allowed to render its root notFound() response after a rewrite.
-  if (isPathSegment(pathname, OPS_CLOAK_PATH)) return NextResponse.next();
+  // The historical cloak path is itself internal. Terminate direct requests in the response
+  // gateway so every denied route class receives the same constant bytes.
+  if (isPathSegment(pathname, OPS_CLOAK_PATH)) return gatewayRewrite(request);
   // A direct request to the internal gateway is harmless (it only owns the constant 404), but it
   // must not be allowed to smuggle the private source marker into the handler.
   if (isPathSegment(pathname, OPS_GATEWAY_PATH)) return nextWithoutGatewayHeaders(request);
@@ -115,7 +116,7 @@ export function proxy(request: NextRequest) {
 
   if (hostClass === "ops") {
     // Internal route names are never a public API, even on the correct host.
-    if (isPathSegment(pathname, OPS_AUTH_PREFIX)) return rewrite(request, OPS_CLOAK_PATH);
+    if (isPathSegment(pathname, OPS_AUTH_PREFIX)) return gatewayRewrite(request);
 
     const authTarget = opsAuthTarget(pathname);
     if (authTarget !== null) return rewrite(request, authTarget);
@@ -129,13 +130,13 @@ export function proxy(request: NextRequest) {
     if (isOpsPassPath(pathname)) return NextResponse.next();
 
     // The dedicated host exposes only the ops console, its auth surface and required assets.
-    return rewrite(request, OPS_CLOAK_PATH);
+    return gatewayRewrite(request);
   }
 
   // Public, exact preview and unknown hosts can never reach the ops segment or internal auth tree.
   if (isPathSegment(pathname, OPS_PATH)) return gatewayRewrite(request);
   if (isPathSegment(pathname, OPS_AUTH_PREFIX)) {
-    return rewrite(request, OPS_CLOAK_PATH);
+    return gatewayRewrite(request);
   }
 
   // Not a logged-out-only route: nothing to do.
