@@ -276,6 +276,13 @@ type OpsAuthActions = {
     | { ok: true; redirectTo: string }
     | { ok: false; reason: "invalid-input" | "invalid-credentials" | "no-ops-access" }
   >;
+  signOutOps: () => Promise<never>;
+  requestOpsPasswordReset: (input: { email: string }) => Promise<
+    { ok: true } | { ok: false; reason: "invalid-input" }
+  >;
+  resetOpsPassword: (input: { token: string; password: string }) => Promise<
+    { ok: true } | { ok: false; reason: "invalid-input" | "invalid-token" }
+  >;
 };
 
 async function loadOpsAuthActions(): Promise<OpsAuthActions | null> {
@@ -455,5 +462,124 @@ describe("OPS-08 dedicated FitOut Ops sign-in surface", () => {
     expect(login).toMatch(/signedOut[\s\S]*created|created[\s\S]*signedOut/);
     expect(login).toContain("useForm<LoginInput>");
     expect(login).not.toMatch(/params\.get\(["'](?:message|error|notice)["']\)/);
+  });
+});
+
+describe("OPS-08 ops-host recovery, reset, and sign-out", () => {
+  const forgotPath = "src/app/(ops-auth)/_ops-auth/forgot-password/page.tsx";
+  const resetPath = "src/app/(ops-auth)/_ops-auth/reset-password/page.tsx";
+
+  it("renders the enumeration-safe staff recovery surface", () => {
+    const forgot = sourceOrEmpty(forgotPath);
+    for (const required of [
+      'title="Reset your password"',
+      "Enter your staff email and we'll send you a reset link.",
+      "If a staff account exists for that email, a reset link is on its way.",
+      "requestOpsPasswordReset",
+      'href="/login"',
+      'autoComplete="email"',
+    ]) {
+      expect(forgot, `${forgotPath} is missing ${required}`).toContain(required);
+    }
+    expect(forgot).not.toMatch(/user not found|staff member found|delivery failed|marketplace/i);
+  });
+
+  it("renders one reset-link refusal for missing, malformed, and expired tokens", () => {
+    const reset = sourceOrEmpty(resetPath);
+    for (const required of [
+      'title="Set a new password"',
+      "That reset link is invalid or has expired. Request a new one.",
+      "resetOpsPassword",
+      'href="/forgot-password"',
+      'href="/login"',
+      'autoComplete="new-password"',
+      "Set new password",
+    ]) {
+      expect(reset, `${resetPath} is missing ${required}`).toContain(required);
+    }
+    expect(reset.match(/That reset link is invalid or has expired\. Request a new one\./g)).toHaveLength(
+      1,
+    );
+  });
+
+  it("mints only the exact ops reset callback and returns one result across delivery outcomes", async () => {
+    const actions = await loadOpsAuthActions();
+    expect(actions?.requestOpsPasswordReset).toBeTypeOf("function");
+
+    const { auth: productionAuth } = await import("@/lib/auth");
+    const requestReset = vi
+      .spyOn(productionAuth.api, "requestPasswordReset")
+      .mockResolvedValue({ status: true, message: "sent" } as never);
+
+    await expect(
+      actions!.requestOpsPasswordReset({ email: "operator@example.test" }),
+    ).resolves.toEqual({ ok: true });
+    expect(requestReset).toHaveBeenCalledWith({
+      body: {
+        email: "operator@example.test",
+        redirectTo: `${OPS_ORIGIN}/reset-password`,
+      },
+      headers: expect.any(Headers),
+    });
+
+    requestReset.mockRejectedValueOnce(new Error("USER_NOT_FOUND or provider failure"));
+    await expect(
+      actions!.requestOpsPasswordReset({ email: "absent@example.test" }),
+    ).resolves.toEqual({ ok: true });
+  });
+
+  it("submits reset and sign-out through incoming ops headers and returns to visible sign-in", async () => {
+    const actions = await loadOpsAuthActions();
+    expect(actions?.resetOpsPassword).toBeTypeOf("function");
+    expect(actions?.signOutOps).toBeTypeOf("function");
+
+    const { auth: productionAuth } = await import("@/lib/auth");
+    const reset = vi
+      .spyOn(productionAuth.api, "resetPassword")
+      .mockResolvedValue({ status: true } as never);
+    const signOut = vi
+      .spyOn(productionAuth.api, "signOut")
+      .mockResolvedValue({ success: true } as never);
+    actionRequest.cookie = "better-auth.session_token=ops-session";
+
+    await expect(
+      actions!.resetOpsPassword({ token: "valid-token", password: PASSWORD }),
+    ).resolves.toEqual({ ok: true });
+    expect(reset).toHaveBeenCalledWith({
+      body: { newPassword: PASSWORD, token: "valid-token" },
+      headers: expect.any(Headers),
+    });
+
+    await expect(actions!.signOutOps()).rejects.toThrow("NEXT_REDIRECT;/login?signedOut=1");
+    expect(signOut).toHaveBeenCalledOnce();
+    expect(new Headers(signOut.mock.calls[0]?.[0]?.headers).get("cookie")).toContain(
+      "better-auth.session_token=ops-session",
+    );
+  });
+
+  it("stops every recovery, reset, and sign-out mutation before Better Auth on wrong authority", async () => {
+    const actions = await loadOpsAuthActions();
+    expect(actions?.requestOpsPasswordReset).toBeTypeOf("function");
+    expect(actions?.resetOpsPassword).toBeTypeOf("function");
+    expect(actions?.signOutOps).toBeTypeOf("function");
+
+    const { auth: productionAuth } = await import("@/lib/auth");
+    const requestReset = vi.spyOn(productionAuth.api, "requestPasswordReset");
+    const reset = vi.spyOn(productionAuth.api, "resetPassword");
+    const signOut = vi.spyOn(productionAuth.api, "signOut");
+    actionRequest.host = new URL(PUBLIC_ORIGIN).host;
+    actionRequest.origin = PUBLIC_ORIGIN;
+    actionRequest.cookie = "better-auth.session_token=deliberately-presented";
+
+    await expect(
+      actions!.requestOpsPasswordReset({ email: "operator@example.test" }),
+    ).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
+    await expect(
+      actions!.resetOpsPassword({ token: "valid-token", password: PASSWORD }),
+    ).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
+    await expect(actions!.signOutOps()).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
+    expect(requestReset).not.toHaveBeenCalled();
+    expect(reset).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
   });
 });
