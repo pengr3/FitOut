@@ -188,7 +188,7 @@ categories Phase 18/18.1 opened; `STATE-05` and `TRUST-01` keep their v1.1 IDs.
 - [x] **OPS-07** — Staff reach FitOut Ops at its **own `ops.` host**. On the marketplace host,
       `/ops` returns the **same byte-identical `notFound()`** a non-staff caller gets — never a
       redirect, because a redirect is an existence oracle. One door, one cookie jar.
-- [ ] **OPS-08** — A staff member **signs in on the ops host**, and that session does not carry to
+- [x] **OPS-08** — A staff member **signs in on the ops host**, and that session does not carry to
       the marketplace host or back. Session cookies stay host-scoped.
 - [ ] **OPS-09** — A staff member can **invite and onboard another staff member** from within ops,
       without anyone holding a production `DATABASE_URL`. The invitee confirms by email and sets
@@ -314,7 +314,7 @@ Explicitly excluded, with the reasoning, so they are not re-added by a later pla
 | HSURF-02 | Phase 19 | Gaps Found |
 | CI-01 | Phase 19 | Complete |
 | OPS-07 | Phase 20 | Complete |
-| OPS-08 | Phase 20 | Pending |
+| OPS-08 | Phase 20 | Complete |
 | OPS-09 | Phase 20 | Pending |
 | OPS-10 | Phase 20 | Pending |
 | OPS-11 | Phase 20 | Pending |

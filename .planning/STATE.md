@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 20
 current_phase_name: Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding
 status: executing
-stopped_at: Completed 20-11-PLAN.md
-last_updated: "2026-09-07T23:27:40.413Z"
+stopped_at: Completed 20-03-PLAN.md
+last_updated: "2026-09-08T00:15:00.258Z"
 last_activity: 2026-09-08
 last_activity_desc: Phase 20 execution started
-state_head: ea60d9821dc423b32f6518387dab88e2ba80a795
+state_head: 086174b93b9862cb947f4a914cfae39bdde6a4bc
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 67
+  completed_plans: 68
   percent: 13
 ---
 
@@ -112,7 +112,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 20 (Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding) — EXECUTING
-Plan: 5 of 14
+Plan: 6 of 14
 Status: Ready to execute
 Last activity: 2026-09-08 — Phase 20 execution started
 
@@ -496,6 +496,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 20 P10 | 15 min | 2 tasks | 9 files |
 | Phase 20 P02 | 18 min | 2 tasks | 8 files |
 | Phase 20 P11 | 73m | 2 tasks | 13 files |
+| Phase 20 P03 | 27 min | 1 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -1541,6 +1542,9 @@ Recent decisions affecting current work:
 - [Phase 20]: Next 16.2.7 route-state 404 bytes require one authenticated Node constant-response gateway; OPS-12 remains raw-byte strict.
 - [Phase 20]: Proxy remains session/database-free and verifies only a server-issued HMAC inward-hop token; layout/page/actions remain authoritative.
 - [Phase 20]: Plan 20-09 must append its final cloak census to the preserved partition evidence instead of overwriting it.
+- [Phase 20]: Use exact URL authorities, never wildcard patterns, for Better Auth allowedHosts and trustedOrigins.
+- [Phase 20]: Set trustedProxyHeaders:false so an untrusted x-forwarded-host cannot override the exact incoming Host authority.
+- [Phase 20]: Build stale-session get-session requests from the incoming request authority because a dynamic Better Auth root context has no single string baseURL.
 
 ### Pending Todos
 
@@ -1729,8 +1733,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-07T23:27:38.786Z
-Stopped at: Completed 20-11-PLAN.md
+Last session: 2026-09-08T00:14:58.270Z
+Stopped at: Completed 20-03-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.

@@ -776,7 +776,7 @@ phase is the milestone's one hard prerequisite**: nothing ops-side in v1.2 can s
      the three 404 bodies byte-identical by hash**, with **every new ops route in the probe set** — and
      there is still no `(ops)`-scoped `not-found.tsx`.
 
-**Plans**: 4/14 plans executed
+**Plans**: 5/14 plans executed
 
 Plans:
 **Wave 1**
@@ -797,7 +797,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 20-03-PLAN.md — Configure the single Better Auth instance for exact dynamic origins and host-only sessions.
+- [x] 20-03-PLAN.md — Configure the single Better Auth instance for exact dynamic origins and host-only sessions.
 - [ ] 20-04-PLAN.md — Centralize serialized staff-role policy, explicit CLI conversion, and next-request revocation.
 
 **Wave 6** *(blocked on Wave 5 completion)*
