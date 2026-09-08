@@ -133,7 +133,7 @@ const OPS_LAYOUT = "src/app/(ops)/ops/layout.tsx";
 const EXTRA_OPS_ACTIONS: readonly { readonly file: string; readonly name: string }[] = [
   { file: "src/app/actions/cancel-booking.ts", name: "cancelBookingAsOps" },
 ];
-const EXPECTED_OPS_ACTIONS = 11;
+const EXPECTED_OPS_ACTIONS = 15;
 const OPS_AUTH_ACTION_FILE = "src/app/actions/ops-auth.ts";
 
 /** D-246. One queue, one page. Every extra page costs a `loading.tsx` and moves three pinned counts. */
@@ -609,6 +609,7 @@ describe("OPS-02 — the three-layer guard, as a property of the source tree", (
   it("makes the exact origin guard first in every signed-out ops authentication action", () => {
     const authActions = ACTIONS.filter((action) => action.file === OPS_AUTH_ACTION_FILE);
     expect(authActions.map((action) => action.name).sort()).toEqual([
+      "acceptStaffInviteAction",
       "requestOpsPasswordReset",
       "resetOpsPassword",
       "signInOps",

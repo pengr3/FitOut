@@ -13,10 +13,15 @@ const ROOT_NOT_FOUND_PATH = "src/app/not-found.tsx";
 const ROOT_NOT_FOUND_SHA256 = "fdd295e842fc7719738c9795231a3b89bf3d1066ec931f9f6a06b1f5157d226d";
 const EXPECTED_INTERNAL_ROUTE_PAGES = [
   "src/app/(ops-auth)/_ops-auth/forgot-password/page.tsx",
+  "src/app/(ops-auth)/_ops-auth/invite/[token]/page.tsx",
   "src/app/(ops-auth)/_ops-auth/login/page.tsx",
   "src/app/(ops-auth)/_ops-auth/reset-password/page.tsx",
   CLOAK_PATH,
 ];
+const INVITE_PAGE_PATH = "src/app/(ops-auth)/_ops-auth/invite/[token]/page.tsx";
+const INVITE_LOADING_PATH = "src/app/(ops-auth)/_ops-auth/invite/[token]/loading.tsx";
+const INVITE_FORM_PATH =
+  "src/app/(ops-auth)/_ops-auth/_components/staff-invite-setup-form.tsx";
 
 function source(path: string): string {
   return readFileSync(resolve(ROOT, path), "utf8");
@@ -170,6 +175,39 @@ describe("OPS-12 exact host partition invariants", () => {
         expect(source(path)).toContain("requireStaff");
       }
     }
+  });
+
+  it("keeps staff invitation GET read-only and every inactive token on one neutral surface", () => {
+    expect(existsSync(resolve(ROOT, INVITE_PAGE_PATH)), `${INVITE_PAGE_PATH} must exist`).toBe(true);
+    expect(existsSync(resolve(ROOT, INVITE_LOADING_PATH)), `${INVITE_LOADING_PATH} must exist`).toBe(
+      true,
+    );
+    expect(existsSync(resolve(ROOT, INVITE_FORM_PATH)), `${INVITE_FORM_PATH} must exist`).toBe(true);
+    if (
+      !existsSync(resolve(ROOT, INVITE_PAGE_PATH)) ||
+      !existsSync(resolve(ROOT, INVITE_LOADING_PATH)) ||
+      !existsSync(resolve(ROOT, INVITE_FORM_PATH))
+    ) {
+      return;
+    }
+
+    const page = source(INVITE_PAGE_PATH);
+    const loading = source(INVITE_LOADING_PATH);
+    const form = source(INVITE_FORM_PATH);
+    expect(page).toContain("inspectStaffInvitation");
+    expect(page).not.toContain("acceptStaffInvitation(");
+    expect(page).toContain("This invitation is no longer active");
+    expect(page).toContain(
+      "Ask the FitOut staff member who invited you to send a new invitation.",
+    );
+    expect(page).toContain('href="/login"');
+    expect(form).toContain("acceptStaffInviteAction");
+    expect(form).toContain('name="name"');
+    expect(form).toContain('name="password"');
+    expect(form).not.toContain('name="email"');
+    expect(form).toContain('autoComplete="name"');
+    expect(form).toContain('autoComplete="new-password"');
+    expect(loading).toContain('label="Loading your staff invitation"');
   });
 
   it("pins one exact dynamic Better Auth origin authority with host-only uncached sessions", () => {
