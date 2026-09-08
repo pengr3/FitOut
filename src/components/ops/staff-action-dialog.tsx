@@ -4,13 +4,15 @@ import * as React from "react";
 
 import {
   cancelStaffInviteAction,
-  INITIAL_OPS_STAFF_ACTION_STATE,
   revokeStaffAction,
-  type OpsStaffActionState,
 } from "@/app/actions/ops-staff";
 import { ResponsiveDialog } from "@/components/patterns/responsive-dialog";
 import { Button } from "@/components/ui/button";
 import type { StaffInvitationRef } from "@/lib/ops/invitations";
+import {
+  INITIAL_OPS_STAFF_ACTION_STATE,
+  type OpsStaffActionState,
+} from "@/lib/ops/staff-action-state";
 
 type SharedStaffActionDialogProps = {
   targetEmail: string;

@@ -15,24 +15,9 @@ import {
   SELF_REVOKE_REASON,
   writeRole,
 } from "@/lib/ops/grant";
+import type { OpsStaffActionState } from "@/lib/ops/staff-action-state";
 import { requireOpsMutationOrigin, requireStaff } from "@/lib/ops/staff";
 import type { IssueStaffInvitationInput } from "@/lib/validation/ops-staff";
-
-export type OpsStaffActionState =
-  | { status: "idle" }
-  | {
-      status: "success";
-      action: "invite" | "resend" | "cancel" | "revoke";
-      message: string;
-      targetUserId?: string;
-    }
-  | {
-      status: "error";
-      action: "invite" | "resend" | "cancel" | "revoke";
-      message: string;
-    };
-
-export const INITIAL_OPS_STAFF_ACTION_STATE: OpsStaffActionState = { status: "idle" };
 
 const STALE_STAFF_ACTION_MESSAGE =
   "This staff record changed before the action completed. Refresh the page and try again.";

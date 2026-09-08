@@ -5,7 +5,6 @@ import * as React from "react";
 import {
   inviteStaffAction,
   resendStaffInviteAction,
-  type OpsStaffActionState,
 } from "@/app/actions/ops-staff";
 import { StaffActionDialog } from "@/components/ops/staff-action-dialog";
 import { PanelCard } from "@/components/patterns/panel-card";
@@ -14,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import type { OpsStaffActionState } from "@/lib/ops/staff-action-state";
 import type { StaffManagementSnapshot } from "@/lib/ops/staff-management";
 
 const STALE_STAFF_ACTION_MESSAGE =

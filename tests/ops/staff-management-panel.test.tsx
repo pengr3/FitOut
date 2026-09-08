@@ -14,7 +14,6 @@ const resendStaffInviteAction = vi.hoisted(() => vi.fn());
 const cancelStaffInviteAction = vi.hoisted(() => vi.fn());
 
 vi.mock("@/app/actions/ops-staff", () => ({
-  INITIAL_OPS_STAFF_ACTION_STATE: { status: "idle" },
   revokeStaffAction,
   inviteStaffAction,
   resendStaffInviteAction,
