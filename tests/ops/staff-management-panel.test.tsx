@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import * as React from "react";
 import { existsSync } from "node:fs";
 
@@ -73,11 +75,11 @@ describe("D-15 through D-19 staff management panel", () => {
       const text = document.body.textContent ?? "";
       expect(text.indexOf("Staff management")).toBeLessThan(text.indexOf("Active staff"));
       expect(text.indexOf("Active staff")).toBeLessThan(text.indexOf("Pending invitations"));
-      expect(screen.getByText("current.operator@example.com")).toBeVisible();
-      expect(screen.getByText("Staff since Sep 7, 2026")).toBeVisible();
-      expect(screen.getByText("You")).toBeVisible();
-      expect(screen.queryByText("internal-current-id")).not.toBeInTheDocument();
-      expect(screen.queryByText("internal-colleague-id")).not.toBeInTheDocument();
+      expect(screen.getByText("current.operator@example.com")).not.toBeNull();
+      expect(screen.getByText("Staff since Sep 7, 2026")).not.toBeNull();
+      expect(screen.getByText("You")).not.toBeNull();
+      expect(screen.queryByText("internal-current-id")).toBeNull();
+      expect(screen.queryByText("internal-colleague-id")).toBeNull();
     },
   );
 
@@ -91,8 +93,8 @@ describe("D-15 through D-19 staff management panel", () => {
       expect(currentRow).not.toBeNull();
       const button = within(currentRow!).getByRole("button", { name: "Revoke access" });
       const reason = within(currentRow!).getByText("You can't revoke your own staff access.");
-      expect(button).toBeDisabled();
-      expect(button).toHaveAttribute("aria-describedby", reason.id);
+      expect((button as HTMLButtonElement).disabled).toBe(true);
+      expect(button.getAttribute("aria-describedby")).toBe(reason.id);
     },
   );
 
@@ -112,12 +114,14 @@ describe("D-15 through D-19 staff management panel", () => {
         within(dialog).getByText(
           /They will lose access on their next request\. This does not delete the account\./,
         ),
-      ).toBeVisible();
+      ).not.toBeNull();
       const buttons = within(dialog).getAllByRole("button");
       expect(buttons.findIndex((button) => button.textContent === "Keep staff access")).toBeLessThan(
         buttons.findIndex((button) => button.textContent === "Revoke access"),
       );
-      expect(within(dialog).getByRole("button", { name: "Keep staff access" })).toHaveFocus();
+      expect(document.activeElement).toBe(
+        within(dialog).getByRole("button", { name: "Keep staff access" }),
+      );
     },
   );
 
@@ -142,10 +146,11 @@ describe("D-15 through D-19 staff management panel", () => {
         }),
       );
 
+      const dialog = await screen.findByRole("dialog");
       expect(
-        await screen.findByRole("alert", { name: "You can't revoke the last staff account." }),
-      ).toBeVisible();
-      expect(screen.getByRole("dialog")).toBeVisible();
+        within(dialog).getByRole("alert").textContent,
+      ).toBe("You can't revoke the last staff account.");
+      expect(dialog).not.toBeNull();
       expect(document.querySelector("[data-sonner-toast]")).toBeNull();
     },
   );

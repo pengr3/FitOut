@@ -38,6 +38,8 @@ import {
 import { EmptyState } from "@/components/patterns/empty-state";
 import { PageHeader } from "@/components/patterns/page-header";
 import { OPS_QUEUE_SHELL } from "@/lib/design/measurements";
+import { readStaffManagementSnapshot } from "@/lib/ops/staff-management";
+import { StaffManagementPanel } from "@/components/ops/staff-management-panel";
 
 /**
  * The clock every date on this surface is rendered in.
@@ -129,7 +131,11 @@ export default async function OpsQueuePage() {
   // LAYER 2 — the security boundary (D-216). The layout is not it; see the header.
   await requireStaff();
 
-  const [items, now] = await Promise.all([loadReviewQueue(db), readDbNow(db)]);
+  const [items, now, staffSnapshot] = await Promise.all([
+    loadReviewQueue(db),
+    readDbNow(db),
+    readStaffManagementSnapshot(db),
+  ]);
 
   // ONE `loadOpsCancelImpact` PER LISTING ROW, and it is not optional — `OpsQueueListingRow.impact`
   // is a required field precisely so this cannot be forgotten. Without it the reject dialog would
@@ -207,6 +213,10 @@ export default async function OpsQueuePage() {
             ))}
           </ol>
         )}
+      </div>
+
+      <div className="mt-12">
+        <StaffManagementPanel snapshot={staffSnapshot} />
       </div>
     </div>
   );
