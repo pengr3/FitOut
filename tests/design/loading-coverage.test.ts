@@ -315,9 +315,12 @@ const APP_DIR = resolve(process.cwd(), "src/app");
 // place a refusal can still set the HTTP status line (D-247). Removing this fallback would not merely
 // fail this gate — it would re-open the route-existence oracle D-219 exists to close.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-const EXPECTED_PAGES = 35;
-const EXPECTED_QUALIFYING = 23;
-const EXPECTED_NON_QUALIFYING = 12;
+// Phase 20 added four synchronous routing/auth pages (the shared cloak plus login, recovery, and
+// reset) and this async invitation lookup with its sibling loading state. The split is therefore
+// measured at 40 = 24 async + 16 synchronous, with one loading file per async page.
+const EXPECTED_PAGES = 40;
+const EXPECTED_QUALIFYING = 24;
+const EXPECTED_NON_QUALIFYING = 16;
 
 /** The three declared skeleton shapes, by module and by export name. */
 const SKELETON_PATTERNS: Readonly<Record<string, string>> = {

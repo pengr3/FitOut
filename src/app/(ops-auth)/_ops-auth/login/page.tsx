@@ -31,7 +31,7 @@ function ArrivalNotice() {
   const copy =
     params.get("signedOut") === "1"
       ? "Staff session ended."
-      : params.get("created") === "1"
+      : params.get("accepted") === "1" || params.get("created") === "1"
         ? "Staff account created. Sign in to continue."
         : null;
 
