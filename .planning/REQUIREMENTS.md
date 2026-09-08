@@ -194,10 +194,10 @@ categories Phase 18/18.1 opened; `STATE-05` and `TRUST-01` keep their v1.1 IDs.
       without anyone holding a production `DATABASE_URL`. The invitee confirms by email and sets
       their own password through the shipped mechanics. The CLI (`ops:grant` / `ops:revoke` /
       `ops:staff`) **stays** as first-staff bootstrap and break-glass.
-- [ ] **OPS-10** — **Self-revoke and last-staff revoke are refused**, so no sequence of ops actions
+- [x] **OPS-10** — **Self-revoke and last-staff revoke are refused**, so no sequence of ops actions
       can lock every human out of the console. Enforced as a `WHERE`-clause no-op rather than a
       branch somebody can forget.
-- [ ] **OPS-11** — A **staff account may not simultaneously be a booker or a host** (D-275,
+- [x] **OPS-11** — A **staff account may not simultaneously be a booker or a host** (D-275,
       reversing PM-B on the PM's 2026-09-04 ruling). Enforced at grant time; the reversal is recorded
       as such rather than silently applied.
 - [x] **OPS-12** — The **404 cloak is re-measured** with every new ops route in the probe set —
@@ -316,8 +316,8 @@ Explicitly excluded, with the reasoning, so they are not re-added by a later pla
 | OPS-07 | Phase 20 | Complete |
 | OPS-08 | Phase 20 | Complete |
 | OPS-09 | Phase 20 | Pending |
-| OPS-10 | Phase 20 | Pending |
-| OPS-11 | Phase 20 | Pending |
+| OPS-10 | Phase 20 | Complete |
+| OPS-11 | Phase 20 | Complete |
 | OPS-12 | Phase 20 | Complete |
 | HVER-09 | Phase 21 | Pending |
 | HVER-10 | Phase 21 | Pending |
