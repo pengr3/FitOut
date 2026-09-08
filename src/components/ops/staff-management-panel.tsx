@@ -189,6 +189,7 @@ export function StaffManagementPanel({ snapshot }: { snapshot: StaffManagementSn
                     <StaffActionDialog
                       targetEmail={staff.email}
                       targetUserId={staff.actionRef.targetUserId}
+                      resultRef={resultRef}
                       onResult={setResult}
                     />
                   ) : (
@@ -267,6 +268,7 @@ export function StaffManagementPanel({ snapshot }: { snapshot: StaffManagementSn
                         kind="cancel"
                         targetEmail={invitation.email}
                         invitationRef={invitation.actionRef}
+                        resultRef={resultRef}
                         disabled={rowPending}
                         onResult={setResult}
                       />

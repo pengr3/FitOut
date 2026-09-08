@@ -17,6 +17,7 @@ import {
 type SharedStaffActionDialogProps = {
   targetEmail: string;
   onResult: (state: OpsStaffActionState) => void;
+  resultRef: React.RefObject<HTMLParagraphElement | null>;
   disabled?: boolean;
 };
 
@@ -30,6 +31,7 @@ export function StaffActionDialog(props: StaffActionDialogProps) {
   const [open, setOpen] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const [refusal, setRefusal] = React.useState<string | null>(null);
+  const completedSuccessfully = React.useRef(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -61,6 +63,7 @@ export function StaffActionDialog(props: StaffActionDialogProps) {
           );
       onResult(presented);
       if (presented.status === "success") {
+        completedSuccessfully.current = true;
         setRefusal(null);
         setOpen(false);
       } else if (presented.status === "error") {
@@ -79,6 +82,12 @@ export function StaffActionDialog(props: StaffActionDialogProps) {
           if (next) setRefusal(null);
           setOpen(next);
         }
+      }}
+      onCloseAutoFocus={(event) => {
+        if (!completedSuccessfully.current) return;
+        event.preventDefault();
+        completedSuccessfully.current = false;
+        queueMicrotask(() => props.resultRef.current?.focus());
       }}
       title={isCancel ? "Cancel invitation?" : "Revoke staff access?"}
       description={

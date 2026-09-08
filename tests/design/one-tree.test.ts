@@ -169,6 +169,8 @@ import { readdirSync, readFileSync, existsSync, type Dirent } from "node:fs";
 import { resolve, join, relative } from "node:path";
 import ts from "typescript";
 
+import { ACCENT_USES } from "@/lib/design/accent-uses";
+
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // THE SCANNED TREES, AS CONSTANTS. Widening AC#10's scan, or pointing the vacuity probe at a
 // directory that does not exist, is a one-line edit here — `loading-coverage.test.ts:219`'s rule.
@@ -188,6 +190,22 @@ const SANCTIONED_CONSUMER = "src/app/(host)/host/listings/[id]/edit/wizard.tsx";
 
 /** The gate that owns AC#14. Asserted to still exist and to still name both files (see the header). */
 const AC14_OWNER = "tests/design/sheet-absent.test.ts";
+
+const PHASE_20_ONE_TREE_FILES = [
+  "src/components/ops/staff-management-panel.tsx",
+  "src/components/ops/staff-action-dialog.tsx",
+] as const;
+
+const PHASE_20_ACTION_FILES = [
+  "src/app/(ops-auth)/%5Fops-auth/login/page.tsx",
+  "src/app/(ops-auth)/%5Fops-auth/forgot-password/page.tsx",
+  "src/app/(ops-auth)/%5Fops-auth/reset-password/page.tsx",
+  "src/app/(ops-auth)/%5Fops-auth/invite/[token]/page.tsx",
+  "src/app/(ops-auth)/%5Fops-auth/_components/staff-invite-setup-form.tsx",
+  "src/app/(ops)/ops/error.tsx",
+  "src/components/ops/ops-sign-out-control.tsx",
+  ...PHASE_20_ONE_TREE_FILES,
+] as const;
 
 /**
  * Floors, not equalities. Both are well under the real counts (29 pages, ~130 component files on
@@ -581,6 +599,33 @@ const offenders = SCAN.flatMap((f) => f.offenders);
 const callSites = SCAN.flatMap((f) => f.matchMedia);
 const mediaQueryImports = SCAN.flatMap((f) => f.mediaQueryImports);
 
+function phase20ActionSizeViolations(file: string): string[] {
+  const source = readFileSync(resolve(process.cwd(), file), "utf8");
+  const sf = parse(file, source);
+  const violations: string[] = [];
+
+  const visit = (node: ts.Node): void => {
+    if (
+      (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) &&
+      ts.isIdentifier(node.tagName) &&
+      node.tagName.text === "Button"
+    ) {
+      const attrs = node.attributes.properties.filter(ts.isJsxAttribute);
+      const size = attrs.find((attr) => attr.name.getText(sf) === "size")?.initializer?.getText(sf);
+      const className = attrs
+        .find((attr) => attr.name.getText(sf) === "className")
+        ?.initializer?.getText(sf);
+      if (size !== '"touch"' && !/\b(?:min-)?h-11\b/.test(className ?? "")) {
+        const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+        violations.push(`${file}:${line} — <Button> has neither size="touch" nor an h-11 floor`);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sf);
+  return violations;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // GUARD THE GUARD, ASSERTED FIRST AND ON PURPOSE. Every clause below this block is "a list was
 // empty", and a walk that opened nothing satisfies all of them perfectly and would do so forever.
@@ -719,6 +764,60 @@ describe("AC#10 — no file forks the component tree on the viewport", () => {
         `variant RESP-04 bans, wearing the exception's name. Literals found: ` +
         `${literals.join(" | ") || "(none)"}.`,
     ).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("Phase 20 — Staff management reflows one canonical tree", () => {
+  it("enrolls the panel and shared Revoke/Cancel dialog as exact scanned files", () => {
+    for (const file of PHASE_20_ONE_TREE_FILES) {
+      const row = SCAN.find((candidate) => candidate.file === file);
+      expect(row, `${file} was not reached by the one-tree scan`).toBeDefined();
+      expect(
+        row?.offenders ?? [],
+        `${file} forks its JSX on a viewport reading instead of reflowing one tree with CSS.`,
+      ).toEqual([]);
+    }
+  });
+
+  it("keeps the roster and action groups in one wrapping source tree from 320px through 1280px", () => {
+    const panel = readFileSync(
+      resolve(process.cwd(), "src/components/ops/staff-management-panel.tsx"),
+      "utf8",
+    );
+    expect(panel).toContain("flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end");
+    expect(panel).toContain(
+      "flex min-w-0 flex-col gap-4 py-4 first:pt-0 last:pb-0 md:flex-row md:items-start md:justify-between",
+    );
+    expect(panel).toContain("sm:flex-row sm:flex-wrap md:justify-end");
+    expect(panel).toMatch(/break-(?:all|words)/);
+
+    const dialog = readFileSync(
+      resolve(process.cwd(), "src/components/ops/staff-action-dialog.tsx"),
+      "utf8",
+    );
+    expect(dialog.match(/<ResponsiveDialog\b/g)).toHaveLength(1);
+    expect(dialog).toContain('className="w-full sm:w-auto"');
+    expect(dialog).not.toMatch(/\bmatchMedia\s*\(/);
+  });
+
+  it("keeps every Phase 20 action at the 44px floor and adds no eleventh accent use", () => {
+    expect(PHASE_20_ACTION_FILES.flatMap(phase20ActionSizeViolations)).toEqual([]);
+
+    const phase20Sources = PHASE_20_ACTION_FILES.map((file) =>
+      readFileSync(resolve(process.cwd(), file), "utf8"),
+    ).join("\n");
+    expect(phase20Sources).not.toMatch(
+      /variant=["']brand["']|(?:bg|text|border|ring)-brand(?:\/\d+)?/,
+    );
+    expect(ACCENT_USES).toHaveLength(10);
+    const phase20ActionFiles = new Set<string>(PHASE_20_ACTION_FILES);
+    expect(ACCENT_USES.filter((use) => phase20ActionFiles.has(use.site))).toEqual([]);
+
+    const shell = readFileSync(
+      resolve(process.cwd(), "src/app/(ops-auth)/%5Fops-auth/layout.tsx"),
+      "utf8",
+    );
+    expect(shell).toContain("min-h-11");
   });
 });
 

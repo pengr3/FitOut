@@ -80,11 +80,24 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
 import * as React from "react";
-import { describe, it, expect, afterEach } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
+import { act, render, screen, cleanup, fireEvent, waitFor, within } from "@testing-library/react";
 
 import { ResponsiveDialog } from "@/components/patterns/responsive-dialog";
 import { Button } from "@/components/ui/button";
+import type { StaffManagementSnapshot } from "@/lib/ops/staff-management";
+
+const revokeStaffAction = vi.hoisted(() => vi.fn());
+const inviteStaffAction = vi.hoisted(() => vi.fn());
+const resendStaffInviteAction = vi.hoisted(() => vi.fn());
+const cancelStaffInviteAction = vi.hoisted(() => vi.fn());
+
+vi.mock("@/app/actions/ops-staff", () => ({
+  revokeStaffAction,
+  inviteStaffAction,
+  resendStaffInviteAction,
+  cancelStaffInviteAction,
+}));
 
 const ROOT = process.cwd();
 
@@ -92,6 +105,7 @@ const ROOT = process.cwd();
 const PROP = "onOpenAutoFocus";
 
 const PATTERN = "src/components/patterns/responsive-dialog.tsx";
+const STAFF_ACTION_ADOPTER = "src/components/ops/staff-action-dialog.tsx";
 
 /**
  * `16-UI-SPEC.md` § Copywriting, the removal confirm. Used verbatim so half two is the real mitigation
@@ -135,6 +149,9 @@ const DELIBERATE = new Set([
   // Δ5c — `onCloseAutoFocus` with no trigger at all: this overlay opens programmatically, so Radix
   // suppresses the browser's restore and then focuses a `triggerRef` that was never populated.
   "src/components/profile/image-crop-dialog.tsx",
+  // Phase 20's Revoke/Cancel trigger disappears after an authoritative success. The result line is
+  // the persistent next action, so close-time focus is handed there instead of back to a stale row.
+  "src/components/ops/staff-action-dialog.tsx",
 ]);
 
 /**
@@ -156,12 +173,69 @@ function collectTsxFiles(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** Every file under `src/` that renders the pattern, minus the deliberate exceptions above. */
-const ADOPTERS = collectTsxFiles(resolve(ROOT, "src"))
+/** Every file under `src/` that renders the pattern, before deliberate focus steering is removed. */
+const ALL_ADOPTERS = collectTsxFiles(resolve(ROOT, "src"))
   .filter((full) => readFileSync(full, "utf8").includes("<ResponsiveDialog"))
   .map((full) => relative(ROOT, full).split("\\").join("/"))
-  .filter((f) => !DELIBERATE.has(f))
   .sort();
+
+/** Every adopter that must retain the pattern's unsteered default focus behavior. */
+const ADOPTERS = ALL_ADOPTERS.filter((file) => !DELIBERATE.has(file));
+
+const STAFF_SNAPSHOT: StaffManagementSnapshot = {
+  activeStaff: [
+    {
+      email: "current.operator@example.com",
+      staffSinceLabel: "Sep 7, 2026",
+      isCurrentActor: true,
+      canRevoke: false,
+      revokeDisabledReason: "You can't revoke your own staff access.",
+      actionRef: { targetUserId: "current-id" },
+    },
+    {
+      email: "colleague@example.com",
+      staffSinceLabel: "Sep 8, 2026",
+      isCurrentActor: false,
+      canRevoke: true,
+      revokeDisabledReason: null,
+      actionRef: { targetUserId: "colleague-id" },
+    },
+  ],
+  pendingInvitations: [
+    {
+      email: "pending@example.com",
+      sentAtLabel: "Sep 8, 2026, 10:00 AM PHT",
+      expiresAtLabel: "Sep 9, 2026, 10:00 AM PHT",
+      inviterLabel: "Current Operator",
+      actionRef: { id: "invite-id", version: "invite-version" },
+    },
+  ],
+};
+
+async function loadStaffManagementPanel() {
+  return (await vi.importActual(
+    "@/components/ops/staff-management-panel",
+  )) as typeof import("@/components/ops/staff-management-panel");
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  revokeStaffAction.mockResolvedValue({
+    status: "success",
+    action: "revoke",
+    message: "Staff access was revoked.",
+    targetUserId: "colleague-id",
+  });
+  inviteStaffAction.mockResolvedValue({
+    outcome: "sent",
+    invitation: { email: "new.staff@example.com" },
+  });
+  resendStaffInviteAction.mockResolvedValue({
+    outcome: "sent",
+    invitation: { email: "pending@example.com" },
+  });
+  cancelStaffInviteAction.mockResolvedValue({ outcome: "cancelled" });
+});
 
 /**
  * The removal confirm's footer, in Δ5b's DOM order: DESTRUCTIVE FIRST, so that `flex-col-reverse`
@@ -328,4 +402,113 @@ describe("responsive-dialog · the adopter census (T-16-07)", () => {
       ).toBe(false);
     });
   }
+});
+
+describe("Phase 20 — Revoke and Cancel focus contract", () => {
+  it("derives the shared Revoke/Cancel adopter from the tree and names both flows", () => {
+    expect(ALL_ADOPTERS).toContain(STAFF_ACTION_ADOPTER);
+
+    const source = readFileSync(resolve(ROOT, STAFF_ACTION_ADOPTER), "utf8");
+    expect(source.match(/<ResponsiveDialog\b/g)).toHaveLength(1);
+    expect(source).toContain('"Revoke staff access?"');
+    expect(source).toContain('"Cancel invitation?"');
+    expect(source).not.toContain("data-testid");
+  });
+
+  it("focuses the safe action first and restores ordinary Escape closes to each trigger", async () => {
+    const { StaffManagementPanel } = await loadStaffManagementPanel();
+    render(<StaffManagementPanel snapshot={STAFF_SNAPSHOT} />);
+
+    const cases = [
+      {
+        trigger: "Revoke staff access for colleague@example.com",
+        dialog: "Revoke staff access?",
+        safe: "Keep staff access",
+      },
+      {
+        trigger: "Cancel invitation for pending@example.com",
+        dialog: "Cancel invitation?",
+        safe: "Keep invitation",
+      },
+    ] as const;
+
+    for (const row of cases) {
+      const trigger = screen.getByRole("button", { name: row.trigger });
+      fireEvent.click(trigger);
+      const dialog = await screen.findByRole("dialog", { name: row.dialog });
+      expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: row.safe }));
+
+      fireEvent.keyDown(document, { key: "Escape" });
+      await waitFor(() => expect(screen.queryByRole("dialog", { name: row.dialog })).toBeNull());
+      expect(document.activeElement).toBe(trigger);
+    }
+  });
+
+  it("refuses Escape while a destructive request is pending and disables both footer decisions", async () => {
+    let resolveRevoke: ((value: {
+      status: "success";
+      action: "revoke";
+      message: string;
+      targetUserId: string;
+    }) => void) | undefined;
+    revokeStaffAction.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRevoke = resolve;
+      }),
+    );
+
+    const { StaffManagementPanel } = await loadStaffManagementPanel();
+    render(<StaffManagementPanel snapshot={STAFF_SNAPSHOT} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Revoke staff access for colleague@example.com" }),
+    );
+    const dialog = await screen.findByRole("dialog", { name: "Revoke staff access?" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Revoke access" }));
+
+    await waitFor(() => {
+      expect((within(dialog).getByRole("button", { name: "Keep staff access" }) as HTMLButtonElement).disabled).toBe(true);
+      expect((within(dialog).getByRole("button", { name: "Revoking…" }) as HTMLButtonElement).disabled).toBe(true);
+    });
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.getByRole("dialog", { name: "Revoke staff access?" })).toBe(dialog);
+
+    await act(async () => {
+      resolveRevoke?.({
+        status: "success",
+        action: "revoke",
+        message: "Staff access was revoked.",
+        targetUserId: "colleague-id",
+      });
+    });
+  });
+
+  it("moves successful Revoke and Cancel focus to the persistent result instead of body", async () => {
+    const { StaffManagementPanel } = await loadStaffManagementPanel();
+    render(<StaffManagementPanel snapshot={STAFF_SNAPSHOT} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Revoke staff access for colleague@example.com" }),
+    );
+    fireEvent.click(
+      within(await screen.findByRole("dialog", { name: "Revoke staff access?" })).getByRole(
+        "button",
+        { name: "Revoke access" },
+      ),
+    );
+    const revokeResult = await screen.findByText("colleague@example.com no longer has staff access.");
+    await waitFor(() => expect(document.activeElement).toBe(revokeResult));
+    expect(document.activeElement).not.toBe(document.body);
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel invitation for pending@example.com" }));
+    fireEvent.click(
+      within(await screen.findByRole("dialog", { name: "Cancel invitation?" })).getByRole("button", {
+        name: "Cancel invitation",
+      }),
+    );
+    const cancelResult = await screen.findByText(
+      "Invitation for pending@example.com was cancelled.",
+    );
+    await waitFor(() => expect(document.activeElement).toBe(cancelResult));
+    expect(document.activeElement).not.toBe(document.body);
+  });
 });
