@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { TestAuth } from "../helpers/auth";
 import type { TestDb } from "../helpers/db";
 
@@ -284,6 +286,14 @@ async function loadOpsAuthActions(): Promise<OpsAuthActions | null> {
   }
 }
 
+function sourceOrEmpty(path: string): string {
+  try {
+    return readFileSync(join(process.cwd(), path), "utf8");
+  } catch {
+    return "";
+  }
+}
+
 describe("OPS-08 origin-bound staff credential transition", () => {
   it("refuses marketplace authority before Better Auth receives credentials", async () => {
     const actions = await loadOpsAuthActions();
@@ -397,5 +407,53 @@ describe("OPS-08 origin-bound staff credential transition", () => {
     ).resolves.toEqual({ ok: false, reason: "invalid-credentials" });
     expect(getSession).not.toHaveBeenCalled();
     expect(signOut).not.toHaveBeenCalled();
+  });
+});
+
+describe("OPS-08 dedicated FitOut Ops sign-in surface", () => {
+  const layoutPath = "src/app/(ops-auth)/_ops-auth/layout.tsx";
+  const loginPath = "src/app/(ops-auth)/_ops-auth/login/page.tsx";
+
+  it("renders the sibling ops-auth shell with a login-bound FitOut Ops identity", () => {
+    const layout = sourceOrEmpty(layoutPath);
+    expect(layout, `${layoutPath} must be the sibling auth shell selected by Proxy`).toContain(
+      "FitOut Ops",
+    );
+    expect(layout).toContain('href="/login"');
+    expect(layout).toContain("<main");
+    expect(layout).toContain("max-w-sm");
+    expect(layout).not.toMatch(/ProfileLink|SiteChrome|NotificationBell|ThemeSwitcher/);
+  });
+
+  it("renders the locked email/password form and no consumer auth controls", () => {
+    const login = sourceOrEmpty(loginPath);
+    for (const required of [
+      'title="Sign in"',
+      'description="Sign in with your staff account."',
+      "Email",
+      "Password",
+      "Forgot password?",
+      "Sign in",
+      'autoComplete="email"',
+      'autoComplete="current-password"',
+      "signInOps",
+      "shouldFocusError: true",
+    ]) {
+      expect(login, `${loginPath} is missing ${required}`).toContain(required);
+    }
+    expect(login).not.toMatch(
+      /Continue with Google|signIn\.social|New to FitOut|Create an account|\/signup|secure portal|verified staff|protected account/i,
+    );
+  });
+
+  it("maps only bounded arrival and refusal states while preserving form-owned input", () => {
+    const login = sourceOrEmpty(loginPath);
+    expect(login).toContain("Staff session ended.");
+    expect(login).toContain("Staff account created. Sign in to continue.");
+    expect(login).toContain("Invalid email or password.");
+    expect(login).toContain("This account does not have access to FitOut Ops.");
+    expect(login).toMatch(/signedOut[\s\S]*created|created[\s\S]*signedOut/);
+    expect(login).toContain("useForm<LoginInput>");
+    expect(login).not.toMatch(/params\.get\(["'](?:message|error|notice)["']\)/);
   });
 });

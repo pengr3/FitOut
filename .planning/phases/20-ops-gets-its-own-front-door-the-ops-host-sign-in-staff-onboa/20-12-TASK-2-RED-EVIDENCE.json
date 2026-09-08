@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/auth/ops-host-auth.test.ts --config vitest.config.ts -t \"renders the sibling ops-auth shell\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - renders the sibling ops-auth shell with a login-bound FitOut Ops identity\nAssertionError: src/app/(ops-auth)/_ops-auth/layout.tsx must be the sibling auth shell selected by Proxy: expected '' to contain 'FitOut Ops'\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "renders the sibling ops-auth shell with a login-bound FitOut Ops identity",
+  "targetFile": "tests/auth/ops-host-auth.test.ts",
+  "expected": "the sibling ops-auth layout renders a FitOut Ops identity linked to visible /login",
+  "actual": "the sibling ops-auth layout did not exist, so its source was empty and the identity assertion failed"
+}
