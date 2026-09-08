@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/ops/staff-management-panel.test.tsx --config vitest.config.ts -t \"renders Invite staff and pending invitation facts/actions\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - renders Invite staff and pending invitation facts/actions\nTestingLibraryElementError: Unable to find an accessible element with the role heading and name Invite staff\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "renders Invite staff and pending invitation facts/actions",
+  "targetFile": "tests/ops/staff-management-panel.test.tsx",
+  "expected": "the panel exposes Invite staff controls and complete pending-invitation facts with resend and cancel actions",
+  "actual": "the panel has no Invite staff section and renders the pending section as empty, so the target interaction assertion fails"
+}

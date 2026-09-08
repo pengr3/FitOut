@@ -9,10 +9,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StaffManagementSnapshot } from "@/lib/ops/staff-management";
 
 const revokeStaffAction = vi.hoisted(() => vi.fn());
+const inviteStaffAction = vi.hoisted(() => vi.fn());
+const resendStaffInviteAction = vi.hoisted(() => vi.fn());
+const cancelStaffInviteAction = vi.hoisted(() => vi.fn());
 
 vi.mock("@/app/actions/ops-staff", () => ({
   INITIAL_OPS_STAFF_ACTION_STATE: { status: "idle" },
   revokeStaffAction,
+  inviteStaffAction,
+  resendStaffInviteAction,
+  cancelStaffInviteAction,
 }));
 
 const panelPath = "src/components/ops/staff-management-panel.tsx";
@@ -56,6 +62,9 @@ beforeEach(() => {
     message: "Staff access was revoked.",
     targetUserId: "internal-colleague-id",
   });
+  inviteStaffAction.mockResolvedValue({ outcome: "sent" });
+  resendStaffInviteAction.mockResolvedValue({ outcome: "sent" });
+  cancelStaffInviteAction.mockResolvedValue({ outcome: "cancelled" });
 });
 
 afterEach(() => cleanup());
@@ -152,6 +161,97 @@ describe("D-15 through D-19 staff management panel", () => {
       ).toBe("You can't revoke the last staff account.");
       expect(dialog).not.toBeNull();
       expect(document.querySelector("[data-sonner-toast]")).toBeNull();
+    },
+  );
+});
+
+describe("D-18/D-20 pending invitation lifecycle", () => {
+  const populated: StaffManagementSnapshot = {
+    ...snapshot,
+    pendingInvitations: [
+      {
+        email: "pending.with.a.very.long.address@example.com",
+        sentAtLabel: "Sep 8, 2026, 10:00 AM PHT",
+        expiresAtLabel: "Sep 9, 2026, 10:00 AM PHT",
+        inviterLabel: "Current Operator With A Long Display Name",
+        actionRef: { id: "internal-invite-id", version: "internal-invite-version" },
+      },
+    ],
+  };
+
+  it.skipIf(!panelExists || !dialogExists)(
+    "renders Invite staff and pending invitation facts/actions",
+    async () => {
+      const { StaffManagementPanel } = await loadPanel();
+      render(<StaffManagementPanel snapshot={populated} />);
+
+      expect(screen.getByRole("heading", { name: "Invite staff" })).not.toBeNull();
+      expect(screen.getByRole("textbox", { name: "Email" })).not.toBeNull();
+      expect(screen.getByRole("button", { name: "Send invitation" })).not.toBeNull();
+      expect(screen.getByText("pending.with.a.very.long.address@example.com")).not.toBeNull();
+      expect(screen.getByText("Sent Sep 8, 2026, 10:00 AM PHT")).not.toBeNull();
+      expect(screen.getByText("Expires Sep 9, 2026, 10:00 AM PHT")).not.toBeNull();
+      expect(
+        screen.getByText("Invited by Current Operator With A Long Display Name"),
+      ).not.toBeNull();
+      expect(screen.getByRole("button", { name: "Resend invitation" })).not.toBeNull();
+      expect(screen.getByRole("button", { name: "Cancel invitation" })).not.toBeNull();
+      expect(screen.queryByText("internal-invite-id")).toBeNull();
+      expect(screen.queryByText("internal-invite-version")).toBeNull();
+    },
+  );
+
+  it.skipIf(!panelExists || !dialogExists)(
+    "resends immediately and persists prior-link invalidation in the shared status region",
+    async () => {
+      const { StaffManagementPanel } = await loadPanel();
+      render(<StaffManagementPanel snapshot={populated} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Resend invitation" }));
+
+      expect(
+        await screen.findByRole("status", {
+          name: /The previous link no longer works\./,
+        }),
+      ).not.toBeNull();
+      expect(resendStaffInviteAction).toHaveBeenCalledWith({
+        id: "internal-invite-id",
+        version: "internal-invite-version",
+      });
+    },
+  );
+
+  it.skipIf(!panelExists || !dialogExists)(
+    "requires confirmation before cancelling the bound invitation version",
+    async () => {
+      const { StaffManagementPanel } = await loadPanel();
+      render(<StaffManagementPanel snapshot={populated} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Cancel invitation" }));
+      const dialog = await screen.findByRole("dialog", { name: "Cancel invitation?" });
+      expect(cancelStaffInviteAction).not.toHaveBeenCalled();
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancel invitation" }));
+
+      expect(cancelStaffInviteAction).toHaveBeenCalledWith({
+        id: "internal-invite-id",
+        version: "internal-invite-version",
+      });
+      expect(
+        await screen.findByText(
+          "Invitation for pending.with.a.very.long.address@example.com was cancelled.",
+        ),
+      ).not.toBeNull();
+    },
+  );
+
+  it.skipIf(!panelExists || !dialogExists)(
+    "keeps the neutral pending section visible when empty",
+    async () => {
+      const { StaffManagementPanel } = await loadPanel();
+      render(<StaffManagementPanel snapshot={snapshot} />);
+
+      expect(screen.getByRole("heading", { name: "Pending invitations" })).not.toBeNull();
+      expect(screen.getByText("No pending invitations.")).not.toBeNull();
     },
   );
 });
