@@ -776,7 +776,7 @@ phase is the milestone's one hard prerequisite**: nothing ops-side in v1.2 can s
      the three 404 bodies byte-identical by hash**, with **every new ops route in the probe set** — and
      there is still no `(ops)`-scoped `not-found.tsx`.
 
-**Plans**: 6/14 plans executed
+**Plans**: 7/14 plans executed
 
 Plans:
 **Wave 1**
@@ -802,7 +802,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 20-05-PLAN.md — Implement the hashed verification-row invitation state machine and atomic acceptance.
+- [x] 20-05-PLAN.md — Implement the hashed verification-row invitation state machine and atomic acceptance.
 - [ ] 20-14-PLAN.md — Enforce exact ops Host+Origin inside every privileged Server Function and probe marketplace dispatch.
 
 **Wave 7** *(blocked on Wave 6 completion)*

@@ -2,9 +2,9 @@
 schema_version: 1
 open_count: 21
 waived_count: 0
-fixed_count: 4
-total_count: 25
-last_updated: 2026-09-07T23:26:58.731Z
+fixed_count: 8
+total_count: 29
+last_updated: 2026-09-08T01:16:13.907Z
 ---
 
 # Broken Windows Ledger
@@ -40,6 +40,10 @@ last_updated: 2026-09-07T23:26:58.731Z
 | 23 | 20 | deviation | src/app/(ops-gateway)/ops-gateway/route.ts |  | 20-11 approved architecture deviation: Next route-state 404 bytes required an authenticated Node constant-response gateway; implemented and production-proven without auth/database work in Proxy | fixed |  | 2026-09-07T23:26:44.941Z | 2026-09-07T23:26:57.336Z |
 | 24 | 20 | deviation | src/app/(ops-gateway)/ops-gateway/route.ts |  | 20-11 production spike found forwarded x-middleware control headers are illegal on Route Handler responses; fixed and pinned by tests | fixed |  | 2026-09-07T23:26:45.619Z | 2026-09-07T23:26:58.018Z |
 | 25 | 20 | deviation | src/app/(ops-gateway)/ops-gateway/route.ts |  | 20-11 production spike found rewritten request.url authority differs from preserved Host; fixed inward routing to use the classified Host and pinned by tests | fixed |  | 2026-09-07T23:26:46.337Z | 2026-09-07T23:26:58.731Z |
+| 26 | 20 | deviation | src/lib/ops/invitations.ts |  | PostgreSQL JSON metadata parameters required explicit text casts for deterministic insert typing | fixed |  | 2026-09-08T01:15:35.344Z | 2026-09-08T01:16:11.660Z |
+| 27 | 20 | deviation | tests/helpers/email-fixtures.ts |  | New staff invitation sender required an exhaustive injection fixture and sender census update | fixed |  | 2026-09-08T01:15:36.169Z | 2026-09-08T01:16:12.352Z |
+| 28 | 20 | deviation | src/lib/email.ts |  | Staff invitation delivery must suppress the legacy token-bearing development console fallback | fixed |  | 2026-09-08T01:15:36.903Z | 2026-09-08T01:16:13.145Z |
+| 29 | 20 | deviation | tests/ops/staff-invitation.test.ts |  | Rollback proof was decoupled from Drizzle adapter wrapper error text | fixed |  | 2026-09-08T01:15:37.715Z | 2026-09-08T01:16:13.907Z |
 
 ````json
 [
@@ -342,6 +346,54 @@ last_updated: 2026-09-07T23:26:58.731Z
     "reason": "",
     "recorded_at": "2026-09-07T23:26:46.337Z",
     "resolved_at": "2026-09-07T23:26:58.731Z"
+  },
+  {
+    "id": 26,
+    "kind": "deviation",
+    "phase": "20",
+    "file": "src/lib/ops/invitations.ts",
+    "line": null,
+    "description": "PostgreSQL JSON metadata parameters required explicit text casts for deterministic insert typing",
+    "status": "fixed",
+    "reason": "",
+    "recorded_at": "2026-09-08T01:15:35.344Z",
+    "resolved_at": "2026-09-08T01:16:11.660Z"
+  },
+  {
+    "id": 27,
+    "kind": "deviation",
+    "phase": "20",
+    "file": "tests/helpers/email-fixtures.ts",
+    "line": null,
+    "description": "New staff invitation sender required an exhaustive injection fixture and sender census update",
+    "status": "fixed",
+    "reason": "",
+    "recorded_at": "2026-09-08T01:15:36.169Z",
+    "resolved_at": "2026-09-08T01:16:12.352Z"
+  },
+  {
+    "id": 28,
+    "kind": "deviation",
+    "phase": "20",
+    "file": "src/lib/email.ts",
+    "line": null,
+    "description": "Staff invitation delivery must suppress the legacy token-bearing development console fallback",
+    "status": "fixed",
+    "reason": "",
+    "recorded_at": "2026-09-08T01:15:36.903Z",
+    "resolved_at": "2026-09-08T01:16:13.145Z"
+  },
+  {
+    "id": 29,
+    "kind": "deviation",
+    "phase": "20",
+    "file": "tests/ops/staff-invitation.test.ts",
+    "line": null,
+    "description": "Rollback proof was decoupled from Drizzle adapter wrapper error text",
+    "status": "fixed",
+    "reason": "",
+    "recorded_at": "2026-09-08T01:15:37.715Z",
+    "resolved_at": "2026-09-08T01:16:13.907Z"
   }
 ]
 ````
