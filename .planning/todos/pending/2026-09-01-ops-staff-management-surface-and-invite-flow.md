@@ -101,6 +101,13 @@ and the existing verification flow — do not invent a second auth path.
 - Shorter staff session TTL / idle timeout — **declined**.
 - An ops-only identity policy (staff may not book or host) — **declined**.
 
+> **Superseded by D-14 and project decision D-275 (2026-09-08).** The declined-policy sentence
+> above is retained as decision history, but it is no longer the active rule. Staff identities and
+> marketplace capabilities are now mutually exclusive: invitations require a separate staff email,
+> ordinary CLI grants refuse capability-bearing accounts, and only the explicit
+> `--convert-marketplace-account` break-glass flag may atomically clear both capabilities and grant
+> staff.
+
 The SWE raised each of these before the ruling; the PM decided. This section exists so the decision is
 legible later, not to relitigate it. If the risk is ever revisited, **2FA-for-staff is the single
 highest-value item on that list.**
