@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 20
 current_phase_name: Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding
 status: executing
-stopped_at: Completed 20-12-PLAN.md
-last_updated: "2026-09-08T02:34:04.348Z"
+stopped_at: Completed 20-06-PLAN.md
+last_updated: "2026-09-08T03:07:59.269Z"
 last_activity: 2026-09-08
 last_activity_desc: Phase 20 execution started
-state_head: 8c6c718fe8d26651f03133cf60a3e158cfc60d87
+state_head: 9d0f5cede944a297084d7b661e1bbffa20ea354b
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 72
+  completed_plans: 73
   percent: 13
 ---
 
@@ -112,7 +112,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 20 (Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding) — EXECUTING
-Plan: 10 of 14
+Plan: 11 of 14
 Status: Ready to execute
 Last activity: 2026-09-08 — Phase 20 execution started
 
@@ -501,6 +501,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 20 P05 | 13 min | 2 tasks | 8 files |
 | Phase 20 P14 | 39 min | 3 tasks | 11 files |
 | Phase 20 P12 | 14 min | 3 tasks | 13 files |
+| Phase 20 P06 | 22 min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -1560,6 +1561,9 @@ Recent decisions affecting current work:
 - [Phase 20]: Plan 20-12: Keep callback admission relative-only through safeCallbackPath, then narrow the result to /ops and /ops descendants.
 - [Phase 20]: Plan 20-12: Gate staff access on the Better Auth sign-in response role and immediately revoke the exact issued session for nonstaff credentials.
 - [Phase 20]: Plan 20-12: Classify signed-out ops-auth actions as exact-origin mutations while retaining origin-first and staff-second ordering for privileged console actions.
+- [Phase 20]: Invitation lifecycle Server Functions derive actors only after exact ops authority and current-staff guards.
+- [Phase 20]: Recipient acceptance is schema-bounded to token, name, and password and redirects accepted setup to /login?accepted=1.
+- [Phase 20]: All inactive staff invitation classes share one noindex/no-referrer neutral route structure.
 
 ### Pending Todos
 
@@ -1748,8 +1752,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-08T02:33:44.127Z
-Stopped at: Completed 20-12-PLAN.md
+Last session: 2026-09-08T03:07:57.451Z
+Stopped at: Completed 20-06-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
