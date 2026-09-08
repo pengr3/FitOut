@@ -86,12 +86,14 @@ export type StaffWriteRefusalReason =
   | "self_revoke"
   | "last_staff"
   | "staff_invariant_empty"
-  | "stale_role";
+  | "stale_role"
+  | "marketplace_account";
 
 export type StaffRoleWriteInput = {
   target: string;
   actorId: string;
   role: typeof STAFF_ROLE | typeof DEFAULT_ROLE;
+  convertMarketplaceAccount?: boolean;
 };
 
 /**
@@ -129,9 +131,13 @@ export type StaffAccount = {
 async function resolveTarget(
   dbConn: DbConn,
   target: string,
-): Promise<{ id: string; role: string | null } | "not_found" | "ambiguous"> {
+): Promise<
+  | { id: string; role: string | null; canBook: boolean; canHost: boolean }
+  | "not_found"
+  | "ambiguous"
+> {
   const rows = await dbConn
-    .select({ id: user.id, role: user.role })
+    .select({ id: user.id, role: user.role, canBook: user.canBook, canHost: user.canHost })
     .from(user)
     .where(or(eq(user.email, target), eq(user.id, target)));
 
@@ -177,8 +183,17 @@ export async function grantStaff(
   dbConn: DbConn,
   target: string,
   by: string,
+  options: { convertMarketplaceAccount?: boolean } = {},
 ): Promise<StaffWriteResult> {
-  return writeRole({ target, actorId: by, role: STAFF_ROLE }, dbConn);
+  return writeRole(
+    {
+      target,
+      actorId: by,
+      role: STAFF_ROLE,
+      convertMarketplaceAccount: options.convertMarketplaceAccount,
+    },
+    dbConn,
+  );
 }
 
 /**
@@ -282,12 +297,36 @@ export async function writeRole(
       };
     }
 
-    await tx.update(user).set({ role: input.role }).where(eq(user.id, found.id));
+    const carriesMarketplaceCapability = found.canBook || found.canHost;
+    if (carriesMarketplaceCapability && !input.convertMarketplaceAccount) {
+      return { outcome: "refused", reason: "marketplace_account" };
+    }
+
+    await tx
+      .update(user)
+      .set(
+        input.convertMarketplaceAccount
+          ? { role: input.role, canBook: false, canHost: false }
+          : { role: input.role },
+      )
+      .where(eq(user.id, found.id));
+    const conversionMeta = input.convertMarketplaceAccount
+      ? {
+          convertedMarketplaceAccount: true,
+          previousCanBook: found.canBook,
+          previousCanHost: found.canHost,
+        }
+      : {};
     await writeAudit(tx, {
       actorId: input.actorId,
       action,
       outcome: "ok",
-      meta: { targetUserId: found.id, previousRole: found.role, role: input.role },
+      meta: {
+        targetUserId: found.id,
+        previousRole: found.role,
+        role: input.role,
+        ...conversionMeta,
+      },
     });
     return {
       outcome: "written",
@@ -323,7 +362,7 @@ export async function listStaff(dbConn: DbConn): Promise<StaffAccount[]> {
 
 /** The parsed `grant`/`revoke` invocation, or the reason it was refused. */
 export type ParsedGrantArgs =
-  | { ok: true; target: string; by: string }
+  | { ok: true; target: string; by: string; convertMarketplaceAccount?: true }
   | { ok: false; error: string };
 
 const ERR_NO_TARGET = "needs an email address or a user id.";
@@ -333,6 +372,8 @@ const ERR_NO_BY =
   `nothing while making every grant look attributed. (It is an identity that is asserted, not ` +
   `authenticated — this CLI has no session.)`;
 const ERR_BLANK_BY = 'needs a non-empty --by "<your name>" — a blank name records nothing.';
+const ERR_CONVERSION_SCOPE =
+  "--convert-marketplace-account is accepted only by the staff grant command.";
 
 /**
  * Parse the arguments that follow the `grant` / `revoke` verb.
@@ -349,10 +390,14 @@ const ERR_BLANK_BY = 'needs a non-empty --by "<your name>" — a blank name reco
  *
  * @param argv the tokens AFTER the verb, i.e. `process.argv.slice(3)`.
  */
-export function parseGrantArgs(argv: string[]): ParsedGrantArgs {
+export function parseGrantArgs(
+  argv: string[],
+  options: { allowMarketplaceConversion?: boolean } = {},
+): ParsedGrantArgs {
   const positionals: string[] = [];
   let by: string | undefined;
   let sawByFlag = false;
+  let convertMarketplaceAccount = false;
 
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i];
@@ -369,15 +414,24 @@ export function parseGrantArgs(argv: string[]): ParsedGrantArgs {
       by = token.slice("--by=".length);
       continue;
     }
+    if (token === "--convert-marketplace-account") {
+      convertMarketplaceAccount = true;
+      continue;
+    }
     positionals.push(token);
   }
 
   const target = positionals[0];
   if (!target) return { ok: false, error: ERR_NO_TARGET };
   if (!sawByFlag || by === undefined) return { ok: false, error: ERR_NO_BY };
+  if (convertMarketplaceAccount && !options.allowMarketplaceConversion) {
+    return { ok: false, error: ERR_CONVERSION_SCOPE };
+  }
 
   const trimmed = by.trim();
   if (trimmed.length === 0) return { ok: false, error: ERR_BLANK_BY };
 
-  return { ok: true, target, by: trimmed };
+  return convertMarketplaceAccount
+    ? { ok: true, target, by: trimmed, convertMarketplaceAccount: true }
+    : { ok: true, target, by: trimmed };
 }

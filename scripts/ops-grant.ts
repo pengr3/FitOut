@@ -68,7 +68,7 @@ const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {} });
 const db = drizzle(sql) as unknown as DbConn;
 
 const USAGE = `Usage:
-  npm run ops:grant  -- <email-or-user-id> --by "<your name>"
+  npm run ops:grant  -- <email-or-user-id> --by "<your name>" [--convert-marketplace-account]
                                             make one account STAFF (role = 'staff')
   npm run ops:revoke -- <email-or-user-id> --by "<your name>"
                                             take staff away again (role = 'user')
@@ -89,8 +89,12 @@ function pad(s: string, w: number): string {
   return s.length >= w ? s : s + " ".repeat(w - s.length);
 }
 
-async function grant(target: string, by: string): Promise<void> {
-  const res = await grantStaff(db, target, by);
+async function grant(
+  target: string,
+  by: string,
+  convertMarketplaceAccount: boolean,
+): Promise<void> {
+  const res = await grantStaff(db, target, by, { convertMarketplaceAccount });
 
   if (res.outcome === "written") {
     if (res.previousRole === "staff") {
@@ -108,6 +112,17 @@ async function grant(target: string, by: string): Promise<void> {
 
   if (res.outcome === "ambiguous") {
     console.error(`Refused: "${target}" matches more than one account. Use the user id.`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (res.outcome === "refused") {
+    console.error(
+      res.reason === "marketplace_account"
+        ? "Refused: this account can book or host. Use a separate staff account, or repeat with " +
+            "--convert-marketplace-account to remove both marketplace capabilities atomically."
+        : `Refused: ${res.reason}. Nothing was changed.`,
+    );
     process.exitCode = 1;
     return;
   }
@@ -135,6 +150,18 @@ async function revoke(target: string, by: string): Promise<void> {
 
   if (res.outcome === "ambiguous") {
     console.error(`Refused: "${target}" matches more than one account. Use the user id.`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (res.outcome === "refused") {
+    const reason =
+      res.reason === "self_revoke"
+        ? "You can't revoke your own staff access."
+        : res.reason === "last_staff"
+          ? "You can't revoke the last staff account."
+          : `Refused: ${res.reason}.`;
+    console.error(`${reason} Nothing was changed.`);
     process.exitCode = 1;
     return;
   }
@@ -171,14 +198,18 @@ async function main(): Promise<void> {
   if (cmd === "grant" || cmd === "revoke") {
     // The WHOLE tail, not a single destructured argument — flags are consumed before positionals so a
     // `--by` VALUE can never be read as the account being granted (src/lib/ops/grant.ts).
-    const parsed = parseGrantArgs(argv.slice(1));
+    const parsed = parseGrantArgs(argv.slice(1), {
+      allowMarketplaceConversion: cmd === "grant",
+    });
     if (!parsed.ok) {
       console.error(`${cmd} ${parsed.error}\n`);
       console.error(USAGE);
       process.exitCode = 1;
       return;
     }
-    if (cmd === "grant") await grant(parsed.target, parsed.by);
+    if (cmd === "grant") {
+      await grant(parsed.target, parsed.by, parsed.convertMarketplaceAccount === true);
+    }
     else await revoke(parsed.target, parsed.by);
     return;
   }
