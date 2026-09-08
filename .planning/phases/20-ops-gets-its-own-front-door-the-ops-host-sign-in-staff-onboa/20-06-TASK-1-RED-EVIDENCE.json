@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/ops/staff-invitation-actions.test.ts --config vitest.config.ts -t \"exports lifecycle actions\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - exports lifecycle actions that establish exact ops authority before staff and domain work\nAssertionError: inviteStaffAction must exist: expected undefined to be type of 'function'\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "exports lifecycle actions that establish exact ops authority before staff and domain work",
+  "targetFile": "tests/ops/staff-invitation-actions.test.ts",
+  "expected": "inviteStaffAction exists, establishes exact ops authority before authenticated staff identity, and forwards only the email plus session-derived actor id",
+  "actual": "src/app/actions/ops-staff.ts does not exist, so the exported lifecycle action is undefined and the planned boundary assertion fails"
+}
