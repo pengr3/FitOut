@@ -466,6 +466,21 @@ describe("OPS-08 dedicated FitOut Ops sign-in surface", () => {
 });
 
 describe("OPS-08 ops-host recovery, reset, and sign-out", () => {
+  it("wires explicit sign-out and neutral recovery into the protected ops shell", () => {
+    const layout = sourceOrEmpty("src/app/(ops)/ops/layout.tsx");
+    const boundary = sourceOrEmpty("src/app/(ops)/ops/error.tsx");
+
+    expect(layout).toContain("signOutOpsAction");
+    expect(layout).toContain("Sign out");
+    expect(layout).not.toContain("ProfileLink");
+    expect(boundary).toContain('title="FitOut Ops didn\'t load"');
+    expect(boundary).toContain(
+      'body="We hit a problem loading the ops console. Trying again usually fixes it."',
+    );
+    expect(boundary).toContain("absolutePublicUrl");
+    expect(boundary).not.toMatch(/error\.(?:message|stack|cause)/);
+  });
+
   const forgotPath = "src/app/(ops-auth)/_ops-auth/forgot-password/page.tsx";
   const resetPath = "src/app/(ops-auth)/_ops-auth/reset-password/page.tsx";
 

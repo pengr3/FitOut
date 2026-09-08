@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/auth/ops-host-auth.test.ts --config vitest.config.ts -t \"wires explicit sign-out\"",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - wires explicit sign-out and neutral recovery into the protected ops shell\nAssertionError: expected the protected ops layout to contain signOutOpsAction\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "wires explicit sign-out and neutral recovery into the protected ops shell",
+  "targetFile": "tests/auth/ops-host-auth.test.ts",
+  "expected": "the protected shell exposes only an explicit sign-out action and its error boundary uses the neutral FitOut Ops copy with a configured public-origin exit",
+  "actual": "the shell still renders ProfileLink and has no signOutOpsAction control, so the planned session-ending journey is absent"
+}

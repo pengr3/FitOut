@@ -6,6 +6,7 @@
 // present on both authorities. The action's own Host+Origin guard must be what separates the results.
 
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { hashPassword } from "better-auth/crypto";
 import postgres from "postgres";
@@ -23,6 +24,77 @@ type CapturedAction = {
   readonly body: Buffer;
   readonly headers: Record<string, string>;
 };
+
+test("terminates the ops session and returns to the bounded signed-out notice", async ({
+  browser,
+}) => {
+  test.setTimeout(180_000);
+
+  const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {} });
+  const suffix = randomUUID();
+  const staffId = `e2e_ops_signout_${suffix}`;
+  const staffEmail = `e2e.ops.signout.${suffix}@example.test`;
+  const opsContext = await browser.newContext({ baseURL: OPS_ORIGIN });
+
+  try {
+    const passwordHash = await hashPassword(PASSWORD);
+    await sql`
+      INSERT INTO "user"
+        (id, name, first_name, email, email_verified, can_book, can_host, role, created_at, updated_at)
+      VALUES
+        (${staffId}, ${"Ops"}, ${"Ops"}, ${staffEmail}, true, false, false, ${"staff"}, now(), now())
+    `;
+    await sql`
+      INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)
+      VALUES (${randomUUID()}, ${staffId}, ${"credential"}, ${staffId}, ${passwordHash}, now(), now())
+    `;
+
+    const signInResponse = await opsContext.request.post(
+      `${OPS_ORIGIN}/api/auth/sign-in/email`,
+      {
+        headers: { host: OPS_HOST, origin: OPS_ORIGIN },
+        data: { email: staffEmail, password: PASSWORD },
+        failOnStatusCode: false,
+      },
+    );
+    expect(signInResponse.status(), "ops-host Better Auth sign-in failed").toBe(200);
+
+    const priorCookies = await opsContext.cookies(OPS_ORIGIN);
+    const priorCookieHeader = priorCookies
+      .map((cookie) => `${cookie.name}=${cookie.value}`)
+      .join("; ");
+    expect(priorCookieHeader, "the staff sign-in did not issue an ops-host cookie").not.toBe("");
+
+    const page = await opsContext.newPage();
+    await page.goto(`${OPS_ORIGIN}/ops`);
+    await page.getByRole("button", { name: "Sign out", exact: true }).click();
+
+    await expect(page).toHaveURL(`${OPS_ORIGIN}/login?signedOut=1`);
+    await expect(page.getByText("Staff session ended.", { exact: true })).toBeVisible();
+
+    const replay = await opsContext.request.get(`${OPS_ORIGIN}/ops`, {
+      headers: { host: OPS_HOST, cookie: priorCookieHeader },
+      failOnStatusCode: false,
+    });
+    expect(replay.status(), "a destroyed staff session reopened the cloaked console").toBe(404);
+  } finally {
+    await opsContext.close();
+    await sql`DELETE FROM "user" WHERE id = ${staffId}`;
+    await sql.end();
+  }
+});
+
+test("keeps the protected error recovery neutral and inside the approved ops shell", () => {
+  const source = readFileSync("src/app/(ops)/ops/error.tsx", "utf8");
+
+  expect(source).toContain('title="FitOut Ops didn\'t load"');
+  expect(source).toContain(
+    'body="We hit a problem loading the ops console. Trying again usually fixes it."',
+  );
+  expect(source).toContain("onRetry={reset}");
+  expect(source).toContain("Back to FitOut");
+  expect(source).not.toMatch(/error\.(?:message|stack|cause)|authorization|account type/i);
+});
 
 async function captureApproveAction(page: Page, targetName: string): Promise<CapturedAction> {
   let captured: CapturedAction | null = null;
