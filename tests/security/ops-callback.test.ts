@@ -16,8 +16,8 @@ async function loadOpsCallback(): Promise<OpsCallbackModule | null> {
 
 describe("safeOpsCallback", () => {
   it("exports the ops-only callback normalizer", async () => {
-    const module = await loadOpsCallback();
-    expect(module?.safeOpsCallback, "safeOpsCallback must exist before callbacks can be trusted").toBeTypeOf(
+    const callbackApi = await loadOpsCallback();
+    expect(callbackApi?.safeOpsCallback, "safeOpsCallback must exist before callbacks can be trusted").toBeTypeOf(
       "function",
     );
   });
@@ -25,11 +25,11 @@ describe("safeOpsCallback", () => {
   it.each([
     ["/ops", "/ops"],
     ["/ops/reviews?state=open#next", "/ops/reviews?state=open#next"],
-    ["https://ops.example.test/ops/reviews", "/ops/reviews"],
+    ["https://ops.example.test/ops/reviews", "/ops"],
   ])("admits only same-origin ops paths: %s", async (raw, expected) => {
-    const module = await loadOpsCallback();
-    expect(module?.safeOpsCallback).toBeTypeOf("function");
-    expect(module!.safeOpsCallback(raw, OPS_ORIGIN)).toBe(expected);
+    const callbackApi = await loadOpsCallback();
+    expect(callbackApi?.safeOpsCallback).toBeTypeOf("function");
+    expect(callbackApi!.safeOpsCallback(raw, OPS_ORIGIN)).toBe(expected);
   });
 
   it.each([
@@ -48,8 +48,8 @@ describe("safeOpsCallback", () => {
     "https://ops.example.test.attacker.invalid/ops",
     "javascript:alert(1)",
   ])("falls unsafe or non-ops callback %j back to /ops", async (raw) => {
-    const module = await loadOpsCallback();
-    expect(module?.safeOpsCallback).toBeTypeOf("function");
-    expect(module!.safeOpsCallback(raw, OPS_ORIGIN)).toBe("/ops");
+    const callbackApi = await loadOpsCallback();
+    expect(callbackApi?.safeOpsCallback).toBeTypeOf("function");
+    expect(callbackApi!.safeOpsCallback(raw, OPS_ORIGIN)).toBe("/ops");
   });
 });

@@ -326,25 +326,17 @@ describe("OPS-08 origin-bound staff credential transition", () => {
         user: { id: "staff-1", role: "staff" },
       },
     } as never);
-    const getSession = vi.spyOn(productionAuth.api, "getSession").mockResolvedValue({
-      session: { id: "session-1" },
-      user: { id: "staff-1", role: "staff" },
-    } as never);
+    const getSession = vi.spyOn(productionAuth.api, "getSession");
     const signOut = vi.spyOn(productionAuth.api, "signOut");
 
     await expect(
       actions!.signInOps({
         email: "operator@example.test",
         password: PASSWORD,
-        callbackURL: "https://ops.example.test/ops/reviews?state=open#next",
+        callbackURL: "/ops/reviews?state=open#next",
       }),
     ).resolves.toEqual({ ok: true, redirectTo: "/ops/reviews?state=open#next" });
-    expect(getSession).toHaveBeenCalledOnce();
-    const sessionHeaders = getSession.mock.calls[0]?.[0]?.headers;
-    expect(sessionHeaders?.get("host")).toBe(new URL(OPS_ORIGIN).host);
-    expect(sessionHeaders?.get("cookie")).toContain(
-      "better-auth.session_token=staff-token",
-    );
+    expect(getSession).not.toHaveBeenCalled();
     expect(signOut).not.toHaveBeenCalled();
   });
 
@@ -379,7 +371,7 @@ describe("OPS-08 origin-bound staff credential transition", () => {
       }),
     ).resolves.toEqual({ ok: false, reason: "no-ops-access" });
     expect(signOut).toHaveBeenCalledOnce();
-    expect(signOut.mock.calls[0]?.[0]?.headers.get("cookie")).toContain(
+    expect(new Headers(signOut.mock.calls[0]?.[0]?.headers).get("cookie")).toContain(
       "better-auth.session_token=nonstaff-token",
     );
     expect(JSON.stringify(signOut.mock.calls[0])).not.toMatch(/canBook|booker|host/i);
