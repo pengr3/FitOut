@@ -6,7 +6,7 @@
 // present on both authorities. The action's own Host+Origin guard must be what separates the results.
 
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { hashPassword } from "better-auth/crypto";
 import postgres from "postgres";
@@ -19,6 +19,13 @@ const OPS_ORIGIN = `http://${OPS_HOST}`;
 const DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://fitout:fitout@localhost:5432/fitout";
 const PASSWORD = "averylongpassword";
+
+test("onboards a separate staff identity before removing legacy staff", () => {
+  expect(
+    existsSync("scripts/verify-ops-local-state.mjs"),
+    "the read-only separated-state verifier must exist before the browser remediation runs",
+  ).toBe(true);
+});
 
 type CapturedAction = {
   readonly body: Buffer;

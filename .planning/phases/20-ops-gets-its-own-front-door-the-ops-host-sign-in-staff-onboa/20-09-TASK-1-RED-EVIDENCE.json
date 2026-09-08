@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/playwright/cli.js test e2e/ops-auth.spec.ts --project=chromium --grep \"onboards a separate staff identity before removing legacy staff\" --reporter=list",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - onboards a separate staff identity before removing legacy staff\nAssertionError: the read-only separated-state verifier must exist before the browser remediation runs\nExpected: true\nReceived: false\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "onboards a separate staff identity before removing legacy staff",
+  "targetFile": "e2e/ops-auth.spec.ts",
+  "expected": "the browser remediation is backed by a read-only verifier before onboarding a replacement staff identity and revoking only the legacy staff grant",
+  "actual": "scripts/verify-ops-local-state.mjs did not exist, so the targeted behavior assertion failed before any local state mutation"
+}
