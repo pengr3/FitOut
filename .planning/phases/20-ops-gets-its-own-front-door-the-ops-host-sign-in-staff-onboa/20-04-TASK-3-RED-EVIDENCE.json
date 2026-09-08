@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/ops/staff-session-revocation.test.ts --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\n# tests 2\n# pass 1\n# fail 1\nok 1 - reuses the pre-revocation cookie but requireStaff reads the new database role\nnot ok 2 - retains the old staff-management decision and marks coexistence as superseded\nAssertionError: expected tracked todo to contain Superseded by D-14 and project decision D-275",
+  "targetTest": "retains the old staff-management decision and marks coexistence as superseded",
+  "targetFile": "tests/ops/staff-session-revocation.test.ts",
+  "expected": "the retained decision record explicitly names D-14 and project decision D-275 as superseding the former coexistence ruling",
+  "actual": "the tracked todo still described staff/marketplace coexistence as the active declined-policy decision"
+}
