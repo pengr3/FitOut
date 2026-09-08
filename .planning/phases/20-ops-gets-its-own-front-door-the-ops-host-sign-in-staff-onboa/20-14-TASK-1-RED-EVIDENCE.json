@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/ops/ops-audit.test.ts --config vitest.config.ts -t \"refuses missing Host\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - refuses missing Host before session, domain, rate-limit, or audit work\nAssertionError: promise resolved with { ok: true } instead of rejecting\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "refuses missing Host before session, domain, rate-limit, or audit work",
+  "targetFile": "tests/ops/ops-audit.test.ts",
+  "expected": "approveHost rejects with the common not-found control flow before session, domain, rate-limit, notification, or audit work when Host or Origin is not the exact configured ops authority",
+  "actual": "approveHost had no request-authority guard, resolved ok, and changed the host plus audit state"
+}

@@ -101,6 +101,7 @@ const ACTIONS_DIR = resolve(APP_DIR, "actions");
 /** The ONE module both guards must resolve to. A same-named local helper is not this. */
 const GUARD_MODULE = "@/lib/ops/staff";
 const BOUNDARY_GUARD = "requireStaff";
+const ORIGIN_GUARD = "requireOpsMutationOrigin";
 const STATUS_LINE_GUARD = "assertStaff";
 
 /** The layout that carries layer 1, by path — so a MOVED layout fails rather than disappears. */
@@ -340,6 +341,36 @@ export function guardsFirst(fn: ts.FunctionDeclaration, bindings: ReadonlySet<st
   );
 }
 
+/** Exact two-stage mutation boundary: resolved origin guard first, resolved staff guard second. */
+export function guardsFirstAndSecond(
+  fn: ts.FunctionDeclaration,
+  originBindings: ReadonlySet<string>,
+  staffBindings: ReadonlySet<string>,
+): boolean {
+  const statements = fn.body?.statements;
+  if (statements === undefined || statements.length < 2) return false;
+
+  const calledBinding = (statement: ts.Statement, bindings: ReadonlySet<string>): boolean => {
+    let expr: ts.Expression | undefined;
+    if (ts.isExpressionStatement(statement)) expr = statement.expression;
+    else if (ts.isVariableStatement(statement)) {
+      expr = statement.declarationList.declarations[0]?.initializer;
+    }
+    if (expr === undefined) return false;
+    const inner = ts.isAwaitExpression(expr) ? expr.expression : expr;
+    return (
+      ts.isCallExpression(inner) &&
+      ts.isIdentifier(inner.expression) &&
+      bindings.has(inner.expression.text)
+    );
+  };
+
+  return (
+    calledBinding(statements[0], originBindings) &&
+    calledBinding(statements[1], staffBindings)
+  );
+}
+
 /** Every exported async function declaration in a module, by name. */
 function exportedFunctions(sf: ts.SourceFile): Map<string, ts.FunctionDeclaration> {
   const out = new Map<string, ts.FunctionDeclaration>();
@@ -392,6 +423,7 @@ type ActionRow = {
   readonly file: string;
   readonly name: string;
   readonly guardsFirst: boolean;
+  readonly originFirstStaffSecond: boolean;
   readonly bound: boolean;
 };
 
@@ -402,12 +434,14 @@ const ACTIONS: ActionRow[] = (() => {
     if (!existsSync(abs)) return;
     const sf = parse(label, readFileSync(abs, "utf8"));
     const bindings = bindingsFor(sf, GUARD_MODULE, BOUNDARY_GUARD);
+    const originBindings = bindingsFor(sf, GUARD_MODULE, ORIGIN_GUARD);
     for (const [name, fn] of exportedFunctions(sf)) {
       if (only !== undefined && name !== only) continue;
       rows.push({
         file: label,
         name,
         guardsFirst: guardsFirst(fn, bindings),
+        originFirstStaffSecond: guardsFirstAndSecond(fn, originBindings, bindings),
         bound: bindings.size > 0,
       });
     }
@@ -567,6 +601,18 @@ describe("OPS-02 — the three-layer guard, as a property of the source tree", (
     ).toEqual([]);
   });
 
+  it("makes the exact origin guard first and staff guard second in every ops-review action", () => {
+    const bad = ACTIONS.filter(
+      (action) =>
+        action.file === "src/app/actions/ops-review.ts" && !action.originFirstStaffSecond,
+    ).map((action) => `${action.file}:${action.name}`);
+    expect(
+      bad,
+      "every privileged review action must resolve requireOpsMutationOrigin from the staff module " +
+        "as statement one and requireStaff from that module as statement two",
+    ).toEqual([]);
+  });
+
   it(`pins the ops action census at ${EXPECTED_OPS_ACTIONS}`, () => {
     expect(
       ACTIONS.map((a) => `${a.file}:${a.name}`).sort(),
@@ -701,5 +747,47 @@ describe("OPS-02 — the three-layer guard, as a property of the source tree", (
     expect(fnFixed).toBeDefined();
     if (fnFixed === undefined) return;
     expect(guardsFirst(fnFixed, bindingsFor(sfFixed, GUARD_MODULE, BOUNDARY_GUARD))).toBe(true);
+  });
+
+  it("rejects swapped, missing, and locally-decoyed mutation guard sequences", () => {
+    const valid = [
+      'import { requireOpsMutationOrigin, requireStaff } from "@/lib/ops/staff";',
+      "export async function decide(input) {",
+      "  await requireOpsMutationOrigin();",
+      "  const staff = await requireStaff();",
+      "  return { input, staff };",
+      "}",
+    ].join("\n");
+
+    const accepts = (source: string): boolean => {
+      const sf = parse("fake-mutation.ts", source);
+      const fn = exportedFunctions(sf).get("decide");
+      if (fn === undefined) return false;
+      return guardsFirstAndSecond(
+        fn,
+        bindingsFor(sf, GUARD_MODULE, ORIGIN_GUARD),
+        bindingsFor(sf, GUARD_MODULE, BOUNDARY_GUARD),
+      );
+    };
+
+    expect(accepts(valid)).toBe(true);
+    expect(
+      accepts(
+        valid.replace(
+          "  await requireOpsMutationOrigin();\n  const staff = await requireStaff();",
+          "  const staff = await requireStaff();\n  await requireOpsMutationOrigin();",
+        ),
+      ),
+    ).toBe(false);
+    expect(accepts(valid.replace("  await requireOpsMutationOrigin();\n", ""))).toBe(false);
+    expect(
+      accepts(
+        valid.replace(
+          'import { requireOpsMutationOrigin, requireStaff } from "@/lib/ops/staff";',
+          'import { requireStaff } from "@/lib/ops/staff";\n' +
+            "async function requireOpsMutationOrigin() {}",
+        ),
+      ),
+    ).toBe(false);
   });
 });

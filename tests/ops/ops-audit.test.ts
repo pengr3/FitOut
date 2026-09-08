@@ -52,9 +52,20 @@ import { audit, hostVerification, listing, listingReview, user } from "@/lib/db/
 import type { RateLimitOptions, RateLimitResult } from "@/lib/rate-limit";
 import { HOST_REJECT_REASONS, LISTING_REJECT_REASONS } from "@/lib/validation/ops";
 
-const sessionHeaders: { cookie: string } = { cookie: "" };
+const OPS_HOST = "ops.localhost:3000";
+const OPS_ORIGIN = "http://ops.localhost:3000";
+const requestHeaders: { cookie: string; host: string | null; origin: string | null } = {
+  cookie: "",
+  host: OPS_HOST,
+  origin: OPS_ORIGIN,
+};
 vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
+  headers: async () => {
+    const value = new Headers({ cookie: requestHeaders.cookie });
+    if (requestHeaders.host !== null) value.set("host", requestHeaders.host);
+    if (requestHeaders.origin !== null) value.set("origin", requestHeaders.origin);
+    return value;
+  },
 }));
 
 const NOT_FOUND = "NEXT_NOT_FOUND";
@@ -73,6 +84,7 @@ let testDb: TestDb;
 let testAuth: TestAuth;
 let staffId: string;
 let civilianId: string;
+let authSessionReads = 0;
 
 type OpsActions = typeof import("@/app/actions/ops-review");
 let approveHost: OpsActions["approveHost"];
@@ -94,7 +106,7 @@ async function login(email: string): Promise<void> {
     asResponse: true,
   });
   const setCookie = res.headers.get("set-cookie");
-  sessionHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
+  requestHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
 }
 
 /** A host row at a chosen verification status. `null` ⇒ user only, no verification row at all. */
@@ -184,7 +196,16 @@ beforeAll(async () => {
   // structurally incapable of writing this field (tests/auth/ops-role.test.ts measures that).
   await testDb.db.update(user).set({ role: "staff" }).where(eq(user.id, staffId));
 
-  vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
+  vi.doMock("@/lib/auth", () => ({
+    auth: {
+      api: {
+        getSession: async (...args: Parameters<typeof testAuth.api.getSession>) => {
+          authSessionReads += 1;
+          return testAuth.api.getSession(...args);
+        },
+      },
+    },
+  }));
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("next/navigation", () => ({
     // The real `notFound` raises a Next-internal digest only the framework can interpret; the shipped
@@ -221,8 +242,38 @@ afterAll(async () => {
 beforeEach(async () => {
   rateLimitAllows = true;
   rateLimitCalls.length = 0;
+  authSessionReads = 0;
+  requestHeaders.host = OPS_HOST;
+  requestHeaders.origin = OPS_ORIGIN;
   delete process.env.FITOUT_VERIFICATION_PROVIDER;
   await login(STAFF_EMAIL);
+});
+
+describe("T-20-14 — exact ops request authority precedes every review decision", () => {
+  it.each([
+    ["missing Host", null, OPS_ORIGIN],
+    ["malformed Host", `${OPS_HOST}/ops`, OPS_ORIGIN],
+    ["marketplace authority", "localhost:3000", "http://localhost:3000"],
+    ["public preview authority", "fitout-preview.example", "https://fitout-preview.example"],
+    ["unknown authority", "unknown.example", "https://unknown.example"],
+    ["missing Origin", OPS_HOST, null],
+    ["malformed Origin", OPS_HOST, "not-an-origin"],
+    ["marketplace Origin", OPS_HOST, "http://localhost:3000"],
+    ["mismatched ops Origin", OPS_HOST, "http://ops.localhost:3001"],
+  ])("refuses %s before session, domain, rate-limit, or audit work", async (_label, host, origin) => {
+    const target = await seedHost(`oa_origin_${crypto.randomUUID()}`, "pending");
+    const trailBefore = await testDb.db.select().from(audit);
+
+    requestHeaders.host = host;
+    requestHeaders.origin = origin;
+
+    await expect(approveHost({ userId: target })).rejects.toThrow(NOT_FOUND);
+
+    expect(authSessionReads).toBe(0);
+    expect(rateLimitCalls).toHaveLength(0);
+    expect(await verificationStatus(target)).toBe("pending");
+    expect(await testDb.db.select().from(audit)).toHaveLength(trailBefore.length);
+  });
 });
 
 describe("OPS-03 — the ALLOW branch of every action writes an authenticated trail row", () => {
