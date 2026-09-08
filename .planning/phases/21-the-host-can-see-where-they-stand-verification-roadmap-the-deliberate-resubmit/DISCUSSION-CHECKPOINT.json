@@ -1,0 +1,58 @@
+{
+  "phase": "21",
+  "phase_name": "The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit",
+  "timestamp": "2026-09-09T02:06:17.6833206+08:00",
+  "areas_completed": [
+    "Verification roadmap"
+  ],
+  "areas_remaining": [
+    "Fix-and-resubmit journey",
+    "Review-cycle history"
+  ],
+  "decisions": {
+    "Verification roadmap": [
+      {
+        "question": "Where should the complete four-step verification roadmap live?",
+        "answer": "Host dashboard",
+        "options_presented": [
+          "Host dashboard",
+          "Verification page",
+          "Both"
+        ]
+      },
+      {
+        "question": "How should the roadmap be composed?",
+        "answer": "Separate cards; selected after a three-variant experiential spike and an eight-state stress spike",
+        "options_presented": [
+          "Vertical step list",
+          "Separate cards",
+          "Responsive stepper"
+        ]
+      },
+      {
+        "question": "When a host has one live listing and another rejected listing, is the account-level journey complete?",
+        "answer": "Yes. The journey completes when the first listing is live; rejected sibling listings remain actionable on their own listing cards.",
+        "options_presented": [
+          "Complete at first live listing",
+          "Remain incomplete while any listing is rejected",
+          "Treat each listing as a separate roadmap"
+        ]
+      },
+      {
+        "question": "What should the dashboard show after all four roadmap steps are complete?",
+        "answer": "Collapse the roadmap into one compact ‘Ready to take bookings’ summary",
+        "options_presented": [
+          "Compact ready summary",
+          "Keep all four completed cards visible",
+          "Hide the roadmap entirely"
+        ]
+      }
+    ]
+  },
+  "deferred_ideas": [],
+  "canonical_refs": [
+    ".planning/spikes/MANIFEST.md",
+    ".planning/spikes/005-b-separate-cards/README.md",
+    ".planning/spikes/006-roadmap-state-stress/README.md"
+  ]
+}
