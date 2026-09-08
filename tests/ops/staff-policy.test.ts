@@ -2,7 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { eq, sql } from "drizzle-orm";
 
-import { audit, user } from "@/lib/db/schema";
+import { user } from "@/lib/db/schema";
 import * as grantPolicy from "@/lib/ops/grant";
 import { makeRacingClients, setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 
