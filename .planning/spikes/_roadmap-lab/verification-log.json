@@ -1,0 +1,246 @@
+{
+  "startedAt": "2026-09-08T17:29:10.435Z",
+  "checks": [
+    {
+      "id": "005a",
+      "scenario": "unverified",
+      "desktop": {
+        "steps": 4,
+        "actions": 1,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005a",
+      "scenario": "pending",
+      "desktop": {
+        "steps": 4,
+        "actions": 1,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005a",
+      "scenario": "payouts",
+      "desktop": {
+        "steps": 4,
+        "actions": 1,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005a",
+      "scenario": "listing",
+      "desktop": {
+        "steps": 4,
+        "actions": 1,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005a",
+      "scenario": "review",
+      "desktop": {
+        "steps": 4,
+        "actions": 0,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005a",
+      "scenario": "ready",
+      "desktop": {
+        "steps": 4,
+        "actions": 0,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005b",
+      "scenario": "unverified",
+      "desktop": {
+        "steps": 4,
+        "actions": 1,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005b",
+      "scenario": "pending",
+      "desktop": {
+        "steps": 4,
+        "actions": 1,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005b",
+      "scenario": "payouts",
+      "desktop": {
+        "steps": 4,
+        "actions": 1,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005b",
+      "scenario": "listing",
+      "desktop": {
+        "steps": 4,
+        "actions": 1,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005b",
+      "scenario": "review",
+      "desktop": {
+        "steps": 4,
+        "actions": 0,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005b",
+      "scenario": "ready",
+      "desktop": {
+        "steps": 4,
+        "actions": 0,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005c",
+      "scenario": "unverified",
+      "desktop": {
+        "steps": 4,
+        "actions": 1,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005c",
+      "scenario": "pending",
+      "desktop": {
+        "steps": 4,
+        "actions": 1,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005c",
+      "scenario": "payouts",
+      "desktop": {
+        "steps": 4,
+        "actions": 1,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005c",
+      "scenario": "listing",
+      "desktop": {
+        "steps": 4,
+        "actions": 1,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005c",
+      "scenario": "review",
+      "desktop": {
+        "steps": 4,
+        "actions": 0,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    },
+    {
+      "id": "005c",
+      "scenario": "ready",
+      "desktop": {
+        "steps": 4,
+        "actions": 0,
+        "overflow": false
+      },
+      "phone": {
+        "width": 320,
+        "overflow": false
+      }
+    }
+  ],
+  "finishedAt": "2026-09-08T17:29:16.676Z",
+  "summary": {
+    "variants": 3,
+    "scenariosPerVariant": 6,
+    "totalChecks": 18,
+    "failures": 0
+  }
+}

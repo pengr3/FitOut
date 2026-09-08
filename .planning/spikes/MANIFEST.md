@@ -15,7 +15,9 @@
 > see [`deferred-items.md`](deferred-items.md) — the relaxation spec that cannot detect a lying
 > band (S-1), and the 570px mobile search bar (S-2).
 
-## Idea
+## Ideas
+
+### search-front-door
 
 **How should FitOut's search front door actually work?**
 
@@ -34,7 +36,7 @@ constraints bind every one of them:
 - **D-130** — the query and the map's bbox go into the **server** query. No availability and no
   price is ever computed on the client.
 
-## Requirements
+**Requirements:**
 
 Design decisions that emerged during spiking. Non-negotiable for the real build.
 
@@ -78,12 +80,33 @@ Design decisions that emerged during spiking. Non-negotiable for the real build.
 - **R5 — Phase 18 is renamed `Search & Discovery`** and carries new `SEARCH-xx` requirement IDs
   alongside `MAP-01..04`. *PM decision, 2026-08-31.*
 
+### host-verification-roadmap
+
+Compare how FitOut should show a host the ordered journey from account setup to a bookable listing,
+using the real four-gate sequence and the project's established calm host-surface language. This is
+an experiential layout decision for Phase 21, not product implementation.
+
+**Requirements:**
+
+- **R1 — The complete roadmap lives on the host dashboard.** Each current step may route to its
+  existing destination; `/host/verify` remains a once-only detail/action page rather than the roadmap's
+  home.
+- **R2 — Compare before locking the composition.** Vertical step list, separate cards, and responsive
+  horizontal stepper must be experienced with identical content at desktop and phone widths before one
+  becomes the Phase 21 decision.
+- **R3 — No percentage progress.** The roadmap uses discrete server-backed steps and never implies that
+  waiting on a third party has a meaningful completion percentage.
+
 ## Spikes
 
-| # | Name | Type | Validates | Verdict | Tags |
-|---|------|------|-----------|---------|------|
-| 001 | one-box-intent-routing | standard | One box → server params via a closed-set-first staged router, no migration | ✓ **VALIDATED** — 30/30 corpus, geocoder reached 0/30, 0.01–0.05 ms/query | search, phase-18, query-model, geocoding |
-| 002a | freetext-ilike (per-word) | comparison | `ILIKE` inside the real stage-1 gate, 500–50,000 published listings | ✓ **WINNER** — added cost indistinguishable from zero below ~12k listings; matches FTS on 7/8 quality probes | search, postgres, GATE-06 |
-| 002b | freetext-fts-no-migration | comparison | Query-time `to_tsvector()`, no stored column, no GIN | ✗ **INVALIDATED** — strictly dominated: FTS quality without the index, at 8x ILIKE's cost (564 ms vs 68 ms at 25k) | search, postgres, GATE-06 |
-| 003 | bbox-vs-radius | standard | Which "where" is authoritative when the map moves and the bar still holds an address + radius | ✓ **VALIDATED** — policy A (bbox wins, radius dropped) + explicit "Search this area"; no migration; the D-53 radius rung breaks under a bbox | map, phase-18, MAP-01, MAP-02, D-53, D-32 |
-| 004 | front-door-head-to-head | standard | Today's bar vs the one box, three intents, desktop and 375px | ✓ **VALIDATED with a limit** — box saves 5–10 taps and every pre-submit network call, but does NOT subsume the controls (no price NLP, by design) | ux, responsive, phase-18, D-137 |
+| # | Idea | Name | Type | Validates | Verdict | Tags |
+|---|------|------|------|-----------|---------|------|
+| 001 | search-front-door | one-box-intent-routing | standard | One box → server params via a closed-set-first staged router, no migration | ✓ **VALIDATED** — 30/30 corpus, geocoder reached 0/30, 0.01–0.05 ms/query | search, phase-18, query-model, geocoding |
+| 002a | search-front-door | freetext-ilike (per-word) | comparison | `ILIKE` inside the real stage-1 gate, 500–50,000 published listings | ✓ **WINNER** — added cost indistinguishable from zero below ~12k listings; matches FTS on 7/8 quality probes | search, postgres, GATE-06 |
+| 002b | search-front-door | freetext-fts-no-migration | comparison | Query-time `to_tsvector()`, no stored column, no GIN | ✗ **INVALIDATED** — strictly dominated: FTS quality without the index, at 8x ILIKE's cost (564 ms vs 68 ms at 25k) | search, postgres, GATE-06 |
+| 003 | search-front-door | bbox-vs-radius | standard | Which "where" is authoritative when the map moves and the bar still holds an address + radius | ✓ **VALIDATED** — policy A (bbox wins, radius dropped) + explicit "Search this area"; no migration; the D-53 radius rung breaks under a bbox | map, phase-18, MAP-01, MAP-02, D-53, D-32 |
+| 004 | search-front-door | front-door-head-to-head | standard | Today's bar vs the one box, three intents, desktop and 375px | ✓ **VALIDATED with a limit** — box saves 5–10 taps and every pre-submit network call, but does NOT subsume the controls (no price NLP, by design) | ux, responsive, phase-18, D-137 |
+| 005a | host-verification-roadmap | vertical-step-list | comparison | Same four gates in one ordered bordered list at desktop and phone widths | ✓ **VALIDATED ALTERNATIVE** — clearest sequence, but tallest default composition (501px) | phase-21, host, verification, ux, responsive |
+| 005b | host-verification-roadmap | separate-cards | comparison | Same four gates as individually bordered cards at desktop and phone widths | ✓ **WINNER** — user-selected; each gate reads as a distinct server-backed fact while the 2×2 desktop grid stays compact | phase-21, host, verification, ux, responsive |
+| 005c | host-verification-roadmap | responsive-stepper | comparison | Same four gates as a horizontal desktop stepper that stacks on phone widths | ✓ **VALIDATED ALTERNATIVE** — shortest desktop composition (244px), but compresses explanatory copy and changes geometry on phone | phase-21, host, verification, ux, responsive |
+| 006 | host-verification-roadmap | roadmap-state-stress | standard | Preferred layout stays truthful across lifecycle states and 320px | PENDING | phase-21, host, verification, edge-cases, responsive |

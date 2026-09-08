@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{TITLE}} — FitOut roadmap spike</title>
+    <style>{{CSS}}</style>
+  </head>
+  <body data-layout="{{LAYOUT}}">
+    <main class="lab">
+      <aside class="controls">
+        <p class="eyebrow">Phase 21 · comparison 005</p>
+        <h1>{{TITLE}}</h1>
+        <p class="lede">Same journey, same states, same actions. Only the composition changes.</p>
+
+        <section class="control-group" aria-labelledby="variant-heading">
+          <h2 id="variant-heading">Compare layouts</h2>
+          <nav class="variant-links">
+            <a href="../005-a-vertical-step-list/index.html" {{CURRENT_A}}>A · Vertical list</a>
+            <a href="../005-b-separate-cards/index.html" {{CURRENT_B}}>B · Separate cards</a>
+            <a href="../005-c-responsive-stepper/index.html" {{CURRENT_C}}>C · Responsive stepper</a>
+          </nav>
+        </section>
+
+        <section class="control-group" aria-labelledby="scenario-heading">
+          <h2 id="scenario-heading">Host situation</h2>
+          <div class="segmented">
+            <button data-scenario="unverified" aria-pressed="false">Identity needed</button>
+            <button data-scenario="pending" aria-pressed="false">Identity pending</button>
+            <button data-scenario="payouts" aria-pressed="true">Payouts next</button>
+            <button data-scenario="listing" aria-pressed="false">Listing next</button>
+            <button data-scenario="review" aria-pressed="false">In review</button>
+            <button data-scenario="ready" aria-pressed="false">Bookable</button>
+          </div>
+        </section>
+
+        <section class="control-group" aria-labelledby="width-heading">
+          <h2 id="width-heading">Preview width</h2>
+          <div class="segmented">
+            <button data-width="desktop" aria-pressed="true">Desktop</button>
+            <button data-width="phone" aria-pressed="false">Phone · 320px</button>
+          </div>
+        </section>
+
+        <section class="control-group" aria-labelledby="measure-heading">
+          <h2 id="measure-heading">Composition cost</h2>
+          <div class="metrics">
+            <div class="metric"><span>Roadmap height</span><strong data-height>—</strong></div>
+            <div class="metric"><span>Actions shown</span><strong data-actions>—</strong></div>
+            <div class="metric"><span>Borders to scan</span><strong data-containers>—</strong></div>
+          </div>
+        </section>
+
+        <section class="control-group" aria-labelledby="log-heading">
+          <h2 id="log-heading">Forensic event log</h2>
+          <ol class="event-log" data-log></ol>
+          <button class="export-button" type="button" data-export>Export JSON</button>
+        </section>
+      </aside>
+
+      <section class="stage" aria-label="FitOut host dashboard preview">
+        <div class="device" data-frame>
+          <div class="browser-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="screen">
+            <header class="screen-head">
+              <div>
+                <p class="eyebrow">Host dashboard</p>
+                <h2>Your path to bookable</h2>
+              </div>
+              <span class="scenario-pill" data-scenario-label>Payouts next</span>
+            </header>
+            <p class="summary" data-summary></p>
+            <div class="roadmap" data-roadmap aria-label="Steps from account check to a bookable listing"></div>
+            <p class="variant-note">{{NOTE}}</p>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script>{{JS}}</script>
+  </body>
+</html>

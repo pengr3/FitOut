@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>A · Vertical step list — FitOut roadmap spike</title>
+    <style>:root {
+  color-scheme: light;
+  --paper: #fffdf9;
+  --canvas: #f5f0e9;
+  --ink: #27231f;
+  --muted: #746c63;
+  --line: #ded6cc;
+  --line-strong: #b9afa4;
+  --accent: #df5f4b;
+  --accent-soft: #fff0eb;
+  --done: #3f6a56;
+  --done-soft: #eef6f1;
+  --shadow: 0 18px 55px rgba(55, 45, 35, 0.12);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+button { font: inherit; }
+.lab {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(250px, 310px) 1fr;
+}
+.controls {
+  border-right: 1px solid var(--line);
+  padding: 30px 24px;
+  background: rgba(255, 253, 249, 0.76);
+}
+.eyebrow, .step-number {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+.controls h1 { margin: 8px 0 10px; font-family: Georgia, serif; font-size: 29px; line-height: 1.05; }
+.lede { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
+.control-group { margin-top: 28px; }
+.control-group h2 { margin: 0 0 10px; font-size: 12px; }
+.segmented { display: flex; flex-wrap: wrap; gap: 7px; }
+.segmented button, .variant-links a {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  padding: 8px 11px;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: none;
+}
+.segmented button[aria-pressed="true"] { border-color: var(--ink); background: var(--ink); color: white; }
+.variant-links { display: grid; gap: 7px; }
+.variant-links a[aria-current="page"] { border-color: var(--accent); color: #9d3628; background: var(--accent-soft); }
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.metric { border: 1px solid var(--line); border-radius: 12px; padding: 9px; background: var(--paper); }
+.metric span { display: block; color: var(--muted); font-size: 10px; }
+.metric strong { display: block; margin-top: 3px; font-size: 13px; }
+.event-log { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.event-log li { color: var(--muted); font-size: 11px; line-height: 1.35; }
+.event-log li span { display: inline-block; margin-right: 6px; color: var(--ink); font-weight: 750; }
+.export-button { margin-top: 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); padding: 8px 10px; color: var(--ink); font-size: 11px; font-weight: 700; cursor: pointer; }
+.stage { min-width: 0; padding: 34px; display: grid; place-items: start center; overflow: auto; }
+.device {
+  width: min(100%, 1040px);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: width .2s ease;
+}
+.device.phone { width: 320px; }
+.browser-bar { height: 35px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 6px; padding: 0 14px; }
+.browser-bar i { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); }
+.screen { padding: 34px clamp(18px, 5vw, 58px) 48px; }
+.screen-head { display: flex; justify-content: space-between; gap: 20px; align-items: end; margin-bottom: 26px; }
+.screen-head h2 { margin: 4px 0 0; font-family: Georgia, serif; font-size: clamp(27px, 4vw, 42px); font-weight: 500; }
+.scenario-pill { border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; white-space: nowrap; color: var(--muted); font-size: 12px; }
+.summary { margin: -13px 0 22px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.roadmap { border: 1px solid var(--line); border-radius: 17px; background: white; }
+.roadmap-step { position: relative; }
+.step-rail { position: relative; flex: 0 0 28px; display: flex; flex-direction: column; align-items: center; }
+.step-mark { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 50%; background: white; font-weight: 800; }
+.step-line { width: 1px; flex: 1; min-height: 24px; background: var(--line); }
+.roadmap-step:last-child .step-line { display: none; }
+.state-done .step-mark { border-color: var(--done); background: var(--done); color: white; }
+.state-current .step-mark { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.state-waiting .step-mark { border-color: var(--line-strong); background: #f4f1ed; color: var(--muted); }
+.state-next { color: #8b837a; }
+.step-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.state-label { color: var(--muted); font-size: 11px; font-weight: 700; }
+.state-current .state-label { color: #a73d2d; }
+.state-done .state-label { color: var(--done); }
+.step-body h3 { margin: 5px 0 5px; font-size: 16px; }
+.step-copy { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.step-body button { margin-top: 13px; min-height: 42px; border: 0; border-radius: 10px; background: var(--accent); color: white; padding: 0 16px; font-weight: 750; cursor: pointer; }
+.state-waiting .step-body button { border: 1px solid var(--line-strong); background: white; color: var(--ink); }
+.variant-note { margin: 16px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+body[data-layout="vertical"] .roadmap { padding: 23px 24px 10px; }
+body[data-layout="vertical"] .roadmap-step { display: flex; gap: 16px; min-height: 108px; }
+body[data-layout="vertical"] .step-body { flex: 1; padding-bottom: 22px; }
+
+body[data-layout="cards"] .roadmap { border: 0; background: transparent; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+body[data-layout="cards"] .roadmap-step { border: 1px solid var(--line); border-radius: 15px; background: white; padding: 18px; min-height: 190px; }
+body[data-layout="cards"] .step-rail { position: absolute; right: 16px; top: 16px; }
+body[data-layout="cards"] .step-line { display: none; }
+body[data-layout="cards"] .step-body { padding-right: 35px; }
+body[data-layout="cards"] .state-current { border-color: #e5a496; box-shadow: inset 0 0 0 1px var(--accent-soft); }
+
+body[data-layout="stepper"] .roadmap { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 22px 18px 20px; }
+body[data-layout="stepper"] .roadmap-step { min-width: 0; padding: 0 10px; }
+body[data-layout="stepper"] .step-rail { width: 100%; display: grid; grid-template-columns: 28px 1fr; align-items: center; }
+body[data-layout="stepper"] .step-line { width: auto; min-height: 1px; height: 1px; }
+body[data-layout="stepper"] .step-body { padding-top: 13px; }
+body[data-layout="stepper"] .step-copy { min-height: 58px; }
+
+.device.phone .screen { padding: 25px 16px 34px; }
+.device.phone .screen-head { align-items: start; flex-direction: column; gap: 10px; }
+.device.phone .scenario-pill { white-space: normal; }
+.device.phone .metrics { grid-template-columns: 1fr; }
+.device.phone body { min-width: 0; }
+.device.phone .roadmap { max-width: 100%; }
+.device.phone .step-body button { width: 100%; }
+.device.phone .screen-head h2 { font-size: 30px; }
+.device.phone .summary { margin-top: -8px; }
+.device.phone[data-frame] { max-width: 320px; }
+.device.phone .variant-note { font-size: 11px; }
+.device.phone .roadmap-step { min-width: 0; }
+body[data-layout="cards"] .device.phone .roadmap { grid-template-columns: 1fr; }
+body[data-layout="cards"] .device.phone .roadmap-step { min-height: 0; }
+body[data-layout="stepper"] .device.phone .roadmap { display: block; padding: 20px 18px 8px; }
+body[data-layout="stepper"] .device.phone .roadmap-step { display: flex; gap: 14px; min-height: 112px; padding: 0; }
+body[data-layout="stepper"] .device.phone .step-rail { width: 28px; display: flex; }
+body[data-layout="stepper"] .device.phone .step-line { width: 1px; min-height: 25px; height: auto; }
+body[data-layout="stepper"] .device.phone .step-body { flex: 1; padding: 0 0 20px; }
+body[data-layout="stepper"] .device.phone .step-copy { min-height: 0; }
+
+@media (max-width: 780px) {
+  .lab { grid-template-columns: 1fr; }
+  .controls { border-right: 0; border-bottom: 1px solid var(--line); }
+  .stage { padding: 20px 10px 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .device { transition: none; } }
+</style>
+  </head>
+  <body data-layout="vertical">
+    <main class="lab">
+      <aside class="controls">
+        <p class="eyebrow">Phase 21 · comparison 005</p>
+        <h1>A · Vertical step list</h1>
+        <p class="lede">Same journey, same states, same actions. Only the composition changes.</p>
+
+        <section class="control-group" aria-labelledby="variant-heading">
+          <h2 id="variant-heading">Compare layouts</h2>
+          <nav class="variant-links">
+            <a href="../005-a-vertical-step-list/index.html" aria-current="page">A · Vertical list</a>
+            <a href="../005-b-separate-cards/index.html" >B · Separate cards</a>
+            <a href="../005-c-responsive-stepper/index.html" >C · Responsive stepper</a>
+          </nav>
+        </section>
+
+        <section class="control-group" aria-labelledby="scenario-heading">
+          <h2 id="scenario-heading">Host situation</h2>
+          <div class="segmented">
+            <button data-scenario="unverified" aria-pressed="false">Identity needed</button>
+            <button data-scenario="pending" aria-pressed="false">Identity pending</button>
+            <button data-scenario="payouts" aria-pressed="true">Payouts next</button>
+            <button data-scenario="listing" aria-pressed="false">Listing next</button>
+            <button data-scenario="review" aria-pressed="false">In review</button>
+            <button data-scenario="ready" aria-pressed="false">Bookable</button>
+          </div>
+        </section>
+
+        <section class="control-group" aria-labelledby="width-heading">
+          <h2 id="width-heading">Preview width</h2>
+          <div class="segmented">
+            <button data-width="desktop" aria-pressed="true">Desktop</button>
+            <button data-width="phone" aria-pressed="false">Phone · 320px</button>
+          </div>
+        </section>
+
+        <section class="control-group" aria-labelledby="measure-heading">
+          <h2 id="measure-heading">Composition cost</h2>
+          <div class="metrics">
+            <div class="metric"><span>Roadmap height</span><strong data-height>—</strong></div>
+            <div class="metric"><span>Actions shown</span><strong data-actions>—</strong></div>
+            <div class="metric"><span>Borders to scan</span><strong data-containers>—</strong></div>
+          </div>
+        </section>
+
+        <section class="control-group" aria-labelledby="log-heading">
+          <h2 id="log-heading">Forensic event log</h2>
+          <ol class="event-log" data-log></ol>
+          <button class="export-button" type="button" data-export>Export JSON</button>
+        </section>
+      </aside>
+
+      <section class="stage" aria-label="FitOut host dashboard preview">
+        <div class="device" data-frame>
+          <div class="browser-bar" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="screen">
+            <header class="screen-head">
+              <div>
+                <p class="eyebrow">Host dashboard</p>
+                <h2>Your path to bookable</h2>
+              </div>
+              <span class="scenario-pill" data-scenario-label>Payouts next</span>
+            </header>
+            <p class="summary" data-summary></p>
+            <div class="roadmap" data-roadmap aria-label="Steps from account check to a bookable listing"></div>
+            <p class="variant-note">One border, one reading direction. The connector makes sequence explicit without pretending that progress is a percentage.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script>(function () {
+  "use strict";
+
+  const scenarios = {
+    unverified: {
+      label: "Identity needed",
+      summary: "Your next step is to complete the account check.",
+      steps: [
+        ["current", "Get your account checked", "FitOut checks who a host is before their first listing can go up.", "Start the check"],
+        ["next", "Set up payouts", "Connect where your earnings should go."],
+        ["next", "List a space", "Add the details guests need to decide."],
+        ["next", "FitOut checks your space", "Your listing is checked before it can take bookings."],
+      ],
+    },
+    pending: {
+      label: "Identity pending",
+      summary: "Your account check is in progress. Waiting is a normal step.",
+      steps: [
+        ["waiting", "Get your account checked", "FitOut is waiting on the result. If you have not finished, you can open the check again.", "Finish the check"],
+        ["next", "Set up payouts", "Connect where your earnings should go."],
+        ["next", "List a space", "Add the details guests need to decide."],
+        ["next", "FitOut checks your space", "Your listing is checked before it can take bookings."],
+      ],
+    },
+    payouts: {
+      label: "Payouts next",
+      summary: "Your account is checked. Set up payouts to keep moving.",
+      steps: [
+        ["done", "Get your account checked", "Your account check is complete."],
+        ["current", "Set up payouts", "Connect where your earnings should go.", "Set up payouts"],
+        ["next", "List a space", "Add the details guests need to decide."],
+        ["next", "FitOut checks your space", "Your listing is checked before it can take bookings."],
+      ],
+    },
+    listing: {
+      label: "Listing next",
+      summary: "Identity and payouts are ready. Now add your first space.",
+      steps: [
+        ["done", "Get your account checked", "Your account check is complete."],
+        ["done", "Set up payouts", "Your payout account is ready."],
+        ["current", "List a space", "Add the details guests need to decide.", "Create a listing"],
+        ["next", "FitOut checks your space", "Your listing is checked before it can take bookings."],
+      ],
+    },
+    review: {
+      label: "Listing in review",
+      summary: "Your setup is complete. FitOut is checking your space.",
+      steps: [
+        ["done", "Get your account checked", "Your account check is complete."],
+        ["done", "Set up payouts", "Your payout account is ready."],
+        ["done", "List a space", "Your listing has been submitted."],
+        ["waiting", "FitOut checks your space", "Your listing is waiting for a decision."],
+      ],
+    },
+    ready: {
+      label: "Bookable",
+      summary: "You are ready. Your space can take bookings.",
+      steps: [
+        ["done", "Get your account checked", "Your account check is complete."],
+        ["done", "Set up payouts", "Your payout account is ready."],
+        ["done", "List a space", "Your listing is published."],
+        ["done", "FitOut checks your space", "Your listing is approved and bookable."],
+      ],
+    },
+  };
+
+  const stateLabel = { done: "Done", current: "Current", waiting: "Waiting", next: "Next" };
+  const stateMark = { done: "✓", current: "•", waiting: "·", next: "" };
+  const roadmap = document.querySelector("[data-roadmap]");
+  const summary = document.querySelector("[data-summary]");
+  const scenarioLabel = document.querySelector("[data-scenario-label]");
+  const frame = document.querySelector("[data-frame]");
+  const heightMetric = document.querySelector("[data-height]");
+  const actionMetric = document.querySelector("[data-actions]");
+  const containerMetric = document.querySelector("[data-containers]");
+  const logList = document.querySelector("[data-log]");
+  const eventLog = [];
+
+  function record(category, detail) {
+    eventLog.push({ at: new Date().toISOString(), category: category, detail: detail });
+    logList.innerHTML = eventLog
+      .slice(-5)
+      .reverse()
+      .map(function (entry) {
+        return '<li><span>' + entry.category + '</span>' + entry.detail + "</li>";
+      })
+      .join("");
+  }
+
+  function render(key) {
+    const scenario = scenarios[key];
+    roadmap.innerHTML = "";
+    scenarioLabel.textContent = scenario.label;
+    summary.textContent = scenario.summary;
+
+    scenario.steps.forEach(function (step, index) {
+      const state = step[0];
+      const item = document.createElement("article");
+      item.className = "roadmap-step state-" + state;
+      item.dataset.state = state;
+      item.innerHTML =
+        '<div class="step-rail" aria-hidden="true"><span class="step-mark">' +
+        stateMark[state] +
+        '</span><span class="step-line"></span></div>' +
+        '<div class="step-body"><div class="step-top"><p class="step-number">Step ' +
+        (index + 1) +
+        '</p><span class="state-label">' +
+        stateLabel[state] +
+        '</span></div><h3>' +
+        step[1] +
+        '</h3><p class="step-copy">' +
+        step[2] +
+        '</p>' +
+        (step[3] ? '<button type="button">' + step[3] + "</button>" : "") +
+        "</div>";
+      roadmap.appendChild(item);
+    });
+
+    document.querySelectorAll("[data-scenario]").forEach(function (button) {
+      button.setAttribute("aria-pressed", String(button.dataset.scenario === key));
+    });
+    requestAnimationFrame(measure);
+  }
+
+  function measure() {
+    heightMetric.textContent = Math.round(roadmap.getBoundingClientRect().height) + " px";
+    actionMetric.textContent = String(roadmap.querySelectorAll("button").length);
+    containerMetric.textContent = document.body.dataset.layout === "cards" ? "4" : "1";
+  }
+
+  document.querySelectorAll("[data-scenario]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      record("scenario", scenarios[button.dataset.scenario].label);
+      render(button.dataset.scenario);
+    });
+  });
+
+  document.querySelectorAll("[data-width]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      const phone = button.dataset.width === "phone";
+      frame.classList.toggle("phone", phone);
+      record("viewport", phone ? "320px phone frame" : "desktop frame");
+      document.querySelectorAll("[data-width]").forEach(function (candidate) {
+        candidate.setAttribute("aria-pressed", String(candidate === button));
+      });
+      requestAnimationFrame(measure);
+    });
+  });
+
+  document.querySelector("[data-export]").addEventListener("click", function () {
+    record("export", eventLog.length + " events");
+    const blob = new Blob([JSON.stringify({ layout: document.body.dataset.layout, events: eventLog }, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "roadmap-spike-events.json";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  });
+
+  window.addEventListener("resize", measure);
+  record("loaded", document.body.dataset.layout + " comparison");
+  render("payouts");
+})();
+</script>
+  </body>
+</html>
