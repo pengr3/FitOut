@@ -647,6 +647,40 @@ function scan(files: readonly string[]): Scan {
 /** Scanned ONCE at module level; every `it()` below only asserts against this result. */
 const scanned = scan(SCAN_FILES);
 
+/**
+ * Phase 20's exact result-surface census.
+ *
+ * This stays in the executable gate instead of widening the historic global declaration because
+ * the Staff management success slot deliberately changes announcement mechanism by outcome: Invite
+ * and Resend are polite status updates, Cancel and Revoke are plain focus targets, and failures are
+ * alerts. Collapsing that conditional contract into one global `LiveRegionRow` would misclassify two
+ * of the four successful outcomes as live regions. The exact `%5Fops-auth` paths are intentional:
+ * Next.js 16 excludes a literal leading-underscore folder from routing.
+ */
+const PHASE_20_LITERAL_RESULT_REGIONS = [
+  { file: "src/app/(ops-auth)/%5Fops-auth/login/page.tsx", regions: ["alert#1"] },
+  {
+    file: "src/app/(ops-auth)/%5Fops-auth/forgot-password/page.tsx",
+    regions: ["status#1"],
+  },
+  { file: "src/app/(ops-auth)/%5Fops-auth/reset-password/page.tsx", regions: ["alert#1"] },
+  {
+    file: "src/app/(ops-auth)/%5Fops-auth/_components/staff-invite-setup-form.tsx",
+    regions: ["alert#1"],
+  },
+] as const;
+
+const PHASE_20_NON_LIVE_PAGE_STATES = [
+  "src/app/(ops-auth)/%5Fops-auth/invite/[token]/page.tsx",
+  "src/app/(ops)/ops/error.tsx",
+] as const;
+
+const PHASE_20_STAFF_RESULTS = "src/components/ops/staff-management-panel.tsx";
+
+function phase20Source(file: string): string {
+  return readFileSync(resolve(process.cwd(), file), "utf8");
+}
+
 afterEach(() => {
   cleanup();
 });
@@ -1245,6 +1279,87 @@ describe("SCAN 3 — the naming mechanism, per kind", () => {
       "src/components/booking/hold-countdown.tsx",
       "src/components/booking/request-countdown.tsx",
     ]);
+  });
+});
+
+describe("Phase 20 — exact ops-auth and Staff management result enrollment", () => {
+  it("opens every exact routable source path and no private `_ops-auth` substitute", () => {
+    const files = [
+      ...PHASE_20_LITERAL_RESULT_REGIONS.map((row) => row.file),
+      ...PHASE_20_NON_LIVE_PAGE_STATES,
+      PHASE_20_STAFF_RESULTS,
+    ];
+
+    expect(new Set(files).size).toBe(7);
+    for (const file of files) {
+      expect(existsSync(resolve(process.cwd(), file)), `${file} does not exist`).toBe(true);
+      if (file.includes("(ops-auth)")) {
+        expect(file).toContain("/(ops-auth)/%5Fops-auth/");
+        expect(file).not.toContain("/(ops-auth)/_ops-auth/");
+      }
+    }
+  });
+
+  it("pins the exact authored region kind and ordinal on each ops-auth form", () => {
+    const observed = PHASE_20_LITERAL_RESULT_REGIONS.map(({ file }) => ({
+      file,
+      regions: collectFrom(file, phase20Source(file)).map((region) => `${region.kind}#${region.at}`),
+    }));
+
+    expect(
+      observed,
+      "Ops sign-in, recovery, reset and invitation setup each own one result mechanism. A new or " +
+        "missing region is a design-contract change, not an inventory count to round up.",
+    ).toEqual(PHASE_20_LITERAL_RESULT_REGIONS);
+  });
+
+  it("keeps the invitation arrival/inactive page and delegated error boundary out of the live census", () => {
+    for (const file of PHASE_20_NON_LIVE_PAGE_STATES) {
+      expect(
+        collectFrom(file, phase20Source(file)),
+        `${file} authored a live region. A freshly rendered inactive/arrival/error page is a page ` +
+          "state, not an asynchronous result announcement.",
+      ).toEqual([]);
+    }
+
+    const errorSource = stripComments(phase20Source("src/app/(ops)/ops/error.tsx"));
+    expect(errorSource).toContain('import { ErrorState } from "@/components/patterns/error-state"');
+    expect(errorSource).toContain("<ErrorState");
+
+    const loginSource = phase20Source("src/app/(ops-auth)/%5Fops-auth/login/page.tsx");
+    const loginFile = ts.createSourceFile(
+      "ops-login.tsx",
+      loginSource,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TSX,
+    );
+    const arrival = loginFile.statements.find(
+      (statement): statement is ts.FunctionDeclaration =>
+        ts.isFunctionDeclaration(statement) && statement.name?.text === "ArrivalNotice",
+    );
+    expect(arrival, "Ops login no longer declares its bounded ArrivalNotice").toBeDefined();
+    expect(
+      collectFrom("ArrivalNotice", arrival?.getText(loginFile) ?? ""),
+      "Staff session ended/account-created are mounted arrival notices and must not announce as live updates.",
+    ).toEqual([]);
+  });
+
+  it("uses one conditional Staff management slot: polite for Invite/Resend, focus-only for Cancel/Revoke", () => {
+    const source = stripComments(phase20Source(PHASE_20_STAFF_RESULTS)).replace(/\s+/g, " ");
+
+    expect(source.match(/role="alert"/g)).toHaveLength(1);
+    expect(source.match(/aria-live=/g)).toHaveLength(1);
+    expect(source).toContain(
+      'role={result.action === "invite" || result.action === "resend" ? "status" : undefined}',
+    );
+    expect(source).toContain(
+      'aria-live={result.action === "invite" || result.action === "resend" ? "polite" : undefined}',
+    );
+    expect(source).toContain(
+      'tabIndex={result.action === "cancel" || result.action === "revoke" ? -1 : undefined}',
+    );
+    expect(source).not.toMatch(/\btoast\s*\(|from\s+["']sonner["']/);
   });
 });
 

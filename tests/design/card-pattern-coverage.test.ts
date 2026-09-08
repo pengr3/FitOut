@@ -554,6 +554,65 @@ const CARD_SURFACES: readonly CardSurface[] = [
       "nothing about the cooldown sentence — all three are the surface test's, and none of them is a " +
       "box.",
   },
+
+  // ─── Phase 20 — the FitOut Ops front door and staff management (OPS-08..10) ────────────────────
+  //
+  // These six surfaces postdate the Phase-11 `Replaces` lists and compose PanelCard from their
+  // first implementation. The `%5Fops-auth` spelling is load-bearing: Next.js 16 treats a literal
+  // leading underscore as a private, non-routable folder, so an inventory row for `_ops-auth`
+  // would certify a path the framework never serves.
+  {
+    file: "src/app/(ops-auth)/%5Fops-auth/login/page.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE OPS SIGN-IN DOCUMENT (plan 20-06). It reuses the declared auth-card container while " +
+      "keeping its staff-only copy and email/password form separate from marketplace signup. The " +
+      "routable `%5F` source spelling is Next.js 16's required escape for the internal `/_ops-auth` " +
+      "URL segment; certifying the private `_ops-auth` spelling would inventory a dead route.",
+  },
+  {
+    file: "src/app/(ops-auth)/%5Fops-auth/forgot-password/page.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE OPS RESET-REQUEST DOCUMENT (plan 20-06). Its form and enumeration-safe success sentence " +
+      "share one PanelCard, so the result replaces the form without changing the document's box or " +
+      "introducing a fourth card pattern.",
+  },
+  {
+    file: "src/app/(ops-auth)/%5Fops-auth/reset-password/page.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE OPS PASSWORD-RESET DOCUMENT (plan 20-06). The Suspense fallback, missing-token state, " +
+      "form and refusal all stay inside one PanelCard whose title remains the document heading.",
+  },
+  {
+    file: "src/app/(ops-auth)/%5Fops-auth/invite/[token]/page.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE STAFF INVITATION DOCUMENT (plan 20-06). Active and inactive invitation states use the " +
+      "same declared container; the token changes content and actions, never the card vocabulary.",
+  },
+  {
+    file: "src/app/(ops-auth)/%5Fops-auth/invite/[token]/loading.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE INVITATION LOOKUP FALLBACK (plan 20-06). It preserves the resolved document's PanelCard " +
+      "geometry around one PanelSkeleton, so loading does not promise a different outer shape.",
+  },
+  {
+    file: "src/components/ops/staff-management-panel.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE STAFF MANAGEMENT SURFACE (plan 20-07). Invite staff, Active staff and Pending invitations " +
+      "are three sections inside one PanelCard below the review queue; roster rows deliberately remain " +
+      "semantic list items rather than becoming nested cards.",
+  },
 ];
 
 /**
@@ -649,7 +708,7 @@ const CARD_SURFACES: readonly CardSurface[] = [
  *
  * and beside it `expected [ … ] to have a length of 20 but got 21`.
  */
-const EXPECTED_SURFACES = 23;
+const EXPECTED_SURFACES = 29;
 
 /**
  * EVERY FILE OUTSIDE `patterns/` ALLOWED TO RENDER A RAW `<Card>`, WITH THE REASON AND THE PHASE
@@ -1037,7 +1096,10 @@ describe("DS-11 / AC#25 — every card surface renders one of three declared con
     // this one still at 20 it said the same thing ALONE. `refused` stays 2 — Phase 18.1 revisited no
     // measured refusal, and the panel composes the pattern from its first commit rather than being
     // converted to it.
-    expect(adopted).toHaveLength(21);
+    // 27 SINCE PLAN 20-13 (+6: four ops-auth documents, the invitation lookup fallback, and Staff
+    // management). All six compose PanelCard from their first implementation; none is a refusal or
+    // an allow-list exception. The `%5Fops-auth` source spelling is intentionally part of the rows.
+    expect(adopted).toHaveLength(27);
     expect(refused).toHaveLength(2);
 
     const composing = adopted.filter((s) => {

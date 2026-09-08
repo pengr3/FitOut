@@ -322,6 +322,33 @@ const EXPECTED_PAGES = 40;
 const EXPECTED_QUALIFYING = 24;
 const EXPECTED_NON_QUALIFYING = 16;
 
+/**
+ * Phase 20's exact ops-auth page census.
+ *
+ * The `%5Fops-auth` spelling is the routable Next.js 16 source segment for the internal
+ * `/_ops-auth` URL. A literal `_ops-auth` folder is private and must never be accepted here as an
+ * equivalent path. Three client pages are synchronous and therefore MUST NOT grow dead route
+ * fallbacks; the invitation page awaits server state and therefore MUST keep exactly one.
+ */
+const PHASE_20_OPS_AUTH_PAGES = [
+  { page: "src/app/(ops-auth)/%5Fops-auth/login/page.tsx", qualifies: false, hasLoading: false },
+  {
+    page: "src/app/(ops-auth)/%5Fops-auth/forgot-password/page.tsx",
+    qualifies: false,
+    hasLoading: false,
+  },
+  {
+    page: "src/app/(ops-auth)/%5Fops-auth/reset-password/page.tsx",
+    qualifies: false,
+    hasLoading: false,
+  },
+  {
+    page: "src/app/(ops-auth)/%5Fops-auth/invite/[token]/page.tsx",
+    qualifies: true,
+    hasLoading: true,
+  },
+] as const;
+
 /** The three declared skeleton shapes, by module and by export name. */
 const SKELETON_PATTERNS: Readonly<Record<string, string>> = {
   "@/components/patterns/card-grid-skeleton": "CardGridSkeleton",
@@ -690,6 +717,46 @@ describe("AC#15 — every async-default page has a loading state, and nothing el
       );
     },
   );
+
+  it("enrolls the exact Phase 20 ops-auth pages and their one real route fallback", () => {
+    const byPage = new Map(PAGES.map((page) => [page.page, page]));
+    expect(
+      PHASE_20_OPS_AUTH_PAGES.map(({ page }) => ({
+        page,
+        qualifies: byPage.get(page)?.qualifies,
+        hasLoading: byPage.get(page)?.hasLoading,
+      })),
+      "The Phase 20 route census drifted. Keep the routable `%5Fops-auth` paths exact; only the " +
+        "async invitation lookup owns a sibling loading.tsx.",
+    ).toEqual(PHASE_20_OPS_AUTH_PAGES);
+
+    const inviteFallback = LOADING_FILES.find(
+      (file) =>
+        file.label === "src/app/(ops-auth)/%5Fops-auth/invite/[token]/loading.tsx",
+    );
+    expect(inviteFallback, "the invitation lookup fallback was not scanned").toMatchObject({
+      patterns: 1,
+      ownStatus: 0,
+    });
+
+    const inviteSource = readFileSync(
+      resolve(APP_DIR, "(ops-auth)/%5Fops-auth/invite/[token]/loading.tsx"),
+      "utf8",
+    );
+    expect(inviteSource).toContain("<PanelCard>");
+    expect(inviteSource).toContain('<PanelSkeleton label="Loading your staff invitation"');
+
+    const opsFallback = LOADING_FILES.find(
+      (file) => file.label === "src/app/(ops)/ops/loading.tsx",
+    );
+    expect(opsFallback, "the protected ops route fallback was not scanned").toMatchObject({
+      patterns: 1,
+      ownStatus: 0,
+    });
+    const opsSource = readFileSync(resolve(APP_DIR, "(ops)/ops/loading.tsx"), "utf8");
+    expect(opsSource).toContain("<RowListSkeleton");
+    expect(opsSource).not.toContain("<PanelSkeleton");
+  });
 
   // ───────────────────────────────────────────────────────────────────────────────────────────────
   // The two Task-2 acceptance criteria that would otherwise be review instructions.
