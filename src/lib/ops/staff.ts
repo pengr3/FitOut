@@ -56,10 +56,82 @@ import { cache } from "react";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 
+import { OPS_APP_ORIGIN } from "@/lib/app-origins";
 import { auth } from "@/lib/auth";
 
 /** The authenticated staff actor — the `actorId` every ops audit row is written with (OPS-03). */
 export type StaffActor = { id: string };
+
+const OPS_ORIGIN_URL = new URL(OPS_APP_ORIGIN);
+const OPS_MUTATION_HOST = OPS_ORIGIN_URL.host.toLowerCase();
+
+function normalizedRequestHost(rawHost: string | null): string | null {
+  const authority = rawHost?.trim();
+  if (
+    !authority ||
+    /[\s\\/@,?#]/.test(authority) ||
+    authority.includes("://")
+  ) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(`http://${authority}`);
+    if (
+      parsed.username !== "" ||
+      parsed.password !== "" ||
+      parsed.pathname !== "/" ||
+      parsed.search !== "" ||
+      parsed.hash !== ""
+    ) {
+      return null;
+    }
+    return parsed.host.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function normalizedRequestOrigin(rawOrigin: string | null): string | null {
+  const authority = rawOrigin?.trim();
+  if (!authority) return null;
+
+  try {
+    const parsed = new URL(authority);
+    if (
+      !["http:", "https:"].includes(parsed.protocol) ||
+      parsed.username !== "" ||
+      parsed.password !== "" ||
+      parsed.pathname !== "/" ||
+      parsed.search !== "" ||
+      parsed.hash !== ""
+    ) {
+      return null;
+    }
+    return parsed.origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Bind a privileged Server Function POST to the exact configured ops request authority.
+ *
+ * Next.js Server Functions are public POST endpoints even when their form is only rendered on the
+ * ops host. Proxy chooses a route, and Better Auth proves an identity, but neither fact proves this
+ * mutation arrived through the ops origin. Every privileged ops action therefore calls this before
+ * session lookup, input parsing, rate limiting, target reads, domain changes, or audit writes.
+ *
+ * Every malformed or mismatched authority uses the same `notFound()` control flow as a missing
+ * staff session. That keeps marketplace-host probing neutral and prevents target-existence oracles.
+ */
+export async function requireOpsMutationOrigin(): Promise<void> {
+  const requestHeaders = await headers();
+  const requestHost = normalizedRequestHost(requestHeaders.get("host"));
+  const requestOrigin = normalizedRequestOrigin(requestHeaders.get("origin"));
+
+  if (requestHost !== OPS_MUTATION_HOST || requestOrigin !== OPS_APP_ORIGIN) notFound();
+}
 
 /**
  * THE ONE EXPRESSION. Resolve the caller's staff standing, or `null`.

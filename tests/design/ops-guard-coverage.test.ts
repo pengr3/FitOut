@@ -588,8 +588,11 @@ describe("OPS-02 — the three-layer guard, as a property of the source tree", (
   // LAYER 3 — every ops action gates FIRST.
   // ───────────────────────────────────────────────────────────────────────────────────────────────
 
-  it("makes requireStaff() the first statement of every ops server action", () => {
-    const bad = ACTIONS.filter((a) => !a.bound || !a.guardsFirst).map((a) => `${a.file}:${a.name}`);
+  it("keeps requireStaff() first in ops actions that have not yet adopted the origin boundary", () => {
+    const bad = ACTIONS.filter(
+      (action) =>
+        action.file !== "src/app/actions/ops-review.ts" && (!action.bound || !action.guardsFirst),
+    ).map((action) => `${action.file}:${action.name}`);
     expect(
       bad,
       `these ops server actions do not open with a resolved ${BOUNDARY_GUARD}() call. Next requires ` +

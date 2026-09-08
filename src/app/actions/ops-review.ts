@@ -19,22 +19,23 @@
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // THE ORDER IS LOAD-BEARING — cancel-booking.ts:1092-1096's rule, applied verb by verb
 // ════════════════════════════════════════════════════════════════════════════════════════════════
-//   1. THE STAFF GATE, FIRST. Before any read, before any parse, before the rate limit — so a
-//      non-staff caller is refused without consuming anybody's budget and without learning whether
-//      the id they guessed exists. Every action gates ITSELF (D-216): the `(ops)` route group is not
-//      the gate for a MUTATION, because a Server Action is reachable by POST whatever the UI shows.
-//      The layout-level assert (18-01's third layer) wins the HTTP status line and explicitly
-//      disclaims being the boundary; this is the boundary.
-//   2. RE-PARSE. A malformed argument is a calm typed denial with an audited record, never a raised
+//   1. THE EXACT OPS HOST+ORIGIN GATE, FIRST. Proxy is routing only, and a Server Function remains a
+//      directly reachable POST. This binds the request itself to the configured ops authority before
+//      a deliberately presented staff cookie can trigger even a session lookup.
+//   2. THE STAFF GATE, IMMEDIATELY SECOND. Before any read, parse, or rate limit — so a non-staff
+//      caller is refused without consuming anybody's budget and without learning whether the id they
+//      guessed exists. Every action gates ITSELF (D-216): neither Proxy nor the `(ops)` route group
+//      authorizes a mutation. The layout-level assert only wins the HTTP status line.
+//   3. RE-PARSE. A malformed argument is a calm typed denial with an audited record, never a raised
 //      error — see the note on the result shape below.
-//   3. RATE-LIMIT, keyed on the AUTHENTICATED identity and never on IP, and the refusal is itself
+//   4. RATE-LIMIT, keyed on the AUTHENTICATED identity and never on IP, and the refusal is itself
 //      audited so a flood is non-repudiable.
-//   4. THE FLIP, WITH EVERY GUARD IN THE WHERE, so a 0-row result is the SINGLE calm failure path
+//   5. THE FLIP, WITH EVERY GUARD IN THE WHERE, so a 0-row result is the SINGLE calm failure path
 //      and no two guards can be raced apart. A stale decision (a second reviewer clicking Approve on
 //      a row the first already decided) lands here as "no longer applies", never as a silent
 //      overwrite of somebody else's decision.
-//   5. THE DOMAIN HISTORY ROW.
-//   6. THE TRAIL ROW, with `actorId: staff.id`, on BOTH branches.
+//   6. THE DOMAIN HISTORY ROW.
+//   7. THE TRAIL ROW, with `actorId: staff.id`, on BOTH branches.
 //
 // ════════════════════════════════════════════════════════════════════════════════════════════════
 // THE RESULT SHAPE: CALM TYPED REFUSALS, AND NOTHING RAISED
@@ -73,7 +74,7 @@ import {
   listingApprovedPayload,
   listingRejectedPayload,
 } from "@/lib/notifications";
-import { requireStaff } from "@/lib/ops/staff";
+import { requireOpsMutationOrigin, requireStaff } from "@/lib/ops/staff";
 import { rateLimit } from "@/lib/rate-limit";
 import {
   approveHostSchema,
@@ -323,6 +324,7 @@ async function closeReviewCycle(
  * `approved` would light the badge (D-212) on a host nobody checked.
  */
 export async function approveHost(input: ApproveHostInput): Promise<OpsActionResult> {
+  await requireOpsMutationOrigin();
   const staff = await requireStaff();
 
   const parsed = approveHostSchema.safeParse(input);
@@ -418,6 +420,7 @@ export async function approveHost(input: ApproveHostInput): Promise<OpsActionRes
  * written to the durable column — deliberately, so the two cannot drift into different guard sets.
  */
 export async function rejectHost(input: RejectHostInput): Promise<OpsActionResult> {
+  await requireOpsMutationOrigin();
   const staff = await requireStaff();
 
   const parsed = rejectHostSchema.safeParse(input);
@@ -540,6 +543,7 @@ export async function rejectHost(input: RejectHostInput): Promise<OpsActionResul
  * a return value.
  */
 export async function suspendHost(input: SuspendHostInput): Promise<OpsActionResult> {
+  await requireOpsMutationOrigin();
   const staff = await requireStaff();
 
   const parsed = suspendHostSchema.safeParse(input);
@@ -639,6 +643,7 @@ export async function suspendHost(input: SuspendHostInput): Promise<OpsActionRes
  * (D-249) rather than through a second click here.
  */
 export async function approveListing(input: ApproveListingInput): Promise<OpsActionResult> {
+  await requireOpsMutationOrigin();
   const staff = await requireStaff();
 
   const parsed = approveListingSchema.safeParse(input);
@@ -721,6 +726,7 @@ export async function approveListing(input: ApproveListingInput): Promise<OpsAct
  * is the only thing that makes the edit purposeful — D-249's second guard, in its own words.
  */
 export async function rejectListing(input: RejectListingInput): Promise<OpsActionResult> {
+  await requireOpsMutationOrigin();
   const staff = await requireStaff();
 
   const parsed = rejectListingSchema.safeParse(input);
