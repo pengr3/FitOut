@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/ops/staff-management-panel.test.tsx --config vitest.config.ts -t \"exports the one panel and shared responsive action dialog\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - exports the one panel and shared responsive action dialog\nAssertionError: src/components/ops/staff-management-panel.tsx must exist: expected false to be true\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "exports the one panel and shared responsive action dialog",
+  "targetFile": "tests/ops/staff-management-panel.test.tsx",
+  "expected": "the Staff management panel and responsive confirmation dialog exist as the one-page Active staff surface",
+  "actual": "both planned components are absent, so the target component-boundary assertion fails"
+}
