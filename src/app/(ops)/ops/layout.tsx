@@ -61,8 +61,10 @@
 // `tests/design/ops-guard-coverage.test.ts`, which clones the same AST walk.
 
 import { assertStaff } from "@/lib/ops/staff";
-import { ProfileLink, SiteChrome } from "@/components/patterns/site-chrome";
+import { signOutOpsAction } from "@/app/actions/ops-auth";
+import { SiteChrome } from "@/components/patterns/site-chrome";
 import { SiteFooter } from "@/components/patterns/site-footer";
+import { Button } from "@/components/ui/button";
 
 export default async function OpsLayout({ children }: { children: React.ReactNode }) {
   // LAYER 1 — the status line, and nothing else. See the header: this is not the gate.
@@ -85,19 +87,11 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
         // single destination that is also the wordmark's — a second inventory to keep in agreement
         // with a one-item list. `SiteChrome` renders no `<nav>` landmark when the slot is empty.
         actions={
-          // ⚠ `<ProfileLink />` ONLY, AND BOTH ABSENCES BESIDE IT ARE DECISIONS.
-          //
-          // NO `ModeSwitch`. The switch's whole premise is that a user moves between two CONTEXTS
-          // they hold capabilities for (D-04: booking and hosting). Ops is a ROLE, not a third
-          // context: staff standing does not change what a person may book or host, and offering a
-          // switch into it would imply an ops "mode" that has no counterpart to switch back from.
-          //
-          // NO notification bell. Mounting `AmbientNotifications` here would put an empty panel on
-          // every ops screen and imply ops notifications exist. None do — `notification` rows are
-          // addressed to bookers and hosts, and nothing in this phase writes one to a staff account.
-          // An affordance for a channel that does not exist is the same defect as copy about a check
-          // that never ran, one level up.
-          <ProfileLink />
+          <form action={signOutOpsAction}>
+            <Button type="submit" variant="ghost" className="min-h-11">
+              Sign out
+            </Button>
+          </form>
         }
       />
       <main className="flex flex-1 flex-col">{children}</main>

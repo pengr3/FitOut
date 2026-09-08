@@ -26,6 +26,11 @@ import Link from "next/link";
 import { ErrorState } from "@/components/patterns/error-state";
 import { Button } from "@/components/ui/button";
 
+const configuredPublicOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim();
+const PUBLIC_APP_HOME = configuredPublicOrigin
+  ? new URL("/", configuredPublicOrigin).toString()
+  : "http://localhost:3000/";
+
 export default function OpsError({
   error,
   reset,
@@ -45,8 +50,8 @@ export default function OpsError({
     // queue, and the wide measure that exists to give a photo mosaic room would leave it stranded.
     <div className="mx-auto w-full max-w-2xl px-4 py-16 sm:py-24">
       <ErrorState
-        title="The queue didn't load"
-        body="We hit a problem loading the review queue. Trying again usually fixes it."
+        title="FitOut Ops didn't load"
+        body="We hit a problem loading the ops console. Trying again usually fixes it."
         digest={digest}
         onRetry={reset}
         routeOut={
@@ -57,7 +62,7 @@ export default function OpsError({
           // an ops staffer is also a user, so `/` is a real destination for them rather than a
           // consolation prize.
           <Button variant="outline" asChild className="min-h-11">
-            <Link href="/">Back to FitOut</Link>
+            <Link href={PUBLIC_APP_HOME}>Back to FitOut</Link>
           </Button>
         }
       />

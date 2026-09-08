@@ -477,7 +477,7 @@ describe("OPS-08 ops-host recovery, reset, and sign-out", () => {
     expect(boundary).toContain(
       'body="We hit a problem loading the ops console. Trying again usually fixes it."',
     );
-    expect(boundary).toContain("absolutePublicUrl");
+    expect(boundary).toContain("PUBLIC_APP_HOME");
     expect(boundary).not.toMatch(/error\.(?:message|stack|cause)/);
   });
 

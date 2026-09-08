@@ -99,10 +99,15 @@ export async function signInOps(input: OpsSignInInput): Promise<OpsSignInResult>
   };
 }
 
-export async function signOutOps(): Promise<never> {
+export async function signOutOpsAction(): Promise<never> {
   await requireOpsMutationOrigin();
   await auth.api.signOut({ headers: await headers() });
   redirect("/login?signedOut=1");
+}
+
+/** Compatibility entrypoint retained for the focused auth contract. */
+export async function signOutOps(): Promise<never> {
+  return signOutOpsAction();
 }
 
 export async function requestOpsPasswordReset(
