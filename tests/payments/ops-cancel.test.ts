@@ -96,9 +96,20 @@ const ESCALATE = "block_new_and_cancel" as const;
 const NOT_FOUND = "NEXT_NOT_FOUND";
 
 // The mocked next/headers reads this at CALL time, so login() can swap the session cookie.
-const sessionHeaders: { cookie: string } = { cookie: "" };
+const OPS_HOST = "ops.localhost:3000";
+const OPS_ORIGIN = "http://ops.localhost:3000";
+const requestHeaders: { cookie: string; host: string | null; origin: string | null } = {
+  cookie: "",
+  host: OPS_HOST,
+  origin: OPS_ORIGIN,
+};
 vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
+  headers: async () => {
+    const value = new Headers({ cookie: requestHeaders.cookie });
+    if (requestHeaders.host !== null) value.set("host", requestHeaders.host);
+    if (requestHeaders.origin !== null) value.set("origin", requestHeaders.origin);
+    return value;
+  },
 }));
 
 /** The `fitout/notify` envelope, exactly as `emitNotify` hands it to the client. */
@@ -135,6 +146,7 @@ let staffId: string;
 let civilianId: string;
 let hostId: string;
 let bookerId: string;
+let authSessionReads = 0;
 
 async function login(email: string): Promise<void> {
   const res = await testAuth.api.signInEmail({
@@ -142,7 +154,7 @@ async function login(email: string): Promise<void> {
     asResponse: true,
   });
   const setCookie = res.headers.get("set-cookie");
-  sessionHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
+  requestHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
 }
 
 /** A dedicated listing per case, so seeded bookings never collide on the booking_no_overlap EXCLUDE. */
@@ -312,7 +324,16 @@ beforeAll(async () => {
   // before/after sweep control would return nothing in BOTH directions and prove nothing.
   await makeVerifiedHost(testDb.db, hostId, { insertUser: false, paymongoAccountId: WALLET_ID });
 
-  vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
+  vi.doMock("@/lib/auth", () => ({
+    auth: {
+      api: {
+        getSession: async (...args: Parameters<typeof testAuth.api.getSession>) => {
+          authSessionReads += 1;
+          return testAuth.api.getSession(...args);
+        },
+      },
+    },
+  }));
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("next/navigation", () => ({
     notFound: () => {
@@ -362,9 +383,40 @@ afterAll(async () => {
 beforeEach(async () => {
   rateLimitAllows = true;
   rateLimitCalls.length = 0;
+  authSessionReads = 0;
+  requestHeaders.host = OPS_HOST;
+  requestHeaders.origin = OPS_ORIGIN;
   inngestSend.mockClear();
   mockPayMongo.reset();
   await login(STAFF_EMAIL);
+});
+
+describe("T-20-14 — money-moving ops cancellation is bound to exact ops authority", () => {
+  it.each([
+    ["missing-host", null, OPS_ORIGIN],
+    ["malformed-host", `${OPS_HOST}/ops`, OPS_ORIGIN],
+    ["marketplace", "localhost:3000", "http://localhost:3000"],
+    ["mismatched-origin", OPS_HOST, "http://ops.localhost:3001"],
+  ])("refuses %s before actor, booking, money, notification, or audit work", async (label, host, origin) => {
+    const listingId = await seedListing(`oc_l_origin_${label}`);
+    const bookingId = `oc_b_origin_${label}`;
+    await seedBooking(bookingId, listingId, 3 * HOUR);
+    const trailBefore = await testDb.db.select().from(audit);
+
+    requestHeaders.host = host;
+    requestHeaders.origin = origin;
+
+    await expect(
+      cancelBookingAsOps({ bookingId, listingId, lever: ESCALATE, reason: REASON }),
+    ).rejects.toThrow(NOT_FOUND);
+
+    expect(authSessionReads).toBe(0);
+    expect((await readRow(bookingId)).status).toBe("confirmed");
+    expect(rateLimitCalls).toHaveLength(0);
+    expect(mockPayMongo.createRefund).not.toHaveBeenCalled();
+    expect(inngestSend).not.toHaveBeenCalled();
+    expect(await testDb.db.select().from(audit)).toHaveLength(trailBefore.length);
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════

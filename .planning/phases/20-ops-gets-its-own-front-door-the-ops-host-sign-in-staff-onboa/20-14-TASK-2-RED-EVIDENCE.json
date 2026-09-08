@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/ops/host-contact-reveal.test.ts tests/payments/ops-cancel.test.ts -t \"refuses marketplace\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - refuses marketplace before actor, PII, limiter, or audit work\nAssertionError: promise resolved with contact instead of rejecting\nnot ok 2 - refuses marketplace before actor, booking, money, notification, or audit work\nAssertionError: promise resolved with a refund result instead of rejecting\n# tests 2\n# pass 0\n# fail 2\n",
+  "targetTest": "refuses marketplace before actor, PII, limiter, or audit work",
+  "targetFile": "tests/ops/host-contact-reveal.test.ts",
+  "expected": "both contact reveal and ops cancellation reject marketplace Host and Origin before staff lookup or any disclosure, booking, money, notification, rate-limit, or audit effect",
+  "actual": "both actions accepted the marketplace authority when a valid staff session was present; contact data was returned and the booking refund path completed"
+}

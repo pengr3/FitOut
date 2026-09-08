@@ -91,9 +91,20 @@ import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { audit, user } from "@/lib/db/schema";
 import type { RateLimitOptions, RateLimitResult } from "@/lib/rate-limit";
 
-const sessionHeaders: { cookie: string } = { cookie: "" };
+const OPS_HOST = "ops.localhost:3000";
+const OPS_ORIGIN = "http://ops.localhost:3000";
+const requestHeaders: { cookie: string; host: string | null; origin: string | null } = {
+  cookie: "",
+  host: OPS_HOST,
+  origin: OPS_ORIGIN,
+};
 vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
+  headers: async () => {
+    const value = new Headers({ cookie: requestHeaders.cookie });
+    if (requestHeaders.host !== null) value.set("host", requestHeaders.host);
+    if (requestHeaders.origin !== null) value.set("origin", requestHeaders.origin);
+    return value;
+  },
 }));
 
 const NOT_FOUND = "NEXT_NOT_FOUND";
@@ -142,6 +153,7 @@ function countingDb<T extends object>(real: T): T {
 let testDb: TestDb;
 let testAuth: TestAuth;
 let staffId: string;
+let authSessionReads = 0;
 
 type OpsContactActions = typeof import("@/app/actions/ops-contact");
 let revealHostContact: OpsContactActions["revealHostContact"];
@@ -152,7 +164,7 @@ async function login(email: string): Promise<void> {
     asResponse: true,
   });
   const setCookie = res.headers.get("set-cookie");
-  sessionHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
+  requestHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
 }
 
 /** A host row carrying whichever contact details the case is about. `phone: null` is a real state. */
@@ -203,7 +215,16 @@ beforeAll(async () => {
   // structurally incapable of writing this field (tests/auth/ops-role.test.ts measures that).
   await testDb.db.update(user).set({ role: "staff" }).where(eq(user.id, staffId));
 
-  vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
+  vi.doMock("@/lib/auth", () => ({
+    auth: {
+      api: {
+        getSession: async (...args: Parameters<typeof testAuth.api.getSession>) => {
+          authSessionReads += 1;
+          return testAuth.api.getSession(...args);
+        },
+      },
+    },
+  }));
   vi.doMock("@/lib/db", () => ({ db: countingDb(testDb.db) }));
   vi.doMock("next/navigation", () => ({
     notFound: () => {
@@ -227,7 +248,32 @@ beforeEach(async () => {
   rateLimitAllows = true;
   rateLimitCalls.length = 0;
   dbSelects = 0;
+  authSessionReads = 0;
+  requestHeaders.host = OPS_HOST;
+  requestHeaders.origin = OPS_ORIGIN;
   await login(STAFF_EMAIL);
+});
+
+describe("T-20-14 — contact disclosure is bound to the exact ops request authority", () => {
+  it.each([
+    ["missing-host", null, OPS_ORIGIN],
+    ["malformed-host", `${OPS_HOST}/ops`, OPS_ORIGIN],
+    ["marketplace", "localhost:3000", "http://localhost:3000"],
+    ["mismatched-origin", OPS_HOST, "http://ops.localhost:3001"],
+  ])("refuses %s before actor, PII, limiter, or audit work", async (label, host, origin) => {
+    const target = await seedHost(`hcr_origin_${label}`, `${label}@fitout.test`, "0917 000 1414");
+    const trailBefore = await testDb.db.select().from(audit);
+    dbSelects = 0;
+
+    requestHeaders.host = host;
+    requestHeaders.origin = origin;
+
+    await expect(revealHostContact({ userId: target })).rejects.toThrow(NOT_FOUND);
+    expect(authSessionReads).toBe(0);
+    expect(dbSelects).toBe(0);
+    expect(rateLimitCalls).toHaveLength(0);
+    expect(await testDb.db.select().from(audit)).toHaveLength(trailBefore.length);
+  });
 });
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
@@ -266,7 +312,7 @@ describe("OPS-06 — a non-staff caller is refused before the parse, the budget 
 
   it("case 2 — a SIGNED-OUT caller is refused identically, and just as early", async () => {
     const host = await seedHost("hcr_h2", "hcr_h2@fitout.test", "0917 555 0002");
-    sessionHeaders.cookie = "";
+    requestHeaders.cookie = "";
     dbSelects = 0;
     rateLimitCalls.length = 0;
 
