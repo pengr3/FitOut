@@ -24,8 +24,8 @@ affects: [20-09, 20-13, ops-auth, ops-shell, marketplace-footer, cross-host-uat]
 actuals:
   tokens: 7759
   tasks: 2
-  commits: 5
-commits: 5
+  commits: 6
+commits: 6
 plan_head_before: 810776b9c88b2d45a7196b1674c90a8e17e93a01
 
 tech-stack:
@@ -96,7 +96,7 @@ coverage:
         status: pass
     human_judgment: false
 
-duration: 49 min
+duration: 66 min
 completed: 2026-09-08
 status: complete
 ---
@@ -107,9 +107,9 @@ status: complete
 
 ## Performance
 
-- **Duration:** 49 min
+- **Duration:** 66 min
 - **Started:** 2026-09-08T04:58:38Z
-- **Completed:** 2026-09-08T05:47:04Z
+- **Completed:** 2026-09-08T06:04:51Z
 - **Tasks:** 2
 - **Files changed:** 21
 
@@ -132,6 +132,7 @@ status: complete
 ## Verification
 
 - System-Chrome Playwright run of `e2e/ops-auth.spec.ts` — **PASS, 4/4**: staff sign-out and stale-cookie refusal, exact bidirectional cross-host exits with anonymous destination sessions, neutral error recovery, and marketplace-host action refusal.
+- `OPS_APP_URL=http://ops.localhost:3000 node node_modules/next/dist/bin/next build` after removing stale generated development route types — **PASS**: compile, production route typecheck, 35/35 static pages, and final route manifest all completed; `/_ops-auth/*` is present with no `%5F`/decoded layout mismatch.
 - `tests/auth/ops-host-routing.test.ts` plus `tests/auth/ops-host-auth.test.ts` — **PASS, 58/58**, with a clean database leak report.
 - `tests/design/error-boundaries.test.ts`, `site-contacts.test.ts`, `auth-contrast.test.ts`, `auth-composition.test.tsx`, and `ops-host-invariants.test.ts` — **PASS, 236 passed / 3 intentionally skipped**.
 - `tests/use-server-exports.test.ts` — **PASS, 4/4**.
@@ -182,6 +183,13 @@ status: complete
 - **Issue:** The workstation's `npx` shim points at a missing npm installation and Playwright's bundled Chromium executable is absent.
 - **Fix:** Invoked checked-in Vitest, ESLint, TypeScript, and Playwright entrypoints through Node and ran the browser suite with the already-installed system Chrome; no package was installed and the temporary config/logs were removed.
 - **Files modified:** None
+
+**5. [Rule 3 - Generated Cache] Removed conflicting development route types before the production build**
+
+- **Found during:** Wave 10 production build follow-up
+- **Issue:** `.next/dev/types` retained a development `LayoutRoutes` key of `/%5Fops-auth`, while the production generator correctly decoded the filesystem escape to `/_ops-auth`; TypeScript loaded both ignored generated trees and rejected the mixed route union.
+- **Fix:** Confirmed the installed Next.js 16.2.7 documentation requires `%5F` for a public underscore-prefixed source segment, removed only the verified generated `.next/dev/types` directory, and reran the production build without changing source routing.
+- **Files modified:** None; `.next/dev/types` is ignored generated output.
 
 ## Known Stubs
 
