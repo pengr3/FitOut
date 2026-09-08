@@ -2,13 +2,15 @@ import "server-only";
 
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
+import { hashPassword } from "better-auth/crypto";
 import { and, eq, gt, sql } from "drizzle-orm";
 
 import { OPS_APP_ORIGIN } from "@/lib/app-origins";
 import type { DbConn } from "@/lib/availability/read-model";
 import { db } from "@/lib/db";
-import { audit, user, verification } from "@/lib/db/schema";
+import { account, audit, user, verification } from "@/lib/db/schema";
 import { sendStaffInviteEmail } from "@/lib/email";
+import { DEFAULT_ROLE, STAFF_ROLE, writeRole } from "@/lib/ops/grant";
 import {
   acceptStaffInvitationInput,
   issueStaffInvitationInput,
@@ -27,6 +29,8 @@ const INVITATION_ISSUED = "staff_invitation_issued";
 const INVITATION_RESENT = "staff_invitation_resent";
 const INVITATION_CANCELLED = "staff_invitation_cancelled";
 const INVITATION_EXPIRED = "staff_invitation_expired";
+const INVITATION_ACCEPTED = "staff_invitation_accepted";
+const INVITATION_ACCEPT_REFUSED = "staff_invitation_accept_refused";
 
 type InvitationMetadata = {
   version: 1;
@@ -340,8 +344,94 @@ export async function inspectStaffInvitation(
 
 export async function acceptStaffInvitation(
   input: AcceptStaffInvitationInput,
-  _dbConn: DbConn = db,
+  dbConn: DbConn = db,
 ): Promise<StaffInvitationAcceptance> {
   const parsed = acceptStaffInvitationInput.safeParse(input);
-  return parsed.success ? ({ outcome: "inactive" } as const) : ({ outcome: "invalid" } as const);
+  if (!parsed.success) return { outcome: "invalid" };
+
+  const identifier = invitationIdentifier(parsed.data.token);
+  const [candidate] = await dbConn
+    .select({ id: verification.id })
+    .from(verification)
+    .where(and(eq(verification.identifier, identifier), gt(verification.expiresAt, sql`now()`)))
+    .limit(1);
+  if (!candidate) return { outcome: "inactive" };
+
+  // Better Auth's own password helper is the compatibility boundary: the account
+  // row produced below must be consumable by its credential provider, not merely
+  // resemble one. Hashing is intentionally outside the transaction's lock window.
+  const passwordHash = await hashPassword(parsed.data.password);
+
+  return dbConn.transaction(async (tx): Promise<StaffInvitationAcceptance> => {
+    await lockInvitation(tx, candidate.id);
+
+    const [consumed] = (await tx.execute(sql`
+      DELETE FROM verification
+       WHERE id = ${candidate.id}
+         AND identifier = ${identifier}
+         AND expires_at > now()
+      RETURNING id, identifier, value, expires_at AS "expiresAt"
+    `)) as unknown as InvitationRow[];
+    if (!consumed) return { outcome: "inactive" };
+
+    const metadata = parseMetadata(consumed.value);
+    if (!metadata) {
+      await writeInvitationAudit(tx, {
+        actorId: "system",
+        action: INVITATION_ACCEPT_REFUSED,
+        invitationId: consumed.id,
+        reason: "invalid-metadata",
+      });
+      return { outcome: "inactive" };
+    }
+
+    const conflict = await existingAccountConflict(tx, metadata.email);
+    if (conflict) {
+      await writeInvitationAudit(tx, {
+        actorId: metadata.inviterUserId,
+        action: INVITATION_ACCEPT_REFUSED,
+        invitationId: consumed.id,
+        reason: conflict,
+      });
+      return { outcome: "refused", reason: conflict };
+    }
+
+    const userId = randomUUID();
+    await tx.insert(user).values({
+      id: userId,
+      name: parsed.data.name,
+      firstName: parsed.data.name,
+      email: metadata.email,
+      emailVerified: true,
+      canBook: false,
+      canHost: false,
+      role: DEFAULT_ROLE,
+    });
+    await tx.insert(account).values({
+      id: randomUUID(),
+      accountId: userId,
+      providerId: "credential",
+      userId,
+      password: passwordHash,
+    });
+
+    const grant = await writeRole(
+      {
+        target: userId,
+        actorId: metadata.inviterUserId,
+        role: STAFF_ROLE,
+      },
+      tx,
+    );
+    if (grant.outcome !== "written") {
+      throw new Error(`Staff invitation role grant failed: ${grant.outcome}`);
+    }
+
+    await writeInvitationAudit(tx, {
+      actorId: metadata.inviterUserId,
+      action: INVITATION_ACCEPTED,
+      invitationId: consumed.id,
+    });
+    return { outcome: "accepted", userId };
+  });
 }

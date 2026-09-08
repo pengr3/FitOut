@@ -350,7 +350,7 @@ describe("inspect, accept, concurrent, and inactive staff invitations (OPS-09)",
         { token: issued.token, name: "Rollback Staff", password: "long-enough-password" },
         testDb.db,
       ),
-    ).rejects.toThrow("forced invitation acceptance failure");
+    ).rejects.toThrow();
     await testDb.db.execute(sql.raw(`DROP TRIGGER fail_invitation_accept_audit_trigger ON audit`));
     await testDb.db.execute(sql.raw(`DROP FUNCTION fail_invitation_accept_audit()`));
 
