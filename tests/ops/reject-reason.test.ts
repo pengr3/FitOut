@@ -50,9 +50,20 @@ import {
   REJECT_NOTE_MAX,
 } from "@/lib/validation/ops";
 
-const sessionHeaders: { cookie: string } = { cookie: "" };
+const OPS_HOST = "ops.localhost:3000";
+const OPS_ORIGIN = "http://ops.localhost:3000";
+const sessionHeaders: { cookie: string; host: string; origin: string } = {
+  cookie: "",
+  host: OPS_HOST,
+  origin: OPS_ORIGIN,
+};
 vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
+  headers: async () =>
+    new Headers({
+      cookie: sessionHeaders.cookie,
+      host: sessionHeaders.host,
+      origin: sessionHeaders.origin,
+    }),
 }));
 
 const NOT_FOUND = "NEXT_NOT_FOUND";
@@ -165,6 +176,8 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  sessionHeaders.host = OPS_HOST;
+  sessionHeaders.origin = OPS_ORIGIN;
   const res = await testAuth.api.signInEmail({
     body: { email: STAFF_EMAIL, password: PASSWORD },
     asResponse: true,

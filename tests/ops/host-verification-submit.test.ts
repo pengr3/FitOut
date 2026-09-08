@@ -60,9 +60,20 @@ import {
   HOST_VERIFICATION_VENDOR_UNAVAILABLE,
 } from "@/lib/host/verification-refusals";
 
-const sessionHeaders: { cookie: string } = { cookie: "" };
+const OPS_HOST = "ops.localhost:3000";
+const OPS_ORIGIN = "http://ops.localhost:3000";
+const sessionHeaders: { cookie: string; host: string; origin: string } = {
+  cookie: "",
+  host: OPS_HOST,
+  origin: OPS_ORIGIN,
+};
 vi.mock("next/headers", () => ({
-  headers: async () => new Headers({ cookie: sessionHeaders.cookie }),
+  headers: async () =>
+    new Headers({
+      cookie: sessionHeaders.cookie,
+      host: sessionHeaders.host,
+      origin: sessionHeaders.origin,
+    }),
 }));
 
 const NOT_FOUND = "NEXT_NOT_FOUND";
@@ -291,6 +302,8 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
+  sessionHeaders.host = OPS_HOST;
+  sessionHeaders.origin = OPS_ORIGIN;
   rateLimitMode = "allow";
   rateLimitCalls.length = 0;
   __resetRateLimit();
