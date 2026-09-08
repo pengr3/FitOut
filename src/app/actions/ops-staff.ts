@@ -1,13 +1,41 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
+import { db } from "@/lib/db";
 import {
   cancelStaffInvitation,
   issueStaffInvitation,
   resendStaffInvitation,
   type StaffInvitationRef,
 } from "@/lib/ops/invitations";
+import {
+  DEFAULT_ROLE,
+  LAST_STAFF_REVOKE_REASON,
+  SELF_REVOKE_REASON,
+  writeRole,
+} from "@/lib/ops/grant";
 import { requireOpsMutationOrigin, requireStaff } from "@/lib/ops/staff";
 import type { IssueStaffInvitationInput } from "@/lib/validation/ops-staff";
+
+export type OpsStaffActionState =
+  | { status: "idle" }
+  | {
+      status: "success";
+      action: "invite" | "resend" | "cancel" | "revoke";
+      message: string;
+      targetUserId?: string;
+    }
+  | {
+      status: "error";
+      action: "invite" | "resend" | "cancel" | "revoke";
+      message: string;
+    };
+
+export const INITIAL_OPS_STAFF_ACTION_STATE: OpsStaffActionState = { status: "idle" };
+
+const STALE_STAFF_ACTION_MESSAGE =
+  "This staff record changed before the action completed. Refresh the page and try again.";
 
 function boundInvitationRef(ref: StaffInvitationRef): StaffInvitationRef | null {
   if (
@@ -44,4 +72,43 @@ export async function cancelStaffInviteAction(ref: StaffInvitationRef) {
   const invitation = boundInvitationRef(ref);
   if (!invitation) return { outcome: "stale" } as const;
   return cancelStaffInvitation(invitation, staff.id);
+}
+
+/** Revoke through the transactional policy; client form fields never decide actor or eligibility. */
+export async function revokeStaffAction(
+  boundTargetUserId: string,
+  _previousState: OpsStaffActionState,
+  _formData: FormData,
+): Promise<OpsStaffActionState> {
+  await requireOpsMutationOrigin();
+  const staff = await requireStaff();
+  void _previousState;
+  void _formData;
+
+  if (typeof boundTargetUserId !== "string" || boundTargetUserId.length === 0) {
+    return { status: "error", action: "revoke", message: STALE_STAFF_ACTION_MESSAGE };
+  }
+
+  const result = await writeRole(
+    { target: boundTargetUserId, actorId: staff.id, role: DEFAULT_ROLE },
+    db,
+  );
+  if (result.outcome === "written") {
+    revalidatePath("/ops");
+    return {
+      status: "success",
+      action: "revoke",
+      message: "Staff access was revoked.",
+      targetUserId: result.userId,
+    };
+  }
+
+  const message =
+    result.outcome === "refused" && result.reason === "self_revoke"
+      ? SELF_REVOKE_REASON
+      : result.outcome === "refused" &&
+          (result.reason === "last_staff" || result.reason === "staff_invariant_empty")
+        ? LAST_STAFF_REVOKE_REASON
+        : STALE_STAFF_ACTION_MESSAGE;
+  return { status: "error", action: "revoke", message };
 }

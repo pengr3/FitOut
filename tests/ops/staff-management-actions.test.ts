@@ -31,6 +31,7 @@ vi.mock("@/lib/ops/staff", () => ({
 
 vi.mock("@/lib/ops/grant", () => ({
   DEFAULT_ROLE: "user",
+  STAFF_ROLE: "staff",
   SELF_REVOKE_REASON: "You can't revoke your own staff access.",
   LAST_STAFF_REVOKE_REASON: "You can't revoke the last staff account.",
   writeRole,
