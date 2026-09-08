@@ -125,6 +125,18 @@ export const SENDER_FIXTURES = {
       },
     ],
   },
+  sendStaffInviteEmail: {
+    why: "A one-time staff invitation delivered only through the configured ops origin.",
+    calls: [
+      {
+        label: "staff invitation",
+        args: [TO, "http://ops.localhost:3000/invite/0123456789ABCDEFGHJK"],
+        recipient: "0",
+        urls: ["1"],
+        variants: [],
+      },
+    ],
+  },
   sendBookingConfirmed: {
     why:
       "Fires after a successful confirm (webhook payment.paid), instant and pay-on-approval alike. " +
@@ -501,11 +513,11 @@ export const SENDER_FIXTURES = {
   },
 } as const satisfies Record<SenderName, SenderFixture>;
 
-/** The twenty names, in declaration order. */
+/** The twenty-one names, in declaration order. */
 export const SENDER_NAMES = Object.keys(SENDER_FIXTURES) as SenderName[];
 
 /** How many senders this repository has. Asserted by the probe so a silent shrink is a red. */
-export const SENDER_COUNT = 20;
+export const SENDER_COUNT = 21;
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // PATH HELPERS. A dotted path addresses one value inside an argument list: `"1"` is `args[1]`,

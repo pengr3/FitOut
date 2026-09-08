@@ -42,7 +42,16 @@ const key = process.env.RESEND_API_KEY;
 const resend = key ? new Resend(key) : null;
 const FROM = process.env.EMAIL_FROM ?? "FitOut <onboarding@resend.dev>";
 
-async function send(to: string, subject: string, html: string, text: string) {
+export type EmailDeliveryResult =
+  | { delivered: true; transport: "resend" | "development" }
+  | { delivered: false };
+
+async function send(
+  to: string,
+  subject: string,
+  html: string,
+  text: string,
+): Promise<EmailDeliveryResult> {
   if (!resend) {
     // WR-02 — the dev fallback logs the FULL email body, which includes the single-use
     // reset/verification link and its live token. That is acceptable locally but a credential
@@ -52,14 +61,20 @@ async function send(to: string, subject: string, html: string, text: string) {
       console.error(
         "RESEND_API_KEY missing in production — email NOT sent (link withheld from logs).",
       );
-      return;
+      return { delivered: false };
     }
     // Dev/test only: log the link instead of delivering so the flow can be followed locally.
     console.log(`[email:dev] to=${to} ${subject}\n${html}`);
-    return;
+    return { delivered: true, transport: "development" };
   }
   const { error } = await resend.emails.send({ from: FROM, to, subject, html, text });
-  if (error) console.error("resend error", error);
+  if (error) {
+    // Provider errors can echo recipient addresses or message payloads. Keep the
+    // durable invitation pending, but never write those details to application logs.
+    console.error("resend delivery failed");
+    return { delivered: false };
+  }
+  return { delivered: true, transport: "resend" };
 }
 
 /**
@@ -89,6 +104,32 @@ export const sendResetPassword = (to: string, url: string) => {
     cta: { label: "Reset password", href: url },
   });
   return send(to, "Reset your FitOut password", html, text);
+};
+
+export const sendStaffInviteEmail = async (
+  to: string,
+  url: string,
+): Promise<EmailDeliveryResult> => {
+  try {
+    const inviteUrl = new URL(url);
+    // Lazy so unrelated public-host email sends retain their existing production
+    // missing-config behavior; only this ops-only path requires OPS_APP_URL.
+    const { OPS_APP_ORIGIN } = await import("@/lib/app-origins");
+    if (inviteUrl.origin !== OPS_APP_ORIGIN) {
+      throw new Error("invalid staff invitation origin");
+    }
+    const { html, text } = renderEmail({
+      heading: "Create your FitOut Ops account",
+      paragraphs: ["You were invited to join FitOut Ops. This invitation expires in 24 hours."],
+      cta: { label: "Create staff account", href: url },
+    });
+    return await send(to, "You're invited to FitOut Ops", html, text);
+  } catch {
+    // The URL contains a live credential and `to` is PII. Deliberately omit
+    // both from transport/logging failures.
+    console.error("staff invitation delivery failed");
+    return { delivered: false };
+  }
 };
 
 // ---------------------------------------------------------------------------
