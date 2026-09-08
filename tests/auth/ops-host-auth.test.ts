@@ -418,8 +418,8 @@ describe("OPS-08 origin-bound staff credential transition", () => {
 });
 
 describe("OPS-08 dedicated FitOut Ops sign-in surface", () => {
-  const layoutPath = "src/app/(ops-auth)/_ops-auth/layout.tsx";
-  const loginPath = "src/app/(ops-auth)/_ops-auth/login/page.tsx";
+  const layoutPath = "src/app/(ops-auth)/%5Fops-auth/layout.tsx";
+  const loginPath = "src/app/(ops-auth)/%5Fops-auth/login/page.tsx";
 
   it("renders the sibling ops-auth shell with a login-bound FitOut Ops identity", () => {
     const layout = sourceOrEmpty(layoutPath);
@@ -469,9 +469,12 @@ describe("OPS-08 ops-host recovery, reset, and sign-out", () => {
   it("wires explicit sign-out and neutral recovery into the protected ops shell", () => {
     const layout = sourceOrEmpty("src/app/(ops)/ops/layout.tsx");
     const boundary = sourceOrEmpty("src/app/(ops)/ops/error.tsx");
+    const control = sourceOrEmpty("src/components/ops/ops-sign-out-control.tsx");
 
-    expect(layout).toContain("signOutOpsAction");
-    expect(layout).toContain("Sign out");
+    expect(layout).toContain("OpsSignOutControl");
+    expect(control).toContain("signOutOpsAction");
+    expect(control).toContain("Sign out");
+    expect(control).toContain("window.location.assign");
     expect(layout).not.toContain("ProfileLink");
     expect(boundary).toContain('title="FitOut Ops didn\'t load"');
     expect(boundary).toContain(
@@ -481,8 +484,8 @@ describe("OPS-08 ops-host recovery, reset, and sign-out", () => {
     expect(boundary).not.toMatch(/error\.(?:message|stack|cause)/);
   });
 
-  const forgotPath = "src/app/(ops-auth)/_ops-auth/forgot-password/page.tsx";
-  const resetPath = "src/app/(ops-auth)/_ops-auth/reset-password/page.tsx";
+  const forgotPath = "src/app/(ops-auth)/%5Fops-auth/forgot-password/page.tsx";
+  const resetPath = "src/app/(ops-auth)/%5Fops-auth/reset-password/page.tsx";
 
   it("renders the enumeration-safe staff recovery surface", () => {
     const forgot = sourceOrEmpty(forgotPath);
@@ -565,7 +568,9 @@ describe("OPS-08 ops-host recovery, reset, and sign-out", () => {
       headers: expect.any(Headers),
     });
 
-    await expect(actions!.signOutOps()).rejects.toThrow("NEXT_REDIRECT;/login?signedOut=1");
+    await expect(actions!.signOutOps()).rejects.toThrow(
+      `NEXT_REDIRECT;${OPS_ORIGIN}/login?signedOut=1`,
+    );
     expect(signOut).toHaveBeenCalledOnce();
     expect(new Headers(signOut.mock.calls[0]?.[0]?.headers).get("cookie")).toContain(
       "better-auth.session_token=ops-session",

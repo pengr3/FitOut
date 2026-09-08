@@ -69,7 +69,7 @@ test("terminates the ops session and returns to the bounded signed-out notice", 
     await page.goto(`${OPS_ORIGIN}/ops`);
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
 
-    await expect(page).toHaveURL(`${OPS_ORIGIN}/login?signedOut=1`);
+    await expect(page).toHaveURL(`${OPS_ORIGIN}/login?signedOut=1`, { timeout: 30_000 });
     await expect(page.getByText("Staff session ended.", { exact: true })).toBeVisible();
 
     const replay = await opsContext.request.get(`${OPS_ORIGIN}/ops`, {
@@ -87,40 +87,77 @@ test("terminates the ops session and returns to the bounded signed-out notice", 
 test("cross-host exits use exact configured origins without carrying source cookies", async ({
   browser,
 }) => {
+  test.setTimeout(180_000);
+
+  const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {} });
+  const suffix = randomUUID();
+  const publicId = `e2e_public_exit_${suffix}`;
+  const staffId = `e2e_ops_exit_${suffix}`;
+  const publicEmail = `e2e.public.exit.${suffix}@example.test`;
+  const staffEmail = `e2e.ops.exit.${suffix}@example.test`;
   const marketplaceContext = await browser.newContext({ baseURL: PUBLIC_ORIGIN });
   const opsContext = await browser.newContext({ baseURL: OPS_ORIGIN });
 
   try {
-    await marketplaceContext.addCookies([
-      { name: "public-source-session", value: "public-only", url: PUBLIC_ORIGIN },
-    ]);
+    const passwordHash = await hashPassword(PASSWORD);
+    await sql.begin(async (tx) => {
+      await tx`
+        INSERT INTO "user"
+          (id, name, first_name, email, email_verified, can_book, can_host, role, created_at, updated_at)
+        VALUES
+          (${publicId}, ${"Booker"}, ${"Booker"}, ${publicEmail}, true, true, false, ${"user"}, now(), now()),
+          (${staffId}, ${"Ops"}, ${"Ops"}, ${staffEmail}, true, false, false, ${"staff"}, now(), now())
+      `;
+      await tx`
+        INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)
+        VALUES
+          (${randomUUID()}, ${publicId}, ${"credential"}, ${publicId}, ${passwordHash}, now(), now()),
+          (${randomUUID()}, ${staffId}, ${"credential"}, ${staffId}, ${passwordHash}, now(), now())
+      `;
+    });
+
+    const publicSignIn = await marketplaceContext.request.post(
+      `${PUBLIC_ORIGIN}/api/auth/sign-in/email`,
+      {
+        headers: { host: PUBLIC_HOST, origin: PUBLIC_ORIGIN },
+        data: { email: publicEmail, password: PASSWORD },
+        failOnStatusCode: false,
+      },
+    );
+    expect(publicSignIn.status(), "marketplace Better Auth sign-in failed").toBe(200);
+
     const marketplacePage = await marketplaceContext.newPage();
     await marketplacePage.goto(PUBLIC_ORIGIN);
     await marketplacePage.getByRole("link", { name: "FitOut Ops" }).click();
     await expect(marketplacePage).toHaveURL(`${OPS_ORIGIN}/login`);
     expect(new URL(marketplacePage.url()).search).toBe("");
-    expect(
-      (await marketplaceContext.cookies(OPS_ORIGIN)).some(
-        (cookie) => cookie.name === "public-source-session",
-      ),
-    ).toBe(false);
+    const opsSessionFromPublic = await marketplaceContext.request.get(
+      `${OPS_ORIGIN}/api/auth/get-session`,
+      { headers: { host: OPS_HOST }, failOnStatusCode: false },
+    );
+    expect((await opsSessionFromPublic.json())?.user ?? null).toBeNull();
 
-    await opsContext.addCookies([
-      { name: "ops-source-session", value: "ops-only", url: OPS_ORIGIN },
-    ]);
+    const opsSignIn = await opsContext.request.post(`${OPS_ORIGIN}/api/auth/sign-in/email`, {
+      headers: { host: OPS_HOST, origin: OPS_ORIGIN },
+      data: { email: staffEmail, password: PASSWORD },
+      failOnStatusCode: false,
+    });
+    expect(opsSignIn.status(), "ops-host Better Auth sign-in failed").toBe(200);
     const opsPage = await opsContext.newPage();
     await opsPage.goto(`${OPS_ORIGIN}/login`);
     await opsPage.getByRole("link", { name: "Back to FitOut" }).click();
     await expect(opsPage).toHaveURL(`${PUBLIC_ORIGIN}/`);
     expect(new URL(opsPage.url()).search).toBe("");
-    expect(
-      (await opsContext.cookies(PUBLIC_ORIGIN)).some(
-        (cookie) => cookie.name === "ops-source-session",
-      ),
-    ).toBe(false);
+    const publicSessionFromOps = await opsContext.request.get(
+      `${PUBLIC_ORIGIN}/api/auth/get-session`,
+      { headers: { host: PUBLIC_HOST }, failOnStatusCode: false },
+    );
+    expect((await publicSessionFromOps.json())?.user ?? null).toBeNull();
   } finally {
     await marketplaceContext.close();
     await opsContext.close();
+    await sql`DELETE FROM "user" WHERE id IN (${publicId}, ${staffId})`;
+    await sql.end();
   }
 });
 

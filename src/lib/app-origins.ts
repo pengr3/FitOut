@@ -121,3 +121,7 @@ export function classifyRequestHost(rawHost: string | null | undefined): Request
 export function absolutePublicUrl(pathname: `/${string}`): string {
   return new URL(pathname, `${PUBLIC_APP_ORIGIN}/`).toString();
 }
+
+export function absoluteOpsUrl(pathname: `/${string}`): string {
+  return new URL(pathname, `${OPS_APP_ORIGIN}/`).toString();
+}

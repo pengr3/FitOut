@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { StaffInviteSetupForm } from "@/app/(ops-auth)/_ops-auth/_components/staff-invite-setup-form";
+import { StaffInviteSetupForm } from "@/app/(ops-auth)/%5Fops-auth/_components/staff-invite-setup-form";
 import { PanelCard } from "@/components/patterns/panel-card";
 import { Button } from "@/components/ui/button";
 import { inspectStaffInvitation } from "@/lib/ops/invitations";

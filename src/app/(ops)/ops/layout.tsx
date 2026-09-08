@@ -61,10 +61,9 @@
 // `tests/design/ops-guard-coverage.test.ts`, which clones the same AST walk.
 
 import { assertStaff } from "@/lib/ops/staff";
-import { signOutOpsAction } from "@/app/actions/ops-auth";
 import { SiteChrome } from "@/components/patterns/site-chrome";
 import { SiteFooter } from "@/components/patterns/site-footer";
-import { Button } from "@/components/ui/button";
+import { OpsSignOutControl } from "@/components/ops/ops-sign-out-control";
 
 export default async function OpsLayout({ children }: { children: React.ReactNode }) {
   // LAYER 1 — the status line, and nothing else. See the header: this is not the gate.
@@ -86,13 +85,7 @@ export default async function OpsLayout({ children }: { children: React.ReactNod
         // clone `src/lib/nav.ts`'s typed-tuple → derived-union → total-`Record` shape to hold a
         // single destination that is also the wordmark's — a second inventory to keep in agreement
         // with a one-item list. `SiteChrome` renders no `<nav>` landmark when the slot is empty.
-        actions={
-          <form action={signOutOpsAction}>
-            <Button type="submit" variant="ghost" className="min-h-11">
-              Sign out
-            </Button>
-          </form>
-        }
+        actions={<OpsSignOutControl />}
       />
       <main className="flex flex-1 flex-col">{children}</main>
       {/* SHELL-02 — the SAME footer every other composition renders. Its links are policy and

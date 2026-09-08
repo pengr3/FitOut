@@ -76,6 +76,7 @@
 
 import Link from "next/link";
 
+import { absoluteOpsUrl, absolutePublicUrl } from "@/lib/app-origins";
 import { SITE_TAGLINE, SUPPORT_EMAIL } from "@/lib/site";
 
 /**
@@ -117,14 +118,17 @@ const LINK_CLASS = `${BODY_CLASS} underline-offset-4 hover:underline hover:text-
  * routing: nothing in this footer is a dead link.
  */
 const PRODUCT_LINKS = [
-  { href: "/", label: "Find a space" },
-  { href: "/host", label: "Host your space" },
+  { href: absolutePublicUrl("/"), label: "Find a space" },
+  { href: absolutePublicUrl("/host"), label: "Host your space" },
+  { href: absoluteOpsUrl("/login"), label: "FitOut Ops" },
 ] as const;
 
 const LEGAL_LINKS = [
-  { href: "/terms", label: "Terms" },
-  { href: "/privacy", label: "Privacy" },
+  { href: absolutePublicUrl("/terms"), label: "Terms" },
+  { href: absolutePublicUrl("/privacy"), label: "Privacy" },
 ] as const;
+
+const PUBLIC_HOME = absolutePublicUrl("/");
 
 export function SiteFooter() {
   return (
@@ -150,7 +154,7 @@ export function SiteFooter() {
             `metadata.description` reads, from the same constant — one sentence, one owner. Retyping
             it here would be the second literal that the UI-SPEC's "one owner" clause forbids. */}
         <div className="space-y-3">
-          <Link href="/" className={`${HEADING_CLASS} underline-offset-4 hover:underline`}>
+          <Link href={PUBLIC_HOME} className={`${HEADING_CLASS} underline-offset-4 hover:underline`}>
             FitOut
           </Link>
           <p className={BODY_CLASS}>{SITE_TAGLINE}</p>

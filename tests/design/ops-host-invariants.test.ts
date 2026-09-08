@@ -12,16 +12,16 @@ const CLOAK_PATH = "src/app/_ops-cloak/page.tsx";
 const ROOT_NOT_FOUND_PATH = "src/app/not-found.tsx";
 const ROOT_NOT_FOUND_SHA256 = "fdd295e842fc7719738c9795231a3b89bf3d1066ec931f9f6a06b1f5157d226d";
 const EXPECTED_INTERNAL_ROUTE_PAGES = [
-  "src/app/(ops-auth)/_ops-auth/forgot-password/page.tsx",
-  "src/app/(ops-auth)/_ops-auth/invite/[token]/page.tsx",
-  "src/app/(ops-auth)/_ops-auth/login/page.tsx",
-  "src/app/(ops-auth)/_ops-auth/reset-password/page.tsx",
+  "src/app/(ops-auth)/%5Fops-auth/forgot-password/page.tsx",
+  "src/app/(ops-auth)/%5Fops-auth/invite/[token]/page.tsx",
+  "src/app/(ops-auth)/%5Fops-auth/login/page.tsx",
+  "src/app/(ops-auth)/%5Fops-auth/reset-password/page.tsx",
   CLOAK_PATH,
 ];
-const INVITE_PAGE_PATH = "src/app/(ops-auth)/_ops-auth/invite/[token]/page.tsx";
-const INVITE_LOADING_PATH = "src/app/(ops-auth)/_ops-auth/invite/[token]/loading.tsx";
+const INVITE_PAGE_PATH = "src/app/(ops-auth)/%5Fops-auth/invite/[token]/page.tsx";
+const INVITE_LOADING_PATH = "src/app/(ops-auth)/%5Fops-auth/invite/[token]/loading.tsx";
 const INVITE_FORM_PATH =
-  "src/app/(ops-auth)/_ops-auth/_components/staff-invite-setup-form.tsx";
+  "src/app/(ops-auth)/%5Fops-auth/_components/staff-invite-setup-form.tsx";
 
 function source(path: string): string {
   return readFileSync(resolve(ROOT, path), "utf8");
@@ -49,7 +49,11 @@ function collect(dir: string, basename: string, out: string[] = []): string[] {
 
 function internalOpsPages(): string[] {
   return collect(resolve(ROOT, "src/app"), "page.tsx")
-    .filter((path) => path.split("/").some((segment) => segment.startsWith("_ops")))
+    .filter((path) =>
+      path
+        .split("/")
+        .some((segment) => segment.startsWith("_ops") || segment.startsWith("%5Fops")),
+    )
     .sort();
 }
 

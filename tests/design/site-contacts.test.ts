@@ -353,6 +353,10 @@ const EXCLUDED_ADDRESSES: Readonly<Record<string, string>> = {
     "rendered greyed inside the field, and it makes no claim about anything FitOut owns.",
   "src/app/(auth)/login/page.tsx — you@example.com": "Same email-input placeholder, login form.",
   "src/app/(auth)/signup/page.tsx — you@example.com": "Same email-input placeholder, signup form.",
+  "src/app/(ops-auth)/%5Fops-auth/forgot-password/page.tsx — you@example.com":
+    "Same email-input placeholder on the staff password-recovery form; it is not a FitOut contact address.",
+  "src/app/(ops-auth)/%5Fops-auth/login/page.tsx — you@example.com":
+    "Same email-input placeholder on the staff login form; it is not a FitOut contact address.",
   "src/components/group/rsvp-form.tsx — you@example.com":
     "Same email-input placeholder, the group RSVP form's optional notify-me field.",
 };

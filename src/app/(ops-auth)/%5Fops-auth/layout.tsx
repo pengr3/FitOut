@@ -1,7 +1,10 @@
 import Link from "next/link";
 
 import { BRAND_CLASS } from "@/components/patterns/site-chrome";
+import { absolutePublicUrl } from "@/lib/app-origins";
 import { cn } from "@/lib/utils";
+
+const PUBLIC_HOME = absolutePublicUrl("/");
 
 /**
  * Logged-out ops-auth shell. It is deliberately a sibling of `(ops)`: the protected ops layout
@@ -20,6 +23,12 @@ export default function OpsAuthLayout({
             FitOut Ops
           </Link>
           {children}
+          <Link
+            href={PUBLIC_HOME}
+            className="flex min-h-11 items-center justify-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Back to FitOut
+          </Link>
         </div>
       </main>
     </div>

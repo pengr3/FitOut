@@ -248,26 +248,26 @@ const BOUNDARIES: readonly BoundaryRow[] = [
   },
   {
     path: "src/app/(ops)/ops/error.tsx",
-    href: "/",
+    href: "PUBLIC_APP_HOME",
     label: "Back to FitOut",
     why:
       "On `ops/`, NOT on `(ops)/`, and here that placement is a SECURITY fact rather than a " +
       "cosmetic one. `(ops)/ops/layout.tsx` awaits `assertStaff()` above the Suspense boundary — the " +
       "layer that wins the 404 status line (D-219 / D-247) — so a boundary at `(ops)/error.tsx` " +
       "would render both with no ops chrome AND on the far side of that layer, which is the " +
-      "route-existence oracle wearing an error message. The route out is `/` and NOT `/ops`: D-246 " +
+      "route-existence oracle wearing an error message. The route out is the configured public " +
+      "origin and NOT `/ops`: D-246 " +
       "holds the console at exactly one page, so pointing the persistent recourse at the page the " +
       "operator is already on is the dead end `empty-state-adoption.test.ts` records refusing — and " +
       "an ops staffer is also a user, so `/` is a real destination for them.",
-    title: "The queue didn't load",
-    body: "We hit a problem loading the review queue. Trying again usually fixes it.",
+    title: "FitOut Ops didn't load",
+    body: "We hit a problem loading the ops console. Trying again usually fixes it.",
     copyWhy:
       "THE ONLY BOUNDARY IN THIS INVENTORY THAT CAN NAME WHAT FAILED. The other five each cover a " +
       "route group with several pages in it, so \"this page\" is genuinely the most they can say. " +
-      "D-246 gives `(ops)` exactly ONE page, and it is the review queue — so this boundary knows " +
-      "precisely which surface the reader was on, and \"The queue didn't load\" is a true, more " +
-      "useful sentence than the generic one. The register, the two actions and the digest-only rule " +
-      "are unchanged; only the noun is narrower.",
+      "D-246 gives `(ops)` exactly ONE product surface, so Phase 20 can truthfully name the Ops " +
+      "console while keeping the message neutral about which internal tool failed. The register, " +
+      "the two actions and the digest-only rule are unchanged.",
   },
 ];
 
@@ -392,6 +392,14 @@ function patternCalls(label: string, sf: ts.SourceFile): PatternCall[] {
         if (attr.name.text !== "href") continue;
         const init = attr.initializer;
         if (init !== undefined && ts.isStringLiteral(init)) hrefs.push(init.text);
+        if (
+          init !== undefined &&
+          ts.isJsxExpression(init) &&
+          init.expression !== undefined &&
+          ts.isIdentifier(init.expression)
+        ) {
+          hrefs.push(init.expression.text);
+        }
       }
     }
     if (ts.isJsxText(node)) {
