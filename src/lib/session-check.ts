@@ -106,8 +106,6 @@ export type SessionCheckAuth = {
   /** Better Auth's HTTP entry point — the same one src/app/api/auth/[...all]/route.ts mounts. */
   handler: (request: Request) => Promise<Response>;
   $context: Promise<{
-    /** Origin + basePath, e.g. "http://localhost:3000/api/auth". */
-    baseURL: string;
     authCookies: {
       sessionToken: { name: string; attributes: Record<string, unknown> };
     };
@@ -156,9 +154,13 @@ export async function sessionCheckResponse(
     //
     // It also removes a TEST/PROD DIVERGENCE that is the reason this class of bug hides: the
     // in-process tests inject makeTestAuth() and take the same routed path production takes.
-    const { baseURL } = await auth.$context;
+    // OPS-08 makes Better Auth's base URL request-specific, so the unresolved root context no
+    // longer owns one string baseURL. Preserve the incoming authority instead and ensure direct
+    // test/Server Function requests that carry it only in the URL still provide an exact Host.
+    const authHeaders = new Headers(request.headers);
+    if (!authHeaders.has("host")) authHeaders.set("host", request.nextUrl.host);
     const res = await auth.handler(
-      new Request(`${baseURL}/get-session`, { headers: request.headers }),
+      new Request(new URL("/api/auth/get-session", request.url), { headers: authHeaders }),
     );
 
     // NOT AUTHORITATIVE unless it is a clean 200. Better Auth answers 200 + body `null` for "no
