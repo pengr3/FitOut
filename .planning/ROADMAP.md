@@ -776,7 +776,7 @@ phase is the milestone's one hard prerequisite**: nothing ops-side in v1.2 can s
      the three 404 bodies byte-identical by hash**, with **every new ops route in the probe set** — and
      there is still no `(ops)`-scoped `not-found.tsx`.
 
-**Plans**: 8/14 plans executed
+**Plans**: 9/14 plans executed
 
 Plans:
 **Wave 1**
@@ -807,7 +807,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 20-12-PLAN.md — Add origin-bound ops sign-in, safe callbacks, and same-host recovery/reset UI.
+- [x] 20-12-PLAN.md — Add origin-bound ops sign-in, safe callbacks, and same-host recovery/reset UI.
 
 **Wave 8** *(blocked on Wave 7 completion)*
 

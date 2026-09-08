@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 20
 current_phase_name: Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding
 status: executing
-stopped_at: Completed 20-14-PLAN.md
-last_updated: "2026-09-08T01:54:39.023Z"
+stopped_at: Completed 20-12-PLAN.md
+last_updated: "2026-09-08T02:34:04.348Z"
 last_activity: 2026-09-08
 last_activity_desc: Phase 20 execution started
-state_head: a48a7048d047231a15bcad74b1b954f958f80e65
+state_head: 8c6c718fe8d26651f03133cf60a3e158cfc60d87
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 71
+  completed_plans: 72
   percent: 13
 ---
 
@@ -112,7 +112,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 20 (Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding) — EXECUTING
-Plan: 9 of 14
+Plan: 10 of 14
 Status: Ready to execute
 Last activity: 2026-09-08 — Phase 20 execution started
 
@@ -500,6 +500,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 20 P04 | 19 min | 3 tasks | 9 files |
 | Phase 20 P05 | 13 min | 2 tasks | 8 files |
 | Phase 20 P14 | 39 min | 3 tasks | 11 files |
+| Phase 20 P12 | 14 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -1556,6 +1557,9 @@ Recent decisions affecting current work:
 - [Phase 20]: Plan 20-14: Exact configured URL.host plus URL.origin is required before any privileged ops Server Function reads current staff identity.
 - [Phase 20]: Plan 20-14: Wrong-authority refusal precedes requireStaff so neither session validity nor target existence is disclosed.
 - [Phase 20]: Plan 20-14: Cross-host replay proof compares target/audit state because Next 16 streamed notFound responses retain HTTP 200.
+- [Phase 20]: Plan 20-12: Keep callback admission relative-only through safeCallbackPath, then narrow the result to /ops and /ops descendants.
+- [Phase 20]: Plan 20-12: Gate staff access on the Better Auth sign-in response role and immediately revoke the exact issued session for nonstaff credentials.
+- [Phase 20]: Plan 20-12: Classify signed-out ops-auth actions as exact-origin mutations while retaining origin-first and staff-second ordering for privileged console actions.
 
 ### Pending Todos
 
@@ -1744,8 +1748,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-08T01:54:37.144Z
-Stopped at: Completed 20-14-PLAN.md
+Last session: 2026-09-08T02:33:44.127Z
+Stopped at: Completed 20-12-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
