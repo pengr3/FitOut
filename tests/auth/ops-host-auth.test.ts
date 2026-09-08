@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import type { TestAuth } from "../helpers/auth";
 import type { TestDb } from "../helpers/db";
@@ -8,6 +8,30 @@ const OPS_ORIGIN = "https://ops.example.test";
 const PREVIEW_ORIGIN = "https://fitout-git-preview.example.vercel.app";
 const FORGED_ORIGIN = "https://ops.example.test.attacker.invalid";
 const PASSWORD = "averylongpassword";
+
+const actionRequest = vi.hoisted(() => ({
+  host: "ops.example.test" as string | null,
+  origin: "https://ops.example.test" as string | null,
+  cookie: "" as string,
+}));
+
+vi.mock("next/headers", () => ({
+  headers: async () => {
+    const value = new Headers({ cookie: actionRequest.cookie });
+    if (actionRequest.host !== null) value.set("host", actionRequest.host);
+    if (actionRequest.origin !== null) value.set("origin", actionRequest.origin);
+    return value;
+  },
+}));
+
+vi.mock("next/navigation", () => ({
+  notFound: () => {
+    throw new Error("NEXT_HTTP_ERROR_FALLBACK;404");
+  },
+  redirect: (to: string) => {
+    throw new Error(`NEXT_REDIRECT;${to}`);
+  },
+}));
 
 let testDb: TestDb;
 let auth: TestAuth;
@@ -50,6 +74,13 @@ afterAll(async () => {
   vi.unstubAllEnvs();
   const { teardownTestDb } = await import("../helpers/db");
   await teardownTestDb(testDb);
+});
+
+beforeEach(() => {
+  actionRequest.host = new URL(OPS_ORIGIN).host;
+  actionRequest.origin = OPS_ORIGIN;
+  actionRequest.cookie = "";
+  vi.restoreAllMocks();
 });
 
 function options(): ProductionAuthOptions {
@@ -231,5 +262,148 @@ describe("OPS-08 host-only sessions", () => {
     const revoked = await auth.api.getSession({ headers });
     expect((revoked?.user as { role?: string } | undefined)?.role).toBe("user");
     expect(options().session?.cookieCache).toBeUndefined();
+  });
+});
+
+type OpsAuthActions = {
+  signInOps: (input: {
+    email: string;
+    password: string;
+    callbackURL?: string | null;
+  }) => Promise<
+    | { ok: true; redirectTo: string }
+    | { ok: false; reason: "invalid-input" | "invalid-credentials" | "no-ops-access" }
+  >;
+};
+
+async function loadOpsAuthActions(): Promise<OpsAuthActions | null> {
+  try {
+    return (await vi.importActual("@/app/actions/ops-auth")) as OpsAuthActions;
+  } catch {
+    return null;
+  }
+}
+
+describe("OPS-08 origin-bound staff credential transition", () => {
+  it("refuses marketplace authority before Better Auth receives credentials", async () => {
+    const actions = await loadOpsAuthActions();
+    expect(actions?.signInOps, "signInOps must be an origin-bound Server Function").toBeTypeOf(
+      "function",
+    );
+
+    const { auth: productionAuth } = await import("@/lib/auth");
+    const signIn = vi.spyOn(productionAuth.api, "signInEmail");
+    const getSession = vi.spyOn(productionAuth.api, "getSession");
+    const signOut = vi.spyOn(productionAuth.api, "signOut");
+    actionRequest.host = new URL(PUBLIC_ORIGIN).host;
+    actionRequest.origin = PUBLIC_ORIGIN;
+    actionRequest.cookie = "better-auth.session_token=deliberately-presented";
+
+    await expect(
+      actions!.signInOps({
+        email: "operator@example.test",
+        password: PASSWORD,
+        callbackURL: "/ops",
+      }),
+    ).rejects.toThrow("NEXT_HTTP_ERROR_FALLBACK;404");
+    expect(signIn).not.toHaveBeenCalled();
+    expect(getSession).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("returns only a normalized ops callback after a database-backed staff role read", async () => {
+    const actions = await loadOpsAuthActions();
+    expect(actions?.signInOps).toBeTypeOf("function");
+
+    const { auth: productionAuth } = await import("@/lib/auth");
+    vi.spyOn(productionAuth.api, "signInEmail").mockResolvedValue({
+      headers: new Headers({
+        "set-cookie": "better-auth.session_token=staff-token; Path=/; HttpOnly; Secure",
+      }),
+      response: {
+        redirect: false,
+        token: "staff-token",
+        user: { id: "staff-1", role: "staff" },
+      },
+    } as never);
+    const getSession = vi.spyOn(productionAuth.api, "getSession").mockResolvedValue({
+      session: { id: "session-1" },
+      user: { id: "staff-1", role: "staff" },
+    } as never);
+    const signOut = vi.spyOn(productionAuth.api, "signOut");
+
+    await expect(
+      actions!.signInOps({
+        email: "operator@example.test",
+        password: PASSWORD,
+        callbackURL: "https://ops.example.test/ops/reviews?state=open#next",
+      }),
+    ).resolves.toEqual({ ok: true, redirectTo: "/ops/reviews?state=open#next" });
+    expect(getSession).toHaveBeenCalledOnce();
+    const sessionHeaders = getSession.mock.calls[0]?.[0]?.headers;
+    expect(sessionHeaders?.get("host")).toBe(new URL(OPS_ORIGIN).host);
+    expect(sessionHeaders?.get("cookie")).toContain(
+      "better-auth.session_token=staff-token",
+    );
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it("clears a just-created nonstaff session and returns one bounded neutral refusal", async () => {
+    const actions = await loadOpsAuthActions();
+    expect(actions?.signInOps).toBeTypeOf("function");
+
+    const { auth: productionAuth } = await import("@/lib/auth");
+    vi.spyOn(productionAuth.api, "signInEmail").mockResolvedValue({
+      headers: new Headers({
+        "set-cookie": "better-auth.session_token=nonstaff-token; Path=/; HttpOnly; Secure",
+      }),
+      response: {
+        redirect: false,
+        token: "nonstaff-token",
+        user: { id: "user-1", role: "user", canBook: true },
+      },
+    } as never);
+    vi.spyOn(productionAuth.api, "getSession").mockResolvedValue({
+      session: { id: "session-2" },
+      user: { id: "user-1", role: "user", canBook: true },
+    } as never);
+    const signOut = vi
+      .spyOn(productionAuth.api, "signOut")
+      .mockResolvedValue({ success: true } as never);
+
+    await expect(
+      actions!.signInOps({
+        email: "booker@example.test",
+        password: PASSWORD,
+        callbackURL: "/ops",
+      }),
+    ).resolves.toEqual({ ok: false, reason: "no-ops-access" });
+    expect(signOut).toHaveBeenCalledOnce();
+    expect(signOut.mock.calls[0]?.[0]?.headers.get("cookie")).toContain(
+      "better-auth.session_token=nonstaff-token",
+    );
+    expect(JSON.stringify(signOut.mock.calls[0])).not.toMatch(/canBook|booker|host/i);
+  });
+
+  it("maps credential failures to one bounded non-enumerating result", async () => {
+    const actions = await loadOpsAuthActions();
+    expect(actions?.signInOps).toBeTypeOf("function");
+
+    const { auth: productionAuth } = await import("@/lib/auth");
+    vi.spyOn(productionAuth.api, "signInEmail").mockRejectedValue(
+      new Error("USER_NOT_FOUND: operator@example.test"),
+    );
+    const getSession = vi.spyOn(productionAuth.api, "getSession");
+    const signOut = vi.spyOn(productionAuth.api, "signOut");
+
+    await expect(
+      actions!.signInOps({
+        email: "operator@example.test",
+        password: "wrong-password",
+        callbackURL: "/ops",
+      }),
+    ).resolves.toEqual({ ok: false, reason: "invalid-credentials" });
+    expect(getSession).not.toHaveBeenCalled();
+    expect(signOut).not.toHaveBeenCalled();
   });
 });
