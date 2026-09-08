@@ -5,7 +5,7 @@
 // request before it reaches the server, and replays the bytes with the ops session cookie explicitly
 // present on both authorities. The action's own Host+Origin guard must be what separates the results.
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { hashPassword } from "better-auth/crypto";
@@ -19,12 +19,165 @@ const OPS_ORIGIN = `http://${OPS_HOST}`;
 const DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://fitout:fitout@localhost:5432/fitout";
 const PASSWORD = "averylongpassword";
+const LEGACY_HOST_EMAIL = "host@fitout.test";
+const BOOTSTRAP_STAFF_ID = "phase20_bootstrap_staff";
+const BOOTSTRAP_STAFF_EMAIL = "ops.bootstrap@fitout.test";
+const BOOTSTRAP_ACCOUNT_ID = "phase20_bootstrap_staff_account";
 
-test("onboards a separate staff identity before removing legacy staff", () => {
+function assertLocalDatabase(): void {
+  const hostname = new URL(DATABASE_URL).hostname.toLowerCase();
+  expect(
+    ["localhost", "127.0.0.1", "::1", "db"],
+    "the staff-separation producer must never mutate a nonlocal database",
+  ).toContain(hostname);
+}
+
+test("onboards a separate staff identity before removing legacy staff", async ({ browser }) => {
+  test.setTimeout(240_000);
   expect(
     existsSync("scripts/verify-ops-local-state.mjs"),
     "the read-only separated-state verifier must exist before the browser remediation runs",
   ).toBe(true);
+  assertLocalDatabase();
+
+  const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {} });
+  const operatorContext = await browser.newContext({ baseURL: OPS_ORIGIN });
+  const replacementContext = await browser.newContext({ baseURL: OPS_ORIGIN });
+  const suffix = randomUUID();
+  const replacementEmail = `phase20.replacement.${suffix}@fitout.test`;
+  const replacementToken = "20STAFFREPCMT1234567";
+
+  try {
+    const passwordHash = await hashPassword(PASSWORD);
+    await sql.begin(async (tx) => {
+      await tx`
+        INSERT INTO "user"
+          (id, name, first_name, email, email_verified, can_book, can_host, role, created_at, updated_at)
+        VALUES
+          (${BOOTSTRAP_STAFF_ID}, ${"Ops Bootstrap"}, ${"Ops"}, ${BOOTSTRAP_STAFF_EMAIL},
+           true, false, false, ${"staff"}, now(), now())
+        ON CONFLICT (id) DO UPDATE
+          SET can_book = false, can_host = false, role = 'staff', updated_at = now()
+      `;
+      await tx`
+        INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)
+        VALUES (${BOOTSTRAP_ACCOUNT_ID}, ${BOOTSTRAP_STAFF_ID}, ${"credential"},
+                ${BOOTSTRAP_STAFF_ID}, ${passwordHash}, now(), now())
+        ON CONFLICT (id) DO UPDATE SET password = ${passwordHash}, updated_at = now()
+      `;
+    });
+
+    const [legacyBefore] = await sql<
+      Array<{ id: string; role: string | null; canHost: boolean }>
+    >`
+      SELECT id, role, can_host AS "canHost"
+        FROM "user"
+       WHERE lower(email) = lower(${LEGACY_HOST_EMAIL})
+       LIMIT 1
+    `;
+    expect(legacyBefore, "the known legacy host fixture is missing").toBeTruthy();
+    expect(legacyBefore?.canHost, "the legacy identity must retain host capability").toBe(true);
+
+    const signIn = await operatorContext.request.post(`${OPS_ORIGIN}/api/auth/sign-in/email`, {
+      headers: { host: OPS_HOST, origin: OPS_ORIGIN },
+      data: { email: BOOTSTRAP_STAFF_EMAIL, password: PASSWORD },
+      failOnStatusCode: false,
+    });
+    expect(signIn.status(), "the local bootstrap staff sign-in failed").toBe(200);
+
+    const operatorPage = await operatorContext.newPage();
+    await operatorPage.goto(`${OPS_ORIGIN}/ops`);
+    await expect(operatorPage.getByRole("heading", { name: "Staff management" })).toBeVisible();
+
+    // A rerun verifies the durable separated state without ever restoring the legacy conflict.
+    if (legacyBefore?.role !== "staff") {
+      const [separated] = await sql<Array<{ staffCount: number; conflictCount: number }>>`
+        SELECT
+          count(*) FILTER (WHERE role = 'staff')::int AS "staffCount",
+          count(*) FILTER (WHERE role = 'staff' AND (can_book OR can_host))::int AS "conflictCount"
+        FROM "user"
+      `;
+      expect(separated.staffCount).toBeGreaterThan(0);
+      expect(separated.conflictCount).toBe(0);
+      return;
+    }
+
+    await operatorPage.getByLabel("Email", { exact: true }).fill(replacementEmail);
+    await operatorPage.getByRole("button", { name: "Send invitation", exact: true }).click();
+    await expect(
+      operatorPage.getByRole("alert", { name: /We couldn't send the invitation/ }),
+    ).toContainText("It remains pending so you can use Resend invitation to try again.");
+
+    const [pending] = await sql<Array<{ id: string; identifier: string }>>`
+      SELECT id, identifier
+        FROM verification
+       WHERE id LIKE 'staff-invite:%'
+         AND value::jsonb->>'email' = ${replacementEmail}
+       LIMIT 1
+    `;
+    expect(pending, "the shipped Invite staff control created no pending row").toBeTruthy();
+    const replacementIdentifier = `staff-invite-token:${createHash("sha256")
+      .update(replacementToken)
+      .digest("hex")}`;
+    const [rotated] = await sql`
+      UPDATE verification
+         SET identifier = ${replacementIdentifier}, updated_at = now()
+       WHERE id = ${pending.id} AND identifier = ${pending.identifier}
+      RETURNING id
+    `;
+    expect(rotated, "the local harness could not bind its non-delivery test token").toBeTruthy();
+
+    const replacementPage = await replacementContext.newPage();
+    await replacementPage.goto(`${OPS_ORIGIN}/invite/${replacementToken}`);
+    await expect(
+      replacementPage.getByRole("heading", { name: "Create your staff account" }),
+    ).toBeVisible();
+    await replacementPage.getByLabel("Name", { exact: true }).fill("Phase 20 Replacement");
+    await replacementPage.getByLabel("Password", { exact: true }).fill(PASSWORD);
+    await replacementPage.getByRole("button", { name: "Create staff account" }).click();
+    await expect(replacementPage).toHaveURL(`${OPS_ORIGIN}/login?accepted=1`);
+
+    const replacementSignIn = await replacementContext.request.post(
+      `${OPS_ORIGIN}/api/auth/sign-in/email`,
+      {
+        headers: { host: OPS_HOST, origin: OPS_ORIGIN },
+        data: { email: replacementEmail, password: PASSWORD },
+        failOnStatusCode: false,
+      },
+    );
+    expect(replacementSignIn.status(), "the accepted replacement staff sign-in failed").toBe(200);
+    const replacementOps = await replacementContext.request.get(`${OPS_ORIGIN}/ops`, {
+      headers: { host: OPS_HOST },
+      failOnStatusCode: false,
+    });
+    expect(replacementOps.status(), "replacement staff could not reach /ops").toBe(200);
+
+    await operatorPage.reload();
+    await operatorPage
+      .getByRole("button", { name: `Revoke staff access for ${LEGACY_HOST_EMAIL}` })
+      .click();
+    const dialog = operatorPage.getByRole("dialog", { name: "Revoke staff access?" });
+    await dialog.getByRole("button", { name: "Revoke access", exact: true }).click();
+    await expect(operatorPage.getByText(`${LEGACY_HOST_EMAIL} no longer has staff access.`)).toBeVisible();
+
+    const [legacyAfter] = await sql<Array<{ role: string | null; canHost: boolean }>>`
+      SELECT role, can_host AS "canHost" FROM "user" WHERE id = ${legacyBefore.id}
+    `;
+    const [replacementAfter] = await sql<
+      Array<{ id: string; role: string | null; canBook: boolean; canHost: boolean }>
+    >`
+      SELECT id, role, can_book AS "canBook", can_host AS "canHost"
+        FROM "user"
+       WHERE lower(email) = lower(${replacementEmail})
+       LIMIT 1
+    `;
+    expect(legacyAfter).toEqual({ role: "user", canHost: true });
+    expect(replacementAfter).toMatchObject({ role: "staff", canBook: false, canHost: false });
+  } finally {
+    await operatorContext.close();
+    await replacementContext.close();
+    await sql.end({ timeout: 5 });
+  }
 });
 
 type CapturedAction = {

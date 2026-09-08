@@ -140,3 +140,13 @@ Sketch, to be firmed at plan time:
 - Blocked-by: nothing. Independent of the open KYC vendor decision.
 - Siblings: `2026-09-01-host-verification-submission-path-and-listing-creation-gate.md`,
   `2026-09-01-reveal-host-contact-details-in-ops-queue.md`.
+
+## 2026-09-08 local environment remediation
+
+Phase 20's D-14 / project D-275 reversal has now been exercised through the shipped staff-management
+surface in the local environment. A separate staff-only identity was invited, accepted, signed in to
+`/ops`, and verified before the legacy combined test identity lost only its staff role. The legacy
+identity retained host capability. `scripts/verify-ops-local-state.mjs --require-separated-host`
+then reported at least one staff identity, zero capability-bearing staff identities, and the expected
+separated legacy-host state without emitting addresses or authentication material. Nonlocal state was
+not changed; any production conflict remains owned by the Phase 20 live-service checkpoint.

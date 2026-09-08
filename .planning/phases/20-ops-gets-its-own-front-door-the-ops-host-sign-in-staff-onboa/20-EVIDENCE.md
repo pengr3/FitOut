@@ -129,3 +129,47 @@
   ]
 }
 ```
+
+## Stored-state separation
+
+- Date: `2026-09-08`
+- Environment: local PostgreSQL only; no nonlocal write was attempted.
+- Producer: the focused browser scenario passed `1/1` before the read-only verifier ran.
+- Ordered result: replacement invitation created -> setup accepted -> replacement `/ops` returned `200` -> legacy staff grant revoked -> separated state asserted.
+
+Before the producer:
+
+```json
+{
+  "staffCount": 2,
+  "capabilityBearingStaffCount": 1,
+  "legacyHost": {
+    "id": "AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy",
+    "isStaff": true,
+    "canHost": true,
+    "canBook": true
+  }
+}
+```
+
+After the producer and the independent read-only check:
+
+```json
+{
+  "staffCount": 3,
+  "capabilityBearingStaffCount": 0,
+  "replacementStaffId": "5465e7fb-c189-4217-83c3-dbf18061ad35",
+  "legacyHost": {
+    "id": "AcW4AhUfkMexEvvEUa8KjsngD7ubMoZy",
+    "isStaff": false,
+    "canHost": true,
+    "canBook": true
+  },
+  "validation": {
+    "ok": true,
+    "errors": []
+  }
+}
+```
+
+Only counts, booleans, and stable ids are retained here. The verifier has no write path.
