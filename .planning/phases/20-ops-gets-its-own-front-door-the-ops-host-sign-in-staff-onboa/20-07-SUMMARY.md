@@ -21,10 +21,10 @@ provides:
 affects: [20-08, 20-09, ops-console, staff-lifecycle, invitation-uat]
 
 actuals:
-  tokens: 14420
+  tokens: 14499
   tasks: 3
-  commits: 6
-commits: 6
+  commits: 8
+commits: 8
 plan_head_before: 1fa65da807c6bcf9b547a899e8cf07e9ad8037f4
 
 tech-stack:
@@ -39,6 +39,7 @@ key-files:
     - src/lib/ops/staff-management.ts
     - src/components/ops/staff-management-panel.tsx
     - src/components/ops/staff-action-dialog.tsx
+    - src/lib/ops/staff-action-state.ts
     - tests/ops/staff-management-actions.test.ts
     - tests/ops/staff-management-panel.test.tsx
     - .planning/phases/20-ops-gets-its-own-front-door-the-ops-host-sign-in-staff-onboa/20-07-TASK-1-RED-EVIDENCE.json
@@ -89,7 +90,7 @@ coverage:
         status: pass
     human_judgment: false
 
-duration: 38 min
+duration: 56 min
 completed: 2026-09-08
 status: complete
 ---
@@ -100,11 +101,11 @@ status: complete
 
 ## Performance
 
-- **Duration:** 38 min
+- **Duration:** 56 min
 - **Started:** 2026-09-08T03:26:30Z
-- **Completed:** 2026-09-08T04:04:00Z
+- **Completed:** 2026-09-08T04:22:51Z
 - **Tasks:** 3
-- **Files changed:** 12
+- **Files changed:** 13
 
 ## Accomplishments
 
@@ -122,6 +123,7 @@ status: complete
 4. **Task 2 GREEN — render the active roster and revoke confirmation** — `9aee9bb`
 5. **Task 3 RED — define pending invitation lifecycle** — `20056fb`
 6. **Task 3 GREEN — complete invite, resend, and cancel management** — `6777439`
+7. **Full-suite correction — restore the Server Action export contract** — `45b34b6`
 
 ## Verification
 
@@ -131,6 +133,9 @@ status: complete
 - Invitation Server Function regression coverage — **PASS as part of a 26/26 four-file ops suite**.
 - `tests/design/ops-guard-coverage.test.ts` plus `responsive-dialog-autofocus.test.tsx` — **PASS, 32/32**.
 - `tests/design/card-pattern-coverage.test.ts` — **PASS, 11/11**.
+- `tests/use-server-exports.test.ts` — **PASS, 4/4**; `ops-staff.ts` now exports async functions and erased types only.
+- Both originally reported full-suite files run together — **PASS, 16/16** without changing the verification panel.
+- Plan 20-07 runtime, invitation, dialog, policy, and Server Action export envelope — **PASS, 51/51**.
 - Scoped ESLint over every Plan 20-07 implementation and affected test file — **PASS**.
 - `node node_modules/typescript/bin/tsc --noEmit --pretty false` — the same nine pre-existing diagnostics remain in `ops-host-routing.test.ts`, `mail-credential-refusal.test.ts`, and `workflow-invariants.test.ts`; **no Plan 20-07 file reports a diagnostic**.
 - Package manifests, lockfiles, database schema, and `drizzle/` — **unchanged** from `plan_head_before`.
@@ -188,6 +193,14 @@ status: complete
 - **Fix:** Invoked the checked-in Vitest, ESLint, and TypeScript binaries through Node without installing or changing dependencies.
 - **Files modified:** None
 
+**6. [Rule 1 - Runtime Contract] Removed a non-async value from the Server Action module**
+
+- **Found during:** Wave 9 full-suite verification
+- **Issue:** `INITIAL_OPS_STAFF_ACTION_STATE` was a runtime value exported from module-level `"use server"` code, which Next.js rejects even though focused Vitest imports succeeded.
+- **Fix:** Moved the state type and idle constant to `src/lib/ops/staff-action-state.ts`; the action module now exports async functions and erased types only.
+- **Files modified:** `src/lib/ops/staff-action-state.ts`, `src/app/actions/ops-staff.ts`, `src/components/ops/staff-action-dialog.tsx`, `src/components/ops/staff-management-panel.tsx`, `tests/ops/staff-management-panel.test.tsx`
+- **Commit:** `45b34b6`
+
 ## Known Stubs
 
 None. Empty controlled-form state, nullable action feedback, and the explicit zero-pending sentence are complete runtime states rather than unwired placeholders.
@@ -204,6 +217,7 @@ None. Empty controlled-form state, nullable action feedback, and the explicit ze
 ## Issues Encountered
 
 - Repository-wide TypeScript remains red on the same nine pre-existing diagnostics recorded by earlier Phase 20 summaries. No diagnostic names a Plan 20-07 file, and all focused runtime, design, and lint gates pass.
+- `tests/host/verification-panel.test.tsx` reproduced its reported second-interaction timing failure once in isolation: the test queried the idle button while React still correctly exposed the disabled `Starting…` transition state. Neither that component nor its test changed in Plan 20-07, and rerunning both originally reported files together passed 16/16 without a source or test change, so the unrelated synchronization case was investigated but not papered over.
 
 ## User Setup Required
 
@@ -218,7 +232,7 @@ None. This plan adds no service, package, schema, migration, or environment vari
 ## Self-Check: PASSED
 
 - All eight created implementation/test/evidence artifacts and all four modified artifacts exist in their expected final state.
-- RED/GREEN commits `19a70c1`, `e6e433d`, `51c0402`, `9aee9bb`, `20056fb`, and `6777439` are present in Git history in the required order.
+- RED/GREEN commits `19a70c1`, `e6e433d`, `51c0402`, `9aee9bb`, `20056fb`, and `6777439`, plus corrective commit `45b34b6`, are present in Git history in the required order.
 - All three RED evidence records return `RED_EVIDENCE_OK`; focused runtime, design, dialog, card, and lint gates pass with non-zero assertions.
 - The realized diff contains no package, lockfile, schema, migration, unexpected deletion, skipped test, goal-blocking stub, or unmodeled threat surface.
 
