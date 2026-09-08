@@ -18,10 +18,10 @@ provides:
 affects: [20-06, 20-07, 20-12, future-ops-mutations]
 
 actuals:
-  tokens: 11279
+  tokens: 12237
   tasks: 3
-  commits: 5
-commits: 5
+  commits: 7
+commits: 7
 plan_head_before: 160fd8d04d93dcbb4372688a2d0505783b9e5ac8
 
 tech-stack:
@@ -45,6 +45,9 @@ key-files:
     - tests/ops/host-contact-reveal.test.ts
     - tests/payments/ops-cancel.test.ts
     - tests/design/ops-guard-coverage.test.ts
+    - tests/notifications/ops-decision-notify.test.ts
+    - tests/ops/host-verification-submit.test.ts
+    - tests/ops/reject-reason.test.ts
 
 key-decisions:
   - "Treat configured URL.host and URL.origin as the only allowed mutation authority; malformed authority is indistinguishable from missing or wrong authority."
@@ -66,7 +69,7 @@ status: complete
 - **Duration:** 39 min
 - **Completed:** 2026-09-08
 - **Tasks:** 3
-- **Files changed:** 11
+- **Files changed:** 14
 
 ## Accomplishments
 
@@ -83,10 +86,12 @@ status: complete
 3. **Task 2 RED — define contact and cancellation authority contracts** - `9410abd`
 4. **Task 2 GREEN — guard contact reveal and ops cancellation** - `732d3d2`
 5. **Task 3 — prove real marketplace action replay is refused** - `a48a704`
+6. **Wave 6 regression — supply canonical ops authority in legacy action fixtures** - `d7c8177`
 
 ## Verification
 
 - `node node_modules/vitest/vitest.mjs run tests/ops/ops-audit.test.ts tests/ops/host-contact-reveal.test.ts tests/payments/ops-cancel.test.ts --config vitest.config.ts` — **59/59 passed** with a clean per-file database leak report.
+- `node node_modules/vitest/vitest.mjs run tests/notifications/ops-decision-notify.test.ts tests/ops/host-verification-submit.test.ts tests/ops/reject-reason.test.ts --config vitest.config.ts` — **40/40 passed** with a clean per-file database leak report after the wave-gate fixture correction.
 - `node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design/ops-guard-coverage.test.ts` — **17/17 passed**.
 - Focused Playwright replay on an isolated configured port with installed system Chrome — **1/1 passed**; no credential, cookie, email, password, payload, or database URL was logged by the test.
 - Scoped ESLint over all implementation and test files — **passed**.
@@ -136,6 +141,14 @@ status: complete
 - **Fix:** Ran a temporary exact-origin server on port 3100 with its own generated build directory and installed system Chrome. Temporary config edits and the generated directory were removed before commit.
 - **Files modified:** None in the committed result
 
+**5. [Rule 1 - Test Bug] Supplied canonical authority in legacy ops-action fixtures**
+
+- **Found during:** Wave 6 post-merge gate
+- **Issue:** Three older suites mocked only the session cookie in `next/headers`, so 21 allowed-path cases correctly failed at the new exact-origin guard rather than reaching the behavior each suite measures.
+- **Fix:** Extended their request-header fixtures with canonical `ops.localhost:3000` Host and `http://ops.localhost:3000` Origin values, reset per case, while retaining Plan 14's explicit missing/malformed/marketplace/mismatched-authority matrices.
+- **Files modified:** `tests/notifications/ops-decision-notify.test.ts`, `tests/ops/host-verification-submit.test.ts`, `tests/ops/reject-reason.test.ts`
+- **Commit:** `d7c8177`
+
 ## Known Stubs
 
 None. Empty-value matches are parser rejection checks, typed test accumulators, or existing nullable domain branches; no Plan 14 value flows as placeholder UI or production data.
@@ -158,7 +171,7 @@ None. Empty-value matches are parser rejection checks, typed test accumulators, 
 ## Self-Check: PASSED
 
 - All implementation, test, evidence, and summary files exist.
-- Task commits `9bfd50e`, `fd61975`, `9410abd`, `732d3d2`, and `a48a704` exist in history.
+- Task commits `9bfd50e`, `fd61975`, `9410abd`, `732d3d2`, `a48a704`, and regression commit `d7c8177` exist in history.
 - Focused operational, design, browser, and lint verification is green; no Plan 14 TypeScript diagnostic exists.
 - No package, lockfile, schema, temporary Playwright configuration, or generated isolated build output remains in the realized diff.
 
