@@ -54,6 +54,13 @@ NNN-descriptive-name/
 - **Measure the real surrounding query.** Benchmarks run inside the product's actual stage-1 gate
   (published + not deleted + verified + payable + has hours), not against a naked table.
 - **State the budget before seeing the numbers**, so it cannot be fitted to them.
+- **UI comparisons hold content constant and expose composition cost.** Spikes 004 and 005 compare
+  variants through the same scenario model rather than through hand-picked screenshots. Height,
+  action count, borders or interaction count are shown beside the preview, so visual preference can
+  be checked against an observable cost.
+- **Stress the winner before promoting it.** Spike 006 drove the chosen 005b composition through the
+  awkward states most likely to make it lie — cooldown, stale pending, grandfathered capability and
+  mixed portfolios — at both desktop and 320px. A happy-path layout win is not yet a product signal.
 
 ## Tools & Libraries
 

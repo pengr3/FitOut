@@ -1,11 +1,11 @@
 # Spike Manifest
 
-> ## ⏸ Status: the phase these spikes served is DEFERRED
+> ## ⏸ Historical status: `search-front-door` is DEFERRED
 >
 > **Phase 18 (Search & Discovery) was deferred out of v1.1 to backlog 999.3 on 2026-08-31
 > (PM decision, D-141)** — after these four spikes ran, and before any plan was written.
 >
-> **The spikes stand.** All four are complete, with runnable demos and forensic logs. When this work
+> **Those four search spikes stand.** All are complete, with runnable demos and forensic logs. When this work
 > resumes it starts from measured answers, not a blank page. **D-139 and D-140 remain adopted** —
 > D-140 ("only certainty becomes a filter") binds whenever search work resumes, and the GATE-06
 > crossover (~12,000–20,000 published listings, against 18 today) is a live threshold regardless of
@@ -96,6 +96,9 @@ an experiential layout decision for Phase 21, not product implementation.
   becomes the Phase 21 decision.
 - **R3 — No percentage progress.** The roadmap uses discrete server-backed steps and never implies that
   waiting on a third party has a meaningful completion percentage.
+- **R4 — The journey completes at the first live listing.** In a mixed portfolio, the roadmap may say
+  the path to bookable is done while still naming that another listing needs fixes. The rejected
+  listing's own card owns its fix-and-resubmit action; it does not keep account onboarding incomplete.
 
 ## Spikes
 
@@ -109,4 +112,4 @@ an experiential layout decision for Phase 21, not product implementation.
 | 005a | host-verification-roadmap | vertical-step-list | comparison | Same four gates in one ordered bordered list at desktop and phone widths | ✓ **VALIDATED ALTERNATIVE** — clearest sequence, but tallest default composition (501px) | phase-21, host, verification, ux, responsive |
 | 005b | host-verification-roadmap | separate-cards | comparison | Same four gates as individually bordered cards at desktop and phone widths | ✓ **WINNER** — user-selected; each gate reads as a distinct server-backed fact while the 2×2 desktop grid stays compact | phase-21, host, verification, ux, responsive |
 | 005c | host-verification-roadmap | responsive-stepper | comparison | Same four gates as a horizontal desktop stepper that stacks on phone widths | ✓ **VALIDATED ALTERNATIVE** — shortest desktop composition (244px), but compresses explanatory copy and changes geometry on phone | phase-21, host, verification, ux, responsive |
-| 006 | host-verification-roadmap | roadmap-state-stress | standard | Preferred layout stays truthful across lifecycle states and 320px | PENDING | phase-21, host, verification, edge-cases, responsive |
+| 006 | host-verification-roadmap | roadmap-state-stress | standard | Preferred layout stays truthful across lifecycle states and 320px | ✓ **VALIDATED** — 8/8 automated checks; first live listing completes the journey, with rejected siblings handled on their own cards | phase-21, host, verification, edge-cases, responsive |

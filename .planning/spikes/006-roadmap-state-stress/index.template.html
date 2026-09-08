@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Roadmap state stress — FitOut spike 006</title><style>{{CSS}}</style></head>
+<body>
+<main class="lab">
+  <aside class="controls">
+    <p class="eyebrow">Phase 21 · Spike 006</p><h1>Roadmap state stress</h1>
+    <p class="lede">The winning separate-card layout under the states most likely to make a roadmap lie.</p>
+    <section class="group"><h2>Edge scenario</h2><div class="choices">
+      <button data-scenario="rejectedCooldown" aria-pressed="true">Rejected · cooldown</button>
+      <button data-scenario="rejectedReady" aria-pressed="false">Rejected · retry ready</button>
+      <button data-scenario="stalePending" aria-pressed="false">Stale pending</button>
+      <button data-scenario="grandfathered" aria-pressed="false">Grandfathered</button>
+      <button data-scenario="listingRejected" aria-pressed="false">Listing rejected</button>
+      <button data-scenario="mixed" aria-pressed="false">Mixed portfolio</button>
+      <button data-scenario="ready" aria-pressed="false">Bookable</button>
+    </div></section>
+    <section class="group" data-policy-control hidden><h2>Mixed-portfolio rule</h2><div class="choices">
+      <button data-policy="first-live" aria-pressed="true">Journey ends at first live listing</button>
+      <button data-policy="all-clear" aria-pressed="false">Any rejected listing stays current</button>
+    </div></section>
+    <section class="group"><h2>Preview width</h2><div class="choices"><button data-width="desktop" aria-pressed="true">Desktop</button><button data-width="phone" aria-pressed="false">Phone · 320px</button></div></section>
+    <section class="group"><h2>Composition cost</h2><div class="metrics"><div class="metric"><span>Roadmap height</span><strong data-height>—</strong></div><div class="metric"><span>Actions shown</span><strong data-actions>—</strong></div></div></section>
+    <section class="group"><h2>Forensic event log</h2><ol class="events" data-log></ol><button class="export" data-export>Export JSON</button></section>
+  </aside>
+  <section class="stage" aria-label="Host dashboard stress preview"><div class="device" data-frame><div class="browser" aria-hidden="true"><i></i><i></i><i></i></div><div class="screen">
+    <p class="eyebrow">Host dashboard</p><h2>Your path to bookable</h2><p class="summary" data-summary></p>
+    <div class="roadmap" data-roadmap aria-label="Four server-backed steps"></div><p class="audit" data-audit></p>
+  </div></div></section>
+</main><script>{{JS}}</script>
+</body></html>

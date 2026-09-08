@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Roadmap state stress — FitOut spike 006</title><style>:root { --paper:#fffdf9; --canvas:#f5f0e9; --ink:#27231f; --muted:#746c63; --line:#ded6cc; --accent:#df5f4b; --accent-soft:#fff0eb; --done:#3f6a56; --done-soft:#eef6f1; --warn:#9b5b27; --warn-soft:#fff6e8; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--canvas); color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+button { font:inherit; }
+.lab { min-height:100vh; display:grid; grid-template-columns:minmax(270px,320px) 1fr; }
+.controls { padding:28px 24px; border-right:1px solid var(--line); background:rgba(255,253,249,.8); }
+.eyebrow,.card-top p { margin:0; color:var(--muted); font-size:11px; font-weight:800; letter-spacing:.11em; text-transform:uppercase; }
+h1 { margin:8px 0 10px; font:500 30px/1.05 Georgia,serif; }
+.lede,.summary { color:var(--muted); font-size:14px; line-height:1.55; }
+.group { margin-top:24px; }
+.group h2 { margin:0 0 9px; font-size:12px; }
+.choices { display:flex; flex-wrap:wrap; gap:7px; }
+.choices button,.export { min-height:36px; border:1px solid var(--line); border-radius:999px; padding:7px 11px; background:var(--paper); color:var(--ink); font-size:12px; font-weight:700; cursor:pointer; }
+.choices button[aria-pressed="true"] { border-color:var(--ink); background:var(--ink); color:white; }
+.metrics { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.metric { border:1px solid var(--line); border-radius:12px; background:var(--paper); padding:9px; }
+.metric span { display:block; color:var(--muted); font-size:10px; }
+.metric strong { font-size:13px; }
+.events { margin:0; padding:0; list-style:none; color:var(--muted); font-size:11px; line-height:1.5; }
+.events b { color:var(--ink); }
+.export { margin-top:9px; border-radius:9px; }
+.stage { min-width:0; padding:34px; display:grid; place-items:start center; overflow:auto; }
+.device { width:min(100%,1040px); border:1px solid #b9afa4; border-radius:20px; background:var(--paper); box-shadow:0 18px 55px rgba(55,45,35,.12); overflow:hidden; transition:width .2s ease; }
+.device.phone { width:320px; min-width:0; max-width:320px; }
+.browser { height:35px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:6px; padding:0 14px; }
+.browser i { width:8px; height:8px; border-radius:50%; background:#b9afa4; }
+.screen { padding:34px clamp(18px,5vw,58px) 48px; }
+.screen h2 { margin:4px 0 5px; font:500 clamp(28px,4vw,42px)/1.1 Georgia,serif; }
+.summary { margin:0 0 22px; max-width:760px; }
+.roadmap { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.card { position:relative; min-height:190px; padding:18px; border:1px solid var(--line); border-radius:15px; background:white; }
+.card-top { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.state { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:11px; font-weight:800; }
+.state i { width:25px; height:25px; display:grid; place-items:center; border:1px solid #b9afa4; border-radius:50%; font-style:normal; }
+.state-done .state { color:var(--done); }
+.state-done .state i { border-color:var(--done); background:var(--done); color:white; }
+.state-current { border-color:#e5a496; box-shadow:inset 0 0 0 1px var(--accent-soft); }
+.state-current .state { color:#a73d2d; }
+.state-not-passed { border-color:#d7b184; background:linear-gradient(180deg,var(--warn-soft),white 62%); }
+.state-not-passed .state { color:var(--warn); }
+.state-waiting .state i { background:#f4f1ed; }
+.state-next { color:#8b837a; }
+.card h3 { margin:9px 0 6px; font-size:17px; }
+.copy,.retry,.note { margin:0; color:var(--muted); font-size:13px; line-height:1.46; }
+.retry { margin-top:10px; color:var(--ink); font-weight:700; }
+.note { margin-top:10px; font-style:italic; }
+.card>button { margin-top:14px; min-height:42px; border:0; border-radius:10px; background:var(--accent); color:white; padding:0 16px; font-weight:800; cursor:pointer; }
+.state-waiting>button { border:1px solid #b9afa4; background:white; color:var(--ink); }
+.card>button small { display:block; font-size:9px; font-weight:650; opacity:.75; }
+.audit { margin-top:16px; border-radius:11px; padding:11px 13px; font-size:12px; font-weight:750; }
+.audit.good { background:var(--done-soft); color:var(--done); }
+.audit.bad { background:var(--warn-soft); color:var(--warn); }
+.device.phone .screen { padding:25px 16px 32px; }
+.device.phone .screen h2 { font-size:30px; }
+.device.phone .roadmap { grid-template-columns:1fr; }
+.device.phone .card { min-height:0; }
+.device.phone .card>button { width:100%; }
+@media(max-width:780px){.lab{grid-template-columns:1fr}.controls{border-right:0;border-bottom:1px solid var(--line)}.stage{padding:20px 10px 40px}}
+@media(prefers-reduced-motion:reduce){.device{transition:none}}
+</style></head>
+<body>
+<main class="lab">
+  <aside class="controls">
+    <p class="eyebrow">Phase 21 · Spike 006</p><h1>Roadmap state stress</h1>
+    <p class="lede">The winning separate-card layout under the states most likely to make a roadmap lie.</p>
+    <section class="group"><h2>Edge scenario</h2><div class="choices">
+      <button data-scenario="rejectedCooldown" aria-pressed="true">Rejected · cooldown</button>
+      <button data-scenario="rejectedReady" aria-pressed="false">Rejected · retry ready</button>
+      <button data-scenario="stalePending" aria-pressed="false">Stale pending</button>
+      <button data-scenario="grandfathered" aria-pressed="false">Grandfathered</button>
+      <button data-scenario="listingRejected" aria-pressed="false">Listing rejected</button>
+      <button data-scenario="mixed" aria-pressed="false">Mixed portfolio</button>
+      <button data-scenario="ready" aria-pressed="false">Bookable</button>
+    </div></section>
+    <section class="group" data-policy-control hidden><h2>Mixed-portfolio rule</h2><div class="choices">
+      <button data-policy="first-live" aria-pressed="true">Journey ends at first live listing</button>
+      <button data-policy="all-clear" aria-pressed="false">Any rejected listing stays current</button>
+    </div></section>
+    <section class="group"><h2>Preview width</h2><div class="choices"><button data-width="desktop" aria-pressed="true">Desktop</button><button data-width="phone" aria-pressed="false">Phone · 320px</button></div></section>
+    <section class="group"><h2>Composition cost</h2><div class="metrics"><div class="metric"><span>Roadmap height</span><strong data-height>—</strong></div><div class="metric"><span>Actions shown</span><strong data-actions>—</strong></div></div></section>
+    <section class="group"><h2>Forensic event log</h2><ol class="events" data-log></ol><button class="export" data-export>Export JSON</button></section>
+  </aside>
+  <section class="stage" aria-label="Host dashboard stress preview"><div class="device" data-frame><div class="browser" aria-hidden="true"><i></i><i></i><i></i></div><div class="screen">
+    <p class="eyebrow">Host dashboard</p><h2>Your path to bookable</h2><p class="summary" data-summary></p>
+    <div class="roadmap" data-roadmap aria-label="Four server-backed steps"></div><p class="audit" data-audit></p>
+  </div></div></section>
+</main><script>(function () {
+  "use strict";
+
+  const base = {
+    checked: { state: "done", title: "Get your account checked", copy: "Your account check is complete." },
+    inherited: { state: "done", title: "Account ready", copy: "Your account can create and publish listings." },
+    payoutsDone: { state: "done", title: "Set up payouts", copy: "Your payout account is ready." },
+    listingDone: { state: "done", title: "List a space", copy: "Your listing has been submitted." },
+    reviewNext: { state: "next", title: "FitOut checks your space", copy: "This begins after you submit a listing." },
+  };
+
+  function stepsFor(key, portfolioPolicy) {
+    if (key === "rejectedCooldown") return [
+      { state: "not-passed", title: "Get your account checked", copy: "The document image could not be read clearly.", retry: "You can try again after Sep 12, 2026 at 9:30 AM." },
+      { state: "next", title: "Set up payouts", copy: "Available after your account is ready." },
+      { state: "next", title: "List a space", copy: "Available after identity and payouts are ready." },
+      base.reviewNext,
+    ];
+    if (key === "rejectedReady") return [
+      { state: "not-passed", title: "Get your account checked", copy: "The document image could not be read clearly.", action: "Try another check" },
+      { state: "next", title: "Set up payouts", copy: "Available after your account is ready." },
+      { state: "next", title: "List a space", copy: "Available after identity and payouts are ready." },
+      base.reviewNext,
+    ];
+    if (key === "stalePending") return [
+      { state: "waiting", title: "Get your account checked", copy: "FitOut has been waiting longer than expected for the result.", action: "Check for an update", candidate: true },
+      { state: "next", title: "Set up payouts", copy: "Available after your account is ready." },
+      { state: "next", title: "List a space", copy: "Available after identity and payouts are ready." },
+      base.reviewNext,
+    ];
+    if (key === "grandfathered") return [
+      base.inherited,
+      { state: "current", title: "Set up payouts", copy: "Connect where your earnings should go.", action: "Set up payouts" },
+      { state: "next", title: "List a space", copy: "Add the details guests need to decide." },
+      base.reviewNext,
+    ];
+    if (key === "listingRejected") return [
+      base.checked,
+      base.payoutsDone,
+      base.listingDone,
+      { state: "not-passed", title: "FitOut checks your space", copy: "The entrance photo does not show how guests enter the space.", action: "Fix and resubmit" },
+    ];
+    if (key === "mixed") {
+      const allClear = portfolioPolicy === "all-clear";
+      return [
+        base.checked,
+        base.payoutsDone,
+        { state: "done", title: "List a space", copy: "2 listings submitted." },
+        allClear
+          ? { state: "not-passed", title: "FitOut checks your spaces", copy: "1 live · 1 needs fixes.", action: "Review your listings" }
+          : { state: "done", title: "FitOut checks your spaces", copy: "1 live · 1 needs fixes.", note: "Journey complete; listing issue remains visible." },
+      ];
+    }
+    return [
+      base.checked,
+      base.payoutsDone,
+      { state: "done", title: "List a space", copy: "Your listing is published." },
+      { state: "done", title: "FitOut checks your space", copy: "Your listing is approved and bookable." },
+    ];
+  }
+
+  const labels = {
+    done: "Done",
+    current: "Current",
+    waiting: "Waiting",
+    "not-passed": "Not passed",
+    next: "Next",
+  };
+  const marks = { done: "✓", current: "•", waiting: "·", "not-passed": "!", next: "" };
+  const summaries = {
+    rejectedCooldown: "Your account check did not pass. The next retry instant comes from the same server clock that guards the action.",
+    rejectedReady: "The retry instant has passed. A deliberate new check is available.",
+    stalePending: "This check has remained pending beyond the stated window, so waiting is no longer a dead end.",
+    grandfathered: "This account can already list. The roadmap does not claim that a check happened.",
+    listingRejected: "The host is ready, but this listing needs a deliberate fix-and-resubmit journey.",
+    mixed: "One listing is live and another needs fixes. Test what 'journey complete' means for a portfolio.",
+    ready: "Every gate agrees: this host has a bookable listing.",
+  };
+
+  const roadmap = document.querySelector("[data-roadmap]");
+  const summary = document.querySelector("[data-summary]");
+  const frame = document.querySelector("[data-frame]");
+  const policyControl = document.querySelector("[data-policy-control]");
+  const audit = document.querySelector("[data-audit]");
+  const heightMetric = document.querySelector("[data-height]");
+  const actionMetric = document.querySelector("[data-actions]");
+  const eventLog = [];
+  const logList = document.querySelector("[data-log]");
+  let scenario = "rejectedCooldown";
+  let portfolioPolicy = "first-live";
+
+  function record(category, detail) {
+    eventLog.push({ at: new Date().toISOString(), category: category, detail: detail });
+    logList.innerHTML = eventLog.slice(-5).reverse().map(function (entry) {
+      return "<li><b>" + entry.category + "</b> " + entry.detail + "</li>";
+    }).join("");
+  }
+
+  function render() {
+    const steps = stepsFor(scenario, portfolioPolicy);
+    roadmap.innerHTML = steps.map(function (step, index) {
+      return '<article class="card state-' + step.state + '">' +
+        '<div class="card-top"><p>Step ' + (index + 1) + '</p><span class="state"><i aria-hidden="true">' + marks[step.state] + '</i>' + labels[step.state] + '</span></div>' +
+        '<h3>' + step.title + '</h3><p class="copy">' + step.copy + '</p>' +
+        (step.retry ? '<p class="retry">' + step.retry + '</p>' : "") +
+        (step.note ? '<p class="note">' + step.note + '</p>' : "") +
+        (step.action ? '<button type="button">' + step.action + (step.candidate ? '<small>Candidate rescue</small>' : "") + '</button>' : "") +
+        '</article>';
+    }).join("");
+    summary.textContent = summaries[scenario];
+    policyControl.hidden = scenario !== "mixed";
+    document.querySelectorAll("[data-scenario]").forEach(function (button) {
+      button.setAttribute("aria-pressed", String(button.dataset.scenario === scenario));
+    });
+    document.querySelectorAll("[data-policy]").forEach(function (button) {
+      button.setAttribute("aria-pressed", String(button.dataset.policy === portfolioPolicy));
+    });
+    const violations = [];
+    if (roadmap.querySelectorAll("article").length !== 4) violations.push("Roadmap does not have four gates");
+    if (scenario === "grandfathered" && roadmap.textContent.toLowerCase().includes("checked")) violations.push("Grandfathered state claims a check");
+    if (scenario === "rejectedCooldown" && roadmap.querySelector("button")) violations.push("Cooldown state exposes an early retry");
+    if (roadmap.textContent.includes("%")) violations.push("Percentage progress appears");
+    audit.className = violations.length ? "audit bad" : "audit good";
+    audit.textContent = violations.length ? violations.join(" · ") : "Truth audit passed for this scenario";
+    requestAnimationFrame(measure);
+  }
+
+  function measure() {
+    heightMetric.textContent = Math.round(roadmap.getBoundingClientRect().height) + " px";
+    actionMetric.textContent = String(roadmap.querySelectorAll("button").length);
+  }
+
+  document.querySelectorAll("[data-scenario]").forEach(function (button) {
+    button.addEventListener("click", function () { scenario = button.dataset.scenario; record("scenario", button.textContent); render(); });
+  });
+  document.querySelectorAll("[data-policy]").forEach(function (button) {
+    button.addEventListener("click", function () { portfolioPolicy = button.dataset.policy; record("portfolio", button.textContent); render(); });
+  });
+  document.querySelectorAll("[data-width]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      frame.classList.toggle("phone", button.dataset.width === "phone");
+      document.querySelectorAll("[data-width]").forEach(function (candidate) { candidate.setAttribute("aria-pressed", String(candidate === button)); });
+      record("viewport", button.textContent);
+      requestAnimationFrame(measure);
+    });
+  });
+  document.querySelector("[data-export]").addEventListener("click", function () {
+    const blob = new Blob([JSON.stringify({ scenario: scenario, portfolioPolicy: portfolioPolicy, events: eventLog }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = "roadmap-state-stress-events.json"; link.click(); URL.revokeObjectURL(url);
+  });
+  window.addEventListener("resize", measure);
+  record("loaded", "roadmap state stress");
+  render();
+})();
+</script>
+</body></html>

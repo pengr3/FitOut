@@ -1,0 +1,126 @@
+{
+  "startedAt": "2026-09-08T17:49:36.389Z",
+  "checks": [
+    {
+      "scenario": "rejectedCooldown",
+      "expectedActions": 0,
+      "desktop": {
+        "cards": 4,
+        "actions": 0,
+        "overflow": false,
+        "text": "Step 1!Not passedGet your account checkedThe document image could not be read clearly.You can try again after Sep 12, 2026 at 9:30 AM.Step 2NextSet up payoutsAvailable after your account is ready.Step 3NextList a spaceAvailable after identity and payouts are ready.Step 4NextFitOut checks your spaceThis begins after you submit a listing."
+      },
+      "phone": {
+        "className": "device phone",
+        "width": 320,
+        "overflow": false
+      },
+      "audit": "Truth audit passed for this scenario"
+    },
+    {
+      "scenario": "rejectedReady",
+      "expectedActions": 1,
+      "desktop": {
+        "cards": 4,
+        "actions": 1,
+        "overflow": false,
+        "text": "Step 1!Not passedGet your account checkedThe document image could not be read clearly.Try another checkStep 2NextSet up payoutsAvailable after your account is ready.Step 3NextList a spaceAvailable after identity and payouts are ready.Step 4NextFitOut checks your spaceThis begins after you submit a listing."
+      },
+      "phone": {
+        "className": "device phone",
+        "width": 320,
+        "overflow": false
+      },
+      "audit": "Truth audit passed for this scenario"
+    },
+    {
+      "scenario": "stalePending",
+      "expectedActions": 1,
+      "desktop": {
+        "cards": 4,
+        "actions": 1,
+        "overflow": false,
+        "text": "Step 1·WaitingGet your account checkedFitOut has been waiting longer than expected for the result.Check for an updateCandidate rescueStep 2NextSet up payoutsAvailable after your account is ready.Step 3NextList a spaceAvailable after identity and payouts are ready.Step 4NextFitOut checks your spaceThis begins after you submit a listing."
+      },
+      "phone": {
+        "className": "device phone",
+        "width": 320,
+        "overflow": false
+      },
+      "audit": "Truth audit passed for this scenario"
+    },
+    {
+      "scenario": "grandfathered",
+      "expectedActions": 1,
+      "desktop": {
+        "cards": 4,
+        "actions": 1,
+        "overflow": false,
+        "text": "Step 1✓DoneAccount readyYour account can create and publish listings.Step 2•CurrentSet up payoutsConnect where your earnings should go.Set up payoutsStep 3NextList a spaceAdd the details guests need to decide.Step 4NextFitOut checks your spaceThis begins after you submit a listing."
+      },
+      "phone": {
+        "className": "device phone",
+        "width": 320,
+        "overflow": false
+      },
+      "audit": "Truth audit passed for this scenario"
+    },
+    {
+      "scenario": "listingRejected",
+      "expectedActions": 1,
+      "desktop": {
+        "cards": 4,
+        "actions": 1,
+        "overflow": false,
+        "text": "Step 1✓DoneGet your account checkedYour account check is complete.Step 2✓DoneSet up payoutsYour payout account is ready.Step 3✓DoneList a spaceYour listing has been submitted.Step 4!Not passedFitOut checks your spaceThe entrance photo does not show how guests enter the space.Fix and resubmit"
+      },
+      "phone": {
+        "className": "device phone",
+        "width": 320,
+        "overflow": false
+      },
+      "audit": "Truth audit passed for this scenario"
+    },
+    {
+      "scenario": "ready",
+      "expectedActions": 0,
+      "desktop": {
+        "cards": 4,
+        "actions": 0,
+        "overflow": false,
+        "text": "Step 1✓DoneGet your account checkedYour account check is complete.Step 2✓DoneSet up payoutsYour payout account is ready.Step 3✓DoneList a spaceYour listing is published.Step 4✓DoneFitOut checks your spaceYour listing is approved and bookable."
+      },
+      "phone": {
+        "className": "device phone",
+        "width": 320,
+        "overflow": false
+      },
+      "audit": "Truth audit passed for this scenario"
+    },
+    {
+      "scenario": "mixed",
+      "policy": "first-live",
+      "expectedActions": 0,
+      "desktop": {
+        "cards": 4,
+        "actions": 0,
+        "overflow": false
+      }
+    },
+    {
+      "scenario": "mixed",
+      "policy": "all-clear",
+      "expectedActions": 1,
+      "desktop": {
+        "cards": 4,
+        "actions": 1,
+        "overflow": false
+      }
+    }
+  ],
+  "finishedAt": "2026-09-08T17:49:39.498Z",
+  "summary": {
+    "totalChecks": 8,
+    "failures": 0
+  }
+}
