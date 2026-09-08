@@ -273,3 +273,32 @@ describe("OPS-10 revokeStaffAction", () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
+
+describe("OPS-09 invitation refresh semantics", () => {
+  it.each([
+    ["inviteStaffAction", issueInvitation, [{ email: "new.staff@example.com" }]],
+    [
+      "resendStaffInviteAction",
+      resendInvitation,
+      [{ id: "staff-invite:row", version: "server-bound-version" }],
+    ],
+    [
+      "cancelStaffInviteAction",
+      cancelInvitation,
+      [{ id: "staff-invite:row", version: "server-bound-version" }],
+    ],
+  ] as const)("refreshes the roster after %s succeeds", async (actionName, domainAction, args) => {
+    const actions = (await vi.importActual("@/app/actions/ops-staff")) as StaffActionModule;
+    domainAction.mockResolvedValueOnce({
+      outcome: actionName === "cancelStaffInviteAction" ? "cancelled" : "sent",
+      ...(actionName === "cancelStaffInviteAction"
+        ? {}
+        : { invitation: { email: "new.staff@example.com" } }),
+    });
+
+    await (actions[actionName] as (...parameters: typeof args) => Promise<unknown>)(...args);
+
+    expect(calls).toEqual(["origin", "staff"]);
+    expect(revalidatePath).toHaveBeenCalledWith("/ops");
+  });
+});

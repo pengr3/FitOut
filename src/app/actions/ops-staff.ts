@@ -53,7 +53,11 @@ function boundInvitationRef(ref: StaffInvitationRef): StaffInvitationRef | null 
 export async function inviteStaffAction(input: IssueStaffInvitationInput) {
   await requireOpsMutationOrigin();
   const staff = await requireStaff();
-  return issueStaffInvitation({ email: input?.email }, staff.id);
+  const result = await issueStaffInvitation({ email: input?.email }, staff.id);
+  if (result.outcome === "sent" || result.outcome === "pending-delivery-failed") {
+    revalidatePath("/ops");
+  }
+  return result;
 }
 
 /** Rotate only the invitation version captured by the server-rendered pending row. */
@@ -62,7 +66,11 @@ export async function resendStaffInviteAction(ref: StaffInvitationRef) {
   const staff = await requireStaff();
   const invitation = boundInvitationRef(ref);
   if (!invitation) return { outcome: "stale" } as const;
-  return resendStaffInvitation(invitation, staff.id);
+  const result = await resendStaffInvitation(invitation, staff.id);
+  if (result.outcome === "sent" || result.outcome === "pending-delivery-failed") {
+    revalidatePath("/ops");
+  }
+  return result;
 }
 
 /** Cancel only the invitation version captured by the server-rendered pending row. */
@@ -71,7 +79,11 @@ export async function cancelStaffInviteAction(ref: StaffInvitationRef) {
   const staff = await requireStaff();
   const invitation = boundInvitationRef(ref);
   if (!invitation) return { outcome: "stale" } as const;
-  return cancelStaffInvitation(invitation, staff.id);
+  const result = await cancelStaffInvitation(invitation, staff.id);
+  if (result.outcome === "cancelled") {
+    revalidatePath("/ops");
+  }
+  return result;
 }
 
 /** Revoke through the transactional policy; client form fields never decide actor or eligibility. */

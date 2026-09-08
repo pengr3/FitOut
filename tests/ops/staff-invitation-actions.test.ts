@@ -16,6 +16,7 @@ const issueInvitation = vi.hoisted(() => vi.fn());
 const resendInvitation = vi.hoisted(() => vi.fn());
 const cancelInvitation = vi.hoisted(() => vi.fn());
 const acceptInvitation = vi.hoisted(() => vi.fn());
+const revalidatePath = vi.hoisted(() => vi.fn());
 const redirectTo = vi.hoisted(() =>
   vi.fn((destination: string) => {
     throw new Error(`NEXT_REDIRECT;${destination}`);
@@ -37,6 +38,8 @@ vi.mock("@/lib/ops/invitations", () => ({
 vi.mock("next/navigation", () => ({
   redirect: redirectTo,
 }));
+
+vi.mock("next/cache", () => ({ revalidatePath }));
 
 type StaffActions = {
   inviteStaffAction: (input: { email: string }) => Promise<unknown>;

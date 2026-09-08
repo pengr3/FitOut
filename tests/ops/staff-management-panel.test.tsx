@@ -62,8 +62,14 @@ beforeEach(() => {
     message: "Staff access was revoked.",
     targetUserId: "internal-colleague-id",
   });
-  inviteStaffAction.mockResolvedValue({ outcome: "sent" });
-  resendStaffInviteAction.mockResolvedValue({ outcome: "sent" });
+  inviteStaffAction.mockResolvedValue({
+    outcome: "sent",
+    invitation: { email: "new.staff@example.com" },
+  });
+  resendStaffInviteAction.mockResolvedValue({
+    outcome: "sent",
+    invitation: { email: "pending.with.a.very.long.address@example.com" },
+  });
   cancelStaffInviteAction.mockResolvedValue({ outcome: "cancelled" });
 });
 
@@ -100,7 +106,9 @@ describe("D-15 through D-19 staff management panel", () => {
 
       const currentRow = screen.getByText("current.operator@example.com").closest("li");
       expect(currentRow).not.toBeNull();
-      const button = within(currentRow!).getByRole("button", { name: "Revoke access" });
+      const button = within(currentRow!).getByRole("button", {
+        name: "Revoke staff access for current.operator@example.com",
+      });
       const reason = within(currentRow!).getByText("You can't revoke your own staff access.");
       expect((button as HTMLButtonElement).disabled).toBe(true);
       expect(button.getAttribute("aria-describedby")).toBe(reason.id);
@@ -116,7 +124,7 @@ describe("D-15 through D-19 staff management panel", () => {
       const colleagueRow = screen
         .getByText("colleague.with.a.very.long.address@example.com")
         .closest("li");
-      fireEvent.click(within(colleagueRow!).getByRole("button", { name: "Revoke access" }));
+      fireEvent.click(within(colleagueRow!).getByRole("button", { name: /Revoke staff access for/ }));
 
       const dialog = await screen.findByRole("dialog", { name: "Revoke staff access?" });
       expect(
@@ -148,7 +156,7 @@ describe("D-15 through D-19 staff management panel", () => {
       const colleagueRow = screen
         .getByText("colleague.with.a.very.long.address@example.com")
         .closest("li");
-      fireEvent.click(within(colleagueRow!).getByRole("button", { name: "Revoke access" }));
+      fireEvent.click(within(colleagueRow!).getByRole("button", { name: /Revoke staff access for/ }));
       fireEvent.click(
         within(await screen.findByRole("dialog")).getByRole("button", {
           name: "Revoke access",
@@ -194,8 +202,16 @@ describe("D-18/D-20 pending invitation lifecycle", () => {
       expect(
         screen.getByText("Invited by Current Operator With A Long Display Name"),
       ).not.toBeNull();
-      expect(screen.getByRole("button", { name: "Resend invitation" })).not.toBeNull();
-      expect(screen.getByRole("button", { name: "Cancel invitation" })).not.toBeNull();
+      expect(
+        screen.getByRole("button", {
+          name: "Resend invitation to pending.with.a.very.long.address@example.com",
+        }),
+      ).not.toBeNull();
+      expect(
+        screen.getByRole("button", {
+          name: "Cancel invitation for pending.with.a.very.long.address@example.com",
+        }),
+      ).not.toBeNull();
       expect(screen.queryByText("internal-invite-id")).toBeNull();
       expect(screen.queryByText("internal-invite-version")).toBeNull();
     },
@@ -207,7 +223,7 @@ describe("D-18/D-20 pending invitation lifecycle", () => {
       const { StaffManagementPanel } = await loadPanel();
       render(<StaffManagementPanel snapshot={populated} />);
 
-      fireEvent.click(screen.getByRole("button", { name: "Resend invitation" }));
+      fireEvent.click(screen.getByRole("button", { name: /Resend invitation to/ }));
 
       expect(
         await screen.findByRole("status", {
@@ -222,12 +238,53 @@ describe("D-18/D-20 pending invitation lifecycle", () => {
   );
 
   it.skipIf(!panelExists || !dialogExists)(
+    "normalizes invite input, announces success, and clears only after confirmed delivery",
+    async () => {
+      const { StaffManagementPanel } = await loadPanel();
+      render(<StaffManagementPanel snapshot={populated} />);
+      const input = screen.getByRole("textbox", { name: "Email" }) as HTMLInputElement;
+
+      fireEvent.change(input, { target: { value: "  New.Staff@Example.com  " } });
+      fireEvent.click(screen.getByRole("button", { name: "Send invitation" }));
+
+      expect(
+        await screen.findByRole("status", { name: "Invitation sent to new.staff@example.com." }),
+      ).not.toBeNull();
+      expect(inviteStaffAction).toHaveBeenCalledWith({ email: "new.staff@example.com" });
+      expect(input.value).toBe("");
+    },
+  );
+
+  it.skipIf(!panelExists || !dialogExists)(
+    "retains invite input and presents the exact pending-delivery failure",
+    async () => {
+      inviteStaffAction.mockResolvedValueOnce({
+        outcome: "pending-delivery-failed",
+        invitation: { email: "new.staff@example.com" },
+      });
+      const { StaffManagementPanel } = await loadPanel();
+      render(<StaffManagementPanel snapshot={populated} />);
+      const input = screen.getByRole("textbox", { name: "Email" }) as HTMLInputElement;
+
+      fireEvent.change(input, { target: { value: "new.staff@example.com" } });
+      fireEvent.click(screen.getByRole("button", { name: "Send invitation" }));
+
+      expect(
+        await screen.findByRole("alert", {
+          name: "We couldn't send the invitation. It remains pending so you can use Resend invitation to try again.",
+        }),
+      ).not.toBeNull();
+      expect(input.value).toBe("new.staff@example.com");
+    },
+  );
+
+  it.skipIf(!panelExists || !dialogExists)(
     "requires confirmation before cancelling the bound invitation version",
     async () => {
       const { StaffManagementPanel } = await loadPanel();
       render(<StaffManagementPanel snapshot={populated} />);
 
-      fireEvent.click(screen.getByRole("button", { name: "Cancel invitation" }));
+      fireEvent.click(screen.getByRole("button", { name: /Cancel invitation for/ }));
       const dialog = await screen.findByRole("dialog", { name: "Cancel invitation?" });
       expect(cancelStaffInviteAction).not.toHaveBeenCalled();
       fireEvent.click(within(dialog).getByRole("button", { name: "Cancel invitation" }));

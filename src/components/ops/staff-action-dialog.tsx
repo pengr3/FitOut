@@ -3,24 +3,28 @@
 import * as React from "react";
 
 import {
+  cancelStaffInviteAction,
   INITIAL_OPS_STAFF_ACTION_STATE,
   revokeStaffAction,
   type OpsStaffActionState,
 } from "@/app/actions/ops-staff";
 import { ResponsiveDialog } from "@/components/patterns/responsive-dialog";
 import { Button } from "@/components/ui/button";
+import type { StaffInvitationRef } from "@/lib/ops/invitations";
 
-type StaffActionDialogProps = {
+type SharedStaffActionDialogProps = {
   targetEmail: string;
-  targetUserId: string;
   onResult: (state: OpsStaffActionState) => void;
+  disabled?: boolean;
 };
 
-export function StaffActionDialog({
-  targetEmail,
-  targetUserId,
-  onResult,
-}: StaffActionDialogProps) {
+type StaffActionDialogProps =
+  | (SharedStaffActionDialogProps & { kind?: "revoke"; targetUserId: string })
+  | (SharedStaffActionDialogProps & { kind: "cancel"; invitationRef: StaffInvitationRef });
+
+export function StaffActionDialog(props: StaffActionDialogProps) {
+  const { targetEmail, onResult, disabled = false } = props;
+  const isCancel = props.kind === "cancel";
   const [open, setOpen] = React.useState(false);
   const [pending, setPending] = React.useState(false);
   const [refusal, setRefusal] = React.useState<string | null>(null);
@@ -29,20 +33,35 @@ export function StaffActionDialog({
     event.preventDefault();
     setPending(true);
     try {
-      const result = await revokeStaffAction(
-        targetUserId,
-        INITIAL_OPS_STAFF_ACTION_STATE,
-        new FormData(event.currentTarget),
-      );
-      const presented =
-        result.status === "success"
-          ? { ...result, message: `${targetEmail} no longer has staff access.` }
-          : result;
+      const presented: OpsStaffActionState = isCancel
+        ? await cancelStaffInviteAction(props.invitationRef).then((result) =>
+            result.outcome === "cancelled"
+              ? {
+                  status: "success" as const,
+                  action: "cancel" as const,
+                  message: `Invitation for ${targetEmail} was cancelled.`,
+                }
+              : {
+                  status: "error" as const,
+                  action: "cancel" as const,
+                  message:
+                    "This staff record changed before the action completed. Refresh the page and try again.",
+                },
+          )
+        : await revokeStaffAction(
+            props.targetUserId,
+            INITIAL_OPS_STAFF_ACTION_STATE,
+            new FormData(event.currentTarget),
+          ).then((result) =>
+            result.status === "success"
+              ? { ...result, message: `${targetEmail} no longer has staff access.` }
+              : result,
+          );
       onResult(presented);
       if (presented.status === "success") {
         setRefusal(null);
         setOpen(false);
-      } else {
+      } else if (presented.status === "error") {
         setRefusal(presented.message);
       }
     } finally {
@@ -59,11 +78,23 @@ export function StaffActionDialog({
           setOpen(next);
         }
       }}
-      title="Revoke staff access?"
-      description={`Revoke ${targetEmail}'s access to FitOut Ops. They will lose access on their next request. This does not delete the account.`}
+      title={isCancel ? "Cancel invitation?" : "Revoke staff access?"}
+      description={
+        isCancel
+          ? `Cancel the invitation for ${targetEmail}. Its current link will stop working immediately.`
+          : `Revoke ${targetEmail}'s access to FitOut Ops. They will lose access on their next request. This does not delete the account.`
+      }
       trigger={
-        <Button type="button" variant="outline" size="touch">
-          Revoke access
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          disabled={disabled}
+          aria-label={
+            isCancel ? `Cancel invitation for ${targetEmail}` : `Revoke staff access for ${targetEmail}`
+          }
+        >
+          {isCancel ? "Cancel invitation" : "Revoke access"}
         </Button>
       }
       footer={
@@ -75,7 +106,7 @@ export function StaffActionDialog({
             disabled={pending}
             onClick={() => setOpen(false)}
           >
-            Keep staff access
+            {isCancel ? "Keep invitation" : "Keep staff access"}
           </Button>
           <form onSubmit={handleSubmit}>
             <Button
@@ -85,7 +116,13 @@ export function StaffActionDialog({
               className="w-full sm:w-auto"
               disabled={pending}
             >
-              {pending ? "Revoking…" : "Revoke access"}
+              {pending
+                ? isCancel
+                  ? "Cancelling…"
+                  : "Revoking…"
+                : isCancel
+                  ? "Cancel invitation"
+                  : "Revoke access"}
             </Button>
           </form>
         </>
