@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/ops/staff-policy.test.ts --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - refuses self-revocation with the shared reason and changes neither role nor audit\nAssertionError: expected outcome written to deeply equal outcome refused/self_revoke\nnot ok 2 - refuses removal of the sole active staff member with one stable reason\nAssertionError: expected outcome written to deeply equal outcome refused/last_staff\nnot ok 3 - reports an already-empty staff set as an invariant violation\nAssertionError: expected outcome written to deeply equal outcome refused/staff_invariant_empty\nnot ok 4 - uses createdAt then id as the stable staff read ordering\nAssertionError: expected [staff-z, staff-a] to deeply equal [staff-a, staff-z]\nnot ok 5 - serializes two crossing revokes at the two-staff boundary and leaves exactly one\nAssertionError: expected written results length 1 but got 2\n# tests 5\n# pass 0\n# fail 5",
+  "targetTest": "refuses self-revocation with the shared reason and changes neither role nor audit",
+  "targetFile": "tests/ops/staff-policy.test.ts",
+  "expected": "revokeStaff returns a typed self_revoke refusal without changing role or audit state",
+  "actual": "the existing writer returned written and changed the staff role to user"
+}
