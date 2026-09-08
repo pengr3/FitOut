@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/ops/staff-invitation.test.ts --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\n1..7\nnot ok 1 - normalizes issue email and rejects empty acceptance fields\nZodError: email was rejected before normalization\nnot ok 2 - issues one hash-only invitation for exactly 24 database hours and sends an ops-host link\nAssertionError: expected inactive to be sent\nnot ok 3 - refuses active duplicate, marketplace, and existing-staff conflicts before sending\nAssertionError: expected a persisted invitation\nnot ok 4 - rotates once, invalidates the prior link immediately, rejects stale versions, and cancels\nAssertionError: expected a persisted invitation\nnot ok 5 - keeps the row pending after a delivery failure without logging recipient or credential\nAssertionError: expected inactive to be pending-delivery-failed\nnot ok 6 - treats equality at expiry as inactive and atomically audits pruning before replacement\nAssertionError: expected a persisted invitation\nnot ok 7 - allows exactly one equal-version resend/cancel mutation to win\nAssertionError: expected a persisted invitation\n# tests 7\n# pass 0\n# fail 7",
+  "targetTest": "issues one hash-only invitation for exactly 24 database hours and sends an ops-host link",
+  "targetFile": "tests/ops/staff-invitation.test.ts",
+  "expected": "issueStaffInvitation persists one digest-only verification row, commits a nonsecret audit, and sends an absolute ops-host invitation",
+  "actual": "the pre-implementation lifecycle stub returned inactive and persisted/sent nothing"
+}

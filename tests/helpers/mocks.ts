@@ -28,6 +28,7 @@ type CapturedEmail = {
 };
 
 const sentEmails: CapturedEmail[] = [];
+let nextResendError: unknown = null;
 
 /**
  * Extract the first http(s) URL from an email body (the reset / verification link).
@@ -47,6 +48,11 @@ export const mockResend = {
     emails = {
       send: vi.fn(async (payload: CapturedEmail) => {
         sentEmails.push(payload);
+        if (nextResendError !== null) {
+          const error = nextResendError;
+          nextResendError = null;
+          return { data: null, error };
+        }
         return { data: { id: `mock-email-${sentEmails.length}` }, error: null };
       }),
     };
@@ -55,11 +61,16 @@ export const mockResend = {
   sent: () => [...sentEmails],
   /** The most recently sent email, or undefined. */
   last: () => sentEmails[sentEmails.length - 1],
+  /** Make the next transport call return a Resend-shaped delivery error. */
+  failNext: (error: unknown) => {
+    nextResendError = error;
+  },
   /** The link embedded in the most recently sent email, or null. */
   lastLink: () => extractLink(sentEmails[sentEmails.length - 1]),
   /** Clear captured emails. */
   reset: () => {
     sentEmails.length = 0;
+    nextResendError = null;
   },
 };
 
