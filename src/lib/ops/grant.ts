@@ -61,7 +61,7 @@
 // found nothing — which is what a repudiation record needs, and it is the honest maximum here.
 
 import { randomUUID } from "node:crypto";
-import { asc, eq, or } from "drizzle-orm";
+import { asc, eq, or, sql } from "drizzle-orm";
 
 import type { DbConn } from "@/lib/availability/read-model";
 import { audit, user } from "@/lib/db/schema";
@@ -78,6 +78,22 @@ export const STAFF_ROLE = "staff";
 /** What a revoke sets the column back to — the `defaultValue` in `src/lib/auth.ts:112`. */
 export const DEFAULT_ROLE = "user";
 
+/** Shared D-19 copy. UI affordances and server refusals must render the same declaration. */
+export const SELF_REVOKE_REASON = "You can't revoke your own staff access.";
+export const LAST_STAFF_REVOKE_REASON = "You can't revoke the last staff account.";
+
+export type StaffWriteRefusalReason =
+  | "self_revoke"
+  | "last_staff"
+  | "staff_invariant_empty"
+  | "stale_role";
+
+export type StaffRoleWriteInput = {
+  target: string;
+  actorId: string;
+  role: typeof STAFF_ROLE | typeof DEFAULT_ROLE;
+};
+
 /**
  * The result of one grant/revoke attempt.
  *
@@ -91,7 +107,8 @@ export const DEFAULT_ROLE = "user";
 export type StaffWriteResult =
   | { outcome: "written"; userId: string; previousRole: string | null; role: string }
   | { outcome: "not_found" }
-  | { outcome: "ambiguous" };
+  | { outcome: "ambiguous" }
+  | { outcome: "refused"; reason: StaffWriteRefusalReason };
 
 /** One staff account, as an operator sees it in `npm run ops:staff`. */
 export type StaffAccount = {
@@ -161,7 +178,7 @@ export async function grantStaff(
   target: string,
   by: string,
 ): Promise<StaffWriteResult> {
-  return writeRole(dbConn, target, by, STAFF_ROLE, GRANT_ACTION);
+  return writeRole({ target, actorId: by, role: STAFF_ROLE }, dbConn);
 }
 
 /**
@@ -177,44 +194,108 @@ export async function revokeStaff(
   target: string,
   by: string,
 ): Promise<StaffWriteResult> {
-  return writeRole(dbConn, target, by, DEFAULT_ROLE, REVOKE_ACTION);
+  return writeRole({ target, actorId: by, role: DEFAULT_ROLE }, dbConn);
 }
 
-/** The shared body of grant/revoke — one privileged write, one audit row, two callers. */
-async function writeRole(
+/**
+ * The single staff-role mutation authority.
+ *
+ * A revoke takes the named transaction-scoped advisory lock before it reads any role state. The
+ * conditional UPDATE is the authority: an application count is never allowed to decide whether the
+ * last staff member may be removed. Its audit insert uses the same transaction, so neither half can
+ * commit alone.
+ */
+export async function writeRole(
+  input: StaffRoleWriteInput,
   dbConn: DbConn,
-  target: string,
-  by: string,
-  role: string,
-  action: string,
 ): Promise<StaffWriteResult> {
-  const found = await resolveTarget(dbConn, target);
+  return dbConn.transaction(async (tx): Promise<StaffWriteResult> => {
+    const action = input.role === STAFF_ROLE ? GRANT_ACTION : REVOKE_ACTION;
 
-  if (found === "not_found" || found === "ambiguous") {
-    // NO `target` IN META. The only handle we hold for a row that does not exist is what the operator
-    // typed, and that is an email address — see the header's D-72 note. The reason code is the record.
-    await writeAudit(dbConn, {
-      actorId: by,
+    if (input.role === DEFAULT_ROLE) {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended('fitout:staff-role-policy', 0))`,
+      );
+    }
+
+    const found = await resolveTarget(tx, input.target);
+    if (found === "not_found" || found === "ambiguous") {
+      // Preserve the established unknown/ambiguous attempt trail. D-19 policy refusals below are
+      // deliberately side-effect free; no target state exists to pair with this legacy audit shape.
+      await writeAudit(tx, {
+        actorId: input.actorId,
+        action,
+        outcome: "denied",
+        meta: { reason: found === "not_found" ? "target_not_found" : "target_ambiguous" },
+      });
+      return { outcome: found };
+    }
+
+    if (input.role === DEFAULT_ROLE) {
+      // Re-read actor and the active set under the same lock. The actor lookup is diagnostic for
+      // authenticated UI callers; the bootstrap CLI's --by value remains asserted, not authenticated.
+      await tx.select({ id: user.id, role: user.role }).from(user).where(eq(user.id, input.actorId));
+      const activeStaff = await tx
+        .select({ id: user.id })
+        .from(user)
+        .where(eq(user.role, STAFF_ROLE))
+        .orderBy(asc(user.createdAt), asc(user.id));
+
+      const updated = (await tx.execute(sql`
+        UPDATE "user" AS target
+           SET role = ${DEFAULT_ROLE}, updated_at = now()
+         WHERE target.id = ${found.id}
+           AND target.role = ${STAFF_ROLE}
+           AND target.id != ${input.actorId}
+           AND EXISTS (
+             SELECT 1
+               FROM "user" AS other
+              WHERE other.role = ${STAFF_ROLE}
+                AND other.id != target.id
+           )
+         RETURNING target.id AS "userId"
+      `)) as unknown as Array<{ userId: string }>;
+
+      if (updated.length === 0) {
+        const reason: StaffWriteRefusalReason =
+          activeStaff.length === 0
+            ? "staff_invariant_empty"
+            : found.role !== STAFF_ROLE
+              ? "stale_role"
+              : found.id === input.actorId
+                ? "self_revoke"
+                : "last_staff";
+        return { outcome: "refused", reason };
+      }
+
+      await writeAudit(tx, {
+        actorId: input.actorId,
+        action,
+        outcome: "ok",
+        meta: { targetUserId: found.id, previousRole: found.role, role: input.role },
+      });
+      return {
+        outcome: "written",
+        userId: updated[0].userId,
+        previousRole: found.role,
+        role: input.role,
+      };
+    }
+
+    await tx.update(user).set({ role: input.role }).where(eq(user.id, found.id));
+    await writeAudit(tx, {
+      actorId: input.actorId,
       action,
-      outcome: "denied",
-      meta: { reason: found === "not_found" ? "target_not_found" : "target_ambiguous" },
+      outcome: "ok",
+      meta: { targetUserId: found.id, previousRole: found.role, role: input.role },
     });
-    return { outcome: found };
-  }
-
-  // THE PRIVILEGED FLIP, scoped by id — the exact mechanism `src/app/actions/capability.ts:75` uses
-  // for `canHost`, and the only sanctioned writer of this column.
-  await dbConn.update(user).set({ role }).where(eq(user.id, found.id));
-
-  await writeAudit(dbConn, {
-    actorId: by,
-    action,
-    outcome: "ok",
-    // Ids and enum-shaped values only (D-72). `previousRole` is what makes a repeat run legible.
-    meta: { targetUserId: found.id, previousRole: found.role, role },
+    return {
+      outcome: "written",
+      userId: found.id,
+      previousRole: found.role,
+      role: input.role,
+    };
   });
-
-  return { outcome: "written", userId: found.id, previousRole: found.role, role };
 }
 
 /**
@@ -235,7 +316,7 @@ export async function listStaff(dbConn: DbConn): Promise<StaffAccount[]> {
     .select({ id: user.id, email: user.email, createdAt: user.createdAt })
     .from(user)
     .where(eq(user.role, STAFF_ROLE))
-    .orderBy(asc(user.createdAt));
+    .orderBy(asc(user.createdAt), asc(user.id));
 
   return rows;
 }
