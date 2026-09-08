@@ -48,6 +48,36 @@ function validPartitionRows(): Array<Record<string, unknown>> {
 }
 
 describe("ops cloak production probe", () => {
+  it("defines the complete final ops route census on both host classes", async () => {
+    const probe = await loadProbe();
+    expect(probe, `${PROBE_PATH} must exist`).not.toBeNull();
+    if (!probe) return;
+
+    const ids = probe.requiredControls("final").map((control) => control.id);
+    expect(ids).toEqual([
+      "marketplace-login",
+      "marketplace-ops",
+      "marketplace-ops-auth-login",
+      "marketplace-ops-auth-forgot-password",
+      "marketplace-ops-auth-reset-password",
+      "marketplace-ops-auth-invite",
+      "marketplace-auth-session",
+      "ops-login",
+      "ops-forgot-password",
+      "ops-reset-password",
+      "ops-invite",
+      "ops-direct-auth-login",
+      "ops-direct-auth-forgot-password",
+      "ops-direct-auth-reset-password",
+      "ops-direct-auth-invite",
+      "ops-auth-session",
+      "ops-missing",
+      "ops-nonstaff",
+      "ops-signed-out",
+      "ops-staff",
+    ]);
+  });
+
   it("defines a non-empty partition census with one staff 200 control", async () => {
     const probe = await loadProbe();
     expect(probe, `${PROBE_PATH} must exist`).not.toBeNull();

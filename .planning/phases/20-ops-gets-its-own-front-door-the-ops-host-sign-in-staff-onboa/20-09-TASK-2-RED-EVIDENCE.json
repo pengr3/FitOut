@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/auth/ops-cloak-probe.test.ts --config vitest.config.ts -t \"defines the complete final ops route census on both host classes\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - defines the complete final ops route census on both host classes\nAssertionError: expected the 20-control complete route census but received the 8-control partition floor\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "defines the complete final ops route census on both host classes",
+  "targetFile": "tests/auth/ops-cloak-probe.test.ts",
+  "expected": "the final stage enumerates every visible and internal ops-auth target, both auth-session host controls, and all staff/nonstaff/signed-out/nonexistent ops controls",
+  "actual": "requiredControls('final') still returned only the eight-row partition floor"
+}
