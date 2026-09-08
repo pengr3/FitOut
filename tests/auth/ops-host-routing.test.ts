@@ -65,6 +65,7 @@ describe("OPS-07 exact host authority", () => {
     expect(origins.PUBLIC_APP_ORIGIN).toBe(PUBLIC_ORIGIN);
     expect(origins.OPS_APP_ORIGIN).toBe(OPS_ORIGIN);
     expect(origins.absolutePublicUrl("/terms")).toBe(`${PUBLIC_ORIGIN}/terms`);
+    expect(origins.absoluteOpsUrl("/login")).toBe(`${OPS_ORIGIN}/login`);
   });
 
   it.each([

@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/auth/ops-host-routing.test.ts --config vitest.config.ts -t \"ships one validated server-only origin authority\"",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - ships one validated server-only origin authority\nTypeError: origins.absoluteOpsUrl is not a function\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "ships one validated server-only origin authority",
+  "targetFile": "tests/auth/ops-host-routing.test.ts",
+  "expected": "the validated origin authority produces exact absolute public and ops URLs for cross-host navigation",
+  "actual": "absoluteOpsUrl is absent, so the marketplace footer cannot resolve the configured ops-host login destination"
+}
