@@ -133,7 +133,7 @@ const OPS_LAYOUT = "src/app/(ops)/ops/layout.tsx";
 const EXTRA_OPS_ACTIONS: readonly { readonly file: string; readonly name: string }[] = [
   { file: "src/app/actions/cancel-booking.ts", name: "cancelBookingAsOps" },
 ];
-const EXPECTED_OPS_ACTIONS = 15;
+const EXPECTED_OPS_ACTIONS = 16;
 const OPS_AUTH_ACTION_FILE = "src/app/actions/ops-auth.ts";
 
 /** D-246. One queue, one page. Every extra page costs a `loading.tsx` and moves three pinned counts. */

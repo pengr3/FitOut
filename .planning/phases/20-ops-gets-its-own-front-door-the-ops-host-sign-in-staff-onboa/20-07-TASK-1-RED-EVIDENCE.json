@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/ops/staff-management-actions.test.ts --config vitest.config.ts -t \"exports the protected snapshot module\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - exports the protected snapshot module\nAssertionError: src/lib/ops/staff-management.ts must exist: expected false to be true\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "exports the protected snapshot module",
+  "targetFile": "tests/ops/staff-management-actions.test.ts",
+  "expected": "the protected readStaffManagementSnapshot module and origin-first revokeStaffAction exist and expose the planned roster and mutation boundaries",
+  "actual": "the snapshot module is absent and revokeStaffAction is undefined, so the behavior assertions fail before any implementation exists"
+}
