@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 20
 current_phase_name: Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding
 status: executing
-stopped_at: Completed 20-06-PLAN.md
-last_updated: "2026-09-08T03:07:59.269Z"
+stopped_at: Completed 20-07-PLAN.md
+last_updated: "2026-09-08T04:07:16.995Z"
 last_activity: 2026-09-08
 last_activity_desc: Phase 20 execution started
-state_head: 9d0f5cede944a297084d7b661e1bbffa20ea354b
+state_head: 6777439fc0a1b982d97614c2bbe357fec48e0d55
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 73
+  completed_plans: 74
   percent: 13
 ---
 
@@ -112,7 +112,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 20 (Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding) — EXECUTING
-Plan: 11 of 14
+Plan: 12 of 14
 Status: Ready to execute
 Last activity: 2026-09-08 — Phase 20 execution started
 
@@ -502,6 +502,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 20 P14 | 39 min | 3 tasks | 11 files |
 | Phase 20 P12 | 14 min | 3 tasks | 13 files |
 | Phase 20 P06 | 22 min | 2 tasks | 12 files |
+| Phase 20 P07 | 38 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -1564,6 +1565,9 @@ Recent decisions affecting current work:
 - [Phase 20]: Invitation lifecycle Server Functions derive actors only after exact ops authority and current-staff guards.
 - [Phase 20]: Recipient acceptance is schema-bounded to token, name, and password and redirects accepted setup to /login?accepted=1.
 - [Phase 20]: All inactive staff invitation classes share one noindex/no-referrer neutral route structure.
+- [Phase 20]: The staff snapshot separates visible roster facts from opaque server-bound action references.
+- [Phase 20]: Revoke remains enforced only by writeRole; disabled roster controls are explanatory.
+- [Phase 20]: Invite and Resend use polite live status, while Cancel and Revoke focus one durable result target.
 
 ### Pending Todos
 
@@ -1752,8 +1756,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-08T03:07:57.451Z
-Stopped at: Completed 20-06-PLAN.md
+Last session: 2026-09-08T04:07:15.070Z
+Stopped at: Completed 20-07-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.

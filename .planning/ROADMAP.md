@@ -776,7 +776,7 @@ phase is the milestone's one hard prerequisite**: nothing ops-side in v1.2 can s
      the three 404 bodies byte-identical by hash**, with **every new ops route in the probe set** — and
      there is still no `(ops)`-scoped `not-found.tsx`.
 
-**Plans**: 10/14 plans executed
+**Plans**: 11/14 plans executed
 
 Plans:
 **Wave 1**
@@ -815,7 +815,7 @@ Plans:
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
-- [ ] 20-07-PLAN.md — Add the two-section staff roster and invitation management panel to `/ops`.
+- [x] 20-07-PLAN.md — Add the two-section staff roster and invitation management panel to `/ops`.
 
 **Wave 10** *(blocked on Wave 9 completion)*
 
