@@ -776,7 +776,7 @@ phase is the milestone's one hard prerequisite**: nothing ops-side in v1.2 can s
      the three 404 bodies byte-identical by hash**, with **every new ops route in the probe set** — and
      there is still no `(ops)`-scoped `not-found.tsx`.
 
-**Plans**: 12/14 plans executed
+**Plans**: 13/14 plans executed
 
 Plans:
 **Wave 1**
@@ -823,7 +823,7 @@ Plans:
 
 **Wave 11** *(blocked on Wave 10 completion)*
 
-- [ ] 20-13-PLAN.md — Enroll every completed ops/auth/management surface in the exact design inventories.
+- [x] 20-13-PLAN.md — Enroll every completed ops/auth/management surface in the exact design inventories.
 
 **Wave 12** *(blocked on Wave 11 completion)*
 
