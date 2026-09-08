@@ -53,6 +53,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { eq, sql } from "drizzle-orm";
+import { readFileSync } from "node:fs";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { user } from "@/lib/db/schema";
 import {
@@ -292,5 +293,99 @@ describe("grantStaff / revokeStaff / listStaff — the CLI grant policy (OPS-01,
     // Three mistakes, three sentences: collapsing a typo and a policy violation into one message
     // makes the operator guess which one they made.
     expect((noTarget as { error: string }).error).not.toBe((noBy as { error: string }).error);
+  });
+
+  it("case 13 — an ordinary staff grant refuses a marketplace-capable account without side effects", async () => {
+    await testDb.db.insert(user).values({
+      id: "G13",
+      name: "Marketplace account",
+      email: "g13@example.com",
+      firstName: "Case",
+      emailVerified: true,
+      role: "user",
+      canBook: true,
+      canHost: false,
+    });
+
+    const beforeAudit = await auditRows(GRANT_ACTION);
+    const result = await grantStaff(testDb.db, "G13", BY);
+    const [account] = await testDb.db
+      .select({ role: user.role, canBook: user.canBook, canHost: user.canHost })
+      .from(user)
+      .where(eq(user.id, "G13"));
+
+    expect(result).toEqual({ outcome: "refused", reason: "marketplace_account" });
+    expect(account).toEqual({ role: "user", canBook: true, canHost: false });
+    expect(await auditRows(GRANT_ACTION)).toHaveLength(beforeAudit.length);
+  });
+
+  it("case 14 — the explicit conversion clears both capabilities, grants staff, and audits intent", async () => {
+    await testDb.db.insert(user).values({
+      id: "G14",
+      name: "Converted account",
+      email: "g14@example.com",
+      firstName: "Case",
+      emailVerified: true,
+      role: "user",
+      canBook: true,
+      canHost: true,
+    });
+
+    const grantWithOptions = grantStaff as (
+      dbConn: typeof testDb.db,
+      target: string,
+      by: string,
+      options: { convertMarketplaceAccount: boolean },
+    ) => ReturnType<typeof grantStaff>;
+    const result = await grantWithOptions(testDb.db, "G14", BY, {
+      convertMarketplaceAccount: true,
+    });
+    const [account] = await testDb.db
+      .select({ role: user.role, canBook: user.canBook, canHost: user.canHost })
+      .from(user)
+      .where(eq(user.id, "G14"));
+
+    expect(result).toMatchObject({ outcome: "written", userId: "G14", role: "staff" });
+    expect(account).toEqual({ role: "staff", canBook: false, canHost: false });
+    const rows = (await auditRows(GRANT_ACTION)).filter((row) => row.meta?.targetUserId === "G14");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].meta).toEqual({
+      targetUserId: "G14",
+      previousRole: "user",
+      role: "staff",
+      convertedMarketplaceAccount: true,
+      previousCanBook: true,
+      previousCanHost: true,
+    });
+    expect(JSON.stringify(rows[0])).not.toContain("g14@example.com");
+  });
+
+  it("case 15 — only grant accepts the exact --convert-marketplace-account parser flag", () => {
+    const parseWithMode = parseGrantArgs as (
+      argv: string[],
+      options?: { allowMarketplaceConversion?: boolean },
+    ) => ReturnType<typeof parseGrantArgs> & { convertMarketplaceAccount?: boolean };
+
+    expect(
+      parseWithMode(["g14@example.com", "--by", "Rina", "--convert-marketplace-account"], {
+        allowMarketplaceConversion: true,
+      }),
+    ).toEqual({
+      ok: true,
+      target: "g14@example.com",
+      by: "Rina",
+      convertMarketplaceAccount: true,
+    });
+    expect(
+      parseWithMode(["g14@example.com", "--by", "Rina", "--convert-marketplace-account"], {
+        allowMarketplaceConversion: false,
+      }).ok,
+    ).toBe(false);
+
+    const source = readFileSync("scripts/ops-grant.ts", "utf8");
+    expect(source).toContain("--convert-marketplace-account");
+    expect(source).toContain('cmd === "grant"');
+    expect(source).toContain('cmd === "revoke"');
+    expect(source).toContain('cmd === "list"');
   });
 });

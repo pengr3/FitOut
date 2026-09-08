@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/ops/grant-cli.test.ts --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\n# tests 15\n# pass 12\n# fail 3\nnot ok 13 - case 13 — an ordinary staff grant refuses a marketplace-capable account without side effects\nAssertionError: expected outcome written to deeply equal outcome refused/marketplace_account\nnot ok 14 - case 14 — the explicit conversion clears both capabilities, grants staff, and audits intent\nAssertionError: expected canBook/canHost false but both remained true\nnot ok 15 - case 15 — only grant accepts the exact --convert-marketplace-account parser flag\nAssertionError: expected convertMarketplaceAccount true but parser omitted it",
+  "targetTest": "case 13 — an ordinary staff grant refuses a marketplace-capable account without side effects",
+  "targetFile": "tests/ops/grant-cli.test.ts",
+  "expected": "ordinary grant returns marketplace_account without changing role, capabilities, or audit state",
+  "actual": "the existing grant returned written, promoted the account to staff, and wrote an audit row"
+}
