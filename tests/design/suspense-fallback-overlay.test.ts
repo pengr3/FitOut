@@ -97,6 +97,8 @@ const TRIGGER_ADOPTERS: Readonly<Record<string, string>> = {
   "src/components/booking/booking-sticky-bar.tsx": "RESP-02's below-`lg:` booking sheet",
   "src/components/host/request-row.tsx": "the decline-with-reason dialog on the requests inbox",
   "src/components/ops/ops-reject-dialog.tsx": "the ops queue's reject-with-reason dialog",
+  "src/components/ops/staff-action-dialog.tsx":
+    "the client-owned revoke/cancel confirmation dialog in staff management",
   "src/components/patterns/nav-drawer-shell.tsx":
     "the below-`md:` nav drawer — the module 19.1-16 created, and the reason this file exists",
   "src/components/profile/avatar-field.tsx": "the avatar upload's crop entry point",
@@ -544,7 +546,7 @@ describe("CI-01 — an element handed to Radix's `asChild` is created on the cli
       ANALYSIS.triggerAdopters.length,
       "the pinned adopter count moved. The number is the record of a decision; the entry and its " +
         "reason are written first.",
-    ).toBe(7);
+    ).toBe(8);
 
     // The other half of the same claim: the three CONTROLLED overlays are really in the tree and
     // really are not adopters. Without this, "seven" could equally mean the walk stopped seeing three

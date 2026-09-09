@@ -85,8 +85,7 @@
 //   • THE ACTION CENSUS IS BY FILENAME PLUS ONE NAMED EXCEPTION. `ops-*.ts` plus
 //     `cancelBookingAsOps`. An eighth ops action added to a file matching neither is invisible —
 //     which is why the exception is DECLARED by name rather than inferred, and why the count is
-//     pinned. (SEVEN as of plan 18.1-13, which added `revealHostContact` in an `ops-*.ts` file the
-//     glob finds; see `EXPECTED_OPS_ACTIONS`.)
+//     pinned. Phase 20 brings the census to SEVENTEEN; see `EXPECTED_OPS_ACTIONS`.
 
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, existsSync, type Dirent } from "node:fs";
@@ -133,7 +132,7 @@ const OPS_LAYOUT = "src/app/(ops)/ops/layout.tsx";
 const EXTRA_OPS_ACTIONS: readonly { readonly file: string; readonly name: string }[] = [
   { file: "src/app/actions/cancel-booking.ts", name: "cancelBookingAsOps" },
 ];
-const EXPECTED_OPS_ACTIONS = 16;
+const EXPECTED_OPS_ACTIONS = 17;
 const OPS_AUTH_ACTION_FILE = "src/app/actions/ops-auth.ts";
 
 /** D-246. One queue, one page. Every extra page costs a `loading.tsx` and moves three pinned counts. */
@@ -614,6 +613,7 @@ describe("OPS-02 — the three-layer guard, as a property of the source tree", (
       "resetOpsPassword",
       "signInOps",
       "signOutOps",
+      "signOutOpsAction",
     ]);
     expect(
       authActions.filter((action) => !action.originFirst).map((action) => action.name),

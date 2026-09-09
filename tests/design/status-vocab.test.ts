@@ -208,11 +208,16 @@ const POSITIVE_CALL_SITES = [
  * uses to record the one legal filled pairing rather than to widen a ban.
  *
  * ⚠ THE HUE'S SCARCITY IS THE POINT. This inventory is a RECORD OF A DECISION, not a bucket. A
- * second bare success mark anywhere in the product goes red here and should — D-14's thesis is that
- * green retreats to the icon, and a hue that appears on every satisfied outcome stops meaning the
- * one that matters.
+ * An undeclared bare success mark anywhere in the product goes red here and should — D-14's thesis
+ * is that green retreats to the icon, and a hue that appears on every satisfied outcome stops
+ * meaning the one that matters. Phase 21 deliberately adds the host verification roadmap as the
+ * second declared file: its locked UI contract assigns the hue only to the visible Done/readiness
+ * glyphs and never to a fill or text wash.
  */
-const SUCCESS_GLYPH_SITES = ["src/components/booking/confirmation-moment.tsx"] as const;
+const SUCCESS_GLYPH_SITES = [
+  "src/components/booking/confirmation-moment.tsx",
+  "src/components/host/verification-roadmap.tsx",
+] as const;
 
 /** Every file allowed to name the success hue at a call site, whatever shape it takes. */
 const SUCCESS_HUE_SITES = [...POSITIVE_CALL_SITES, ...SUCCESS_GLYPH_SITES] as const;
@@ -685,19 +690,22 @@ describe("DS-10 — the filled green badge is retired, and the one survivor is a
     expect(scan.retiredPairingSites).toEqual([LEGAL_FILLED_PAIRING_SITE]);
   });
 
-  it("names the success hue in exactly the five declared files, and nowhere else", () => {
-    // TWO INVENTORIES, ONE SET (plan 13-11). Four status chips carry it on their glyph; one bare
-    // mark carries it alone, on the confirmation moment. See `SUCCESS_GLYPH_SITES` for why the
-    // second is a distinct category rather than a fifth chip. The equality is over the UNION, so an
-    // undeclared file reaching for `--success` still fails here whichever shape it reaches in.
+  it("names the success hue in exactly the six declared files, and nowhere else", () => {
+    // TWO INVENTORIES, ONE SET (plan 13-11, extended by Phase 21). Four status chips carry it on
+    // their glyph; two files carry declared bare marks. See `SUCCESS_GLYPH_SITES` for why marks are
+    // a distinct category rather than extra chips. The equality is over the UNION, so an undeclared
+    // file reaching for `--success` still fails here whichever shape it reaches in.
     expect([...scan.positiveIconSites].sort()).toEqual([...SUCCESS_HUE_SITES].sort());
   });
 
-  it("keeps the bare success mark scarce — exactly ONE file, and it is the confirmation moment", () => {
+  it("keeps bare success marks scarce — exactly the two UI-contracted files", () => {
     // Asserted separately from the union above, because the union alone would go green if a chip
     // were quietly re-declared as a mark or vice versa. The hue's meaning comes from its scarcity:
     // 13-UI-SPEC gives this phase ONE use of the token and this is the record of it.
-    expect(SUCCESS_GLYPH_SITES).toEqual(["src/components/booking/confirmation-moment.tsx"]);
+    expect(SUCCESS_GLYPH_SITES).toEqual([
+      "src/components/booking/confirmation-moment.tsx",
+      "src/components/host/verification-roadmap.tsx",
+    ]);
     for (const site of SUCCESS_GLYPH_SITES) {
       const code = scan.code.get(site) ?? "";
       expect(code.length, `${site} produced no stripped code`).toBeGreaterThan(0);
