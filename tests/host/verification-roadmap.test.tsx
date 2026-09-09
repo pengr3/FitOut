@@ -68,6 +68,7 @@ function queueSelectResult(...results: unknown[][]) {
 }
 
 beforeEach(() => {
+  h.startPayoutOnboardingMock.mockReset();
   h.getSessionMock.mockResolvedValue({
     user: {
       id: "host_zero",
@@ -262,5 +263,54 @@ describe("payout onboarding recovery", () => {
       screen.getByRole("button", { name: "Set up payouts" }).hasAttribute("disabled"),
     ).toBe(false);
     expect(h.startPayoutOnboardingMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears a stale rejection during retry and replaces it with the new refusal", async () => {
+    queueSelectResult(
+      [{ id: "listing_draft", status: "draft", reviewState: "pending" }],
+      [{ p: 0 }],
+      [],
+    );
+    h.loadVerificationMock.mockResolvedValue({
+      status: "approved",
+      reason: null,
+      suspended: false,
+      updatedAt: DB_NOW,
+    });
+
+    let resolveRetry!: (result: {
+      ok: false;
+      error: string;
+    }) => void;
+    const retryResult = new Promise<{ ok: false; error: string }>((resolve) => {
+      resolveRetry = resolve;
+    });
+    h.startPayoutOnboardingMock
+      .mockRejectedValueOnce(new Error("server action transport failed"))
+      .mockReturnValueOnce(retryResult);
+    const hrefBefore = window.location.href;
+
+    render(await HostDashboardPage());
+
+    const payoutAction = screen.getByRole("button", { name: "Set up payouts" });
+    fireEvent.click(payoutAction);
+    expect(
+      await screen.findByText("We couldn't start payout setup. Please try again."),
+    ).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Set up payouts" }));
+    expect(
+      screen.queryByText("We couldn't start payout setup. Please try again."),
+    ).toBeNull();
+    expect(h.startPayoutOnboardingMock).toHaveBeenCalledTimes(2);
+
+    resolveRetry({ ok: false, error: "Payout setup is unavailable." });
+
+    expect(await screen.findByText("Payout setup is unavailable.")).not.toBeNull();
+    expect(
+      screen.queryByText("We couldn't start payout setup. Please try again."),
+    ).toBeNull();
+    expect(window.location.href).toBe(hrefBefore);
+    expect(h.startPayoutOnboardingMock).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,0 +1,9 @@
+{
+  "command": "npm.cmd test -- tests/host/verification-roadmap.test.tsx -t \"clears a stale rejection\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - tests/host/verification-roadmap.test.tsx\nnot ok 2 - clears a stale rejection during retry and replaces it with the new refusal\nAssertionError: expected the stale fallback paragraph to be null while the retry promise was pending\n# tests 1\n# pass 0\n# fail 1",
+  "targetTest": "clears a stale rejection during retry and replaces it with the new refusal",
+  "targetFile": "tests/host/verification-roadmap.test.tsx",
+  "expected": "The first rejection fallback clears at retry start; the pending second attempt then replaces it with its resolved refusal without navigation or duplicate calls.",
+  "actual": "With the production setError(null) line intentionally removed, the stale fallback remained visible during the pending retry and the focused assertion failed."
+}
