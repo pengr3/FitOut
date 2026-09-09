@@ -84,10 +84,10 @@ export function VerificationRoadmap({
           const StateIcon = STATE_ICON[step.state];
           const muted = ["Done", "Waiting", "Paused", "Next"].includes(step.state);
           return (
-            <li key={step.number} className="h-full [&>[data-testid=panel-card]]:h-full">
+            <li key={step.number} className="h-full min-w-0 [&>[data-testid=panel-card]]:h-full">
               <PanelCard title={step.title} titleAs="h3" tone={muted ? "muted" : "default"}>
                 <div
-                  className="flex h-full flex-col gap-4"
+                  className="flex h-full min-w-0 flex-col gap-4"
                   {...(step.verificationStatus
                     ? { "data-verification-owed": step.verificationStatus }
                     : {})}
@@ -104,7 +104,9 @@ export function VerificationRoadmap({
                       {step.state}
                     </Badge>
                   </div>
-                  <p className="text-sm text-muted-foreground">{step.body}</p>
+                  <p className="break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
+                    {step.body}
+                  </p>
                   {step.action ? (
                     <div className="mt-auto pt-2">
                       {step.action.kind === "link" ? (
