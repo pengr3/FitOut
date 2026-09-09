@@ -7,6 +7,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/react";
 
@@ -259,9 +260,13 @@ describe("payout onboarding recovery", () => {
       await screen.findByText("We couldn't start payout setup. Please try again."),
     ).not.toBeNull();
     expect(window.location.href).toBe(hrefBefore);
-    expect(
-      screen.getByRole("button", { name: "Set up payouts" }).hasAttribute("disabled"),
-    ).toBe(false);
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole("button", { name: "Set up payouts" })
+          .hasAttribute("disabled"),
+      ).toBe(false);
+    });
     expect(h.startPayoutOnboardingMock).toHaveBeenCalledTimes(1);
   });
 
