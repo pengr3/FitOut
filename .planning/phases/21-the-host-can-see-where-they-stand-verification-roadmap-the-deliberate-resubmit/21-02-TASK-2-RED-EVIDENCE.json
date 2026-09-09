@@ -1,0 +1,9 @@
+{
+  "command": "npm.cmd test -- tests/listing/listing-card.test.tsx -t \"renders five cycles plus only the approved sentinel and keeps long reason text selectable\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - renders five cycles plus only the approved sentinel and keeps long reason text selectable\n# tests 1\n# pass 0\n# fail 1\n# cancelled 0\nAssertionError: expected the long reason class list to contain select-text",
+  "targetTest": "renders five cycles plus only the approved sentinel and keeps long reason text selectable",
+  "targetFile": "tests/listing/listing-card.test.tsx",
+  "expected": "The bounded dialog renders five cycles, the approved older-history sentinel, and selectable untruncated reason text.",
+  "actual": "The five cycles and sentinel rendered, but the long operator reason was not explicitly selectable."
+}

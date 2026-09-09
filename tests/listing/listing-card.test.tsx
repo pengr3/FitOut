@@ -14,7 +14,7 @@
 // and toasts — mirroring tests/booking/host-booking-row.test.tsx.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor, within } from "@testing-library/react";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -502,5 +502,56 @@ describe("ListingCard review history (LVER-07)", () => {
     expect(dialog.innerHTML).not.toContain("<script>The entrance");
     expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
+  });
+
+  it("renders five cycles plus only the approved sentinel and keeps long reason text selectable", () => {
+    const longReason = "The entrance photo needs a wider view ".repeat(18).trim();
+    render(
+      <ListingCard
+        listing={makeListing({ title: "A very long listing title that must wrap safely" })}
+        priceParts={["₱307.50/hr"]}
+        reviewHistory={{
+          cycles: Array.from({ length: 5 }, (_, index) => ({
+            events: [`Submitted ${index + 1} Sep 2026, 9:00 am`, "Waiting"],
+            ...(index === 0 ? { reason: longReason } : {}),
+          })),
+          hasOlder: true,
+        }}
+        {...HOST_PROPS}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Review history" }));
+    const dialog = screen.getByRole("dialog", { name: "Review history" });
+    const cycles = Array.from(
+      within(dialog).getByRole("list", { name: "Review cycles" }).children,
+    );
+    expect(cycles).toHaveLength(5);
+    expect(within(dialog).getByText("Showing the latest five review cycles.")).toBeTruthy();
+    const reason = within(dialog).getByText(longReason);
+    expect(reason.className).toContain("select-text");
+    expect(reason.className).not.toMatch(/line-clamp|truncate/);
+  });
+
+  it("focuses the visible Close control and returns focus to its trigger after Escape", async () => {
+    render(
+      <ListingCard
+        listing={makeListing()}
+        priceParts={["₱307.50/hr"]}
+        reviewHistory={{ cycles: [{ events: ["Submitted today", "Waiting"] }], hasOlder: false }}
+        {...HOST_PROPS}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Review history" });
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Review history" });
+    const footer = dialog.querySelector('[data-slot="dialog-footer"]') as HTMLElement;
+    const visibleClose = within(footer).getByRole("button", { name: "Close" });
+
+    await waitFor(() => expect(document.activeElement).toBe(visibleClose));
+    fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(document.activeElement).toBe(trigger);
   });
 });

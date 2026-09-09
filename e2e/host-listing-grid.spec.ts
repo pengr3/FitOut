@@ -89,9 +89,10 @@
 // Clause 2 still runs at 320px — and see the note on `measureBand` for what it is expected to say
 // there against a single-column grid.
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { BASE, seedHostGridFixture, type SeededHostGrid } from "./helpers/booker-seed";
+import { seedTheme } from "./helpers/theme";
 
 /** One card and its footer, in viewport coordinates. */
 type CardGeom = {
@@ -178,6 +179,12 @@ async function readFooterOverflow(page: Page): Promise<FooterOverflow[]> {
       };
     }),
   );
+}
+
+function cardNamed(page: Page, title: string): Locator {
+  return page
+    .getByRole("heading", { name: title, exact: true })
+    .locator('xpath=ancestor::*[@data-slot="card"][1]');
 }
 
 /**
@@ -327,5 +334,68 @@ test.describe("HSURF-01 — the host listing grid's footer is flush and its cont
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.evaluate(() => document.fonts.ready);
     await measureBand(page, "1280x900", { compareRowBottoms: true });
+  });
+
+  test("review history is bounded, internally scrollable, focus-safe, and overflow-free in both themes and acceptance widths", async () => {
+    for (const theme of ["court", "grove"] as const) {
+      await seedTheme(page.context(), theme);
+      for (const width of [320, 1280] as const) {
+        await page.setViewportSize({ width, height: width === 320 ? 800 : 900 });
+        await page.goto(`${BASE}/host/listings`);
+        await page.evaluate(() => document.fonts.ready);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+
+        await expect(
+          cardNamed(page, "Untitled listing").getByRole("button", { name: "Review history" }),
+        ).toHaveCount(0);
+
+        const oneTrigger = cardNamed(page, "Riverside Ring").getByRole("button", {
+          name: "Review history",
+        });
+        await oneTrigger.click();
+        let dialog = page.getByRole("dialog", { name: "Review history" });
+        await expect(dialog.getByRole("list", { name: "Review cycles" }).locator(":scope > li")).toHaveCount(1);
+        await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeFocused();
+        await page.keyboard.press("Escape");
+        await expect(dialog).toHaveCount(0);
+        await expect(oneTrigger).toBeFocused();
+
+        const manyTrigger = cardNamed(page, fixture.longTitle).getByRole("button", {
+          name: "Review history",
+        });
+        await manyTrigger.click();
+        dialog = page.getByRole("dialog", { name: "Review history" });
+        await expect(dialog.getByRole("list", { name: "Review cycles" }).locator(":scope > li")).toHaveCount(5);
+        await expect(dialog.getByText("Showing the latest five review cycles.")).toBeVisible();
+        await expect(dialog.getByText(/The entrance photo needs a wider view/)).toBeVisible();
+
+        const geometry = await dialog.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const scroll = element.querySelector<HTMLElement>("[data-review-history-scroll]");
+          return {
+            left: box.left,
+            right: box.right,
+            top: box.top,
+            bottom: box.bottom,
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight,
+            scrollClientHeight: scroll?.clientHeight ?? 0,
+            scrollHeight: scroll?.scrollHeight ?? 0,
+            documentOverflow:
+              document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          };
+        });
+        expect(geometry.left).toBeGreaterThanOrEqual(15);
+        expect(geometry.viewportWidth - geometry.right).toBeGreaterThanOrEqual(15);
+        expect(geometry.top).toBeGreaterThanOrEqual(15);
+        expect(geometry.viewportHeight - geometry.bottom).toBeGreaterThanOrEqual(15);
+        expect(geometry.scrollClientHeight).toBeGreaterThan(0);
+        expect(geometry.scrollHeight).toBeGreaterThan(geometry.scrollClientHeight);
+        expect(geometry.documentOverflow).toBeLessThanOrEqual(0);
+
+        await dialog.getByRole("button", { name: "Close", exact: true }).click();
+        await expect(manyTrigger).toBeFocused();
+      }
+    }
   });
 });

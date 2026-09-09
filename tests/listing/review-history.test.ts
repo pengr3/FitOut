@@ -54,6 +54,7 @@ async function makeListing(
 }
 
 async function makeCycle(input: {
+  id?: string;
   listingId: string;
   state: "pending" | "approved" | "rejected" | "withdrawn" | "grandfathered";
   submittedAt: string;
@@ -62,7 +63,7 @@ async function makeCycle(input: {
   staff?: string | null;
 }): Promise<void> {
   await testDb.db.insert(listingReview).values({
-    id: randomUUID(),
+    id: input.id ?? randomUUID(),
     listingId: input.listingId,
     state: input.state,
     reason: input.reason ?? null,
@@ -165,5 +166,164 @@ describe("LVER-07 review history — owner and serialization boundary", () => {
       ],
       hasOlder: false,
     });
+  });
+});
+
+describe("LVER-07 review history — bounded and total lifecycle mapping", () => {
+  it("returns no entry for a current listing with zero review cycles", async () => {
+    const ownerId = await makeHost("Zero");
+    const listingId = await makeListing(ownerId, "Zero");
+
+    const byListing = await loadReviewHistoryByListing(testDb.db, ownerId);
+
+    expect(byListing.has(listingId)).toBe(false);
+  });
+
+  it("keeps five newest cycles, uses only row six as the older-history sentinel, and never loads row seven", async () => {
+    const ownerId = await makeHost("Bounded");
+    const listingId = await makeListing(ownerId, "Bounded");
+    const submitted = Array.from({ length: 7 }, (_, index) =>
+      `2026-08-${String(index + 1).padStart(2, "0")}T01:00:00Z`,
+    );
+
+    for (const [index, submittedAt] of submitted.entries()) {
+      await makeCycle({
+        id: `bounded-${index}`,
+        listingId,
+        state: "approved",
+        submittedAt,
+        decidedAt: submittedAt.replace("T01:", "T02:"),
+      });
+    }
+
+    const history = (await loadReviewHistoryByListing(testDb.db, ownerId)).get(
+      listingId,
+    )?.reviewHistory;
+
+    expect(history?.cycles).toHaveLength(5);
+    expect(history?.hasOlder).toBe(true);
+    expect(history?.cycles.map((cycle) => cycle.events[0])).toEqual(
+      submitted
+        .toReversed()
+        .slice(0, 5)
+        .map((instant) => `Submitted ${formatInstant(instant)}`),
+    );
+    expect(JSON.stringify(history)).not.toContain(formatInstant(submitted[0]));
+  });
+
+  it("orders tied submitted instants by descending review id", async () => {
+    const ownerId = await makeHost("Tie");
+    const listingId = await makeListing(ownerId, "Tie");
+    const submittedAt = "2026-09-08T01:00:00Z";
+
+    await makeCycle({
+      id: "tie-a",
+      listingId,
+      state: "rejected",
+      submittedAt,
+      decidedAt: "2026-09-08T02:00:00Z",
+      reason: "a second",
+    });
+    await makeCycle({
+      id: "tie-z",
+      listingId,
+      state: "rejected",
+      submittedAt,
+      decidedAt: "2026-09-08T02:00:00Z",
+      reason: "z wins",
+    });
+
+    const result = (await loadReviewHistoryByListing(testDb.db, ownerId)).get(listingId);
+    expect(result?.reviewHistory.cycles.map((cycle) => cycle.reason)).toEqual([
+      "z wins",
+      "a second",
+    ]);
+    expect(result?.latestRejectionReason).toBe("z wins");
+  });
+
+  it("maps every persisted state and omits only a rejected cycle's missing optional reason", async () => {
+    const ownerId = await makeHost("States");
+    const listingId = await makeListing(ownerId, "States");
+    const cycle = async (
+      state: "pending" | "approved" | "rejected" | "withdrawn" | "grandfathered",
+      day: number,
+      decided: boolean,
+    ) =>
+      makeCycle({
+        id: `state-${day}`,
+        listingId,
+        state,
+        submittedAt: `2026-09-0${day}T01:00:00Z`,
+        decidedAt: decided ? `2026-09-0${day}T02:00:00Z` : null,
+        reason: state === "rejected" ? "   " : null,
+      });
+
+    await cycle("grandfathered", 1, false);
+    await cycle("withdrawn", 2, true);
+    await cycle("approved", 3, true);
+    await cycle("rejected", 4, true);
+    await cycle("pending", 5, false);
+
+    const history = (await loadReviewHistoryByListing(testDb.db, ownerId)).get(
+      listingId,
+    )?.reviewHistory;
+
+    expect(history).toEqual({
+      cycles: [
+        {
+          events: [`Submitted ${formatInstant("2026-09-05T01:00:00Z")}`, "Waiting"],
+        },
+        {
+          events: [
+            `Submitted ${formatInstant("2026-09-04T01:00:00Z")}`,
+            "Waiting",
+            `Not approved ${formatInstant("2026-09-04T02:00:00Z")}`,
+          ],
+        },
+        {
+          events: [
+            `Submitted ${formatInstant("2026-09-03T01:00:00Z")}`,
+            "Waiting",
+            `Approved ${formatInstant("2026-09-03T02:00:00Z")}`,
+          ],
+        },
+        {
+          events: [
+            `Submitted ${formatInstant("2026-09-02T01:00:00Z")}`,
+            "Waiting",
+            `Review ended ${formatInstant("2026-09-02T02:00:00Z")}`,
+          ],
+        },
+        { events: ["Listing was already live when reviews began."] },
+      ],
+      hasOlder: false,
+    });
+    expect(Object.hasOwn(history!.cycles[1], "reason")).toBe(false);
+  });
+
+  it("rejects impossible pending/decision pairings at the server boundary", async () => {
+    const decidedOwnerId = await makeHost("MalformedDecided");
+    const decidedListingId = await makeListing(decidedOwnerId, "MalformedDecided");
+    await makeCycle({
+      listingId: decidedListingId,
+      state: "approved",
+      submittedAt: "2026-09-08T01:00:00Z",
+      decidedAt: null,
+    });
+    await expect(loadReviewHistoryByListing(testDb.db, decidedOwnerId)).rejects.toThrow(
+      "approved cycle is missing decidedAt",
+    );
+
+    const pendingOwnerId = await makeHost("MalformedPending");
+    const pendingListingId = await makeListing(pendingOwnerId, "MalformedPending");
+    await makeCycle({
+      listingId: pendingListingId,
+      state: "pending",
+      submittedAt: "2026-09-08T01:00:00Z",
+      decidedAt: "2026-09-08T02:00:00Z",
+    });
+    await expect(loadReviewHistoryByListing(testDb.db, pendingOwnerId)).rejects.toThrow(
+      "pending cycle unexpectedly has decidedAt",
+    );
   });
 });
