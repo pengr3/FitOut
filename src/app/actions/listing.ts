@@ -96,7 +96,7 @@ import { destroyListingPhoto } from "@/lib/cloudinary";
 const MIN_PHOTOS = 3; // D-02/D-04 — minimum photos to publish.
 
 export type ListingResult =
-  | { ok: true; id?: string }
+  | { ok: true; id?: string; flipped?: boolean }
   | { ok: false; error: string; fieldErrors?: Record<string, string[]> };
 
 /**
@@ -638,7 +638,7 @@ export async function saveListingStep(
     patch.location = { x: d.lng, y: d.lat };
   }
 
-  await db.transaction(async (tx) => {
+  const flipped = await db.transaction(async (tx) => {
     // Re-scope the write to (id AND hostId) — defense in depth on top of assertOwnership.
     await tx
       .update(listing)
@@ -651,9 +651,9 @@ export async function saveListingStep(
     // a different space — and that is exactly what a flip placed after this block would produce every
     // time the process died between the two. The helper is guarded in its own WHERE, so a listing in
     // any other state is a 0-row no-op here rather than a branch this call site has to know about.
-    if (materialEdit) {
-      await markForReReview(tx, listingId, "listing_fields");
-    }
+    const reReviewResult = materialEdit
+      ? await markForReReview(tx, listingId, "listing_fields")
+      : { flipped: false };
 
     // Amenities / activity tags: when the array is provided, REPLACE the set atomically (no stale
     // rows leak across saves). An empty array clears them; undefined leaves them untouched.
@@ -673,10 +673,12 @@ export async function saveListingStep(
           .values(d.activityTags.map((tag) => ({ listingId, tag })));
       }
     }
+
+    return reReviewResult.flipped;
   });
 
   revalidatePath(`/host/listings/${listingId}/edit`);
-  return { ok: true, id: listingId };
+  return { ok: true, id: listingId, flipped };
 }
 
 /**

@@ -17,7 +17,7 @@
 // Plan 04 (Wave 3). Until then the review checklist's "3+ photos" row stays unmet (photoCount comes
 // from the server), so publish is correctly blocked on photos this phase.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -348,6 +348,26 @@ function saveStateText(state: SaveState): string {
   return "";
 }
 
+function ReReviewReceipt({ receiptRef }: { receiptRef: RefObject<HTMLElement | null> }) {
+  return (
+    <section
+      ref={receiptRef}
+      tabIndex={-1}
+      aria-labelledby="re-review-receipt-title"
+      className="min-w-0 rounded-xl border border-emerald-600/30 bg-emerald-50 p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5 dark:bg-emerald-950/20"
+    >
+      <div className="min-w-0 space-y-2">
+        <h2 id="re-review-receipt-title" className="font-semibold">
+          Changes received
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Your listing is back in review. It can&apos;t take bookings until FitOut finishes checking it.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 /**
  * Has a HUMAN ever chosen how this space is sold?
  *
@@ -473,6 +493,9 @@ export function ListingWizard({
    * module header for the two shortcuts this must never take.
    */
   const [saveState, setSaveState] = useState<SaveState>(SAVE_STATE_IDLE);
+  const [reReviewReceived, setReReviewReceived] = useState(false);
+  const reReviewReceiptRef = useRef<HTMLElement>(null);
+  const receiptFocusMovedRef = useRef(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   // Live photo count — seeded from the server, kept current by the PhotoUploader as photos are
   // added/removed, so the D-02 publish checklist ("3+ photos") reflects real rows without a reload.
@@ -543,6 +566,17 @@ export function ListingWizard({
     });
     return () => subscription.unsubscribe();
   }, [form]);
+
+  useEffect(() => {
+    if (!reReviewReceived || receiptFocusMovedRef.current) return;
+
+    const receipt = reReviewReceiptRef.current;
+    if (!receipt) return;
+
+    receiptFocusMovedRef.current = true;
+    receipt.focus();
+    receipt.scrollIntoView({ block: "center" });
+  }, [reReviewReceived]);
 
   // ── The mode fork (OPEN-01). `undefined` — nobody has chosen yet — reads as the whole-space flow, which
   // is both the column's default and the shape every pre-Phase-9 listing already has.
@@ -630,6 +664,12 @@ export function ListingWizard({
     return saveListingStep(listing.id, toPayload(form.getValues()));
   }
 
+  function receiveReReview(res: ListingResult): boolean {
+    if (!reReviewContext || !res.ok || res.flipped !== true) return false;
+    setReReviewReceived(true);
+    return true;
+  }
+
   async function saveAndContinue() {
     setSaving(true);
     setSaveState(SAVE_STATE_SAVING);
@@ -638,11 +678,12 @@ export function ListingWizard({
     // THE ONLY TRANSITION, and it reads the result. No success toast here any more: this path does not
     // navigate, so the region is on screen to carry the outcome — and a toast beside it would be two
     // announcements for one save, which is the defect a status region is usually added to fix.
-    setSaveState(saveStateFor(res));
+    const receiptReceived = receiveReReview(res);
+    setSaveState(receiptReceived ? SAVE_STATE_IDLE : saveStateFor(res));
     // OFF THE LIVE POSITION, not the captured one (WR-02). `stepForward` clamps at the end of the
     // walked list, so the old `step < steps.length - 1` guard is now inside the move rather than a
     // second reading of the same two values beside it.
-    if (res.ok) stepForward();
+    if (res.ok && !receiptReceived) stepForward();
   }
 
   async function saveAsDraft() {
@@ -650,8 +691,9 @@ export function ListingWizard({
     setSaveState(SAVE_STATE_SAVING);
     const res = await persist();
     setSaving(false);
-    setSaveState(saveStateFor(res));
-    if (res.ok) {
+    const receiptReceived = receiveReReview(res);
+    setSaveState(receiptReceived ? SAVE_STATE_IDLE : saveStateFor(res));
+    if (res.ok && !receiptReceived) {
       // THIS TOAST SURVIVES, and the reason is the `router.push` on the next line: the surface holding
       // the region is about to be replaced, so a toast is the only report that can outlive the report.
       // The FAILURE arm has no toast, because a failure does not navigate — the region keeps it.
@@ -664,8 +706,13 @@ export function ListingWizard({
     setSaving(true);
     setSaveState(SAVE_STATE_SAVING);
     const saved = await persist();
-    setSaveState(saveStateFor(saved));
+    const receiptReceived = receiveReReview(saved);
+    setSaveState(receiptReceived ? SAVE_STATE_IDLE : saveStateFor(saved));
     if (!saved.ok) {
+      setSaving(false);
+      return;
+    }
+    if (receiptReceived) {
       setSaving(false);
       return;
     }
@@ -1047,6 +1094,8 @@ export function ListingWizard({
             </div>
           </section>
         )}
+
+        {reReviewReceived && <ReReviewReceipt receiptRef={reReviewReceiptRef} />}
       </div>
 
       {/*
