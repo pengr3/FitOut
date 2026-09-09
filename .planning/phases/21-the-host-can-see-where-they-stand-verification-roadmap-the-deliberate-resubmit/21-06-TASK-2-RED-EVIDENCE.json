@@ -1,0 +1,9 @@
+{
+  "command": "npm.cmd test -- tests/listing/listing-card.test.tsx -t \"keeps an older historical reason\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - tests/listing/listing-card.test.tsx\nnot ok 2 - keeps an older historical reason out of current guidance when the newest reason is null\nAssertionError: expected <p>Move the hero photo higher.</p> to be null\nnot ok 3 - keeps an older historical reason out of current guidance when the newest reason is whitespace-only\nAssertionError: expected <p>Move the hero photo higher.</p> to be null\n# tests 2\n# pass 0\n# fail 2",
+  "targetTest": "keeps an older historical reason out of current guidance when the newest reason is null",
+  "targetFile": "tests/listing/listing-card.test.tsx",
+  "expected": "With null or whitespace-only current guidance, the dialog omits the older cycle's unique reason while retaining the seven-item checklist and Continue to edit action.",
+  "actual": "Under an intentional historical-fallback mutation, both focused cases failed because the dialog rendered 'Move the hero photo higher.'; the component mutation was restored before GREEN verification."
+}

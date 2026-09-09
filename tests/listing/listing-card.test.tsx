@@ -619,6 +619,54 @@ describe("ListingCard deliberate rejected entry (LVER-06/LVER-08)", () => {
   });
 
   it.each([
+    ["null", null],
+    ["whitespace-only", "   "],
+  ] as const)(
+    "keeps an older historical reason out of current guidance when the newest reason is %s",
+    (_reasonKind, rejectionReason) => {
+      const historicalReason = "Move the hero photo higher.";
+      render(
+        <ListingCard
+          listing={makeListing({ reviewState: "rejected" })}
+          priceParts={["₱307.50/hr"]}
+          rejectionReason={rejectionReason}
+          reviewHistory={{
+            cycles: [
+              {
+                events: [
+                  "Submitted 8 Sep 2026, 9:00 am",
+                  "Waiting",
+                  "Not approved 8 Sep 2026, 10:00 am",
+                ],
+              },
+              {
+                events: [
+                  "Submitted 7 Sep 2026, 9:00 am",
+                  "Waiting",
+                  "Not approved 7 Sep 2026, 10:00 am",
+                ],
+                reason: historicalReason,
+              },
+            ],
+            hasOlder: false,
+          }}
+          {...HOST_PROPS}
+        />,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Fix and resubmit" }));
+      const dialog = screen.getByRole("dialog", { name: "Fix and resubmit “Sunset Court”?" });
+
+      expect(within(dialog).queryByText(historicalReason)).toBeNull();
+      expect(
+        within(dialog).getByText("Changes that send your listing back to review:"),
+      ).toBeTruthy();
+      expect(within(dialog).getAllByRole("listitem")).toHaveLength(7);
+      expect(within(dialog).getByRole("link", { name: "Continue to edit" })).toBeTruthy();
+    },
+  );
+
+  it.each([
     ["draft", "pending"],
     ["draft", "rejected"],
     ["published", "pending"],
