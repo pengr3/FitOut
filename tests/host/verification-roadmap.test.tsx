@@ -303,6 +303,13 @@ describe("payout onboarding recovery", () => {
       await screen.findByText("We couldn't start payout setup. Please try again."),
     ).not.toBeNull();
 
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole("button", { name: "Set up payouts" })
+          .hasAttribute("disabled"),
+      ).toBe(false);
+    });
     fireEvent.click(screen.getByRole("button", { name: "Set up payouts" }));
     await waitFor(() => {
       expect(
