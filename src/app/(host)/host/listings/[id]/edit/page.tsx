@@ -5,7 +5,7 @@
 
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -41,19 +41,21 @@ export default async function EditListingPage({
     redirect("/");
   }
 
+  const latestRejectedReview = db
+    .select({ reason: listingReview.reason })
+    .from(listingReview)
+    .where(and(eq(listingReview.listingId, id), eq(listingReview.state, "rejected")))
+    .orderBy(desc(listingReview.submittedAt), desc(listingReview.id))
+    .limit(1)
+    .as("latest_rejected_review");
+
   const rows = await db
     .select({
       listing,
-      rejectionReason: sql<string | null>`(
-        select ${listingReview.reason}
-        from ${listingReview}
-        where ${listingReview.listingId} = ${listing.id}
-          and ${listingReview.state} = 'rejected'
-        order by ${listingReview.submittedAt} desc, ${listingReview.id} desc
-        limit 1
-      )`.as("rejection_reason"),
+      rejectionReason: latestRejectedReview.reason,
     })
     .from(listing)
+    .leftJoin(latestRejectedReview, sql`true`)
     .where(
       and(
         eq(listing.id, id),

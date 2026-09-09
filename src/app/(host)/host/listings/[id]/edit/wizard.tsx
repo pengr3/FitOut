@@ -1039,7 +1039,7 @@ export function ListingWizard({
                 FitOut didn&apos;t approve this listing.
               </p>
               {reReviewContext.reason && (
-                <p className="break-words text-sm [overflow-wrap:anywhere]">
+                <p className="break-words text-sm select-text [overflow-wrap:anywhere]">
                   {reReviewContext.reason}
                 </p>
               )}

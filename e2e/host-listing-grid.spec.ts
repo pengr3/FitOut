@@ -378,6 +378,10 @@ test.describe("HSURF-01 — the host listing grid's footer is flush and its cont
   let fixture: SeededHostGrid;
 
   test.beforeAll(async ({ browser }) => {
+    // `describe.configure({ timeout })` governs the tests, not this worker-local fixture hook.
+    // First compilation can exceed Playwright's 30s hook default, especially when fullyParallel
+    // gives each worker its own fixture, so carry the same explicit budget into setup itself.
+    test.setTimeout(240_000);
     page = await browser.newPage();
     // Signs the host up through the form, gives it the D-255 approved verification row, and writes
     // three listings of deliberately different content height — one of them PUBLISHED, which is what
