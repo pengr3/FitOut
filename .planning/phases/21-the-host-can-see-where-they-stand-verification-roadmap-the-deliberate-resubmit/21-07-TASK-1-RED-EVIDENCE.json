@@ -1,0 +1,9 @@
+{
+  "command": "npm.cmd test -- tests/host/verification-roadmap.test.tsx -t \"keeps a rejected payout action inline\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - tests/host/verification-roadmap.test.tsx\nnot ok 1 - keeps a rejected payout action inline and available for retry without navigating\nTestingLibraryElementError: Unable to find an element with the text: We couldn't start payout setup. Please try again.\nUnhandled error: Error: server action transport failed\n# tests 1\n# pass 0\n# fail 1",
+  "targetTest": "keeps a rejected payout action inline and available for retry without navigating",
+  "targetFile": "tests/host/verification-roadmap.test.tsx",
+  "expected": "A rejected payout Server Action promise is converted to the exact inline fallback, leaves window.location.href unchanged, and retains the payout action for retry.",
+  "actual": "The rejection escaped the transition as an unhandled error, unmounted the roadmap, and the inline fallback was absent."
+}

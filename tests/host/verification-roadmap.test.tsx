@@ -2,7 +2,13 @@
 
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 
 const h = vi.hoisted(() => ({
   selectResults: [] as unknown[][],
@@ -12,6 +18,7 @@ const h = vi.hoisted(() => ({
   loadMissingHoursMock: vi.fn(),
   readDbNowMock: vi.fn(),
   queryAgendaMock: vi.fn(),
+  startPayoutOnboardingMock: vi.fn(),
 }));
 
 vi.mock("next/link", () => ({
@@ -49,7 +56,7 @@ vi.mock("@/lib/host/verification-status", () => ({
   loadHostVerification: h.loadVerificationMock,
 }));
 vi.mock("@/app/actions/paymongo-connect", () => ({
-  startPayoutOnboarding: vi.fn(),
+  startPayoutOnboarding: h.startPayoutOnboardingMock,
 }));
 
 import HostDashboardPage from "@/app/(host)/host/page";
@@ -221,5 +228,37 @@ describe("the zero-listing host roadmap through the real dashboard composition",
     expect(
       screen.queryByRole("heading", { level: 2, name: "Get ready to take bookings" }),
     ).toBeNull();
+  });
+});
+
+describe("payout onboarding recovery", () => {
+  it("keeps a rejected payout action inline and available for retry without navigating", async () => {
+    queueSelectResult(
+      [{ id: "listing_draft", status: "draft", reviewState: "pending" }],
+      [{ p: 0 }],
+      [],
+    );
+    h.loadVerificationMock.mockResolvedValue({
+      status: "approved",
+      reason: null,
+      suspended: false,
+      updatedAt: DB_NOW,
+    });
+    h.startPayoutOnboardingMock.mockRejectedValueOnce(
+      new Error("server action transport failed"),
+    );
+    const hrefBefore = window.location.href;
+
+    render(await HostDashboardPage());
+
+    const payoutAction = screen.getByRole("button", { name: "Set up payouts" });
+    fireEvent.click(payoutAction);
+
+    expect(
+      await screen.findByText("We couldn't start payout setup. Please try again."),
+    ).toBeVisible();
+    expect(window.location.href).toBe(hrefBefore);
+    expect(screen.getByRole("button", { name: "Set up payouts" })).toBeEnabled();
+    expect(h.startPayoutOnboardingMock).toHaveBeenCalledTimes(1);
   });
 });
