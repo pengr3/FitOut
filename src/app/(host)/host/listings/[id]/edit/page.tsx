@@ -5,7 +5,7 @@
 
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
@@ -13,6 +13,7 @@ import {
   listingPhoto,
   listingAmenity,
   listingActivityTag,
+  listingReview,
 } from "@/lib/db/schema";
 import { getModeLockState } from "@/lib/listing/mode-lock";
 import { composeDeadlineLabel } from "@/lib/booking/when-label";
@@ -41,14 +42,31 @@ export default async function EditListingPage({
   }
 
   const rows = await db
-    .select()
+    .select({
+      listing,
+      rejectionReason: sql<string | null>`(
+        select ${listingReview.reason}
+        from ${listingReview}
+        where ${listingReview.listingId} = ${listing.id}
+          and ${listingReview.state} = 'rejected'
+        order by ${listingReview.submittedAt} desc, ${listingReview.id} desc
+        limit 1
+      )`.as("rejection_reason"),
+    })
     .from(listing)
-    .where(and(eq(listing.id, id), isNull(listing.deletedAt)));
-  const row = rows[0];
-  // IDOR guard: not found OR not the caller's → 404 (don't reveal another host's listing exists).
-  if (!row || row.hostId !== session.user.id) {
+    .where(
+      and(
+        eq(listing.id, id),
+        eq(listing.hostId, session.user.id),
+        isNull(listing.deletedAt),
+      ),
+    );
+  const selected = rows[0];
+  // IDOR guard: absent, deleted, or owned by someone else all collapse to the same 404.
+  if (!selected) {
     notFound();
   }
+  const row = selected.listing;
 
   const [photos, amenities, tags, lock] = await Promise.all([
     db.select().from(listingPhoto).where(eq(listingPhoto.listingId, id)),
@@ -143,6 +161,11 @@ export default async function EditListingPage({
           hostEmail={u.email ?? session.user.email ?? ""}
           emailVerified={Boolean(u.emailVerified ?? session.user.emailVerified)}
           modeLock={modeLock}
+          reReviewContext={
+            row.reviewState === "rejected"
+              ? { reason: selected.rejectionReason?.trim() || null }
+              : null
+          }
         />
       </div>
     </div>

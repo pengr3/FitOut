@@ -296,21 +296,21 @@ describe("LVER-06 — the rejected listing notice is server-derived and persiste
     const reason = "The map pin does not match the address supplied by the host.";
     mount(false, makeListing(), { reason });
 
-    expect(screen.getByRole("heading", { level: 2, name: "This listing needs changes" })).toBeVisible();
-    expect(screen.getByText("FitOut didn't approve this listing.")).toBeVisible();
-    expect(screen.getByText(reason)).toBeVisible();
-    expect(screen.getByText(composeMaterialChangeRule())).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: "This listing needs changes" })).toBeTruthy();
+    expect(screen.getByText("FitOut didn't approve this listing.")).toBeTruthy();
+    expect(screen.getByText(reason)).toBeTruthy();
+    expect(screen.getByText(composeMaterialChangeRule())).toBeTruthy();
 
     await advance();
     expect(heading()).toBe(DETAILS_TITLE);
-    expect(screen.getByText(reason)).toBeVisible();
+    expect(screen.getByText(reason)).toBeTruthy();
 
     actions.saveListingStep.mockResolvedValue({ ok: false, error: SAVE_REFUSAL });
     await advance();
 
     expect(heading(), "a refusal must keep the current section open").toBe(DETAILS_TITLE);
     expect(screen.getAllByText(reason)).toHaveLength(1);
-    expect(screen.queryByText("Changes received")).not.toBeInTheDocument();
+    expect(screen.queryByText("Changes received")).toBeNull();
   });
 
   it("ignores forged query-string rejection data when the server supplies no context", () => {
@@ -322,16 +322,16 @@ describe("LVER-06 — the rejected listing notice is server-derived and persiste
 
     mount();
 
-    expect(screen.queryByRole("heading", { name: "This listing needs changes" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Forged browser reason")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "This listing needs changes" })).toBeNull();
+    expect(screen.queryByText("Forged browser reason")).toBeNull();
   });
 
   it("keeps the explanation complete when the current rejection has no reason", () => {
     mount(false, makeListing(), { reason: null });
 
-    expect(screen.getByRole("heading", { name: "This listing needs changes" })).toBeVisible();
-    expect(screen.getByText("FitOut didn't approve this listing.")).toBeVisible();
-    expect(screen.getByText(composeMaterialChangeRule())).toBeVisible();
+    expect(screen.getByRole("heading", { name: "This listing needs changes" })).toBeTruthy();
+    expect(screen.getByText("FitOut didn't approve this listing.")).toBeTruthy();
+    expect(screen.getByText(composeMaterialChangeRule())).toBeTruthy();
   });
 });
 

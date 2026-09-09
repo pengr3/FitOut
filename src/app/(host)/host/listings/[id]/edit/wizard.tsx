@@ -105,6 +105,10 @@ import {
 import { Toaster } from "@/components/ui/sonner";
 import { PageHeader } from "@/components/patterns/page-header";
 import { STEP_MARKER_BOX, WIZARD_CHECKLIST_COL } from "@/lib/design/measurements";
+import {
+  composeMaterialChangeRule,
+  type RejectedListingContext,
+} from "@/lib/listing/re-review-copy";
 import { cn } from "@/lib/utils";
 
 export type WizardListing = {
@@ -426,12 +430,15 @@ export function ListingWizard({
   hostEmail,
   emailVerified,
   modeLock,
+  reReviewContext = null,
 }: {
   listing: WizardListing;
   hostEmail: string;
   emailVerified: boolean;
   /** OC-17, server-computed on the edit page. Required — a lock this wizard forgets to render is a lock. */
   modeLock: ModeLockDisplay;
+  /** Authoritative current rejection context from the owner-scoped server query; never URL-derived. */
+  reReviewContext?: RejectedListingContext | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -1018,6 +1025,28 @@ export function ListingWizard({
         because the question IS the title.
       */}
         <PageHeader title={steps[stepInList].title} />
+
+        {reReviewContext && (
+          <section
+            aria-labelledby="rejected-listing-notice-title"
+            className="min-w-0 rounded-xl border bg-muted/50 p-4 sm:p-5"
+          >
+            <div className="min-w-0 space-y-2">
+              <h2 id="rejected-listing-notice-title" className="font-semibold">
+                This listing needs changes
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                FitOut didn&apos;t approve this listing.
+              </p>
+              {reReviewContext.reason && (
+                <p className="break-words text-sm [overflow-wrap:anywhere]">
+                  {reReviewContext.reason}
+                </p>
+              )}
+              <p className="text-sm text-muted-foreground">{composeMaterialChangeRule()}</p>
+            </div>
+          </section>
+        )}
       </div>
 
       {/*
