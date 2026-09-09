@@ -41,6 +41,7 @@ import {
   PencilIcon,
   CalendarClock,
   CheckCircle2,
+  HistoryIcon,
   Trash2 as Trash2Icon,
   type LucideIcon,
 } from "lucide-react";
@@ -73,6 +74,7 @@ import { composeReviewSentence, reviewSignalFor } from "@/lib/listing/review-sig
 // the type below, and a sixth value would be invisible to a union typed out by hand. That is 18-04's
 // finding in miniature — the census counts what it can SEE.
 import type { ListingReviewState } from "@/lib/db/schema";
+import type { ListingReviewHistory } from "@/lib/listing/review-history";
 
 export type ListingCardData = {
   id: string;
@@ -201,12 +203,73 @@ function ConfirmDialog({
   );
 }
 
+function ReviewHistoryDialog({
+  history,
+  listingTitle,
+}: {
+  history: ListingReviewHistory;
+  listingTitle: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <HistoryIcon className="size-3.5" aria-hidden="true" /> Review history
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-[calc(100%-2rem)] sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Review history</DialogTitle>
+          <DialogDescription>
+            {listingTitle
+              ? `Review activity for “${listingTitle}”, newest first.`
+              : "Review activity for this listing, newest first."}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 overflow-y-auto pr-1">
+          <ol aria-label="Review cycles" className="space-y-4">
+            {history.cycles.map((cycle, cycleIndex) => (
+              <li key={cycleIndex} className="rounded-lg border p-3">
+                <ol aria-label={`Review cycle ${cycleIndex + 1}`} className="space-y-1">
+                  {cycle.events.map((event, eventIndex) => (
+                    <li key={`${eventIndex}-${event}`} className="text-sm">
+                      {event}
+                    </li>
+                  ))}
+                </ol>
+                {cycle.reason ? (
+                  <p className="mt-3 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                    {cycle.reason}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+          {history.hasOlder ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Showing the latest five review cycles.
+            </p>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Close</Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function ListingCard({
   listing,
   priceParts,
   bookable = false,
   hoursMissing = false,
   rejectionReason = null,
+  reviewHistory,
   titleAs: TitleTag = "h3",
   editHref,
   availabilityHref,
@@ -261,6 +324,8 @@ export function ListingCard({
    * decided yet, so its notice is the product sentence alone.
    */
   rejectionReason?: string | null;
+  /** Server-resolved host-facing review lifecycle. Empty or absent histories render no control. */
+  reviewHistory?: ListingReviewHistory;
   /**
    * The heading LEVEL the card's title renders at. `EmptyState`'s prop of the same name, for the same
    * reason: a card is a fragment of somebody else's outline, and only the page knows what level it
@@ -319,7 +384,8 @@ export function ListingCard({
 }) {
   const router = useRouter();
   const badge = statusBadge(listing.status, bookable, listing.reviewState);
-  const hasActions = Boolean(editHref || availabilityHref || onUnlist || onDelete);
+  const hasReviewHistory = Boolean(reviewHistory?.cycles.length);
+  const hasActions = Boolean(editHref || availabilityHref || onUnlist || onDelete || hasReviewHistory);
 
   // THE REVIEW SIGNAL, resolved ONCE and shared with the chip above — one lookup, so the chip and the
   // sentence beneath it can never name different states. The `status === "published"` term is the
@@ -476,6 +542,9 @@ export function ListingCard({
               </Link>
             </Button>
           )}
+          {hasReviewHistory && reviewHistory ? (
+            <ReviewHistoryDialog history={reviewHistory} listingTitle={listing.title} />
+          ) : null}
           {availabilityHref && (
             <Button asChild variant="outline" size="sm">
               <Link href={availabilityHref}>

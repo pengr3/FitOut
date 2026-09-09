@@ -12,14 +12,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { Building2Icon } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { listing, listingPhoto, hostPayout, listingReview } from "@/lib/db/schema";
+import { listing, listingPhoto, hostPayout } from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
 import { loadHostVerification } from "@/lib/host/verification-status";
 import { loadPublishedListingsMissingHours } from "@/lib/listing/hours-signal";
+import { loadReviewHistoryByListing } from "@/lib/listing/review-history";
 // D-03 / HSURF-02 — the words for a creation that failed, and the one query token that carries the
 // signal here from `new/page.tsx` (which renders nothing, so the sentence has to travel in the URL).
 import {
@@ -123,33 +124,11 @@ export default async function HostListingsPage({
   const verification = await loadHostVerification(db, session.user.id);
   const verificationStatus = verification.status;
 
-  // OPS-05 / D-230 — THE OPERATOR'S REJECTION SENTENCES, ONE QUERY FOR THE WHOLE GRID.
-  //
-  // The pre-collapsed `Map` idiom `coverByListing` above already uses, and deliberately NOT a query
-  // inside `rows.map` — that would put a round trip in a render loop, once per rejected card
-  // (T-IU7-04). Restricted to the ids that are actually rejected, so a host with no rejections runs no
-  // query at all.
-  //
-  // ORDERED ASCENDING SO THE LATEST DECISION WINS THE `Map` KEY. `listing_review` is a HISTORY table
-  // (D-221): a listing that was rejected, materially edited back into review (D-249) and rejected again
-  // holds two rows, and the host must read the sentence about the listing as it stands now. Keyed on
-  // `submitted_at`, which is NOT NULL on every row, rather than on `decided_at`, which is null while a
-  // cycle is open — and a null sorts LAST in Postgres ascending, so an open cycle would otherwise win
-  // the key and blank the sentence the host is meant to be reading.
-  //
-  // ⚠ THE REASON STAYS READABLE UNTIL THE HOST RESUBMITS (D-249). Nothing here clears it, and nothing
-  // should: clearing it on the re-review flip would delete the only thing that makes editing purposeful.
-  const rejectedIds = rows.filter((r) => r.reviewState === "rejected").map((r) => r.id);
-  const rejectionRows = rejectedIds.length
-    ? await db
-        .select({ listingId: listingReview.listingId, reason: listingReview.reason })
-        .from(listingReview)
-        .where(
-          and(inArray(listingReview.listingId, rejectedIds), eq(listingReview.state, "rejected")),
-        )
-        .orderBy(asc(listingReview.submittedAt))
-    : [];
-  const rejectionReasonByListing = new Map(rejectionRows.map((r) => [r.listingId, r.reason]));
+  // LVER-07 / D-249 — one owner-scoped, parent-bounded history read for the whole grid. The loader
+  // returns only already-formatted display events and reason text; review ids, staff ids and raw state
+  // codes never cross the RSC → client boundary. Its newest rejected reason also replaces the older
+  // second rejection query, so history does not create an N+1 or an extra round trip.
+  const reviewHistoryByListing = await loadReviewHistoryByListing(db, session.user.id);
 
   // v1.0 audit finding #4 — which published listings have no weekly hours, in ONE owner-scoped query,
   // collapsed to a Set the render reads from. Same idiom as coverByListing above; deliberately NOT
@@ -299,7 +278,10 @@ export default async function HostListingsPage({
                 // D-230 — the operator's own sentence for THIS listing, from the one grouped read
                 // above. Undefined for every non-rejected card, which is what the map returning
                 // nothing already means; the card falls back to the product's sentence alone.
-                rejectionReason={rejectionReasonByListing.get(r.id) ?? null}
+                rejectionReason={
+                  reviewHistoryByListing.get(r.id)?.latestRejectionReason ?? null
+                }
+                reviewHistory={reviewHistoryByListing.get(r.id)?.reviewHistory}
                 editHref={`/host/listings/${r.id}/edit`}
                 availabilityHref={`/host/listings/${r.id}/availability`}
                 onUnlist={unlistListing}

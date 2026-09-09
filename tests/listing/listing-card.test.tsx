@@ -487,7 +487,7 @@ describe("ListingCard review history (LVER-07)", () => {
     const dialog = screen.getByRole("dialog", { name: "Review history" });
     expect(within(dialog).getByText('Review activity for “Sunset Court”, newest first.')).toBeTruthy();
     const cycleList = within(dialog).getByRole("list", { name: "Review cycles" });
-    const cycles = Array.from(cycleList.children);
+    const cycles = Array.from(cycleList.children) as HTMLElement[];
     expect(cycles).toHaveLength(2);
     expect(within(cycles[0]).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
       "Submitted 8 Sep 2026, 11:00 am",
