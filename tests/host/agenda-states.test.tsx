@@ -68,13 +68,8 @@ import {
   type HostAgendaRowData,
 } from "@/components/host/host-agenda";
 import { HostSignals } from "@/components/host/host-signals";
-import { hostVerificationStatus } from "@/lib/db/schema";
 import { HOURS_MISSING_CTA, HOURS_MISSING_STATE } from "@/lib/listing/hours-signal";
 import { REQUESTS_WAITING_CTA } from "@/lib/host/requests-signal";
-import {
-  VERIFICATION_PAGE_TITLE,
-  VERIFICATION_SIGNAL,
-} from "@/lib/host/verification-signal";
 
 afterEach(cleanup);
 
@@ -457,32 +452,18 @@ describe("state C — an absence is never dressed as a failure (T-14-05-FALSEALA
 
 const MISSING_HOURS = [{ id: "lst_1", title: "Court A" }];
 
-/**
- * The verification state every SHIPPED case below is rendered with, and it is chosen rather than
- * defaulted.
- *
- * Plan 18.1-11 added a fourth conditional row (the way in to `/host/verify`) and made its state a
- * REQUIRED prop, so `tsc` named all nine of these call sites instead of letting a default silently fire
- * a new row inside assertions that count children. `approved` is one of the three SILENT states, so
- * every claim in this block — the three rows, their order, the two zero-hides, the four payout states —
- * is byte-identical to what it asserted before that row existed. Row 4's own behaviour is the describe
- * at the bottom of this section, where it is the subject rather than a passenger.
- */
-const CHECK_SILENT = "approved" as const;
-
-describe("the signals block renders D-140's three rows in D-140's order", () => {
-  it("orders them requests → payout → hours, as siblings rather than as three strings in a page", () => {
+describe("the remaining signals block renders D-140's two rows in D-140's order", () => {
+  it("orders requests before hours, as siblings rather than strings in a page", () => {
     const { container } = render(
-      <HostSignals verificationStatus={CHECK_SILENT} pendingRequests={4} payoutStatus="paused" missingHours={MISSING_HOURS} />,
+      <HostSignals pendingRequests={4} missingHours={MISSING_HOURS} />,
     );
     const section = screen.getByTestId("host-signals");
 
-    // The heading is screen-reader-only and is not one of the three rows; the rows are what follows it.
+    // The heading is screen-reader-only and is not one of the two rows; the rows are what follows it.
     const rows = [...section.children].filter((el) => el.tagName !== "H2");
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(2);
     expect(rows[0].querySelector("[data-requests-waiting]")).not.toBeNull();
-    expect(rows[1].matches("[data-payout-banner]") || rows[1].querySelector("[data-payout-banner]") !== null).toBe(true);
-    expect(rows[2].querySelector("[data-hours-missing]")).not.toBeNull();
+    expect(rows[1].querySelector("[data-hours-missing]")).not.toBeNull();
 
     // Guard the guard: the scan really did read a populated tree.
     expect(container.textContent).toContain(REQUESTS_WAITING_CTA);
@@ -490,22 +471,22 @@ describe("the signals block renders D-140's three rows in D-140's order", () => 
   });
 
   it("names the block for the document outline without announcing it twice", () => {
-    render(<HostSignals verificationStatus={CHECK_SILENT} pendingRequests={1} payoutStatus="enabled" missingHours={[]} />);
+    render(<HostSignals pendingRequests={1} missingHours={[]} />);
     const heading = within(screen.getByTestId("host-signals")).getByRole("heading", { level: 2 });
     expect(heading.className).toContain("sr-only");
   });
 });
 
-describe("the signals block hides rows 1 and 3 at zero, and never hides row 2", () => {
+describe("the signals block hides either remaining row at zero", () => {
   it("renders row 1 only when a request is actually waiting", () => {
     const { container: withNone } = render(
-      <HostSignals verificationStatus={CHECK_SILENT} pendingRequests={0} payoutStatus="enabled" missingHours={MISSING_HOURS} />,
+      <HostSignals pendingRequests={0} missingHours={MISSING_HOURS} />,
     );
     expect(withNone.querySelector("[data-requests-waiting]")).toBeNull();
     cleanup();
 
     const { container: withOne } = render(
-      <HostSignals verificationStatus={CHECK_SILENT} pendingRequests={1} payoutStatus="enabled" missingHours={MISSING_HOURS} />,
+      <HostSignals pendingRequests={1} missingHours={MISSING_HOURS} />,
     );
     const row = withOne.querySelector("[data-requests-waiting]");
     expect(row).not.toBeNull();
@@ -515,7 +496,7 @@ describe("the signals block hides rows 1 and 3 at zero, and never hides row 2", 
     cleanup();
 
     const { container: withFour } = render(
-      <HostSignals verificationStatus={CHECK_SILENT} pendingRequests={4} payoutStatus="enabled" missingHours={[]} />,
+      <HostSignals pendingRequests={4} missingHours={[]} />,
     );
     expect(withFour.querySelector("[data-requests-waiting]")?.textContent).toContain(
       "4 requests are waiting on your yes.",
@@ -524,13 +505,13 @@ describe("the signals block hides rows 1 and 3 at zero, and never hides row 2", 
 
   it("renders row 3 only when a published listing has no hours, with the shipped constants", () => {
     const { container: withNone } = render(
-      <HostSignals verificationStatus={CHECK_SILENT} pendingRequests={0} payoutStatus="enabled" missingHours={[]} />,
+      <HostSignals pendingRequests={0} missingHours={[]} />,
     );
     expect(withNone.querySelector("[data-hours-missing]")).toBeNull();
     cleanup();
 
     const { container: withOne } = render(
-      <HostSignals verificationStatus={CHECK_SILENT} pendingRequests={0} payoutStatus="enabled" missingHours={MISSING_HOURS} />,
+      <HostSignals pendingRequests={0} missingHours={MISSING_HOURS} />,
     );
     const row = withOne.querySelector("[data-hours-missing]");
     // The singular arm NAMES the listing; the shipped assembly is preserved, and the state clause is
@@ -541,9 +522,7 @@ describe("the signals block hides rows 1 and 3 at zero, and never hides row 2", 
 
     const { container: withTwo } = render(
       <HostSignals
-        verificationStatus={CHECK_SILENT}
         pendingRequests={0}
-        payoutStatus="enabled"
         missingHours={[
           { id: "lst_1", title: "Court A" },
           { id: "lst_2", title: "Studio B" },
@@ -556,97 +535,4 @@ describe("the signals block hides rows 1 and 3 at zero, and never hides row 2", 
     );
   });
 
-  it.each(["not_started", "incomplete", "enabled", "paused"] as const)(
-    "renders the payout banner in the %s state, with both conditional rows at zero",
-    (status) => {
-      const { container } = render(
-        <HostSignals verificationStatus={CHECK_SILENT} pendingRequests={0} payoutStatus={status} missingHours={[]} />,
-      );
-      const section = screen.getByTestId("host-signals");
-      const rows = [...section.children].filter((el) => el.tagName !== "H2");
-
-      expect(rows).toHaveLength(1);
-      expect(container.querySelector(`[data-payout-banner="${status}"]`)).not.toBeNull();
-    },
-  );
-});
-
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════
-// ROW 4 — THE WAY IN TO `/host/verify` (HVER-06, plan 18.1-11)
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════
-//
-// THE THREE SILENCES ARE THE HALF THAT FAILS INVISIBLY, so both directions are asserted over the WHOLE
-// enum rather than over the three states the row is for. A row that fired for a checked host would look
-// perfectly fine in review — a muted line pointing at a page that says there is nothing to do — and a
-// row that fired for a SUSPENDED host would put a second panel about one state directly beneath the
-// notice that already explains it.
-//
-// The enum is read off the schema, not restated, so a SEVENTH verification state fails this block by
-// name instead of defaulting into whichever branch somebody wrote last.
-
-describe("the signals block's fourth row fires only for a check the host still owes", () => {
-  const OWED = ["unverified", "pending", "rejected"] as const;
-  const SILENT = ["approved", "suspended", "grandfathered"] as const;
-
-  it("covers every host_verification_status value exactly once (guard-the-guard)", () => {
-    expect([...OWED, ...SILENT].toSorted()).toEqual([...hostVerificationStatus.enumValues].toSorted());
-  });
-
-  it.each(OWED)("renders the row for %s, naming the state and linking to the surface", (status) => {
-    const { container } = render(
-      <HostSignals
-        verificationStatus={status}
-        pendingRequests={0}
-        payoutStatus="enabled"
-        missingHours={[]}
-      />,
-    );
-
-    const row = container.querySelector(`[data-verification-owed="${status}"]`);
-    expect(row).not.toBeNull();
-    // The STATE is the destination panel's own title, so the host lands on the sentence they read.
-    expect(row?.textContent).toContain(VERIFICATION_SIGNAL[status].state);
-    // ONE link, to the one destination. The label is the state's way out where it has one and the
-    // page's own name where it does not — `pending` is the case with none.
-    const link = within(row as HTMLElement).getByRole("link");
-    expect(link.getAttribute("href")).toBe("/host/verify");
-    expect(link.textContent).toBe(VERIFICATION_SIGNAL[status].wayOut ?? VERIFICATION_PAGE_TITLE);
-  });
-
-  it.each(SILENT)("renders NOTHING for %s", (status) => {
-    const { container } = render(
-      <HostSignals
-        verificationStatus={status}
-        pendingRequests={0}
-        payoutStatus="enabled"
-        missingHours={[]}
-      />,
-    );
-
-    expect(container.querySelector("[data-verification-owed]")).toBeNull();
-    // Positive control: the block itself rendered, so the absence above is a decision this component
-    // took rather than a component that failed to mount.
-    const rows = [...screen.getByTestId("host-signals").children].filter(
-      (el) => el.tagName !== "H2",
-    );
-    expect(rows).toHaveLength(1);
-    expect(container.querySelector("[data-payout-banner]")).not.toBeNull();
-  });
-
-  it("sits LAST in the block, below the payout banner and the two half-done rows", () => {
-    render(
-      <HostSignals
-        verificationStatus="unverified"
-        pendingRequests={2}
-        payoutStatus="paused"
-        missingHours={MISSING_HOURS}
-      />,
-    );
-    const rows = [...screen.getByTestId("host-signals").children].filter(
-      (el) => el.tagName !== "H2",
-    );
-
-    expect(rows).toHaveLength(4);
-    expect(rows[3].querySelector("[data-verification-owed]")).not.toBeNull();
-  });
 });

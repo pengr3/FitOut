@@ -73,10 +73,12 @@ import {
   type HostAgendaRowData,
 } from "@/components/host/host-agenda";
 import { HostSignals } from "@/components/host/host-signals";
+import { VerificationRoadmap } from "@/components/host/verification-roadmap";
 import { HostingPausedNotice } from "@/components/host/hosting-paused-notice";
 import { derivePayoutStatus } from "@/components/host/payout-status";
 import { loadPublishedListingsMissingHours } from "@/lib/listing/hours-signal";
 import { loadHostVerification } from "@/lib/host/verification-status";
+import { deriveVerificationRoadmap } from "@/lib/host/verification-roadmap";
 
 /**
  * The two-sentence product explainer, retained BYTE-FOR-BYTE from the shipped surface and rendered in
@@ -116,11 +118,15 @@ export default async function HostDashboardPage() {
   // in one render is exactly the drift D-141 forbids — with nothing that would go red when it happened.
   const now = await readDbNow(db);
 
-  const [{ n } = { n: 0 }] = await db
-    .select({ n: count() })
+  const listingRows = await db
+    .select({
+      id: listing.id,
+      status: listing.status,
+      reviewState: listing.reviewState,
+    })
     .from(listing)
     .where(and(eq(listing.hostId, session.user.id), isNull(listing.deletedAt)));
-  const hasListings = (n ?? 0) > 0;
+  const hasListings = listingRows.length > 0;
 
   // Pending-request count (D-65) — booking JOIN listing owner-scoped to this host, status='requested'.
   // CONSUMER #2 OF THREE, RESHAPED AND NOT REPLACED: the same predicate is written by the (host) shell's
@@ -133,10 +139,14 @@ export default async function HostDashboardPage() {
     .where(and(eq(listing.hostId, session.user.id), eq(booking.status, "requested")));
   const pendingRequests = p ?? 0;
 
-  // Live payout state (D-12) — drives the persistent notice in the signals block. payoutsEnabled is
-  // webhook-set only; nothing here infers it from a redirect.
+  // Live payout state (D-12) — drives roadmap Step 2. payoutsEnabled is webhook-set only; nothing
+  // here infers it from a redirect.
   const [payoutRow] = await db
-    .select()
+    .select({
+      paymongoAccountId: hostPayout.paymongoAccountId,
+      payoutsEnabled: hostPayout.payoutsEnabled,
+      activationStatus: hostPayout.activationStatus,
+    })
     .from(hostPayout)
     .where(eq(hostPayout.userId, session.user.id));
   const payoutStatus = derivePayoutStatus(payoutRow);
@@ -150,6 +160,20 @@ export default async function HostDashboardPage() {
   // `/host/listings` and `/host/earnings` read, so the three cannot disagree about a suspension. This
   // is the only thing on this page that is about the HOST rather than about their day.
   const verification = await loadHostVerification(db, session.user.id);
+  const missingHoursIds = new Set(missingHours.map((row) => row.id));
+  const verificationRoadmap = deriveVerificationRoadmap({
+    now,
+    verification,
+    payoutStatus,
+    listings: listingRows.map((row) => ({
+      ...row,
+      hasOperatingHours: row.status === "published" && !missingHoursIds.has(row.id),
+    })),
+    host: {
+      emailVerified: Boolean(session.user.emailVerified),
+      payoutsEnabled: Boolean(payoutRow?.payoutsEnabled),
+    },
+  });
 
   // ─── THE AGENDA READ (14-02). Owner-scoping is a bound `WHERE l.host_id = $1` inside the statement,
   // on BOTH buckets, and the venue-local day is decided by projecting the clock into each joined row's
@@ -238,7 +262,7 @@ export default async function HostDashboardPage() {
         // listings, and absent otherwise.
         lede={hasListings ? undefined : NO_LISTINGS_LEDE}
         // The cluster renders only for a host who HAS listings. A host with none is offered the create
-        // action once, by the empty state below, which is what keeps exactly one accent-filled element
+        // action once, by Step 3 below, which is what keeps exactly one accent-filled element
         // in the viewport in BOTH states rather than only in one.
         actions={
           hasListings ? (
@@ -276,8 +300,8 @@ export default async function HostDashboardPage() {
           now={now}
         />
       ) : (
-        // The shipped no-listings empty state, unchanged — same icon, same two strings, same create
-        // action, and the copy is byte-identical to `/host/listings`' own because the two are one
+        // The shipped no-listings empty state retains its icon and two strings. Its former create
+        // action moves to roadmap Step 3 so the page has one advancing action rather than two.
         // product decision rendered on two surfaces. There is no agenda here: a host with no listings
         // has nothing to have an agenda about, and an empty "Today" would be an absence dressed up as a
         // state.
@@ -286,29 +310,19 @@ export default async function HostDashboardPage() {
           titleAs="h2"
           title="No listings yet"
           body="List your space and start earning. We'll walk you through it step by step."
-          actions={
-            <Button asChild variant="brand">
-              <Link href="/host/listings/new">Create your first listing</Link>
-            </Button>
-          }
+          actions={null}
         />
       )}
 
-      {/* WHAT NEEDS THE HOST, in D-140's order: requests owed, payout state, published without hours.
+      <VerificationRoadmap model={verificationRoadmap} />
+
+      {/* WHAT NEEDS THE HOST, in D-140's remaining order: requests owed, published without hours.
           Below today's sessions on purpose — a dashboard that leads with setup chores is a dashboard for
-          the host's first week rather than their hundredth. It runs no query of its own; all three
-          numbers arrive from the authorities read above. Rendered in the no-listings state too, where
-          rows 1 and 3 are structurally zero and hide themselves, so the payout notice a brand-new host
-          most needs is still the thing under the empty state. */}
+          the host's first week rather than their hundredth. It runs no query of its own; both inputs
+          arrive from the authorities read above. Payout and account-check state live in the roadmap. */}
       <HostSignals
         pendingRequests={pendingRequests}
-        payoutStatus={payoutStatus}
         missingHours={missingHours}
-        // The FOURTH signal's state, threaded from the read this page already performs above for the
-        // suspension notice — no fourth query, and no second answer to one question about one host.
-        // The block hides the row for the three states that owe nothing, `suspended` among them,
-        // because the notice above says that one already (plan 18.1-11).
-        verificationStatus={verification.status}
       />
     </div>
   );
