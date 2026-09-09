@@ -797,7 +797,7 @@ test.describe.serial("HFLOW-03 — the host dashboard is a today view", () => {
     expect(
       accents.map((a) => a.text),
       "the no-listings state does not show exactly one accent-filled create action.",
-    ).toEqual(["Create your first listing"]);
+    ).toEqual(["Create listing"]);
 
     // ─── HALF TWO: the same page, for a host who HAS a listing. An `iff` needs both sides asked; a
     // one-sided check passes just as happily on a page that never renders the string at all.
