@@ -138,6 +138,7 @@ Both evidence files returned `RED_EVIDENCE_OK` before their GREEN verification. 
 
 ## Verification
 
+- `npm.cmd test` — **234 test files passed, 2 skipped; 2,948 tests passed, 5 skipped**. The existing containment monitor separately reported two `public.audit` writes outside this plan's roadmap scope.
 - `npm.cmd test -- tests/host/verification-roadmap.test.tsx tests/host/verification-roadmap-state.test.ts` — **25 passed** across both files.
 - Ten isolated repetitions of `npm.cmd test -- tests/host/verification-roadmap.test.tsx -t "clears a stale rejection during retry and replaces it with the new refusal" --reporter=dot` — **10/10 passed**.
 - `npm.cmd exec eslint -- src/components/host/verification-roadmap.tsx tests/host/verification-roadmap.test.tsx` — **passed with no findings**.
