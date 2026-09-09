@@ -131,6 +131,13 @@ const eslintConfig = defineConfig([
     // only its worktrees still lets the installed runtime (`.claude/gsd-core/**`) flood lint with
     // CommonJS and host-script errors. Keep the entire local runtime outside the app lint boundary.
     ".claude/**",
+    // Codex/GSD use the equivalent directories for runtime hooks, installed skills, and isolated
+    // checkout state. They are local orchestration infrastructure rather than application source;
+    // in particular, `.gsd/**` can contain complete nested checkouts that would otherwise make one
+    // app lint traverse the repository several times and report the runtime's CommonJS scripts.
+    ".codex/**",
+    ".agents/**",
+    ".gsd/**",
     "**/.next/**",
     // Planning artifacts are not application source and are never shipped.
     //
