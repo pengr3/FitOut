@@ -1,0 +1,9 @@
+{
+  "command": "npm.cmd test -- tests/listing/review-history.test.ts -t \"keeps a newest\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - tests/listing/review-history.test.ts\nnot ok 4 - keeps a newest null rejection authoritative over an older non-empty reason\nAssertionError: expected 'Move the hero photo higher.' to be null\nnot ok 5 - keeps a newest whitespace-only rejection authoritative over an older non-empty reason\nAssertionError: expected 'Move the hero photo higher.' to be null\n# tests 2\n# pass 0\n# fail 2",
+  "targetTest": "keeps a newest null rejection authoritative over an older non-empty reason",
+  "targetFile": "tests/listing/review-history.test.ts",
+  "expected": "For both null and whitespace-only newest rejected reasons, latestRejectionReason remains null while the older sentence stays attached only to its historical cycle.",
+  "actual": "Both focused cases failed because the older 'Move the hero photo higher.' sentence replaced the valid null current-cycle result."
+}

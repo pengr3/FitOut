@@ -244,6 +244,66 @@ describe("LVER-07 review history — bounded and total lifecycle mapping", () =>
     expect(result?.latestRejectionReason).toBe("z wins");
   });
 
+  it("keeps a newest null rejection authoritative over an older non-empty reason", async () => {
+    const ownerId = await makeHost("NewestNull");
+    const listingId = await makeListing(ownerId, "NewestNull");
+
+    await makeCycle({
+      id: "newest-null-older",
+      listingId,
+      state: "rejected",
+      submittedAt: "2026-09-07T01:00:00Z",
+      decidedAt: "2026-09-07T02:00:00Z",
+      reason: "Move the hero photo higher.",
+    });
+    await makeCycle({
+      id: "newest-null-current",
+      listingId,
+      state: "rejected",
+      submittedAt: "2026-09-08T01:00:00Z",
+      decidedAt: "2026-09-08T02:00:00Z",
+      reason: null,
+    });
+
+    const result = (await loadReviewHistoryByListing(testDb.db, ownerId)).get(listingId);
+
+    expect(result?.latestRejectionReason).toBeNull();
+    expect(result?.reviewHistory.cycles.map((cycle: ReviewCycleDisplay) => cycle.reason)).toEqual([
+      undefined,
+      "Move the hero photo higher.",
+    ]);
+  });
+
+  it("keeps a newest whitespace-only rejection authoritative over an older non-empty reason", async () => {
+    const ownerId = await makeHost("NewestBlank");
+    const listingId = await makeListing(ownerId, "NewestBlank");
+
+    await makeCycle({
+      id: "newest-blank-older",
+      listingId,
+      state: "rejected",
+      submittedAt: "2026-09-07T01:00:00Z",
+      decidedAt: "2026-09-07T02:00:00Z",
+      reason: "Move the hero photo higher.",
+    });
+    await makeCycle({
+      id: "newest-blank-current",
+      listingId,
+      state: "rejected",
+      submittedAt: "2026-09-08T01:00:00Z",
+      decidedAt: "2026-09-08T02:00:00Z",
+      reason: "   ",
+    });
+
+    const result = (await loadReviewHistoryByListing(testDb.db, ownerId)).get(listingId);
+
+    expect(result?.latestRejectionReason).toBeNull();
+    expect(result?.reviewHistory.cycles.map((cycle: ReviewCycleDisplay) => cycle.reason)).toEqual([
+      undefined,
+      "Move the hero photo higher.",
+    ]);
+  });
+
   it("maps every persisted state and omits only a rejected cycle's missing optional reason", async () => {
     const ownerId = await makeHost("States");
     const listingId = await makeListing(ownerId, "States");
