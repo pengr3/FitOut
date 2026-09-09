@@ -221,13 +221,13 @@ categories Phase 18/18.1 opened; `STATE-05` and `TRUST-01` keep their v1.1 IDs.
 
 ### LVER — The rejection loop, made deliberate
 
-- [ ] **LVER-06** — A host with a rejected listing has an **explicit route to fix and resubmit it**,
+- [x] **LVER-06** — A host with a rejected listing has an **explicit route to fix and resubmit it**,
       reached by choosing it rather than by tripping one of seven material fields. The control routes
       **into the edit wizard** — it is never a submit button that resubmits without a change, and it
       is never labelled appeal, dispute, or contest.
 - [x] **LVER-07** — A host can see a listing's **review history per cycle** — submitted → waiting →
       decided, with the reason — newest first and bounded, so it never becomes an infinite list.
-- [ ] **LVER-08** — A host is told **which changes send a listing back to review before they edit**,
+- [x] **LVER-08** — A host is told **which changes send a listing back to review before they edit**,
       in plain language sourced from the one exported material-fields tuple so it cannot drift.
 - [ ] **LVER-09** — A host who resubmits gets an **acknowledgement that it was received and
       re-queued**, because silence after resubmitting is what produces resubmission spam.
@@ -325,9 +325,9 @@ Explicitly excluded, with the reasoning, so they are not re-added by a later pla
 | HVER-12 | Phase 21 | Complete |
 | HVER-13 | Phase 21 | Complete |
 | HVER-14 | Phase 21 | Complete |
-| LVER-06 | Phase 21 | Pending |
+| LVER-06 | Phase 21 | Complete |
 | LVER-07 | Phase 21 | Complete |
-| LVER-08 | Phase 21 | Pending |
+| LVER-08 | Phase 21 | Complete |
 | LVER-09 | Phase 21 | Pending |
 | ENF-04 | Phase 22 | Pending |
 | OPS-13 | Phase 22 | Pending |

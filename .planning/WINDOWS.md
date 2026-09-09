@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 25
+open_count: 27
 waived_count: 0
 fixed_count: 8
-total_count: 33
-last_updated: 2026-09-09T07:17:54.023Z
+total_count: 35
+last_updated: 2026-09-09T09:16:03.127Z
 ---
 
 # Broken Windows Ledger
@@ -48,6 +48,8 @@ last_updated: 2026-09-09T07:17:54.023Z
 | 32 | 21 | deviation | e2e/helpers/booker-seed.ts |  | 21-02: Extended the existing browser fixture with bounded review cycles so the planned end-to-end history states could be verified. | open |  | 2026-09-09T07:17:52.638Z |  |
 | 33 | 21 | deviation | e2e/host-listing-grid.spec.ts |  | 21-02: Measured overflow on the Radix ScrollArea viewport instead of its root so the browser assertion matches the component's actual scrolling element. | open |  | 2026-09-09T07:17:53.319Z |  |
 | 34 | 21 | deviation | .next/dev/types/validator.ts |  | 21-02: Removed a stale generated Next development validator that blocked a clean production build; no tracked source file was removed. | open |  | 2026-09-09T07:17:54.023Z |  |
+| 35 | 21 | unrun-verify | package.json |  | npm.cmd run typecheck is undefined; clean Next production build completed its TypeScript pass | open |  | 2026-09-09T09:16:02.438Z |  |
+| 36 | 21 | unrun-verify | e2e/host-listing-grid.spec.ts |  | Windows Playwright runner stayed open after all browser assertion results and required interruption | open |  | 2026-09-09T09:16:03.127Z |  |
 
 ````json
 [
@@ -445,6 +447,30 @@ last_updated: 2026-09-09T07:17:54.023Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-09T07:17:54.023Z",
+    "resolved_at": null
+  },
+  {
+    "id": 35,
+    "kind": "unrun-verify",
+    "phase": "21",
+    "file": "package.json",
+    "line": null,
+    "description": "npm.cmd run typecheck is undefined; clean Next production build completed its TypeScript pass",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T09:16:02.438Z",
+    "resolved_at": null
+  },
+  {
+    "id": 36,
+    "kind": "unrun-verify",
+    "phase": "21",
+    "file": "e2e/host-listing-grid.spec.ts",
+    "line": null,
+    "description": "Windows Playwright runner stayed open after all browser assertion results and required interruption",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T09:16:03.127Z",
     "resolved_at": null
   }
 ]

@@ -21,3 +21,15 @@
   after 21-01: the Phase 20 ops-action origin/census delta, the Phase 21-01 roadmap success-hue census,
   and the Phase 20 suspense-trigger census. The four design suites covering the changed host-listing
   surface pass all 30 assertions.
+
+## 21-03 out-of-scope verification findings
+
+- `npm.cmd run typecheck` remains undefined in `package.json`. The clean production Next.js build
+  compiled successfully, completed its TypeScript pass, and generated all 35 static pages.
+- Direct `tsc --noEmit` still reports the pre-existing test-harness typing errors in
+  `tests/auth/ops-host-routing.test.ts`, `tests/design/mail-credential-refusal.test.ts`, and
+  `tests/design/workflow-invariants.test.ts`; none is in the 21-03 change set.
+- On Windows, the listing-grid Playwright process remains open after all five browser scenarios have
+  reported their assertion results because the spawned Next dev-server descendants do not terminate.
+  The four established scenarios passed in the first run, and the new rejected-entry scenario passed
+  both targeted and full-file runs before the idle process was interrupted.
