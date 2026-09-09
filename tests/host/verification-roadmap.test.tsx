@@ -304,9 +304,11 @@ describe("payout onboarding recovery", () => {
     ).not.toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Set up payouts" }));
-    expect(
-      screen.queryByText("We couldn't start payout setup. Please try again."),
-    ).toBeNull();
+    await waitFor(() => {
+      expect(
+        screen.queryByText("We couldn't start payout setup. Please try again."),
+      ).toBeNull();
+    });
     expect(h.startPayoutOnboardingMock).toHaveBeenCalledTimes(2);
 
     resolveRetry({ ok: false, error: "Payout setup is unavailable." });
