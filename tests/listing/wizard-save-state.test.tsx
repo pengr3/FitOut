@@ -65,6 +65,12 @@ class ResizeObserverStub {
 globalThis.ResizeObserver =
   globalThis.ResizeObserver ?? (ResizeObserverStub as unknown as typeof ResizeObserver);
 
+const scrollIntoViewSpy = vi.fn();
+Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+  configurable: true,
+  value: scrollIntoViewSpy,
+});
+
 // A STABLE router stub, unlike the occupancy file's fresh-per-call one, because case (6) asserts that
 // the two surviving toasts precede a NAVIGATION — which cannot be checked against a `vi.fn()` minted
 // inside the hook and never findable again.
@@ -342,6 +348,78 @@ describe("LVER-06 — the rejected listing notice is server-derived and persiste
     expect(rendered.className).toContain("select-text");
     expect(rendered.className).toContain("[overflow-wrap:anywhere]");
     expect(rendered.className).not.toMatch(/line-clamp|truncate|select-none/);
+  });
+});
+
+describe("LVER-09 — a guarded rejected-listing transition authorizes one mounted receipt", () => {
+  it("latches Changes received, focuses and scrolls once, and suppresses the true result's generic outcome", async () => {
+    actions.saveListingStep
+      .mockResolvedValueOnce({ ok: true, flipped: true })
+      .mockResolvedValue({ ok: true, flipped: false });
+    mount(false, makeListing(), { reason: "The map pin needs to match the address." });
+
+    await advance();
+
+    const receipt = screen.getByRole("region", { name: "Changes received" });
+    expect(receipt.textContent).toContain(
+      "Your listing is back in review. It can't take bookings until FitOut finishes checking it.",
+    );
+    expect(document.activeElement).toBe(receipt);
+    expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1);
+    expect(heading(), "the first true result must remain visible before ordinary navigation").toBe(
+      FIRST_TITLE,
+    );
+    expect(regionText(), "the receipt replaces the generic saved announcement for this outcome").toBe(
+      "",
+    );
+    expect(toastSpy.success).not.toHaveBeenCalled();
+    expect(nav.push).not.toHaveBeenCalled();
+
+    await advance();
+    expect(heading()).toBe(DETAILS_TITLE);
+    expect(receipt.isConnected, "later saves must not erase the mounted receipt").toBe(true);
+    expect(document.activeElement).toBe(receipt);
+    expect(scrollIntoViewSpy, "later saves must not move or scroll focus again").toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["guarded false", { ok: true, flipped: false }],
+    ["generic success", { ok: true }],
+    ["failure", { ok: false, error: SAVE_REFUSAL }],
+  ] as const)("does not render success for %s", async (_name, result) => {
+    actions.saveListingStep.mockResolvedValue(result);
+    mount(false, makeListing(), { reason: "The photos need correction." });
+
+    await advance();
+
+    expect(screen.queryByRole("region", { name: "Changes received" })).toBeNull();
+    expect(scrollIntoViewSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not let a true action result authorize receipt outside server-derived rejected context", async () => {
+    actions.saveListingStep.mockResolvedValue({ ok: true, flipped: true });
+    mount();
+
+    await advance();
+
+    expect(screen.queryByRole("region", { name: "Changes received" })).toBeNull();
+    expect(heading()).toBe(DETAILS_TITLE);
+  });
+
+  it("keeps a true Save as draft result in-page instead of toasting or navigating away", async () => {
+    mount(false, makeListing(), { reason: "The listing details need correction." });
+    await advanceTo(REVIEW_TITLE);
+    toastSpy.success.mockClear();
+    nav.push.mockClear();
+    actions.saveListingStep.mockResolvedValue({ ok: true, flipped: true });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Save as draft" }));
+    });
+
+    expect(screen.getByRole("region", { name: "Changes received" })).toBeTruthy();
+    expect(toastSpy.success).not.toHaveBeenCalled();
+    expect(nav.push).not.toHaveBeenCalled();
   });
 });
 

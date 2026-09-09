@@ -424,6 +424,62 @@ describe("LVER-03 [listing_fields] — the WORDS are material too, as of D-231 (
   });
 });
 
+describe("LVER-09 [listing_fields] — the action returns only the guarded transition result", () => {
+  it("returns flipped true when a rejected material edit opens a new review cycle", async () => {
+    const hostId = await signInHost("me.receipt.fields.true@example.com");
+    const listingId = await makeListing(hostId, "rejected");
+    await seedDecision(
+      listingId,
+      "rejected",
+      "The address and map pin do not agree.",
+      new Date("2026-07-01T00:00:00Z"),
+      new Date("2026-07-02T00:00:00Z"),
+    );
+
+    const res = await saveListingStep(listingId, { addressLine1: "14 Corrected Avenue" });
+
+    expect(res).toMatchObject({ ok: true, id: listingId, flipped: true });
+    expect(await reviewStateOf(listingId)).toBe("pending");
+    expect(await reviewsOf(listingId)).toHaveLength(2);
+  });
+
+  it("returns flipped false for a successful non-material save", async () => {
+    const hostId = await signInHost("me.receipt.fields.nonmaterial@example.com");
+    const listingId = await makeListing(hostId, "rejected");
+
+    const res = await saveListingStep(listingId, { cancellationPolicy: "flexible" });
+
+    expect(res).toMatchObject({ ok: true, id: listingId, flipped: false });
+    expect(await reviewStateOf(listingId)).toBe("rejected");
+  });
+
+  it("returns flipped false when the guarded transition is already pending", async () => {
+    const hostId = await signInHost("me.receipt.fields.pending@example.com");
+    const listingId = await makeListing(hostId, "pending");
+    await seedDecision(
+      listingId,
+      "pending",
+      null,
+      new Date("2026-07-01T00:00:00Z"),
+      null,
+    );
+
+    const res = await saveListingStep(listingId, { maxOccupancy: 45 });
+
+    expect(res).toMatchObject({ ok: true, id: listingId, flipped: false });
+    expect(await reviewsOf(listingId)).toHaveLength(1);
+  });
+
+  it("does not expose receipt authority on a failed save", async () => {
+    sessionHeaders.cookie = "";
+
+    const res = await saveListingStep(randomUUID(), { title: "Forged save" });
+
+    expect(res.ok).toBe(false);
+    expect(res).not.toHaveProperty("flipped");
+  });
+});
+
 describe("LVER-03 [listing_fields] — the NEGATIVES that make the positives diagnostic", () => {
   it("an autosave re-sending the SAME persisted values does NOT flip", async () => {
     const hostId = await signInHost("me.negative.resend@example.com");

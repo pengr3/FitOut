@@ -1,0 +1,9 @@
+{
+  "command": "npm.cmd test -- tests/listing/wizard-save-state.test.tsx -t \"latches Changes received, focuses and scrolls once, and suppresses the true result's generic outcome\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - LVER-09 — a guarded rejected-listing transition authorizes one mounted receipt > latches Changes received, focuses and scrolls once, and suppresses the true result's generic outcome\n# tests 1\n# pass 0\n# fail 1\n# cancelled 0\nTestingLibraryElementError: Unable to find an accessible element with the role \\\"region\\\" and name \\\"Changes received\\\"",
+  "targetTest": "LVER-09 — a guarded rejected-listing transition authorizes one mounted receipt > latches Changes received, focuses and scrolls once, and suppresses the true result's generic outcome",
+  "targetFile": "tests/listing/wizard-save-state.test.tsx",
+  "expected": "A successful rejected-listing material save with flipped: true mounts and focuses the Changes received receipt while suppressing the generic save outcome.",
+  "actual": "The focused test failed because no accessible region named Changes received exists yet."
+}
