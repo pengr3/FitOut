@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 27
+open_count: 30
 waived_count: 0
 fixed_count: 8
-total_count: 35
-last_updated: 2026-09-09T09:16:03.127Z
+total_count: 38
+last_updated: 2026-09-09T10:29:18.267Z
 ---
 
 # Broken Windows Ledger
@@ -50,6 +50,9 @@ last_updated: 2026-09-09T09:16:03.127Z
 | 34 | 21 | deviation | .next/dev/types/validator.ts |  | 21-02: Removed a stale generated Next development validator that blocked a clean production build; no tracked source file was removed. | open |  | 2026-09-09T07:17:54.023Z |  |
 | 35 | 21 | unrun-verify | package.json |  | npm.cmd run typecheck is undefined; clean Next production build completed its TypeScript pass | open |  | 2026-09-09T09:16:02.438Z |  |
 | 36 | 21 | unrun-verify | e2e/host-listing-grid.spec.ts |  | Windows Playwright runner stayed open after all browser assertion results and required interruption | open |  | 2026-09-09T09:16:03.127Z |  |
+| 37 | 21 | unrun-verify | package.json |  | 21-05: npm.cmd run typecheck is undefined; clean Next production build completed its TypeScript pass | open |  | 2026-09-09T10:29:17.126Z |  |
+| 38 | 21 | deviation | .next/dev/types/validator.ts |  | 21-05: Removed stale generated Next development route types that blocked production TypeScript validation | open |  | 2026-09-09T10:29:18.066Z |  |
+| 39 | 21 | unrun-verify | e2e/host-dashboard.spec.ts |  | 21-05: Windows-managed Playwright server descendants stayed open after targeted runs; manual-server full run passed 9/9 | open |  | 2026-09-09T10:29:18.267Z |  |
 
 ````json
 [
@@ -471,6 +474,42 @@ last_updated: 2026-09-09T09:16:03.127Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-09T09:16:03.127Z",
+    "resolved_at": null
+  },
+  {
+    "id": 37,
+    "kind": "unrun-verify",
+    "phase": "21",
+    "file": "package.json",
+    "line": null,
+    "description": "21-05: npm.cmd run typecheck is undefined; clean Next production build completed its TypeScript pass",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T10:29:17.126Z",
+    "resolved_at": null
+  },
+  {
+    "id": 38,
+    "kind": "deviation",
+    "phase": "21",
+    "file": ".next/dev/types/validator.ts",
+    "line": null,
+    "description": "21-05: Removed stale generated Next development route types that blocked production TypeScript validation",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T10:29:18.066Z",
+    "resolved_at": null
+  },
+  {
+    "id": 39,
+    "kind": "unrun-verify",
+    "phase": "21",
+    "file": "e2e/host-dashboard.spec.ts",
+    "line": null,
+    "description": "21-05: Windows-managed Playwright server descendants stayed open after targeted runs; manual-server full run passed 9/9",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T10:29:18.267Z",
     "resolved_at": null
   }
 ]

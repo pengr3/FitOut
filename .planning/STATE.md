@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 21
 current_phase_name: The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit
 status: executing
-stopped_at: Completed 21-03-PLAN.md
-last_updated: "2026-09-09T09:20:25.924Z"
+stopped_at: Completed 21-05-PLAN.md
+last_updated: "2026-09-09T10:33:04.401Z"
 last_activity: 2026-09-09
-last_activity_desc: Completed 21-02-PLAN.md
-state_head: 812610b7379f5ecbccf17947ccd32f0c8daac9d3
+last_activity_desc: Completed 21-05-PLAN.md
+state_head: 2c0e29ee87c43850fa1be465aeb05d6ed98490a1
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 79
+  completed_plans: 80
   percent: 13
 ---
 
@@ -112,7 +112,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 21 (The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-09-09 — Completed 21-02-PLAN.md
 
@@ -508,6 +508,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 21 P01 | 56m | 2 tasks | 14 files |
 | Phase 21 P02 | 72m | 2 tasks | 9 files |
 | Phase 21 P03 | 60m | 3 tasks | 11 files |
+| Phase 21 P05 | 74m | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -1586,6 +1587,9 @@ Recent decisions affecting current work:
 - [Phase 21]: Only published listings with current rejected review state replace Edit; all other listing and review combinations preserve Edit.
 - [Phase 21]: Rejected wizard context comes from the existing owner/deleted-scoped server query; URL parameters have no authority.
 - [Phase 21]: Both rejected surfaces derive their exact seven material labels from one total map keyed by the canonical MATERIAL_FIELDS tuple.
+- [Phase 21]: The Phase 21 roadmap remains one ordered PanelCard tree with CSS-only responsive reflow.
+- [Phase 21]: Arbitrary verification copy is contained with min-width and overflow-wrap rules without changing authority.
+- [Phase 21]: Browser focus evidence delegates to the shared expectRing criterion after real Tab input.
 
 ### Pending Todos
 
@@ -1774,8 +1778,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-09T09:20:23.609Z
-Stopped at: Completed 21-03-PLAN.md
+Last session: 2026-09-09T10:33:02.057Z
+Stopped at: Completed 21-05-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.

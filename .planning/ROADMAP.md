@@ -945,7 +945,7 @@ history.
   5. A host can read a listing's **review history per cycle** — submitted → waiting → decided, with the
      operator's reason — newest first and bounded.
 
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 **Wave 1**
@@ -956,7 +956,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 21-03-PLAN.md — Make rejected edits deliberate and preserve server-derived review context through the wizard.
-- [ ] 21-05-PLAN.md — Close responsive, accessibility, design-gate, and browser evidence for the authority-backed roadmap.
+- [x] 21-05-PLAN.md — Close responsive, accessibility, design-gate, and browser evidence for the authority-backed roadmap.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 

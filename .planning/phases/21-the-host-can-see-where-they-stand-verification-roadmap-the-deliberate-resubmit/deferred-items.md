@@ -33,3 +33,17 @@
   reported their assertion results because the spawned Next dev-server descendants do not terminate.
   The four established scenarios passed in the first run, and the new rejected-entry scenario passed
   both targeted and full-file runs before the idle process was interrupted.
+
+## 21-05 out-of-scope verification findings
+
+- `npm.cmd run typecheck` remains undefined in `package.json`. Direct `tsc --noEmit` reports the
+  established stale generated dev-route collision plus pre-existing test-harness typing errors in
+  `tests/auth/ops-host-routing.test.ts`, `tests/design/mail-credential-refusal.test.ts`, and
+  `tests/design/workflow-invariants.test.ts`. Removing only `.next/dev` allowed the required clean
+  production build to complete its TypeScript pass and generate all 35 static pages.
+- Playwright's Windows-managed Next descendants remained open after targeted roadmap runs. The same
+  two roadmap scenarios and all seven established dashboard scenarios then exited cleanly against a
+  manually managed local Next server: 9 passed.
+- The first repository-wide design run timed out once while dynamically loading the Playwright config
+  in `e2e-email-silence.test.ts`. That file passed 5/5 in isolation, and the full rerun passed all
+  1,464 active assertions; no product or test timeout was changed.
