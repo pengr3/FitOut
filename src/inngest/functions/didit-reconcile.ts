@@ -69,6 +69,7 @@ import { sql } from "drizzle-orm";
 import { recordAudit } from "@/lib/audit";
 import type { DbConn } from "@/lib/availability/read-model";
 import { db } from "@/lib/db";
+import { DIDIT_RECONCILE_GRACE_MINUTES } from "@/lib/host/verification-cooldown";
 import { applyDiditVerdict } from "@/lib/verification/apply-verdict";
 import {
   DiditRateLimitError,
@@ -102,7 +103,7 @@ import { inngest } from "@/inngest/client";
  * real host's standing gets re-read from a vendor, and `payout-reconcile.ts` reserves the JS clock for
  * advisory alert timing only.
  */
-export const DIDIT_RECONCILE_GRACE_MINUTES = 30;
+export { DIDIT_RECONCILE_GRACE_MINUTES } from "@/lib/host/verification-cooldown";
 
 /**
  * The hard bound on ONE pass, and it is sized against the VENDOR'S RATE LIMIT rather than against taste.

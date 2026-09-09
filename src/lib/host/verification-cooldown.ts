@@ -85,3 +85,10 @@
  * and the clause that refuses them cannot say different things.
  */
 export const COOLDOWN_HOURS = 24;
+
+/**
+ * A pending verification may expose the existing resume path after this many idle minutes.
+ * The Didit reconciliation query imports the same value, so the dashboard never promises rescue
+ * before the background recovery authority considers the row stale.
+ */
+export const DIDIT_RECONCILE_GRACE_MINUTES = 30;

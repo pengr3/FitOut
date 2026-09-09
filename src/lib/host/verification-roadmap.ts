@@ -4,7 +4,17 @@ import type {
   ListingReviewState,
 } from "@/lib/db/schema";
 import type { HostVerificationState } from "@/lib/host/verification-status";
-import { VERIFICATION_SIGNAL } from "@/lib/host/verification-signal";
+import {
+  composeRetryAfterSentence,
+  composeVerificationRejectionReason,
+  retryAllowedAt,
+  VERIFICATION_SIGNAL,
+} from "@/lib/host/verification-signal";
+import {
+  COOLDOWN_HOURS,
+  DIDIT_RECONCILE_GRACE_MINUTES,
+} from "@/lib/host/verification-cooldown";
+import { composeSuspendedSentence } from "@/lib/listing/review-signal";
 import type { PayoutStatus } from "@/components/host/payout-status";
 
 export type RoadmapStepState =
@@ -67,13 +77,13 @@ export type VerificationRoadmapModel =
 
 function identityStep(
   verification: HostVerificationState,
+  now: Date,
 ): Omit<VerificationRoadmapStep, "number" | "action"> & {
   action?: RoadmapAction;
 } {
-  const signal = VERIFICATION_SIGNAL[verification.status];
-
   switch (verification.status) {
-    case "unverified":
+    case "unverified": {
+      const signal = VERIFICATION_SIGNAL.unverified;
       return {
         title: "Get your account checked",
         state: "Current",
@@ -86,32 +96,69 @@ function identityStep(
         },
         verificationStatus: verification.status,
       };
-    case "pending":
+    }
+    case "pending": {
+      const signal = VERIFICATION_SIGNAL.pending;
+      const staleAt = verification.updatedAt
+        ? new Date(
+            verification.updatedAt.getTime() +
+              DIDIT_RECONCILE_GRACE_MINUTES * 60_000,
+          )
+        : null;
+      const stale = staleAt !== null && now.getTime() >= staleAt.getTime();
       return {
         title: "Get your account checked",
         state: "Waiting",
-        body: signal.reason,
+        body: stale
+          ? "Your check has been waiting for a result for more than 30 minutes. Open the check again so FitOut can continue."
+          : signal.reason,
+        action: stale
+          ? {
+              kind: "link",
+              label: signal.wayOut,
+              href: "/host/verify",
+              variant: "default",
+            }
+          : undefined,
         verificationStatus: verification.status,
       };
+    }
     case "approved":
       return {
         title: "Get your account checked",
         state: "Done",
-        body: signal.reason,
+        body: VERIFICATION_SIGNAL.approved.reason,
         verificationStatus: verification.status,
       };
-    case "rejected":
+    case "rejected": {
+      const reason = composeVerificationRejectionReason(verification.reason);
+      const allowedAt = verification.updatedAt
+        ? retryAllowedAt(verification.updatedAt, COOLDOWN_HOURS)
+        : null;
+      const retrySentence = verification.updatedAt
+        ? composeRetryAfterSentence(verification.updatedAt, COOLDOWN_HOURS)
+        : null;
+      const retryAllowed = allowedAt !== null && now.getTime() >= allowedAt.getTime();
       return {
         title: "Get your account checked",
         state: "Not passed",
-        body: verification.reason?.trim() || signal.reason,
+        body: retrySentence ? `${reason} ${retrySentence}` : reason,
+        action: retryAllowed
+          ? {
+              kind: "link",
+              label: VERIFICATION_SIGNAL.rejected.wayOut,
+              href: "/host/verify",
+              variant: "default",
+            }
+          : undefined,
         verificationStatus: verification.status,
       };
+    }
     case "suspended":
       return {
         title: "Get your account checked",
         state: "Paused",
-        body: verification.reason?.trim() || signal.reason,
+        body: composeSuspendedSentence(verification.reason),
         verificationStatus: verification.status,
       };
     case "grandfathered":
@@ -121,6 +168,8 @@ function identityStep(
         body: "Your account can create and publish listings.",
         verificationStatus: verification.status,
       };
+    default:
+      throw new Error(`Unsupported verification status: ${String(verification.status)}`);
   }
 }
 
@@ -179,14 +228,21 @@ export function deriveVerificationRoadmap(
     };
   }
 
-  const identity = identityStep(verification);
+  const identity = identityStep(verification, input.now);
   const payout = payoutStep(
     input.payoutStatus,
     verification.status === "approved" || verification.status === "grandfathered",
   );
   const hasListings = input.listings.length > 0;
-  const hasRejected = input.listings.some((row) => row.reviewState === "rejected");
-  const hasPending = input.listings.some((row) => row.reviewState === "pending");
+  const preparedListings = input.listings.filter(
+    (row) => row.status === "published" && row.hasOperatingHours,
+  );
+  const hasPreparedListing = preparedListings.length > 0;
+  const hasRejected = preparedListings.some((row) => row.reviewState === "rejected");
+  const hasPending = preparedListings.some((row) => row.reviewState === "pending");
+  const reviewDone = preparedListings.some(
+    (row) => row.reviewState === "approved" || row.reviewState === "grandfathered",
+  );
 
   const steps: VerificationRoadmapStep[] = [
     { number: 1, ...identity },
@@ -194,45 +250,60 @@ export function deriveVerificationRoadmap(
     {
       number: 3,
       title: "List a space",
-      state: hasListings ? "Done" : "Current",
-      body: hasListings
-        ? "You have started a listing on FitOut."
-        : "Create a listing so guests can discover your space.",
-      action: hasListings
-        ? undefined
-        : {
+      state: hasPreparedListing ? "Done" : "Current",
+      body: !hasListings
+        ? "Create a listing so guests can discover your space."
+        : hasPreparedListing
+          ? "You have a published listing with weekly hours."
+          : "Finish a listing and set its weekly hours so FitOut can check it.",
+      action: !hasListings
+        ? {
             kind: "link",
             label: "Create listing",
             href: "/host/listings/new",
             variant: "brand",
-          },
+          }
+        : hasPreparedListing
+          ? undefined
+          : {
+              kind: "link",
+              label: "Your listings",
+              href: "/host/listings",
+              variant: "default",
+            },
     },
     {
       number: 4,
       title: input.listings.length > 1 ? "FitOut checks your spaces" : "FitOut checks your space",
       state: !hasListings
         ? "Next"
+        : !hasPreparedListing
+          ? "Current"
         : hasRejected
           ? "Not passed"
           : hasPending
             ? "Waiting"
-            : "Current",
-      body: !hasListings
+            : reviewDone
+              ? "Done"
+              : "Current",
+      body: !hasListings || !hasPreparedListing
         ? "Finish a listing and submit it before FitOut can check it."
         : hasRejected
           ? "A listing needs changes before it can take bookings. Open your listings to see what to fix."
           : hasPending
             ? "FitOut is checking your listing. It can't take bookings until that's done."
-            : "Finish a listing and submit it before FitOut can check it.",
+            : reviewDone
+              ? "FitOut has finished checking a listing."
+              : "Finish a listing and submit it before FitOut can check it.",
       action:
-        hasListings && hasRejected
+        hasPreparedListing && hasRejected
           ? {
               kind: "link",
               label: "Review your listings",
               href: "/host/listings",
               variant: "default",
             }
-          : hasListings && !hasPending
+          : hasPreparedListing && !hasPending && !reviewDone
             ? {
                 kind: "link",
                 label: "Your listings",
