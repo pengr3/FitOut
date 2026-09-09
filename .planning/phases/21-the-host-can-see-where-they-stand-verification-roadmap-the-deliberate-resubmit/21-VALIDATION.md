@@ -1,7 +1,7 @@
 ---
 phase: "21"
 slug: "the-host-can-see-where-they-stand-verification-roadmap-the-deliberate-resubmit"
-status: complete
+status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: "2026-09-09"
@@ -86,3 +86,13 @@ created: "2026-09-09"
 - [x] `nyquist_compliant: true` set in frontmatter after validation
 
 **Approval:** complete — all ten Phase 21 requirement IDs map to real passing tests, the full Vitest and design suites passed, and the listing-grid browser journey passed in Chromium.
+
+---
+
+## Validation Audit 2026-09-09
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
