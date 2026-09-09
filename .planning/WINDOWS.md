@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 22
+open_count: 25
 waived_count: 0
 fixed_count: 8
-total_count: 30
-last_updated: 2026-09-09T05:55:49.755Z
+total_count: 33
+last_updated: 2026-09-09T07:17:54.023Z
 ---
 
 # Broken Windows Ledger
@@ -45,6 +45,9 @@ last_updated: 2026-09-09T05:55:49.755Z
 | 28 | 20 | deviation | src/lib/email.ts |  | Staff invitation delivery must suppress the legacy token-bearing development console fallback | fixed |  | 2026-09-08T01:15:36.903Z | 2026-09-08T01:16:13.145Z |
 | 29 | 20 | deviation | tests/ops/staff-invitation.test.ts |  | Rollback proof was decoupled from Drizzle adapter wrapper error text | fixed |  | 2026-09-08T01:15:37.715Z | 2026-09-08T01:16:13.907Z |
 | 30 | 21 | unrun-verify | package.json |  | The plan-listed npm run typecheck command is unavailable because package.json defines no typecheck script; the direct Next production build completed TypeScript validation successfully. | open |  | 2026-09-09T05:55:49.755Z |  |
+| 32 | 21 | deviation | e2e/helpers/booker-seed.ts |  | 21-02: Extended the existing browser fixture with bounded review cycles so the planned end-to-end history states could be verified. | open |  | 2026-09-09T07:17:52.638Z |  |
+| 33 | 21 | deviation | e2e/host-listing-grid.spec.ts |  | 21-02: Measured overflow on the Radix ScrollArea viewport instead of its root so the browser assertion matches the component's actual scrolling element. | open |  | 2026-09-09T07:17:53.319Z |  |
+| 34 | 21 | deviation | .next/dev/types/validator.ts |  | 21-02: Removed a stale generated Next development validator that blocked a clean production build; no tracked source file was removed. | open |  | 2026-09-09T07:17:54.023Z |  |
 
 ````json
 [
@@ -406,6 +409,42 @@ last_updated: 2026-09-09T05:55:49.755Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-09T05:55:49.755Z",
+    "resolved_at": null
+  },
+  {
+    "id": 32,
+    "kind": "deviation",
+    "phase": "21",
+    "file": "e2e/helpers/booker-seed.ts",
+    "line": null,
+    "description": "21-02: Extended the existing browser fixture with bounded review cycles so the planned end-to-end history states could be verified.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T07:17:52.638Z",
+    "resolved_at": null
+  },
+  {
+    "id": 33,
+    "kind": "deviation",
+    "phase": "21",
+    "file": "e2e/host-listing-grid.spec.ts",
+    "line": null,
+    "description": "21-02: Measured overflow on the Radix ScrollArea viewport instead of its root so the browser assertion matches the component's actual scrolling element.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T07:17:53.319Z",
+    "resolved_at": null
+  },
+  {
+    "id": 34,
+    "kind": "deviation",
+    "phase": "21",
+    "file": ".next/dev/types/validator.ts",
+    "line": null,
+    "description": "21-02: Removed a stale generated Next development validator that blocked a clean production build; no tracked source file was removed.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T07:17:54.023Z",
     "resolved_at": null
   }
 ]

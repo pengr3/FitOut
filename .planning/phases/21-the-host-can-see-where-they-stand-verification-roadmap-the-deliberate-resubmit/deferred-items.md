@@ -12,3 +12,12 @@
   origin/census assertions, the suspense-trigger census, and the existing Windows email-silence
   harness. The Phase 21 roadmap's card, accent, one-tree, tone, and loading design gates pass when run
   directly.
+
+## 21-02 out-of-scope verification findings
+
+- `npm.cmd run typecheck` remains undefined in `package.json`. The production Next.js build completed
+  its TypeScript validation and generated all 35 static pages successfully.
+- The full design suite completed 1,460 assertions but retains four unrelated failures already present
+  after 21-01: the Phase 20 ops-action origin/census delta, the Phase 21-01 roadmap success-hue census,
+  and the Phase 20 suspense-trigger census. The four design suites covering the changed host-listing
+  surface pass all 30 assertions.
