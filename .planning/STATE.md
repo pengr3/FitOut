@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 21
 current_phase_name: The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit
 status: executing
-stopped_at: Phase 21 UI-SPEC approved
-last_updated: "2026-09-09T04:34:00.166Z"
-last_activity: 2026-09-08
-last_activity_desc: Phase 20 execution started
-state_head: f5a4781ffab95935d5641df74787a7e3585c5081
+stopped_at: Completed 21-01-PLAN.md
+last_updated: "2026-09-09T05:52:16.841Z"
+last_activity: 2026-09-09
+last_activity_desc: Completed 21-01-PLAN.md
+state_head: fd0b9740a8bc4095bca475a870662004103a665e
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 76
+  completed_plans: 77
   percent: 13
 ---
 
@@ -67,7 +67,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 20 — Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding
+**Current focus:** Phase 21 — The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues
 from 19; coverage is 25/25 with no orphans and no duplicates. The order is dependency-derived, not
 brief-derived: **19** (cheap independents — the `/host/listings` card fix, the reproduction-gated
@@ -111,10 +111,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 21 (The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit) — READY TO EXECUTE
-Plan: 14 of 14
+Phase: 21 (The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-09-08 — Phase 20 execution started
+Last activity: 2026-09-09 — Completed 21-01-PLAN.md
 
 ## Performance Metrics
 
@@ -505,6 +505,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 20 P07 | 38 min | 3 tasks | 12 files |
 | Phase 20 P08 | 49 min | 2 tasks | 21 files |
 | Phase 20 P13 | 22 min | 2 tasks | 7 files |
+| Phase 21 P01 | 56m | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -1574,6 +1575,9 @@ Recent decisions affecting current work:
 - [Phase 20]: The internal /_ops-auth rewrite target is authored under %5Fops-auth, Next.js 16's public-route escape for a literal underscore segment.
 - [Phase 20]: Shared footer product and legal links resolve from the public origin; FitOut Ops resolves from the ops origin.
 - [Phase 20]: Plan 20-13: successful staff-action dialogs restore focus to the persistent result; ordinary dismissal restores the trigger.
+- [Phase 21]: Only deriveBookable may collapse the host roadmap into the ready receipt.
+- [Phase 21]: Review progress aggregates only across listings that are published and have operating hours.
+- [Phase 21]: Dashboard and Didit reconciliation share one 30-minute pending rescue authority.
 
 ### Pending Todos
 
@@ -1762,8 +1766,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-09T03:08:39.694Z
-Stopped at: Phase 21 UI-SPEC approved
+Last session: 2026-09-09T05:52:14.655Z
+Stopped at: Completed 21-01-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1916,7 +1920,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/21-the-host-can-see-where-they-stand-verification-roadmap-the-deliberate-resubmit/21-UI-SPEC.md
+Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered

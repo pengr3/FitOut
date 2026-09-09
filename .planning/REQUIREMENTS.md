@@ -162,24 +162,24 @@ categories Phase 18/18.1 opened; `STATE-05` and `TRUST-01` keep their v1.1 IDs.
 
 ### HVER — Host verification, made legible to the host
 
-- [ ] **HVER-09** — An **unverified** or **rejected** host sees their standing as a *visual state*
+- [x] **HVER-09** — An **unverified** or **rejected** host sees their standing as a *visual state*
       with a heading and a **button-shaped control**, not a muted paragraph with an underlined word.
       `pending` stays deliberately calm — waiting on a checking partner is a normal lifecycle state,
       not an alarm. The shipped `data-verification-owed` hook survives.
-- [ ] **HVER-10** — A host sees a **verification roadmap**: the ordered steps from account to
+- [x] **HVER-10** — A host sees a **verification roadmap**: the ordered steps from account to
       bookable, which are done, which is current, which remain. The honest step list spans all the
       gates that actually block income — identity check, payout onboarding, listing a space, and
       FitOut checking that space — because from the host's seat that is one journey, not three.
-- [ ] **HVER-11** — Each roadmap step reads its **own server-side gate**, so no step can claim a host
+- [x] **HVER-11** — Each roadmap step reads its **own server-side gate**, so no step can claim a host
       is ready when the gate that blocks them disagrees. No hand-maintained checklist; no second
       authority on "can I sell?".
-- [ ] **HVER-12** — Every verification state is **named and visually distinguishable** —
+- [x] **HVER-12** — Every verification state is **named and visually distinguishable** —
       not-started, waiting, passed, not-passed, paused — except `grandfathered`, which stays
       **silent to the host** on the same argument `SILENT_REVIEW_STATES` already makes for listings.
-- [ ] **HVER-13** — A host whose check **did not pass** is told a named cause and an explicit retry
+- [x] **HVER-13** — A host whose check **did not pass** is told a named cause and an explicit retry
       instant, both read from the **same** value the server's guarded re-submit `UPDATE` uses. The
       instant is absolute, never a duration.
-- [ ] **HVER-14** — A host whose check has sat **pending beyond a stated window** is given a way
+- [x] **HVER-14** — A host whose check has sat **pending beyond a stated window** is given a way
       forward rather than an indefinite wait. *This is the human rescue D-276 removes on the ops
       side, restored on the host side.*
 
@@ -319,12 +319,12 @@ Explicitly excluded, with the reasoning, so they are not re-added by a later pla
 | OPS-10 | Phase 20 | Complete |
 | OPS-11 | Phase 20 | Complete |
 | OPS-12 | Phase 20 | Complete |
-| HVER-09 | Phase 21 | Pending |
-| HVER-10 | Phase 21 | Pending |
-| HVER-11 | Phase 21 | Pending |
-| HVER-12 | Phase 21 | Pending |
-| HVER-13 | Phase 21 | Pending |
-| HVER-14 | Phase 21 | Pending |
+| HVER-09 | Phase 21 | Complete |
+| HVER-10 | Phase 21 | Complete |
+| HVER-11 | Phase 21 | Complete |
+| HVER-12 | Phase 21 | Complete |
+| HVER-13 | Phase 21 | Complete |
+| HVER-14 | Phase 21 | Complete |
 | LVER-06 | Phase 21 | Pending |
 | LVER-07 | Phase 21 | Pending |
 | LVER-08 | Phase 21 | Pending |

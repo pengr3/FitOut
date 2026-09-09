@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 21
+open_count: 22
 waived_count: 0
 fixed_count: 8
-total_count: 29
-last_updated: 2026-09-08T01:16:13.907Z
+total_count: 30
+last_updated: 2026-09-09T05:55:49.755Z
 ---
 
 # Broken Windows Ledger
@@ -44,6 +44,7 @@ last_updated: 2026-09-08T01:16:13.907Z
 | 27 | 20 | deviation | tests/helpers/email-fixtures.ts |  | New staff invitation sender required an exhaustive injection fixture and sender census update | fixed |  | 2026-09-08T01:15:36.169Z | 2026-09-08T01:16:12.352Z |
 | 28 | 20 | deviation | src/lib/email.ts |  | Staff invitation delivery must suppress the legacy token-bearing development console fallback | fixed |  | 2026-09-08T01:15:36.903Z | 2026-09-08T01:16:13.145Z |
 | 29 | 20 | deviation | tests/ops/staff-invitation.test.ts |  | Rollback proof was decoupled from Drizzle adapter wrapper error text | fixed |  | 2026-09-08T01:15:37.715Z | 2026-09-08T01:16:13.907Z |
+| 30 | 21 | unrun-verify | package.json |  | The plan-listed npm run typecheck command is unavailable because package.json defines no typecheck script; the direct Next production build completed TypeScript validation successfully. | open |  | 2026-09-09T05:55:49.755Z |  |
 
 ````json
 [
@@ -394,6 +395,18 @@ last_updated: 2026-09-08T01:16:13.907Z
     "reason": "",
     "recorded_at": "2026-09-08T01:15:37.715Z",
     "resolved_at": "2026-09-08T01:16:13.907Z"
+  },
+  {
+    "id": 30,
+    "kind": "unrun-verify",
+    "phase": "21",
+    "file": "package.json",
+    "line": null,
+    "description": "The plan-listed npm run typecheck command is unavailable because package.json defines no typecheck script; the direct Next production build completed TypeScript validation successfully.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T05:55:49.755Z",
+    "resolved_at": null
   }
 ]
 ````
