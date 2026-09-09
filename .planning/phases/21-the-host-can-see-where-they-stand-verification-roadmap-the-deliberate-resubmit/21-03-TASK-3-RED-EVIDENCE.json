@@ -1,0 +1,9 @@
+{
+  "command": "npm.cmd test -- tests/listing/wizard-save-state.test.tsx -t \"keeps a long stored reason selectable and untruncated\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - keeps a long stored reason selectable and untruncated\n# tests 1\n# pass 0\n# fail 1\n# cancelled 0\nAssertionError: expected the rejection reason class to contain select-text.",
+  "targetTest": "keeps a long stored reason selectable and untruncated",
+  "targetFile": "tests/listing/wizard-save-state.test.tsx",
+  "expected": "A long stored rejection reason remains explicitly selectable, wrapping, and untruncated in the persistent notice.",
+  "actual": "The reason wrapped but did not carry the surface's explicit selectable-text contract."
+}

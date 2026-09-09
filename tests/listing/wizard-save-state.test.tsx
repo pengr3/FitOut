@@ -333,6 +333,16 @@ describe("LVER-06 — the rejected listing notice is server-derived and persiste
     expect(screen.getByText("FitOut didn't approve this listing.")).toBeTruthy();
     expect(screen.getByText(composeMaterialChangeRule())).toBeTruthy();
   });
+
+  it("keeps a long stored reason selectable and untruncated", () => {
+    const reason = "The entrance and map location need a wider, unobstructed view. ".repeat(12).trim();
+    mount(false, makeListing(), { reason });
+
+    const rendered = screen.getByText(reason);
+    expect(rendered.className).toContain("select-text");
+    expect(rendered.className).toContain("[overflow-wrap:anywhere]");
+    expect(rendered.className).not.toMatch(/line-clamp|truncate|select-none/);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────

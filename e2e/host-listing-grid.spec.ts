@@ -90,9 +90,91 @@
 // there against a single-column grid.
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import postgres from "postgres";
 
 import { BASE, seedHostGridFixture, type SeededHostGrid } from "./helpers/booker-seed";
 import { seedTheme } from "./helpers/theme";
+
+const DATABASE_URL =
+  process.env.DATABASE_URL ?? "postgresql://fitout:fitout@localhost:5432/fitout";
+
+type RejectedSnapshot = {
+  reviewState: string;
+  reviewCount: number;
+  reason: string;
+};
+
+async function prepareRejectedGridListing(listingId: string): Promise<RejectedSnapshot> {
+  const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {} });
+  try {
+    await sql`
+      UPDATE listing
+      SET status = 'published'::listing_status,
+          review_state = 'rejected'::listing_review_state
+      WHERE id = ${listingId}
+    `;
+    const [row] = await sql<
+      { review_state: string; review_count: number; reason: string | null }[]
+    >`
+      SELECT
+        l.review_state,
+        count(lr.id)::int AS review_count,
+        (
+          SELECT reason
+          FROM listing_review current_review
+          WHERE current_review.listing_id = l.id
+            AND current_review.state = 'rejected'::listing_review_state
+          ORDER BY current_review.submitted_at DESC, current_review.id DESC
+          LIMIT 1
+        ) AS reason
+      FROM listing l
+      LEFT JOIN listing_review lr ON lr.listing_id = l.id
+      WHERE l.id = ${listingId}
+      GROUP BY l.id
+    `;
+    if (!row?.reason) throw new Error("the rejected grid fixture has no current host-readable reason");
+    return {
+      reviewState: row.review_state,
+      reviewCount: row.review_count,
+      reason: row.reason.trim(),
+    };
+  } finally {
+    await sql.end();
+  }
+}
+
+async function rejectedSnapshot(listingId: string): Promise<RejectedSnapshot> {
+  const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {} });
+  try {
+    const [row] = await sql<
+      { review_state: string; review_count: number; reason: string | null }[]
+    >`
+      SELECT
+        l.review_state,
+        count(lr.id)::int AS review_count,
+        (
+          SELECT reason
+          FROM listing_review current_review
+          WHERE current_review.listing_id = l.id
+            AND current_review.state = 'rejected'::listing_review_state
+          ORDER BY current_review.submitted_at DESC, current_review.id DESC
+          LIMIT 1
+        ) AS reason
+      FROM listing l
+      LEFT JOIN listing_review lr ON lr.listing_id = l.id
+      WHERE l.id = ${listingId}
+      GROUP BY l.id
+    `;
+    if (!row?.reason) throw new Error("the rejected grid fixture disappeared during the journey");
+    return {
+      reviewState: row.review_state,
+      reviewCount: row.review_count,
+      reason: row.reason.trim(),
+    };
+  } finally {
+    await sql.end();
+  }
+}
 
 /** One card and its footer, in viewport coordinates. */
 type CardGeom = {
@@ -400,5 +482,100 @@ test.describe("HSURF-01 — the host listing grid's footer is flush and its cont
         await expect(manyTrigger).toBeFocused();
       }
     }
+  });
+
+  test("rejected entry and direct wizard context remain truthful at 320/1280 in court/grove", async () => {
+    const before = await prepareRejectedGridListing(fixture.longTitleDraftId);
+    expect(before.reviewState).toBe("rejected");
+
+    for (const theme of ["court", "grove"] as const) {
+      await seedTheme(page.context(), theme);
+      for (const width of [320, 1280] as const) {
+        await page.setViewportSize({ width, height: width === 320 ? 800 : 900 });
+
+        const editUrl = `${BASE}/host/listings/${fixture.longTitleDraftId}/edit`;
+        await page.goto(editUrl);
+        await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+        await expect(page.getByRole("heading", { name: "This listing needs changes" })).toBeVisible();
+        await expect(page.getByText(before.reason, { exact: true })).toBeVisible();
+        await expect(
+          page.getByText(
+            "Saving changes to the address and map location, space type, capacity, photos, pricing, title, or description sends the listing back to FitOut for review.",
+          ),
+        ).toBeVisible();
+        await page.reload();
+        await expect(page.getByRole("heading", { name: "This listing needs changes" })).toBeVisible();
+        expect(new URL(page.url()).search).toBe("");
+
+        await page.goto(`${BASE}/host/listings`);
+        await page.evaluate(() => document.fonts.ready);
+        const card = cardNamed(page, fixture.longTitle);
+        const footer = card.locator('[data-slot="card-footer"]');
+        const footerGeometry = await footer.evaluate((element) => ({
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+          controlHeights: Array.from(element.querySelectorAll<HTMLElement>('[data-slot="button"]')).map(
+            (control) => control.getBoundingClientRect().height,
+          ),
+        }));
+        expect(footerGeometry.scrollWidth).toBeLessThanOrEqual(footerGeometry.clientWidth);
+        expect(footerGeometry.controlHeights.length).toBeGreaterThan(0);
+        for (const height of footerGeometry.controlHeights) expect(height).toBeCloseTo(28, 0);
+
+        const trigger = card.getByRole("button", { name: "Fix and resubmit" });
+        await trigger.click();
+        const dialog = page.getByRole("dialog", {
+          name: `Fix and resubmit “${fixture.longTitle}”?`,
+        });
+        await expect(dialog.getByRole("button", { name: "Keep reviewing changes" })).toBeFocused();
+        await expect(dialog.getByText(before.reason, { exact: true })).toBeVisible();
+        await expect(dialog.getByRole("listitem")).toHaveCount(7);
+        expect(await dialog.textContent()).not.toMatch(
+          /appeal|dispute|contest|contact support|submit without changes/i,
+        );
+
+        const geometry = await dialog.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const scroll = element.querySelector<HTMLElement>(".overflow-y-auto");
+          return {
+            left: box.left,
+            right: box.right,
+            top: box.top,
+            bottom: box.bottom,
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight,
+            scrollClientHeight: scroll?.clientHeight ?? 0,
+            scrollHeight: scroll?.scrollHeight ?? 0,
+            documentOverflow:
+              document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          };
+        });
+        expect(geometry.left).toBeGreaterThanOrEqual(15);
+        expect(geometry.viewportWidth - geometry.right).toBeGreaterThanOrEqual(15);
+        expect(geometry.top).toBeGreaterThanOrEqual(15);
+        expect(geometry.viewportHeight - geometry.bottom).toBeGreaterThanOrEqual(15);
+        expect(geometry.scrollClientHeight).toBeGreaterThan(0);
+        if (width === 320) expect(geometry.scrollHeight).toBeGreaterThan(geometry.scrollClientHeight);
+        expect(geometry.documentOverflow).toBeLessThanOrEqual(0);
+
+        await page.keyboard.press("Escape");
+        await expect(dialog).toHaveCount(0);
+        await expect(trigger).toBeFocused();
+        expect(await rejectedSnapshot(fixture.longTitleDraftId)).toEqual(before);
+
+        await trigger.click();
+        await dialog.getByRole("link", { name: "Continue to edit" }).click();
+        await page.waitForURL((url) => url.pathname === `/host/listings/${fixture.longTitleDraftId}/edit`);
+        await expect(page.getByRole("heading", { name: "This listing needs changes" })).toBeVisible();
+        await expect(page.getByText(before.reason, { exact: true })).toBeVisible();
+      }
+    }
+
+    await page.goto(
+      `${BASE}/host/listings/${fixture.untitledDraftId}/edit?reReview=rejected&reason=Forged+browser+reason`,
+    );
+    await expect(page.getByRole("heading", { name: "What kind of space is it?" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "This listing needs changes" })).toHaveCount(0);
+    await expect(page.getByText("Forged browser reason")).toHaveCount(0);
   });
 });
