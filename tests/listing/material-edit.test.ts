@@ -33,6 +33,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { asc, eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
@@ -231,6 +232,17 @@ describe("LVER-03 — the material field set (D-231)", () => {
     // `src/lib/validation/cancellation.ts:16-19` states as a rule.)
     expect(MATERIAL_FIELDS).toContain("title");
     expect(MATERIAL_FIELDS).toContain("description");
+  });
+});
+
+describe("LVER-08 — one tuple-backed host copy authority", () => {
+  it("declares a total MaterialField label record and derives presentation order from MATERIAL_FIELDS", () => {
+    const path = "src/lib/listing/re-review-copy.ts";
+    const source = existsSync(path) ? readFileSync(path, "utf8") : "";
+
+    expect(source).toContain("satisfies Record<MaterialField, string>");
+    expect(source).toContain("MATERIAL_FIELDS.map");
+    expect(source).not.toMatch(/const\s+(?:MATERIAL|RE_REVIEW)_FIELDS\s*=/);
   });
 });
 

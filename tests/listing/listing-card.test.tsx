@@ -555,3 +555,110 @@ describe("ListingCard review history (LVER-07)", () => {
     expect(document.activeElement).toBe(trigger);
   });
 });
+
+describe("ListingCard deliberate rejected entry (LVER-06/LVER-08)", () => {
+  const HOST_PROPS = {
+    availabilityHref: "/host/listings/abc/availability",
+    editHref: "/host/listings/abc/edit",
+  } as const;
+
+  it("replaces only rejected Edit with a no-fetch, no-mutation explanation before navigation", async () => {
+    const onUnlist = vi.fn(async () => ({ ok: true as const }));
+    const onDelete = vi.fn(async () => ({ ok: true as const }));
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const reason = "The entrance photo does not match this court.";
+    render(
+      <ListingCard
+        listing={makeListing({ reviewState: "rejected" })}
+        priceParts={["₱307.50/hr"]}
+        rejectionReason={reason}
+        onUnlist={onUnlist}
+        onDelete={onDelete}
+        {...HOST_PROPS}
+      />,
+    );
+
+    expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
+    expect(screen.queryByRole("link", { name: REVIEW_SIGNAL.rejected.wayOut })).toBeNull();
+    const trigger = screen.getByRole("button", { name: "Fix and resubmit" });
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole("dialog", { name: "Fix and resubmit “Sunset Court”?" });
+    expect(
+      within(dialog).getByText(
+        "You'll edit the listing first. FitOut starts a new review only after you save a change that affects review.",
+      ),
+    ).toBeTruthy();
+    expect(within(dialog).getByText("Changes that send your listing back to review:")).toBeTruthy();
+    expect(
+      within(dialog)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      "Address and map location",
+      "Space type",
+      "Capacity",
+      "Photos",
+      "Pricing",
+      "Title",
+      "Description",
+    ]);
+    expect((dialog.textContent ?? "").split(reason)).toHaveLength(2);
+    const safe = within(dialog).getByRole("button", { name: "Keep reviewing changes" });
+    await waitFor(() => expect(document.activeElement).toBe(safe));
+    expect(within(dialog).getByRole("link", { name: "Continue to edit" }).getAttribute("href")).toBe(
+      HOST_PROPS.editHref,
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(onUnlist).not.toHaveBeenCalled();
+    expect(onDelete).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(document.activeElement).toBe(trigger);
+    fetchSpy.mockRestore();
+  });
+
+  it.each([
+    ["draft", "pending"],
+    ["published", "pending"],
+    ["published", "approved"],
+    ["published", "grandfathered"],
+    ["published", "withdrawn"],
+    ["unlisted", "rejected"],
+    ["published", null],
+  ] as const)("retains Edit for %s / %s", (status, reviewState) => {
+    render(
+      <ListingCard
+        listing={makeListing({
+          status,
+          reviewState: reviewState as ListingCardData["reviewState"],
+        })}
+        priceParts={["₱307.50/hr"]}
+        {...HOST_PROPS}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Edit" }).getAttribute("href")).toBe(HOST_PROPS.editHref);
+    expect(screen.queryByRole("button", { name: "Fix and resubmit" })).toBeNull();
+  });
+
+  it("uses the untitled dialog fallback and safe button dismissal restores focus", async () => {
+    render(
+      <ListingCard
+        listing={makeListing({ title: null, reviewState: "rejected" })}
+        priceParts={[]}
+        {...HOST_PROPS}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Fix and resubmit" });
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Fix and resubmit this listing?" });
+    const safe = within(dialog).getByRole("button", { name: "Keep reviewing changes" });
+    await waitFor(() => expect(document.activeElement).toBe(safe));
+    fireEvent.click(safe);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(document.activeElement).toBe(trigger);
+  });
+});
