@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -21,6 +21,7 @@ import type {
 
 export type VerificationRoadmapProps = {
   readonly model: VerificationRoadmapModel;
+  readonly createListingAction: ReactNode;
 };
 
 const STATE_ICON = {
@@ -32,7 +33,10 @@ const STATE_ICON = {
   Next: Circle,
 } satisfies Record<RoadmapStepState, typeof Circle>;
 
-export function VerificationRoadmap({ model }: VerificationRoadmapProps) {
+export function VerificationRoadmap({
+  model,
+  createListingAction,
+}: VerificationRoadmapProps) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -105,9 +109,7 @@ export function VerificationRoadmap({ model }: VerificationRoadmapProps) {
                     <div className="mt-auto pt-2">
                       {step.action.kind === "link" ? (
                         step.action.variant === "brand" ? (
-                          <Button asChild variant="brand" size="touch">
-                            <Link href={step.action.href}>{step.action.label}</Link>
-                          </Button>
+                          createListingAction
                         ) : (
                           <Button asChild variant={step.action.variant} size="touch">
                             <Link href={step.action.href}>{step.action.label}</Link>
@@ -124,7 +126,7 @@ export function VerificationRoadmap({ model }: VerificationRoadmapProps) {
                             {step.action.label}
                           </Button>
                           {error ? (
-                            <p className="mt-2 text-sm text-destructive" role="status">
+                            <p className="mt-2 text-sm text-muted-foreground">
                               {error}
                             </p>
                           ) : null}

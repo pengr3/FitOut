@@ -314,7 +314,14 @@ export default async function HostDashboardPage() {
         />
       )}
 
-      <VerificationRoadmap model={verificationRoadmap} />
+      <VerificationRoadmap
+        model={verificationRoadmap}
+        createListingAction={
+          <Button asChild variant="brand" size="touch">
+            <Link href="/host/listings/new">Create listing</Link>
+          </Button>
+        }
+      />
 
       {/* WHAT NEEDS THE HOST, in D-140's remaining order: requests owed, published without hours.
           Below today's sessions on purpose — a dashboard that leads with setup chores is a dashboard for
