@@ -117,10 +117,12 @@ export function PhotoUploader({
   listingId,
   initialPhotos,
   onCountChange,
+  onReReview,
 }: {
   listingId: string;
   initialPhotos: ListingPhotoRow[];
   onCountChange?: (count: number) => void;
+  onReReview?: () => void;
 }) {
   const [photos, setPhotos] = useState<ListingPhotoRow[]>(() =>
     repack([...initialPhotos].sort((a, b) => a.position - b.position)),
@@ -144,6 +146,10 @@ export function PhotoUploader({
       return;
     }
     setPhotos((prev) => [...prev, res.photo]);
+    if (res.flipped === true) {
+      onReReview?.();
+      return;
+    }
     toast.success("Photo added");
   }
 
@@ -193,6 +199,10 @@ export function PhotoUploader({
     if (!res.ok) {
       setPhotos(previous);
       toast.error(res.error);
+      return;
+    }
+    if (res.flipped === true) {
+      onReReview?.();
       return;
     }
     toast.success("Photo removed");

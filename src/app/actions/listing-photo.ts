@@ -55,9 +55,9 @@ export type ListingPhotoRow = {
   position: number;
 };
 
-export type PhotoResult = { ok: true } | { ok: false; error: string };
+export type PhotoResult = { ok: true; flipped: false } | { ok: false; error: string };
 export type PersistPhotoResult =
-  | { ok: true; photo: ListingPhotoRow }
+  | { ok: true; photo: ListingPhotoRow; flipped: boolean }
   | { ok: false; error: string };
 
 /** Resolve the signed-in user's id, or null if there is no session (copied from listing.ts). */
@@ -289,8 +289,9 @@ export async function persistPhoto(
   // everything the paragraph above says about answering rather than throwing is unchanged and now
   // covers both statements. See the block inside for why the pairing is atomic rather than sequential.
   const id = randomUUID();
+  let flipped = false;
   try {
-    await db.transaction(async (tx) => {
+    flipped = await db.transaction(async (tx) => {
       await tx.insert(listingPhoto).values({ id, listingId, publicId, url, position });
 
       // ── LVER-03 / D-231 / D-242: MATERIAL-EDIT DETECTION — SITE TWO OF TWO. ────────────────────────
@@ -315,7 +316,7 @@ export async function persistPhoto(
       // photo the review state does not know about is a sellable fake — the same sentence
       // `saveListingStep` writes over its own in-transaction call — and a flip that ran after a
       // committed insert would produce exactly that every time the process died between the two.
-      await markForReReview(tx, listingId, "listing_photos");
+      return (await markForReReview(tx, listingId, "listing_photos")).flipped;
     });
   } catch (err) {
     console.warn(`[listing-photo] insert failed for listing ${listingId}`, err);
@@ -357,7 +358,7 @@ export async function persistPhoto(
   }
 
   revalidateEdit(listingId);
-  return { ok: true, photo: { id, publicId, url, position } };
+  return { ok: true, photo: { id, publicId, url, position }, flipped };
 }
 
 /**
@@ -447,7 +448,7 @@ export async function reorderPhotos(
   }
 
   revalidateEdit(listingId);
-  return { ok: true };
+  return { ok: true, flipped: false };
 }
 
 /**
@@ -482,8 +483,9 @@ export async function removePhoto(
     return { ok: false, error: "That photo is no longer here." };
   }
 
+  let flipped = false;
   try {
-    await db.transaction(async (tx) => {
+    flipped = await db.transaction(async (tx) => {
       await tx
         .delete(listingPhoto)
         .where(and(eq(listingPhoto.id, photoId), eq(listingPhoto.listingId, listingId)));
@@ -510,7 +512,7 @@ export async function removePhoto(
       // INSIDE THE EXISTING TRANSACTION, so the delete, the re-pack and the flip commit or roll back
       // together, and the `catch` below still answers rather than throwing (WR-04). The destroy after
       // this block is unmoved and still reached only after a COMMITTED delete.
-      await markForReReview(tx, listingId, "listing_photos");
+      return (await markForReReview(tx, listingId, "listing_photos")).flipped;
     });
   } catch (err) {
     // THE SAME OMISSION `reorderPhotos` DOCUMENTS AS FIXED, WHICH LIVED ON HERE (WR-04). Its own
@@ -555,5 +557,5 @@ export async function removePhoto(
   }
 
   revalidateEdit(listingId);
-  return { ok: true };
+  return { ok: true, flipped };
 }

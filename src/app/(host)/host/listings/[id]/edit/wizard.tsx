@@ -664,9 +664,14 @@ export function ListingWizard({
     return saveListingStep(listing.id, toPayload(form.getValues()));
   }
 
+  function latchReReviewReceipt() {
+    if (!reReviewContext) return;
+    setReReviewReceived(true);
+  }
+
   function receiveReReview(res: ListingResult): boolean {
     if (!reReviewContext || !res.ok || res.flipped !== true) return false;
-    setReReviewReceived(true);
+    latchReReviewReceipt();
     return true;
   }
 
@@ -1392,6 +1397,7 @@ export function ListingWizard({
               listingId={listing.id}
               initialPhotos={listing.photos}
               onCountChange={setPhotoCount}
+              onReReview={latchReReviewReceipt}
             />
           )}
 
