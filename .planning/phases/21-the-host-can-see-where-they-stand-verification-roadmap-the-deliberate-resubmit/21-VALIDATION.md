@@ -39,12 +39,12 @@ created: "2026-09-09"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 21-W0-01 | TBD | 0 | HVER-09, HVER-10 | — | Host state remains server-derived | component | `npm.cmd test -- tests/host/verification-roadmap.test.tsx` | ❌ W0 | ⬜ pending |
-| 21-W0-02 | TBD | 0 | HVER-11, HVER-12, HVER-14 | — | Each roadmap step reads its own authority; grandfathered stays silent | unit/structural | `npm.cmd test -- tests/host/verification-roadmap-state.test.ts` | ❌ W0 | ⬜ pending |
-| 21-TBD-03 | TBD | TBD | HVER-13 | — | Cause and retry instant come from existing guarded server values | unit/component | `npm.cmd test -- tests/host/verification-roadmap.test.tsx tests/host/verification-surface.test.ts` | partial | ⬜ pending |
-| 21-TBD-04 | TBD | TBD | LVER-06, LVER-08 | T-21-01 | Rejected-only edit route is owner-bound and discloses material fields before navigation | component | `npm.cmd test -- tests/listing/material-edit.test.ts tests/listing/listing-card.test.tsx` | ✅ extend | ⬜ pending |
-| 21-W0-05 | TBD | 0 | LVER-07 | T-21-02 | History is owner-scoped, excludes deleted parents and staff identity, and is bounded | integration/component | `npm.cmd test -- tests/listing/review-history.test.ts tests/listing/listing-card.test.tsx` | ❌ W0 / ✅ extend | ⬜ pending |
-| 21-TBD-06 | TBD | TBD | LVER-09 | T-21-03 | Receipt is latched only from a server-confirmed guarded transition | integration/component | `npm.cmd test -- tests/listing/material-edit.test.ts tests/listing/wizard-save-state.test.tsx` | ✅ extend | ⬜ pending |
+| 21-W0-01 | 21-01 | 1 | HVER-09, HVER-10 | — | Host state remains server-derived | component | `npm.cmd test -- tests/host/verification-roadmap.test.tsx` | ❌ W0 | ⬜ pending |
+| 21-W0-02 | 21-01 | 1 | HVER-11, HVER-12, HVER-14 | — | Each roadmap step reads its own authority; grandfathered stays silent | unit/structural | `npm.cmd test -- tests/host/verification-roadmap-state.test.ts` | ❌ W0 | ⬜ pending |
+| 21-01-03 | 21-01 | 1 | HVER-13 | — | Cause and retry instant come from existing guarded server values | unit/component | `npm.cmd test -- tests/host/verification-roadmap.test.tsx tests/host/verification-surface.test.ts` | partial | ⬜ pending |
+| 21-03-01 | 21-03 | 2 | LVER-06, LVER-08 | T-21-01 | Rejected-only edit route is owner-bound and discloses material fields before navigation | component | `npm.cmd test -- tests/listing/material-edit.test.ts tests/listing/listing-card.test.tsx` | ✅ extend | ⬜ pending |
+| 21-W0-05 | 21-02 | 1 | LVER-07 | T-21-02 | History is owner-scoped, excludes deleted parents and staff identity, and is bounded | integration/component | `npm.cmd test -- tests/listing/review-history.test.ts tests/listing/listing-card.test.tsx` | ❌ W0 / ✅ extend | ⬜ pending |
+| 21-04-01 | 21-04 | 3 | LVER-09 | T-21-03 | Receipt is latched only from a server-confirmed guarded transition | integration/component | `npm.cmd test -- tests/listing/material-edit.test.ts tests/listing/wizard-save-state.test.tsx` | ✅ extend | ⬜ pending |
 
 *Task IDs and plan/wave assignments are finalized when the planner emits PLAN.md files. Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky.*
 
