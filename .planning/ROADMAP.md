@@ -945,7 +945,7 @@ history.
   5. A host can read a listing's **review history per cycle** — submitted → waiting → decided, with the
      operator's reason — newest first and bounded.
 
-**Plans:** 5/7 plans executed
+**Plans:** 6/7 plans executed
 
 Plans:
 **Wave 1**
@@ -964,7 +964,7 @@ Plans:
 
 **Wave 4** *(gap closure; blocked on Wave 3 completion)*
 
-- [ ] 21-06-PLAN.md — Preserve newest blank rejection fidelity through the visible Fix and resubmit dialog.
+- [x] 21-06-PLAN.md — Preserve newest blank rejection fidelity through the visible Fix and resubmit dialog.
 - [ ] 21-07-PLAN.md — Keep rejected payout-onboarding promises inline and retryable.
 
 **This is presentation over data that already exists.** `loadHostVerification` already returns
