@@ -945,13 +945,14 @@ history.
   5. A host can read a listing's **review history per cycle** — submitted → waiting → decided, with the
      operator's reason — newest first and bounded.
 
-**Plans:** 4 plans
+**Plans:** 5 plans
 
 Plans:
 - [ ] 21-01-PLAN.md — Compose the host verification roadmap from existing authorities and prove every state.
 - [ ] 21-02-PLAN.md — Deliver bounded, private, deterministic listing review history.
 - [ ] 21-03-PLAN.md — Make rejected edits deliberate and preserve server-derived review context through the wizard.
 - [ ] 21-04-PLAN.md — Show one server-confirmed resubmission receipt and close the end-to-end evidence gates.
+- [ ] 21-05-PLAN.md — Close responsive, accessibility, design-gate, and browser evidence for the authority-backed roadmap.
 
 **This is presentation over data that already exists.** `loadHostVerification` already returns
 `{ status, reason, suspended, updatedAt }` and already has five callers — the roadmap becomes the
