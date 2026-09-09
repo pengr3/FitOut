@@ -1,0 +1,9 @@
+{
+  "command": "npm.cmd test -- tests/listing/material-edit.test.ts -t \"persistPhoto on an APPROVED listing flips it to pending and opens a review row\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - LVER-03 [listing_photos] — the fifth material field, from the only site that can see it (D-242) > persistPhoto on an APPROVED listing flips it to pending and opens a review row\n# tests 1\n# pass 0\n# fail 1\nAssertionError: expected { ok: true, photo: { …(4) } } to match object { ok: true, flipped: true }",
+  "targetTest": "LVER-03 [listing_photos] — the fifth material field, from the only site that can see it (D-242) > persistPhoto on an APPROVED listing flips it to pending and opens a review row",
+  "targetFile": "tests/listing/material-edit.test.ts",
+  "expected": "A successful approved-listing photo add exposes flipped: true from the guarded transaction result.",
+  "actual": "The photo was persisted and review state changed, but the action success result omitted flipped."
+}

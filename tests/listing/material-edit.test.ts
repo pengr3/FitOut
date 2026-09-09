@@ -566,7 +566,7 @@ describe("LVER-03 [listing_photos] — the fifth material field, from the only s
     const listingId = await makeListing(hostId, "approved");
 
     const res = await persistPhoto(listingId, upload(listingId, "one"));
-    expect(res.ok).toBe(true);
+    expect(res).toMatchObject({ ok: true, flipped: true });
 
     expect(await reviewStateOf(listingId)).toBe("pending");
     const rows = await reviewsOf(listingId);
@@ -590,7 +590,7 @@ describe("LVER-03 [listing_photos] — the fifth material field, from the only s
       .where(eq(listingPhoto.listingId, listingId));
 
     const res = await removePhoto(listingId, photo.id);
-    expect(res.ok).toBe(true);
+    expect(res).toMatchObject({ ok: true, flipped: true });
 
     expect(await reviewStateOf(listingId)).toBe("pending");
     // And the row really is gone — otherwise a removePhoto that no-op'd would still pass above.
@@ -618,11 +618,21 @@ describe("LVER-03 [listing_photos] — the fifth material field, from the only s
       .orderBy(asc(listingPhoto.position));
 
     const res = await reorderPhotos(listingId, [...before.map((r) => r.id)].reverse());
-    expect(res.ok).toBe(true);
+    expect(res).toEqual({ ok: true, flipped: false });
 
     // A STATED CHOICE, not an omission (D-242 reading). If reordering is ever promoted to material,
     // update this case rather than deleting it.
     expect(await reviewStateOf(listingId)).toBe("approved");
+  });
+
+  it("returns flipped false when an add succeeds after the listing is already pending", async () => {
+    const hostId = await signInHost("me.photo.pending.receipt@example.com");
+    const listingId = await makeListing(hostId, "pending");
+
+    const res = await persistPhoto(listingId, upload(listingId, "pending-add"));
+
+    expect(res).toMatchObject({ ok: true, flipped: false });
+    expect(await reviewStateOf(listingId)).toBe("pending");
   });
 
   it("a provenance-REJECTED persistPhoto does NOT flip — a refusal changed no photo (D-165)", async () => {

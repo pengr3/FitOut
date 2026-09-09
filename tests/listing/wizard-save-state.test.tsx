@@ -85,13 +85,21 @@ const actions = vi.hoisted(() => ({
 }));
 
 const toastSpy = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+const photoUploaderHarness = vi.hoisted(() => ({
+  onReReview: undefined as undefined | (() => void),
+}));
 
 vi.mock("@/app/actions/listing", () => actions);
 vi.mock("next/navigation", () => ({ useRouter: () => nav }));
 vi.mock("sonner", () => ({ toast: toastSpy }));
 vi.mock("@/components/ui/sonner", () => ({ Toaster: () => null }));
 vi.mock("@/lib/auth-client", () => ({ authClient: { sendVerificationEmail: vi.fn() } }));
-vi.mock("@/components/listing/photo-uploader", () => ({ PhotoUploader: () => null }));
+vi.mock("@/components/listing/photo-uploader", () => ({
+  PhotoUploader: ({ onReReview }: { onReReview?: () => void }) => {
+    photoUploaderHarness.onReReview = onReReview;
+    return null;
+  },
+}));
 vi.mock("@/components/listing/address-autocomplete", () => ({ AddressAutocomplete: () => null }));
 
 // next/link has no App-Router context in jsdom — swap ONLY the primitive, keep the markup around it
@@ -286,6 +294,7 @@ function regionText(): string {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  photoUploaderHarness.onReReview = undefined;
   actions.saveListingStep.mockResolvedValue({ ok: true });
   actions.publishListing.mockResolvedValue({ ok: true });
 });
@@ -420,6 +429,22 @@ describe("LVER-09 — a guarded rejected-listing transition authorizes one mount
     expect(screen.getByRole("region", { name: "Changes received" })).toBeTruthy();
     expect(toastSpy.success).not.toHaveBeenCalled();
     expect(nav.push).not.toHaveBeenCalled();
+  });
+
+  it("uses the same latched receipt when the photo uploader reports a guarded transition", async () => {
+    mount(false, makeListing(), { reason: "The photos need correction." });
+    await advanceTo(STEPS.find((step) => step.key === "photos")!.title);
+
+    expect(photoUploaderHarness.onReReview).toBeTypeOf("function");
+    act(() => photoUploaderHarness.onReReview?.());
+
+    const receipt = screen.getByRole("region", { name: "Changes received" });
+    expect(document.activeElement).toBe(receipt);
+    expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1);
+
+    act(() => photoUploaderHarness.onReReview?.());
+    expect(screen.getAllByRole("region", { name: "Changes received" })).toHaveLength(1);
+    expect(scrollIntoViewSpy).toHaveBeenCalledTimes(1);
   });
 });
 
