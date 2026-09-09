@@ -14,9 +14,9 @@ provides:
   - Two-attempt retry proof covering stale-error clearing and current-result replacement
 affects: [phase-21-verification, host-dashboard, payout-onboarding]
 actuals:
-  tokens: 2122
+  tokens: 2195
   tasks: 2
-  commits: 5
+  commits: 6
 plan_head_before: 5e72218aec5e1f66d4d754547de74749bc7baf4d
 tech-stack:
   added: []
@@ -85,6 +85,7 @@ status: complete
 3. **Task 2: mutation-validated retry replacement regression** — `6af53f3` (test)
 4. **Task 2 test stability: await transition pending completion** — `9d52757` (test)
 5. **Task 2 test stability: await stale-error clearing** — `47c1845` (test)
+6. **Post-suite repair: await retry action availability** — `2e68dbc` (test)
 
 ## Files Created/Modified
 
@@ -112,14 +113,14 @@ status: complete
 - **Verification:** Targeted roadmap suite passed 24/24 after the correction.
 - **Committed in:** `ae65a54`
 
-**2. [Rule 1 - Bug] Awaited React transition state before asserting retry availability and stale-error clearing**
+**2. [Rule 1 - Bug] Synchronized retry assertions with both React transition boundaries**
 
-- **Found during:** Overall verification after Task 2
-- **Issue:** The fallback can render one scheduler tick before `useTransition` clears pending state, and a subsequent click's error clear can likewise flush asynchronously; immediate assertions were timing-sensitive.
-- **Fix:** Wrapped both transition-boundary assertions in `waitFor` while preserving the mutation-sensitive behavioral checks.
+- **Found during:** Overall verification after Task 2 and the post-merge full-suite gate
+- **Issue:** The fallback can render one scheduler tick before the first `useTransition` releases the disabled action. Under full-suite load, the test's immediate retry click therefore targeted a still-disabled button and was ignored, leaving the stale fallback visible. The retry's error clear can also flush asynchronously.
+- **Fix:** Waited for the first transition to make the action genuinely retryable before clicking, then retained the pending deferred promise while awaiting stale-error removal. This preserves the strict contract that stale feedback clears before the new authoritative result arrives.
 - **Files modified:** `tests/host/verification-roadmap.test.tsx`
-- **Verification:** The focused 25-test suite passed repeatedly and on the final run.
-- **Committed in:** `9d52757`, `47c1845`
+- **Verification:** The repaired scenario passed 10/10 isolated stress iterations; the focused two-file suite passed 25/25; targeted ESLint passed with no findings.
+- **Committed in:** `9d52757`, `47c1845`, `2e68dbc`
 
 ---
 
@@ -138,6 +139,7 @@ Both evidence files returned `RED_EVIDENCE_OK` before their GREEN verification. 
 ## Verification
 
 - `npm.cmd test -- tests/host/verification-roadmap.test.tsx tests/host/verification-roadmap-state.test.ts` — **25 passed** across both files.
+- Ten isolated repetitions of `npm.cmd test -- tests/host/verification-roadmap.test.tsx -t "clears a stale rejection during retry and replaces it with the new refusal" --reporter=dot` — **10/10 passed**.
 - `npm.cmd exec eslint -- src/components/host/verification-roadmap.tsx tests/host/verification-roadmap.test.tsx` — **passed with no findings**.
 - Both TDD evidence records returned `RED_EVIDENCE_OK` from `gsd-tools check tdd-red-evidence`.
 - `git diff --check 5e72218a..HEAD` — **passed** before summary creation.
@@ -168,8 +170,8 @@ None. No dependency, environment variable, schema, migration, endpoint, or exter
 ## Self-Check: PASSED
 
 - Both modified source/test files and both RED-evidence files exist.
-- Task commits `1b45738`, `ae65a54`, `6af53f3`, `9d52757`, and `47c1845` exist in history.
-- The persisted ledger measures five task commits from `5e72218aec5e1f66d4d754547de74749bc7baf4d` through the final test-stability commit.
+- Task commits `1b45738`, `ae65a54`, `6af53f3`, `9d52757`, `47c1845`, and `2e68dbc` exist in history.
+- The plan has six implementation/test commits, including the post-suite timing repair, after base `5e72218aec5e1f66d4d754547de74749bc7baf4d`.
 - No deletion, dependency, schema, endpoint, auth-authority, or threat-surface drift was found.
 
 ---
