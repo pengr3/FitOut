@@ -613,6 +613,18 @@ const CARD_SURFACES: readonly CardSurface[] = [
       "are three sections inside one PanelCard below the review queue; roster rows deliberately remain " +
       "semantic list items rather than becoming nested cards.",
   },
+
+  // ─── Phase 21 — the host verification roadmap (HVER-09/HVER-10) ──────────────────────────────
+  {
+    file: "src/components/host/verification-roadmap.tsx",
+    pattern: "panel-card",
+    status: "adopted",
+    why:
+      "THE HOST VERIFICATION ROADMAP (plan 21-05). Its four ordered steps and compact ready receipt " +
+      "compose the existing PanelCard pattern from their first implementation. One semantic ordered " +
+      "list reflows through CSS; the inventory records the shared container without inventing a raw-card " +
+      "exception, a fourth pattern, or a viewport-conditional duplicate tree.",
+  },
 ];
 
 /**
@@ -1099,6 +1111,8 @@ describe("DS-11 / AC#25 — every card surface renders one of three declared con
     // 27 SINCE PLAN 20-13 (+6: four ops-auth documents, the invitation lookup fallback, and Staff
     // management). All six compose PanelCard from their first implementation; none is a refusal or
     // an allow-list exception. The `%5Fops-auth` source spelling is intentionally part of the rows.
+    // 28 SINCE PLAN 21-05 (+1: the host verification roadmap). Its roadmap and ready branches both
+    // compose PanelCard, while CSS reflows the one ordered DOM tree without a new pattern.
     expect(adopted).toHaveLength(28);
     expect(refused).toHaveLength(2);
 
