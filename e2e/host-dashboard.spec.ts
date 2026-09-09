@@ -2,6 +2,8 @@ import { expect, test, type BrowserContext, type Frame, type Page } from "@playw
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 
+import { seedTheme } from "./helpers/theme";
+
 // HFLOW-03 / 14-CONTEXT D-140…D-143 / 14-UI-SPEC § The Dashboard —
 // THE TWO CLAIMS THE DASHBOARD CANNOT MAKE IN PROSE.
 //
@@ -901,3 +903,308 @@ test.describe.serial("HFLOW-03 — the host dashboard is a today view", () => {
     ).toBeVisible();
   });
 });
+
+const ROADMAP_THEMES = ["court", "grove"] as const;
+const ROADMAP_WIDTHS = [320, 1280] as const;
+const LONG_REJECTION_REASON =
+  "The identity record did not match the submitted details: <b>" + "identitymismatch".repeat(32) + "</b>";
+
+type RoadmapSnapshot = {
+  readonly name: string;
+  readonly owed: "unverified" | "pending" | "rejected" | "grandfathered";
+  readonly state: "Current" | "Waiting" | "Not passed" | "Done";
+  readonly action:
+    | "Create listing"
+    | "Your listings"
+    | "Finish the check"
+    | "Ask for another check"
+    | "Set up payouts";
+  readonly identityTitle?: "Get your account checked" | "Account ready";
+  readonly includes?: string;
+};
+
+async function assertNoHorizontalOverflow(page: Page, where: string): Promise<void> {
+  const measurement = await page.evaluate(() => ({
+    document: {
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    },
+    cards: Array.from(document.querySelectorAll<HTMLElement>('[data-testid="panel-card"]'))
+      .map((card, index) => ({
+        index,
+        clientWidth: card.clientWidth,
+        scrollWidth: card.scrollWidth,
+      }))
+      .filter((card) => card.scrollWidth > card.clientWidth + 1),
+  }));
+
+  expect(
+    measurement.document.scrollWidth,
+    `${where}: the dashboard scrolls horizontally (${measurement.document.scrollWidth}px against ` +
+      `${measurement.document.clientWidth}px).`,
+  ).toBeLessThanOrEqual(measurement.document.clientWidth);
+  expect(
+    measurement.cards,
+    `${where}: one or more PanelCards have internal horizontal overflow.`,
+  ).toEqual([]);
+}
+
+async function assertRoadmapSnapshot(
+  page: Page,
+  width: (typeof ROADMAP_WIDTHS)[number],
+  snapshot: RoadmapSnapshot,
+): Promise<void> {
+  const where = `${snapshot.name} · ${width}px`;
+  await openDashboard(page, width);
+
+  const heading = page.getByRole("heading", {
+    level: 2,
+    name: "Get ready to take bookings",
+  });
+  await expect(heading, `${where}: the headed roadmap is absent.`).toBeVisible();
+  const roadmap = heading.locator("xpath=ancestor::section[1]");
+  const list = roadmap.getByRole("list");
+  const steps = list.getByRole("listitem");
+  await expect(steps, `${where}: the roadmap does not contain exactly four steps.`).toHaveCount(4);
+
+  const titles = await steps.getByRole("heading", { level: 3 }).allTextContents();
+  expect(titles, `${where}: the fixed semantic step order changed.`).toEqual([
+    snapshot.identityTitle ?? "Get your account checked",
+    "Set up payouts",
+    "List a space",
+    "FitOut checks your space",
+  ]);
+  await expect(
+    steps.nth(0).locator(`[data-verification-owed="${snapshot.owed}"]`),
+    `${where}: the identity card lost its owed-state hook.`,
+  ).toHaveCount(1);
+  await expect(steps.nth(0)).toContainText(snapshot.state);
+
+  const actions = roadmap.locator("a[href], button");
+  await expect(actions, `${where}: the roadmap must expose exactly one advancing action.`).toHaveCount(1);
+  await expect(actions.first()).toHaveText(snapshot.action);
+  const actionHeight = await actions.first().evaluate((node) => node.getBoundingClientRect().height);
+  expect(actionHeight, `${where}: the advancing action is shorter than the 44px touch target.`).toBeGreaterThanOrEqual(
+    44,
+  );
+
+  await expect(roadmap.getByRole("progressbar"), `${where}: progress bars are prohibited.`).toHaveCount(0);
+  await expect(roadmap).not.toContainText(/\b\d+%\b|countdown|queue position|\bETA\b/i);
+  await expect(roadmap.locator("svg:not([aria-hidden='true'])")).toHaveCount(0);
+  if (snapshot.includes) {
+    await expect(roadmap).toContainText(snapshot.includes);
+  }
+
+  const columnCount = await list.evaluate((node) =>
+    getComputedStyle(node).gridTemplateColumns.split(" ").filter(Boolean).length,
+  );
+  expect(columnCount, `${where}: the one DOM tree reflowed to the wrong column count.`).toBe(
+    width === 320 ? 1 : 2,
+  );
+
+  if (width === 1280) {
+    const heights = await roadmap
+      .locator('[data-testid="panel-card"]')
+      .evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect().height));
+    expect(heights).toHaveLength(4);
+    expect(Math.abs(heights[0] - heights[1]), `${where}: the first desktop row is uneven.`).toBeLessThanOrEqual(1);
+    expect(Math.abs(heights[2] - heights[3]), `${where}: the second desktop row is uneven.`).toBeLessThanOrEqual(1);
+  }
+
+  await actions.first().focus();
+  const focusVisible = await actions.first().evaluate((node) => {
+    const style = getComputedStyle(node);
+    return style.outlineStyle !== "none" || style.boxShadow !== "none";
+  });
+  expect(focusVisible, `${where}: the advancing action has no visible keyboard focus treatment.`).toBe(true);
+  await assertNoHorizontalOverflow(page, where);
+}
+
+async function insertRoadmapListing(
+  sql: ReturnType<typeof postgres>,
+  args: {
+    id: string;
+    hostId: string;
+    title: string;
+    status: "draft" | "published";
+    reviewState: "pending" | "approved" | "rejected";
+    withHours?: boolean;
+  },
+): Promise<void> {
+  await sql`
+    INSERT INTO "listing" (
+      id, host_id, title, description, primary_space_type,
+      address_line1, city, region, postal_code, country, neighborhood,
+      location, show_exact_address, max_occupancy, unit_count, timezone,
+      hourly_rate_cents, day_rate_cents, occupancy_mode,
+      currency, booking_mode, status, review_state, published_at, created_at, updated_at
+    ) VALUES (
+      ${args.id}, ${args.hostId}, ${args.title},
+      ${"A layout-proof court with wrapping explanatory content."}, ${"multi_sport_court"}::space_type,
+      ${"3 Real Street"}, ${VENUE_CITY}, ${"Metro Manila"}, ${"1210"}, ${"Philippines"}, ${"Poblacion"},
+      ST_SetSRID(ST_MakePoint(${121.0244}, ${14.5547}), 4326), ${false}, ${10}, ${1}, ${VENUE_TZ},
+      ${47333}, ${288888}, ${"exclusive"}::occupancy_mode,
+      ${"php"}, ${"request"}::booking_mode, ${args.status}::listing_status,
+      ${args.reviewState}::listing_review_state,
+      ${args.status === "published" ? new Date() : null}, now(), now()
+    )
+  `;
+  if (args.withHours) {
+    await sql`
+      INSERT INTO operating_hours (id, listing_id, day_of_week, open_time, close_time)
+      VALUES (${`hours_${randomUUID()}`}, ${args.id}, ${1}, ${"08:00:00"}, ${"18:00:00"})
+    `;
+  }
+}
+
+for (const theme of ROADMAP_THEMES) {
+  test(`${theme} · the roadmap and receipt state matrix reflows at 320px/1280px without overflow`, async ({
+    page,
+  }) => {
+    test.setTimeout(360_000);
+    await seedTheme(page.context(), theme);
+
+    const email = await signUpHost(page, `roadmap-${theme}`);
+    const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {} });
+    const [host] = await sql<{ id: string }[]>`
+      SELECT id FROM "user" WHERE email = ${email}
+    `;
+    if (!host) {
+      await sql.end();
+      throw new Error(`the ${theme} roadmap host did not persist after signup`);
+    }
+
+    const primaryId = `e2e_roadmap_primary_${randomUUID()}`;
+    const siblingId = `e2e_roadmap_sibling_${randomUUID()}`;
+    const setVerification = async (
+      status: "pending" | "rejected" | "grandfathered" | "approved",
+      reason: string | null,
+      minutesAgo: number,
+    ) => {
+      await sql`
+        INSERT INTO host_verification (user_id, status, provider, reason, created_at, updated_at)
+        VALUES (${host.id}, ${status}::host_verification_status, ${"manual"}, ${reason}, now(), now() - make_interval(mins => ${minutesAgo}))
+        ON CONFLICT (user_id) DO UPDATE SET
+          status = EXCLUDED.status,
+          provider = EXCLUDED.provider,
+          reason = EXCLUDED.reason,
+          updated_at = EXCLUDED.updated_at
+      `;
+    };
+
+    try {
+      await sql`UPDATE "user" SET email_verified = ${true} WHERE id = ${host.id}`;
+
+      const zero: RoadmapSnapshot = {
+        name: "zero-listing",
+        owed: "unverified",
+        state: "Current",
+        action: "Create listing",
+      };
+      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, width, zero);
+
+      await insertRoadmapListing(sql, {
+        id: primaryId,
+        hostId: host.id,
+        title: `A deliberately long dashboard title ${"wrapping-title-".repeat(18)}`,
+        status: "draft",
+        reviewState: "pending",
+      });
+      await setVerification("pending", null, 5);
+      const waiting: RoadmapSnapshot = {
+        name: "waiting",
+        owed: "pending",
+        state: "Waiting",
+        action: "Your listings",
+      };
+      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, width, waiting);
+
+      await setVerification("pending", null, 31);
+      const stale: RoadmapSnapshot = {
+        name: "stale-pending",
+        owed: "pending",
+        state: "Waiting",
+        action: "Finish the check",
+        includes: "Your check has been waiting for a result for more than 30 minutes.",
+      };
+      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, width, stale);
+
+      await setVerification("rejected", LONG_REJECTION_REASON, 25 * 60);
+      const rejected: RoadmapSnapshot = {
+        name: "rejected-long-reason",
+        owed: "rejected",
+        state: "Not passed",
+        action: "Ask for another check",
+        includes: LONG_REJECTION_REASON,
+      };
+      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, width, rejected);
+
+      await setVerification("grandfathered", null, 0);
+      const grandfathered: RoadmapSnapshot = {
+        name: "grandfathered",
+        owed: "grandfathered",
+        state: "Done",
+        action: "Set up payouts",
+        identityTitle: "Account ready",
+        includes: "Your account can create and publish listings.",
+      };
+      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, width, grandfathered);
+
+      await setVerification("approved", null, 0);
+      await sql`
+        INSERT INTO host_payout (
+          user_id, paymongo_account_id, activation_status, payouts_enabled,
+          onboarding_complete, created_at, updated_at
+        ) VALUES (${host.id}, ${`acct_${randomUUID()}`}, ${"activated"}, ${true}, ${true}, now(), now())
+      `;
+      await sql`
+        UPDATE listing
+        SET status = ${"published"}::listing_status,
+            review_state = ${"approved"}::listing_review_state,
+            published_at = now(),
+            updated_at = now()
+        WHERE id = ${primaryId}
+      `;
+      await sql`
+        INSERT INTO operating_hours (id, listing_id, day_of_week, open_time, close_time)
+        VALUES (${`hours_${randomUUID()}`}, ${primaryId}, ${1}, ${"08:00:00"}, ${"18:00:00"})
+      `;
+
+      for (const width of ROADMAP_WIDTHS) {
+        await openDashboard(page, width);
+        const where = `${theme} · ready · ${width}px`;
+        const ready = page.getByRole("heading", { level: 2, name: "Ready to take bookings" });
+        await expect(ready, `${where}: the first-bookable receipt is absent.`).toBeVisible();
+        const section = ready.locator("xpath=ancestor::section[1]");
+        await expect(section).toContainText("You have a listing that guests can book.");
+        await expect(section.getByRole("list")).toHaveCount(0);
+        await expect(section.locator("a[href], button")).toHaveCount(0);
+        await assertNoHorizontalOverflow(page, where);
+      }
+
+      await insertRoadmapListing(sql, {
+        id: siblingId,
+        hostId: host.id,
+        title: `Rejected sibling ${"wrapping-title-".repeat(18)}`,
+        status: "published",
+        reviewState: "rejected",
+        withHours: true,
+      });
+      for (const width of ROADMAP_WIDTHS) {
+        await openDashboard(page, width);
+        const where = `${theme} · mixed-portfolio · ${width}px`;
+        await expect(
+          page.getByRole("heading", { level: 2, name: "Ready to take bookings" }),
+          `${where}: a rejected sibling incorrectly reopened the account roadmap.`,
+        ).toBeVisible();
+        await expect(
+          page.getByRole("heading", { level: 2, name: "Get ready to take bookings" }),
+        ).toHaveCount(0);
+        await assertNoHorizontalOverflow(page, where);
+      }
+    } finally {
+      await sql`DELETE FROM "user" WHERE id = ${host.id}`;
+      await sql.end();
+    }
+  });
+}

@@ -1,0 +1,9 @@
+{
+  "command": "npm.cmd exec playwright -- test e2e/host-dashboard.spec.ts --project=chromium --reporter=line --grep \"court · the roadmap\"",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - court · the roadmap and receipt state matrix reflows at 320px/1280px without overflow\n# tests 1\n# pass 0\n# fail 1\nError: rejected-long-reason · 320px: one or more PanelCards have internal horizontal overflow. Expected [], received [{ index: 0, clientWidth: 288, scrollWidth: 3564 }] at e2e/host-dashboard.spec.ts:949.",
+  "targetTest": "court · the roadmap and receipt state matrix reflows at 320px/1280px without overflow",
+  "targetFile": "e2e/host-dashboard.spec.ts",
+  "expected": "Every verification roadmap PanelCard stays within the 320px viewport for long host-generated or provider-generated rejection copy.",
+  "actual": "The rejected identity card measured 288px wide but its unbroken rejection reason produced 3564px of internal scroll width."
+}
