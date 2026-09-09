@@ -40,6 +40,7 @@ import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { listing, listingPhoto, listingReview } from "@/lib/db/schema";
 import type { ListingReviewState } from "@/lib/db/schema";
 import { MATERIAL_FIELDS } from "@/lib/listing/re-review";
+import { MATERIAL_FIELD_LABELS } from "@/lib/listing/re-review-copy";
 import { loadReviewQueue } from "@/lib/ops/review-queue";
 
 let testDb: TestDb;
@@ -243,6 +244,16 @@ describe("LVER-08 — one tuple-backed host copy authority", () => {
     expect(source).toContain("satisfies Record<MaterialField, string>");
     expect(source).toContain("MATERIAL_FIELDS.map");
     expect(source).not.toMatch(/const\s+(?:MATERIAL|RE_REVIEW)_FIELDS\s*=/);
+    expect(Object.keys(MATERIAL_FIELD_LABELS)).toEqual([...MATERIAL_FIELDS]);
+    expect(MATERIAL_FIELDS.map((field) => MATERIAL_FIELD_LABELS[field])).toEqual([
+      "Address and map location",
+      "Space type",
+      "Capacity",
+      "Photos",
+      "Pricing",
+      "Title",
+      "Description",
+    ]);
   });
 });
 

@@ -340,11 +340,10 @@ describe("ListingCard review chip and notice (D-230)", () => {
     // As TEXT (T-18-1301). Operator free text reaches a React text node and nothing renders markup.
     expect(container.innerHTML).not.toContain("<script");
 
-    // The way out is TRUE because a material edit flips `rejected → pending` (D-249, plan 18-06), and
-    // it points at the wizard route the card was already given rather than a second spelling of it.
+    // The card-level direct link is deliberately gone: Phase 21 makes the explanation dialog the only
+    // route into editing from an exactly rejected listing.
     const wayOut = wayOutAnchor(container);
-    expect(wayOut).not.toBeNull();
-    expect(wayOut?.getAttribute("href")).toBe(HOST_PROPS.editHref);
+    expect(wayOut).toBeNull();
   });
 
   it("(12) `grandfathered` renders EXACTLY what it rendered yesterday — nothing new (D-211/D-212)", () => {
@@ -621,6 +620,7 @@ describe("ListingCard deliberate rejected entry (LVER-06/LVER-08)", () => {
 
   it.each([
     ["draft", "pending"],
+    ["draft", "rejected"],
     ["published", "pending"],
     ["published", "approved"],
     ["published", "grandfathered"],

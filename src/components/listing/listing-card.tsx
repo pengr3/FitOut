@@ -76,6 +76,8 @@ import { composeReviewSentence, reviewSignalFor } from "@/lib/listing/review-sig
 // finding in miniature — the census counts what it can SEE.
 import type { ListingReviewState } from "@/lib/db/schema";
 import type { ListingReviewHistory } from "@/lib/listing/review-history";
+import { MATERIAL_FIELD_LABELS } from "@/lib/listing/re-review-copy";
+import { MATERIAL_FIELDS } from "@/lib/listing/re-review";
 
 export type ListingCardData = {
   id: string;
@@ -268,6 +270,71 @@ function ReviewHistoryDialog({
               Close
             </Button>
           </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function FixAndResubmitDialog({
+  editHref,
+  listingTitle,
+  rejectionReason,
+}: {
+  editHref: string;
+  listingTitle: string | null;
+  rejectionReason: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const safeRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          <PencilIcon className="size-3.5" aria-hidden="true" /> Fix and resubmit
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] max-w-[calc(100%-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-md"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          safeRef.current?.focus();
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>
+            {listingTitle ? `Fix and resubmit “${listingTitle}”?` : "Fix and resubmit this listing?"}
+          </DialogTitle>
+          <DialogDescription>
+            You&apos;ll edit the listing first. FitOut starts a new review only after you save a change
+            that affects review.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 overflow-y-auto pr-1">
+          {rejectionReason?.trim() ? (
+            <p className="mb-4 whitespace-pre-wrap break-words text-sm text-muted-foreground select-text">
+              {rejectionReason}
+            </p>
+          ) : null}
+          <p className="text-sm font-medium">Changes that send your listing back to review:</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {MATERIAL_FIELDS.map((field) => (
+              <li key={field} className="break-words text-sm">
+                {MATERIAL_FIELD_LABELS[field]}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button ref={safeRef} variant="outline">
+              Keep reviewing changes
+            </Button>
+          </DialogClose>
+          <Button asChild variant="outline">
+            <Link href={editHref}>Continue to edit</Link>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -503,7 +570,7 @@ export function ListingCard({
         {reviewNotice && reviewSignal && (
           <p className="text-sm text-muted-foreground">
             {reviewNotice}
-            {reviewSignal.wayOut && editHref ? (
+            {reviewSignal.wayOut && editHref && listing.reviewState !== "rejected" ? (
               <>
                 {" "}
                 <Link href={editHref} className="underline underline-offset-4">
@@ -546,13 +613,19 @@ export function ListingCard({
           standing gate that says so.
         */
         <CardFooter className="gap-2 mt-auto flex-wrap">
-          {editHref && (
+          {editHref && listing.reviewState === "rejected" && listing.status === "published" ? (
+            <FixAndResubmitDialog
+              editHref={editHref}
+              listingTitle={listing.title}
+              rejectionReason={rejectionReason}
+            />
+          ) : editHref ? (
             <Button asChild variant="outline" size="sm">
               <Link href={editHref}>
-                <PencilIcon className="size-3.5" /> Edit
+                <PencilIcon className="size-3.5" aria-hidden="true" /> Edit
               </Link>
             </Button>
-          )}
+          ) : null}
           {hasReviewHistory && reviewHistory ? (
             <ReviewHistoryDialog history={reviewHistory} listingTitle={listing.title} />
           ) : null}
