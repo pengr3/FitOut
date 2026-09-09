@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 21
 current_phase_name: The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit
 status: executing
-stopped_at: Completed 21-06-PLAN.md
-last_updated: "2026-09-09T15:50:44.473Z"
-last_activity: 2026-09-09
-last_activity_desc: Phase 21 execution started
-state_head: 41c57040b597ee0320022a6a6d4624d5452d346b
+stopped_at: Completed 21-07-PLAN.md
+last_updated: "2026-09-09T16:20:29.154Z"
+last_activity: 2026-09-10
+last_activity_desc: Completed 21-07-PLAN.md
+state_head: d7a8e5a6f56cc14d9b188f9c957fb3645f819d28
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 82
+  completed_plans: 83
   percent: 13
 ---
 
@@ -112,9 +112,9 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 21 (The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit) — EXECUTING
-Plan: 2 of 7
-Status: Ready to execute
-Last activity: 2026-09-09 — Phase 21 execution started
+Plan: 7 of 7
+Status: Ready to verify
+Last activity: 2026-09-10 — Completed 21-07-PLAN.md
 
 ## Performance Metrics
 
@@ -511,6 +511,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 21 P05 | 74m | 2 tasks | 6 files |
 | Phase 21 P04 | 100min | 3 tasks | 11 files |
 | Phase 21 P06 | 10min | 2 tasks | 5 files |
+| Phase 21 P07 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -1596,6 +1597,9 @@ Recent decisions affecting current work:
 - [Phase 21]: The first true result owns one mounted receipt latch and one focus/scroll move; later results cannot duplicate or erase it.
 - [Phase 21]: Photo add/remove share the guarded receipt path while reorder stays explicitly non-material.
 - [Phase 21]: Newest rejected-row observation is tracked separately from nullable reason content. — The newest rejected row remains authoritative even when its reason is null or whitespace-only, so older historical text cannot become current guidance.
+- [Phase 21]: Only thrown or rejected payout action calls use the deterministic fallback; explicit resolved refusals retain their server-authored error text. — This preserves the Server Action as the sole payout eligibility and authorization authority.
+- [Phase 21]: Browser navigation remains inside the explicit result.ok success branch, while every failure stays in the roadmap. — Thrown values and resolved refusals must never navigate the host away from recovery feedback.
+- [Phase 21]: Each payout attempt clears prior feedback before entering the transition. — The current result must replace stale failure state during retry.
 
 ### Pending Todos
 
@@ -1784,8 +1788,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-09T15:50:42.403Z
-Stopped at: Completed 21-06-PLAN.md
+Last session: 2026-09-09T16:20:26.900Z
+Stopped at: Completed 21-07-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
