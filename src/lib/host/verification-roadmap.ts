@@ -321,8 +321,15 @@ export function deriveVerificationRoadmap(
     : (steps.find((step) => step.action)?.number ?? null);
   const ownedSteps = steps.map((step) => {
     if (step.number === actionOwner) return step;
-    const { action: _laterAction, ...withoutAction } = step;
-    return withoutAction;
+    return {
+      number: step.number,
+      title: step.title,
+      state: step.state,
+      body: step.body,
+      ...(step.verificationStatus
+        ? { verificationStatus: step.verificationStatus }
+        : {}),
+    };
   });
 
   return {
