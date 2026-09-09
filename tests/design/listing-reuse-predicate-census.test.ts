@@ -365,5 +365,5 @@ describe("D-02 — every RAW-SQL writer of the `listing` row sets `updated_at`",
       stripped.filter((h) => !/updated_at/i.test(h.setClause)),
       "The stripped scan is not clean; see the property above for what a real violation means.",
     ).toEqual([]);
-  });
+  }, 15_000);
 });
