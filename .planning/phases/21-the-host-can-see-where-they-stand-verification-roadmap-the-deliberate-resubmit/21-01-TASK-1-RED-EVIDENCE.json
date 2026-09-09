@@ -1,0 +1,9 @@
+{
+  "command": "npm.cmd test -- tests/host/verification-roadmap.test.tsx -t \"renders the four ordered gates and gives the only advancing control to Step 3\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - renders the four ordered gates and gives the only advancing control to Step 3\n# tests 1\n# pass 0\n# fail 1\n# cancelled 0\nTestingLibraryElementError: Unable to find an accessible element with the role heading and name Get ready to take bookings",
+  "targetTest": "renders the four ordered gates and gives the only advancing control to Step 3",
+  "targetFile": "tests/host/verification-roadmap.test.tsx",
+  "expected": "the real zero-listing dashboard renders four ordered roadmap cards, one Step 3 create control, and no legacy payout or verification signal rows",
+  "actual": "the dashboard rendered no roadmap heading, kept the empty-state create control, and still rendered both legacy signal rows"
+}
