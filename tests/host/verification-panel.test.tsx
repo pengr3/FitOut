@@ -382,6 +382,9 @@ describe("the ONE named region carries every refusal, verbatim", () => {
     await waitFor(() =>
       expect(screen.getByRole("status").textContent).toBe(HOST_VERIFICATION_PHONE_REQUIRED),
     );
+    // The refusal is committed inside the transition just before React releases its pending flag.
+    // Wait for the control to return to idle before exercising the second, distinct press.
+    await waitFor(() => expect(control()).toBeTruthy());
 
     fireEvent.change(screen.getByLabelText(/phone/i), { target: { value: "0917 123 4567" } });
     fireEvent.click(control());

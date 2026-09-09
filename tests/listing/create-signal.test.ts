@@ -92,7 +92,14 @@ vi.mock("@/lib/db", () => {
     };
     return c;
   };
-  return { db: { select: () => chain() } };
+  return {
+    db: {
+      select: () => chain(),
+      // Phase 21 loads the bounded review-cycle projection beside the listing rows. This legacy
+      // destination-page test owns an all-empty database double, so the raw projection is empty too.
+      execute: async () => [],
+    },
+  };
 });
 
 import HostListingsPage from "@/app/(host)/host/listings/page";
