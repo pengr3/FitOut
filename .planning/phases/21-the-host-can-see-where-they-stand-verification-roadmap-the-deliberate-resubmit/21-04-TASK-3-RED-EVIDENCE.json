@@ -1,0 +1,10 @@
+{
+  "command": "npm.cmd test -- tests/listing/wizard-save-state.test.tsx -t \"does not render success for guarded false\" --reporter=tap",
+  "exitCode": 1,
+  "mutation": "Temporarily changed the receipt authority check from res.flipped === true to res.flipped === false, then restored the committed true-only predicate immediately after the run.",
+  "output": "TAP version 13\nnot ok 1 - LVER-09 — a guarded rejected-listing transition authorizes one mounted receipt > does not render success for guarded false\n# tests 1\n# pass 0\n# fail 1\nAssertionError: expected <section tabindex=\\\"-1\\\" ...>Changes received</section> to be null",
+  "targetTest": "LVER-09 — a guarded rejected-listing transition authorizes one mounted receipt > does not render success for guarded false",
+  "targetFile": "tests/listing/wizard-save-state.test.tsx",
+  "expected": "The focused negative test must fail if a false action result is upgraded into receipt authority.",
+  "actual": "The mutation rendered Changes received for flipped: false, and the focused negative assertion failed."
+}

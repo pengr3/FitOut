@@ -492,6 +492,16 @@ test.describe("HSURF-01 — the host listing grid's footer is flush and its cont
     const before = await prepareRejectedGridListing(fixture.longTitleDraftId);
     expect(before.reviewState).toBe("rejected");
 
+    // Re-establish the UI-created session explicitly for this long, navigation-heavy journey. The
+    // shared fixture proves sign-up reached the host grid; logging in here makes every assertion
+    // below begin from a fresh, visible auth boundary rather than inheriting earlier page state.
+    await page.context().clearCookies();
+    await page.goto(`${BASE}/login`);
+    await page.getByLabel("Email").fill(fixture.hostEmail);
+    await page.getByLabel("Password").fill("averylongpassword");
+    await page.getByRole("button", { name: /^log in$/i }).click();
+    await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 60_000 });
+
     for (const theme of ["court", "grove"] as const) {
       await seedTheme(page.context(), theme);
       for (const width of [320, 1280] as const) {
@@ -501,9 +511,9 @@ test.describe("HSURF-01 — the host listing grid's footer is flush and its cont
         await page.goto(editUrl);
         await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
         await expect(page.getByRole("heading", { name: "This listing needs changes" })).toBeVisible();
-        await expect(page.getByText(before.reason, { exact: true })).toBeVisible();
+        await expect(page.getByRole("main").getByText(before.reason, { exact: true })).toBeVisible();
         await expect(
-          page.getByText(
+          page.getByRole("main").getByText(
             "Saving changes to the address and map location, space type, capacity, photos, pricing, title, or description sends the listing back to FitOut for review.",
           ),
         ).toBeVisible();
@@ -574,6 +584,88 @@ test.describe("HSURF-01 — the host listing grid's footer is flush and its cont
         await expect(page.getByText(before.reason, { exact: true })).toBeVisible();
       }
     }
+
+    // LVER-09 — THE ACTION, NOT THE CLICK, AUTHORIZES THIS RECEIPT. Change a material field before
+    // the first save; there is intentionally no separate "resubmit" control and no unchanged-submit
+    // path. The guarded rejected → pending update is the only receipt authority.
+    await seedTheme(page.context(), "court");
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.goto(`${BASE}/host/listings/${fixture.longTitleDraftId}/edit`);
+    await expect(page.getByRole("heading", { name: "This listing needs changes" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Changes received" })).toHaveCount(0);
+
+    await page.getByRole("combobox", { name: "Primary space type" }).click();
+    await page.getByRole("option", { name: "Yoga studio" }).click();
+    await page.getByRole("button", { name: "Get started" }).click();
+
+    const receipt = page.getByRole("region", { name: "Changes received" });
+    await expect(receipt).toHaveCount(1);
+    await expect(receipt).toBeFocused();
+    await expect(receipt).toContainText(
+      "Your listing is back in review. It can't take bookings until FitOut finishes checking it.",
+    );
+    await expect(page.getByRole("heading", { name: "This listing needs changes" })).toHaveCount(0);
+    await expect(page.getByRole("status", { name: "Save state" })).toBeEmpty();
+    await expect(page.getByText("Draft saved", { exact: true })).toHaveCount(0);
+
+    for (const theme of ["court", "grove"] as const) {
+      await page.evaluate((nextTheme) => {
+        document.documentElement.dataset.theme = nextTheme;
+      }, theme);
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+
+      for (const width of [320, 1280] as const) {
+        await page.setViewportSize({ width, height: width === 320 ? 800 : 900 });
+        const geometry = await receipt.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          return {
+            left: box.left,
+            right: box.right,
+            viewportWidth: window.innerWidth,
+            ownOverflow: element.scrollWidth - element.clientWidth,
+            documentOverflow:
+              document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          };
+        });
+        expect(geometry.left).toBeGreaterThanOrEqual(0);
+        expect(geometry.viewportWidth - geometry.right).toBeGreaterThanOrEqual(0);
+        expect(geometry.ownOverflow).toBeLessThanOrEqual(0);
+        expect(geometry.documentOverflow).toBeLessThanOrEqual(0);
+      }
+    }
+
+    // A later guarded no-op follows the ordinary flow but cannot duplicate or re-focus the latch.
+    await receipt.evaluate((element) => {
+      element.dataset.laterFocusCount = "0";
+      element.addEventListener("focus", () => {
+        element.dataset.laterFocusCount = String(Number(element.dataset.laterFocusCount ?? "0") + 1);
+      });
+    });
+    await page.getByRole("button", { name: "Get started" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: "Tell guests about your space" })).toBeVisible();
+    await expect(receipt).toHaveCount(1);
+    await expect(receipt).toHaveAttribute("data-later-focus-count", "0");
+
+    const after = await rejectedSnapshot(fixture.longTitleDraftId);
+    expect(after.reviewState).toBe("pending");
+    expect(after.reviewCount).toBe(before.reviewCount + 1);
+    expect(after.reason).toBe(before.reason);
+
+    await page.reload();
+    await expect(page.getByRole("region", { name: "Changes received" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "This listing needs changes" })).toHaveCount(0);
+
+    await page.goto(`${BASE}/host/listings`);
+    const pendingCard = cardNamed(page, fixture.longTitle);
+    await expect(pendingCard.getByText("In review", { exact: true })).toBeVisible();
+    await pendingCard.getByRole("button", { name: "Review history" }).click();
+    const newestCycle = page
+      .getByRole("dialog", { name: "Review history" })
+      .getByRole("list", { name: "Review cycles" })
+      .locator(":scope > li")
+      .first();
+    await expect(newestCycle.getByText("Waiting", { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
 
     await page.goto(
       `${BASE}/host/listings/${fixture.untitledDraftId}/edit?reReview=rejected&reason=Forged+browser+reason`,

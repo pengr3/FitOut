@@ -55,7 +55,7 @@ export type ListingPhotoRow = {
   position: number;
 };
 
-export type PhotoResult = { ok: true; flipped: false } | { ok: false; error: string };
+export type PhotoResult = { ok: true; flipped?: boolean } | { ok: false; error: string };
 export type PersistPhotoResult =
   | { ok: true; photo: ListingPhotoRow; flipped: boolean }
   | { ok: false; error: string };

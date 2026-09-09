@@ -354,7 +354,7 @@ function ReReviewReceipt({ receiptRef }: { receiptRef: RefObject<HTMLElement | n
       ref={receiptRef}
       tabIndex={-1}
       aria-labelledby="re-review-receipt-title"
-      className="min-w-0 rounded-xl border border-emerald-600/30 bg-emerald-50 p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5 dark:bg-emerald-950/20"
+      className="min-w-0 rounded-xl border bg-muted/50 p-4 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:p-5"
     >
       <div className="min-w-0 space-y-2">
         <h2 id="re-review-receipt-title" className="font-semibold">
