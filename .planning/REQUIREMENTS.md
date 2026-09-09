@@ -225,7 +225,7 @@ categories Phase 18/18.1 opened; `STATE-05` and `TRUST-01` keep their v1.1 IDs.
       reached by choosing it rather than by tripping one of seven material fields. The control routes
       **into the edit wizard** — it is never a submit button that resubmits without a change, and it
       is never labelled appeal, dispute, or contest.
-- [ ] **LVER-07** — A host can see a listing's **review history per cycle** — submitted → waiting →
+- [x] **LVER-07** — A host can see a listing's **review history per cycle** — submitted → waiting →
       decided, with the reason — newest first and bounded, so it never becomes an infinite list.
 - [ ] **LVER-08** — A host is told **which changes send a listing back to review before they edit**,
       in plain language sourced from the one exported material-fields tuple so it cannot drift.
@@ -326,7 +326,7 @@ Explicitly excluded, with the reasoning, so they are not re-added by a later pla
 | HVER-13 | Phase 21 | Complete |
 | HVER-14 | Phase 21 | Complete |
 | LVER-06 | Phase 21 | Pending |
-| LVER-07 | Phase 21 | Pending |
+| LVER-07 | Phase 21 | Complete |
 | LVER-08 | Phase 21 | Pending |
 | LVER-09 | Phase 21 | Pending |
 | ENF-04 | Phase 22 | Pending |

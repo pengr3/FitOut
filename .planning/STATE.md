@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 21
 current_phase_name: The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit
 status: executing
-stopped_at: Completed 21-01-PLAN.md
-last_updated: "2026-09-09T05:52:16.841Z"
+stopped_at: Completed 21-02-PLAN.md
+last_updated: "2026-09-09T07:22:57.568Z"
 last_activity: 2026-09-09
-last_activity_desc: Completed 21-01-PLAN.md
-state_head: fd0b9740a8bc4095bca475a870662004103a665e
+last_activity_desc: Completed 21-02-PLAN.md
+state_head: 1969d8eb5857905a8519cfda5d52d8a6a253b933
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 77
+  completed_plans: 78
   percent: 13
 ---
 
@@ -112,9 +112,9 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 ## Current Position
 
 Phase: 21 (The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
-Last activity: 2026-09-09 — Completed 21-01-PLAN.md
+Last activity: 2026-09-09 — Completed 21-02-PLAN.md
 
 ## Performance Metrics
 
@@ -506,6 +506,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 20 P08 | 49 min | 2 tasks | 21 files |
 | Phase 20 P13 | 22 min | 2 tasks | 7 files |
 | Phase 21 P01 | 56m | 2 tasks | 14 files |
+| Phase 21 P02 | 72m | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -1578,6 +1579,9 @@ Recent decisions affecting current work:
 - [Phase 21]: Only deriveBookable may collapse the host roadmap into the ready receipt.
 - [Phase 21]: Review progress aggregates only across listings that are published and have operating hours.
 - [Phase 21]: Dashboard and Didit reconciliation share one 30-minute pending rescue authority.
+- [Phase 21]: 21-02: Owner scope, deleted-parent exclusion, deterministic ranking, and the six-row bound live in one SQL read.
+- [Phase 21]: 21-02: Client history DTOs contain only finished labels and absolute Asia/Manila display times, never identifiers or raw review codes.
+- [Phase 21]: 21-02: Zero review cycles are represented by no history DTO, so no trigger, shell, fetch, or loading state exists.
 
 ### Pending Todos
 
@@ -1766,8 +1770,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-09T05:52:14.655Z
-Stopped at: Completed 21-01-PLAN.md
+Last session: 2026-09-09T07:22:55.849Z
+Stopped at: Completed 21-02-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.

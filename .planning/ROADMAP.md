@@ -945,13 +945,13 @@ history.
   5. A host can read a listing's **review history per cycle** — submitted → waiting → decided, with the
      operator's reason — newest first and bounded.
 
-**Plans:** 1/5 plans executed
+**Plans:** 2/5 plans executed
 
 Plans:
 **Wave 1**
 
 - [x] 21-01-PLAN.md — Compose the host verification roadmap from existing authorities and prove every state.
-- [ ] 21-02-PLAN.md — Deliver bounded, private, deterministic listing review history.
+- [x] 21-02-PLAN.md — Deliver bounded, private, deterministic listing review history.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -1125,7 +1125,7 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 11/11 | In Progress|  |
 | 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 18/20 | In Progress — Plan 19 visual closure complete and PM-approved; gate-visual green on run 34043991189. Plan 20 remains for the two host-wizard/edit-route E2E failures; SC4 + SC5 OPEN |  |
 | 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | In Progress|  |
-| 21. The Host Can See Where They Stand | v1.2 | 1/5 | In Progress |  |
+| 21. The Host Can See Where They Stand | v1.2 | 2/5 | In Progress |  |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |
 | 23. The Support Path Becomes Reachable | v1.2 | 0/TBD | **Blocked on a business fact** — a monitored support address (D-64 forbids a placeholder) | - |
 
