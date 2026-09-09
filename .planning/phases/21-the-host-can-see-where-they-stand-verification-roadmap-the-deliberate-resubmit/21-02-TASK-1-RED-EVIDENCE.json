@@ -1,0 +1,9 @@
+{
+  "command": "npm.cmd test -- tests/listing/listing-card.test.tsx -t \"opens an already-resolved semantic lifecycle without fetching and renders a stored reason exactly once as text\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - opens an already-resolved semantic lifecycle without fetching and renders a stored reason exactly once as text\n# tests 1\n# pass 0\n# fail 1\n# cancelled 0\nTestingLibraryElementError: Unable to find an accessible element with the role button and name Review history",
+  "targetTest": "opens an already-resolved semantic lifecycle without fetching and renders a stored reason exactly once as text",
+  "targetFile": "tests/listing/listing-card.test.tsx",
+  "expected": "An accessible Review history trigger opens a semantic, server-resolved lifecycle dialog without a browser fetch.",
+  "actual": "Testing Library could not find a button with the accessible name Review history."
+}

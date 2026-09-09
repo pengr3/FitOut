@@ -14,7 +14,7 @@
 // and toasts — mirroring tests/booking/host-booking-row.test.tsx.
 
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, within } from "@testing-library/react";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -431,5 +431,76 @@ describe("ListingCard review chip and notice (D-230)", () => {
     // Guard-the-guard: the sweep covered the whole review dimension, derived from the pgEnum, so a
     // sixth value widens this loop rather than slipping past it.
     expect(reviewStates.length).toBe(5);
+  });
+});
+
+describe("ListingCard review history (LVER-07)", () => {
+  const HOST_PROPS = {
+    availabilityHref: "/host/listings/abc/availability",
+    editHref: "/host/listings/abc/edit",
+  } as const;
+
+  it("renders no Review history trigger or dialog shell when the listing has zero cycles", () => {
+    render(
+      <ListingCard
+        listing={makeListing()}
+        priceParts={["₱307.50/hr"]}
+        reviewHistory={{ cycles: [], hasOlder: false }}
+        {...HOST_PROPS}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Review history" })).toBeNull();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("opens an already-resolved semantic lifecycle without fetching and renders a stored reason exactly once as text", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    const operatorReason = "<script>The entrance photo does not match.</script>";
+    render(
+      <ListingCard
+        listing={makeListing()}
+        priceParts={["₱307.50/hr"]}
+        reviewHistory={{
+          cycles: [
+            {
+              events: ["Submitted 8 Sep 2026, 11:00 am", "Waiting"],
+            },
+            {
+              events: [
+                "Submitted 7 Sep 2026, 8:00 am",
+                "Waiting",
+                "Not approved 7 Sep 2026, 12:15 pm",
+              ],
+              reason: operatorReason,
+            },
+          ],
+          hasOlder: false,
+        }}
+        {...HOST_PROPS}
+      />,
+    );
+
+    const trigger = screen.getByRole("button", { name: "Review history" });
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole("dialog", { name: "Review history" });
+    expect(within(dialog).getByText('Review activity for “Sunset Court”, newest first.')).toBeTruthy();
+    const cycleList = within(dialog).getByRole("list", { name: "Review cycles" });
+    const cycles = Array.from(cycleList.children);
+    expect(cycles).toHaveLength(2);
+    expect(within(cycles[0]).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Submitted 8 Sep 2026, 11:00 am",
+      "Waiting",
+    ]);
+    expect(within(cycles[1]).getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Submitted 7 Sep 2026, 8:00 am",
+      "Waiting",
+      "Not approved 7 Sep 2026, 12:15 pm",
+    ]);
+    expect((dialog.textContent ?? "").split(operatorReason)).toHaveLength(2);
+    expect(dialog.innerHTML).not.toContain("<script>The entrance");
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 });
