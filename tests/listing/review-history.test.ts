@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { listing, listingReview, user } from "@/lib/db/schema";
+import type { ReviewCycleDisplay } from "@/lib/listing/review-history";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 
 let testDb: TestDb;
@@ -202,7 +203,7 @@ describe("LVER-07 review history — bounded and total lifecycle mapping", () =>
 
     expect(history?.cycles).toHaveLength(5);
     expect(history?.hasOlder).toBe(true);
-    expect(history?.cycles.map((cycle) => cycle.events[0])).toEqual(
+    expect(history?.cycles.map((cycle: ReviewCycleDisplay) => cycle.events[0])).toEqual(
       submitted
         .toReversed()
         .slice(0, 5)
@@ -234,7 +235,9 @@ describe("LVER-07 review history — bounded and total lifecycle mapping", () =>
     });
 
     const result = (await loadReviewHistoryByListing(testDb.db, ownerId)).get(listingId);
-    expect(result?.reviewHistory.cycles.map((cycle) => cycle.reason)).toEqual([
+    expect(
+      result?.reviewHistory.cycles.map((cycle: ReviewCycleDisplay) => cycle.reason),
+    ).toEqual([
       "z wins",
       "a second",
     ]);

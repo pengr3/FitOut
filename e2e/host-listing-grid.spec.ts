@@ -371,7 +371,10 @@ test.describe("HSURF-01 — the host listing grid's footer is flush and its cont
 
         const geometry = await dialog.evaluate((element) => {
           const box = element.getBoundingClientRect();
-          const scroll = element.querySelector<HTMLElement>("[data-review-history-scroll]");
+          const scrollRoot = element.querySelector<HTMLElement>("[data-review-history-scroll]");
+          const scroll = scrollRoot?.querySelector<HTMLElement>(
+            '[data-slot="scroll-area-viewport"]',
+          );
           return {
             left: box.left,
             right: box.right,

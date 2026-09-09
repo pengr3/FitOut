@@ -32,7 +32,7 @@
 // is sold and does not need to be told, the status badge is the one badge this tile carries, and scarcity
 // is a booker-facing signal about a SPECIFIC DATE — which this card has no date to be about.
 
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 // `Trash2Icon` is HSURF-01 / D-07's icon-only Delete trigger (see the docblock at that call site).
@@ -51,6 +51,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogClose,
@@ -211,6 +212,7 @@ function ReviewHistoryDialog({
   listingTitle: string | null;
 }) {
   const [open, setOpen] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -219,7 +221,14 @@ function ReviewHistoryDialog({
           <HistoryIcon className="size-3.5" aria-hidden="true" /> Review history
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-[calc(100%-2rem)] sm:max-w-lg">
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] max-w-[calc(100%-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-lg"
+        showCloseButton={false}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          closeRef.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Review history</DialogTitle>
           <DialogDescription>
@@ -228,7 +237,7 @@ function ReviewHistoryDialog({
               : "Review activity for this listing, newest first."}
           </DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 overflow-y-auto pr-1">
+        <ScrollArea data-review-history-scroll className="min-h-0 overflow-hidden pr-1">
           <ol aria-label="Review cycles" className="space-y-4">
             {history.cycles.map((cycle, cycleIndex) => (
               <li key={cycleIndex} className="rounded-lg border p-3">
@@ -240,7 +249,7 @@ function ReviewHistoryDialog({
                   ))}
                 </ol>
                 {cycle.reason ? (
-                  <p className="mt-3 whitespace-pre-wrap break-words text-sm text-muted-foreground">
+                  <p className="mt-3 whitespace-pre-wrap break-words text-sm text-muted-foreground select-text">
                     {cycle.reason}
                   </p>
                 ) : null}
@@ -252,10 +261,12 @@ function ReviewHistoryDialog({
               Showing the latest five review cycles.
             </p>
           ) : null}
-        </div>
+        </ScrollArea>
         <DialogFooter>
           <DialogClose asChild>
-            <Button variant="outline">Close</Button>
+            <Button ref={closeRef} variant="outline">
+              Close
+            </Button>
           </DialogClose>
         </DialogFooter>
       </DialogContent>

@@ -924,6 +924,11 @@ export type SeededHostGrid = {
 const HOST_GRID_LONG_TITLE =
   "The Really Rather Long Riverside Boxing And Conditioning Studio With A Name Nobody Shortened";
 
+const HOST_GRID_LONG_REVIEW_REASON =
+  "The entrance photo needs a wider view of the full doorway, the unobstructed access path, and the safety lighting before this listing can be approved. ".repeat(
+    8,
+  );
+
 /**
  * Seed ONE host owning THREE `/host/listings` cards whose `CardContent` heights genuinely differ, at
  * least one of them PUBLISHED — the fixture HSURF-01's two guards are measured against.
@@ -1073,6 +1078,55 @@ export async function seedHostGridFixture(page: Page): Promise<SeededHostGrid> {
         ${HOURLY_RATE_CENTS}, ${"draft"}::listing_status, now(), now() - interval '2 minutes'
       )
     `;
+
+    // LVER-07 — the three cards intentionally cover zero, one, and six review cycles. The sixth row
+    // is the server-side sentinel only; the dialog must render five records and never serialize an
+    // unbounded collection. The longest title owns the longest reason so the same browser assertion
+    // exercises both wrapping boundaries at 320px.
+    await sql`
+      INSERT INTO listing_review (id, listing_id, state, submitted_at, decided_at)
+      VALUES (
+        ${`e2e_grid_review_one_${runId}`},
+        ${publishedNoHoursId},
+        ${"approved"}::listing_review_state,
+        now() - interval '1 day',
+        now() - interval '23 hours'
+      )
+    `;
+    await sql`
+      INSERT INTO listing_review (id, listing_id, state, reason, submitted_at, decided_at)
+      VALUES
+        (
+          ${`e2e_grid_review_many_6_${runId}`}, ${longTitleDraftId},
+          ${"rejected"}::listing_review_state, ${HOST_GRID_LONG_REVIEW_REASON},
+          now() - interval '1 hour', now() - interval '30 minutes'
+        ),
+        (
+          ${`e2e_grid_review_many_5_${runId}`}, ${longTitleDraftId},
+          ${"approved"}::listing_review_state, ${null},
+          now() - interval '2 days', now() - interval '47 hours'
+        ),
+        (
+          ${`e2e_grid_review_many_4_${runId}`}, ${longTitleDraftId},
+          ${"withdrawn"}::listing_review_state, ${null},
+          now() - interval '3 days', now() - interval '71 hours'
+        ),
+        (
+          ${`e2e_grid_review_many_3_${runId}`}, ${longTitleDraftId},
+          ${"approved"}::listing_review_state, ${null},
+          now() - interval '4 days', now() - interval '95 hours'
+        ),
+        (
+          ${`e2e_grid_review_many_2_${runId}`}, ${longTitleDraftId},
+          ${"rejected"}::listing_review_state, ${"Earlier correction."},
+          now() - interval '5 days', now() - interval '119 hours'
+        ),
+        (
+          ${`e2e_grid_review_many_1_${runId}`}, ${longTitleDraftId},
+          ${"grandfathered"}::listing_review_state, ${null},
+          now() - interval '6 days', ${null}
+        )
+    `;
   });
 
   return {
@@ -1084,10 +1138,14 @@ export async function seedHostGridFixture(page: Page): Promise<SeededHostGrid> {
     longTitle: HOST_GRID_LONG_TITLE,
     async teardown() {
       await withClient(async (sql) => {
-        // The listings first, by id — `listing_photo`, `operating_hours` and `listing_activity_tag`
-        // are ON DELETE CASCADE from `listing`, so nothing is left behind. Then the account, whose
-        // delete cascades `host_verification`. No booking rows can exist: none of the three listings
-        // is bookable (no `host_payout` row, and the published one has no hours).
+        // History first because `listing_review.listing_id` is ON DELETE RESTRICT, then the listings
+        // by id — `listing_photo`, `operating_hours` and `listing_activity_tag` cascade — and finally
+        // the account, whose delete cascades `host_verification`. No booking rows can exist: none of
+        // the three listings is bookable (no `host_payout` row, and the published one has no hours).
+        await sql`
+          DELETE FROM listing_review
+          WHERE listing_id IN (${untitledDraftId}, ${publishedNoHoursId}, ${longTitleDraftId})
+        `;
         await sql`
           DELETE FROM "listing"
           WHERE id IN (${untitledDraftId}, ${publishedNoHoursId}, ${longTitleDraftId})
