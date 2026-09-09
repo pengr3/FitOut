@@ -162,4 +162,64 @@ describe("the zero-listing host roadmap through the real dashboard composition",
     expect(signals.querySelector("[data-verification-owed]")).toBeNull();
     expect(screen.getAllByRole("link")).toHaveLength(1);
   });
+
+  it("keeps one responsive semantic tree with visible state text and touch-sized actions", async () => {
+    render(await HostDashboardPage());
+
+    const roadmap = screen
+      .getByRole("heading", { level: 2, name: "Get ready to take bookings" })
+      .closest("section");
+    const list = within(roadmap as HTMLElement).getByRole("list");
+    expect(list.className).toContain("grid-cols-1");
+    expect(list.className).toContain("sm:grid-cols-2");
+    expect(list.className).toContain("gap-4");
+    expect(list.className).toContain("sm:gap-6");
+
+    const steps = within(list).getAllByRole("listitem");
+    expect(steps).toHaveLength(4);
+    for (const step of steps) {
+      expect(within(step).getByRole("heading", { level: 3 })).toBeTruthy();
+      expect(step.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+      expect(step.textContent).toMatch(/Done|Current|Waiting|Not passed|Paused|Next/);
+    }
+
+    const action = within(list).getByRole("link", { name: "Create listing" });
+    expect(action.className.split(/\s+/)).toContain("h-11");
+  });
+
+  it("replaces the roadmap with one compact readiness receipt in the same section slot", async () => {
+    queueSelectResult(
+      [{ id: "listing_ready", status: "published", reviewState: "approved" }],
+      [{ p: 0 }],
+      [
+        {
+          paymongoAccountId: "acct_ready",
+          payoutsEnabled: true,
+          activationStatus: "activated",
+        },
+      ],
+    );
+    h.loadVerificationMock.mockResolvedValue({
+      status: "approved",
+      reason: null,
+      suspended: false,
+      updatedAt: DB_NOW,
+    });
+
+    render(await HostDashboardPage());
+
+    const readyHeading = screen.getByRole("heading", {
+      level: 2,
+      name: "Ready to take bookings",
+    });
+    const readySection = readyHeading.closest("section");
+    expect(readySection).not.toBeNull();
+    expect(readySection?.textContent).toContain(
+      "You have a listing that guests can book.",
+    );
+    expect(within(readySection as HTMLElement).queryByRole("list")).toBeNull();
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Get ready to take bookings" }),
+    ).toBeNull();
+  });
 });

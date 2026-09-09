@@ -708,7 +708,7 @@ const CARD_SURFACES: readonly CardSurface[] = [
  *
  * and beside it `expected [ … ] to have a length of 20 but got 21`.
  */
-const EXPECTED_SURFACES = 29;
+const EXPECTED_SURFACES = 30;
 
 /**
  * EVERY FILE OUTSIDE `patterns/` ALLOWED TO RENDER A RAW `<Card>`, WITH THE REASON AND THE PHASE
@@ -1099,7 +1099,7 @@ describe("DS-11 / AC#25 — every card surface renders one of three declared con
     // 27 SINCE PLAN 20-13 (+6: four ops-auth documents, the invitation lookup fallback, and Staff
     // management). All six compose PanelCard from their first implementation; none is a refusal or
     // an allow-list exception. The `%5Fops-auth` source spelling is intentionally part of the rows.
-    expect(adopted).toHaveLength(27);
+    expect(adopted).toHaveLength(28);
     expect(refused).toHaveLength(2);
 
     const composing = adopted.filter((s) => {
