@@ -229,7 +229,7 @@ categories Phase 18/18.1 opened; `STATE-05` and `TRUST-01` keep their v1.1 IDs.
       decided, with the reason — newest first and bounded, so it never becomes an infinite list.
 - [x] **LVER-08** — A host is told **which changes send a listing back to review before they edit**,
       in plain language sourced from the one exported material-fields tuple so it cannot drift.
-- [ ] **LVER-09** — A host who resubmits gets an **acknowledgement that it was received and
+- [x] **LVER-09** — A host who resubmits gets an **acknowledgement that it was received and
       re-queued**, because silence after resubmitting is what produces resubmission spam.
 
 ### HSURF — Host listing surfaces that tell the truth
@@ -328,7 +328,7 @@ Explicitly excluded, with the reasoning, so they are not re-added by a later pla
 | LVER-06 | Phase 21 | Complete |
 | LVER-07 | Phase 21 | Complete |
 | LVER-08 | Phase 21 | Complete |
-| LVER-09 | Phase 21 | Pending |
+| LVER-09 | Phase 21 | Complete |
 | ENF-04 | Phase 22 | Pending |
 | OPS-13 | Phase 22 | Pending |
 | OPS-14 | Phase 22 | Pending |

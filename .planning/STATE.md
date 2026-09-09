@@ -4,12 +4,12 @@ milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 21
 current_phase_name: The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit
-status: executing
-stopped_at: Completed 21-05-PLAN.md
-last_updated: "2026-09-09T10:33:04.401Z"
+status: verifying
+stopped_at: Completed 21-04-PLAN.md
+last_updated: "2026-09-09T12:38:51.472Z"
 last_activity: 2026-09-09
-last_activity_desc: Completed 21-05-PLAN.md
-state_head: 2c0e29ee87c43850fa1be465aeb05d6ed98490a1
+last_activity_desc: Completed 21-04-PLAN.md
+state_head: 16e5f9750bdc4771cfd1dd66147c63cbaf601913
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -56,7 +56,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 80
+  completed_plans: 81
   percent: 13
 ---
 
@@ -113,8 +113,8 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 Phase: 21 (The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
-Last activity: 2026-09-09 — Completed 21-02-PLAN.md
+Status: Phase complete — ready for verification
+Last activity: 2026-09-09 — Completed 21-04-PLAN.md
 
 ## Performance Metrics
 
@@ -509,6 +509,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 21 P02 | 72m | 2 tasks | 9 files |
 | Phase 21 P03 | 60m | 3 tasks | 11 files |
 | Phase 21 P05 | 74m | 2 tasks | 6 files |
+| Phase 21 P04 | 100min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -1590,6 +1591,9 @@ Recent decisions affecting current work:
 - [Phase 21]: The Phase 21 roadmap remains one ordered PanelCard tree with CSS-only responsive reflow.
 - [Phase 21]: Arbitrary verification copy is contained with min-width and overflow-wrap rules without changing authority.
 - [Phase 21]: Browser focus evidence delegates to the shared expectRing criterion after real Tab input.
+- [Phase 21]: Receipt authority requires server-derived rejected context plus exact flipped true; route input and generic success never suffice.
+- [Phase 21]: The first true result owns one mounted receipt latch and one focus/scroll move; later results cannot duplicate or erase it.
+- [Phase 21]: Photo add/remove share the guarded receipt path while reorder stays explicitly non-material.
 
 ### Pending Todos
 
@@ -1778,8 +1782,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-09T10:33:02.057Z
-Stopped at: Completed 21-05-PLAN.md
+Last session: 2026-09-09T12:38:49.121Z
+Stopped at: Completed 21-04-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.

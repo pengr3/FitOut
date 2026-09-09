@@ -945,7 +945,7 @@ history.
   5. A host can read a listing's **review history per cycle** — submitted → waiting → decided, with the
      operator's reason — newest first and bounded.
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans executed
 
 Plans:
 **Wave 1**
@@ -960,7 +960,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 21-04-PLAN.md — Show one server-confirmed resubmission receipt and close the end-to-end evidence gates.
+- [x] 21-04-PLAN.md — Show one server-confirmed resubmission receipt and close the end-to-end evidence gates.
 
 **This is presentation over data that already exists.** `loadHostVerification` already returns
 `{ status, reason, suspended, updatedAt }` and already has five callers — the roadmap becomes the

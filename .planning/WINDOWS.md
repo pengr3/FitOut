@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 30
+open_count: 35
 waived_count: 0
 fixed_count: 8
-total_count: 38
-last_updated: 2026-09-09T10:29:18.267Z
+total_count: 43
+last_updated: 2026-09-09T12:37:09.186Z
 ---
 
 # Broken Windows Ledger
@@ -53,6 +53,11 @@ last_updated: 2026-09-09T10:29:18.267Z
 | 37 | 21 | unrun-verify | package.json |  | 21-05: npm.cmd run typecheck is undefined; clean Next production build completed its TypeScript pass | open |  | 2026-09-09T10:29:17.126Z |  |
 | 38 | 21 | deviation | .next/dev/types/validator.ts |  | 21-05: Removed stale generated Next development route types that blocked production TypeScript validation | open |  | 2026-09-09T10:29:18.066Z |  |
 | 39 | 21 | unrun-verify | e2e/host-dashboard.spec.ts |  | 21-05: Windows-managed Playwright server descendants stayed open after targeted runs; manual-server full run passed 9/9 | open |  | 2026-09-09T10:29:18.267Z |  |
+| 40 | 21 | deviation | src/app/(host)/host/listings/[id]/edit/wizard.tsx | 357 | Receipt initially violated semantic color and focus-ring design tokens; corrected before completion. | open |  | 2026-09-09T12:37:06.012Z |  |
+| 41 | 21 | deviation | src/app/actions/listing-photo.ts | 65 | Photo success type was over-narrowed to false; corrected while preserving explicit production booleans. | open |  | 2026-09-09T12:37:06.765Z |  |
+| 42 | 21 | deviation | e2e/host-listing-grid.spec.ts | 514 | Production browser copy assertions required main-landmark scoping to avoid responsive-shell ambiguity. | open |  | 2026-09-09T12:37:07.501Z |  |
+| 43 | 21 | deviation | e2e/host-listing-grid.spec.ts |  | Windows Playwright verification used a temporary manually managed server configuration. | open |  | 2026-09-09T12:37:08.248Z |  |
+| 44 | 21 | deviation | .next/dev |  | Stale generated development route types were removed before the production build. | open |  | 2026-09-09T12:37:09.186Z |  |
 
 ````json
 [
@@ -510,6 +515,66 @@ last_updated: 2026-09-09T10:29:18.267Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-09T10:29:18.267Z",
+    "resolved_at": null
+  },
+  {
+    "id": 40,
+    "kind": "deviation",
+    "phase": "21",
+    "file": "src/app/(host)/host/listings/[id]/edit/wizard.tsx",
+    "line": 357,
+    "description": "Receipt initially violated semantic color and focus-ring design tokens; corrected before completion.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T12:37:06.012Z",
+    "resolved_at": null
+  },
+  {
+    "id": 41,
+    "kind": "deviation",
+    "phase": "21",
+    "file": "src/app/actions/listing-photo.ts",
+    "line": 65,
+    "description": "Photo success type was over-narrowed to false; corrected while preserving explicit production booleans.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T12:37:06.765Z",
+    "resolved_at": null
+  },
+  {
+    "id": 42,
+    "kind": "deviation",
+    "phase": "21",
+    "file": "e2e/host-listing-grid.spec.ts",
+    "line": 514,
+    "description": "Production browser copy assertions required main-landmark scoping to avoid responsive-shell ambiguity.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T12:37:07.501Z",
+    "resolved_at": null
+  },
+  {
+    "id": 43,
+    "kind": "deviation",
+    "phase": "21",
+    "file": "e2e/host-listing-grid.spec.ts",
+    "line": null,
+    "description": "Windows Playwright verification used a temporary manually managed server configuration.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T12:37:08.248Z",
+    "resolved_at": null
+  },
+  {
+    "id": 44,
+    "kind": "deviation",
+    "phase": "21",
+    "file": ".next/dev",
+    "line": null,
+    "description": "Stale generated development route types were removed before the production build.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-09T12:37:09.186Z",
     "resolved_at": null
   }
 ]
