@@ -83,6 +83,9 @@ const PAGE = "src/app/(host)/host/verify/page.tsx";
 const ACTION = "src/app/actions/host-verification.ts";
 const COOLDOWN_MODULE = "src/lib/host/verification-cooldown.ts";
 const COOLDOWN_NAME = "COOLDOWN_HOURS";
+const GRACE_NAME = "DIDIT_RECONCILE_GRACE_MINUTES";
+const ROADMAP_MODULE = "src/lib/host/verification-roadmap.ts";
+const RECONCILER_MODULE = "src/inngest/functions/didit-reconcile.ts";
 
 /**
  * The identifier claim 1 forbids, assembled from halves.
@@ -312,6 +315,21 @@ describe("D-264 / GATE-05 — the retry cooldown has exactly one authority", () 
     // database's own clause, which is the only place it can honestly be pinned.
     expect(Number.isInteger(COOLDOWN_HOURS)).toBe(true);
     expect(COOLDOWN_HOURS).toBeGreaterThan(0);
+  });
+});
+
+describe("HVER-14 — pending rescue shares the reconciler's grace authority", () => {
+  it("declares the grace once in the pure cooldown module", () => {
+    const declaring = collectSource(SRC_DIR).filter(
+      (file) => declaresConst(parse(file), GRACE_NAME) > 0,
+    );
+    expect(declaring).toEqual([COOLDOWN_MODULE]);
+  });
+
+  it("imports the same grace into both the roadmap and reconciler", () => {
+    const specifier = "@/lib/host/verification-cooldown";
+    expect(importsNamed(parse(ROADMAP_MODULE), GRACE_NAME, specifier)).toBe(true);
+    expect(importsNamed(parse(RECONCILER_MODULE), GRACE_NAME, specifier)).toBe(true);
   });
 });
 

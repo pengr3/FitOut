@@ -1,0 +1,9 @@
+{
+  "command": "npm.cmd test -- tests/host/verification-roadmap-state.test.ts -t \"offers Finish the check exactly at the shared 30-minute stale boundary\" --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - offers Finish the check exactly at the shared 30-minute stale boundary\n# tests 1\n# pass 0\n# fail 1\n# cancelled 0\nAssertionError: expected the ordinary pending copy to equal the stale-pending rescue copy",
+  "targetTest": "offers Finish the check exactly at the shared 30-minute stale boundary",
+  "targetFile": "tests/host/verification-roadmap-state.test.ts",
+  "expected": "pending becomes rescue-eligible exactly at DB-now minus the shared 30-minute grace and exposes Finish the check",
+  "actual": "the roadmap ignored the shared clock boundary and kept rendering ordinary waiting copy with no rescue action"
+}
