@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext, type Frame, type Page } from "@playw
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 
+import { expectRing, readFocus } from "./helpers/focus";
 import { seedTheme } from "./helpers/theme";
 
 // HFLOW-03 / 14-CONTEXT D-140…D-143 / 14-UI-SPEC § The Dashboard —
@@ -1011,12 +1012,18 @@ async function assertRoadmapSnapshot(
     expect(Math.abs(heights[2] - heights[3]), `${where}: the second desktop row is uneven.`).toBeLessThanOrEqual(1);
   }
 
-  await actions.first().focus();
-  const focusVisible = await actions.first().evaluate((node) => {
-    const style = getComputedStyle(node);
-    return style.outlineStyle !== "none" || style.boxShadow !== "none";
-  });
-  expect(focusVisible, `${where}: the advancing action has no visible keyboard focus treatment.`).toBe(true);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  let reachedAction = false;
+  for (let press = 0; press < 40; press += 1) {
+    await page.keyboard.press("Tab");
+    reachedAction = await actions.first().evaluate((node) => node === document.activeElement);
+    if (reachedAction) break;
+  }
+  expect(reachedAction, `${where}: the advancing action is absent from the keyboard order.`).toBe(true);
+  const focusReading = await readFocus(page);
+  expect(focusReading, `${where}: the advancing action did not retain keyboard focus.`).not.toBeNull();
+  if (focusReading === null) throw new Error(`${where}: the advancing action focus reading was null.`);
+  expectRing(focusReading, `${where}: the advancing action`);
   await assertNoHorizontalOverflow(page, where);
 }
 
