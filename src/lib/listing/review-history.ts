@@ -139,6 +139,7 @@ export async function loadReviewHistoryByListing(
   `)) as unknown as ReviewHistoryRow[];
 
   const byListing = new Map<string, ListingReviewHistoryResult>();
+  const latestRejectedObserved = new Set<string>();
 
   for (const row of rows) {
     let entry = byListing.get(row.listingId);
@@ -155,7 +156,8 @@ export async function loadReviewHistoryByListing(
       throw new Error("listing_review rank is invalid");
     }
 
-    if (row.state === "rejected" && entry.latestRejectionReason === null) {
+    if (row.state === "rejected" && !latestRejectedObserved.has(row.listingId)) {
+      latestRejectedObserved.add(row.listingId);
       entry.latestRejectionReason = row.reason && row.reason.trim().length > 0 ? row.reason : null;
     }
 
