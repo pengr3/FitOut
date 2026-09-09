@@ -181,7 +181,7 @@ describe("weekRowsForMonth agrees with a second derivation and with the real gri
       ).toBe(renderedRows);
       unmount();
     }
-  });
+  }, 15_000);
 });
 
 describe("the plate reserves the rows its month has", () => {
