@@ -2,14 +2,14 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
-current_phase: 20
-current_phase_name: Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding
+current_phase: 21
+current_phase_name: The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit
 status: executing
-stopped_at: Phase 21 context gathered
-last_updated: "2026-09-08T18:16:20.784Z"
+stopped_at: Phase 21 UI-SPEC approved
+last_updated: "2026-09-09T04:34:00.166Z"
 last_activity: 2026-09-08
 last_activity_desc: Phase 20 execution started
-state_head: dc93f3d374fe6de245f9e32e84c643ba16a02b70
+state_head: f5a4781ffab95935d5641df74787a7e3585c5081
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -17,7 +17,7 @@ progress:
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 8
   completed_phases: 1
-  total_plans: 80
+  total_plans: 85
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
   # A halted plan counted as a completed one is the same fabricated counter this file
@@ -111,7 +111,7 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 20 (Ops Gets Its Own Front Door — the ops. Host, Sign-In & Staff Onboarding) — EXECUTING
+Phase: 21 (The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit) — READY TO EXECUTE
 Plan: 14 of 14
 Status: Ready to execute
 Last activity: 2026-09-08 — Phase 20 execution started
@@ -1762,8 +1762,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-08T18:16:19.604Z
-Stopped at: Phase 21 context gathered
+Last session: 2026-09-09T03:08:39.694Z
+Stopped at: Phase 21 UI-SPEC approved
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1916,7 +1916,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/21-the-host-can-see-where-they-stand-verification-roadmap-the-deliberate-resubmit/21-CONTEXT.md
+Resume file: .planning/phases/21-the-host-can-see-where-they-stand-verification-roadmap-the-deliberate-resubmit/21-UI-SPEC.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered

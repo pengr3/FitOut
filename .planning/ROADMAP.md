@@ -948,11 +948,19 @@ history.
 **Plans:** 5 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 21-01-PLAN.md — Compose the host verification roadmap from existing authorities and prove every state.
 - [ ] 21-02-PLAN.md — Deliver bounded, private, deterministic listing review history.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 21-03-PLAN.md — Make rejected edits deliberate and preserve server-derived review context through the wizard.
-- [ ] 21-04-PLAN.md — Show one server-confirmed resubmission receipt and close the end-to-end evidence gates.
 - [ ] 21-05-PLAN.md — Close responsive, accessibility, design-gate, and browser evidence for the authority-backed roadmap.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 21-04-PLAN.md — Show one server-confirmed resubmission receipt and close the end-to-end evidence gates.
 
 **This is presentation over data that already exists.** `loadHostVerification` already returns
 `{ status, reason, suspended, updatedAt }` and already has five callers — the roadmap becomes the
