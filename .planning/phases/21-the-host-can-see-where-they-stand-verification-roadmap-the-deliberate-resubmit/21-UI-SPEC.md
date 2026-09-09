@@ -116,25 +116,26 @@ Exceptions and fixed control dimensions:
   intentional touch target and remains on the 4px grid.
 - Listing-card footer actions, including `Fix and resubmit` and `Review history`, preserve the dense
   `size="sm"` 28px height approved in Phase 19. Do not silently widen the whole footer to 44px.
-- Vendored primitive padding such as 10px (`px-2.5`) is inherited, not copied into new layout code.
+- Vendored primitive padding is inherited from the installed component and is not copied into new
+  phase layout code or added to this phase's spacing scale.
 - Roadmap grid: `gap-4 sm:gap-6`; one column below `sm`, two equal columns from `sm` upward. The same
   four DOM cards reflow; there is no separate mobile tree.
 - Dialog content uses 16px padding and 16px internal gap. Each review-cycle record uses 16px padding;
-  adjacent records use 12px or 16px separation consistently, never arbitrary per-record values.
+  adjacent records use 16px separation consistently, never arbitrary per-record values.
 
 ---
 
 ## Typography
 
-Use exactly the four existing semantic roles and two weights per theme. Do not introduce a fifth role,
-literal font size, or third weight.
+Use exactly four shared sizes and two shared weights across both themes. Theme distinction comes from
+the existing font-family, color, and spacing tokens; do not introduce a fifth size or third weight.
 
-| Role | Court | Grove | Weight | Line Height | Usage in Phase 21 |
-|------|-------|-------|--------|-------------|-------------------|
-| Display | 28px | 34px | 600 / 700 | 1.15 / 1.2 | Existing page title only; Phase 21 adds no display text |
-| Heading | 20px | 24px | 600 / 700 | 1.3 | Roadmap section heading and readiness-receipt heading via `text-heading` |
-| Body | 16px | 17px | 400 | 1.5 / 1.6 | Roadmap explanations, wizard notice, receipt body |
-| Label | 14px | 15px | 400 | 1.43 / 1.5 | Step numbers, state labels, timestamps, dialog metadata |
+| Role | Shared size | Weight | Line Height | Usage in Phase 21 |
+|------|-------------|--------|-------------|-------------------|
+| Display | 28px | 600 | 1.2 | Existing page title only; Phase 21 adds no display text |
+| Heading | 20px | 600 | 1.3 | Roadmap section heading and readiness-receipt heading via `text-heading` |
+| Body | 16px | 400 | 1.5 | Roadmap explanations, wizard notice, receipt body |
+| Label | 14px | 400 | 1.5 | Step numbers, state labels, timestamps, dialog metadata |
 
 Roadmap card titles and dialog titles use the existing heading family with the theme emphasis weight.
 Listing-card body and dense footer labels retain their shipped sizes. Dates and times use
@@ -223,7 +224,7 @@ For a grandfathered verification row, the identity card says **Account ready** a
 | Dialog description | **You'll edit the listing first. FitOut starts a new review only after you save a change that affects review.** |
 | Material-list heading | **Changes that send your listing back to review:** |
 | Material labels | **Address and map location; Space type; Capacity; Photos; Pricing; Title; Description** — rendered by mapping `MATERIAL_FIELDS` through a total label record, never from a second field array |
-| Safe action | **Cancel** |
+| Safe action | **Keep reviewing changes** |
 | Navigation action | **Continue to edit** |
 | Wizard notice heading | **This listing needs changes** |
 | Wizard notice lead | **FitOut didn't approve this listing.** followed once by the stored current rejection reason as plain text when present |
@@ -291,6 +292,13 @@ When no listing exists, keep the existing `No listings yet` heading and body but
 create-listing action. Step 3 owns the one create action. When a listing exists, preserve the PageHeader
 actions. The roadmap does not duplicate `Your listings` or `Create listing` unless its current state
 requires that exact way forward.
+
+Primary visual anchor by state:
+
+- Roadmap state: the headed four-card roadmap grid is the primary focal point in this section; its
+  numbered card sequence leads the eye before the remaining HostSignals below it.
+- Ready-receipt state: the compact `Ready to take bookings` `PanelCard`, led by its success glyph and
+  heading, is the primary focal point in the same section slot.
 
 ### Structure
 
@@ -363,8 +371,8 @@ The dialog:
   edits to the decision;
 - uses `sm:max-w-md`, the vendored `max-w-[calc(100%-2rem)]` mobile inset, and internal scrolling at
   `max-h-[calc(100dvh-2rem)]`;
-- places initial focus on `Cancel`; Escape, overlay press, close icon, and Cancel close without side
-  effect and restore focus to `Fix and resubmit`;
+- places initial focus on `Keep reviewing changes`; Escape, overlay press, close icon, and
+  `Keep reviewing changes` close without side effect and restore focus to `Fix and resubmit`;
 - uses neutral `Continue to edit` as a Next link to the existing owner-scoped wizard route;
 - has no Submit, Resubmit now, Appeal, Dispute, Contest, Contact, or Support control.
 
@@ -501,24 +509,44 @@ success.
 
 ## UI Considerations
 
-Applicable state considerations resolved: **34 applicable — 26 covered, 8 backstop, 0 unresolved**.
+The post-verification probe classified all four described surfaces with authored element-kind overrides.
+All **30 applicable** considerations are resolved: **22 explicit**, **8 backstop**, **0 unresolved**.
 
-| Category | Element(s) | Status | Resolution / Reason |
-|----------|------------|--------|---------------------|
-| Empty | Roadmap/listing gate | ✅ covered | Zero listings is represented truthfully as Step 3 Current and Step 4 Next; the existing No listings yet content remains without a duplicate action. |
-| Empty | Review history | ✅ covered | Zero cycles renders no trigger, so an empty dialog cannot be opened. |
-| Loading | Dashboard, listing grid, dialogs | ✅ covered | Existing route plates remain the single announced wait; dialog data arrives with the server-rendered cards and opening is immediate. |
-| Error | Dashboard and listing grid | ✅ covered | Existing host ErrorState handles read failures and reveals only an opaque digest. |
-| Error | Identity/payout/save actions | ✅ covered | One persistent local error preserves state; no false state advance or receipt renders. |
-| Populated | Four-card roadmap | ✅ covered | Exactly four ordered cards render in 2×2/stacked geometry until one bookable listing exists. |
-| Populated | Review history | ✅ covered | One to five newest cycles render as semantic ordered records with lifecycle events and optional reason. |
-| Partial | Mixed listing portfolio | ✅ covered | Any bookable listing produces the account readiness receipt while rejected siblings remain independently actionable on their own cards. |
-| Partial | Legacy review cycle | ✅ covered | Missing optional reason is omitted; grandfathered history uses capability-only copy; missing terminal data is never guessed. |
-| Zero / one / many | Listings and cycles | ✅ covered | Zero, one, and many listing/cycle shapes have explicit rendering and the server cap is five plus one sentinel. |
-| Overflow | Roadmap, footer controls, dialogs, history | 🧪 backstop | Browser-verify wrapping, equal desktop rows, internal dialog scroll, and zero horizontal overflow at 320px and 1280px in both themes. |
-| Long text | Titles, reasons, absolute times, material labels | 🧪 backstop | Browser-verify unbroken/very long host-readable data wraps without clipping, ellipsis, action displacement, or page overflow. |
+### Explicit truths
 
-The two backstop rows require rendered browser evidence; source structure alone cannot prove geometry.
+- E1 / empty — Zero listings renders Step 3 as `Current` and Step 4 as `Next`; the existing `No listings yet` content remains without a duplicate create action.
+- E1 / loading — `/host/loading.tsx` retains exactly one announced `RowListSkeleton`; no second roadmap skeleton or loading live region is introduced.
+- E1 / error — Dashboard read failures render the existing bounded `ErrorState` and expose only the opaque digest.
+- E1 / populated — Before readiness, `/host` renders exactly four ordered roadmap cards; after any listing passes `deriveBookable`, it renders exactly one compact readiness receipt instead.
+- E1 / partial — In a mixed portfolio, any bookable listing wins only for the account receipt while rejected sibling listing cards remain independently actionable.
+- E1 / zero-one-many — Zero listings has the explicit current/next state above; one or many listings reuse the same projection, and the plural Step 4 title is chosen only from the server snapshot.
+- E2 / empty — The material-change collection is total over the seven-entry `MATERIAL_FIELDS` tuple and therefore never renders as an empty explanatory list.
+- E2 / loading — Opening `Fix and resubmit` performs no fetch or mutation and shows no intermediate spinner; resolved serializable data is already present on the card.
+- E2 / error — Safe dismissal and `Continue to edit` do not mutate review state; a navigation failure cannot display or fabricate a receipt.
+- E2 / populated — The dialog renders exactly seven tuple-backed material labels, the stored reason when present, one safe close action, and one forward edit action.
+- E2 / partial — A missing optional rejection reason omits only that reason line; the seven material labels and edit route remain complete.
+- E2 / zero-one-many — This collection is fixed at seven labels; zero or variable-length material-field variants are prohibited by the total tuple-backed map.
+- E3 / empty — A listing with zero review cycles renders no `Review history` trigger and no dead dialog shell.
+- E3 / loading — History data resolves with server-rendered cards; opening the dialog performs no fetch and shows no loading state.
+- E3 / error — History read failures route through the existing host boundary and never leak SQL, staff, vendor, or row details.
+- E3 / populated — One to five newest review cycles render as semantic ordered records; a sixth row authorizes only the older-data sentinel.
+- E3 / partial — Pending cycles may omit `decidedAt`, old rejected rows may omit a blank reason, and grandfathered rows use capability-only copy; no missing fact is guessed.
+- E3 / zero-one-many — Zero cycles has no trigger, one renders singularly without invented plural copy, and many are server-bounded to five visible cycles plus one sentinel row.
+- E4 / empty — Outside authoritative rejected context, neither the rejected notice nor the `Changes received` receipt renders.
+- E4 / loading — A field or photo action disables only its initiating control, preserves the current form, and cannot render a receipt before the server returns `flipped: true`.
+- E4 / error — Failed actions preserve input and the current rejection notice, render the bounded in-page error, and never render success.
+- E4 / partial — A missing optional rejection reason omits that line while the rejected-state notice, tuple-backed material rule, and guarded receipt authority remain intact.
+
+### Backstop truths
+
+- { statement: "E1 / overflow — Browser evidence at 320px and 1280px in court and grove must show one-column/2×2 roadmap reflow, equal desktop rows, wrapped controls, and zero horizontal overflow.", verification: backstop }
+- { statement: "E1 / long-text — Browser evidence must show unusually long causes, retry instants, titles, and labels wrapping without truncation, ellipsis, card breakage, or action displacement.", verification: backstop }
+- { statement: "E2 / overflow — Browser evidence must show the rejected-listing footer wrapping and the dialog remaining within 16px viewport insets with internal vertical scrolling and no page overflow.", verification: backstop }
+- { statement: "E2 / long-text — Browser evidence must show long listing titles, stored reasons, and material labels wrapping without clipping the safe or forward actions.", verification: backstop }
+- { statement: "E3 / overflow — Browser evidence must show five review cycles scrolling inside the dynamic-height dialog while the page and listing card retain zero horizontal overflow.", verification: backstop }
+- { statement: "E3 / long-text — Browser evidence must show long titles and operator reasons as selectable wrapping text with no clamp, ellipsis, action displacement, or horizontal scroll.", verification: backstop }
+- { statement: "E4 / overflow — Browser evidence at 320px and 1280px must show the rejected notice, wizard fields, action errors, and latched receipt reflowing without horizontal overflow.", verification: backstop }
+- { statement: "E4 / long-text — Browser evidence must show long stored reasons, seven-field explanatory copy, and receipt text wrapping without clipping, truncation, or focus-target displacement.", verification: backstop }
 
 ---
 
@@ -593,12 +621,12 @@ contract.
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
-- [ ] Dimension 7 Inventory Provenance: PASS
+- [x] Dimension 1 Copywriting: PASS with one non-blocking contextual-label recommendation
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
+- [x] Dimension 7 Inventory Provenance: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-09-09
