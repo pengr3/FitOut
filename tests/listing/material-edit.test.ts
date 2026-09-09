@@ -236,6 +236,20 @@ describe("LVER-03 — the material field set (D-231)", () => {
   });
 });
 
+describe("LVER-06 — edit-route rejection context stays behind the owner boundary", () => {
+  it("selects the owner-scoped non-deleted listing and current rejection reason in one query", () => {
+    const path = "src/app/(host)/host/listings/[id]/edit/page.tsx";
+    const source = existsSync(path) ? readFileSync(path, "utf8") : "";
+
+    expect(source).toContain("eq(listing.hostId, session.user.id)");
+    expect(source).toContain("isNull(listing.deletedAt)");
+    expect(source).toContain("rejectionReason");
+    expect(source).toContain("listingReview.state");
+    expect(source).not.toContain("row.hostId !== session.user.id");
+    expect(source).not.toContain("searchParams");
+  });
+});
+
 describe("LVER-08 — one tuple-backed host copy authority", () => {
   it("declares a total MaterialField label record and derives presentation order from MATERIAL_FIELDS", () => {
     const path = "src/lib/listing/re-review-copy.ts";

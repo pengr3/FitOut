@@ -111,6 +111,10 @@ import {
   type ModeLockDisplay,
   type WizardListing,
 } from "@/app/(host)/host/listings/[id]/edit/wizard";
+import {
+  composeMaterialChangeRule,
+  type RejectedListingContext,
+} from "@/lib/listing/re-review-copy";
 
 const REVIEW_TITLE = STEPS[STEPS.length - 1].title;
 const FIRST_TITLE = STEPS[0].title;
@@ -218,13 +222,18 @@ function makeListing(overrides: Partial<WizardListing> = {}): WizardListing {
   };
 }
 
-function mount(emailVerified = false, listing: WizardListing = makeListing()) {
+function mount(
+  emailVerified = false,
+  listing: WizardListing = makeListing(),
+  reReviewContext: RejectedListingContext | null = null,
+) {
   return render(
     <ListingWizard
       listing={listing}
       hostEmail="host@example.com"
       emailVerified={emailVerified}
       modeLock={UNLOCKED}
+      reReviewContext={reReviewContext}
     />,
   );
 }
@@ -278,6 +287,52 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+describe("LVER-06 — the rejected listing notice is server-derived and persistent", () => {
+  it("renders authoritative rejected notice on direct entry and keeps it after navigation and refusal", async () => {
+    const reason = "The map pin does not match the address supplied by the host.";
+    mount(false, makeListing(), { reason });
+
+    expect(screen.getByRole("heading", { level: 2, name: "This listing needs changes" })).toBeVisible();
+    expect(screen.getByText("FitOut didn't approve this listing.")).toBeVisible();
+    expect(screen.getByText(reason)).toBeVisible();
+    expect(screen.getByText(composeMaterialChangeRule())).toBeVisible();
+
+    await advance();
+    expect(heading()).toBe(DETAILS_TITLE);
+    expect(screen.getByText(reason)).toBeVisible();
+
+    actions.saveListingStep.mockResolvedValue({ ok: false, error: SAVE_REFUSAL });
+    await advance();
+
+    expect(heading(), "a refusal must keep the current section open").toBe(DETAILS_TITLE);
+    expect(screen.getAllByText(reason)).toHaveLength(1);
+    expect(screen.queryByText("Changes received")).not.toBeInTheDocument();
+  });
+
+  it("ignores forged query-string rejection data when the server supplies no context", () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/host/listings/listing-1/edit?reReview=rejected&reason=Forged+browser+reason",
+    );
+
+    mount();
+
+    expect(screen.queryByRole("heading", { name: "This listing needs changes" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Forged browser reason")).not.toBeInTheDocument();
+  });
+
+  it("keeps the explanation complete when the current rejection has no reason", () => {
+    mount(false, makeListing(), { reason: null });
+
+    expect(screen.getByRole("heading", { name: "This listing needs changes" })).toBeVisible();
+    expect(screen.getByText("FitOut didn't approve this listing.")).toBeVisible();
+    expect(screen.getByText(composeMaterialChangeRule())).toBeVisible();
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────
