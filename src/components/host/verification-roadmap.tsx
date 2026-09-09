@@ -43,11 +43,15 @@ export function VerificationRoadmap({
   function beginPayoutOnboarding() {
     setError(null);
     startTransition(async () => {
-      const result = await startPayoutOnboarding();
-      if (result.ok) {
-        window.location.href = result.url;
-      } else {
+      try {
+        const result = await startPayoutOnboarding();
+        if (result.ok) {
+          window.location.href = result.url;
+          return;
+        }
         setError(result.error);
+      } catch {
+        setError("We couldn't start payout setup. Please try again.");
       }
     });
   }

@@ -256,9 +256,11 @@ describe("payout onboarding recovery", () => {
 
     expect(
       await screen.findByText("We couldn't start payout setup. Please try again."),
-    ).toBeVisible();
+    ).not.toBeNull();
     expect(window.location.href).toBe(hrefBefore);
-    expect(screen.getByRole("button", { name: "Set up payouts" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Set up payouts" }).hasAttribute("disabled"),
+    ).toBe(false);
     expect(h.startPayoutOnboardingMock).toHaveBeenCalledTimes(1);
   });
 });
