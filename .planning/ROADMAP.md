@@ -945,9 +945,12 @@ history.
   5. A host can read a listing's **review history per cycle** — submitted → waiting → decided, with the
      operator's reason — newest first and bounded.
 
-**Plans:** 7/7 plans executed
+**Plans:** 8/8 plans executed
 
 Plans:
+
+- [x] 21-08-PLAN.md
+
 **Wave 1**
 
 - [x] 21-01-PLAN.md — Compose the host verification roadmap from existing authorities and prove every state.
