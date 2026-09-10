@@ -242,7 +242,7 @@ export function OpsQueueRow({ row }: { row: OpsQueueRowItem }) {
       }
     >
       {isListing ? (
-        <>
+        <div className="space-y-4">
           <OpsDecisionActions
             subject={{
               kind: "listing",
@@ -271,7 +271,9 @@ export function OpsQueueRow({ row }: { row: OpsQueueRowItem }) {
               <dl className="space-y-1.5">
                 <div className="space-y-1">
                   <dt className="text-label text-muted-foreground">Description</dt>
-                  <dd className="text-label whitespace-pre-wrap break-words">{row.description ?? "Not set"}</dd>
+                  <dd className="text-label whitespace-pre-wrap break-words">
+                    {row.description ?? "Not set"}
+                  </dd>
                 </div>
                 <div className="space-y-1">
                   <dt className="text-label text-muted-foreground">Amenities</dt>
@@ -311,19 +313,19 @@ export function OpsQueueRow({ row }: { row: OpsQueueRowItem }) {
               </dl>
             </section>
           ) : null}
-        </>
+        </div>
       ) : (
         <dl className="space-y-1.5">
-            <Fact term="Account since">{row.accountSinceLabel}</Fact>
-            <Fact term="Email confirmed">{row.emailVerified ? "Yes" : "Not yet"}</Fact>
-            <Fact term="Listings waiting" valueClass={ROW_MONEY_CLASS}>
-              {row.listingsWaiting}
-            </Fact>
-            <Fact term="Submitted">{row.submittedLabel}</Fact>
-            {/* The same affordance on the other kind — see the listing branch above. `title` is the
-                host's own name here, which is the same string the two decision controls are named
-                after, so the row's three accessible names all quote one subject. */}
-            <OpsContactReveal userId={row.userId} hostLabel={title} />
+          <Fact term="Account since">{row.accountSinceLabel}</Fact>
+          <Fact term="Email confirmed">{row.emailVerified ? "Yes" : "Not yet"}</Fact>
+          <Fact term="Listings waiting" valueClass={ROW_MONEY_CLASS}>
+            {row.listingsWaiting}
+          </Fact>
+          <Fact term="Submitted">{row.submittedLabel}</Fact>
+          {/* The same affordance on the other kind — see the listing branch above. `title` is the
+              host's own name here, which is the same string the two decision controls are named
+              after, so the row's three accessible names all quote one subject. */}
+          <OpsContactReveal userId={row.userId} hostLabel={title} />
         </dl>
       )}
     </RowCard>

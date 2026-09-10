@@ -459,6 +459,7 @@ describe("OPS-13 / OPS-15 — listing evidence stays in its terminal row", () =>
     const card = renderRow(listingRow());
     const disclosure = within(card).getByRole("button", { name: "Show listing evidence" });
 
+    expect(disclosure.getAttribute("type")).toBe("button");
     expect(disclosure.getAttribute("aria-expanded")).toBe("false");
     expect(within(card).queryByRole("region", { name: "Listing evidence" })).toBeNull();
     disclosure.focus();
@@ -468,12 +469,45 @@ describe("OPS-13 / OPS-15 — listing evidence stays in its terminal row", () =>
     expect(within(card).getByRole("button", { name: "Hide listing evidence" })).toBe(disclosure);
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
     const evidence = within(card).getByRole("region", { name: "Listing evidence" });
+    expect(evidence.id).toBe(disclosure.getAttribute("aria-controls"));
     expect(evidence.textContent).toContain("A sunlit court with a complete staff-review description.");
     expect(evidence.textContent).toContain("Wi-Fi");
     expect(evidence.textContent).toContain("mystery_amenity");
-    expect(within(card).getAllByRole("button", { name: `Approve ${LISTING_TITLE}` })).toHaveLength(1);
+    const approvals = within(card).getAllByRole("button", { name: `Approve ${LISTING_TITLE}` });
+    expect(approvals).toHaveLength(1);
+    expect(evidence.contains(approvals[0])).toBe(false);
     expect(card.querySelectorAll("a")).toHaveLength(0);
     expect(card.querySelectorAll('[role="link"]')).toHaveLength(0);
+  });
+
+  it("keeps one evidence order and names every partial listing state", () => {
+    const card = renderRow(listingRow({ description: null, amenities: [], photos: [] }));
+    const evidence = expandListingEvidence(card);
+
+    expect(within(evidence).getByLabelText(`Photos of ${LISTING_TITLE}`).textContent).toContain(
+      "No photos yet",
+    );
+    expect(valueFor(evidence, "Description").textContent).toBe("Not set");
+    expect(valueFor(evidence, "Amenities").textContent).toBe("Not set");
+    expect(evidence.querySelector("ul")).toBeNull();
+    expect(Array.from(evidence.querySelectorAll("dt")).map((term) => term.textContent)).toEqual([
+      "Description",
+      "Amenities",
+      "Address",
+      "Space type",
+      "Capacity",
+      "Price",
+      "Host",
+      "Submitted",
+      "Contact",
+    ]);
+  });
+
+  it("gives host rows neither the listing disclosure nor its evidence section", () => {
+    const card = renderRow(hostRow());
+
+    expect(within(card).queryByRole("button", { name: /listing evidence/i })).toBeNull();
+    expect(within(card).queryByRole("region", { name: "Listing evidence" })).toBeNull();
   });
 });
 

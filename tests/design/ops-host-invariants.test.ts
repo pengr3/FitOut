@@ -181,6 +181,21 @@ describe("OPS-12 exact host partition invariants", () => {
     }
   });
 
+  it("keeps the queue terminal, staff-bound, and explicit about its unchanged zero state", () => {
+    const page = source("src/app/(ops)/ops/page.tsx");
+    const row = source("src/components/ops/ops-queue-row.tsx");
+
+    expect(page).toMatch(/await\s+requireStaff\(\)/);
+    expect(page).toContain('title="The queue is clear"');
+    expect(page).toContain(
+      'body="Nothing is waiting on FitOut right now. New hosts and new listings land here the moment they\'re submitted, oldest first."',
+    );
+    expect(row.match(/<OpsDecisionActions/g)).toHaveLength(2);
+    expect(row).toContain('aria-label="Listing evidence"');
+    expect(row).toContain('aria-controls={`listing-evidence-${row.listingId}`}');
+    expect(row).not.toContain("href=");
+  });
+
   it("keeps staff invitation GET read-only and every inactive token on one neutral surface", () => {
     expect(existsSync(resolve(ROOT, INVITE_PAGE_PATH)), `${INVITE_PAGE_PATH} must exist`).toBe(true);
     expect(existsSync(resolve(ROOT, INVITE_LOADING_PATH)), `${INVITE_LOADING_PATH} must exist`).toBe(
