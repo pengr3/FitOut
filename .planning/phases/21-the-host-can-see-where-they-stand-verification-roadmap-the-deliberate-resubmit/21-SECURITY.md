@@ -9,7 +9,7 @@ created: "2026-09-09"
 
 # Phase 21 — Security
 
-> ASVS Level 1 verification of the STRIDE registers authored in Plans 21-01 through 21-05.
+> ASVS Level 1 verification of the STRIDE registers authored in Plans 21-01 through 21-08.
 
 ---
 
@@ -57,6 +57,20 @@ created: "2026-09-09"
 | T-21-22 | Information Disclosure | stored cause/error surface | medium | mitigate | Reasons remain React text with hostile/long fixtures; errors retain the bounded opaque contract. | closed |
 | T-21-23 | Denial of Service | overflow/duplicate trees | low | mitigate | One CSS-reflowed tree with intrinsic wrapping passes 320px/1280px overflow checks in both themes. | closed |
 | T-21-05-SC | Tampering | package installs | high | mitigate | Checked-in PanelCard, shadcn, Lucide, Vitest, and Playwright assets were reused; dependency files are unchanged. | closed |
+| T-21-06-01 | Tampering | current-cycle history selection | high | mitigate | The first rejected row is tracked independently from its nullable reason; null/blank real-database regressions pass. | closed |
+| T-21-06-02 | Elevation of Privilege | review-history SQL scope | high | mitigate | The owner and non-deleted predicates remain inside the review-history SQL, with cross-owner/deleted coverage. | closed |
+| T-21-06-03 | Information Disclosure | history DTO and dialog text | medium | mitigate | The projection omits staff/internal fields and renders optional reasons as React text only. | closed |
+| T-21-06-04 | Denial of Service | per-listing history read | medium | mitigate | The single ranked query retains its six-row bound and five-visible-plus-sentinel contract. | closed |
+| T-21-06-SC | Tampering | package installs | high | mitigate | No manifest, lockfile, schema-config, or migration drift occurred. | closed |
+| T-21-07-01 | Elevation of Privilege | payout onboarding authorization | high | mitigate | `startPayoutOnboarding` re-reads `canHost`, audits and denies before any payout-account or onboarding-link operation; a booker-only regression proves no row or provider call occurs. | closed |
+| T-21-07-02 | Spoofing | success-only redirect branch | high | mitigate | Client navigation occurs only for the explicit successful result; thrown and refusal paths remain inline errors. | closed |
+| T-21-07-03 | Denial of Service | rejected payout-onboarding promise | medium | mitigate | The transition catches failures, shows bounded fallback copy, and preserves one retry control. | closed |
+| T-21-07-04 | Tampering | stale client failure state | medium | mitigate | Each attempt clears the preceding error and replaces it only with the current authoritative result. | closed |
+| T-21-07-SC | Tampering | package installs | high | mitigate | No manifest, lockfile, schema-config, or migration drift occurred. | closed |
+| T-21-08-01 | Tampering | host-readable roadmap copy layout | medium | mitigate | React text and long-token wrapping remain intact; Chromium measures every body/action rectangle in both themes and widths. | closed |
+| T-21-08-02 | Denial of Service | advancing roadmap CTA | medium | mitigate | The redundant inner height claim is removed and geometry checks reject clipped CTA/card content. | closed |
+| T-21-08-03 | Spoofing | browser acceptance signal | medium | mitigate | State/action assertions and contextual numeric bounds prevent visibility or equal-height alone from passing. | closed |
+| T-21-08-SC | Tampering | package installs | high | mitigate | No manifest, lockfile, schema-config, or migration drift occurred. | closed |
 
 *All threats were dispositioned at plan time. At ASVS Level 1, the implemented controls and passing focused/browser evidence close every registered threat.*
 
@@ -73,6 +87,7 @@ No accepted risks.
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-09-09 | 28 | 28 | 0 | Codex / GSD ASVS L1 closure hook |
+| 2026-09-10 | 42 | 42 | 0 | Codex / GSD remediation re-audit |
 
 ---
 
