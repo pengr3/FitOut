@@ -8,9 +8,11 @@
 //   1. SESSION GATE — resolve the caller's session LOCALLY via auth.api.getSession (we need BOTH the
 //      user id AND the email; capability.ts's requireUserId is module-private and email-less, so we do
 //      NOT import it — we read the session inline here).
-//   2. RATE-LIMIT + AUDIT (WR-06) — bound the privileged, money-adjacent action to 5/60s per identity
+//   2. HOST-CAPABILITY GATE — re-read canHost from the caller's user row; a host route layout can be
+//      bypassed by a direct Server Action POST, so it is not this action's authorization boundary.
+//   3. RATE-LIMIT + AUDIT (WR-06) — bound the privileged, money-adjacent action to 5/60s per identity
 //      and record every denial, exactly like the capability-activate actions (src/app/actions/capability.ts).
-//   3. CREATE-ONCE UNDER A ROW LOCK — ensure at most ONE PayMongo Linked Account per host even under
+//   4. CREATE-ONCE UNDER A ROW LOCK — ensure at most ONE PayMongo Linked Account per host even under
 //      concurrent clicks (a plain check-then-act races and orphans a second account), then ALWAYS mint
 //      a FRESH single-use onboarding link (never cache the URL) and hand its URL back to the client.
 //
@@ -21,7 +23,7 @@ import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { hostPayout } from "@/lib/db/schema";
+import { hostPayout, user } from "@/lib/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
 import { recordAudit } from "@/lib/audit";
 import { createLinkedAccount, createOnboardingLink } from "@/lib/paymongo";
@@ -92,6 +94,19 @@ export async function startPayoutOnboarding(): Promise<OnboardingResult> {
     return { ok: false, error: "You must be signed in to set up payouts." };
   }
   const { userId, email } = resolved;
+
+  // Server Actions are directly POST-reachable, so the host layout is not an authorization boundary.
+  // Re-read the capability from the caller's row: a booker-only session must never mint a payout link.
+  const [caller] = await db.select({ canHost: user.canHost }).from(user).where(eq(user.id, userId));
+  if (!caller?.canHost) {
+    await recordAudit({
+      actorId: userId,
+      action: "startPayoutOnboarding",
+      outcome: "denied",
+      meta: { reason: "host_capability" },
+    });
+    return { ok: false, error: "Start hosting before setting up payouts." };
+  }
 
   // WR-06: bound the privileged, money-adjacent action per identity; audit the denial (non-repudiable).
   const limit = rateLimit(`pmonboard:${userId}`, ONBOARD_RATE_LIMIT);
