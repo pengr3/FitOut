@@ -5,18 +5,20 @@
 // the shared mockPayMongo stubs (tests/helpers/mocks.ts) swapped in for @/lib/paymongo, so no real
 // PayMongo HTTP is ever made. @/lib/audit is mocked so we can assert the WR-06 denial entry.
 //
-// It asserts the two load-bearing guarantees:
+// It asserts the three load-bearing guarantees:
 //   (a) CREATE-ONCE — calling startPayoutOnboarding TWICE creates the Linked Account only ONCE; the
 //       second call reuses the stored paymongoAccountId (D-14: one Linked Account per host).
 //   (b) RATE-LIMIT + AUDIT — exceeding the 5/60s budget returns { ok:false } AND records a denial
 //       audit entry (WR-06 carry-forward applied to the onboarding action before payouts wire to canHost).
+//   (c) HOST CAPABILITY — a signed-in booker cannot bypass the host layout through a direct Server Action
+//       POST to create a payout account or onboarding link (T-21-07-01).
 // RED until src/app/actions/paymongo-connect.ts exists; GREEN once it does.
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
-import { hostPayout } from "@/lib/db/schema";
+import { hostPayout, user } from "@/lib/db/schema";
 import { mockPayMongo } from "../helpers/mocks";
 
 let testDb: TestDb;
@@ -78,6 +80,24 @@ async function signInHost(email: string): Promise<string> {
   return res.user.id;
 }
 
+/** Sign up + sign in a booker-only user for the action-level host-capability gate. */
+async function signInBooker(email: string): Promise<string> {
+  const res = (await signUp(testAuth, {
+    email,
+    password: "averylongpassword",
+    name: "Booker",
+    firstName: "Booker",
+    intent: "book",
+  })) as { user: { id: string } };
+  const signIn = await testAuth.api.signInEmail({
+    body: { email, password: "averylongpassword" },
+    asResponse: true,
+  });
+  const setCookie = signIn.headers.get("set-cookie");
+  sessionHeaders.cookie = setCookie ? setCookie.split(";")[0] : "";
+  return res.user.id;
+}
+
 describe("startPayoutOnboarding — create-once + rate-limit/audit (PAY-04, D-12/D-14, WR-06)", () => {
   it("creates the Linked Account only ONCE across two calls (reuses the stored paymongoAccountId)", async () => {
     const userId = await signInHost("pmonboard.once@example.com");
@@ -123,5 +143,25 @@ describe("startPayoutOnboarding — create-once + rate-limit/audit (PAY-04, D-12
     sessionHeaders.cookie = ""; // no session cookie.
     const res = await startPayoutOnboarding();
     expect(res.ok).toBe(false);
+  });
+
+  it("denies a signed-in booker before creating a payout account (T-21-07-01)", async () => {
+    const userId = await signInBooker("pmonboard.booker@example.com");
+    mockPayMongo.reset();
+    auditCalls.length = 0;
+
+    const res = await startPayoutOnboarding();
+
+    expect(res).toEqual({ ok: false, error: "Start hosting before setting up payouts." });
+    expect(mockPayMongo.createLinkedAccount).not.toHaveBeenCalled();
+    expect(mockPayMongo.createOnboardingLink).not.toHaveBeenCalled();
+    expect(await testDb.db.select().from(hostPayout).where(eq(hostPayout.userId, userId))).toEqual([]);
+    expect(
+      auditCalls.some(
+        (c) => c.action === "startPayoutOnboarding" && c.outcome === "denied",
+      ),
+    ).toBe(true);
+    const [caller] = await testDb.db.select({ canHost: user.canHost }).from(user).where(eq(user.id, userId));
+    expect(caller?.canHost).toBe(false);
   });
 });
