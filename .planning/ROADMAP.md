@@ -101,7 +101,7 @@ phase numbering **continues from 19**.
       CI-01
 - [ ] **Phase 20: Ops Gets Its Own Front Door** — the `ops.` host, its own sign-in, and staff
       invite/onboard without a production `DATABASE_URL` · OPS-07…OPS-12
-- [ ] **Phase 21: The Host Can See Where They Stand** — the verification roadmap, the named cause, the
+- [x] **Phase 21: The Host Can See Where They Stand** — the verification roadmap, the named cause, the (completed 2026-09-10)
       stale-pending rescue, and the deliberate resubmit · HVER-09…HVER-14, LVER-06…LVER-09
 - [ ] **Phase 22: Ops Decides With the Whole Picture** — the manual host queue goes, enforcement gets a
       surface, and listing detail expands in place · ENF-04, OPS-13…OPS-15
@@ -945,7 +945,7 @@ history.
   5. A host can read a listing's **review history per cycle** — submitted → waiting → decided, with the
      operator's reason — newest first and bounded.
 
-**Plans:** 8/8 plans executed
+**Plans:** 8/8 plans complete
 
 Plans:
 
@@ -1133,7 +1133,7 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 19. Host Listing Surfaces & Gates That Actually Run | v1.2 | 11/11 | In Progress|  |
 | 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 18/20 | In Progress — Plan 19 visual closure complete and PM-approved; gate-visual green on run 34043991189. Plan 20 remains for the two host-wizard/edit-route E2E failures; SC4 + SC5 OPEN |  |
 | 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | In Progress|  |
-| 21. The Host Can See Where They Stand | v1.2 | 2/5 | In Progress|  |
+| 21. The Host Can See Where They Stand | v1.2 | 2/5 | Complete    | 2026-09-10 |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |
 | 23. The Support Path Becomes Reachable | v1.2 | 0/TBD | **Blocked on a business fact** — a monitored support address (D-64 forbids a placeholder) | - |
 

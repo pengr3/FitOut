@@ -2,21 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
-current_phase: 21
-current_phase_name: The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit
-status: executing
-stopped_at: Completed 21-08-PLAN.md
-last_updated: "2026-09-10T04:14:00.268Z"
+current_phase: 19
+current_phase_name: Host Listing Surfaces & Gates That Actually Run
+status: planning
+stopped_at: Phase 21 complete, ready to plan Phase 19
+last_updated: "2026-09-10T06:03:16.747Z"
 last_activity: 2026-09-10
-last_activity_desc: Completed 21-08-PLAN.md
-state_head: aaa248cf3a0aa0c713916d078e9c281b44fe25b7
+last_activity_desc: Phase 21 complete, transitioned to Phase 19
+state_head: 6d8c074738c34d79ba296031c6230418f9a1fa16
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
   # of 2026-09-04. The plan counters cover phases 18 + 18.1 ONLY -- phases 19-23
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 8
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 88
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
@@ -57,7 +57,7 @@ progress:
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
   completed_plans: 84
-  percent: 13
+  percent: 25
 ---
 
 # Project State
@@ -111,16 +111,16 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 21 (The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit) — EXECUTING
-Plan: 8 of 8
-Status: Ready to verify
-Last activity: 2026-09-10 — Completed 21-08-PLAN.md
+Phase: 19 — Host Listing Surfaces & Gates That Actually Run
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-09-10 — Phase 21 complete, transitioned to Phase 19
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 89
+- Total plans completed: 179
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -142,6 +142,7 @@ Last activity: 2026-09-10 — Completed 21-08-PLAN.md
 | 17.1 | 7 | - | - |
 | 18 | 13 | ~440 min | ~34 min |
 | 18.1 | 16 | - | - |
+| 21 | 8 | - | - |
 
 *18.1-16: ~62 min wall-clock, 2 tasks (both auto, task 1 under TDD), 0 files created + 7 modified, 3 commits
 (RED / GREEN / records) + 1 metadata. ⚠ The durations column is left `-` for this phase rather than filled in from
@@ -1793,7 +1794,7 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 ## Session Continuity
 
 Last session: 2026-09-10T04:12:31.360Z
-Stopped at: Completed 21-08-PLAN.md
+Stopped at: Phase 21 complete, ready to plan Phase 19
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
