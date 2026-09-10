@@ -414,7 +414,7 @@ describe("OPS-04 — every row carries what the reviewer needs, selected once", 
     });
   });
 
-  it("case 7 — a listing with no photos yields [], and an unchecked host reads 'unverified'", async () => {
+  it("case 7 — empty child aggregates yield [], and an unchecked host reads 'unverified'", async () => {
     const q = await loadReviewQueue(testDb.db);
     const c = q.find((i) => idOf(i) === "q_listing_c")!;
     if (c.kind !== "listing") throw new Error("expected a listing row");
@@ -423,6 +423,7 @@ describe("OPS-04 — every row carries what the reviewer needs, selected once", 
     expect(c.photos).toEqual([]);
     expect(c.description).toBeNull();
     expect(c.amenities).toEqual([]);
+    expect(c.operatingHours).toEqual([]);
 
     // FAIL-CLOSED at the nullable join: this host has NO host_verification row at all, and the
     // sell-gate's own answer for that state is 'unverified' (D-224). A NULL here would render as a

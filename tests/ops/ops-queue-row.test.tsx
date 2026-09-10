@@ -513,10 +513,38 @@ describe("OPS-13 / OPS-15 — listing evidence stays in its terminal row", () =>
     const card = renderRow(listingRow());
     const evidence = expandListingEvidence(card);
 
-    expect(valueFor(evidence, "Operating hours").textContent).toContain(
+    expect(
+      Array.from(valueFor(evidence, "Operating hours").querySelectorAll("li")).map(
+        (item) => item.textContent,
+      ),
+    ).toEqual([
+      "Sunday: closed",
       "Monday: 6:00 AM to 10:00 AM, and 4:00 PM to 9:00 PM",
-    );
-    expect(valueFor(evidence, "Operating hours").textContent).toContain("Sunday: closed");
+      "Tuesday: closed",
+      "Wednesday: closed",
+      "Thursday: closed",
+      "Friday: closed",
+      "Saturday: closed",
+    ]);
+  });
+
+  it("shows every weekday as explicitly closed when a listing has no host-set schedule", () => {
+    const card = renderRow(listingRow({ operatingHours: [] }));
+    const evidence = expandListingEvidence(card);
+
+    expect(
+      Array.from(valueFor(evidence, "Operating hours").querySelectorAll("li")).map(
+        (item) => item.textContent,
+      ),
+    ).toEqual([
+      "Sunday: closed",
+      "Monday: closed",
+      "Tuesday: closed",
+      "Wednesday: closed",
+      "Thursday: closed",
+      "Friday: closed",
+      "Saturday: closed",
+    ]);
   });
 
   it("gives host rows neither the listing disclosure nor its evidence section", () => {
