@@ -88,6 +88,12 @@ test("staff can inspect a complete pending listing across the Court/Grove queue 
           (${listingId}, ${"first_aid_aed"})
       `;
       await tx`
+        INSERT INTO operating_hours (id, listing_id, day_of_week, open_time, close_time)
+        VALUES
+          (${`e2e_ops_queue_hours_late_${suffix}`}, ${listingId}, 1, ${"16:00"}, ${"21:00"}),
+          (${`e2e_ops_queue_hours_early_${suffix}`}, ${listingId}, 1, ${"06:00"}, ${"10:00"})
+      `;
+      await tx`
         INSERT INTO listing_review (id, listing_id, state, submitted_at)
         VALUES (${`e2e_ops_queue_review_${suffix}`}, ${listingId}, ${"pending"}::listing_review_state, now())
       `;
@@ -126,6 +132,12 @@ test("staff can inspect a complete pending listing across the Court/Grove queue 
         await expect(evidence, `${where}: expansion mounted the wrong evidence count`).toHaveCount(1);
         await expect(evidence).toContainText(LONG_DESCRIPTION);
         await expect(evidence.getByLabel(`Photos of ${listingTitle}`)).toHaveCount(1);
+        await expect(evidence, `${where}: the canonical Monday schedule is missing`).toContainText(
+          "Monday: 6:00 AM to 10:00 AM, and 4:00 PM to 9:00 PM",
+        );
+        await expect(evidence, `${where}: the explicit closed Sunday is missing`).toContainText(
+          "Sunday: closed",
+        );
         await expect(
           card.getByRole("button", { name: `Show contact for Evidence Host` }),
           `${where}: the existing contact reveal disappeared from evidence`,

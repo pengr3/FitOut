@@ -94,6 +94,10 @@ const LISTING_TITLE = "Sunset Court";
 const WAIT = "Waiting 6 days";
 const SUBMITTED = "Aug 26, 2026";
 const PRICE = "₱1,000.00/hr";
+const OPERATING_HOURS = [
+  { dayOfWeek: 1, openTime: "16:00", closeTime: "21:00" },
+  { dayOfWeek: 1, openTime: "06:00", closeTime: "10:00" },
+];
 
 /**
  * The two revealed values (D-271 / OPS-06).
@@ -200,6 +204,7 @@ function listingRow(over: Partial<OpsQueueListingRow> = {}): OpsQueueListingRow 
       { id: "ph_3", url: "https://example.test/3.jpg", position: 2 },
     ],
     amenities: ["wifi", "mystery_amenity"],
+    ...({ operatingHours: OPERATING_HOURS } as object),
     submittedAt: new Date("2026-08-26T00:00:00Z"),
     waitLabel: WAIT,
     submittedLabel: SUBMITTED,
@@ -501,6 +506,16 @@ describe("OPS-13 / OPS-15 — listing evidence stays in its terminal row", () =>
       "Submitted",
       "Contact",
     ]);
+  });
+
+  it("shows canonical host-set weekly hours in the expanded listing evidence", () => {
+    const card = renderRow(listingRow());
+    const evidence = expandListingEvidence(card);
+
+    expect(valueFor(evidence, "Operating hours").textContent).toContain(
+      "Monday: 6:00 AM to 10:00 AM, and 4:00 PM to 9:00 PM",
+    );
+    expect(valueFor(evidence, "Operating hours").textContent).toContain("Sunday: closed");
   });
 
   it("gives host rows neither the listing disclosure nor its evidence section", () => {

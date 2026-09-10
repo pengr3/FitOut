@@ -66,7 +66,15 @@ import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { seedHostVerification } from "../helpers/verification";
-import { user, listing, listingAmenity, listingPhoto, listingReview, hostVerification } from "@/lib/db/schema";
+import {
+  user,
+  listing,
+  listingAmenity,
+  listingPhoto,
+  listingReview,
+  hostVerification,
+  operatingHours,
+} from "@/lib/db/schema";
 import { loadReviewQueue, type OpsQueueItem } from "@/lib/ops/review-queue";
 import { loadOpsCancelImpact, loadOpsCancelImpacts } from "@/lib/ops/cancel-impact";
 
@@ -200,6 +208,24 @@ beforeAll(async () => {
   await testDb.db.insert(listingAmenity).values([
     { listingId: "q_listing_b", amenity: "wifi" },
     { listingId: "q_listing_b", amenity: "parking" },
+  ]);
+  // Monday is deliberately inserted out of order. The queue projection, not this fixture, owns the
+  // deterministic day/window order that reaches the staff evidence island.
+  await testDb.db.insert(operatingHours).values([
+    {
+      id: "q_hours_b_late",
+      listingId: "q_listing_b",
+      dayOfWeek: 1,
+      openTime: "16:00",
+      closeTime: "21:00",
+    },
+    {
+      id: "q_hours_b_early",
+      listingId: "q_listing_b",
+      dayOfWeek: 1,
+      openTime: "06:00",
+      closeTime: "10:00",
+    },
   ]);
 
   // C has NO review row — the `listing.created_at` FALLBACK — and an UNCHECKED host.
@@ -380,6 +406,12 @@ describe("OPS-04 — every row carries what the reviewer needs, selected once", 
     expect(b.photos.map((p) => p.id)).toEqual(["q_ph_b1", "q_ph_b2"]);
     expect(b.photos[0].url).toBe("https://x/b1.jpg");
     expect(b.photos[0].position).toBe(0);
+    expect(b).toMatchObject({
+      operatingHours: [
+        { dayOfWeek: 1, openTime: "06:00:00", closeTime: "10:00:00" },
+        { dayOfWeek: 1, openTime: "16:00:00", closeTime: "21:00:00" },
+      ],
+    });
   });
 
   it("case 7 — a listing with no photos yields [], and an unchecked host reads 'unverified'", async () => {
