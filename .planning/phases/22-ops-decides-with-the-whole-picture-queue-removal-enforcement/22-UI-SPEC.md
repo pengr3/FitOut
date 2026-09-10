@@ -67,16 +67,16 @@ Exceptions: decision, reject-trigger, and contact-reveal controls keep the exist
 
 ## Typography
 
-Use the four existing semantic roles. Do not add a fifth role or a third weight.
+The Phase-22 scale is exactly four existing semantic text tokens and exactly two existing semantic weight tokens. Use the named utilities below; do not add a literal font-size, a browser-default size, a numeric font-weight, or a fifth role. Each text token supplies its paired line-height, so do not layer a separate leading utility onto it.
 
-| Role | Court | Grove | Weight | Line Height | Phase-22 usage |
-|------|-------|-------|--------|-------------|----------------|
-| Label | 14px | 15px | 400 | 1.43 / 1.5 | Fact terms, values, description, amenity labels |
-| Body | 16px | 17px | 400 | 1.5 / 1.6 | Empty/error copy only |
-| Heading | 20px | 24px | 600 / 700 | 1.3 | Evidence subsection headings when needed |
-| Display | 28px | 34px | 600 / 700 | 1.15 / 1.2 | Existing page title only; not inside a queue row |
+| Role | Size token | Weight token | Phase-22 usage |
+|------|------------|--------------|----------------|
+| Label | `text-label` | `font-normal` | Fact terms, fact values, description, and amenity labels |
+| Body | `text-body` | `font-normal` | Empty and error copy only |
+| Heading | `text-heading` | `font-semibold` | Existing wait figure only; do not add an evidence subsection heading |
+| Display | `text-display` | `font-semibold` | Existing page title only; never inside a queue row |
 
-The only weights are regular 400 and emphasis 600 in Court / 700 in Grove. The existing wait figure remains the sole `text-heading` item in a row; evidence does not compete with it.
+The only declared weights are regular (`font-normal`) and emphasis (`font-semibold`). The only declared sizes are Label, Body, Heading, and Display. Court and Grove continue to resolve these shared design-system tokens through their existing theme variables; that implementation detail is not a second Phase-22 size or weight scale and must not be copied or overridden. Evidence stays label-weight so it does not compete with the existing wait figure.
 
 ---
 
