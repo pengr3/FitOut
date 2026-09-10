@@ -79,18 +79,24 @@
 // GATE-05 for the money — this component performs no arithmetic on any of it — and it is the shipped
 // `whenLabel` idiom for the dates, which keeps a viewer's clock and locale out of a client render.
 
-// NO `react` IMPORT: this file declares no hook and, since `Fact`'s `React.ReactNode` prop type moved
-// to `ops-row-fact.tsx`, names no React type either. JSX needs none under the automatic runtime.
+import { useState } from "react";
 
 import { OpsContactReveal } from "@/components/ops/ops-contact-reveal";
 import { OpsDecisionActions } from "@/components/ops/ops-decision-actions";
 import { Fact, ROW_MONEY_CLASS } from "@/components/ops/ops-row-fact";
 import { PhotoGallery } from "@/components/listing/photo-gallery";
 import { RowCard } from "@/components/patterns/row-card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import type { HostVerificationStatus } from "@/lib/db/schema";
 import type { OpsCancelImpact } from "@/lib/ops/cancel-impact";
 import type { OpsQueueHostItem, OpsQueueListingItem } from "@/lib/ops/review-queue";
-import { SPACE_TYPE_LABELS, type SpaceTypeValue } from "@/lib/listing-vocab";
+import {
+  AMENITY_LABELS,
+  SPACE_TYPE_LABELS,
+  type AmenityValue,
+  type SpaceTypeValue,
+} from "@/lib/listing-vocab";
 
 /**
  * The wait figure's class — the row's LEAD.
@@ -206,6 +212,7 @@ function spaceTypeOf(value: string | null): string {
 export function OpsQueueRow({ row }: { row: OpsQueueRowItem }) {
   // BRANCHED ON THE DISCRIMINANT, once, at the top. Everything below reads a narrowed type.
   const isListing = row.kind === "listing";
+  const [evidenceOpen, setEvidenceOpen] = useState(false);
 
   const title = isListing
     ? (row.title ?? MISSING_TITLE.listing)
@@ -222,7 +229,20 @@ export function OpsQueueRow({ row }: { row: OpsQueueRowItem }) {
       meta={meta}
       status={<p className={ROW_LEAD_CLASS}>{row.waitLabel}</p>}
       actions={
-        isListing ? (
+        !isListing ? (
+          <OpsDecisionActions
+            subject={{
+              kind: "host",
+              userId: row.userId,
+              label: title,
+              hostLabel: title,
+            }}
+          />
+        ) : null
+      }
+    >
+      {isListing ? (
+        <>
           <OpsDecisionActions
             subject={{
               kind: "listing",
@@ -232,57 +252,68 @@ export function OpsQueueRow({ row }: { row: OpsQueueRowItem }) {
               impact: row.impact,
             }}
           />
-        ) : (
-          <OpsDecisionActions
-            subject={{
-              kind: "host",
-              userId: row.userId,
-              label: title,
-              hostLabel: title,
-            }}
-          />
-        )
-      }
-    >
-      {/* THE PHOTOS, REUSED VERBATIM. A listing with none renders the gallery's own shipped zero state,
-          which is a real state a reviewer should see rather than a hole in the row. */}
-      {isListing ? <PhotoGallery photos={row.photos} title={title} /> : null}
-
-      {/* A `<dl>` and not a table, and it goes through `children` rather than `meta` or `actions`: the
-          pattern's own docblock records that this slot exists so the label-to-value association
-          survives linearisation on a narrow screen, that a description list inside `meta`'s paragraph
-          hydrates mismatched, and that `actions` is lifted above the overlay link. */}
-      <dl className="space-y-1.5">
-        {isListing ? (
-          <>
-            <Fact term="Address">{addressOf(row)}</Fact>
-            <Fact term="Space type">{spaceTypeOf(row.primarySpaceType)}</Fact>
-            <Fact term="Capacity">
-              {row.maxOccupancy === null ? "Not set" : `${row.maxOccupancy} people`}
-            </Fact>
-            <Fact term="Price" valueClass={ROW_MONEY_CLASS}>
-              {row.priceLabel}
-            </Fact>
-            {/* BOTH TERMS OF THE SELL-GATE ON ONE ROW. A reviewer who cannot see whether the host has
-                been checked cannot tell whether approving this listing actually makes it sellable. */}
-            <Fact term="Host">
-              {(row.hostName ?? MISSING_TITLE.host) +
-                ` — ${HOST_VERIFICATION_LABEL[row.hostVerificationStatus]}`}
-            </Fact>
-            <Fact term="Submitted">{row.submittedLabel}</Fact>
-            {/* D-271 / OPS-06 — THE CONTACT REVEAL, ON THIS KIND TOO AND NOT ONLY ON THE HOST ROW.
-                An ops question is usually about a specific LISTING, so the way to reach the person
-                has to be where the subject of the question is; sending an operator to hunt for the
-                host's row is how a question stops being asked. The island renders the fact — one
-                (`Contact`) before a reveal, two (`Email`, `Phone`) after — because a component
-                cannot replace the `<dt>`/`<dd>` pair it is rendered inside. */}
-            <OpsContactReveal
-              userId={row.hostId}
-              hostLabel={row.hostName ?? MISSING_TITLE.host}
-            />
-          </>
-        ) : (
-          <>
+          <Button
+            type="button"
+            variant="outline"
+            aria-expanded={evidenceOpen}
+            aria-controls={`listing-evidence-${row.listingId}`}
+            onClick={() => setEvidenceOpen((open) => !open)}
+          >
+            {evidenceOpen ? "Hide listing evidence" : "Show listing evidence"}
+          </Button>
+          {evidenceOpen ? (
+            <section
+              id={`listing-evidence-${row.listingId}`}
+              aria-label="Listing evidence"
+              className="space-y-6"
+            >
+              <PhotoGallery photos={row.photos} title={title} />
+              <dl className="space-y-1.5">
+                <div className="space-y-1">
+                  <dt className="text-label text-muted-foreground">Description</dt>
+                  <dd className="text-label whitespace-pre-wrap break-words">{row.description ?? "Not set"}</dd>
+                </div>
+                <div className="space-y-1">
+                  <dt className="text-label text-muted-foreground">Amenities</dt>
+                  <dd className="text-label">
+                    {row.amenities.length === 0 ? (
+                      "Not set"
+                    ) : (
+                      <ul className="flex flex-wrap gap-2">
+                        {row.amenities.map((amenity) => (
+                          <li key={amenity}>
+                            <Badge variant="outline">
+                              {AMENITY_LABELS[amenity as AmenityValue] ?? amenity}
+                            </Badge>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </dd>
+                </div>
+                <Fact term="Address">{addressOf(row)}</Fact>
+                <Fact term="Space type">{spaceTypeOf(row.primarySpaceType)}</Fact>
+                <Fact term="Capacity">
+                  {row.maxOccupancy === null ? "Not set" : `${row.maxOccupancy} people`}
+                </Fact>
+                <Fact term="Price" valueClass={ROW_MONEY_CLASS}>
+                  {row.priceLabel}
+                </Fact>
+                <Fact term="Host">
+                  {(row.hostName ?? MISSING_TITLE.host) +
+                    ` — ${HOST_VERIFICATION_LABEL[row.hostVerificationStatus]}`}
+                </Fact>
+                <Fact term="Submitted">{row.submittedLabel}</Fact>
+                <OpsContactReveal
+                  userId={row.hostId}
+                  hostLabel={row.hostName ?? MISSING_TITLE.host}
+                />
+              </dl>
+            </section>
+          ) : null}
+        </>
+      ) : (
+        <dl className="space-y-1.5">
             <Fact term="Account since">{row.accountSinceLabel}</Fact>
             <Fact term="Email confirmed">{row.emailVerified ? "Yes" : "Not yet"}</Fact>
             <Fact term="Listings waiting" valueClass={ROW_MONEY_CLASS}>
@@ -293,9 +324,8 @@ export function OpsQueueRow({ row }: { row: OpsQueueRowItem }) {
                 host's own name here, which is the same string the two decision controls are named
                 after, so the row's three accessible names all quote one subject. */}
             <OpsContactReveal userId={row.userId} hostLabel={title} />
-          </>
-        )}
-      </dl>
+        </dl>
+      )}
     </RowCard>
   );
 }

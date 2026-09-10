@@ -130,6 +130,7 @@ export type OpsQueueListingItem = {
   kind: "listing";
   listingId: string;
   title: string | null;
+  description: string | null;
   addressLine1: string | null;
   addressLine2: string | null;
   city: string | null;
@@ -148,6 +149,7 @@ export type OpsQueueListingItem = {
   /** The OTHER term of the sell-gate. `'unverified'` is what NO ROW AT ALL reads as (fail-closed). */
   hostVerificationStatus: HostVerificationStatus;
   photos: OpsQueuePhoto[];
+  amenities: string[];
   /** THE WAIT CLOCK. Latest `listing_review.submitted_at`, else `listing.created_at` (D-249). */
   submittedAt: Date;
 };
@@ -190,8 +192,9 @@ type HostRow = {
   submittedAt: Date | string;
 };
 
-type ListingRow = Omit<OpsQueueListingItem, "kind" | "photos" | "submittedAt"> & {
+type ListingRow = Omit<OpsQueueListingItem, "kind" | "photos" | "amenities" | "submittedAt"> & {
   photos: OpsQueuePhoto[] | null;
+  amenities: string[] | null;
   submittedAt: Date | string;
 };
 
@@ -257,6 +260,7 @@ export async function loadReviewQueue(dbConn: DbConn = db): Promise<OpsQueueItem
     SELECT
       l.id                                        AS "listingId",
       l.title                                     AS "title",
+      l.description                               AS "description",
       l.address_line1                             AS "addressLine1",
       l.address_line2                             AS "addressLine2",
       l.city                                      AS "city",
@@ -279,7 +283,8 @@ export async function loadReviewQueue(dbConn: DbConn = db): Promise<OpsQueueItem
       COALESCE(hv.status::text, 'unverified')     AS "hostVerificationStatus",
       -- D-249 — the wait clock. See the header.
       COALESCE(lr.submitted_at, l.created_at)     AS "submittedAt",
-      ph.photos                                   AS "photos"
+      ph.photos                                   AS "photos",
+      am.amenities                                AS "amenities"
     FROM listing l
     JOIN "user" u ON u.id = l.host_id
     LEFT JOIN host_verification hv ON hv.user_id = l.host_id
@@ -298,6 +303,11 @@ export async function loadReviewQueue(dbConn: DbConn = db): Promise<OpsQueueItem
       FROM listing_photo p
       WHERE p.listing_id = l.id
     ) ph ON true
+    LEFT JOIN LATERAL (
+      SELECT json_agg(a.amenity ORDER BY a.amenity ASC) AS amenities
+      FROM listing_amenity a
+      WHERE a.listing_id = l.id
+    ) am ON true
     WHERE ${LISTING_QUEUE_PREDICATE}
     ORDER BY COALESCE(lr.submitted_at, l.created_at) ASC
   `)) as unknown as ListingRow[];
@@ -312,7 +322,7 @@ export async function loadReviewQueue(dbConn: DbConn = db): Promise<OpsQueueItem
       }),
     ),
     ...listingRows.map(
-      ({ photos, ...rest }): OpsQueueListingItem => ({
+      ({ photos, amenities, ...rest }): OpsQueueListingItem => ({
         ...rest,
         kind: "listing",
         submittedAt: toDate(rest.submittedAt),
@@ -320,6 +330,7 @@ export async function loadReviewQueue(dbConn: DbConn = db): Promise<OpsQueueItem
         // state (and one a reviewer should see as such), so it becomes an empty array here rather
         // than a null the row component would have to guard.
         photos: photos ?? [],
+        amenities: amenities ?? [],
       }),
     ),
   ];

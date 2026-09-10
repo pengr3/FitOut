@@ -27,7 +27,7 @@
 import { db } from "@/lib/db";
 import { readDbNow } from "@/lib/booking/bookings-query";
 import { allInRateParts } from "@/lib/booking/all-in-rate";
-import { loadOpsCancelImpact } from "@/lib/ops/cancel-impact";
+import { loadOpsCancelImpacts } from "@/lib/ops/cancel-impact";
 import { loadReviewQueue, type OpsQueueItem } from "@/lib/ops/review-queue";
 import { requireStaff } from "@/lib/ops/staff";
 import { formatMemberSince } from "@/lib/profile";
@@ -131,20 +131,14 @@ export default async function OpsQueuePage() {
   // LAYER 2 — the security boundary (D-216). The layout is not it; see the header.
   await requireStaff();
 
-  const [items, now, staffSnapshot] = await Promise.all([
-    loadReviewQueue(db),
+  const items = await loadReviewQueue(db);
+  const listingIds = items.flatMap((item) => (item.kind === "listing" ? [item.listingId] : []));
+  const [now, staffSnapshot, impacts] = await Promise.all([
     readDbNow(db),
     readStaffManagementSnapshot(db),
+    loadOpsCancelImpacts(db, listingIds),
   ]);
-
-  // ONE `loadOpsCancelImpact` PER LISTING ROW, and it is not optional — `OpsQueueListingRow.impact`
-  // is a required field precisely so this cannot be forgotten. Without it the reject dialog would
-  // render with no money block and no escalation lever, and an operator would take the lighter lever
-  // never having been offered the alternative. In parallel rather than in sequence: the reads are
-  // independent, and a queue of twenty listings run serially would make the page's cost linear in a
-  // number nobody is watching.
-  const rows: OpsQueueRowItem[] = await Promise.all(
-    items.map(async (item): Promise<OpsQueueRowItem> => {
+  const rows: OpsQueueRowItem[] = items.map((item): OpsQueueRowItem => {
       const shared = {
         waitLabel: formatWait(item.submittedAt, now),
         submittedLabel: formatSubmitted(item.submittedAt),
@@ -154,7 +148,7 @@ export default async function OpsQueuePage() {
           ...item,
           ...shared,
           priceLabel: formatPrice(item),
-          impact: await loadOpsCancelImpact(db, item.listingId),
+          impact: impacts.get(item.listingId)!,
         };
       }
       return {
@@ -166,8 +160,7 @@ export default async function OpsQueuePage() {
           OPS_CLOCK_TZ,
         ),
       };
-    }),
-  );
+    });
 
   return (
     <div className={OPS_QUEUE_SHELL}>

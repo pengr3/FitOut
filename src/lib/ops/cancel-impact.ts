@@ -158,6 +158,7 @@ export type OpsCancelImpact = {
 export const PAYOUT_ALREADY_LEFT_REASON = "their payout has already left FitOut";
 
 type ImpactAggregate = {
+  listingId?: string;
   cancellableCount: number;
   cancellableBookingIds: string[] | null;
   notCancellableCount: number;
@@ -165,6 +166,27 @@ type ImpactAggregate = {
   totalCents: number;
   currency: string | null;
 };
+
+function impactFromAggregate(agg: ImpactAggregate | undefined): OpsCancelImpact {
+  const cancellableCount = agg?.cancellableCount ?? 0;
+  const notCancellableCount = agg?.notCancellableCount ?? 0;
+  const totalCents = agg?.totalCents ?? 0;
+  const currency = agg?.currency ?? DISPLAY_CURRENCY;
+  const refundCents = opsRefundBasisCents({
+    spacePriceCents: agg?.spaceCents ?? 0,
+    quotedTotalCents: totalCents,
+  });
+
+  return {
+    cancellableCount,
+    cancellableBookingIds: agg?.cancellableBookingIds ?? [],
+    refundTotal: formatMoney(refundCents, currency),
+    retainedTotal: formatMoney(Math.max(0, totalCents - refundCents), currency),
+    hostPaid: "Nothing",
+    notCancellableCount,
+    notCancellableReason: PAYOUT_ALREADY_LEFT_REASON,
+  };
+}
 
 /**
  * loadOpsCancelImpact — everything the confirm dialog renders, computed in ONE statement against the
@@ -226,27 +248,58 @@ export async function loadOpsCancelImpact(
     FROM scoped
   `)) as unknown as ImpactAggregate[];
 
-  const cancellableCount = agg?.cancellableCount ?? 0;
-  const notCancellableCount = agg?.notCancellableCount ?? 0;
-  const totalCents = agg?.totalCents ?? 0;
-  const currency = agg?.currency ?? DISPLAY_CURRENCY;
+  return impactFromAggregate(agg);
+}
 
-  // THE ONE CALL. Whatever this returns is what `cancelBookingAsOps` will move, because it is the same
-  // expression over the same frozen columns.
-  const refundCents = opsRefundBasisCents({
-    spacePriceCents: agg?.spaceCents ?? 0,
-    quotedTotalCents: totalCents,
-  });
+/**
+ * Loads the already-finished cancellation impact for every known listing in one statement.
+ * The page can then shape its rows synchronously without performing a per-row database read.
+ */
+export async function loadOpsCancelImpacts(
+  dbConn: DbConn,
+  listingIds: readonly string[],
+): Promise<Map<string, OpsCancelImpact>> {
+  const impacts = new Map<string, OpsCancelImpact>();
+  if (listingIds.length === 0) return impacts;
 
-  return {
-    cancellableCount,
-    cancellableBookingIds: agg?.cancellableBookingIds ?? [],
-    refundTotal: formatMoney(refundCents, currency),
-    // What FitOut keeps is the REMAINDER of what the bookers actually paid — never a re-derived
-    // percentage. Under the shipped D-236 basis the remainder is zero and the row honestly reads ₱0.00.
-    retainedTotal: formatMoney(Math.max(0, totalCents - refundCents), currency),
-    hostPaid: "Nothing",
-    notCancellableCount,
-    notCancellableReason: PAYOUT_ALREADY_LEFT_REASON,
-  };
+  const ids = sql.join(
+    listingIds.map((listingId) => sql`${listingId}`),
+    sql`, `,
+  );
+  const rows = (await dbConn.execute(sql`
+    WITH scoped AS (
+      SELECT
+        b.listing_id AS "listingId",
+        b.id AS booking_id,
+        COALESCE(b.space_price_cents, b.quoted_total_cents, 0) AS space_cents,
+        COALESCE(b.quoted_total_cents, 0) AS total_cents,
+        b.currency AS currency,
+        EXISTS (
+          SELECT 1 FROM host_payout_ledger p
+          WHERE p.booking_id = b.id
+            AND p.kind = 'payout'
+            AND p.state IN ('processing', 'paid')
+        ) AS payout_left
+      FROM booking b
+      WHERE b.listing_id IN (${ids})
+        AND b.status = 'confirmed'
+    )
+    SELECT
+      "listingId",
+      COUNT(*) FILTER (WHERE NOT payout_left)::int AS "cancellableCount",
+      COALESCE(
+        json_agg(booking_id ORDER BY booking_id) FILTER (WHERE NOT payout_left),
+        '[]'::json
+      ) AS "cancellableBookingIds",
+      COUNT(*) FILTER (WHERE payout_left)::int AS "notCancellableCount",
+      COALESCE(SUM(space_cents) FILTER (WHERE NOT payout_left), 0)::int AS "spaceCents",
+      COALESCE(SUM(total_cents) FILTER (WHERE NOT payout_left), 0)::int AS "totalCents",
+      MIN(currency) AS "currency"
+    FROM scoped
+    GROUP BY "listingId"
+  `)) as unknown as ImpactAggregate[];
+
+  const byId = new Map(rows.map((row) => [row.listingId, row]));
+  for (const listingId of listingIds) impacts.set(listingId, impactFromAggregate(byId.get(listingId)));
+  return impacts;
 }
