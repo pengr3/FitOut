@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 36
+open_count: 37
 waived_count: 0
 fixed_count: 8
-total_count: 44
-last_updated: 2026-09-10T04:16:06.297Z
+total_count: 45
+last_updated: 2026-09-10T12:27:04.267Z
 ---
 
 # Broken Windows Ledger
@@ -59,6 +59,7 @@ last_updated: 2026-09-10T04:16:06.297Z
 | 43 | 21 | deviation | e2e/host-listing-grid.spec.ts |  | Windows Playwright verification used a temporary manually managed server configuration. | open |  | 2026-09-09T12:37:08.248Z |  |
 | 44 | 21 | deviation | .next/dev |  | Stale generated development route types were removed before the production build. | open |  | 2026-09-09T12:37:09.186Z |  |
 | 45 | 21 | deviation | e2e/host-dashboard.spec.ts |  | Managed Windows Playwright server teardown required the final matrix to use a manually managed local server for a clean exit. | open |  | 2026-09-10T04:16:06.297Z |  |
+| 46 | 22 | deviation | tests/ops/ops-queue-row.test.tsx |  | Scoped the existing amenities-list assertion after operating-hours evidence added its required semantic list. | open |  | 2026-09-10T12:27:04.267Z |  |
 
 ````json
 [
@@ -588,6 +589,18 @@ last_updated: 2026-09-10T04:16:06.297Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-10T04:16:06.297Z",
+    "resolved_at": null
+  },
+  {
+    "id": 46,
+    "kind": "deviation",
+    "phase": "22",
+    "file": "tests/ops/ops-queue-row.test.tsx",
+    "line": null,
+    "description": "Scoped the existing amenities-list assertion after operating-hours evidence added its required semantic list.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-10T12:27:04.267Z",
     "resolved_at": null
   }
 ]
