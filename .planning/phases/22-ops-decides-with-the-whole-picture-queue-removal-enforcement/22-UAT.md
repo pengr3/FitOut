@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 22-ops-decides-with-the-whole-picture-queue-removal-enforcement
 source: [22-01-SUMMARY.md, 22-02-SUMMARY.md]
 started: 2026-09-10T10:30:00Z
-updated: 2026-09-10T12:03:00Z
+updated: 2026-09-10T12:55:00Z
 ---
 
 ## Current Test
@@ -55,15 +55,14 @@ reported: User approved the staff queue inspection flow on 2026-09-10.
 
 ### 8. Inspect host-set operating hours before deciding
 expected: A staff reviewer can inspect the host-set weekly operating hours within the expanded listing evidence before approving or rejecting the listing.
-result: issue
-reported: "minor but it is a must before we close phase 22"
-severity: minor
+result: pass
+reported: "Resolved by 22-03: the queue reads operating_hours by each pending listing's listing_id, and the user approved closure after confirming the non-seeded data path on 2026-09-10."
 
 ## Summary
 
 total: 8
-passed: 7
-issues: 1
+passed: 8
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
@@ -72,8 +71,8 @@ blocked: 0
 
 - gap_id: G-22-8
   truth: "A staff reviewer can inspect the host-set weekly operating hours within the expanded listing evidence before approving or rejecting the listing."
-  status: failed
-  reason: "User reported: minor but it is a must before we close phase 22"
+  status: resolved
+  reason: "22-03 projects each pending listing's own ordered operating_hours rows and renders them in the expanded evidence; absent rows render the explicit all-closed weekly schedule."
   severity: minor
   test: 8
   root_cause: "The queue projection drops listing-owned operating_hours before the DTO reaches the expanded row; the row and all Phase 22 queue fixtures and assertions omit the schedule as well."
@@ -93,3 +92,5 @@ blocked: 0
     - "An Operating hours fact in the expanded listing evidence that reuses the shared week-strip formatting rules."
     - "Projection, row, and authenticated browser coverage for populated, multi-window, closed-day, and empty-hour states."
   debug_session: ".planning/debug/g-22-8-operating-hours-evidence.md"
+  resolved_by: "22-03-PLAN.md"
+  resolved_at: 2026-09-10
