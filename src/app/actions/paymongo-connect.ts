@@ -8,10 +8,10 @@
 //   1. SESSION GATE — resolve the caller's session LOCALLY via auth.api.getSession (we need BOTH the
 //      user id AND the email; capability.ts's requireUserId is module-private and email-less, so we do
 //      NOT import it — we read the session inline here).
-//   2. HOST-CAPABILITY GATE — re-read canHost from the caller's user row; a host route layout can be
+//   2. RATE-LIMIT + AUDIT (WR-06) — bound every authenticated invocation to 5/60s per identity before
+//      it can write a denial audit record or reach a provider-facing operation.
+//   3. HOST-CAPABILITY GATE — re-read canHost from the caller's user row; a host route layout can be
 //      bypassed by a direct Server Action POST, so it is not this action's authorization boundary.
-//   3. RATE-LIMIT + AUDIT (WR-06) — bound the privileged, money-adjacent action to 5/60s per identity
-//      and record every denial, exactly like the capability-activate actions (src/app/actions/capability.ts).
 //   4. CREATE-ONCE UNDER A ROW LOCK — ensure at most ONE PayMongo Linked Account per host even under
 //      concurrent clicks (a plain check-then-act races and orphans a second account), then ALWAYS mint
 //      a FRESH single-use onboarding link (never cache the URL) and hand its URL back to the client.
@@ -95,6 +95,19 @@ export async function startPayoutOnboarding(): Promise<OnboardingResult> {
   }
   const { userId, email } = resolved;
 
+  // WR-06: bound every authenticated attempt before any audit or payout work. A booker can directly
+  // POST this Server Action too, so placing this after the capability gate would permit audit-log spam.
+  const limit = rateLimit(`pmonboard:${userId}`, ONBOARD_RATE_LIMIT);
+  if (!limit.ok) {
+    await recordAudit({
+      actorId: userId,
+      action: "startPayoutOnboarding",
+      outcome: "denied",
+      meta: { reason: "rate_limit", retryAfter: limit.retryAfter },
+    });
+    return { ok: false, error: "Too many attempts. Please try again in a moment." };
+  }
+
   // Server Actions are directly POST-reachable, so the host layout is not an authorization boundary.
   // Re-read the capability from the caller's row: a booker-only session must never mint a payout link.
   const [caller] = await db.select({ canHost: user.canHost }).from(user).where(eq(user.id, userId));
@@ -106,18 +119,6 @@ export async function startPayoutOnboarding(): Promise<OnboardingResult> {
       meta: { reason: "host_capability" },
     });
     return { ok: false, error: "Start hosting before setting up payouts." };
-  }
-
-  // WR-06: bound the privileged, money-adjacent action per identity; audit the denial (non-repudiable).
-  const limit = rateLimit(`pmonboard:${userId}`, ONBOARD_RATE_LIMIT);
-  if (!limit.ok) {
-    await recordAudit({
-      actorId: userId,
-      action: "startPayoutOnboarding",
-      outcome: "denied",
-      meta: { reason: "rate_limit", retryAfter: limit.retryAfter },
-    });
-    return { ok: false, error: "Too many attempts. Please try again in a moment." };
   }
 
   try {
