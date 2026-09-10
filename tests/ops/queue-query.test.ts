@@ -66,8 +66,9 @@ import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { makeTestAuth, signUp, type TestAuth } from "../helpers/auth";
 import { seedHostVerification } from "../helpers/verification";
-import { user, listing, listingPhoto, listingReview, hostVerification } from "@/lib/db/schema";
+import { user, listing, listingAmenity, listingPhoto, listingReview, hostVerification } from "@/lib/db/schema";
 import { loadReviewQueue, type OpsQueueItem } from "@/lib/ops/review-queue";
+import { loadOpsCancelImpact, loadOpsCancelImpacts } from "@/lib/ops/cancel-impact";
 
 const sessionHeaders: { cookie: string } = { cookie: "" };
 vi.mock("next/headers", () => ({
@@ -130,6 +131,7 @@ async function makeListing(id: string, opts: ListingOpts) {
     id,
     hostId: opts.hostId ?? LISTING_HOST,
     title: full ? `Title ${id}` : null,
+    description: full ? `Description ${id}` : null,
     status: opts.status ?? "published",
     reviewState: opts.reviewState ?? "pending",
     createdAt: opts.createdAt,
@@ -194,6 +196,10 @@ beforeAll(async () => {
   await testDb.db.insert(listingPhoto).values([
     { id: "q_ph_b2", listingId: "q_listing_b", publicId: "pb2", url: "https://x/b2.jpg", position: 1 },
     { id: "q_ph_b1", listingId: "q_listing_b", publicId: "pb1", url: "https://x/b1.jpg", position: 0 },
+  ]);
+  await testDb.db.insert(listingAmenity).values([
+    { listingId: "q_listing_b", amenity: "wifi" },
+    { listingId: "q_listing_b", amenity: "parking" },
   ]);
 
   // C has NO review row — the `listing.created_at` FALLBACK — and an UNCHECKED host.
@@ -350,6 +356,8 @@ describe("OPS-04 — every row carries what the reviewer needs, selected once", 
 
     // 18-UI-SPEC § The evidence, per kind — the FULL street address, not just a city.
     expect(b.title).toBe("Title q_listing_b");
+    expect(b.description).toBe("Description q_listing_b");
+    expect(b.amenities).toEqual(["parking", "wifi"]);
     expect(b.addressLine1).toBe("12 Kalayaan Ave");
     expect(b.addressLine2).toBe("Unit 4B");
     expect(b.city).toBe("Makati");
@@ -381,11 +389,26 @@ describe("OPS-04 — every row carries what the reviewer needs, selected once", 
 
     // json_agg over an empty set is NULL, not '[]' — a null would reach the row component.
     expect(c.photos).toEqual([]);
+    expect(c.description).toBeNull();
+    expect(c.amenities).toEqual([]);
 
     // FAIL-CLOSED at the nullable join: this host has NO host_verification row at all, and the
     // sell-gate's own answer for that state is 'unverified' (D-224). A NULL here would render as a
     // blank cell and read as "fine".
     expect(c.hostVerificationStatus).toBe("unverified");
+  });
+
+  it("case 7b — the grouped impact map preserves the established per-listing contract", async () => {
+    const queue = await loadReviewQueue(testDb.db);
+    const listingIds = queue.flatMap((item) => (item.kind === "listing" ? [item.listingId] : []));
+    const impacts = await loadOpsCancelImpacts(testDb.db, listingIds);
+
+    expect(impacts.size).toBe(listingIds.length);
+    await Promise.all(
+      listingIds.map(async (listingId) => {
+        expect(impacts.get(listingId)).toEqual(await loadOpsCancelImpact(testDb.db, listingId));
+      }),
+    );
   });
 
   it("case 8 — the host row carries the four <dl> facts, the waiting count, and NO document field", async () => {

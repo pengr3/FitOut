@@ -177,6 +177,7 @@ function listingRow(over: Partial<OpsQueueListingRow> = {}): OpsQueueListingRow 
     kind: "listing",
     listingId: "lst_1",
     title: LISTING_TITLE,
+    description: "A sunlit court with a complete staff-review description.",
     addressLine1: "12 Kalayaan Ave",
     addressLine2: null,
     city: "Makati",
@@ -198,6 +199,7 @@ function listingRow(over: Partial<OpsQueueListingRow> = {}): OpsQueueListingRow 
       { id: "ph_2", url: "https://example.test/2.jpg", position: 1 },
       { id: "ph_3", url: "https://example.test/3.jpg", position: 2 },
     ],
+    amenities: ["wifi", "mystery_amenity"],
     submittedAt: new Date("2026-08-26T00:00:00Z"),
     waitLabel: WAIT,
     submittedLabel: SUBMITTED,
@@ -213,6 +215,11 @@ function renderRow(row: OpsQueueHostRow | OpsQueueListingRow): HTMLElement {
   const card = container.querySelector('[data-testid="row-card"]');
   expect(card, "the row did not render through the RowCard pattern").not.toBeNull();
   return card as HTMLElement;
+}
+
+function expandListingEvidence(card: HTMLElement): HTMLElement {
+  fireEvent.click(within(card).getByRole("button", { name: "Show listing evidence" }));
+  return within(card).getByRole("region", { name: "Listing evidence" });
 }
 
 /** The `<dd>` whose `<dt>` reads `term`, read as a PAIR so a re-ordered list cannot pass by position. */
@@ -436,6 +443,7 @@ describe("OPS-04 / D-246 — the queue row browses nowhere", () => {
       contact: { email: HOST_EMAIL, phone: HOST_PHONE },
     });
     const card = renderRow(listingRow());
+    expandListingEvidence(card);
     await revealContact(card);
 
     // The whole content of D-271's "both kinds": an ops question is usually about a LISTING, so the
@@ -446,6 +454,29 @@ describe("OPS-04 / D-246 — the queue row browses nowhere", () => {
   });
 });
 
+describe("OPS-13 / OPS-15 — listing evidence stays in its terminal row", () => {
+  it("toggles one labelled evidence section while retaining focus and the singular decision widget", () => {
+    const card = renderRow(listingRow());
+    const disclosure = within(card).getByRole("button", { name: "Show listing evidence" });
+
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+    expect(within(card).queryByRole("region", { name: "Listing evidence" })).toBeNull();
+    disclosure.focus();
+    fireEvent.click(disclosure);
+
+    expect(document.activeElement).toBe(disclosure);
+    expect(within(card).getByRole("button", { name: "Hide listing evidence" })).toBe(disclosure);
+    expect(disclosure.getAttribute("aria-expanded")).toBe("true");
+    const evidence = within(card).getByRole("region", { name: "Listing evidence" });
+    expect(evidence.textContent).toContain("A sunlit court with a complete staff-review description.");
+    expect(evidence.textContent).toContain("Wi-Fi");
+    expect(evidence.textContent).toContain("mystery_amenity");
+    expect(within(card).getAllByRole("button", { name: `Approve ${LISTING_TITLE}` })).toHaveLength(1);
+    expect(card.querySelectorAll("a")).toHaveLength(0);
+    expect(card.querySelectorAll('[role="link"]')).toHaveLength(0);
+  });
+});
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 // 2 — EVERYTHING NEEDED TO DECIDE IS ON THE ROW
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -453,6 +484,7 @@ describe("OPS-04 / D-246 — the queue row browses nowhere", () => {
 describe("OPS-04 — the evidence, per kind", () => {
   it("a listing row carries D-231's five material fields plus BOTH terms of the sell-gate", () => {
     const card = renderRow(listingRow());
+    expandListingEvidence(card);
 
     expect(valueFor(card, "Address").textContent).toBe("12 Kalayaan Ave, Makati, NCR, 1200, PH");
     expect(valueFor(card, "Space type").textContent).toBe("Home / private gym");
@@ -478,6 +510,7 @@ describe("OPS-04 — the evidence, per kind", () => {
     ] as const) {
       cleanup();
       const card = renderRow(listingRow({ hostVerificationStatus: status }));
+      expandListingEvidence(card);
       expect(
         valueFor(card, "Host").textContent,
         `the ${status} host verification state renders no phrase. A blank cell reads as "fine" to ` +
@@ -512,6 +545,7 @@ describe("OPS-04 — the evidence, per kind", () => {
         primarySpaceType: null,
       }),
     );
+    expandListingEvidence(card);
 
     expect(valueFor(card, "Address").textContent).toBe("No address on the listing");
     expect(valueFor(card, "Capacity").textContent).toBe("Not set");
@@ -535,6 +569,7 @@ describe("OPS-06 / D-271 — the contact reveal, before and after a press", () =
     for (const row of [hostRow(), listingRow()]) {
       cleanup();
       const card = renderRow(row);
+      if (row.kind === "listing") expandListingEvidence(card);
 
       // The affordance is there…
       expect(valueFor(card, "Contact").textContent).toBe("Show contact");
@@ -628,6 +663,7 @@ describe("OPS-06 / D-271 — the contact reveal, before and after a press", () =
 describe("the evidence a reviewer actually looks at", () => {
   it("a listing row reuses the shipped gallery VERBATIM, mosaic and lightbox trigger included", () => {
     const card = renderRow(listingRow());
+    expandListingEvidence(card);
 
     const gallery = within(card).getByLabelText(`Photos of ${LISTING_TITLE}`);
     expect(gallery.tagName).toBe("SECTION");
@@ -693,6 +729,7 @@ describe("the wait figure is the only promoted element", () => {
 
   it("every value in the description list computes the SAME class, so none is promoted by accident", () => {
     const card = renderRow(listingRow());
+    expandListingEvidence(card);
     const values = Array.from(card.querySelectorAll("dd"));
     expect(values.length).toBeGreaterThan(4);
 
