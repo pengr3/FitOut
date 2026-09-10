@@ -17,7 +17,7 @@ covered_files:
   - tests/design/ops-host-invariants.test.ts
   - tests/ops/ops-queue-row.test.tsx
   - tests/ops/queue-query.test.ts
-covered_digest: "v1:sha256:f8a852b5e1f88bd353481d6c2f74a90917df941b4b2419bcef27ab281776036a"
+covered_digest: "v1:sha256:812fe727505271f4f149ad022a3e1c2eff9234b2ba962af9b1b294ab0f18af29"
 behavior_unverified: 0
 overrides_applied: 0
 ---
