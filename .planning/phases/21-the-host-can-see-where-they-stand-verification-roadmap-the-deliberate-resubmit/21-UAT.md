@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: passed
 phase: 21-the-host-can-see-where-they-stand-verification-roadmap-the-deliberate-resubmit
 source: [21-01-SUMMARY.md, 21-02-SUMMARY.md, 21-03-SUMMARY.md, 21-04-SUMMARY.md, 21-05-SUMMARY.md, 21-06-SUMMARY.md, 21-07-SUMMARY.md, 21-VERIFICATION.md]
 started: 2026-09-09T18:05:32Z
-updated: 2026-09-10T03:15:00Z
+updated: 2026-09-10T06:03:00Z
 ---
 
 ## Current Test
@@ -15,9 +15,9 @@ updated: 2026-09-10T03:15:00Z
 ### 1. Roadmap perception and responsive backstops
 
 expected: In court and grove themes at 320px and 1280px, the zero-listing, waiting, rejected, stale, grandfathered, mixed, and ready states remain clear with unusually long copy; controls wrap without overflow and the ready receipt replaces the roadmap.
-result: issue
-reported: "Card 1 spilled on its card and cta is cropped do not let this happen"
-severity: major
+result: pass
+reported: "Plan 21-08 removed the redundant inner h-full and added Chromium containment coverage for body copy and CTA at 320px and 1280px in court and grove themes."
+severity: resolved
 
 ### 2. Review-history dialog backstops
 
@@ -91,8 +91,8 @@ coverage_id: 21-07-D2
 ## Summary
 
 total: 12
-passed: 11
-issues: 1
+passed: 12
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
@@ -101,9 +101,9 @@ blocked: 0
 
 - gap_id: G-21-1
   truth: "In court and grove themes at 320px and 1280px, the zero-listing, waiting, rejected, stale, grandfathered, mixed, and ready states remain clear with unusually long copy; controls wrap without overflow and the ready receipt replaces the roadmap."
-  status: failed
-  reason: "User reported: Card 1 spilled on its card and cta is cropped do not let this happen"
-  severity: major
+  status: closed
+  reason: "Closed by Plan 21-08: the redundant inner h-full was removed, and the Chromium matrix verifies body and CTA containment in both themes at 320px and 1280px."
+  severity: resolved
   test: 1
   root_cause: "The roadmap content stack in verification-roadmap.tsx uses h-full beneath a PanelCard title rendered as a separate sibling, so title, spacing, and a full-height stack exceed the equal-height card; the shared Card overflow-hidden rule then crops the CTA."
   artifacts:
@@ -115,7 +115,7 @@ blocked: 0
       issue: "The shared overflow-hidden rule clips content that exceeds the card boundary."
     - path: "e2e/host-dashboard.spec.ts"
       issue: "Existing responsive checks omit vertical containment of body copy and CTA within each roadmap card."
-  missing:
-    - "Remove the redundant inner h-full while preserving grid/card stretch, min-w-0, and long-token wrapping."
-    - "Assert in Chromium that body and CTA bounds remain inside every roadmap card at 320px and 1280px in court and grove themes."
+  resolution:
+    - "Removed the redundant inner h-full while preserving grid/card stretch, min-w-0, and long-token wrapping."
+    - "Added Chromium assertions that every body and CTA rectangle remains inside its roadmap card at 320px and 1280px in court and grove themes."
   debug_session: .planning/debug/phase-21-roadmap-card-overflow.md
