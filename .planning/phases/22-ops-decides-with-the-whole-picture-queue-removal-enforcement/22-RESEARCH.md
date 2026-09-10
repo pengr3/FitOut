@@ -222,19 +222,19 @@ This uses no new data literal or enum value. It is the W3C button-disclosure pat
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
-| A1 | Controls before disclosure satisfy the off-screen contract without sticky positioning. | Pattern 3 | Viewport test may require a measured placement adjustment. |
+| A1 | Controls before disclosure satisfy the approved off-screen contract without sticky positioning. | Pattern 3 | RESOLVED: the UI-SPEC binds the Court/Grove 320px/1280px browser containment check and prohibits sticky controls. |
 | A2 | A grouped impact query can preserve the current single-listing impact results exactly. | Summary | A careless rewrite could change payout/money predicates; test equivalence. |
-| A3 | No-description/no-amenities display should use neutral named states. | Pattern 2 | Product copy may require review. |
+| A3 | No-description/no-amenities display uses the approved neutral named state. | Pattern 2 | RESOLVED: the UI-SPEC binds `Not set` for each missing field. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **What viewport measurement proves controls remain visible?**
-   - What we know: actions are currently a `RowCard` sibling rendered after children. [VERIFIED: `src/components/patterns/row-card.tsx:213-223`]
-   - Recommendation: start with actions before disclosure and use Playwright bounding-box/viewport assertions at 320px and desktop before adding sticky behavior.
+1. **What viewport measurement proves controls remain visible? — RESOLVED**
+   - What we knew: actions are currently a `RowCard` sibling rendered after children. [VERIFIED: `src/components/patterns/row-card.tsx:213-223`]
+   - Binding UI-SPEC answer: use the authenticated Court/Grove browser matrix at 320px and 1280px. After expansion, assert with bounding-box/viewport containment that the one existing non-sticky decision widget and both 44px controls remain within the viewport, that evidence follows the controls, and that the document has no horizontal overflow. Do not introduce sticky controls. [RESOLVED: `22-UI-SPEC.md` "Terminality, focus, and responsive behavior" items 4-5]
 
-2. **What exact copy describes absent description/amenities?**
-   - What we know: those values can be absent and existing queue facts avoid blank cells. [VERIFIED: `src/lib/db/schema.ts:199-207`, `src/lib/db/schema.ts:307-318`, `src/components/ops/ops-queue-row.tsx:185-204`]
-   - Recommendation: adopt existing neutral “Not set” language only after product-copy review.
+2. **What exact copy describes absent description/amenities? — RESOLVED**
+   - What we knew: those values can be absent and existing queue facts avoid blank cells. [VERIFIED: `src/lib/db/schema.ts:199-207`, `src/lib/db/schema.ts:307-318`, `src/components/ops/ops-queue-row.tsx:185-204`]
+   - Binding UI-SPEC answer: missing Description renders `Not set` and missing Amenities renders `Not set` in the evidence section; neither field may be blank. [RESOLVED: `22-UI-SPEC.md` "Copywriting Contract" and "Listing-row layout and disclosure" item 7]
 
 ## Environment Availability
 
