@@ -1,0 +1,9 @@
+{
+  "command": "npx.cmd playwright test e2e/host-dashboard.spec.ts --project=chromium --grep \"the roadmap and receipt state matrix reflows at 320px/1280px without overflow\" --reporter=list",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - court · the roadmap and receipt state matrix reflows at 320px/1280px without overflow\nnot ok 2 - grove · the roadmap and receipt state matrix reflows at 320px/1280px without overflow\nBoth theme tests failed at zero-listing · 320px after the inner h-full was intentionally restored. Court panel 2 action bottom 1200px exceeded card bottom 1174px; grove panel 2 action top 1277.3125px and bottom 1321.3125px exceeded card bottom 1290.125px.\n# tests 2\n# pass 0\n# fail 2",
+  "targetTest": "court · the roadmap and receipt state matrix reflows at 320px/1280px without overflow",
+  "targetFile": "e2e/host-dashboard.spec.ts",
+  "expected": "The shared matrix checks contextual vertical bounds in both themes at both widths while retaining receipt replacement and all existing responsive and interaction assertions.",
+  "actual": "With the diagnosed inner h-full intentionally restored, both selected theme tests failed on numeric card/action and scroll-height bounds; the production fix was restored before committing the expanded regression."
+}

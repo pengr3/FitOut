@@ -978,7 +978,12 @@ async function assertPanelCardVerticalContainment(
             panelIndex,
             descendantIndex,
             kind: descendant.matches("a[href], button") ? "action" : "body",
-            panel: { top: panelBounds.top, bottom: panelBounds.bottom },
+            panel: {
+              top: panelBounds.top,
+              bottom: panelBounds.bottom,
+              clientHeight: panel.clientHeight,
+              scrollHeight: panel.scrollHeight,
+            },
             descendant: { top: bounds.top, bottom: bounds.bottom },
           },
         ];
@@ -991,11 +996,13 @@ async function assertPanelCardVerticalContainment(
           panelIndex,
           descendantIndex: -1,
           kind: "card-scroll",
-          panel: { top: panelBounds.top, bottom: panelBounds.bottom },
-          descendant: {
-            top: panel.clientHeight,
-            bottom: panel.scrollHeight,
+          panel: {
+            top: panelBounds.top,
+            bottom: panelBounds.bottom,
+            clientHeight: panel.clientHeight,
+            scrollHeight: panel.scrollHeight,
           },
+          descendant: null,
         },
       ];
     }),
@@ -1010,10 +1017,11 @@ async function assertPanelCardVerticalContainment(
 
 async function assertRoadmapSnapshot(
   page: Page,
+  theme: (typeof ROADMAP_THEMES)[number],
   width: (typeof ROADMAP_WIDTHS)[number],
   snapshot: RoadmapSnapshot,
 ): Promise<void> {
-  const where = `${snapshot.name} · ${width}px`;
+  const where = `${theme} · ${snapshot.name} · ${width}px`;
   await openDashboard(page, width);
 
   const heading = page.getByRole("heading", {
@@ -1168,7 +1176,7 @@ for (const theme of ROADMAP_THEMES) {
         state: "Current",
         action: "Create listing",
       };
-      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, width, zero);
+      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, theme, width, zero);
 
       await insertRoadmapListing(sql, {
         id: primaryId,
@@ -1184,7 +1192,7 @@ for (const theme of ROADMAP_THEMES) {
         state: "Waiting",
         action: "Your listings",
       };
-      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, width, waiting);
+      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, theme, width, waiting);
 
       await setVerification("pending", null, 31);
       const stale: RoadmapSnapshot = {
@@ -1194,7 +1202,7 @@ for (const theme of ROADMAP_THEMES) {
         action: "Finish the check",
         includes: "Your check has been waiting for a result for more than 30 minutes.",
       };
-      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, width, stale);
+      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, theme, width, stale);
 
       await setVerification("rejected", LONG_REJECTION_REASON, 25 * 60);
       const rejected: RoadmapSnapshot = {
@@ -1204,7 +1212,7 @@ for (const theme of ROADMAP_THEMES) {
         action: "Ask for another check",
         includes: LONG_REJECTION_REASON,
       };
-      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, width, rejected);
+      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, theme, width, rejected);
 
       await setVerification("grandfathered", null, 0);
       const grandfathered: RoadmapSnapshot = {
@@ -1215,7 +1223,9 @@ for (const theme of ROADMAP_THEMES) {
         identityTitle: "Account ready",
         includes: "Your account can create and publish listings.",
       };
-      for (const width of ROADMAP_WIDTHS) await assertRoadmapSnapshot(page, width, grandfathered);
+      for (const width of ROADMAP_WIDTHS) {
+        await assertRoadmapSnapshot(page, theme, width, grandfathered);
+      }
 
       await setVerification("approved", null, 0);
       await sql`
@@ -1246,6 +1256,7 @@ for (const theme of ROADMAP_THEMES) {
         await expect(section).toContainText("You have a listing that guests can book.");
         await expect(section.getByRole("list")).toHaveCount(0);
         await expect(section.locator("a[href], button")).toHaveCount(0);
+        await assertPanelCardVerticalContainment(section, where);
         await assertNoHorizontalOverflow(page, where);
       }
 
@@ -1260,13 +1271,13 @@ for (const theme of ROADMAP_THEMES) {
       for (const width of ROADMAP_WIDTHS) {
         await openDashboard(page, width);
         const where = `${theme} · mixed-portfolio · ${width}px`;
-        await expect(
-          page.getByRole("heading", { level: 2, name: "Ready to take bookings" }),
-          `${where}: a rejected sibling incorrectly reopened the account roadmap.`,
-        ).toBeVisible();
+        const ready = page.getByRole("heading", { level: 2, name: "Ready to take bookings" });
+        await expect(ready, `${where}: a rejected sibling incorrectly reopened the account roadmap.`).toBeVisible();
+        const section = ready.locator("xpath=ancestor::section[1]");
         await expect(
           page.getByRole("heading", { level: 2, name: "Get ready to take bookings" }),
         ).toHaveCount(0);
+        await assertPanelCardVerticalContainment(section, where);
         await assertNoHorizontalOverflow(page, where);
       }
     } finally {
