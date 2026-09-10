@@ -91,7 +91,7 @@ export function VerificationRoadmap({
             <li key={step.number} className="h-full min-w-0 [&>[data-testid=panel-card]]:h-full">
               <PanelCard title={step.title} titleAs="h3" tone={muted ? "muted" : "default"}>
                 <div
-                  className="flex h-full min-w-0 flex-col gap-4"
+                  className="flex min-w-0 flex-col gap-4"
                   {...(step.verificationStatus
                     ? { "data-verification-owed": step.verificationStatus }
                     : {})}
