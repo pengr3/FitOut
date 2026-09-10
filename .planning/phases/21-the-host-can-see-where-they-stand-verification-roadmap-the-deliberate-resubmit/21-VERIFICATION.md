@@ -1,6 +1,6 @@
 ---
 phase: 21-the-host-can-see-where-they-stand-verification-roadmap-the-deliberate-resubmit
-verified: 2026-09-10T05:59:01Z
+verified: 2026-09-10T06:09:09Z
 status: passed
 score: 59/59 must-haves verified
 covered_files:
@@ -57,15 +57,14 @@ covered_files:
   - tests/listing/review-history.test.ts
   - tests/listing/wizard-save-state.test.tsx
   - tests/paymongo/onboarding.test.ts
-covered_digest: "v1:sha256:8362c76ba1dda495a000d3959f74ff10e2dba91e095efd2f6e90a1efa16e9198"
+covered_digest: "v1:sha256:bd2cee66e0e4aea0174a0a16bcf43d249faee9f06a7fa82b7bb5b53758659f62"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
-  previous_status: human_needed
-  previous_score: 48/59
+  previous_status: passed
+  previous_score: 59/59
   gaps_closed:
-    - "Roadmap-card body and CTA vertical containment at both acceptance widths and themes."
-    - "The prior browser, navigation/concurrency/error-boundary, and judgment-tier UAT holds."
+    - "G-21-1 is now explicitly closed in 21-UAT.md by the already-implemented Plan 21-08 containment correction and Chromium matrix."
   gaps_remaining: []
   regressions: []
 decision_coverage:
@@ -78,9 +77,9 @@ decision_coverage:
 
 **Phase Goal:** A host reads their own verification standing as a state rather than a sentence, follows a roadmap to the one action that advances them, and fixes and resubmits a rejected listing by choosing to rather than by tripping a field.
 
-**Verified:** 2026-09-10T05:59:01Z
+**Verified:** 2026-09-10T06:09:09Z
 **Status:** passed
-**Re-verification:** Yes — supersedes the prior `human_needed` report after UAT and the Phase 21-08 containment remediation.
+**Re-verification:** Yes — stale-artifact re-verification after the UAT record closed G-21-1. The source comparison from the prior verification commit shows only ROADMAP, STATE, and UAT documentation changes; no Phase 21 implementation or test source changed.
 
 ## Goal Achievement
 
@@ -140,6 +139,7 @@ All declared links are wired: 18/18 across Plans 21-01 through 21-08. Critical e
 
 | Check | Result | Status |
 | --- | --- | --- |
+| Fresh focused regression | `npm.cmd test --` roadmap, history, receipt, and payout test files | 5 files, 66 tests passed in 21.76s; test DB clean | ✓ PASS (rerun) |
 | Focused Phase 21 regression | `npm.cmd test --` nine phase-linked test files | 9 files, 174 tests passed in 23.36s | ✓ PASS (rerun) |
 | Full final regression | Current execution evidence | 234 files passed, 2 skipped; 2,950 tests passed, 5 skipped | ✓ PASS |
 | Payout remediation suite | Current execution evidence | 5/5 passed | ✓ PASS |
@@ -156,6 +156,16 @@ All declared links are wired: 18/18 across Plans 21-01 through 21-08. Critical e
 - The UI re-audit records advisory presentation improvements only; its authenticated screenshot limitation is offset for the phase's required browser invariants by the completed Chromium matrix and UAT evidence. It identifies no functional blocker.
 - The ten judgment-tier must-NOT statements were explicitly resolved by UAT test 5 and corroborated by source/browser checks: no appeal-without-edit, percentage/ETA/queue invention, staff identity, canned replacement reason, or support-contact clause was introduced.
 
+### Stale-Artifact Re-verification
+
+- `git diff --name-status 6d8c074..HEAD` shows only `.planning/ROADMAP.md`, `.planning/STATE.md`, and `21-UAT.md`; Phase 21 source, browser tests, and unit tests are unchanged.
+- All eight plan artifact checks remain substantive and present (24/24), and all declared links remain wired (18/18).
+- The updated UAT now marks all 12 checks passed and G-21-1 closed. Its closure cites the existing Plan 21-08 Chromium containment matrix; it does not substitute a documentation assertion for behavior evidence.
+
+### Advisory (New Scope, Unevidenced)
+
+None. This re-verification examined no new implementation scope.
+
 ### Decision Coverage
 
 All 13 trackable Phase 21 context decisions are honored by shipped artifacts. This is a non-blocking coverage check; it produced no warnings.
@@ -166,5 +176,5 @@ None. The prior vertical-clipping defect is closed by removing only the redundan
 
 ---
 
-_Verified: 2026-09-10T05:59:01Z_
+_Verified: 2026-09-10T06:09:09Z_
 _Verifier: Codex (gsd-verifier)_
