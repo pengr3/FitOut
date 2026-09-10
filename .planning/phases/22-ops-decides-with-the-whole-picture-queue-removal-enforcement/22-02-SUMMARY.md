@@ -12,9 +12,9 @@ provides:
   - Court/Grove responsive acceptance matrix at 320px and 1280px
 affects: [ops-review-queue, ops-enforcement, responsive-ui]
 actuals:
-  tokens: 4430
-  tasks: 2
-  commits: 2
+  tokens: 4490
+  tasks: 3
+  commits: 3
 plan_head_before: b54ccb49357d9bead4c1ff0786c48ee05e65cec8
 tech-stack:
   added: []
@@ -75,6 +75,7 @@ The staff queue now has a fully specified, responsive in-place inspection flow. 
 
 1. `b388424` — `test(22-02): lock queue disclosure boundaries`
 2. `726133e` — `test(22-02): cover responsive ops evidence`
+3. `de6c295` — `fix(22): fail closed e2e database target`
 
 ## Verification
 
@@ -83,6 +84,7 @@ The staff queue now has a fully specified, responsive in-place inspection flow. 
 - node node_modules/@playwright/test/cli.js test e2e/ops-queue.spec.ts --config=playwright.ops-queue-manual.config.ts --project=chromium --reporter=list --workers=1 — 1 passed in 8.1s; the single test runs all four theme/viewport matrix points.
 - node node_modules/eslint/bin/eslint.js on the modified component, design test, and browser test — passed.
 - `git diff --check` — passed.
+- The post-review local-database guard rerun passed the same authenticated Chromium matrix in 8.6s.
 
 ## Deviations from Plan
 
@@ -91,6 +93,10 @@ The staff queue now has a fully specified, responsive in-place inspection flow. 
 1. **[Rule 3 - Blocking] Used a temporary manually managed local server for a clean Windows browser-test exit.**
 
    Playwright’s configured managed server spawned a stale descendant and did not report a clean final result in this Windows shell. The completed matrix was rerun against a confirmed local server with an uncommitted minimal config that disables only `webServer`; both the config and its log were deleted immediately after the passing run. No product or committed Playwright configuration changed.
+
+2. **[Rule 1 - Critical] Closed the reviewer-found non-local database seeding loophole.**
+
+   The reviewer found that the local-only tracer accepted the Docker-style hostname `db`, which can name a non-local database. The guard now accepts only literal loopback hosts and normalizes bracketed IPv6 loopback; the same authenticated matrix passed after the change.
 
 ## Known Stubs
 
