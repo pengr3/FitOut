@@ -1,8 +1,8 @@
 # Phase 21 — UI Review
 
-**Audited:** 2026-09-09
-**Baseline:** `21-UI-SPEC.md` (approved 2026-09-09; locked audit contract)
-**Screenshots:** Not captured — no dev server responded on ports 3000, 5173, or 8080. Code, component-test, design-test, and recorded Playwright evidence were audited instead.
+**Audited:** 2026-09-10
+**Baseline:** Abstract six-pillar standards (no UI-SPEC.md supplied for this re-audit)
+**Screenshots:** Captured at 1440×900, 768×1024, and 375×812. The available server returned the public discovery page; the authenticated host roadmap and resubmit surfaces were not exposed, so their visual review is code- and test-evidence-led.
 
 ---
 
@@ -10,12 +10,12 @@
 
 | Pillar | Score | Key Finding |
 |--------|-------|-------------|
-| 1. Copywriting | 3/4 | Exact Phase 21 product copy is present, but repeated `Review history` triggers have no listing-specific accessible name. |
-| 2. Visuals | 3/4 | Structure, icons, hierarchy, and responsive assertions match the contract; the two explicitly manual visual judgments could not be closed without live screenshots. |
-| 3. Color | 4/4 | Phase-owned states use neutral tokens, success only on glyphs, and no raw colors or unauthorized accent/destructive treatment. |
-| 4. Typography | 2/4 | Roadmap explanations and receipts use 14px label styling instead of the required 16px body role, and Step labels introduce the forbidden 500 weight. |
-| 5. Spacing | 2/4 | The roadmap grid is correct, but review records use 12px padding and 4px event gaps instead of the contract's consistent 16px records and 8px fact gaps. |
-| 6. Experience Design | 3/4 | State, focus, empty/error/loading, and dialog behavior are well covered, but payout pending does not replace its label with an in-flight label as required. |
+| 1. Copywriting | 3/4 | Core task copy is specific, but two generic recovery/progress messages remain. |
+| 2. Visuals | 3/4 | Roadmap hierarchy is sound in code, but the actual host composition was not capturable. |
+| 3. Color | 3/4 | Token-only color use is clean, though muted state treatments reduce visual differentiation. |
+| 4. Typography | 2/4 | The phase surface uses five text-size roles and three weights, exceeding the compact standard. |
+| 5. Spacing | 3/4 | Responsive roadmap spacing is coherent; dialogs retain several arbitrary layout values. |
+| 6. Experience Design | 3/4 | Important flows are guarded, but payout progress/error feedback is not announced or action-specific. |
 
 **Overall: 17/24**
 
@@ -23,9 +23,9 @@
 
 ## Top 3 Priority Fixes
 
-1. **Restore the Phase 21 typography roles** — Small 14px explanatory prose weakens scanability and violates the locked four-role system. Change roadmap lede/body, ready body, wizard notice/receipt body, and material explanatory prose to the shared 16px Body role; remove `font-medium` from the 14px Step label or use the declared 400-weight Label role.
-2. **Bring history spacing back to the declared scale** — Dense 12px cycle cards and 4px lifecycle gaps make five-cycle history harder to parse. Change each record from `p-3` to `p-4` and its lifecycle from `space-y-1` to `space-y-2`.
-3. **Expose a truthful payout in-flight label** — The action disables but continues to read `Set up payouts`/`Finish payout setup`/`Review payout setup`, giving no textual progress cue. Render the existing in-flight label while `pending` and keep only that initiating control disabled.
+1. **Give payout onboarding an explicit pending and announced status** — a disabled button that keeps its original label can look stalled, especially to assistive-technology users — change the label while `pending` and place status/error feedback in an appropriate live region.
+2. **Consolidate the typography scale** — five sizes and three weights make the host/listing phase feel less disciplined — keep explanatory copy to a small, deliberate body/label set and reserve heavier weights for headings/actions.
+3. **Differentiate Waiting, Paused, and Next more deliberately** — identical muted panels make roadmap scanning depend on reading every badge — retain text and icons, but add restrained semantic token treatments that distinguish non-actionable state types.
 
 ---
 
@@ -33,79 +33,54 @@
 
 ### Pillar 1: Copywriting (3/4)
 
-- **WARNING:** Exact roadmap, resubmit, history, notice, and receipt phrases match the contract. Evidence includes `Get ready to take bookings`, `Ready to take bookings`, and the exact roadmap lede in `src/lib/host/verification-roadmap.ts`; exact dialog actions and descriptions in `src/components/listing/listing-card.tsx:223-336`; and exact receipt/notice language in `src/app/(host)/host/listings/[id]/edit/wizard.tsx:360-365,1087-1098`.
-- **WARNING:** Every listing card exposes the same accessible trigger name, `Review history` (`src/components/listing/listing-card.tsx:221-224`). In a multi-card grid this is context-poor for screen-reader link/button lists. Keep the visible contract label, but add a listing-specific accessible description or name without changing visible copy.
-- No prohibited Phase 21 appeal, dispute, contest, support, ETA, queue-position, or submit-without-edit copy was found in the implemented surfaces. The wizard's pre-existing step progress UI is outside the roadmap anti-feature boundary.
+- **WARNING:** The roadmap’s labels are concrete and task-oriented: visible step number, state text, description, and one advancing action are rendered in `src/components/host/verification-roadmap.tsx:99-140`. The resubmit dialog also explains the prerequisite before the CTA in `src/components/listing/listing-card.tsx:305-337`.
+- **WARNING:** Generic recovery language remains in `src/components/listing/listing-card.tsx:495` (`Something went wrong. Try again.`). Preserve the server detail when available, but give the fallback an action/context-specific sentence.
+- **WARNING:** The payout control’s label remains unchanged while it is disabled (`src/components/host/verification-roadmap.tsx:126-133`); this is ambiguous progress copy. Render an in-flight label such as `Opening payout setup…`.
 
 ### Pillar 2: Visuals (3/4)
 
-- **WARNING — human judgment required:** `21-VALIDATION.md` explicitly leaves calm pending-state hierarchy/state distinction and pre-navigation warning comprehension to manual inspection. With no live server, this audit cannot prove those perceptual judgments from screenshots.
-- Code supports the intended hierarchy: one headed `<section>`, one ordered four-card grid, `h2` section heading, `PanelCard titleAs="h3"`, visible Step/state text, and decorative icons (`src/components/host/verification-roadmap.tsx:57-107`).
-- Recorded Playwright evidence checks exactly four cards, one action, 44px action height, one-column/2-column reflow, equal desktop rows, keyboard focus, and internal/viewport overflow in `e2e/host-dashboard.spec.ts:969-1026`. Listing dialogs are likewise covered at both widths/themes in `e2e/host-listing-grid.spec.ts:425-572`.
-- No icon-only Phase 21 action was introduced; state meaning is text plus icon shape rather than color alone.
+- **WARNING:** The implemented structure establishes a clear hierarchy: a section heading/lede followed by a single ordered, responsive four-card grid (`src/components/host/verification-roadmap.tsx:78-92`), with `h3` card titles and visible state labels (`:99-113`).
+- **WARNING:** Actual host screenshots could not be obtained from the available unauthenticated server. Public-page captures cannot validate the roadmap’s card balance, attention hierarchy, or the resubmit dialog at the required breakpoints. Capture authenticated court and grove states before sign-off.
+- **WARNING:** The listing card’s icon-only destructive trigger has an accessible name (`src/components/listing/listing-card.tsx:687-690`), while phase actions otherwise retain visible labels. This is good containment, but its 28px control requires direct host-grid visual checking for density and accidental-tap risk.
 
-### Pillar 3: Color (4/4)
+### Pillar 3: Color (3/4)
 
-- No BLOCKER or WARNING was found in Phase 21 color use. The ready and Done states apply `text-success` only to `CheckCircle2`/state glyphs (`src/components/host/verification-roadmap.tsx:60,101`), while surfaces stay tokenized `bg-muted`, `border`, and `text-muted-foreground`.
-- `Fix and resubmit`, `Review history`, `Continue to edit`, notice, and receipt remain neutral. Destructive color found in the broader audited files belongs only to the pre-existing photo-delete and listing-delete controls, consistent with the contract.
-- No hardcoded hex or `rgb(...)` call-site color was found in the Phase 21 components. `components.json` declares no third-party registries, so the registry safety audit has zero applicable blocks.
+- **WARNING:** No hardcoded hex/rgb values were found in audited Phase 21 UI files; the surface uses semantic utility tokens. There are six `text-primary`/`bg-primary`/`border-primary` matches, all in wizard selection styling, and none in the roadmap/listing-card content scan.
+- **WARNING:** `Done`, `Waiting`, `Paused`, and `Next` all receive the same muted panel treatment (`src/components/host/verification-roadmap.tsx:89-92`). Text and icons prevent color-only communication, but this palette gives little at-a-glance distinction between waiting and paused states.
+- **WARNING:** Success green is constrained to completion icons (`src/components/host/verification-roadmap.tsx:64,105`), which is appropriate; host screenshots are still needed to verify the intended neutral-dominant / accent-sparing distribution in the real theme.
 
 ### Pillar 4: Typography (2/4)
 
-- **WARNING:** The contract assigns roadmap explanations to Body (16px/400), but the ready body, roadmap lede, and every step body use `text-sm` (14px): `src/components/host/verification-roadmap.tsx:65,79,107`.
-- **WARNING:** The wizard receipt and rejected notice repeat the same mismatch with `text-sm` for explanatory body copy (`src/app/(host)/host/listings/[id]/edit/wizard.tsx:363-365,1090-1098`). The resubmit dialog's reason, heading, and seven labels also use 14px (`src/components/listing/listing-card.tsx:316-324`).
-- **WARNING:** The design contract permits only weights 400 and 600, yet the Step label uses `font-medium` (500) at `src/components/host/verification-roadmap.tsx:96`. The material-list heading also uses 500 at `src/components/listing/listing-card.tsx:320`.
-- Heading hierarchy itself is correct and uses the shared semantic heading role; timestamps are server-formatted and remain selectable ordinary text.
+- **WARNING:** Audited phase UI uses five Tailwind text sizes (`xs`, `sm`, `base`, `lg`, `xl`) and three weights (`normal`, `medium`, `semibold`). Abstract standards flag more than four sizes or more than two weights as an inconsistent hierarchy.
+- **WARNING:** The roadmap combines `text-xs font-medium` step metadata with `text-sm` body copy (`src/components/host/verification-roadmap.tsx:100-112`), while surrounding host/listing UI introduces `text-lg`, `text-xl`, `text-base`, and `font-semibold`. Reduce the number of active roles and make metadata/body distinctions systematic.
 
-### Pillar 5: Spacing (2/4)
+### Pillar 5: Spacing (3/4)
 
-- **WARNING:** Each review-cycle record is required to use 16px padding, but it renders `p-3` (12px) at `src/components/listing/listing-card.tsx:245`.
-- **WARNING:** History fact gaps are required to use the 8px Small token, but nested lifecycle events use `space-y-1` (4px) at `src/components/listing/listing-card.tsx:246`.
-- **WARNING:** The ready receipt's icon/content separation uses `gap-3` (12px) at `src/components/host/verification-roadmap.tsx:59`, a value outside the Phase 21 declared spacing roles for this relationship.
-- The most important responsive geometry is correct: roadmap uses `gap-4 sm:gap-6` (`src/components/host/verification-roadmap.tsx:82`), action regions use `mt-auto`, listing footer retains `flex-wrap`, and dialogs keep 16px viewport insets with dynamic height caps (`src/components/listing/listing-card.tsx:227,299`).
+- **WARNING:** Roadmap layout follows a coherent responsive rhythm: one column with `gap-4`, two columns from `sm` with `gap-6`, inner `gap-4`, and an action offset (`src/components/host/verification-roadmap.tsx:86-115`). The Phase 21 remediation correctly removed the inner full-height claim, retaining intrinsic containment.
+- **WARNING:** The history and resubmit dialogs use arbitrary viewport calculations and custom grid tracks (`src/components/listing/listing-card.tsx:227,299`). They are practical overflow safeguards, but they bypass the normal spacing scale and need visual validation at short viewport heights.
+- **WARNING:** Review-history records mix `p-3`, `space-y-1`, `mt-3`, and `mt-4` (`src/components/listing/listing-card.tsx:243-265`), which is denser and less rhythmically consistent than the roadmap’s 16/24px grid system.
 
 ### Pillar 6: Experience Design (3/4)
 
-- **WARNING:** Payout onboarding disables its initiating control, but the button label remains `step.action.label` while pending (`src/components/host/verification-roadmap.tsx:122-129`). This misses the locked requirement to replace the label with the existing in-flight label.
-- Loading remains singular: `/host/loading.tsx` renders one announced `RowListSkeleton`, and `/host/listings/loading.tsx` renders one `CardGridSkeleton`. Dialogs receive resolved data and do not fetch or introduce loading flashes.
-- Empty, partial, and error coverage is strong: zero history renders no trigger; a sixth cycle only authorizes the latest-five sentinel; optional reasons are omitted; malformed lifecycle pairs throw to the route boundary; the host error boundary exposes the bounded copy and opaque digest.
-- Dialog interaction follows the contract. History focuses visible Close on open (`src/components/listing/listing-card.tsx:226-232`); resubmit focuses `Keep reviewing changes` (`src/components/listing/listing-card.tsx:298-303`); Radix owns trapping/dismissal/restoration. The receipt has `tabIndex={-1}`, one guarded focus/scroll move, and no added live region (`src/app/(host)/host/listings/[id]/edit/wizard.tsx:351-367,570-579`).
-- Current focused verification passed: 61/61 component tests across roadmap, listing-card, and wizard receipt/state suites. Recorded phase evidence reports 1,464 active design assertions and both Phase 21 Playwright files green, but those historical browser results do not substitute for this audit's absent screenshots.
+- **WARNING:** Payout initiation is guarded with `useTransition`, a disabled initiating button, and caught errors (`src/components/host/verification-roadmap.tsx:40-56,126-138`), but the displayed error is a plain paragraph without `role=status`, `role=alert`, or `aria-live`; users relying on announcements may miss it.
+- **WARNING:** Destructive operations require confirmation and show a working state (`src/components/listing/listing-card.tsx:161-205`); rejected listings instead present a non-mutating explain-first dialog with a safe initial focus target (`:279-339`). This is a strong interaction pattern.
+- **WARNING:** Long reasons and histories wrap and scroll safely (`src/components/listing/listing-card.tsx:242-266,314-327`), and the Phase 21 browser matrix is designed to verify vertical containment. Re-run that matrix in the current environment before release because this audit’s screenshots could not reach authenticated scenarios.
 
 ---
-
-## Registry Safety
-
-Registry audit: `components.json` is present, but `21-UI-SPEC.md` declares zero third-party blocks and `components.json` contains `"registries": {}`. No registry source audit was applicable.
 
 ## Files Audited
 
 - `AGENTS.md`
-- `.planning/phases/21-the-host-can-see-where-they-stand-verification-roadmap-the-deliberate-resubmit/21-CONTEXT.md`
-- `.planning/phases/21-the-host-can-see-where-they-stand-verification-roadmap-the-deliberate-resubmit/21-UI-SPEC.md`
-- `.planning/phases/21-the-host-can-see-where-they-stand-verification-roadmap-the-deliberate-resubmit/21-VALIDATION.md`
-- All `21-01` through `21-05` `PLAN.md` and `SUMMARY.md` files
-- `src/lib/host/verification-roadmap.ts`
+- All `21-01` through `21-08` `PLAN.md` and `SUMMARY.md`, plus `21-CONTEXT.md`
 - `src/components/host/verification-roadmap.tsx`
-- `src/app/(host)/host/page.tsx`
-- `src/components/host/host-signals.tsx`
-- `src/lib/listing/review-history.ts`
-- `src/lib/listing/re-review-copy.ts`
-- `src/app/(host)/host/listings/page.tsx`
 - `src/components/listing/listing-card.tsx`
-- `src/app/(host)/host/listings/[id]/edit/page.tsx`
+- `src/app/(host)/host/page.tsx`
+- `src/app/(host)/host/listings/page.tsx`
 - `src/app/(host)/host/listings/[id]/edit/wizard.tsx`
 - `src/components/listing/photo-uploader.tsx`
-- `src/app/actions/listing.ts`
-- `src/app/actions/listing-photo.ts`
 - `src/components/patterns/panel-card.tsx`
-- `src/app/(host)/host/loading.tsx`
-- `src/app/(host)/host/error.tsx`
-- `src/app/(host)/host/listings/loading.tsx`
-- `src/app/globals.css`
+- `src/components/ui/card.tsx`
+- `e2e/host-dashboard.spec.ts` (phase evidence referenced by plans)
 - `components.json`
-- `tests/host/verification-roadmap.test.tsx`
-- `tests/listing/listing-card.test.tsx`
-- `tests/listing/wizard-save-state.test.tsx`
-- `e2e/host-dashboard.spec.ts`
-- `e2e/host-listing-grid.spec.ts`
+
+Registry audit: `components.json` is initialized but declares an empty `registries` object; no third-party registry blocks were in scope.
