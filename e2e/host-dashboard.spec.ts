@@ -1,4 +1,11 @@
-import { expect, test, type BrowserContext, type Frame, type Page } from "@playwright/test";
+import {
+  expect,
+  test,
+  type BrowserContext,
+  type Frame,
+  type Locator,
+  type Page,
+} from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 
@@ -950,6 +957,57 @@ async function assertNoHorizontalOverflow(page: Page, where: string): Promise<vo
   ).toEqual([]);
 }
 
+async function assertPanelCardVerticalContainment(
+  scope: Locator,
+  where: string,
+): Promise<void> {
+  const violations = await scope.locator('[data-testid="panel-card"]').evaluateAll((cards) =>
+    cards.flatMap((card, panelIndex) => {
+      const panel = card as HTMLElement;
+      const panelBounds = panel.getBoundingClientRect();
+      const descendants = Array.from(
+        panel.querySelectorAll<HTMLElement>("p, a[href], button"),
+      );
+      const descendantViolations = descendants.flatMap((descendant, descendantIndex) => {
+        const bounds = descendant.getBoundingClientRect();
+        if (bounds.top >= panelBounds.top - 1 && bounds.bottom <= panelBounds.bottom + 1) {
+          return [];
+        }
+        return [
+          {
+            panelIndex,
+            descendantIndex,
+            kind: descendant.matches("a[href], button") ? "action" : "body",
+            panel: { top: panelBounds.top, bottom: panelBounds.bottom },
+            descendant: { top: bounds.top, bottom: bounds.bottom },
+          },
+        ];
+      });
+
+      if (panel.scrollHeight <= panel.clientHeight + 1) return descendantViolations;
+      return [
+        ...descendantViolations,
+        {
+          panelIndex,
+          descendantIndex: -1,
+          kind: "card-scroll",
+          panel: { top: panelBounds.top, bottom: panelBounds.bottom },
+          descendant: {
+            top: panel.clientHeight,
+            bottom: panel.scrollHeight,
+          },
+        },
+      ];
+    }),
+  );
+
+  expect(
+    violations,
+    `${where}: PanelCard vertical containment failed. Each entry identifies the panel index, ` +
+      "descendant kind, card bounds, and descendant or scroll bounds.",
+  ).toEqual([]);
+}
+
 async function assertRoadmapSnapshot(
   page: Page,
   width: (typeof ROADMAP_WIDTHS)[number],
@@ -1011,6 +1069,8 @@ async function assertRoadmapSnapshot(
     expect(Math.abs(heights[0] - heights[1]), `${where}: the first desktop row is uneven.`).toBeLessThanOrEqual(1);
     expect(Math.abs(heights[2] - heights[3]), `${where}: the second desktop row is uneven.`).toBeLessThanOrEqual(1);
   }
+
+  await assertPanelCardVerticalContainment(roadmap, where);
 
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   let reachedAction = false;

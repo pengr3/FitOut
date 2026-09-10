@@ -1,0 +1,9 @@
+{
+  "command": "npx.cmd playwright test e2e/host-dashboard.spec.ts --project=chromium --grep \"court · the roadmap and receipt state matrix\" --reporter=list",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - court · the roadmap and receipt state matrix reflows at 320px/1280px without overflow\nError: zero-listing · 320px: PanelCard vertical containment failed. Panel 2 action bottom was 1200px while its card bottom was 1174px. All four cards also reported scrollHeight above clientHeight (236/210, 176/150, 244/218, 176/150).\n# tests 1\n# pass 0\n# fail 1",
+  "targetTest": "court · the roadmap and receipt state matrix reflows at 320px/1280px without overflow",
+  "targetFile": "e2e/host-dashboard.spec.ts",
+  "expected": "Every roadmap body and action remains within its owning PanelCard within 1px, and each card scrollHeight is no more than 1px above clientHeight.",
+  "actual": "The shipped inner h-full produced vertical overrun before any production edit: the Create listing action extended 26px beyond its card and every zero-listing card had a 26px internal scroll-height overrun."
+}
