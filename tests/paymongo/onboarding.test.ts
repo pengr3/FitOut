@@ -164,4 +164,21 @@ describe("startPayoutOnboarding — create-once + rate-limit/audit (PAY-04, D-12
     const [caller] = await testDb.db.select({ canHost: user.canHost }).from(user).where(eq(user.id, userId));
     expect(caller?.canHost).toBe(false);
   });
+
+  it("rate-limits a booker after five denied direct action calls (CR-01)", async () => {
+    await signInBooker("pmonboard.booker-ratelimit@example.com");
+    mockPayMongo.reset();
+    auditCalls.length = 0;
+
+    const results: Array<{ ok: boolean; error?: string }> = [];
+    for (let i = 0; i < 6; i++) results.push(await startPayoutOnboarding());
+
+    expect(results.slice(0, 5)).toEqual(
+      Array.from({ length: 5 }, () => ({ ok: false, error: "Start hosting before setting up payouts." })),
+    );
+    expect(results[5]).toEqual({ ok: false, error: "Too many attempts. Please try again in a moment." });
+    expect(mockPayMongo.createLinkedAccount).not.toHaveBeenCalled();
+    expect(mockPayMongo.createOnboardingLink).not.toHaveBeenCalled();
+    expect(auditCalls.filter((call) => call.outcome === "denied")).toHaveLength(6);
+  });
 });
