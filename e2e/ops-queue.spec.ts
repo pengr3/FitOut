@@ -19,9 +19,9 @@ const LONG_DESCRIPTION =
   "layouts without asking an operator to navigate away from the decision they need to make. ".repeat(5);
 
 function assertLocalDatabase(): void {
-  const hostname = new URL(DATABASE_URL).hostname.toLowerCase();
+  const hostname = new URL(DATABASE_URL).hostname.toLowerCase().replace(/^\[|\]$/g, "");
   expect(
-    ["localhost", "127.0.0.1", "::1", "db"],
+    ["localhost", "127.0.0.1", "::1"],
     "the ops queue tracer must never seed a non-local database",
   ).toContain(hostname);
 }
