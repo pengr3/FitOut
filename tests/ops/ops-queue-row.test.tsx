@@ -494,7 +494,7 @@ describe("OPS-13 / OPS-15 — listing evidence stays in its terminal row", () =>
     );
     expect(valueFor(evidence, "Description").textContent).toBe("Not set");
     expect(valueFor(evidence, "Amenities").textContent).toBe("Not set");
-    expect(evidence.querySelector("ul")).toBeNull();
+    expect(valueFor(evidence, "Amenities").querySelector("ul")).toBeNull();
     expect(Array.from(evidence.querySelectorAll("dt")).map((term) => term.textContent)).toEqual([
       "Description",
       "Amenities",
@@ -502,6 +502,7 @@ describe("OPS-13 / OPS-15 — listing evidence stays in its terminal row", () =>
       "Space type",
       "Capacity",
       "Price",
+      "Operating hours",
       "Host",
       "Submitted",
       "Contact",

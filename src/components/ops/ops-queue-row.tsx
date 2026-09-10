@@ -89,6 +89,7 @@ import { RowCard } from "@/components/patterns/row-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { HostVerificationStatus } from "@/lib/db/schema";
+import { deriveWeekStrip } from "@/lib/availability/week-strip";
 import type { OpsCancelImpact } from "@/lib/ops/cancel-impact";
 import type { OpsQueueHostItem, OpsQueueListingItem } from "@/lib/ops/review-queue";
 import {
@@ -300,6 +301,13 @@ export function OpsQueueRow({ row }: { row: OpsQueueRowItem }) {
                 </Fact>
                 <Fact term="Price" valueClass={ROW_MONEY_CLASS}>
                   {row.priceLabel}
+                </Fact>
+                <Fact term="Operating hours">
+                  <ul className="space-y-1">
+                    {deriveWeekStrip(row.operatingHours).map((day) => (
+                      <li key={day.dayOfWeek}>{day.sentence}</li>
+                    ))}
+                  </ul>
                 </Fact>
                 <Fact term="Host">
                   {(row.hostName ?? MISSING_TITLE.host) +

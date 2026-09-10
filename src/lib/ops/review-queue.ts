@@ -97,6 +97,13 @@ export type OpsQueuePhoto = {
   position: number;
 };
 
+/** One host-set recurring weekly window, carried as serializable evidence for a staff listing review. */
+export type OpsQueueOperatingHoursItem = {
+  dayOfWeek: number;
+  openTime: string;
+  closeTime: string;
+};
+
 /**
  * A host awaiting verification.
  *
@@ -150,6 +157,7 @@ export type OpsQueueListingItem = {
   hostVerificationStatus: HostVerificationStatus;
   photos: OpsQueuePhoto[];
   amenities: string[];
+  operatingHours: OpsQueueOperatingHoursItem[];
   /** THE WAIT CLOCK. Latest `listing_review.submitted_at`, else `listing.created_at` (D-249). */
   submittedAt: Date;
 };
@@ -192,9 +200,13 @@ type HostRow = {
   submittedAt: Date | string;
 };
 
-type ListingRow = Omit<OpsQueueListingItem, "kind" | "photos" | "amenities" | "submittedAt"> & {
+type ListingRow = Omit<
+  OpsQueueListingItem,
+  "kind" | "photos" | "amenities" | "operatingHours" | "submittedAt"
+> & {
   photos: OpsQueuePhoto[] | null;
   amenities: string[] | null;
+  operatingHours: OpsQueueOperatingHoursItem[] | null;
   submittedAt: Date | string;
 };
 
@@ -284,7 +296,8 @@ export async function loadReviewQueue(dbConn: DbConn = db): Promise<OpsQueueItem
       -- D-249 — the wait clock. See the header.
       COALESCE(lr.submitted_at, l.created_at)     AS "submittedAt",
       ph.photos                                   AS "photos",
-      am.amenities                                AS "amenities"
+      am.amenities                                AS "amenities",
+      oh.operating_hours                          AS "operatingHours"
     FROM listing l
     JOIN "user" u ON u.id = l.host_id
     LEFT JOIN host_verification hv ON hv.user_id = l.host_id
@@ -308,6 +321,18 @@ export async function loadReviewQueue(dbConn: DbConn = db): Promise<OpsQueueItem
       FROM listing_amenity a
       WHERE a.listing_id = l.id
     ) am ON true
+    LEFT JOIN LATERAL (
+      SELECT json_agg(
+               json_build_object(
+                 'dayOfWeek', h.day_of_week,
+                 'openTime', h.open_time,
+                 'closeTime', h.close_time
+               )
+               ORDER BY h.day_of_week ASC, h.open_time ASC, h.close_time ASC
+             ) AS operating_hours
+      FROM operating_hours h
+      WHERE h.listing_id = l.id
+    ) oh ON true
     WHERE ${LISTING_QUEUE_PREDICATE}
     ORDER BY COALESCE(lr.submitted_at, l.created_at) ASC
   `)) as unknown as ListingRow[];
@@ -322,7 +347,7 @@ export async function loadReviewQueue(dbConn: DbConn = db): Promise<OpsQueueItem
       }),
     ),
     ...listingRows.map(
-      ({ photos, amenities, ...rest }): OpsQueueListingItem => ({
+      ({ photos, amenities, operatingHours, ...rest }): OpsQueueListingItem => ({
         ...rest,
         kind: "listing",
         submittedAt: toDate(rest.submittedAt),
@@ -331,6 +356,7 @@ export async function loadReviewQueue(dbConn: DbConn = db): Promise<OpsQueueItem
         // than a null the row component would have to guard.
         photos: photos ?? [],
         amenities: amenities ?? [],
+        operatingHours: operatingHours ?? [],
       }),
     ),
   ];
