@@ -1,9 +1,9 @@
 ---
-status: complete
+status: diagnosed
 phase: 21-the-host-can-see-where-they-stand-verification-roadmap-the-deliberate-resubmit
 source: [21-01-SUMMARY.md, 21-02-SUMMARY.md, 21-03-SUMMARY.md, 21-04-SUMMARY.md, 21-05-SUMMARY.md, 21-06-SUMMARY.md, 21-07-SUMMARY.md, 21-VERIFICATION.md]
 started: 2026-09-09T18:05:32Z
-updated: 2026-09-10T02:52:41Z
+updated: 2026-09-10T03:15:00Z
 ---
 
 ## Current Test
@@ -105,5 +105,17 @@ blocked: 0
   reason: "User reported: Card 1 spilled on its card and cta is cropped do not let this happen"
   severity: major
   test: 1
-  artifacts: []
-  missing: []
+  root_cause: "The roadmap content stack in verification-roadmap.tsx uses h-full beneath a PanelCard title rendered as a separate sibling, so title, spacing, and a full-height stack exceed the equal-height card; the shared Card overflow-hidden rule then crops the CTA."
+  artifacts:
+    - path: "src/components/host/verification-roadmap.tsx"
+      issue: "The inner content stack has a redundant h-full that makes it consume the full card height below the separately rendered title."
+    - path: "src/components/patterns/panel-card.tsx"
+      issue: "PanelCard renders its title and roadmap content as separate siblings, exposing the harmful height assumption."
+    - path: "src/components/ui/card.tsx"
+      issue: "The shared overflow-hidden rule clips content that exceeds the card boundary."
+    - path: "e2e/host-dashboard.spec.ts"
+      issue: "Existing responsive checks omit vertical containment of body copy and CTA within each roadmap card."
+  missing:
+    - "Remove the redundant inner h-full while preserving grid/card stretch, min-w-0, and long-token wrapping."
+    - "Assert in Chromium that body and CTA bounds remain inside every roadmap card at 320px and 1280px in court and grove themes."
+  debug_session: .planning/debug/phase-21-roadmap-card-overflow.md
