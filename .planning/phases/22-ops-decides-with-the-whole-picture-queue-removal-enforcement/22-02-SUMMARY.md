@@ -36,7 +36,7 @@ coverage:
     description: Listing evidence is a single conditional region with native disclosure state, semantic order, partial-data fallbacks, and one decision widget outside the region.
     requirement: OPS-13
     verification:
-      - kind: test
+      - kind: unit
         ref: tests/ops/ops-queue-row.test.tsx
         status: pass
     human_judgment: false
@@ -44,7 +44,7 @@ coverage:
     description: Staff authority, protected action composition, terminal row behavior, and the positive queue-zero copy remain unchanged.
     requirement: OPS-14
     verification:
-      - kind: test
+      - kind: other
         ref: tests/design/ops-host-invariants.test.ts
         status: pass
     human_judgment: false

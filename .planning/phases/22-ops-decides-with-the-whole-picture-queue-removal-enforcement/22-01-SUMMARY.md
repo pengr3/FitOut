@@ -41,7 +41,7 @@ coverage:
     description: Pending listing rows receive description and deterministic amenity evidence while batch impacts retain every established single-listing value.
     requirement: OPS-13
     verification:
-      - kind: test
+      - kind: integration
         ref: tests/ops/queue-query.test.ts
         status: pass
     human_judgment: false
@@ -49,7 +49,7 @@ coverage:
     description: A listing can reveal its existing gallery, facts, and contact in one terminal row without adding another decision widget.
     requirement: OPS-13
     verification:
-      - kind: test
+      - kind: unit
         ref: tests/ops/ops-queue-row.test.tsx
         status: pass
       - kind: e2e
@@ -60,7 +60,7 @@ coverage:
     description: Staff-only page composition performs queue impact reads before a pure final row map.
     requirement: OPS-14
     verification:
-      - kind: source
+      - kind: other
         ref: src/app/(ops)/ops/page.tsx
         status: pass
     human_judgment: false
