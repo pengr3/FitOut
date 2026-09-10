@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 35
+open_count: 36
 waived_count: 0
 fixed_count: 8
-total_count: 43
-last_updated: 2026-09-09T12:37:09.186Z
+total_count: 44
+last_updated: 2026-09-10T04:16:06.297Z
 ---
 
 # Broken Windows Ledger
@@ -58,6 +58,7 @@ last_updated: 2026-09-09T12:37:09.186Z
 | 42 | 21 | deviation | e2e/host-listing-grid.spec.ts | 514 | Production browser copy assertions required main-landmark scoping to avoid responsive-shell ambiguity. | open |  | 2026-09-09T12:37:07.501Z |  |
 | 43 | 21 | deviation | e2e/host-listing-grid.spec.ts |  | Windows Playwright verification used a temporary manually managed server configuration. | open |  | 2026-09-09T12:37:08.248Z |  |
 | 44 | 21 | deviation | .next/dev |  | Stale generated development route types were removed before the production build. | open |  | 2026-09-09T12:37:09.186Z |  |
+| 45 | 21 | deviation | e2e/host-dashboard.spec.ts |  | Managed Windows Playwright server teardown required the final matrix to use a manually managed local server for a clean exit. | open |  | 2026-09-10T04:16:06.297Z |  |
 
 ````json
 [
@@ -575,6 +576,18 @@ last_updated: 2026-09-09T12:37:09.186Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-09T12:37:09.186Z",
+    "resolved_at": null
+  },
+  {
+    "id": 45,
+    "kind": "deviation",
+    "phase": "21",
+    "file": "e2e/host-dashboard.spec.ts",
+    "line": null,
+    "description": "Managed Windows Playwright server teardown required the final matrix to use a manually managed local server for a clean exit.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-10T04:16:06.297Z",
     "resolved_at": null
   }
 ]
