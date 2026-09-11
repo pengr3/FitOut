@@ -39,6 +39,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
+import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import { booking, listing, user } from "@/lib/db/schema";
 import { APPROVAL_PAYMENT_WINDOW_HOURS, MIN_APPROVE_WINDOW_HOURS } from "@/lib/payments/config";
@@ -263,7 +264,6 @@ export async function approveRequest(requestId: string): Promise<RequestActionRe
   const whenLabel = composeWhenLabel(whenLabelInput(row));
   const totalLabel = formatMoney(row.quotedTotalCents ?? 0, row.currency ?? DISPLAY_CURRENCY);
   const title = row.title ?? "your space";
-  const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
   // The REAL deadline, read back off the row the UPDATE just wrote — not `now() + APPROVAL_PAYMENT_WINDOW`.
   // D-94's LEAST(...) cap means those two differ on every short-notice approve, and telling a booker they
   // have 12 hours when the window actually closes when the session starts is the exact failure D-99 names.
@@ -286,7 +286,7 @@ export async function approveRequest(requestId: string): Promise<RequestActionRe
       whenLabel,
       totalLabel,
       payByLabel,
-      href: `${base}/listings/${row.listingId}/book?hold=${requestId}`,
+      href: absolutePublicUrl(`/listings/${row.listingId}/book?hold=${requestId}`),
     },
   });
 
@@ -329,7 +329,6 @@ export async function declineRequest(requestId: string): Promise<RequestActionRe
   // the variant as a boolean rather than a label. Freeing the slot is automatic (declined is non-occupying —
   // 06-01 EXCLUDE + 06-02 lazy reads); nothing is refunded/voided (D-63).
   const whenLabel = composeWhenLabel(whenLabelInput(row));
-  const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
   await emitNotify({
     type: "request_declined",
     recipientId: row.bookerId,
@@ -340,7 +339,7 @@ export async function declineRequest(requestId: string): Promise<RequestActionRe
       listingTitle: row.title ?? "your space",
       whenLabel,
       expired: false,
-      href: `${base}/bookings/${requestId}`,
+      href: absolutePublicUrl(`/bookings/${requestId}`),
     },
   });
 

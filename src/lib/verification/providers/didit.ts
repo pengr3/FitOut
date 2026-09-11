@@ -1,5 +1,7 @@
 import "server-only";
 
+import { absolutePublicUrl } from "@/lib/app-origins";
+
 // The DIDIT verification provider (D-258) — a REGISTRATION behind the shipped port, not a
 // re-architecture.
 //
@@ -295,14 +297,6 @@ export type DiditSessionDecision = {
 };
 
 /**
- * The app's own origin, read at CALL time rather than at module load so a test never depends on the
- * ambient environment. `BETTER_AUTH_URL` is the app-URL convention every other emitter uses
- * (`src/lib/notifications.ts:181`); do NOT introduce a second env var for the same idea.
- */
-function appOrigin(): string {
-  return process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-}
-
 /**
  * START a check: create a Didit hosted session for one FitOut user.
  *
@@ -338,7 +332,7 @@ export async function beginDiditVerification(userId: string): Promise<DiditSessi
   const body = {
     workflow_id: workflowId,
     vendor_data: userId,
-    callback: `${appOrigin()}${CALLBACK_PATH}`,
+    callback: absolutePublicUrl(CALLBACK_PATH),
   };
 
   let res: Response;

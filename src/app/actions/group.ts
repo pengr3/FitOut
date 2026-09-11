@@ -55,6 +55,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 import { auth } from "@/lib/auth";
+import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import { recordAudit } from "@/lib/audit";
 import { rateLimit } from "@/lib/rate-limit";
@@ -192,17 +193,9 @@ const GUEST_EMAIL_RATE_LIMIT = { window: 3600, max: 3 } as const;
 // ── Shared helpers ──────────────────────────────────────────────────────────────────────────────────────
 
 /**
- * The app's base URL, from the SAME `BETTER_AUTH_URL` convention every other emit site uses. EVERY group
- * notification href is ABSOLUTE (the 07-10 rule): one payload string feeds both the in-app row and the
- * email CTA, and a root-relative href is a dead link in a mail client.
- */
-function appBaseUrl(): string {
-  return process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-}
-
 /** The shareable invite URL. The token is a real credential — render it, NEVER log it (08-UI-SPEC §2). */
 function inviteUrl(accessToken: string): string {
-  return `${appBaseUrl()}/invite/${accessToken}`;
+  return absolutePublicUrl(`/invite/${accessToken}`);
 }
 
 /** Resolve the signed-in user, or null. The organizer actions require it; `submitRsvp` merely reads it. */
@@ -499,8 +492,6 @@ export async function submitRsvp(
   try {
     const whenLabel = whenLabelFor(group);
     const listingTitle = group.listingTitle ?? "the space";
-    const base = appBaseUrl();
-
     // The ORGANIZER learns who answered — the point of the whole feature. Skipped when the organizer is
     // RSVPing to their own group: "You are coming to your own booking" is noise, not news.
     if (userId !== group.organizerId) {
@@ -516,7 +507,7 @@ export async function submitRsvp(
           // Guest-typed free text (G6/T-08-08) — escaped by the email layer and auto-escaped as React text.
           attendeeLabel: parsed.data.name,
           answer: parsed.data.answer,
-          href: `${base}/bookings/${group.bookingId}/group`,
+          href: absolutePublicUrl(`/bookings/${group.bookingId}/group`),
         },
       });
     }

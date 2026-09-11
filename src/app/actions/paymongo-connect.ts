@@ -22,6 +22,7 @@
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import { hostPayout, user } from "@/lib/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
@@ -34,11 +35,6 @@ export type OnboardingResult =
 
 // WR-06: same 5/60s per-identity budget as the capability-activate actions (keyed on the user id).
 const ONBOARD_RATE_LIMIT = { window: 60, max: 5 } as const;
-
-/** Base URL for the return/refresh redirect targets (reuses the existing BETTER_AUTH_URL env). */
-function baseUrl(): string {
-  return process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-}
 
 /**
  * Resolve the signed-in user's id AND email, or null when there is no session. Read inline (NOT via
@@ -123,12 +119,11 @@ export async function startPayoutOnboarding(): Promise<OnboardingResult> {
 
   try {
     const accountId = await ensureLinkedAccount(userId, email);
-    const base = baseUrl();
     // ALWAYS mint a FRESH single-use link (never cache the URL — T-06-LINK).
     const link = await createOnboardingLink({
       accountId,
-      returnUrl: `${base}/host/payouts/return`,
-      refreshUrl: `${base}/host/payouts/refresh`,
+      returnUrl: absolutePublicUrl("/host/payouts/return"),
+      refreshUrl: absolutePublicUrl("/host/payouts/refresh"),
     });
     await recordAudit({ actorId: userId, action: "startPayoutOnboarding", outcome: "ok" });
     return { ok: true, url: link.url };
