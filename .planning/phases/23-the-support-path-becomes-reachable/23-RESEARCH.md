@@ -285,14 +285,11 @@ const { error } = await resend.emails.send({
 | A2 | Account access permits editing existing Vercel/Resend/OAuth/PayMongo/Didit/Inngest configuration. | Control plane | Requires account owner checkpoint, with no code workaround. |
 | A3 | `INNGEST_SERVE_ORIGIN` needs setting/correction. | Provider inventory | Audit actual state; do not add blindly. |
 
-## Open Questions
+## Resolved Control-Plane Dispositions
 
-1. **Which provider entries already exist?**
-   - What we know: secure receivers exist for PayMongo, Didit, and Inngest. [VERIFIED: src/app/api/paymongo/webhook/route.ts:1-41] [VERIFIED: src/app/api/didit/webhook/route.ts:1-49] [VERIFIED: src/app/api/inngest/route.ts:1-113]
-   - Recommendation: record endpoint URL, environment, event scope, and redacted test outcome before/after—never secrets.
+1. **Provider dashboard inventory is binding before mutation.** The actual dashboard state remains unverified; the human checkpoint inventories each Google OAuth, PayMongo, Didit, and Inngest entry before any change. For every possible public URL, the redacted evidence records one disposition without guessing: configured and already canonical (no change), configured and corrected to the canonical destination, configured but unexpected (stop and report), or absent (record absent and make no mutation). Secure receivers exist in source for PayMongo, Didit, and Inngest. [VERIFIED: src/app/api/paymongo/webhook/route.ts:1-41] [VERIFIED: src/app/api/didit/webhook/route.ts:1-49] [VERIFIED: src/app/api/inngest/route.ts:1-113]
 
-2. **Can staff invite be safely proven?**
-   - Recommendation: use a disposable staff recipient; otherwise record that narrow proof as pending, never use a real employee/customer or expose the invitation token.
+2. **Staff-invite proof is bindingly disposable-only.** Use a disposable staff recipient for the safe invite check. If one is unavailable, record only that narrow staff-invite proof as pending evidence; do not use employee or customer data, reveal a bearer invitation URL, or block unrelated domain, sender, and callback proof.
 
 ## Environment Availability
 
