@@ -47,6 +47,7 @@
 
 import { eq, sql } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
+import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import type { DbConn } from "@/lib/availability/read-model";
 import { booking, listing, user } from "@/lib/db/schema";
@@ -272,7 +273,6 @@ async function emitDeclinedNotice(dbConn: DbConn, bookingId: string): Promise<bo
     // C6 — the TONE is deliberate. A lapse costs a slot, never money (D-63: nothing was ever charged), so
     // this copy states the fact and stops. It must not manufacture urgency the system does not have.
     const tooClose = row.declineReason === "too_close_to_start";
-    const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
     await emitNotify({
       type: "request_declined",
       recipientId: row.bookerId,
@@ -286,7 +286,7 @@ async function emitDeclinedNotice(dbConn: DbConn, bookingId: string): Promise<bo
         ...(tooClose
           ? { reasonLabel: "The session was too close to start for the host to confirm in time." }
           : {}),
-        href: `${base}/bookings/${bookingId}`,
+        href: absolutePublicUrl(`/bookings/${bookingId}`),
       },
     });
     return true;

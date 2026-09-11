@@ -47,6 +47,7 @@ import { randomUUID } from "node:crypto";
 import { sql, type SQL } from "drizzle-orm";
 
 import { inngest } from "@/inngest/client";
+import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import type { DbConn } from "@/lib/availability/read-model";
 import { isoUtc } from "@/lib/booking/bookings-query";
@@ -336,17 +337,16 @@ export async function claimReminder(
 
 /** Where each reminder's single CTA points. Absolute — one href feeds BOTH channels (D-91). */
 function hrefFor(kind: ReminderKind, r: DueReminder): string {
-  const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
   switch (kind) {
     // Straight to the Phase-5 checkout for the hold that is about to lapse — the whole point of the nudge.
     case "pre_expiry":
-      return `${base}/listings/${r.listingId}/book?hold=${r.bookingId}`;
+      return absolutePublicUrl(`/listings/${r.listingId}/book?hold=${r.bookingId}`);
     case "pre_session_booker":
-      return `${base}/bookings/${r.bookingId}`;
+      return absolutePublicUrl(`/bookings/${r.bookingId}`);
     case "pre_session_host":
-      return `${base}/host/bookings/${r.bookingId}`;
+      return absolutePublicUrl(`/host/bookings/${r.bookingId}`);
     case "pre_sla_host":
-      return `${base}/host/requests`;
+      return absolutePublicUrl("/host/requests");
   }
 }
 

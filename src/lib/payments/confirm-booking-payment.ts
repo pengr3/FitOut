@@ -58,6 +58,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { booking, listing, user } from "@/lib/db/schema";
 import { createRefund } from "@/lib/paymongo";
+import { absolutePublicUrl } from "@/lib/app-origins";
 // The rail-refundability question is answered in exactly ONE place (07-03). Do not re-inline the set here —
 // if a later probe refutes the QRPh premise, that module is the only file that changes.
 import { isApiRefundable } from "@/lib/payments/refund-rail";
@@ -279,7 +280,6 @@ async function emitBookingConfirmed(bookingId: string, dbConn: DbConn): Promise<
       spacePriceCents: row.spacePriceCents ?? row.quotedTotalCents ?? 0,
       serviceFeeCents: row.serviceFeeCents ?? 0,
     });
-    const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
     await emitNotify({
       type: "booking_confirmed",
       recipientId: row.bookerId,
@@ -293,7 +293,7 @@ async function emitBookingConfirmed(bookingId: string, dbConn: DbConn): Promise<
         referenceLabel: bookingReference(bookingId),
         // ABSENT, not empty, when there is nothing to disclose (D-RPT-01 / the CR-01 rule).
         ...(policyLabel === null ? {} : { policyLabel }),
-        href: `${base}/bookings/${bookingId}`,
+        href: absolutePublicUrl(`/bookings/${bookingId}`),
       },
     });
   } catch (err) {

@@ -24,6 +24,7 @@ import { sql } from "drizzle-orm";
 
 import { inngest } from "@/inngest/client";
 import type { DbConn } from "@/lib/availability/read-model";
+import { absolutePublicUrl } from "@/lib/app-origins";
 import { isoUtc } from "@/lib/booking/bookings-query";
 import { notification, type NotificationPayload } from "@/lib/db/schema";
 import { notifyEventSchema, type NotificationTypeValue } from "@/lib/validation/notification";
@@ -174,14 +175,9 @@ export async function emitNotify(event: NotifyEvent): Promise<void> {
  * dead link in the half of the delivery the recipient is most likely to be reading. This regressed
  * once already (found by 07-10) and is asserted against in tests/booking/cancellation.test.ts.
  *
- * `BETTER_AUTH_URL` is the app-URL convention every other emitter uses; do NOT introduce a second env
- * var. It is read HERE rather than at each ops call site so the six kinds below cannot end up with
- * three different notions of where the host surface is.
+ * The shared public-origin helper keeps these two-channel destinations aligned with the exact configured
+ * production or Preview authority.
  */
-function notificationBaseUrl(): string {
-  return process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-}
-
 /** Where a host goes to see their listings — the destination of every listing-review decision. */
 const HOST_LISTINGS_PATH = "/host/listings";
 /** The host's own home — the destination of every decision about their ACCOUNT. */
@@ -197,7 +193,7 @@ export function listingApprovedPayload(listingTitle: string): NotificationPayloa
     heading: `${listingTitle} is live`,
     lead: "Your listing passed FitOut's check and can now be booked.",
     ctaLabel: "View your listings",
-    href: `${notificationBaseUrl()}${HOST_LISTINGS_PATH}`,
+    href: absolutePublicUrl(HOST_LISTINGS_PATH),
   };
 }
 
@@ -222,7 +218,7 @@ export function listingRejectedPayload(
     reasonText,
     tail: "It won't take bookings.",
     ctaLabel: "View your listings",
-    href: `${notificationBaseUrl()}${HOST_LISTINGS_PATH}`,
+    href: absolutePublicUrl(HOST_LISTINGS_PATH),
   };
 }
 
@@ -254,7 +250,7 @@ export function hostApprovedPayload(): NotificationPayload {
     heading: "You're approved to host on FitOut",
     lead: "FitOut has checked your account. Your listings can go live once each one is approved.",
     ctaLabel: "Go to your hosting page",
-    href: `${notificationBaseUrl()}${HOST_HOME_PATH}`,
+    href: absolutePublicUrl(HOST_HOME_PATH),
   };
 }
 
@@ -267,7 +263,7 @@ export function hostRejectedPayload(reasonText: string): NotificationPayload {
     reasonText,
     tail: "Your listings can't take bookings.",
     ctaLabel: "Go to your hosting page",
-    href: `${notificationBaseUrl()}${HOST_HOME_PATH}`,
+    href: absolutePublicUrl(HOST_HOME_PATH),
   };
 }
 
@@ -289,7 +285,7 @@ export function hostSuspendedPayload(reasonText: string): NotificationPayload {
     reasonText,
     tail: "Your spaces can't be booked, and payouts are on hold.",
     ctaLabel: "Go to your hosting page",
-    href: `${notificationBaseUrl()}${HOST_HOME_PATH}`,
+    href: absolutePublicUrl(HOST_HOME_PATH),
   };
 }
 
@@ -329,7 +325,7 @@ export function opsCancelPayload(args: {
           : ` You're getting ${refundLabel} back, to the way you paid.`),
       side,
       ctaLabel: "View your bookings",
-      href: `${notificationBaseUrl()}/bookings`,
+      href: absolutePublicUrl("/bookings"),
     };
   }
   return {
@@ -340,7 +336,7 @@ export function opsCancelPayload(args: {
       "You're not charged a cancellation fee for this.",
     side,
     ctaLabel: "View your bookings",
-    href: `${notificationBaseUrl()}/host/bookings`,
+    href: absolutePublicUrl("/host/bookings"),
   };
 }
 
