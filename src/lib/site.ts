@@ -1,5 +1,5 @@
-// The app's own facts about itself: the one sentence it uses to describe what it is, and the one
-// contact address it does not have yet.
+// The app's own facts about itself: the one sentence it uses to describe what it is, and its monitored
+// launch support address.
 //
 // The idiom is `src/lib/payments/config.ts:1-3`'s, restated because it is the whole point of the
 // file: *the exported NAME is imported everywhere, never a hardcoded literal*. Two spellings of one
@@ -12,13 +12,12 @@
 // reach it.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
-// D-26 — WHY `SUPPORT_EMAIL` IS `null`, WHY IT STAYS `null`, AND WHAT FLIPS WHEN IT DOES NOT
+// D-26 — THE SUPPORT ADDRESS OWNER AND THE FUTURE INBOX SWAP
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
-// FitOut owns no domain and has no support inbox. `metadataBase` falls back to the dev origin
-// (`src/app/layout.tsx:52`, `resolveMetadataBase()`), and the only real address anywhere in `src/` is
-// the transactional sender in `src/lib/email.ts` — a Resend sandbox FROM address, not a channel any
-// person can write to and expect an answer. The user's call on this was *"just placeholder for now."*
+// Phase 23 records the business decision that `pengr.clmc.3@gmail.com` is FitOut's monitored launch
+// inbox. It is a real support channel, not a placeholder, so the existing guarded footer, booking /
+// payment support path, trust surfaces, and shared email shell can become reachable together.
 //
 // A CONTACT ADDRESS IS A CLAIM THE BUSINESS HAS MADE. Publishing one that nobody reads is worse than
 // publishing none: a person with a problem writes to it, gets silence, and concludes the business
@@ -26,10 +25,9 @@
 // outright by `11-UI-SPEC.md` § Anti-Patterns (*"A fabricated contact is a real-world claim shipped
 // to users"*), and D-26 holds that ban open rather than working around it.
 //
-// SO THE FOOTER RENDERS NO SUPPORT ENTRY AT ALL while this is `null`. Not a greyed link, not a
-// `disabled` control, not a tooltip, not "coming soon", not a link to a placeholder address. Nothing
-// about support appears in the DOM. `src/components/patterns/site-footer.tsx` implements that with a
-// single guard and NO else-branch, and says so in its own header.
+// The guarded surfaces still render nothing when the value is null; once this one declaration is a
+// string, they all light up from the same source. `tests/design/site-contacts.test.ts` keeps the guard
+// shape, the no-address-copy rule, and the complete guarded-site inventory structural.
 //
 // THE GATE INVERTS RATHER THAN SOFTENS. `tests/design/site-contacts.test.ts` reads this constant at
 // test time and selects one of two branches, neither of which is empty:
@@ -44,30 +42,16 @@
 //
 // ── THE ONE-LINE EDIT THAT FLIPS EVERYTHING ───────────────────────────────────────────────────────
 //
-// When a real, monitored FitOut inbox exists, change the declaration below from `null` to that
-// address as a string literal — `= "…@…"`, one line, nothing else in this file. Three things then
-// change by themselves, with no second edit anywhere:
+// When a dedicated support account exists, replace this declaration once, deploy, and repeat the live
+// delivery/reply proof before retiring the launch inbox. Do not add another environment variable or
+// template-specific address.
 //
-//   1. the footer's support entry starts rendering, because its guard is `SUPPORT_EMAIL !== null`;
-//   2. `tests/design/site-contacts.test.ts` switches to its demanding branch automatically;
-//   3. that branch fails until the footer actually renders the link, so the two cannot drift apart.
-//
-// Do NOT set this to `""`. The empty string is not `null`, so it takes the non-null branch and then
-// fails it — which is the correct outcome, but the honest spelling of "no address yet" is `null`.
-//
-// ⚠ D-26 AMENDS `11-UI-SPEC.md` AC#8 AND § The unfilled slot. The approved spec said the gate FAILS
-// while this is null and that *"the phase cannot complete with the placeholder in place"*. That
-// clause no longer holds. In its place the unfilled slot is carried as a named `human_needed` item on
-// phase completion — the same convention the roadmap already uses for the sales-gated PayMongo
-// threads. This departure is recorded here, in `11-CONTEXT.md` § D-26, and in the gate's own header,
-// so a future reader finds the reason rather than the discrepancy. Do not silently reconcile it in
-// either direction.
 
 /**
- * A real, monitored support address — or `null` while there is none. Read the D-26 block above
- * before changing this line; it is the only line that needs changing.
+ * The real, monitored launch support address. Read the D-26 block above before changing this line;
+ * it is the only address declaration application support surfaces may use.
  */
-export const SUPPORT_EMAIL: string | null = null;
+export const SUPPORT_EMAIL: string | null = "pengr.clmc.3@gmail.com";
 
 /**
  * The one sentence the app uses to describe itself, and the ONE owner of it.

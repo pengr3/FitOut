@@ -6,6 +6,7 @@
 // fresh dynamic import (vi.resetModules) and spy on console to inspect what the fallback emits.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { mockResend } from "../helpers/mocks";
 
 const TOKEN_URL = "https://fitout.app/reset?token=SECRET-LIVE-TOKEN-123";
 
@@ -23,6 +24,7 @@ describe("email dev-fallback production guard (WR-02)", () => {
     // vi.stubEnv is the type-safe way to set NODE_ENV (typed readonly) and clear the key.
     vi.stubEnv("RESEND_API_KEY", ""); // empty -> email.ts treats as no key (resend = null).
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("OPS_APP_URL", "http://ops.localhost:3000");
 
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -79,5 +81,19 @@ describe("email dev-fallback production guard (WR-02)", () => {
     expect(logged).not.toContain("SECRET-LIVE-STAFF-TOKEN");
     expect(logSpy).not.toHaveBeenCalled();
     expect(errorSpy).toHaveBeenCalled();
+  });
+
+  it("sets the monitored support inbox as Reply-To on the sole Resend payload", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_test_mock_key");
+    vi.stubEnv("NODE_ENV", "test");
+    vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
+    vi.stubEnv("OPS_APP_URL", "http://ops.localhost:3000");
+
+    const { sendResetPassword } = await import("@/lib/email");
+    await sendResetPassword("dev@example.com", TOKEN_URL);
+
+    expect((mockResend.last() as unknown as { replyTo?: string }).replyTo).toBe(
+      "pengr.clmc.3@gmail.com",
+    );
   });
 });

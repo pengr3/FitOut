@@ -283,6 +283,8 @@ const FOOTER = "src/components/patterns/site-footer.tsx";
 const EMAIL_MODULE = "src/lib/email.ts";
 /** The SECOND surface that implements D-26's support slot — the transactional email shell's footer. */
 const EMAIL_SHELL = "src/lib/email-shell.ts";
+/** The shared guarded booking/payment/trust affordance; one guard powers all of its presentations. */
+const SUPPORT_PATH = "src/components/booking/support-path.tsx";
 
 /**
  * EVERY FILE THAT IMPLEMENTS THE `SUPPORT_EMAIL` SLOT, WITH THE REASON IT IS ONE OF THEM.
@@ -314,6 +316,10 @@ const GUARDED_SITES: Readonly<Record<string, string>> = {
     "15-CONTEXT D-161 re-confirmed the null state for this phase: the shell renders NOTHING about " +
     "support — no placeholder, no dead `mailto:`, no \"coming soon\" — in both the HTML and the " +
     "text/plain projection, from one conditional whose else-branch is the `null` keyword.",
+  [SUPPORT_PATH]:
+    "The booking support path — the shared guarded component used by pending-payment, reversed-payment, " +
+    "manual-return, and every trust-row surface. Its one conditional owns the mailto used by all of " +
+    "those booking and payment states, so the address cannot drift across callers.",
 };
 
 /**
@@ -727,7 +733,7 @@ describe("the guard itself — one conditional, no else-branch, in either state"
       Object.keys(GUARDED_SITES).sort(),
       `the guarded-site inventory changed. Adding a row EXTENDS this gate and is the intended ` +
         `edit; removing one silently stops auditing a surface that can still render a contact.`,
-    ).toEqual([FOOTER, EMAIL_SHELL].sort());
+    ).toEqual([FOOTER, EMAIL_SHELL, SUPPORT_PATH].sort());
   });
 
   // THE SAME THREE ASSERTIONS OVER EVERY DECLARED SITE. Nothing here is scoped to one file any more:
