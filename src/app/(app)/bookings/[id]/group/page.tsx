@@ -71,6 +71,7 @@ import Link from "next/link";
 import { eq } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
+import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import { booking } from "@/lib/db/schema";
 import { composeWhenLabel } from "@/lib/booking/when-label";
@@ -198,9 +199,9 @@ export default async function GroupManagementPage({
   };
 
   // The absolute invite URL (D-118). Composed here, from the token this page read back out under the owner
-  // scope — the same `BETTER_AUTH_URL` convention every other absolute-link site in the app uses, so the
-  // link an organizer copies is byte-identical to the one 08-06 emails an attendee.
-  const inviteUrl = `${process.env.BETTER_AUTH_URL ?? "http://localhost:3000"}/invite/${group.accessToken}`;
+  // scope — the same public-origin authority every other absolute-link site in the app uses, so the link
+  // an organizer copies is byte-identical to the one 08-06 emails an attendee.
+  const inviteUrl = absolutePublicUrl(`/invite/${group.accessToken}`);
 
   // TRUST-02 / D-78 — SERVER-COMPUTED, and it can only be computed here: `bookingReference` is a one-way
   // SHA-256 derivation over the opaque booking id and reaches for `node:crypto`, which is why the component

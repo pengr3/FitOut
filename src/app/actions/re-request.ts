@@ -37,6 +37,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { auth } from "@/lib/auth";
+import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import { booking, listing, user } from "@/lib/db/schema";
 import { windowHours } from "@/lib/booking/pricing";
@@ -327,8 +328,6 @@ export async function reRequestSameWindow(bookingId: string): Promise<ReRequestR
     const bookerLabel = row.bookerFirstName?.trim() || "A guest";
     // ABSOLUTE hrefs: one payload string feeds BOTH channels (D-91), and a root-relative href is a dead link
     // in the email half.
-    const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-
     await emitNotify({
       type: "request_received",
       recipientId: userId,
@@ -339,7 +338,7 @@ export async function reRequestSameWindow(bookingId: string): Promise<ReRequestR
         listingTitle: title,
         whenLabel,
         totalLabel,
-        href: `${base}/bookings/${res.id}`,
+        href: absolutePublicUrl(`/bookings/${res.id}`),
       },
     });
     await emitNotify({
@@ -354,7 +353,7 @@ export async function reRequestSameWindow(bookingId: string): Promise<ReRequestR
         bookerLabel,
         totalLabel,
         respondByLabel,
-        href: `${base}/host/requests`,
+        href: absolutePublicUrl("/host/requests"),
       },
     });
   }

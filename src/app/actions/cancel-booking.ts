@@ -50,6 +50,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 import { auth } from "@/lib/auth";
+import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import { availabilityBlock, booking, listing, user } from "@/lib/db/schema";
 import { readDbNow } from "@/lib/booking/bookings-query";
@@ -351,20 +352,12 @@ async function explainNoRows(
 }
 
 /**
- * The app's base URL, from the SAME `BETTER_AUTH_URL` convention auth.ts / email.ts / paymongo-connect.ts
- * and every other emitNotify call site already use (booking.ts:218, host-requests.ts:258, request-expiry.ts:188,
- * webhook/route.ts:255). Do NOT introduce a second env var for this.
- *
  * ⚠️ EVERY `href` in a notification payload MUST be ABSOLUTE. One payload string feeds BOTH channels (D-91):
  * the in-app dropdown resolves an absolute same-origin URL fine, but an email client has no origin to resolve
  * a root-relative `/bookings/123` against, so a relative href is a DEAD LINK in the email half — silently, in
  * the one message the recipient most needs to act on. This regressed here once (found by 07-10) and is
  * asserted against in tests/booking/cancellation.test.ts.
  */
-function appBaseUrl(): string {
-  return process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
-}
-
 /** Both sides are told, post-commit. Emission never blocks or fails the action (MANAGE-03). */
 async function notifyCancellation(
   row: OwnedBooking,
@@ -374,8 +367,6 @@ async function notifyCancellation(
   const whenLabel = composeWhenLabel(whenLabelInput(row));
   const listingTitle = row.title ?? "your space";
   const bookerLabel = row.bookerFirstName?.trim() || "A guest";
-  const base = appBaseUrl();
-
   // The HOST learns their slot is free again. Always sent — a host must never discover a cancellation by
   // turning up to an empty space.
   await emitNotify({
@@ -388,7 +379,7 @@ async function notifyCancellation(
       listingTitle,
       whenLabel,
       bookerLabel,
-      href: `${base}/host/bookings`,
+      href: absolutePublicUrl("/host/bookings"),
     },
   });
 
@@ -408,7 +399,7 @@ async function notifyCancellation(
         listingTitle,
         whenLabel,
         refundLabel: formatMoney(refundCents, row.currency ?? DISPLAY_CURRENCY),
-        href: `${base}/bookings/${bookingId}`,
+        href: absolutePublicUrl(`/bookings/${bookingId}`),
       },
     });
   }
@@ -453,7 +444,7 @@ async function voidGroupAndNotifyAttendees(row: OwnedBooking, bookingId: string)
     const attendees = await listReachableYesAttendees(db, group.id);
     const whenLabel = composeWhenLabel(whenLabelInput(row));
     const listingTitle = row.title ?? "the space";
-    const href = `${appBaseUrl()}/invite/${group.accessToken}`;
+    const href = absolutePublicUrl(`/invite/${group.accessToken}`);
 
     let notified = 0;
     for (const attendee of attendees) {
@@ -1340,8 +1331,6 @@ export async function cancelBookingAsHost(
   const whenLabel = composeWhenLabel(whenLabelInput(row));
   const listingTitle = row.title ?? "your space";
   const refundLabel = formatMoney(refundCents, row.currency ?? DISPLAY_CURRENCY);
-  const base = appBaseUrl();
-
   // The BOOKER learns their session is off and what is coming back. `booking_cancelled_by_host` is its own
   // notification type because "your host cancelled" and "your booking was cancelled" are different sentences
   // to receive, and only one of them is the recipient's own doing.
@@ -1356,7 +1345,7 @@ export async function cancelBookingAsHost(
       whenLabel,
       refundLabel,
       side: "booker", // WR-04: every write declares its audience; the booker copy is byte-unchanged.
-      href: `${base}/bookings/${bookingId}`,
+      href: absolutePublicUrl(`/bookings/${bookingId}`),
     },
   });
 
@@ -1378,7 +1367,7 @@ export async function cancelBookingAsHost(
       ...(feeCents > 0
         ? { feeLabel: formatMoney(feeCents, row.currency ?? DISPLAY_CURRENCY) }
         : {}),
-      href: `${base}/host/bookings`,
+      href: absolutePublicUrl("/host/bookings"),
     },
   });
 

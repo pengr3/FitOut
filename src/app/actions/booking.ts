@@ -31,6 +31,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
+import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import { booking, listing, user, hostPayout, hostVerification } from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
@@ -307,7 +308,6 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
       const title = lr.title ?? "your space";
       // Absolute hrefs: one payload string feeds BOTH channels (D-91), and a root-relative href is a dead
       // link in an email client. Preserves the exact URLs the pre-migration sends used.
-      const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
       await emitNotify({
         type: "request_received",
         recipientId: userId,
@@ -318,7 +318,7 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
           listingTitle: title,
           whenLabel,
           totalLabel,
-          href: `${base}/bookings/${res.id}`,
+          href: absolutePublicUrl(`/bookings/${res.id}`),
         },
       });
       await emitNotify({
@@ -333,7 +333,7 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
           bookerLabel,
           totalLabel,
           respondByLabel,
-          href: `${base}/host/requests`,
+          href: absolutePublicUrl("/host/requests"),
         },
       });
     }
@@ -991,7 +991,6 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
   // Flat-priced bookings keep the byte-identical `checkout:<bookingId>` key they have today — their quote
   // is immutable once frozen, so there is nothing for an amount to disambiguate, and the shipped
   // double-charge guard (and the tests pinning it) is untouched.
-  const base = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
   const ref = bookingReference(holdId);
   let checkout: { id: string; checkoutUrl: string };
   try {
@@ -1001,8 +1000,8 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
       name: `Booking ${ref}`,
       referenceNumber: holdId,
       metadata: { booking_id: holdId },
-      successUrl: `${base}/bookings/${holdId}?paid=1`,
-      cancelUrl: `${base}/listings/${bk.listingId}/book?hold=${holdId}`,
+      successUrl: absolutePublicUrl(`/bookings/${holdId}?paid=1`),
+      cancelUrl: absolutePublicUrl(`/listings/${bk.listingId}/book?hold=${holdId}`),
       idempotencyKey:
         bk.declaredPax == null
           ? `checkout:${holdId}`
