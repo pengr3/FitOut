@@ -11,9 +11,9 @@ provides:
   - shared canonical/Preview authority for notification, booking, group, payment, and Didit destinations
 affects: [23-03, STATE-05, TRUST-01, provider-cutover]
 actuals:
-  tokens: 7895
+  tokens: 8422
   tasks: 3
-  commits: 4
+  commits: 5
 plan_head_before: 32483784b996e1def9a217c5fe31514961779ca9
 tech-stack:
   added: []
@@ -28,9 +28,11 @@ key-files:
     - src/app/actions/booking.ts
     - src/app/actions/paymongo-connect.ts
     - src/lib/verification/providers/didit.ts
+    - tests/verification/didit-session.test.ts
 key-decisions:
   - Public notification, provider return, and hosted-verification links now delegate only to absolutePublicUrl; route and query construction remains at each caller.
   - Didit keeps its existing signed receiver and minimum body shape; only its outbound callback origin changed.
+  - Tests import server modules that resolve public origin only after setting their isolated environment.
 patterns-established:
   - Preserve existing payment, notification, and token-bearing route semantics while centralizing only origin selection.
 requirements-completed: [STATE-05, TRUST-01]
@@ -66,8 +68,8 @@ Every runtime public link now uses the same canonical-production or exact-Vercel
 ## Performance
 
 - Tasks completed: 3/3
-- Production commits: 4
-- Files modified: 13
+- Production commits: 5
+- Files modified: 14
 - New dependencies, migrations, routes, webhook receivers, and secrets: none
 
 ## Accomplishments
@@ -75,12 +77,14 @@ Every runtime public link now uses the same canonical-production or exact-Vercel
 - Added a focused inventory test covering all twelve changed runtime public-origin callers and both canonical-production and exact-Preview helper output.
 - Routed notification, scheduled-email, booking, cancellation, group, host-request, PayMongo, and Didit destinations through `absolutePublicUrl`.
 - Preserved existing routes, query parameters, payment/onboarding behavior, provider payload shape, Didit callback path, and signed inbound receiver ownership.
+- Corrected Didit's focused test isolation so it resolves the configured callback origin rather than an ambient localhost fallback.
 
 ## Task Commits
 
 1. Task 1 — `b545def` `test(23-02): inventory notification public-origin callers`; `7dc8bf0` `feat(23-02): centralize notification public URLs`
 2. Task 2 — `f8c212e` `feat(23-02): align booking public destinations`
 3. Task 3 — `64d23f5` `feat(23-02): align provider return destinations`
+4. Verification correction — `f2b0ad7` `fix(23-02): isolate Didit public origin test`
 
 ## Files Created/Modified
 
@@ -88,6 +92,7 @@ Every runtime public link now uses the same canonical-production or exact-Vercel
 - `src/lib/notifications.ts`, `src/lib/payments/confirm-booking-payment.ts`, and Inngest jobs — absolute notification and email CTA destinations.
 - Booking, cancellation, request, and group sources — preserved booking, checkout, and invitation paths through the shared helper.
 - `src/app/actions/paymongo-connect.ts` and `src/lib/verification/providers/didit.ts` — canonical/Preview-safe outbound provider returns and callback.
+- `tests/verification/didit-session.test.ts` — imports the Didit adapter after per-test public-origin configuration.
 
 ## Decisions Made
 
@@ -109,9 +114,19 @@ Every runtime public link now uses the same canonical-production or exact-Vercel
 
 Per executor direction, this plan did not update or stage the pre-existing changes in `STATE.md`, `ROADMAP.md`, `REQUIREMENTS.md`, older phase artifacts, or other unrelated files. Only plan-owned source/test commits and this summary are included.
 
+### Verification Correction
+
+2. [Rule 1 - Test isolation] Deferred Didit adapter loading until its per-test origin setup is active.
+- Found during: independent DB-free verification after Task 3
+- Issue: `absolutePublicUrl` is resolved while importing Didit. The test imported Didit before stubbing `BETTER_AUTH_URL`, causing its callback assertion to receive the ambient localhost default.
+- Fix: Reset modules and dynamically import the adapter inside `beforeEach` after environment and fetch stubs are established.
+- Verification: `tests/auth/public-origin-callers.test.ts` and `tests/verification/didit-session.test.ts` passed together (17 tests).
+- Committed in: `f2b0ad7`
+
 ## Issues Encountered
 
 - The plan's default Vitest command could not complete because `tests/global-setup.ts` could not reach `postgresql://fitout:fitout@localhost:5432/fitout_test`. This is an environment preflight failure, not an assertion failure; focused DB-free runs passed.
+- Independent DB-free verification exposed a Didit module-import ordering issue; it is corrected in `f2b0ad7` and the combined focused suites are green.
 - GSD's RED-evidence parser expects Node's summary format and does not recognize Vitest's nested TAP summary. The named inventory assertions nevertheless failed before implementation and passed after it.
 
 ## User Setup Required
@@ -124,8 +139,8 @@ Plan 23-03 can configure and prove external domains/providers knowing all refact
 
 ## Self-Check: PASSED
 
-- All 13 planned source/test artifacts exist.
-- Commits `b545def`, `7dc8bf0`, `f8c212e`, and `64d23f5` exist in Git history.
+- All 14 plan-owned source/test artifacts exist.
+- Commits `b545def`, `7dc8bf0`, `f8c212e`, `64d23f5`, and `f2b0ad7` exist in Git history.
 - `git diff --check 32483784b996e1def9a217c5fe31514961779ca9..HEAD` passed.
 
 *Plan: 23-the-support-path-becomes-reachable/23-02 | Status: complete*
