@@ -13,7 +13,7 @@ affects: [23-03, STATE-05, TRUST-01, provider-cutover]
 actuals:
   tokens: 8422
   tasks: 3
-  commits: 5
+  commits: 7
 plan_head_before: 32483784b996e1def9a217c5fe31514961779ca9
 tech-stack:
   added: []
@@ -68,7 +68,8 @@ Every runtime public link now uses the same canonical-production or exact-Vercel
 ## Performance
 
 - Tasks completed: 3/3
-- Production commits: 5
+- Production commits: 7
+- Measured from `32483784b996e1def9a217c5fe31514961779ca9` through the pre-metadata-commit HEAD; this includes the Didit verification-correction and earlier plan-metadata history.
 - Files modified: 14
 - New dependencies, migrations, routes, webhook receivers, and secrets: none
 
