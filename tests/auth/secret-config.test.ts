@@ -64,4 +64,45 @@ describe("Better Auth secret/baseURL config (WR-03)", () => {
       "https://fitout-preview.vercel.app",
     ]);
   }, COLD_IMPORT_TIMEOUT_MS);
+
+  it("uses the exact Vercel Preview authority when production public values are absent", async () => {
+    vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-value-at-least-32-chars-long-xx");
+    vi.stubEnv("BETTER_AUTH_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
+    vi.stubEnv("OPS_APP_URL", "");
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_URL", "fitout-feature-123.vercel.app");
+    vi.stubEnv("NODE_ENV", "test");
+
+    const { auth } = await import("@/lib/auth");
+    const { PUBLIC_APP_ORIGIN, absolutePublicUrl } = await import("@/lib/app-origins");
+    const options = (auth as unknown as { options: Record<string, unknown> }).options;
+    expect(PUBLIC_APP_ORIGIN).toBe("https://fitout-feature-123.vercel.app");
+    expect(absolutePublicUrl("/bookings/booking-123")).toBe(
+      "https://fitout-feature-123.vercel.app/bookings/booking-123",
+    );
+    expect(options.baseURL).toEqual({
+      allowedHosts: ["ops.localhost:3000", "fitout-feature-123.vercel.app"].sort(),
+      fallback: "https://fitout-feature-123.vercel.app",
+      protocol: "auto",
+    });
+    expect(options.trustedOrigins).toEqual([
+      "https://fitout-feature-123.vercel.app",
+      "http://ops.localhost:3000",
+    ]);
+  }, COLD_IMPORT_TIMEOUT_MS);
+
+  it("fails closed for a Vercel Preview with no usable public authority", async () => {
+    vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-value-at-least-32-chars-long-xx");
+    vi.stubEnv("BETTER_AUTH_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
+    vi.stubEnv("OPS_APP_URL", "http://ops.localhost:3000");
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_URL", "not a valid authority");
+    vi.stubEnv("NODE_ENV", "test");
+
+    await expect(import("@/lib/auth")).rejects.toThrow(/BETTER_AUTH_URL or NEXT_PUBLIC_APP_URL/);
+  }, COLD_IMPORT_TIMEOUT_MS);
 });

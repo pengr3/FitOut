@@ -36,26 +36,14 @@ function parseOrigin(value: string | undefined, key: string, localFallback?: str
   return new URL(parsed.origin);
 }
 
-const publicUrl = parseOrigin(
-  configuredValue(process.env.BETTER_AUTH_URL, process.env.NEXT_PUBLIC_APP_URL),
-  "BETTER_AUTH_URL or NEXT_PUBLIC_APP_URL",
-  LOCAL_PUBLIC_ORIGIN,
-);
-
 const opsUrl = parseOrigin(
   process.env.OPS_APP_URL,
   "OPS_APP_URL",
   process.env.NODE_ENV === "production" ? undefined : LOCAL_OPS_ORIGIN,
 );
 
-if (publicUrl.hostname.toLowerCase() === opsUrl.hostname.toLowerCase()) {
-  throw new Error("OPS_APP_URL must use a hostname distinct from the public application origin");
-}
-
-export const PUBLIC_APP_ORIGIN = publicUrl.origin;
 export const OPS_APP_ORIGIN = opsUrl.origin;
 
-const PUBLIC_APP_HOSTNAME = publicUrl.hostname.toLowerCase();
 const OPS_APP_HOSTNAME = opsUrl.hostname.toLowerCase();
 
 function hostnameFromAuthority(rawHost: string | null | undefined): string | null {
@@ -87,6 +75,33 @@ function configuredPreviewUrl(): URL | null {
 
 const previewUrl = configuredPreviewUrl();
 const PREVIEW_APP_HOSTNAME = previewUrl?.hostname.toLowerCase() ?? null;
+
+const vercelEnvironment = configuredValue(process.env.VERCEL_ENV);
+const isVercelDeployment =
+  configuredValue(process.env.VERCEL, vercelEnvironment, process.env.VERCEL_URL) !== undefined;
+const configuredPublicOrigin = configuredValue(
+  process.env.BETTER_AUTH_URL,
+  process.env.NEXT_PUBLIC_APP_URL,
+);
+const publicFallback =
+  vercelEnvironment === "preview"
+    ? previewUrl?.origin
+    : isVercelDeployment
+      ? undefined
+      : LOCAL_PUBLIC_ORIGIN;
+
+const publicUrl = parseOrigin(
+  configuredPublicOrigin,
+  "BETTER_AUTH_URL or NEXT_PUBLIC_APP_URL",
+  publicFallback,
+);
+
+if (publicUrl.hostname.toLowerCase() === opsUrl.hostname.toLowerCase()) {
+  throw new Error("OPS_APP_URL must use a hostname distinct from the public application origin");
+}
+
+export const PUBLIC_APP_ORIGIN = publicUrl.origin;
+const PUBLIC_APP_HOSTNAME = publicUrl.hostname.toLowerCase();
 
 /** Exact authorities Better Auth may derive a request-specific base URL from. */
 export const AUTH_ALLOWED_HOSTS = Array.from(

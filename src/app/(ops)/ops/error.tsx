@@ -27,9 +27,25 @@ import { ErrorState } from "@/components/patterns/error-state";
 import { Button } from "@/components/ui/button";
 
 const configuredPublicOrigin = process.env.NEXT_PUBLIC_APP_URL?.trim();
-const PUBLIC_APP_HOME = configuredPublicOrigin
-  ? new URL("/", configuredPublicOrigin).toString()
-  : "http://localhost:3000/";
+
+function publicAppHome(): string {
+  if (configuredPublicOrigin) {
+    try {
+      const origin = new URL(configuredPublicOrigin);
+      if (origin.protocol === "http:" || origin.protocol === "https:") {
+        return new URL("/", origin).toString();
+      }
+    } catch {
+      // An invalid build-time value must not become a trusted navigation target.
+    }
+  }
+
+  // A Preview has no production NEXT_PUBLIC_APP_URL. The browser's current authority is the exact
+  // generated Vercel host, so this fallback cannot manufacture localhost or impersonate production.
+  return typeof window === "undefined" ? "/" : new URL("/", window.location.origin).toString();
+}
+
+const PUBLIC_APP_HOME = publicAppHome();
 
 export default function OpsError({
   error,

@@ -5,6 +5,7 @@ import "./globals.css";
 import { FaviconSwap } from "@/components/theme/favicon-swap";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeQueryParam } from "@/components/theme/theme-query-param";
+import { PUBLIC_APP_ORIGIN } from "@/lib/app-origins";
 import { SITE_TAGLINE } from "@/lib/site";
 
 const geistSans = Geist({
@@ -50,8 +51,6 @@ const geistMono = Geist_Mono({
  * component's header — read it before adding this entry back.
  */
 /** The dev-server origin, and the value every non-usable `NEXT_PUBLIC_APP_URL` falls back to. */
-const DEFAULT_APP_URL = "http://localhost:3000";
-
 /**
  * Resolve `metadataBase` without letting a malformed env var take down the whole app (WR-12).
  *
@@ -94,12 +93,7 @@ const DEFAULT_APP_URL = "http://localhost:3000";
  * `alternates` metadata — which is why this is a guard rather than a bug fix.
  */
 function resolveMetadataBase(): URL {
-  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (configured && URL.canParse(configured)) {
-    const url = new URL(configured);
-    if (url.protocol === "http:" || url.protocol === "https:") return url;
-  }
-  return new URL(DEFAULT_APP_URL);
+  return new URL(PUBLIC_APP_ORIGIN);
 }
 
 export const metadata: Metadata = {

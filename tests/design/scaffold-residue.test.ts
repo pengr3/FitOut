@@ -146,6 +146,21 @@ describe("DS-14 — the identity metadata is FitOut's, not create-next-app's", (
     expect(base.href).not.toBe("");
   });
 
+  it("uses the exact Vercel Preview authority for metadata when production public values are absent", async () => {
+    vi.resetModules();
+    vi.stubEnv("BETTER_AUTH_URL", "");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
+    vi.stubEnv("OPS_APP_URL", "http://ops.localhost:3000");
+    vi.stubEnv("VERCEL", "1");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_URL", "fitout-metadata-preview.vercel.app");
+    vi.stubEnv("NODE_ENV", "test");
+
+    const metadata = await loadMetadata();
+    expect(metadata.metadataBase).toEqual(new URL("https://fitout-metadata-preview.vercel.app"));
+    vi.unstubAllEnvs();
+  });
+
   it("carries no create-next-app scaffold string anywhere in the export", async () => {
     // Asserted over EVERY nested string rather than over `title` and `description` specifically,
     // so residue reappearing in openGraph, twitter or appleWebApp later is caught by this same test.
