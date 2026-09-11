@@ -66,16 +66,10 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-import {
-  beginDiditVerification,
-  diditVerificationProvider,
-  DiditRateLimitError,
-  DiditSessionError,
-  DIDIT_PROVIDER_NAME,
-  isDiditSessionOpen,
-  type DiditSessionStart,
-} from "@/lib/verification/providers/didit";
+import type { DiditSessionStart } from "@/lib/verification/providers/didit";
 import { isVerified } from "@/lib/verification/port";
+
+type DiditAdapter = typeof import("@/lib/verification/providers/didit");
 
 /** Obvious fakes. See the header: no case may depend on a real credential being present OR absent. */
 const FAKE_API_KEY = "didit-test-key-not-a-credential";
@@ -163,13 +157,28 @@ async function refuses(label: string): Promise<DiditSessionError> {
 }
 
 let fetchMock: ReturnType<typeof vi.fn>;
+let beginDiditVerification: DiditAdapter["beginDiditVerification"];
+let diditVerificationProvider: DiditAdapter["diditVerificationProvider"];
+let DiditRateLimitError: DiditAdapter["DiditRateLimitError"];
+let DiditSessionError: DiditAdapter["DiditSessionError"];
+let DIDIT_PROVIDER_NAME: DiditAdapter["DIDIT_PROVIDER_NAME"];
+let isDiditSessionOpen: DiditAdapter["isDiditSessionOpen"];
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.stubEnv("DIDIT_API_KEY", FAKE_API_KEY);
   vi.stubEnv("DIDIT_WORKFLOW_ID", FAKE_WORKFLOW_ID);
   vi.stubEnv("BETTER_AUTH_URL", APP_ORIGIN);
   fetchMock = vi.fn();
   vi.stubGlobal("fetch", fetchMock);
+  vi.resetModules();
+  ({
+    beginDiditVerification,
+    diditVerificationProvider,
+    DiditRateLimitError,
+    DiditSessionError,
+    DIDIT_PROVIDER_NAME,
+    isDiditSessionOpen,
+  } = await import("@/lib/verification/providers/didit"));
 });
 
 afterEach(() => {
