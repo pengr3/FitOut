@@ -105,7 +105,17 @@ export default async function Home({
       typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
         ? error.code
         : undefined;
-    console.error("public-search-failed", { databaseCode });
+    const causeCode =
+      typeof error === "object" &&
+      error !== null &&
+      "cause" in error &&
+      typeof error.cause === "object" &&
+      error.cause !== null &&
+      "code" in error.cause &&
+      typeof error.cause.code === "string"
+        ? error.cause.code
+        : undefined;
+    console.error("public-search-failed", { databaseCode, causeCode });
     fetchError = true;
   }
 
