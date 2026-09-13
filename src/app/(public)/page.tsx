@@ -97,7 +97,15 @@ export default async function Home({
       if (!res.hasMore) break; // exhausted — no point fetching further pages
     }
     results = acc;
-  } catch {
+  } catch (error) {
+    // This is a deliberately terse production diagnostic. The page still renders the existing safe fallback,
+    // while the operation and database error code (never the error text, which may contain connection data)
+    // let the deployment log distinguish a bad query from an unavailable data service.
+    const databaseCode =
+      typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+        ? error.code
+        : undefined;
+    console.error("public-search-failed", { databaseCode });
     fetchError = true;
   }
 
