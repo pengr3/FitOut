@@ -264,6 +264,7 @@ function controlNames(root: HTMLElement): string[] {
  * not, which is why neither case was rewritten that way.
  */
 const COPY_CONTROL = "Copy";
+const SUPPORT_ACTIONS = ["Email us about this payment"];
 
 describe("D-71 / D-95 — the pending state promises safety and never offers a way to act on a failure", () => {
   it("(1) at 0-20s: the money truth, the self-updating line, and NOTHING to press", () => {
@@ -392,13 +393,22 @@ describe("D-71 / D-95 — the pending state promises safety and never offers a w
           `cost a second charge on a payment that did in fact settle.`,
       ).toEqual([]);
       expect(painted(), `${when}: an alarm colour reached the pending state`).toEqual([]);
-      // The only control that may act on the PAYMENT is the refresh, and it never grows a sibling.
-      // The reference's copy control is excluded BY NAME (see COPY_CONTROL) rather than by relaxing
-      // the matcher, so an unlisted control still fails this immediately.
+      // The only control that may act on the PAYMENT is the refresh. The guarded support path is
+      // deliberately different: it opens the monitored channel after escalation, but cannot retry,
+      // mint, or otherwise act on the payment. Its own component owns the null-support guard;
+      // `site-contacts.test.ts` proves that guard at the common support-path boundary.
+      // The reference's copy control is excluded by name for the same reason.
       expect(
-        controlNames(root).filter(
-          (name) => name !== "Refresh status" && name !== COPY_CONTROL,
-        ),
+        [...root.querySelectorAll<HTMLElement>("button, a")]
+          .filter((el) => {
+            const name = flat(el);
+            return (
+              name !== "Refresh status" &&
+              name !== COPY_CONTROL &&
+              el.closest('[data-testid="support-path"]') === null
+            );
+          })
+          .map((el) => flat(el)),
         `${when}: a second control appeared beside the refresh`,
       ).toEqual([]);
     };
@@ -741,10 +751,12 @@ describe("STATE-05 — the three payment states are three visibly different thin
     const actions = STATES.map((state) => readColumns(state).actions);
     // The pending state's set is EMPTY before its poll backs off, and that is its distinguishing
     // feature rather than a gap — nothing is asked of a booker whose payment is still settling.
+    // The reversed state additionally exposes the launched support channel. Its component owns the
+    // shared null-support guard; this state contract owns the live action set once that channel exists.
     expect(actions.map((set) => set.join(" | "))).toEqual([
       "Try paying again",
       "",
-      "Back to availability | Search other spaces",
+      [...SUPPORT_ACTIONS, "Back to availability", "Search other spaces"].join(" | "),
     ]);
     expect(new Set(actions.map((set) => set.join(" | "))).size).toBe(STATES.length);
   });

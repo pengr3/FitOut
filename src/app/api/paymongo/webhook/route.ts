@@ -37,7 +37,11 @@ export const runtime = "nodejs";
 // startup signal. Refuse to boot in production without the secret so a misconfigured deploy is a loud boot
 // FAILURE, not a silent confirmation outage. dev/test/build tolerate its absence (the mocked webhook suite
 // sets it per-test and `next build` must not require prod secrets).
-if (process.env.NODE_ENV === "production" && !process.env.PAYMONGO_WEBHOOK_SECRET) {
+if (
+  process.env.NODE_ENV === "production" &&
+  process.env.VERCEL_ENV !== "preview" &&
+  !process.env.PAYMONGO_WEBHOOK_SECRET
+) {
   throw new Error(
     "PAYMONGO_WEBHOOK_SECRET is required in production — the webhook is the sole booking-confirm authority (D-57).",
   );

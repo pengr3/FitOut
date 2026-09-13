@@ -6,10 +6,11 @@
 // payout-onboarding action needs (createLinkedAccount + createOnboardingLink). The webhook route does
 // its own node-crypto signature verification and does NOT import this client.
 //
-// FAIL-CLOSED (copied from the src/lib/auth.ts WR-03 boot guard): in PRODUCTION we refuse to boot
-// without PAYMONGO_SECRET_KEY rather than silently make unauthenticated calls. In dev/test/build the
-// placeholder in .env is tolerated so local setup, the fully-mocked test suite, and `next build` all
-// pass — only a real production boot is keyless-fatal.
+// FAIL-CLOSED (copied from the src/lib/auth.ts WR-03 boot guard): in the Vercel Production deployment we
+// refuse to boot without PAYMONGO_SECRET_KEY rather than silently make unauthenticated calls. Vercel Preview
+// is deliberately credential-free and may render the app against an isolated database; its payment calls
+// fail before any request is made. Dev/test/build tolerate the .env placeholder so local setup, the
+// fully-mocked test suite, and `next build` all pass.
 //
 // BETA NOTE: PayMongo Platforms / Linked Accounts is beta / sales-gated. The endpoint paths below wrap
 // the documented contract; real hosted onboarding is exercised in MANUAL UAT once PayMongo enables the
@@ -22,9 +23,12 @@ import { randomUUID } from "node:crypto";
 // /v2 (Batch Transfers, Wallets) endpoints. Every caller passes a FULLY versioned path (`/v1/...` or
 // `/v2/...`) so a /v2 call can never accidentally hit `/v1/v2/...`. Do NOT re-add a trailing `/v1` here.
 const PAYMONGO_BASE = "https://api.paymongo.com";
+const isVercelPreview = process.env.VERCEL_ENV === "preview";
 
-// Fail-closed at module load — production only (dev/test/build tolerate the .env placeholder).
-if (!process.env.PAYMONGO_SECRET_KEY && process.env.NODE_ENV === "production") {
+// Fail-closed at module load — actual production only (dev/test/build and credential-free Preview tolerate
+// the placeholder). `NODE_ENV` alone cannot identify a Vercel Production deployment: Vercel sets it to
+// "production" for Preview too.
+if (!process.env.PAYMONGO_SECRET_KEY && process.env.NODE_ENV === "production" && !isVercelPreview) {
   throw new Error(
     "PAYMONGO_SECRET_KEY is not set. Refusing to boot in production without the PayMongo secret key. " +
       "Set it in the deploy environment (it is the HTTP-Basic username for every PayMongo API call).",
@@ -39,6 +43,7 @@ if (!process.env.PAYMONGO_SECRET_KEY && process.env.NODE_ENV === "production") {
 if (
   process.env.NODE_ENV === "production" &&
   process.env.NEXT_PHASE !== "phase-production-build" &&
+  !isVercelPreview &&
   (!process.env.PLATFORM_WALLET_NUMBER || !process.env.PLATFORM_WALLET_NAME)
 ) {
   throw new Error(
@@ -57,6 +62,11 @@ const PLATFORM_WALLET = {
 /** HTTP Basic auth header — the secret key is the username, empty password (PayMongo convention). */
 function authHeader(): string {
   const secret = process.env.PAYMONGO_SECRET_KEY ?? "";
+  if (!secret && isVercelPreview) {
+    throw new Error(
+      "PayMongo is unavailable in this Preview deployment because payment credentials are intentionally not configured.",
+    );
+  }
   return `Basic ${Buffer.from(`${secret}:`).toString("base64")}`;
 }
 

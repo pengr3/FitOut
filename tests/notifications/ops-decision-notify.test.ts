@@ -17,8 +17,10 @@
 //   case 7      — one invocation feeds both channels (D-91). A kind that reached the panel but not
 //                 the inbox — or the reverse — would be the drift the single fan-out exists to stop.
 //   case 8      — THE BANNED LANGUAGE (D-243 / backlog 999.6). No appeal, no reply promise, no
-//                 timeline, no address. Asserted over every rendered surface of all six kinds, and
-//                 over the two copy modules' STRING LITERALS (not their prose — see case 9).
+//                 timeline, no decision-specific address. The email shell may append its one
+//                 globally configured, monitored support footer; that footer is isolated before the
+//                 decision-copy assertion so it cannot silently become a property of the six kinds.
+//                 The copy modules' STRING LITERALS are also scanned (not their prose — see case 9).
 //   case 9      — the literal scan is structural, so the paragraphs in `notifications.ts` that
 //                 FORBID these phrases cannot be what makes the gate red. A whole-file substring
 //                 check is falsely RED on a documented file, every time.
@@ -48,6 +50,7 @@ import { hostVerification, listing, notification, user } from "@/lib/db/schema";
 import type { NotificationPayload } from "@/lib/db/schema";
 import type { NotifyEvent } from "@/lib/notifications";
 import type { RateLimitResult } from "@/lib/rate-limit";
+import { SUPPORT_EMAIL } from "@/lib/site";
 import { HOST_REJECT_REASONS, LISTING_REJECT_REASONS, OTHER_REASON } from "@/lib/validation/ops";
 
 const OPS_HOST = "ops.localhost:3000";
@@ -242,10 +245,25 @@ const DECLARED_NON_SUPPORT_ADDRESSES: Readonly<Record<string, string>> = {
     "go nowhere, so surfacing it as a support address would be exactly the fabrication D-250 forbids.",
 };
 
-/** Every rendered string of a payload — both channels — as one blob for an ABSENCE assertion. */
+/**
+ * Remove only the shell's one configured support line before evaluating a decision's own copy.
+ * D-250 still forbids an ops decision from inventing an address or route back; Phase 23 makes the
+ * global transactional footer a real, monitored support channel. Keeping this exception anchored to
+ * the shared declaration means a second address, a moved footer, or a supposedly-guarded footer that
+ * renders while support is unset all fail instead of being hidden by a broad email exemption.
+ */
+function withoutConfiguredSupportFooter(body: string): string {
+  if (SUPPORT_EMAIL === null) return body;
+
+  const footer = `Questions? Email ${SUPPORT_EMAIL}.`;
+  expect(occurrences(body, footer), "the configured support footer appears exactly once").toBe(1);
+  return body.slice(0, body.lastIndexOf(footer));
+}
+
+/** Every decision-owned rendered string — both channels — as one blob for an ABSENCE assertion. */
 function bothChannels(payload: NotificationPayload, email: { subject: string; body: string }): string {
   const described = describeNotification(payload);
-  return [described.title, described.body, email.subject, email.body].join("\n");
+  return [described.title, described.body, email.subject, withoutConfiguredSupportFooter(email.body)].join("\n");
 }
 
 beforeAll(async () => {
