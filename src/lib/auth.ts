@@ -28,6 +28,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
+import { after } from "next/server";
 import { db } from "@/lib/db";
 import { sendVerificationEmail, sendResetPassword } from "@/lib/email";
 import {
@@ -85,7 +86,18 @@ export const auth = betterAuth({
     resetPasswordTokenExpiresIn: 3600, // 1h reset-token TTL.
     revokeSessionsOnPasswordReset: true, // D-13 — DEFAULT IS false; MUST set explicitly.
     sendResetPassword: async ({ user, url }) => {
-      void sendResetPassword(user.email, url); // fire-and-forget (Pitfall 4 — no await).
+      // Keep the reset response enumeration-safe and fast, but register the Resend work with
+      // Next/Vercel's request lifetime. A bare `void` promise can be cancelled when the function
+      // returns before Resend receives the message.
+      after(async () => {
+        try {
+          await sendResetPassword(user.email, url);
+        } catch {
+          // The request has already returned a deliberately generic response. Keep provider/network
+          // failure details out of the error path so they cannot expose recipient or token data.
+          console.error("password reset email delivery failed");
+        }
+      });
     },
   },
 

@@ -13,8 +13,15 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { auth as prodAuth } from "@/lib/auth";
+import { sendResetPassword } from "@/lib/email";
 import * as schema from "@/lib/db/schema";
 import type { TestDb } from "./db";
+
+type PasswordResetEmailOptions = {
+  enabled: boolean;
+  sendResetPassword?: (input: { user: { email: string }; url: string }) => Promise<void>;
+  [key: string]: unknown;
+};
 
 /** Build a Better Auth instance using the production options against the test-schema db. */
 export function makeTestAuth(
@@ -22,8 +29,18 @@ export function makeTestAuth(
   testOptions: { enforceOriginCheck?: boolean } = {},
 ) {
   const options = (prodAuth as unknown as { options: Record<string, unknown> }).options;
+  const emailAndPassword = options.emailAndPassword as PasswordResetEmailOptions;
   return betterAuth({
     ...options,
+    // `after()` is a Next request-lifetime API, so the production callback cannot run through
+    // these direct Better Auth API tests (they intentionally have no App Router request scope).
+    // Await the same transport here so reset-token integration tests can observe the mocked email.
+    emailAndPassword: {
+      ...emailAndPassword,
+      sendResetPassword: async ({ user, url }) => {
+        await sendResetPassword(user.email, url);
+      },
+    },
     advanced: {
       ...(options.advanced as Record<string, unknown> | undefined),
       // Better Auth deliberately skips origin checks under NODE_ENV=test unless this option is
