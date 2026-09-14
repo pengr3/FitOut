@@ -117,6 +117,9 @@ locking its visual direction or the meaning of party size.
   booker engages, then opens the activity → location → party-size flow.
 - **R2 — Party size filters out spaces that cannot fit the selected group.** The implementation must
   use a server-authoritative capacity/availability input; it must not merely label a result as suitable.
+- **R3 — Phase 24 applies the party filter against configured venue capacity only.** It does not add a
+  date question or promise a drop-in space's remaining places; date-specific availability stays in the
+  existing booking journey.
 
 ## Spikes
 
@@ -132,4 +135,5 @@ locking its visual direction or the meaning of party size.
 | 005c | host-verification-roadmap | responsive-stepper | comparison | Same four gates as a horizontal desktop stepper that stacks on phone widths | ✓ **VALIDATED ALTERNATIVE** — shortest desktop composition (244px), but compresses explanatory copy and changes geometry on phone | phase-21, host, verification, ux, responsive |
 | 006 | host-verification-roadmap | roadmap-state-stress | standard | Preferred layout stays truthful across lifecycle states and 320px | ✓ **VALIDATED** — 8/8 automated checks; first live listing completes the journey, with rejected siblings handled on their own cards | phase-21, host, verification, edge-cases, responsive |
 | 007 | progressive-search-flow | progressive-search-prototype | standard | Compare opening states and experience activity → location → party size before locking Phase 24's interaction direction | ✓ **VALIDATED** — search pill selected; party size is a real fit filter | phase-24, search, ux, progressive-disclosure, responsive |
-| 008 | progressive-search-flow | party-size-capacity-policy | standard | Compare capacity-only and date-aware availability policies across exclusive and drop-in spaces | ○ **PENDING HUMAN REVIEW** | phase-24, search, capacity, availability, edge-cases |
+| 008 | progressive-search-flow | party-size-capacity-policy | standard | Compare capacity-only and date-aware availability policies across exclusive and drop-in spaces | ✓ **VALIDATED** — capacity-only chosen; no new date question | phase-24, search, capacity, availability, edge-cases |
+| 009 | progressive-search-flow | progressive-journey-stress | standard | Verify the chosen search-pill journey survives Back, edit, cancel, result handoff, and phone width | ○ **PENDING HUMAN REVIEW** | phase-24, search, ux, responsive, state-machine |

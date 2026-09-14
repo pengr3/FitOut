@@ -4,7 +4,7 @@ idea: progressive-search-flow
 name: party-size-capacity-policy
 type: standard
 validates: "Given a selected party size, when results contain exclusive and open-capacity spaces, then the product owner can compare capacity-only versus date-aware fit policies without showing a false promise."
-verdict: PENDING HUMAN REVIEW
+verdict: "VALIDATED — capacity-only filter; no date question"
 related: [007]
 tags: [phase-24, search, capacity, availability, edge-cases]
 ---
@@ -55,6 +55,7 @@ Then open `index.html`. Change group size, toggle the policy, and add/remove a c
 
 ## Results
 
-**Pending human review.** The owner needs to choose whether the party question is a broad
-capacity-only guard in Phase 24, or whether the progressive flow must also acquire a date before it
-can make a stronger availability promise.
+**VALIDATED.** Phase 24 keeps the stated activity → location → party-size sequence. The party answer
+filters by a venue's configured maximum capacity only. It must not claim that a drop-in venue has a
+particular number of places remaining — that date-specific availability stays in the existing booking
+journey. The explicit result copy is as important as the predicate.
