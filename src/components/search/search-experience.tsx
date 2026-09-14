@@ -78,6 +78,27 @@ export function SearchExperience({
     setProgress("Choose who is coming.");
   }
 
+  function useMyLocation() {
+    if (!("geolocation" in navigator) || navigator.geolocation === undefined) {
+      setProgress("Location is unavailable. Type an address instead.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setAnswers((current) => ({
+          ...current,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          locationLabel: "Current location",
+        }));
+        setActiveStep("party");
+        setProgress("Choose who is coming.");
+      },
+      () => setProgress("We couldn't get your location. Type an address instead."),
+    );
+  }
+
   function submitForMe() {
     const candidate = searchParamsSchema.safeParse({
       category: answers.category,
@@ -114,7 +135,7 @@ export function SearchExperience({
       </p>
 
       {activeStep === "idle" && !hasCompletedSearch ? (
-        <Button type="button" variant="outline" size="touch" className="w-full justify-between" onClick={() => { setActiveStep("activity"); setProgress("Choose an activity or space type."); }}>
+        <Button type="button" variant="outline" size="touch" aria-label="Start your search" className="w-full justify-between" onClick={() => { setActiveStep("activity"); setProgress("Choose an activity or space type."); }}>
           <span>Start your search</span>
           <span className="text-muted-foreground">Activity, location, and party</span>
         </Button>
@@ -133,7 +154,7 @@ export function SearchExperience({
                 return groupOptions.length > 0 ? (
                   <CommandGroup key={group} heading={group}>
                     {groupOptions.map((option) => (
-                      <CommandItem key={option.value} value={option.label} onSelect={() => chooseOption(option)}>{option.label}</CommandItem>
+                      <CommandItem key={option.value} value={option.label} onSelect={() => chooseOption(option)} onClick={() => chooseOption(option)}>{option.label}</CommandItem>
                     ))}
                   </CommandGroup>
                 ) : null;
@@ -148,6 +169,7 @@ export function SearchExperience({
           <p className="text-label text-muted-foreground">Step 2 of 3</p>
           <h2 ref={stepHeading} tabIndex={-1} className="text-xl font-semibold outline-none">Where do you want to play?</h2>
           <AddressAutocomplete audience="search" initialLabel={answers.locationLabel} hasCoordinates={answers.lat !== undefined && answers.lng !== undefined} onResolved={resolveAddress} />
+          <Button type="button" variant="outline" size="touch" onClick={useMyLocation}>Use my location</Button>
         </div>
       ) : null}
 

@@ -376,6 +376,7 @@ export const LIVE_REGION_FILES = [
   // ─── search ─────────────────────────────────────────────────────────────────────────────────────
   "src/components/search/relax-band.tsx",
   "src/components/search/search-results.tsx",
+  "src/components/search/search-experience.tsx",
   // ─── the group lifecycle (plan 13-14's discharge — see the header) ──────────────────────────────
   "src/components/group/attendee-roster.tsx",
   "src/components/group/rsvp-confirmation.tsx",
@@ -701,6 +702,8 @@ export const LIVE_REGION_IDS = [
   "search-relax-band",
   // search-results.tsx
   "search-results-fetch-error",
+  // search-experience.tsx
+  "search-progress",
   // attendee-roster.tsx
   "group-attendee-removed",
   // rsvp-confirmation.tsx
@@ -1145,6 +1148,16 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "spaces\"`, which lives in the pattern layer and is gated by " +
       "`tests/design/skeleton-a11y.test.tsx` rather than here. That split is why this file has one row " +
       "and not two, and it is the reason the scan keys rows to the file that RENDERS the attribute.",
+  },
+  // ─── search-experience.tsx ──────────────────────────────────────────────────────────────────────
+  "search-progress": {
+    file: "src/components/search/search-experience.tsx",
+    kind: "status",
+    at: 1,
+    announces:
+      'The next question after a committed activity or successful location, or one calm browser-location recovery outcome.',
+    why:
+      'RULE 5 + RULE 6. This one mounted status stays empty at idle and changes only for coordinator-owned transitions or geolocation outcomes. AddressAutocomplete owns its own resolved-address announcement, so this region never repeats it.',
   },
 
   // ─── attendee-roster.tsx ────────────────────────────────────────────────────────────────────────
@@ -1790,6 +1803,12 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
  */
 export const AUTHOR_NAMED_REGIONS = [
   {
+    id: "search-progress",
+    name: "Search progress",
+    why:
+      "The coordinator status remains mounted and empty until an answer transition or a browser-location outcome, so it has no stable text from which to derive its accessible name at idle. The name identifies the changing line without restating its outcome.",
+  },
+  {
     id: "pending-payment",
     name: "Payment status",
     why:
@@ -2171,8 +2190,8 @@ type Assert<T extends true> = T;
  * what that does and does not now resolve. Nothing was relaxed — the name must still be non-empty
  * and must still equal the string recorded below.
  */
-export type DeclaredFileCountIsThirtyOne = Assert<
-  (typeof LIVE_REGION_FILES)["length"] extends 31 ? true : false
+export type DeclaredFileCountIsThirtyTwo = Assert<
+  (typeof LIVE_REGION_FILES)["length"] extends 32 ? true : false
 >;
 
 // ---------------------------------------------------------------------------

@@ -327,7 +327,7 @@ const SCAN_FILES: readonly string[] = LIVE_REGION_FILES;
  * revealed email anchor (GATE-03 rule 7), and a polite region beside that move would be two
  * announcements for one outcome. Each reason is written at its own site rather than generalised.
  */
-const DECLARED_FILE_COUNT = 31;
+const DECLARED_FILE_COUNT = 32;
 
 /** A file this size is a stub or a truncated read; every declared file is far larger. */
 const MIN_FILE_BYTES = 200;
@@ -704,7 +704,7 @@ describe("guard-the-guard — the scan read the set it is asserting about", () =
     expect(
       SCAN_FILES.length,
       `the declared set is ${SCAN_FILES.length} files, not ${DECLARED_FILE_COUNT}. This number is ` +
-        "pinned in TWO places — `DeclaredFileCountIsThirtyOne` in `src/lib/design/live-regions.ts` " +
+        "pinned in TWO places — `DeclaredFileCountIsThirtyTwo` in `src/lib/design/live-regions.ts` " +
         "fails the build, and this fails the gate with a message. Plans 12-12, 12-13, 13-14, 14-14, " +
         "15-09, 16-09, 16-10, 18-10, 18.1-11 and 18.1-13 " +
         "each moved BOTH, in the same commit as the components they add. A set that widened in one " +

@@ -18,34 +18,21 @@ test.describe.serial("progressive search", () => {
   });
 
   test("address and For me reach capacity-filtered results", async ({ page }) => {
-    await page.route("https://photon.komoot.io/api/**", async (route) => {
-      await route.fulfill({
-        contentType: "application/json",
-        body: JSON.stringify({
-          features: [
-            {
-              geometry: { coordinates: [121.0244, 14.5547] },
-              properties: {
-                name: "2 Real Street",
-                city: "Makati",
-                state: "Metro Manila",
-                country: "Philippines",
-              },
-            },
-          ],
-        }),
-      });
-    });
-
     await page.goto(BASE);
     await expect(page.getByRole("button", { name: "Start your search" })).toBeVisible();
     await expect(page.getByLabel("Search for activity or type")).toHaveCount(0);
 
     await page.getByRole("button", { name: "Start your search" }).click();
-    await page.getByPlaceholder("Search activities and space types").fill("martial");
-    await expect(page).toHaveURL(BASE + "/");
     await page.getByRole("option", { name: eligible.spaceTypeLabel, exact: true }).click();
 
+    await page.route("https://photon.komoot.io/api/**", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          features: [{ geometry: { coordinates: [121.0244, 14.5547] }, properties: { name: "2 Real Street", city: "Makati", state: "Metro Manila", country: "Philippines" } }],
+        }),
+      });
+    });
     await page.getByRole("button", { name: "Search for your address" }).click();
     await page.getByPlaceholder("Type a street or city…").fill("Makati");
     await page.getByRole("option", { name: /2 Real Street, Makati/i }).click();

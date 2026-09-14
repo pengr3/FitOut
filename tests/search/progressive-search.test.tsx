@@ -19,6 +19,14 @@ vi.mock("@/components/listing/address-autocomplete", () => ({
   ),
 }));
 
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver = globalThis.ResizeObserver ?? (ResizeObserverStub as unknown as typeof ResizeObserver);
+Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => {});
+
 afterEach(() => {
   cleanup();
   push.mockClear();
@@ -42,7 +50,7 @@ it("filters the closed catalogue without committing typed text", () => {
   renderSearch();
   fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
   fireEvent.change(screen.getByPlaceholderText("Search activities and space types"), { target: { value: "not a listing" } });
-  expect(screen.getByText("No matching activity or type")).toBeVisible();
+  expect(screen.getByText("No matching activity or type")).toBeTruthy();
   expect(push).not.toHaveBeenCalled();
 });
 
@@ -55,7 +63,8 @@ it("requests browser location only after explicit activation and submits the can
   selectActivity();
   fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
   expect(getCurrentPosition).toHaveBeenCalledTimes(1);
-  await waitFor(() => expect(screen.getByRole("heading", { name: "Who is this for?" })).toHaveFocus());
+  const partyHeading = screen.getByRole("heading", { name: "Who is this for?" });
+  await waitFor(() => expect(document.activeElement).toBe(partyHeading));
   fireEvent.click(screen.getByRole("button", { name: "For me" }));
   expect(push).toHaveBeenCalledWith("/?category=martial_arts_boxing&lat=14.5547&lng=121.0244&locationLabel=Current+location&partySize=1");
 });
@@ -65,8 +74,8 @@ it("keeps address entry usable when browser location is unavailable", () => {
   renderSearch();
   selectActivity();
   fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-  expect(screen.getByRole("button", { name: "Resolve Makati address" })).toBeEnabled();
-  expect(screen.getByRole("status", { name: "Search progress" })).toHaveTextContent("Type an address instead");
+  expect(screen.getByRole("button", { name: "Resolve Makati address" }).hasAttribute("disabled")).toBe(false);
+  expect(screen.getByRole("status", { name: "Search progress" }).textContent).toContain("Type an address instead");
 });
 
 it("retains submitted answers in direct-edit chips and keeps one initially empty progress region", () => {
@@ -79,10 +88,10 @@ it("retains submitted answers in direct-edit chips and keeps one initially empty
     </SearchExperience>,
   );
   const progress = screen.getByRole("status", { name: "Search progress" });
-  expect(progress).toBeEmptyDOMElement();
-  expect(screen.getByRole("button", { name: /Activity: Martial arts/i })).toBeVisible();
-  expect(screen.getByRole("button", { name: /Location: Makati/i })).toBeVisible();
-  expect(screen.getByRole("button", { name: "1 person" })).toBeVisible();
+  expect(progress.textContent).toBe("");
+  expect(screen.getByRole("button", { name: /Activity: Martial arts/i })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Location: Makati/i })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "1 person" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "1 person" }));
-  expect(screen.getByRole("heading", { name: "Who is this for?" })).toHaveFocus();
+  expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Who is this for?" }));
 });

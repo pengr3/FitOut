@@ -224,12 +224,14 @@ const EXPECTED_CONVERSIONS: Record<string, number> = {
   "src/components/group/create-group-button.tsx": 1,
   "src/components/group/rsvp-form.tsx": 1,
   "src/components/search/search-bar.tsx": 1,
+  "src/components/search/search-experience.tsx": 1,
 };
 
 /** The two booker CTAs that hand-rolled a 44px height before D-22 gave it a name. */
 const TOUCH_SITES = [
   "src/components/group/rsvp-form.tsx",
   "src/components/search/search-bar.tsx",
+  "src/components/search/search-experience.tsx",
 ] as const;
 
 const BRAND_VARIANT = 'variant="brand"';
@@ -645,7 +647,7 @@ describe("DS-08 — the scan itself reaches what it claims to police", () => {
 });
 
 describe("DS-08 — the accent reaches the booker through the variant, never through a string", () => {
-  it("converts exactly 19 call sites across the booking, group and search trees", () => {
+  it("converts exactly 20 call sites across the booking, group and search trees", () => {
     // 15 -> 16 by plan 12-10's `booking/booking-sticky-bar.tsx`. See EXPECTED_CONVERSIONS for why that
     // one is an addition rather than a conversion, and why a bar with a brand action is the shape
     // 12-UI-SPEC asks for at this width rather than an accent someone reached for.
@@ -661,7 +663,7 @@ describe("DS-08 — the accent reaches the booker through the variant, never thr
     // exactly one is mounted at any instant. See EXPECTED_CONVERSIONS for why that is a different fact
     // from the checkout bar's two, and where the rendered accent count is actually asserted.
     const total = Object.values(scan.conversions).reduce((sum, n) => sum + n, 0);
-    expect(total).toBe(19);
+    expect(total).toBe(20);
   });
 
   it("converts exactly the right sites — the per-file map, not just the total", () => {
@@ -806,7 +808,7 @@ describe("DS-08 — the repo-wide scan reaches the trees it now claims to police
 });
 
 describe("DS-08 / D-21 — coral appears on exactly the 22 buttons someone asked for it", () => {
-  it("adopts the brand variant at exactly 28 call sites across src/app and src/components", () => {
+  it("adopts the brand variant at exactly 29 call sites across src/app and src/components", () => {
     // 15 from plan 10-08 (bookings, booking, group, search) + 5 from plan 10-09 (the host surface) +
     // 1 from plan 12-10 (RESP-02's sticky bottom bar, the mobile listing page's single focal action) +
     // 1 from plan 12-11 (BFLOW-06's checkout bar, the mobile checkout's single focal action). The
@@ -869,7 +871,7 @@ describe("DS-08 / D-21 — coral appears on exactly the 22 buttons someone asked
     // THE SCOPED 19 ABOVE IS UNMOVED ACROSS BOTH COMMITS, which is the cross-check that all four
     // conversions really landed in `(auth)` and nowhere else.
     const total = Object.values(scan.adoption).reduce((sum, n) => sum + n, 0);
-    expect(total).toBe(28);
+    expect(total).toBe(29);
   });
 
   it("lands the 5 host conversions on the host surface, not somewhere convenient", () => {
