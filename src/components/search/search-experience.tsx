@@ -104,12 +104,17 @@ export function SearchExperience({ initialAnswers, hasCompletedSearch, children 
   const [filter, setFilter] = useState("");
   const [locationPending, setLocationPending] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const locationAttemptRef = useRef(0);
 
   useEffect(() => {
     if (state.screen !== "idle") headingRef.current?.focus();
   }, [state.screen]);
 
   function dispatch(event: ProgressiveSearchEvent) {
+    if (event.type === "BACK" || event.type === "CANCEL" || event.type === "EDIT") {
+      locationAttemptRef.current += 1;
+      setLocationPending(false);
+    }
     setState((current) => progressiveSearchReducer(current, event));
   }
 
@@ -135,6 +140,8 @@ export function SearchExperience({ initialAnswers, hasCompletedSearch, children 
   }
 
   function resolveAddress(address: ResolvedAddress) {
+    locationAttemptRef.current += 1;
+    setLocationPending(false);
     dispatch({ type: "RESOLVE_LOCATION", address: { lat: address.lat, lng: address.lng, locationLabel: addressLabel(address) } });
   }
 
@@ -143,13 +150,23 @@ export function SearchExperience({ initialAnswers, hasCompletedSearch, children 
       setState((current) => ({ ...current, progress: "Location is unavailable. Type an address instead." }));
       return;
     }
+    const attempt = locationAttemptRef.current + 1;
+    locationAttemptRef.current = attempt;
     setLocationPending(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (attempt !== locationAttemptRef.current) return;
+        const { latitude, longitude } = position.coords;
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+          setLocationPending(false);
+          setState((current) => ({ ...current, progress: "We couldn't get your location. Type an address instead." }));
+          return;
+        }
         setLocationPending(false);
-        dispatch({ type: "RESOLVE_LOCATION", address: { lat: position.coords.latitude, lng: position.coords.longitude, locationLabel: "Current location" } });
+        dispatch({ type: "RESOLVE_LOCATION", address: { lat: latitude, lng: longitude, locationLabel: "Current location" } });
       },
       () => {
+        if (attempt !== locationAttemptRef.current) return;
         setLocationPending(false);
         setState((current) => ({ ...current, progress: "We couldn't get your location. Type an address instead." }));
       },
@@ -179,13 +196,13 @@ export function SearchExperience({ initialAnswers, hasCompletedSearch, children 
         </div>
       ) : null}
       {state.screen === "activity" ? (
-        <ActivityStep filter={filter} headingRef={headingRef} onFilterChange={setFilter} onSelect={(option) => { setFilter(option.label); dispatch({ type: "SELECT_ACTIVITY", option }); }} />
+        <div className="motion-reduce:transition-none transition duration-(--motion-base) ease-(--motion-ease-standard)"><ActivityStep filter={filter} headingRef={headingRef} onFilterChange={setFilter} onSelect={(option) => { setFilter(option.label); dispatch({ type: "SELECT_ACTIVITY", option }); }} /></div>
       ) : null}
       {state.screen === "location" ? (
-        <LocationStep headingRef={headingRef} initialLabel={answers.locationLabel} hasCoordinates={answers.lat !== undefined && answers.lng !== undefined} locationPending={locationPending} onResolved={resolveAddress} onUseMyLocation={useMyLocation} />
+        <div className="motion-reduce:transition-none transition duration-(--motion-base) ease-(--motion-ease-standard)"><LocationStep headingRef={headingRef} initialLabel={answers.locationLabel} hasCoordinates={answers.lat !== undefined && answers.lng !== undefined} locationPending={locationPending} onResolved={resolveAddress} onUseMyLocation={useMyLocation} /></div>
       ) : null}
       {state.screen === "party" ? (
-        <PartyStep
+        <div className="motion-reduce:transition-none transition duration-(--motion-base) ease-(--motion-ease-standard)"><PartyStep
           headingRef={headingRef}
           groupDraft={state.groupDraft}
           showGroupInput={state.groupMode}
@@ -193,7 +210,7 @@ export function SearchExperience({ initialAnswers, hasCompletedSearch, children 
           onChooseGroup={() => dispatch({ type: "CHOOSE_GROUP" })}
           onGroupDraftChange={(groupDraft) => setState((current) => ({ ...current, groupDraft }))}
           onSubmitGroup={(partySize) => { dispatch({ type: "CHOOSE_GROUP", partySize }); submitPartySize(partySize); }}
-        />
+        /></div>
       ) : null}
       {state.resultsVisible ? (
         <div className="flex flex-wrap gap-2" aria-label="Search answers">

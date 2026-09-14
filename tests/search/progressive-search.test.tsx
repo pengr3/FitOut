@@ -80,6 +80,17 @@ it("keeps address entry usable when browser location is unavailable", () => {
   expect(screen.getByRole("status", { name: "Search progress" }).textContent).toContain("Type an address instead");
 });
 
+it("keeps address entry usable after browser location denial", () => {
+  const getCurrentPosition = vi.fn((_success: PositionCallback, failure?: PositionErrorCallback) => failure?.({ code: 1 } as PositionError));
+  Object.defineProperty(window.navigator, "geolocation", { configurable: true, value: { getCurrentPosition } });
+  renderSearch();
+  selectActivity();
+  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+  expect(screen.getByRole("heading", { name: "Where do you want to play?" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Resolve Makati address" }).hasAttribute("disabled")).toBe(false);
+  expect(screen.getByRole("status", { name: "Search progress" }).textContent).toContain("Type an address instead");
+});
+
 it("retains submitted answers in direct-edit chips and keeps one initially empty progress region", () => {
   render(
     <SearchExperience
@@ -90,6 +101,7 @@ it("retains submitted answers in direct-edit chips and keeps one initially empty
     </SearchExperience>,
   );
   const progress = screen.getByRole("status", { name: "Search progress" });
+  expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
   expect(progress.textContent).toBe("");
   expect(screen.getByRole("button", { name: /Activity: Martial arts/i })).toBeTruthy();
   expect(screen.getByRole("button", { name: /Location: Makati/i })).toBeTruthy();
