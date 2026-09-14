@@ -288,7 +288,8 @@ test("cross-host exits use exact configured origins without carrying source cook
 
     const marketplacePage = await marketplaceContext.newPage();
     await marketplacePage.goto(PUBLIC_ORIGIN);
-    await marketplacePage.getByRole("link", { name: "FitOut Ops" }).click();
+    await expect(marketplacePage.getByRole("link", { name: "FitOut Ops" })).toHaveCount(0);
+    await marketplacePage.goto(`${OPS_ORIGIN}/login`);
     await expect(marketplacePage).toHaveURL(`${OPS_ORIGIN}/login`);
     expect(new URL(marketplacePage.url()).search).toBe("");
     const opsSessionFromPublic = await marketplaceContext.request.get(

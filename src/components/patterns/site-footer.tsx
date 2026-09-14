@@ -76,7 +76,7 @@
 
 import Link from "next/link";
 
-import { absoluteOpsUrl, absolutePublicUrl } from "@/lib/app-origins";
+import { absolutePublicUrl } from "@/lib/app-origins";
 import { SITE_TAGLINE, SUPPORT_EMAIL } from "@/lib/site";
 
 /**
@@ -120,7 +120,6 @@ const LINK_CLASS = `${BODY_CLASS} underline-offset-4 hover:underline hover:text-
 const PRODUCT_LINKS = [
   { href: absolutePublicUrl("/"), label: "Find a space" },
   { href: absolutePublicUrl("/host"), label: "Host your space" },
-  { href: absoluteOpsUrl("/login"), label: "FitOut Ops" },
 ] as const;
 
 const LEGAL_LINKS = [
