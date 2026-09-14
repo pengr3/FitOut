@@ -2,7 +2,7 @@
 phase: "23"
 slug: "the-support-path-becomes-reachable"
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: "2026-09-11"
 ---
@@ -50,8 +50,12 @@ This contract validates the fitout.live production-domain cutover, monitored sup
 
 ## Sign-Off
 
-- [ ] Every source task has a non-watch automated command and an explicit failure condition.
-- [ ] The focused email and origin tests are green before Wave 2 begins.
-- [ ] The full source suite is green before the authenticated dashboard checkpoint.
-- [ ] All manual proof is redacted and excludes keys, tokens, signing secrets, bearer links, and recipient evidence.
-- [ ] Set nyquist_compliant to true only after the source suite and every live check are complete.
+- [x] Every source task has a non-watch automated command and an explicit failure condition.
+- [x] Production topology, redirect, sender verification, Production-only runtime scope, and production redeploys are recorded in the redacted evidence ledger.
+- [x] The focused email, secret-config, public-origin, and identity-provider tests are green. On 2026-09-13 the focused gates completed with 26 passing tests after the isolated test database was started; the exact Task 3 command subsequently passed 14 tests.
+- [x] The full source suite is green before the authenticated dashboard checkpoint. On 2026-09-14, 239 files passed (2 skipped) and 2,967 tests passed (5 skipped). The harness reported two contained audit rows in its dedicated test database's public schema; no development or production data was touched.
+- [x] External provider inventories are complete: every inspected production callback or serve setting is absent, so no provider mutation or test event was appropriate.
+- [x] The controlled staff-invitation CTA completed. The invitation was reported delivered, then accepted and consumed; Production Ops shows the resulting owner-authorized account as active staff and no pending invitation remains. The password-reset, host-isolation, and generated-host Preview checks remain recorded in the redacted ledger.
+- [x] The future dedicated-inbox handoff is recorded: establish and monitor the replacement inbox, change `SUPPORT_EMAIL` once, deploy, repeat the controlled delivery/reply walk, and retire the launch inbox only after a reply arrives at the replacement inbox.
+- [x] Recorded manual proof excludes keys, tokens, signing secrets, bearer links, recipient evidence, DNS values, headers, message identifiers, and screenshots.
+- [x] Every source-suite and live check is complete; `nyquist_compliant` is true.
