@@ -446,22 +446,19 @@ Do not automatically delete generic relaxation utilities until a repository-wide
 
 All exact repository enums, bounds, paths, and versions elsewhere in this research were read from their source-of-truth files in this session.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **What is the canonical reload-safe location chip label?**
+1. **RESOLVED — The canonical reload-safe location chip label is the bounded, display-only `locationLabel` URL field.**
    - What we know: search authority is coordinates; the current address resolver returns structured address fields, and current geolocation returns coordinates without reverse geocoding. [VERIFIED: src/components/listing/address-autocomplete.tsx:72-81] [VERIFIED: src/components/search/search-bar.tsx:187-206]
-   - What's unclear: no current validated URL field preserves the chosen human label.
-   - Recommendation: add bounded, display-only `locationLabel`; emit the selected address label or `Current location`; prove in a test that changing only the label never changes SQL results.
+   - Accepted resolution: add bounded, display-only `locationLabel`; emit the selected address label or `Current location`; prove in a test that changing only the label never changes SQL results. Coordinates remain the sole location-search authority.
 
-2. **Should generic relaxation modules be deleted or only disconnected?**
+2. **RESOLVED — Delete legacy relaxation modules only after a fresh usage/test census and dependent-contract migration.**
    - What we know: the public page and empty state currently use them, and D-08 requires removing that surface. [VERIFIED: src/app/(public)/page.tsx:122-164]
-   - What's unclear: future or non-public references can change before execution.
-   - Recommendation: begin implementation with `rg` over source, tests, e2e, stories, and visual baselines; delete only modules with no remaining supported consumer.
+   - Accepted resolution: Plan 24-04 disconnects the public runtime after its census; the ordered legacy-retirement plan repeats the census, migrates or deletes every dependent test/design contract, and deletes only modules with no supported consumer.
 
-3. **Does “Cancel clears” also clear an already submitted results URL?**
+3. **RESOLVED — Cancel from submitted results clears Phase 24 search state and returns to browse `/` per D-02.**
    - What we know: D-02 says Cancel clears the in-progress search and restores idle/browse; result chips edit retained submitted answers. [VERIFIED: .planning/phases/24-search-bar-rework/24-CONTEXT.md:21-29]
-   - What's unclear: whether Cancel from a result edit should preserve current result cards beneath the closed pill or navigate to browse.
-   - Recommendation: interpret the locked wording literally: Cancel from result editing navigates to `/` and restores browse, while Back is the non-destructive escape.
+   - Accepted resolution: Cancel from result editing navigates to `/`, clears retained Phase 24 answers, and restores browse; Back is the non-destructive answer-preserving escape.
 
 ## Environment Availability
 

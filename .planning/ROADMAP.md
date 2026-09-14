@@ -1136,6 +1136,42 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 21. The Host Can See Where They Stand | v1.2 | 2/5 | Complete    | 2026-09-10 |
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |
 | 23. The Support Path Becomes Reachable | v1.2 | 0/TBD | **Blocked on a business fact** — a monitored support address (D-64 forbids a placeholder) | - |
+| 24. Search Bar Rework | v1.2 | 0/8 | Planned — progressive activity, location, and party-size journey ready to execute | - |
+
+### Phase 24: Search Bar Rework
+
+**Goal:** Replace the always-expanded search controls with a simple, progressive search flow: reveal the search experience only when the user engages with it, then ask for activity, location, and party size one question at a time with smooth transitions.
+**Requirements**: TBD
+**Depends on:** Phase 23
+**Plans:** 8 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 24-01-PLAN.md — Trace one production-quality solo search from the idle pill through exact catalogue and address selection to a canonical, server-validated, capacity-filtered result with editable answer chips.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 24-02-PLAN.md — Complete the retained Back/Edit/Cancel client journey, exact catalogue and group entry, recoverable geolocation, focus/status ownership, responsive motion, and focused component coverage.
+- [ ] 24-03-PLAN.md — Harden bounded optional party-size validation and canonical URL normalization, then prove the parameterized pre-pagination capacity predicate at database boundaries.
+- [ ] 24-04-PLAN.md — Recompose populated, empty, error, and streaming-loading states around shared answer chips and remove the public legacy refinement surface.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 24-05-PLAN.md — Prove the full progressive journey at desktop and 375 px across correction, location, party, reload/share, accessibility, reduced-motion, populated, and empty-result paths.
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 24-06-PLAN.md — Migrate booking, price-parity, responsive-tree, and public-axe browser suites to the canonical Phase 24 entry path without weakening their downstream assertions.
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 24-07-PLAN.md — Repeat the usage census, retire the disconnected expanded-search and relaxation stack, and clean the dev-theme result and empty-state examples.
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 24-08-PLAN.md — Reconcile design registries, drive and baseline six progressive states at both widths, prove repeat-run stability, and run the repository-wide release gate.
 
 ## Carried Forward (not v1.2 scope until promoted)
 
