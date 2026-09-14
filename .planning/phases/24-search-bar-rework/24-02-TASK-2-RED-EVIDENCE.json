@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/search/progressive-search.test.tsx --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 8 - ignores a late geolocation success after leaving the location step\nAssertionError: expected Who is this for heading to be null after Back\n# tests 8\n# pass 7\n# fail 1",
+  "targetTest": "ignores a late geolocation success after leaving the location step",
+  "targetFile": "tests/search/progressive-search.test.tsx",
+  "expected": "A geolocation callback started on location becomes inert after Back, leaving the activity screen mounted.",
+  "actual": "The stale browser success callback advanced the coordinator to the party step."
+}

@@ -152,3 +152,21 @@ it("parses and submits only exact bounded group sizes", () => {
   fireEvent.click(submit);
   expect(push).toHaveBeenCalledWith("/?category=martial_arts_boxing&lat=14.5547&lng=121.0244&locationLabel=2+Real+Street%2C+Makati%2C+Metro+Manila%2C+Philippines&partySize=2");
 });
+
+it("ignores a late geolocation success after leaving the location step", async () => {
+  let succeed: PositionCallback | undefined;
+  const getCurrentPosition = vi.fn((success: PositionCallback) => { succeed = success; });
+  Object.defineProperty(window.navigator, "geolocation", { configurable: true, value: { getCurrentPosition } });
+
+  renderSearch();
+  selectActivity();
+  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+  expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+  expect(succeed).toBeDefined();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  succeed?.({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition);
+
+  await waitFor(() => expect(screen.getByRole("heading", { name: "What are you looking for?" })).toBeTruthy());
+  expect(screen.queryByRole("heading", { name: "Who is this for?" })).toBeNull();
+  expect(push).not.toHaveBeenCalled();
+});
