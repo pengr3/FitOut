@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { parseGroupPartySize } from "@/components/search/party-step";
@@ -180,5 +180,33 @@ it("ignores a late geolocation success after leaving the location step", async (
 
   await waitFor(() => expect(screen.getByRole("heading", { name: "What are you looking for?" })).toBeTruthy());
   expect(screen.queryByRole("heading", { name: "Who is this for?" })).toBeNull();
+  expect(push).not.toHaveBeenCalled();
+});
+
+it("invalidates location callbacks after Cancel and after a newer browser attempt", async () => {
+  const attempts: Array<{ success: PositionCallback; failure?: PositionErrorCallback }> = [];
+  Object.defineProperty(window.navigator, "geolocation", {
+    configurable: true,
+    value: { getCurrentPosition: (success: PositionCallback, failure?: PositionErrorCallback) => attempts.push({ success, failure }) },
+  });
+
+  renderSearch();
+  selectActivity();
+  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  act(() => attempts[0]?.success({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Start your search" })).toBeTruthy());
+  expect(push).toHaveBeenCalledWith("/");
+
+  push.mockClear();
+  selectActivity();
+  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+  act(() => attempts[1]?.failure?.({ code: 2 } as PositionError));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Use my location" }).hasAttribute("disabled")).toBe(false));
+  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
+  act(() => attempts[1]?.success({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition));
+  expect(screen.getByRole("heading", { name: "Where do you want to play?" })).toBeTruthy();
+  act(() => attempts[2]?.success({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition));
+  await waitFor(() => expect(screen.getByRole("heading", { name: "Who is this for?" })).toBeTruthy());
   expect(push).not.toHaveBeenCalled();
 });
