@@ -94,7 +94,6 @@ import {
   FORM_ROW,
   PAYOUT_STATE_FIXTURES,
   RESULT_CARD,
-  RESULT_CARD_WINDOW,
   SPOTS_FIXTURES,
   TYPE_LADDER,
 } from "./fixtures";
@@ -436,10 +435,10 @@ function ThemePane({ name }: { name: string }) {
       <Section
         index={5}
         title="Result card"
-        note="The booker's search tile: photo placeholder, title, all-in price and the soft-accent scarcity chip."
+        note="A capacity-honest submitted result: photo placeholder, title, all-in price and the soft-accent scarcity chip."
       >
         <div className="max-w-xs">
-          <SearchResultCard listing={RESULT_CARD} searchedWindow={RESULT_CARD_WINDOW} />
+          <SearchResultCard listing={RESULT_CARD} />
         </div>
       </Section>
 
@@ -613,9 +612,8 @@ function ThemePane({ name }: { name: string }) {
             tone="neutral"
             icon={CalendarSearchIcon}
             titleAs="h3"
-            title="No spaces match those filters"
-            body="Try a wider time window, a larger radius, or clear one filter."
-            actions={<Button variant="outline">Clear filters</Button>}
+            title="No spaces match those answers"
+            body="Edit an answer above to try a different search."
           />
           <EmptyState
             tone="positive"

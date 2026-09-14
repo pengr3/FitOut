@@ -295,11 +295,6 @@ export const RESULT_CARD: ComponentProps<typeof SearchResultCard>["listing"] = {
   fitoutChecked: true,
 };
 
-/** The searched day the card was reached from — the same frozen calendar day the slot grid uses. */
-export const RESULT_CARD_WINDOW: ComponentProps<typeof SearchResultCard>["searchedWindow"] = {
-  date: "2026-03-14",
-};
-
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 // 6. Form row
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
