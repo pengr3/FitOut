@@ -118,4 +118,3 @@ None.
 
 - Commits `52a0a88` and `8d637b3` exist.
 - All four modified source/test files exist, and the plan’s two primary E2E artifacts are committed.
-
