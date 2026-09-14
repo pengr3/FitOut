@@ -3,6 +3,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
+const transitionState = vi.hoisted(() => ({ pending: false }));
+vi.mock("react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react")>();
+  return {
+    ...actual,
+    useTransition: () => [transitionState.pending, (callback: () => void) => callback()] as never,
+  };
+});
+
 if (!HTMLElement.prototype.scrollIntoView) {
   HTMLElement.prototype.scrollIntoView = () => undefined;
 }
@@ -29,6 +38,8 @@ afterEach(() => {
   cleanup();
   push.mockClear();
   refresh.mockClear();
+  transitionState.pending = false;
+  vi.restoreAllMocks();
 });
 
 const CARD = "result-card";
@@ -74,6 +85,7 @@ function baseProps() {
     heading: "0 spaces near you",
     city: "Manila",
     queryString: "category=pickleball_court&lat=14.5547&lng=121.0244&locationLabel=Makati&partySize=2",
+    fetchError: false,
   };
 }
 
@@ -147,6 +159,16 @@ describe("completed progressive search states", () => {
     expectNoRetiredControls();
   });
 
+  it("keeps shared answers above the single soft-navigation loading owner", () => {
+    transitionState.pending = true;
+    renderCompletedSearch();
+
+    expectSharedAnswers();
+    expect(screen.getAllByRole("status", { name: "Loading spaces" })).toHaveLength(1);
+    expect(screen.queryByRole("heading", { name: "No spaces match those answers" })).toBeNull();
+    expectNoRetiredControls();
+  });
+
   it("retains canonical answers when sort resets paging and Load more increments it", () => {
     renderCompletedSearch({
       results: [makeRow("first", "Poblacion Pickleball Court")],
@@ -186,7 +208,7 @@ describe("route streaming fallback", () => {
     const shell = screen.getByTestId("search-idle-pill-shell");
     expect(shell.getAttribute("aria-hidden")).toBe("true");
     expect(shell.className).toContain("w-full");
-    expect(shell.className).toContain("min-h-11");
+    expect(shell.className).toContain("h-11");
     expect(shell.className).toContain("rounded");
     expect(shell.className).toContain("border");
     expect(shell.className).toContain("px-");
