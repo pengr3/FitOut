@@ -4,7 +4,7 @@ idea: progressive-search-flow
 name: progressive-search-prototype
 type: standard
 validates: "Given an idle search home, when a booker starts a search, then they can compare three opening states and complete activity → location → party size with visible Back and edit paths."
-verdict: PENDING HUMAN REVIEW
+verdict: "VALIDATED — search pill selected; party size must be a real fit filter"
 related: [004]
 tags: [phase-24, search, ux, progressive-disclosure, responsive]
 ---
@@ -58,5 +58,8 @@ search data.
 
 ## Results
 
-**Pending human review.** The owner must experience the prototype and choose a preferred opening
-state before a verdict is possible. This spike is intentionally not a build specification.
+**VALIDATED, with one implementation question intentionally carried forward.** The owner selected
+the **Search pill** as the idle invitation. Party size must filter out spaces that cannot fit the
+selected group, rather than merely personalising a later booking screen. Spike 008 now resolves what
+“can fit” honestly means for normal versus drop-in spaces when this Phase 24 journey has not yet asked
+for a date.
