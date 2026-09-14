@@ -110,6 +110,27 @@ it("retains submitted answers in direct-edit chips and keeps one initially empty
   expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Who is this for?" }));
 });
 
+it("hydrates completed server answers after App Router replaces the result children", async () => {
+  const { rerender } = render(
+    <SearchExperience initialAnswers={{}} hasCompletedSearch={false}>
+      <p>Cold browse</p>
+    </SearchExperience>,
+  );
+
+  rerender(
+    <SearchExperience
+      initialAnswers={{ category: "martial_arts_boxing", locationLabel: "Makati", lat: 14.5547, lng: 121.0244, partySize: 4 }}
+      hasCompletedSearch
+    >
+      <p>Server rendered results</p>
+    </SearchExperience>,
+  );
+
+  await waitFor(() => expect(screen.getByRole("button", { name: /Activity: Martial arts/i })).toBeTruthy());
+  expect(screen.getByRole("button", { name: /Location: Makati/i })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "4 people" })).toBeTruthy();
+});
+
 it("keeps confirmed answers while correcting the journey and submits only an exact bounded group size", () => {
   renderSearch();
   selectActivity();
