@@ -41,4 +41,26 @@ describe("PayMongo Preview environment boundary", () => {
 
     await expect(import("@/lib/paymongo")).rejects.toThrow(/PAYMONGO_SECRET_KEY is not set/);
   });
+
+  it("keeps unrelated production modules available but blocks a wallet-less payout before fetch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("PAYMONGO_SECRET_KEY", "declared-for-this-test-only");
+    vi.stubEnv("PLATFORM_WALLET_NUMBER", "");
+    vi.stubEnv("PLATFORM_WALLET_NAME", "");
+
+    const { createBatchTransfer } = await import("@/lib/paymongo");
+
+    await expect(
+      createBatchTransfer({
+        netCents: 10_000,
+        bookingId: "wallet-less-production",
+        description: "must not send",
+        destination: { number: "destination", name: "Destination" },
+      }),
+    ).rejects.toThrow(/PLATFORM_WALLET_NUMBER/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

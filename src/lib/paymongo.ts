@@ -35,29 +35,29 @@ if (!process.env.PAYMONGO_SECRET_KEY && process.env.NODE_ENV === "production" &&
   );
 }
 
-// The platform payout wallet — the `source_account` for every inhouse batch transfer (D-20). Same
-// fail-closed shape as the secret-key guard: in PRODUCTION we refuse to boot without the wallet
-// identifiers rather than fire a transfer with an empty source (which would fail or misroute money).
-// Dev/test/build tolerate placeholders so the fully-mocked suite and `next build` still pass. BIC
-// defaults to PayMongo's inhouse BIC (PAEYPHM2XXX) when unset.
-if (
-  process.env.NODE_ENV === "production" &&
-  process.env.NEXT_PHASE !== "phase-production-build" &&
-  !isVercelPreview &&
-  (!process.env.PLATFORM_WALLET_NUMBER || !process.env.PLATFORM_WALLET_NAME)
-) {
-  throw new Error(
-    "PLATFORM_WALLET_NUMBER / PLATFORM_WALLET_NAME are not set. Refusing to boot in production without " +
-      "the platform payout wallet identifiers — they are the source_account for every host payout transfer.",
-  );
+/**
+ * Platform payout wallet — the source account of the two money-movement functions below (D-20).
+ *
+ * The guard must live at the movement boundary, not module evaluation: the Operations server action
+ * bundle imports cancellation code, so a missing payout-wallet configuration otherwise makes unrelated
+ * staff and review operations unavailable. Production still fails closed before any transfer request is
+ * sent; dev, test, build, and credential-free Preview retain their existing placeholder behavior.
+ */
+function platformWallet(): { number: string; name: string; bic: string } {
+  const number = process.env.PLATFORM_WALLET_NUMBER ?? "";
+  const name = process.env.PLATFORM_WALLET_NAME ?? "";
+  if (
+    process.env.NODE_ENV === "production" &&
+    !isVercelPreview &&
+    (!number || !name)
+  ) {
+    throw new Error(
+      "PLATFORM_WALLET_NUMBER / PLATFORM_WALLET_NAME are not set. Refusing to create a payout or refund " +
+        "transfer without the platform payout wallet identifiers.",
+    );
+  }
+  return { number, name, bic: process.env.PLATFORM_WALLET_BIC ?? "PAEYPHM2XXX" };
 }
-
-/** Platform payout wallet — the source_account of every inhouse /v2 batch transfer (D-20). */
-const PLATFORM_WALLET = {
-  number: process.env.PLATFORM_WALLET_NUMBER ?? "",
-  name: process.env.PLATFORM_WALLET_NAME ?? "",
-  bic: process.env.PLATFORM_WALLET_BIC ?? "PAEYPHM2XXX",
-};
 
 /** HTTP Basic auth header — the secret key is the username, empty password (PayMongo convention). */
 function authHeader(): string {
@@ -509,6 +509,7 @@ export async function createBatchTransfer(input: {
   destination: { number: string; name: string; bic?: string };
   callbackUrl?: string;
 }): Promise<BatchTransfer> {
+  const sourceAccount = platformWallet();
   const json = await paymongoFetch<{
     data?: { id?: string; attributes?: { transfers?: Array<{ id?: string; status?: string }> } };
   }>("/v2/batch_transfers", {
@@ -524,9 +525,9 @@ export async function createBatchTransfer(input: {
           description: input.description,
           reference_number: `payout-${input.bookingId}`,
           source_account: {
-            number: PLATFORM_WALLET.number,
-            name: PLATFORM_WALLET.name,
-            bic: PLATFORM_WALLET.bic,
+            number: sourceAccount.number,
+            name: sourceAccount.name,
+            bic: sourceAccount.bic,
           },
           destination_account: {
             number: input.destination.number,
@@ -594,6 +595,7 @@ export async function createRefundTransfer(input: {
       `Refund transfer for ${input.bookingId} exceeds the InstaPay ceiling; refusing to fire a doomed transfer.`,
     );
   }
+  const sourceAccount = platformWallet();
   const json = await paymongoFetch<{
     data?: { id?: string; attributes?: { transfers?: Array<{ id?: string; status?: string }> } };
   }>("/v2/batch_transfers", {
@@ -609,9 +611,9 @@ export async function createRefundTransfer(input: {
           description: `FitOut refund ${input.bookingId}`,
           reference_number: `refund-${input.bookingId}-${input.attempt}`,
           source_account: {
-            number: PLATFORM_WALLET.number,
-            name: PLATFORM_WALLET.name,
-            bic: PLATFORM_WALLET.bic,
+            number: sourceAccount.number,
+            name: sourceAccount.name,
+            bic: sourceAccount.bic,
           },
           destination_account: {
             number: input.destination.number,
