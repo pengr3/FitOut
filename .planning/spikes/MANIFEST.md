@@ -100,6 +100,21 @@ an experiential layout decision for Phase 21, not product implementation.
   the path to bookable is done while still naming that another listing needs fixes. The rejected
   listing's own card owns its fix-and-resubmit action; it does not keep account onboarding incomplete.
 
+### progressive-search-flow
+
+**How should FitOut replace the always-expanded search bar with a progressive activity, location,
+and party-size journey?**
+
+This idea explores the interaction and presentation layer of Phase 24. It starts from the existing
+URL-driven search results contract and deliberately does not change search SQL, availability
+derivation, price handling, or the existing address-autocomplete authority. The first prototype
+lets the product owner compare initial search invitations and experience the three-step flow before
+locking its visual direction or the meaning of party size.
+
+**Requirements:**
+
+- No implementation decisions locked yet — derive them from the interactive spikes.
+
 ## Spikes
 
 | # | Idea | Name | Type | Validates | Verdict | Tags |
@@ -113,3 +128,4 @@ an experiential layout decision for Phase 21, not product implementation.
 | 005b | host-verification-roadmap | separate-cards | comparison | Same four gates as individually bordered cards at desktop and phone widths | ✓ **WINNER** — user-selected; each gate reads as a distinct server-backed fact while the 2×2 desktop grid stays compact | phase-21, host, verification, ux, responsive |
 | 005c | host-verification-roadmap | responsive-stepper | comparison | Same four gates as a horizontal desktop stepper that stacks on phone widths | ✓ **VALIDATED ALTERNATIVE** — shortest desktop composition (244px), but compresses explanatory copy and changes geometry on phone | phase-21, host, verification, ux, responsive |
 | 006 | host-verification-roadmap | roadmap-state-stress | standard | Preferred layout stays truthful across lifecycle states and 320px | ✓ **VALIDATED** — 8/8 automated checks; first live listing completes the journey, with rejected siblings handled on their own cards | phase-21, host, verification, edge-cases, responsive |
+| 007 | progressive-search-flow | progressive-search-prototype | standard | Compare opening states and experience activity → location → party size before locking Phase 24's interaction direction | ○ **PENDING HUMAN REVIEW** | phase-24, search, ux, progressive-disclosure, responsive |

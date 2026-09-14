@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FitOut — Progressive Search Spike</title>
+    <style>
+      :root { --ink:#1f2924; --muted:#65706a; --line:#d9ded8; --paper:#fbfaf6; --card:#fff; --coral:#e8604c; --coral-dark:#c74d3c; --mint:#e7f1e8; --forest:#24513d; }
+      * { box-sizing:border-box; }
+      body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.45 Inter,ui-sans-serif,system-ui,sans-serif; }
+      button { font:inherit; cursor:pointer; }
+      .page { max-width:1240px; margin:0 auto; padding:30px 22px 48px; }
+      .eyebrow { color:var(--forest); font-size:.78rem; font-weight:800; letter-spacing:.09em; text-transform:uppercase; }
+      h1 { max-width:720px; margin:8px 0; font:700 clamp(2rem,4vw,3.5rem)/1.05 Georgia,serif; letter-spacing:-.045em; }
+      .intro { max-width:670px; margin:0; color:var(--muted); }
+      .layout { display:grid; grid-template-columns:minmax(0,1.65fr) minmax(285px,.75fr); gap:26px; margin-top:28px; align-items:start; }
+      .lab { overflow:hidden; border:1px solid var(--line); border-radius:24px; background:var(--card); box-shadow:0 18px 42px rgba(34,50,40,.07); }
+      .toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:14px 16px; border-bottom:1px solid var(--line); background:#f7f7f1; }
+      .toolbar span { margin-right:auto; color:var(--muted); font-size:.83rem; }
+      .variant { border:1px solid var(--line); border-radius:999px; padding:7px 11px; background:transparent; color:var(--muted); font-size:.8rem; }
+      .variant.active { border-color:var(--forest); background:var(--forest); color:white; }
+      .stage { min-height:510px; padding:clamp(24px,5vw,58px); display:flex; flex-direction:column; justify-content:center; }
+      .progress { display:flex; gap:7px; margin-bottom:22px; }
+      .progress i { display:block; width:42px; height:4px; border-radius:99px; background:#e4e7e3; }
+      .progress i.on { background:var(--coral); }
+      .screen { animation:enter .3s ease both; }
+      @keyframes enter { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:none } }
+      .screen h2 { max-width:590px; margin:0 0 8px; font:700 clamp(1.65rem,3vw,2.55rem)/1.12 Georgia,serif; letter-spacing:-.035em; }
+      .screen p { max-width:580px; margin:0 0 22px; color:var(--muted); }
+      .open-stack { max-width:640px; }
+      .prompt-bar,.search-pill { width:100%; display:flex; align-items:center; gap:12px; border:1px solid var(--line); border-radius:16px; padding:16px 18px; text-align:left; background:white; box-shadow:0 8px 22px rgba(34,50,40,.07); }
+      .search-pill { border-radius:999px; padding:14px 18px; }
+      .icon { display:grid; width:31px; height:31px; place-items:center; border-radius:50%; background:var(--mint); color:var(--forest); font-weight:800; }
+      .trigger-title { font-weight:750; } .trigger-copy { color:var(--muted); font-size:.85rem; }
+      .start-button { border:0; border-radius:13px; padding:15px 19px; background:var(--coral); color:white; font-weight:800; box-shadow:0 8px 18px rgba(232,96,76,.22); }
+      .open-note { margin-top:15px; font-size:.86rem; color:var(--muted); }
+      .options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:11px; }
+      .option { min-height:80px; padding:15px; border:1px solid var(--line); border-radius:15px; background:#fff; text-align:left; transition:border-color .15s,transform .15s,background .15s; }
+      .option:hover,.option:focus-visible { border-color:var(--forest); background:#f2f8f2; transform:translateY(-1px); outline:none; }
+      .option strong { display:block; } .option small { color:var(--muted); }
+      .actions { display:flex; gap:10px; margin-top:22px; }
+      .back { border:0; padding:10px 0; background:transparent; color:var(--forest); font-weight:750; }
+      .secondary { border:1px solid var(--line); border-radius:10px; padding:10px 13px; background:#fff; color:var(--ink); }
+      .answers { display:flex; flex-wrap:wrap; gap:8px; margin:21px 0; }
+      .chip { border:1px solid #b9d3bd; border-radius:999px; padding:8px 11px; background:var(--mint); color:var(--forest); font-size:.86rem; font-weight:700; }
+      .chip:hover { background:#d7ead9; }
+      .submit { border:0; border-radius:12px; padding:13px 16px; background:var(--coral); color:white; font-weight:800; }
+      aside { position:sticky; top:18px; border:1px solid var(--line); border-radius:20px; background:#f4f7f2; padding:21px; }
+      aside h2 { margin:3px 0 11px; font-size:1.22rem; } aside p { margin:0 0 17px; color:var(--muted); font-size:.91rem; }
+      .question { padding:13px 0; border-top:1px solid var(--line); } .question:first-of-type { border-top:0; }
+      .question b { display:block; font-size:.91rem; } .question span { display:block; color:var(--muted); font-size:.86rem; margin-top:3px; }
+      .logline { margin-top:17px; color:var(--muted); font-size:.78rem; } .export { width:100%; margin-top:10px; border:1px solid var(--forest); border-radius:10px; padding:9px; background:transparent; color:var(--forest); font-weight:750; }
+      @media (max-width:800px) { .layout { grid-template-columns:1fr; } aside { position:static; } .stage { min-height:470px; } }
+      @media (max-width:500px) { .page { padding:21px 14px 35px; } .toolbar span { width:100%; } .variant { flex:1; padding:7px 5px; } .stage { padding:25px 20px; } .options { grid-template-columns:1fr; } }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="eyebrow">Spike 007 · Phase 24</div>
+      <h1>A search that begins with one small question.</h1>
+      <p class="intro">This is an interaction prototype, not the product build. Compare how the search starts, then walk through the same activity → location → party-size journey.</p>
+      <div class="layout">
+        <section class="lab" aria-label="Progressive search prototype">
+          <nav class="toolbar" aria-label="Opening state comparison">
+            <span>Compare the first moment</span>
+            <button class="variant active" data-variant="prompt">Prompt bar</button>
+            <button class="variant" data-variant="button">Start button</button>
+            <button class="variant" data-variant="pill">Search pill</button>
+          </nav>
+          <div id="stage" class="stage"></div>
+        </section>
+        <aside>
+          <div class="eyebrow">Discussion guide</div>
+          <h2>What this prototype is helping us decide</h2>
+          <p>Experience the choices first. Nothing on this rail is locked yet.</p>
+          <div class="question"><b>1. Opening state</b><span>Which invitation feels helpful without turning the page into a form before someone is ready?</span></div>
+          <div class="question"><b>2. Activity input</b><span>Should the first step offer quick choices, searchable activities, or both?</span></div>
+          <div class="question"><b>3. Location handoff</b><span>How much of the existing address/autocomplete experience belongs inside this focused step?</span></div>
+          <div class="question"><b>4. Party-size meaning</b><span>Does this eventually filter by venue capacity, tailor the booking handoff, or have another purpose? The demo deliberately does not claim an answer.</span></div>
+          <div class="question"><b>5. After search</b><span>Should the answers collapse into editable chips, reopen the full flow, or become conventional filters?</span></div>
+          <div id="logline" class="logline">0 interactions recorded</div>
+          <button id="export" class="export">Export interaction log</button>
+        </aside>
+      </div>
+    </main>
+    <script>
+      (() => {
+        const stage = document.querySelector('#stage');
+        const logline = document.querySelector('#logline');
+        const events = [];
+        const state = { variant:'prompt', step:0, activity:null, location:null, party:null };
+        const record = (event, detail={}) => { events.push({ at:new Date().toISOString(), event, ...detail }); logline.textContent = `${events.length} interaction${events.length === 1 ? '' : 's'} recorded`; };
+        const esc = (s) => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+        const choices = {
+          activity:[['Basketball','Courts and training'],['Yoga','Studios and wellness'],['Pickleball','Courts and clubs'],['Gym workout','Training spaces']],
+          location:[['Near me','Use current location'],['Makati','Start with Makati'],['Ortigas','Start with Ortigas'],['Choose on a map','A future possibility']],
+          party:[['Just me','1 person'],['A few of us','2–4 people'],['A group','5–10 people'],['A big group','11+ people']]
+        };
+        const render = () => {
+          const progress = `<div class="progress" aria-label="${state.step} of 3 questions complete">${[1,2,3].map(n => `<i class="${state.step >= n ? 'on':''}"></i>`).join('')}</div>`;
+          if (state.step === 0) {
+            const content = state.variant === 'button'
+              ? `<h2>Find the right space, one answer at a time.</h2><p>Start with the activity. We’ll narrow the rest together.</p><button class="start-button" data-start>Start searching</button>`
+              : state.variant === 'pill'
+                ? `<h2>Ready when you are.</h2><p>One compact search stays out of the way until you want it.</p><button class="search-pill" data-start><span class="icon">⌕</span><span><span class="trigger-title">Search for a space</span><br><span class="trigger-copy">Activity, location, group size</span></span></button>`
+                : `<h2>What would you like to do?</h2><p>Begin with the kind of activity you have in mind.</p><button class="prompt-bar" data-start><span class="icon">⌕</span><span><span class="trigger-title">Search activities and spaces</span><br><span class="trigger-copy">Start with basketball, yoga, gyms and more</span></span></button>`;
+            stage.innerHTML = `<div class="screen open-stack">${content}<div class="open-note">The results below remain browseable until someone starts a search.</div></div>`;
+          } else if (state.step <= 3) {
+            const field = ['','activity','location','party'][state.step];
+            const title = ['','What are you in the mood for?','Where should we look?','Who’s coming along?'][state.step];
+            const copy = ['','Choose the activity first. You can refine it later.','Start broad; a real build can reuse the established address and location tools.','This is deliberately a question, not a claim that capacity filtering already exists.'][state.step];
+            stage.innerHTML = `<div class="screen">${progress}<h2>${title}</h2><p>${copy}</p><div class="options">${choices[field].map(([name,desc]) => `<button class="option" data-answer="${esc(name)}"><strong>${esc(name)}</strong><small>${esc(desc)}</small></button>`).join('')}</div>${state.step > 1 ? '<div class="actions"><button class="back" data-back>← Back</button></div>' : ''}</div>`;
+          } else {
+            const chips = [['activity',state.activity],['location',state.location],['party',state.party]].map(([field,value]) => `<button class="chip" data-edit="${field}">${esc(value)} · Edit</button>`).join('');
+            stage.innerHTML = `<div class="screen">${progress}<h2>Here’s the search you shaped.</h2><p>In the real build this point needs a decision: show results immediately with compact editable answers, or bring back familiar filters for refinement.</p><div class="answers">${chips}</div><button class="submit" data-search>See spaces</button><div class="actions"><button class="back" data-back>← Back</button></div></div>`;
+          }
+          stage.querySelector('[data-start]')?.addEventListener('click', () => { state.step=1; record('search_started',{variant:state.variant}); render(); });
+          stage.querySelectorAll('[data-answer]').forEach(b => b.addEventListener('click', () => { const field=['','activity','location','party'][state.step]; state[field]=b.dataset.answer; record('answer_selected',{field,value:state[field]}); state.step += 1; render(); }));
+          stage.querySelector('[data-back]')?.addEventListener('click', () => { state.step -= 1; record('back',{toStep:state.step}); render(); });
+          stage.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => { const target={activity:1,location:2,party:3}[b.dataset.edit]; state.step=target; record('edit_answer',{field:b.dataset.edit}); render(); }));
+          stage.querySelector('[data-search]')?.addEventListener('click', () => { record('search_confirmed',{activity:state.activity,location:state.location,party:state.party}); alert('Demo only: this is where the existing validated URL-based search would run.'); });
+        };
+        document.querySelectorAll('.variant').forEach(b => b.addEventListener('click', () => { state.variant=b.dataset.variant; state.step=0; document.querySelectorAll('.variant').forEach(x=>x.classList.toggle('active',x===b)); record('variant_changed',{variant:state.variant}); render(); }));
+        document.querySelector('#export').addEventListener('click', () => { const data = JSON.stringify({ spike:'007', exportedAt:new Date().toISOString(), events },null,2); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'application/json'})); a.download='fitout-progressive-search-log.json'; a.click(); URL.revokeObjectURL(a.href); record('log_exported'); });
+        render();
+      })();
+    </script>
+  </body>
+</html>
