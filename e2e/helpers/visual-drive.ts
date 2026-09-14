@@ -124,6 +124,7 @@ import {
   VRT_COLLISION,
   VRT_EXCLUSIVE_TITLE,
   VRT_HOST_ID,
+  VRT_ORIGIN,
   VRT_TODAY_ISO,
   VRT_IDS,
   VRT_RIVAL_ID,
@@ -310,6 +311,71 @@ async function stubMapTiles(page: Page): Promise<void> {
   await page.route(TILE_URL, (route) =>
     route.fulfill({ status: 200, contentType: "image/svg+xml", body: TILE_SVG }),
   );
+}
+
+async function stubSearchAddress(page: Page): Promise<void> {
+  await page.route("https://photon.komoot.io/api**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        features: [{
+          geometry: { coordinates: [VRT_ORIGIN.lng, VRT_ORIGIN.lat] },
+          properties: { name: "2 Real Street", city: "Makati", state: "Metro Manila", country: "Philippines" },
+        }],
+      }),
+    });
+  });
+}
+
+async function beginSearchActivity(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Start your search" }).click();
+  await expect(page.locator('[data-slot="command-input"]')).toHaveAttribute(
+    "aria-label",
+    "Search for activity or type",
+  );
+}
+
+async function chooseSearchAddress(page: Page): Promise<void> {
+  await page.getByRole("combobox", { name: "Search for your address" }).click();
+  await page.getByPlaceholder("Type a street or city…").fill("Makati");
+  await page.getByRole("option", { name: /2 Real Street, Makati/i }).click();
+  await expect(page.getByRole("heading", { name: "Who is this for?" })).toBeVisible();
+}
+
+function progressiveSearchDrive(surface: "search-idle-pill" | "search-activity-step" | "search-location-step" | "search-party-step" | "search-results" | "search-empty"): SurfaceDrive {
+  return {
+    needsClock: false,
+    captureMode: "fullPage",
+    timeoutMs: 120_000,
+    async navigate({ page }) {
+      await stubSearchAddress(page);
+      await page.goto("/");
+    },
+    async interact({ page }) {
+      if (surface === "search-idle-pill") return;
+      await beginSearchActivity(page);
+      if (surface === "search-activity-step") return;
+      const filter = page.locator('[data-slot="command-input"]');
+      await filter.fill(SPACE_TYPE_LABEL);
+      await page.getByRole("option", { name: SPACE_TYPE_LABEL, exact: true }).click();
+      if (surface === "search-location-step") return;
+      await chooseSearchAddress(page);
+      if (surface === "search-party-step") {
+        await page.getByRole("button", { name: "For a group" }).click();
+        await expect(page.locator("#group-party-size")).toBeVisible();
+        return;
+      }
+      if (surface === "search-results") {
+        await page.getByRole("button", { name: "For me" }).click();
+        await expect(page.getByRole("button", { name: "1 person" })).toBeVisible();
+        return;
+      }
+      await page.getByRole("button", { name: "For a group" }).click();
+      await page.getByLabel("Number of people").fill("1000");
+      await page.getByRole("button", { name: "See spaces" }).click();
+      await expect(page.getByRole("button", { name: "1000 people" })).toBeVisible();
+    },
+  };
 }
 
 /**
@@ -896,7 +962,7 @@ function bookingNotFoundDrive(_purpose: DrivePurpose, url: string | null): Surfa
 
 /**
  * A drive per surface that needs one. A surface with NO entry is reached by a plain `goto` of its
- * declared `url` and captured `fullPage` — which is every Phase-11 surface and the two search surfaces.
+ * declared `url` and captured `fullPage` — which is every Phase-11 surface and the static documents.
  *
  * FACTORIES RATHER THAN OBJECTS, because two of the drives carry per-invocation state (the hold id, the
  * booker's email, the conflict rows' theme). A shared singleton would leak one row's hold into the next
@@ -905,6 +971,12 @@ function bookingNotFoundDrive(_purpose: DrivePurpose, url: string | null): Surfa
 const DRIVES: Partial<
   Record<SurfaceId, (purpose: DrivePurpose, url: string | null) => SurfaceDrive>
 > = {
+  "search-idle-pill": () => progressiveSearchDrive("search-idle-pill"),
+  "search-activity-step": () => progressiveSearchDrive("search-activity-step"),
+  "search-location-step": () => progressiveSearchDrive("search-location-step"),
+  "search-party-step": () => progressiveSearchDrive("search-party-step"),
+  "search-results": () => progressiveSearchDrive("search-results"),
+  "search-empty": () => progressiveSearchDrive("search-empty"),
   "listing-detail": listingDetailDrive,
   "listing-lightbox": lightboxDrive,
   "listing-sheet": sheetDrive,

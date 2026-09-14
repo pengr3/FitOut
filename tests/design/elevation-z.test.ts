@@ -292,8 +292,8 @@ const SRC_DIR = resolve(process.cwd(), "src");
 /** The tree DS-03's second clause is written about. The walk is wider; the requirement is this. */
 const GATE_TREE = ["src/app/", "src/components/"] as const;
 
-/** The entire allowed shadow vocabulary. A fifth name is a scale that has stopped being a scale. */
-const ALLOWED_SHADOWS = ["shadow-none", "shadow-raised", "shadow-overlay", "shadow-sticky"] as const;
+/** The complete semantic shadow vocabulary, including the card surface used by every progressive step. */
+const ALLOWED_SHADOWS = ["shadow-none", "shadow-card", "shadow-raised", "shadow-overlay", "shadow-sticky"] as const;
 
 /**
  * Every `shadow-raised` call site, per file.
@@ -306,8 +306,14 @@ const RAISED_INVENTORY: Readonly<Record<string, number>> = {
   "src/app/(host)/host/bookings/page.tsx": 1,
   "src/app/dev/theme/page.tsx": 1,
   "src/components/booking/bookings-tabs.tsx": 1,
-  "src/components/search/search-bar.tsx": 1,
   "src/components/ui/tabs.tsx": 1,
+};
+
+/** Every `shadow-card` question container in the progressive search journey. */
+const CARD_INVENTORY: Readonly<Record<string, number>> = {
+  "src/components/search/activity-step.tsx": 1,
+  "src/components/search/location-step.tsx": 1,
+  "src/components/search/party-step.tsx": 1,
 };
 
 /**
@@ -609,7 +615,7 @@ describe("DS-03 second clause — every shadow maps to one of exactly three name
 });
 
 describe("DS-03 source scan — the counts, so a DELETE cannot pass as a RENAME (T-10-45)", () => {
-  it("carries exactly 13 named-step call sites", () => {
+  it("carries exactly 16 named-step call sites", () => {
     // 9 from plan 10-12's migration (4 raised + 5 overlay, all product surfaces) + 3 from plan
     // 10-16's `/dev/theme` ladder, which renders one card per step. Plan 11-08 briefly made this 13
     // by adding `patterns/result-card.tsx` beside the shipped tile it was extracted from; plan 11-11
@@ -624,14 +630,19 @@ describe("DS-03 source scan — the counts, so a DELETE cannot pass as a RENAME 
     // step. See `SHADOW_STICKY_INVENTORY` for which addition was which and for why this step must
     // never reach a top header.
     const named =
-      totalOf(scan.byName["shadow-raised"]) +
+       totalOf(scan.byName["shadow-card"]) +
+       totalOf(scan.byName["shadow-raised"]) +
       totalOf(scan.byName["shadow-overlay"]) +
       totalOf(scan.byName["shadow-sticky"]);
-    expect(named, "the named elevation sites are the whole point of the migration").toBe(14);
+    expect(named, "the named elevation sites are the whole point of the migration").toBe(16);
   });
 
-  it("pins the 5 raised sites to the files that own them", () => {
+  it("pins the 4 raised sites to the files that own them", () => {
     expect(scan.byName["shadow-raised"]).toEqual(RAISED_INVENTORY);
+  });
+
+  it("pins the 3 progressive question cards to their owning files", () => {
+    expect(scan.byName["shadow-card"]).toEqual(CARD_INVENTORY);
   });
 
   it("pins the 5 overlay sites to the files that own them", () => {

@@ -223,15 +223,13 @@ const EXPECTED_CONVERSIONS: Record<string, number> = {
   "src/components/booking/reserve-actions.tsx": 1,
   "src/components/group/create-group-button.tsx": 1,
   "src/components/group/rsvp-form.tsx": 1,
-  "src/components/search/search-bar.tsx": 1,
-  "src/components/search/search-experience.tsx": 1,
+  "src/components/search/party-step.tsx": 2,
 };
 
 /** The two booker CTAs that hand-rolled a 44px height before D-22 gave it a name. */
 const TOUCH_SITES = [
   "src/components/group/rsvp-form.tsx",
-  "src/components/search/search-bar.tsx",
-  "src/components/search/search-experience.tsx",
+  "src/components/search/party-step.tsx",
 ] as const;
 
 const BRAND_VARIANT = 'variant="brand"';

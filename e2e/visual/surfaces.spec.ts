@@ -262,7 +262,7 @@ const EXPECTED_BLOCKED = [
  * adds to 19; the extra two are the reversed state's third branch, which that table predates). It was
  * 95 while every surface carried a second-theme row; `court` is now FitOut's single product theme and
  * the 44 `grove` rows are gone from the inventory. No surface lost its last row. Compile-checked too
- * — see `BaselineCountIsSeventyEight` in the module, which is what catches it off Linux where this
+ * — see `BaselineCountIsEightyFive` in the module, which is what catches it off Linux where this
  * file never runs.
  *
  * ⚠ 74 DECLARED, 38 BLOCKED, 36 SHOT as of plan 15-11 — and this is the first time since Phase 12
@@ -279,7 +279,7 @@ const EXPECTED_BLOCKED = [
  *
  * ⚠ THIS LITERAL IS WHY THE PHASE-15 EDIT NEEDED TWO COMMITS, AND THE REASON IS WORTH KNOWING BEFORE
  * YOU ADD A ROW. It is the deliberate SECOND spelling of a number whose FIRST spelling is a compile
- * gate (`BaselineCountIsSeventyEight`), so that an edit to one without the other fails loudly — but
+ * gate (`BaselineCountIsEightyFive`), so that an edit to one without the other fails loudly — but
  * it is a `const`, not a type, so `tsc` reads it as a number and says nothing at all when it goes
  * stale. What a stale value here produces is worse than a compile error and arrives much later: the
  * `baselines` dispatch runs this spec, the test below fails on the count, the Playwright step exits
@@ -292,13 +292,14 @@ const EXPECTED_BLOCKED = [
  * top of this file, which moves whenever a NEW surface arrives blocked — as both of Phase 16's did.
  * Three pins, one commit. The count is not the whole of it.
  *
- * ⚠ 78 DECLARED, 42 BLOCKED, 36 SHOT as of plan 16-15, and the third number DID NOT MOVE. Both
+ * ⚠ 85 DECLARED, 42 BLOCKED, 43 SHOT after plan 24-08 replaces five retired search rows with twelve
+ * progressive-search states. Both
  * Phase-16 surfaces are blocked, so a 16-15 dispatch is expected to add ZERO files to
  * `surfaces.spec.ts-snapshots/` — a dispatch that adds one has shot something the inventory says it
  * cannot reach. Measured against the tree as this was written:
  * `git ls-files 'e2e/visual/surfaces.spec.ts-snapshots/*-visual-linux.png' | wc -l` → 36.
  */
-const EXPECTED_BASELINE_COUNT = 78;
+const EXPECTED_BASELINE_COUNT = 85;
 
 /**
  * Trap 1. Assert the surface rendered its subject before any pixel is read.
@@ -318,10 +319,10 @@ async function expectReachable(page: Page, row: BaselineRow): Promise<void> {
 }
 
 test.describe("GATE-01 — the declared baseline inventory", () => {
-  test("the inventory is the 78 rows the six UI-SPECs declare, and the blocked set is the declared one", () => {
+  test("the inventory is the 85 rows including progressive search, and the blocked set is the declared one", () => {
     expect(
       VISUAL_BASELINES.length,
-      "the six UI-SPECs declare 78 court baselines — 17 from 11-UI-SPEC § GATE-01, 13 from " +
+      "the visual inventory declares 85 court baselines — 17 from 11-UI-SPEC § GATE-01, 20 from " +
         "12-UI-SPEC § Visual Baselines, 21 from 13-UI-SPEC § Visual Baselines, 15 from " +
         "14-UI-SPEC § Visual Baselines, 8 from 15-UI-SPEC § Visual Baselines and 4 from " +
         "16-UI-SPEC § Delta-16. D-138 makes `court` the single product theme, so the second theme's " +

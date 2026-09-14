@@ -48,7 +48,7 @@
 // all of which are Windows or macOS — NOTHING would check the three counts this file's acceptance
 // rests on. A criterion checked only in an environment nobody runs is not a criterion.
 //
-// `BaselineCountIsSeventyEight`, `ThemeSwapExclusionCountIsOne` and `ThemeContractSurfaceCountIsFour`
+// `BaselineCountIsEightyFive`, `ThemeSwapExclusionCountIsOne` and `ThemeContractSurfaceCountIsFour`
 // below are therefore type-level
 // assertions, enforced by `npx tsc --noEmit` and by `next build`'s own type check — which runs inside
 // `npm run build`, which is CI job 1. They fail on EVERY machine, in the build, before a browser is
@@ -163,9 +163,13 @@ export const SURFACE_IDS = [
   "og-root",
   "og-listing",
   "og-invite",
-  // ─── 12-14 — the booker path's seven product surfaces, in 12-UI-SPEC's table order ───────────────
+  // ─── 12-14 + 24-08 — the booker path and progressive-search states ──────────────────────────────
+  "search-idle-pill",
+  "search-activity-step",
+  "search-location-step",
+  "search-party-step",
   "search-results",
-  "search-relax-band",
+  "search-empty",
   "listing-detail",
   "listing-lightbox",
   "listing-sheet",
@@ -493,40 +497,66 @@ export const VISUAL_SURFACES = {
   // is a reference that is wrong forever and that every future run agrees with.
   // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
-  "search-results": {
+  "search-idle-pill": {
     kind: "document",
-    // The origin is the fixture's `VRT_ORIGIN` (Makati CBD). Four of the five seeded listings sit
-    // inside the default radius; the fifth is the far tennis court the row below needs.
-    url: "/?lat=14.5547&lng=121.0244",
-    hook: '[data-testid="result-card"]',
+    url: "/",
+    hook: 'section[aria-label="Space search"] button[aria-label="Start your search"]',
     hookWhy:
-      "a search TILE, which is the only thing on this route that cannot be present unless the query " +
-      "ran and returned rows. `/` streams, and its own `loading.tsx` renders a second `SearchBar` " +
-      "(measured in `e2e/helpers/booker-seed.ts`: `#search-category` appears twice while the boundary " +
-      "resolves), so every piece of chrome on this page — the bar, the header, the page title — is " +
-      "present in the PENDING shell too. A hook on any of them would be satisfied by the skeleton and " +
-      "would baseline a grid of placeholder plates.",
+      "the real progressive-search trigger after the route has settled. The streaming loading shell " +
+      "is deliberately aria-hidden, so this semantic hook cannot be satisfied by its inert geometry " +
+      "or by a page that has already advanced into a later search step.",
     blocked: null,
   },
 
-  "search-relax-band": {
+  "search-activity-step": {
     kind: "document",
-    // Rung 1 of the ladder, driven from the URL. `tennis_court` is the ONLY category with no supply
-    // inside 10 km — the fixture's far tennis court sits ~20 km out and is the whole point of the row
-    // (see `scripts/seed-baseline-fixtures.ts`, which states the property rather than trusting the
-    // distance to speak for itself). `RADIUS_PRESETS` is [2, 5, 10, 25], so 10 has exactly one rung
-    // above it: zero results at 10 km, one at 25 km.
-    url: "/?lat=14.5547&lng=121.0244&category=tennis_court&radius=10",
-    hook: '[data-testid="search-relax-band"]',
+    url: "/",
+    hook: '[data-slot="command-input"][aria-label="Search for activity or type"]',
     hookWhy:
-      "the band ITSELF, which is the new surface — the grid beneath it is already covered by " +
-      "`search-results`. It is `role=\"status\"`, and a role query would ALSO match " +
-      "`CardGridSkeleton`'s `role=\"status\" aria-busy` plate on every pending navigation " +
-      "(`selector-contract.ts` records exactly this ambiguity), so on a transition the hook would be " +
-      "green for the plate. And the failure this hook must catch is the one that looks most like " +
-      "success: if a future edit ever adds tennis supply inside 10 km, the query stops being " +
-      "zero-result, the band never renders, and a baseline captured then is a picture of a normal " +
-      "result list filed under the band's name.",
+      "the command input that only appears after the user activates the idle pill. It rejects both " +
+      "the idle state and the later address/party states, so this capture cannot quietly baseline the " +
+      "wrong step of the journey.",
+    blocked: null,
+  },
+
+  "search-location-step": {
+    kind: "document",
+    url: "/",
+    hook: 'section[aria-label="Space search"] [role="combobox"][aria-label="Search for your address"]',
+    hookWhy:
+      "the address combobox that appears only after a catalogue activity is selected. A structural " +
+      "section prefix keeps it distinct from any unrelated combobox a later route could add.",
+    blocked: null,
+  },
+
+  "search-party-step": {
+    kind: "document",
+    url: "/",
+    hook: 'section[aria-label="Space search"] #group-party-size',
+    hookWhy:
+      "the group-size input, not merely the party-step heading: it exists only after the user chooses " +
+      "For a group, so the baseline fails if the drive stops at the generic party choice state.",
+    blocked: null,
+  },
+
+  "search-results": {
+    kind: "document",
+    url: "/?category=martial_arts_boxing&lat=14.5547&lng=121.0244&locationLabel=2%20Real%20Street%2C%20Makati%2C%20Metro%20Manila%2C%20Philippines&partySize=1",
+    hook: '[data-testid="search-results-region"] [data-testid="result-card"]',
+    hookWhy:
+      "a real result tile inside the settled result region. The region scopes the proof to the completed " +
+      "progressive search, while the tile rejects the empty state and any loading plate.",
+    blocked: null,
+  },
+
+  "search-empty": {
+    kind: "document",
+    url: "/?category=martial_arts_boxing&lat=14.5547&lng=121.0244&locationLabel=2%20Real%20Street%2C%20Makati%2C%20Metro%20Manila%2C%20Philippines&partySize=1000",
+    hook: '[data-testid="search-results-region"] [data-testid="empty-state"]',
+    hookWhy:
+      "the explicit empty state inside the settled result region. A 1,000-person group is valid but " +
+      "exceeds every seeded venue capacity, so this hook rejects a result grid and any pre-submit state " +
+      "without encoding availability, remaining-place, or legacy refinement claims.",
     blocked: null,
   },
 
@@ -1269,7 +1299,7 @@ export type DocumentSurfaceId = {
 }[SurfaceId];
 
 // ---------------------------------------------------------------------------
-// The 78 baselines
+// The 85 baselines
 // ---------------------------------------------------------------------------
 
 /**
@@ -1297,14 +1327,13 @@ export type DocumentSurfaceId = {
  *                                                                         SUBTOTAL     17
  *
  *   ── 12-UI-SPEC § Visual Baselines (plan 12-14) ─────────────────────────────────────────────
- *   / with results      320 / 768 / 1280                                                 3
- *   / zero-result band  320 / 1280                                                       2
+ *   progressive search idle/activity/location/party/results/empty  375 / 1280           12
  *   /listings/[id]      320 / 768 / 1280                                                 3
  *   listing lightbox    1280               overlay, captured `viewport`                  1
  *   listing sheet       375                overlay, captured `viewport`                  1
  *   /listings/[id]/book 320 / 1280                                                       2
  *   collision notice    1280                                                             1
- *                                                                         SUBTOTAL     13
+ *                                                                         SUBTOTAL     20
  *
  *   ── 13-UI-SPEC § Visual Baselines (plan 13-15) — 11 of the 12 BLOCKED ──────────────────────
  *   booking-moment      320 / 768 / 1280                                                 3
@@ -1344,7 +1373,7 @@ export type DocumentSurfaceId = {
  *   avatar-crop-dialog  320 / 1280         bottom sheet at 320, centred 384px box at 1280   2
  *   wizard-cover-preview         320 / 1280   the frames are `w-32` at 320 and `w-40` above  2
  *                                                                         SUBTOTAL      4
- *                                                                            TOTAL     78
+ *                                                                            TOTAL     85
  *
  * The eighth row of 12-UI-SPEC's table — the listing OG card — is NOT in the Phase-12 subtotal. It is
  * the `og-listing` row already counted in the 17: plan 12-14 UNBLOCKED it with a fixture rather than
@@ -1564,26 +1593,70 @@ export const VISUAL_BASELINES = [
   // row agreeing across time, which one theme needs exactly as much as two did.
   // ═══════════════════════════════════════════════════════════════════════════════════════════════════
 
-  // ─── `/` with results — 3 ───────────────────────────────────────────────────────────────────────
+  // ─── Progressive search — six production states at mobile and desktop widths ────────────────────
   {
-    surface: "search-results",
-    width: 320,
-    height: 720,
+    surface: "search-idle-pill",
+    width: 375,
+    height: 812,
     theme: "court",
-    why:
-      "the demand-side front door at the floor, where BFLOW-01's grid is single-column and each " +
-      "tile's price line — two rate parts plus `Service fee included` — has the least room to stay " +
-      "on one line. This is the width a wrap regression reaches first. The tile is also the most " +
-      "re-skinned component in the product — radius, elevation and display type all move with the " +
-      "theme — which is why `search-results` is one of the four surfaces the D-138 contract set " +
-      "renders in both themes.",
+    why: "the untouched first impression at the narrow product viewport, including the single search-entry pill.",
+  },
+  {
+    surface: "search-idle-pill",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why: "the same entry state at desktop, where the surrounding browse layout has room to settle beside it.",
+  },
+  {
+    surface: "search-activity-step",
+    width: 375,
+    height: 812,
+    theme: "court",
+    why: "the catalogue step at the narrow viewport, where search input, catalogue groups, and navigation controls stack.",
+  },
+  {
+    surface: "search-activity-step",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why: "the activity catalogue at desktop, pinning the expanded first question without a synthetic route state.",
+  },
+  {
+    surface: "search-location-step",
+    width: 375,
+    height: 812,
+    theme: "court",
+    why: "the address question at the narrow viewport after a real catalogue selection.",
+  },
+  {
+    surface: "search-location-step",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why: "the address question at desktop, including the production autocomplete control before an address is chosen.",
+  },
+  {
+    surface: "search-party-step",
+    width: 375,
+    height: 812,
+    theme: "court",
+    why: "the group branch at the narrow viewport, where the party input and submit action wrap together.",
+  },
+  {
+    surface: "search-party-step",
+    width: 1280,
+    height: 800,
+    theme: "court",
+    why: "the group branch at desktop after deterministic activity and address answers have been retained.",
   },
   {
     surface: "search-results",
-    width: 768,
-    height: 1024,
+    width: 375,
+    height: 812,
     theme: "court",
-    why: "the tablet width, where the grid is two columns — the only baseline that pins `RESULT_GRID_GAP`'s middle gutter rather than its floor or its desktop value.",
+    why:
+      "the completed one-person journey at the narrow viewport, with real seeded cards rather than a URL-only result grid.",
   },
   {
     surface: "search-results",
@@ -1591,33 +1664,23 @@ export const VISUAL_BASELINES = [
     height: 800,
     theme: "court",
     why:
-      "desktop: the search bar's five controls on one row, the sort control, and the full grid. The " +
-      "one baseline in this phase that pins the bar's resolved layout rather than its stacked one.",
+      "the completed one-person journey at desktop, retaining `search-results` in the theme-swap contract set.",
   },
-
-  // ─── `/` zero-result WITH the band — 2 ──────────────────────────────────────────────────────────
-  // TWO WIDTHS, not three, exactly as 12-UI-SPEC's table asks. The band is a sentence plus an Undo
-  // control; it has no layout change between 768 and 1280, and the grid beneath it is already pinned
-  // at all three widths by `search-results`.
   {
-    surface: "search-relax-band",
-    width: 320,
-    height: 720,
+    surface: "search-empty",
+    width: 375,
+    height: 812,
     theme: "court",
     why:
-      "STATE-03's band at the floor. It is the surface where the copywriting contract and the layout " +
-      "collide hardest: the sentence names the one constraint that gave AND carries an inline Undo, " +
-      "and at 320 that has to wrap without the Undo leaving the reading order.",
+      "the valid but over-capacity group journey at the narrow viewport, pinning the explicit empty state without inventing capacity copy.",
   },
   {
-    surface: "search-relax-band",
+    surface: "search-empty",
     width: 1280,
     height: 800,
     theme: "court",
     why:
-      "desktop: the band above the relaxed grid, with the widened radius control marked " +
-      "`data-relaxed`. This is the frame that shows the whole mechanism at once — what gave, what it " +
-      "found, and how to undo it.",
+      "the same valid no-match journey at desktop, proving the rendered empty state rather than a legacy relaxation branch.",
   },
 
   // ─── `/listings/[id]` — 3 ───────────────────────────────────────────────────────────────────────
@@ -2476,8 +2539,10 @@ type Assert<T extends true> = T;
  * "an inventory somebody can work from".
  *
  * PHASE 16 ADDS FOUR ROWS AND MOVES THE PICTURE COUNT BY NOTHING. Current number, re-stated in full
- * for the same reason the Phase-15 paragraph re-stated its own: **78 declared, 42 blocked (1
- * structural + 20 Phase-13 + 15 Phase-14 + 2 Phase-15 + 4 Phase-16), 36 shot.** The four are
+ * for the same reason the Phase-15 paragraph re-stated its own: **85 declared, 42 blocked (1
+ * structural + 20 Phase-13 + 15 Phase-14 + 2 Phase-15 + 4 Phase-16), 43 shot.** The twelve
+ * progressive-search rows replace five retired search rows, leaving the blocked set unchanged.
+ * The four are
  * `avatar-crop-dialog` and `wizard-cover-preview` at 320 and 1280, court only, one shot per width
  * (D-138), and both surfaces are blocked at the surface with their reasons.
  *
@@ -2564,8 +2629,8 @@ type Assert<T extends true> = T;
  * moved that literal in a separate commit for exactly this reason; if you add rows here, that file is
  * the second place to look and nothing will remind you.
  */
-export type BaselineCountIsSeventyEight = Assert<
-  (typeof VISUAL_BASELINES)["length"] extends 78 ? true : false
+export type BaselineCountIsEightyFive = Assert<
+  (typeof VISUAL_BASELINES)["length"] extends 85 ? true : false
 >;
 
 /** D-135 / AC#30: exactly one exclusion. Probe (b) above. */
