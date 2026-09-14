@@ -6,9 +6,13 @@ import { expectAxeClean } from "./helpers/axe";
 import { BASE_URL as BASE, installTruncator } from "./helpers/served-document";
 import { seedTheme } from "./helpers/theme";
 import {
+  SEARCH_LOCATION,
+  seedBookableListing,
   seedApprovedHostVerification,
   seedPendingHostVerification,
   signUpStaff,
+  submitProgressiveSearch,
+  type SeededListing,
 } from "./helpers/booker-seed";
 // The hooks are IMPORTED, never retyped — 17-RESEARCH Pattern 4. `visual-baselines.ts` already
 // carries a `hook` + `hookWhy` pair per surface, argued at the row, and those selectors are exactly
@@ -316,6 +320,7 @@ async function mintDraftListing(page: Page): Promise<string | null> {
 }
 
 let fixture: Fixture;
+
 /** The staff account the `/ops` row drives, and its teardown (the grant leaves an `audit` row). */
 let seededStaff: Awaited<ReturnType<typeof signUpStaff>> | undefined;
 /** Undoes the pending `host_verification` this file writes so `/ops` has a row to render. */
@@ -1043,6 +1048,68 @@ test.describe("AC#2 — no surface can be silently absent from the axe table", (
   });
 });
 
+test.describe("Phase 24 progressive search accessibility states", () => {
+  let seed: SeededListing;
+
+  test.beforeAll(async () => {
+    seed = await seedBookableListing({ titlePrefix: "E2E Axe Progressive" });
+  });
+
+  test.afterAll(async () => {
+    await seed?.teardown();
+  });
+
+  for (const width of WIDTHS) {
+    test(`progressive search states and booking continuation · ${THEME} · ${width}px`, async ({ page }) => {
+      await seedTheme(page.context(), THEME);
+      await page.setViewportSize({ width, height: VIEWPORT_HEIGHT });
+      await page.context().grantPermissions(["geolocation"], { origin: BASE });
+      await page.context().setGeolocation(SEARCH_LOCATION);
+      await page.goto(BASE);
+
+      await page.getByRole("button", { name: "Start your search" }).click();
+      const activity = page.locator('[data-slot="command-input"]');
+      await activity.fill("not-in-the-catalogue");
+      await expect(page.getByText("No matching activity or type")).toBeVisible();
+      await expectAxeClean(page, `progressive activity validation · ${width}px`);
+
+      await activity.fill(seed.spaceTypeLabel);
+      await page.getByRole("option", { name: seed.spaceTypeLabel, exact: true }).click();
+      await expectAxeClean(page, `progressive location · ${width}px`);
+
+      await page.getByRole("button", { name: "Use my location" }).click();
+      await expectAxeClean(page, `progressive party · ${width}px`);
+
+      await page.getByRole("button", { name: "For me" }).click();
+      const listing = page.getByRole("link", { name: new RegExp(seed.title) });
+      await expect(listing, "the seeded listing must survive the submitted result journey").toHaveCount(1);
+      await expectAxeClean(page, `progressive results · ${width}px`);
+
+      await page.getByRole("button", { name: "1 person" }).click();
+      await page.getByRole("button", { name: "For a group" }).click();
+      await page.getByLabel("Number of people").fill("1000");
+      await page.getByRole("button", { name: "See spaces" }).click();
+      await expect(page.getByRole("heading", { name: "No spaces match those answers" })).toBeVisible();
+      await expectAxeClean(page, `progressive empty results · ${width}px`);
+
+      await page.getByRole("button", { name: "1000 people" }).click();
+      await page.getByRole("button", { name: "For me" }).click();
+      await expect(listing).toHaveCount(1);
+
+      await page.getByRole("button", { name: "1 person" }).click();
+      await page.getByRole("button", { name: "Cancel" }).click();
+      await expect(page).toHaveURL(`${BASE}/`);
+      await expect(page.getByRole("button", { name: "Start your search" })).toBeVisible();
+      await expectAxeClean(page, `progressive cancel browse · ${width}px`);
+
+      await submitProgressiveSearch(page, { spaceTypeLabel: seed.spaceTypeLabel });
+      await page.getByRole("link", { name: new RegExp(seed.title) }).click();
+      await expect(page.getByTestId("booking-panel")).toHaveCount(1);
+      await expectAxeClean(page, `progressive booking continuation · ${width}px`);
+    });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // The sweep
 // ---------------------------------------------------------------------------
@@ -1194,4 +1261,5 @@ test.describe(`AC#16 — zero axe violations in ${THEME} at ${WIDTHS.join(" and 
       });
     }
   }
+
 });

@@ -2,7 +2,7 @@
 
 import type { RefObject } from "react";
 
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { ACTIVITY_TAGS, SPACE_TYPES } from "@/lib/listing-vocab";
 
 export type CatalogueOption = { value: string; label: string; group: "Activities" | "Space types" };
@@ -29,17 +29,32 @@ export function ActivityStep({ filter, headingRef, onFilterChange, onSelect }: A
       <h2 ref={headingRef} tabIndex={-1} className="text-xl font-semibold outline-none">What are you looking for?</h2>
       <Command shouldFilter={false} className="rounded-md border">
         <CommandInput aria-label="Search for activity or type" value={filter} onValueChange={onFilterChange} placeholder="Search activities and space types" />
-        <CommandList>
-          {options.length === 0 ? <CommandEmpty>No matching activity or type</CommandEmpty> : null}
-          {(["Activities", "Space types"] as const).map((group) => {
-            const groupOptions = options.filter((option) => option.group === group);
-            return groupOptions.length > 0 ? (
-              <CommandGroup key={group} heading={group}>
-                {groupOptions.map((option) => <CommandItem key={option.value} value={option.label} onSelect={() => onSelect(option)}>{option.label}</CommandItem>)}
-              </CommandGroup>
-            ) : null;
-          })}
-        </CommandList>
+        {options.length === 0 ? (
+          <CommandList>
+            <CommandItem disabled className="justify-center py-6 text-center">
+              No matching activity or type
+            </CommandItem>
+          </CommandList>
+        ) : (
+          <CommandList>
+            {(["Activities", "Space types"] as const).map((group) => {
+              const groupOptions = options.filter((option) => option.group === group);
+              return groupOptions.length > 0 ? (
+                <CommandGroup key={group} heading={group}>
+                  {groupOptions.map((option) => (
+                    <CommandItem
+                      key={option.value}
+                      value={option.label}
+                      onSelect={() => onSelect(option)}
+                    >
+                      {option.label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              ) : null;
+            })}
+          </CommandList>
+        )}
       </Command>
     </div>
   );

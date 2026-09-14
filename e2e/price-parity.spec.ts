@@ -55,6 +55,8 @@ import postgres from "postgres";
 import { format } from "date-fns";
 import { tz } from "@date-fns/tz";
 
+import { submitProgressiveSearch } from "./helpers/booker-seed";
+
 const BASE = "http://localhost:3000";
 const VENUE_TZ = "Asia/Manila";
 
@@ -283,40 +285,8 @@ test("the total rendered on the reserve page IS the total the database froze (GA
   await page.getByRole("button", { name: /sign up to book/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 30_000 });
 
-  // ── Search → the seeded listing. The category is this listing's alone, so the filter is deterministic.
-  await page.goto(`${BASE}/`);
-
-  // ⚠ THE COUNT SETTLE IS `openSeededListing`'s IDIOM (`e2e/helpers/booker-seed.ts:481-495`), AND THIS
-  // FILE IS THE ONE ITS NOTE WAS ABOUT. `/` streams, and its own `loading.tsx` renders a SECOND
-  // `SearchBar`: measured 2026-08-18, the served document holds `id="search-category"` at byte 11,713
-  // (the pending fallback) and again at 84,158 (the resolved page). While the boundary is resolving
-  // BOTH are in the DOM and a bare `.click()` fails strict mode with "resolved to 2 elements" — an
-  // error that reads like a duplicate id and is a race. That note's own words are "the shipped specs
-  // get away with it only because they happen to arrive late", and `zero-result-relax.spec.ts:27`
-  // names THIS file as the analog whose idiom it copied — while this file never took the settle.
-  //
-  // It stopped arriving late on 2026-09-05. Run 33972688199, `gate-e2e`, one worker, full-suite load:
-  //     locator.click: Error: strict mode violation: locator('#search-category') resolved to 2 elements
-  //       1) aria-controls="radix-_r_7_"          aka getByRole('combobox', { name: 'Activity or type Activity or' })
-  //       2) aria-controls="radix-_R_haatqitulb_" aka locator('#search-category').nth(1)
-  // Element 1's accessible name is DOUBLED, which is what two `<label for="search-category">` produce
-  // — the two SearchBars, not a duplicated control inside one.
-  //
-  // THIS IS A WAIT, NOT A WIDENED TIMEOUT AND NOT A WEAKENED LOCATOR: `toHaveCount(1)` retries until
-  // the fallback is gone, asserts the observable state the click depends on, and a PERSISTENT 2 still
-  // fails — by name, at this line, instead of as a strict-mode error 60 lines downstream. Nothing
-  // about the money assertion this spec exists for is touched.
-  const category = page.locator("#search-category");
-  await expect(
-    category,
-    "`/` still holds two #search-category controls — the pending shell's SearchBar and the resolved " +
-      "page's. This waits for the streamed boundary to resolve; a persistent 2 means the fallback " +
-      "stopped being replaced.",
-  ).toHaveCount(1);
-  await category.click();
-  await page.getByRole("option", { name: SPACE_TYPE_LABEL }).click();
-  await page.locator("#search-submit").click();
-  await page.waitForURL(new RegExp(`category=${SPACE_TYPE}`));
+  // ── Search → the seeded listing through the real Phase 24 journey. ────────────────────────────────────
+  await submitProgressiveSearch(page, { spaceTypeLabel: SPACE_TYPE_LABEL });
 
   await page.getByRole("link", { name: new RegExp(LISTING_TITLE) }).click();
   await page.waitForURL(new RegExp(`/listings/${listingId}`));
