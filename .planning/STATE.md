@@ -2,22 +2,22 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
-current_phase: 19
+current_phase: 22
 current_phase_name: Host Listing Surfaces & Gates That Actually Run
-status: planning
-stopped_at: Phase 21 complete, ready to plan Phase 19
-last_updated: "2026-09-10T06:03:16.747Z"
-last_activity: 2026-09-10
-last_activity_desc: Phase 21 complete, transitioned to Phase 19
-state_head: 6d8c074738c34d79ba296031c6230418f9a1fa16
+status: planned
+stopped_at: Phase 24 context gathered
+last_updated: "2026-09-14T05:20:11.269Z"
+last_activity: 2026-09-14
+last_activity_desc: Phase 22 reopened after mandatory UAT gap G-22-8; verified operating-hours gap-closure plan ready
+state_head: e4df4c2dbb180c0e31c779201d4f633a528cf1c7
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
   # of 2026-09-04. The plan counters cover phases 18 + 18.1 ONLY -- phases 19-23
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
-  total_phases: 8
+  total_phases: 10
   completed_phases: 2
-  total_plans: 88
+  total_plans: 94
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
   # A halted plan counted as a completed one is the same fabricated counter this file
@@ -56,8 +56,8 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 84
-  percent: 25
+  completed_plans: 90
+  percent: 20
 ---
 
 # Project State
@@ -114,13 +114,13 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 Phase: 19 — Host Listing Surfaces & Gates That Actually Run
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-09-14 — Completed quick task 260914-ew2: Replace technical registration password validation feedback with plain English
+Last activity: 2026-09-14 — Completed quick task 260914-f5o: Remove the public footer link to FitOut Ops
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 179
+- Total plans completed: 182
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -143,6 +143,7 @@ Last activity: 2026-09-14 — Completed quick task 260914-ew2: Replace technical
 | 18 | 13 | ~440 min | ~34 min |
 | 18.1 | 16 | - | - |
 | 21 | 8 | - | - |
+| 22 | 3 | - | - |
 
 *18.1-16: ~62 min wall-clock, 2 tasks (both auto, task 1 under TDD), 0 files created + 7 modified, 3 commits
 (RED / GREEN / records) + 1 metadata. ⚠ The durations column is left `-` for this phase rather than filled in from
@@ -881,6 +882,8 @@ deferred walk is inconsistent rather than honest.*
 
 ### Roadmap Evolution
 
+- Phase 24 added (2026-09-14): **Search Bar Rework** — replace the always-visible search options with an intentionally simple progressive flow: a plain search bar that expands on interaction and asks activity, location, then number of pax one at a time.
+
 - **v1.1 roadmap created (2026-08-11) — Phases 10–19, numbering continued from v1.0's Phase 9.** Derived from the research's reconciled build order (SUMMARY § Implications for Roadmap / ARCHITECTURE § Build Order), which two researchers reached independently. Two deliberate departures from that shape, both stated with reasons: (1) the research's **group/open-capacity** phase was folded into **Phase 13** because REQUIREMENTS.md defines no separate REQ-IDs for it — a standalone phase would carry zero requirements; the open-capacity pass picker sits in Phase 12 as a pre-hold listing surface and `/invite/[token]` in Phase 13 as a post-booking artifact. (2) The research's standalone **email** phase was merged into **Phase 15** because PITFALLS' own phase taxonomy already places the email shell inside `P-AUTH` (its risk table maps rows 14 and 15 to P-AUTH), and three requirements do not justify a phase at `standard` granularity — EMAIL-02's only dependency (DS-12) still lands in Phase 10, so nothing is delayed. Also split the research's single **booker core** phase into 12 (search → listing → checkout) and 13 (confirmation → bookings → trust) because the combined phase carried 21 requirements. **MAP (18) and HOURS (19) are their own phases per D-136** and are never to be folded into a surface-polish phase.
 
 - Phase 9 added (2026-07-27): **Open-Capacity Bookings** — the second host-set occupancy mode (drop-in / common-use, capacity-counter availability), split out of the Phase-8 group-booking discussion as its own phase because it stresses AVAILABILITY (a concurrent seat-claim), not payment. Each visitor books single-payer on the existing rail; the new work is a capacity-counter that replaces the GiST exclusion constraint for these listings, race-proven. Adds OPEN-01..04; depends on Phase 8's `occupancy_mode` seam (default `exclusive`). Organizer-driven open play / cost-split (GPAY-01) remains deferred.
@@ -891,6 +894,7 @@ deferred walk is inconsistent rather than honest.*
 - **Backlog 999.4 / 999.5 / 999.6 captured (2026-09-01)** as the deliberate remainder of that split: **999.4 booker-side reporting & dispute resolution** (without it Phase 18 catches fraud at onboarding and never again; it lands on the hold-until-session payout window, so it plugs into Phase 18's freeze lever), **999.5 reviews & ratings** (FitOut has NO reputation signal of any kind — no review or rating table exists; the cheapest continuous fraud detector and the largest booker-trust gap), and **999.6 host appeals** (Phase 18 must not paint it into a corner — reject/suspend carry a reason and an authenticated actor precisely so an appeal has something to review).
 - Phase 18.1 inserted after Phase 18: Close Phase 18 - the verification path FitOut is legally required to have (URGENT)
 - Phase 19.1 inserted after Phase 19: CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, close the checker's own coverage holes (URGENT)
+- Phase 22.1 inserted after Phase 22: Host Enforcement Surface & Manual Queue Removal (URGENT)
 
 ### Decisions
 
@@ -1750,6 +1754,7 @@ means the task predates that flag being used here, not that it failed.
 
 | 260914-e90 | Add password confirmation to registration to prevent mismatched-password registrations | 2026-09-14 | 13514ba | | [260914-e90-add-password-confirmation-to-registratio](./quick/260914-e90-add-password-confirmation-to-registratio/) |
 | 260914-ew2 | Replace technical registration password validation feedback with plain English | 2026-09-14 | e4bc921 | | [260914-ew2-replace-technical-registration-password-](./quick/260914-ew2-replace-technical-registration-password-/) |
+| 260914-f5o | Remove the public footer link to FitOut Ops | 2026-09-14 | 95363f5 | | [260914-f5o-remove-this-link-to-fitout-ops](./quick/260914-f5o-remove-this-link-to-fitout-ops/) |
 
 ## Deferred Items
 
@@ -1796,8 +1801,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-10T04:12:31.360Z
-Stopped at: Phase 21 complete, ready to plan Phase 19
+Last session: 2026-09-14T05:20:08.890Z
+Stopped at: Phase 24 context gathered
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1950,7 +1955,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: None
+Resume file: .planning/phases/24-search-bar-rework/24-CONTEXT.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
