@@ -407,6 +407,7 @@ const PER_HEAD_PRICE_CENTS = 25000;
 const LISTING_CITY = "Makati";
 const LISTING_LAT = 14.5547;
 const LISTING_LNG = 121.0244;
+const SEARCH_LOCATION_LABEL = "2 Real Street, Makati, Metro Manila, Philippines";
 
 /**
  * Seed a payouts-enabled host + one published, bookable listing with 06:00–21:00 hours on all 7 days.
@@ -535,27 +536,18 @@ export async function signUpBooker(page: Page, seed: SeededListing): Promise<str
  * within it, so a second concurrent seed of the same type cannot make this ambiguous.
  */
 export async function openSeededListing(page: Page, seed: SeededListing): Promise<void> {
-  await page.goto(`${BASE}/`);
-
-  // ⚠️ `/` STREAMS, AND ITS OWN `loading.tsx` RENDERS A SECOND `SearchBar`. MEASURED (2026-08-18): the
-  // served document holds `id="search-category"` at byte 11,713 (the pending fallback) and again at
-  // 84,158 (the resolved page), with React's first completion segment at 26,879 between them. While the
-  // boundary is still resolving BOTH are in the DOM, and `page.locator("#search-category").click()`
-  // fails Playwright's strict mode with "resolved to 2 elements" — an error that reads like a duplicate
-  // id and is actually a race. The shipped specs get away with it only because they happen to arrive
-  // late. `toHaveCount(1)` retries until the fallback is gone, which is the wait this needs and states
-  // why it is there.
-  const category = page.locator("#search-category");
-  await expect(
-    category,
-    "`/` still holds two #search-category controls — the pending shell's SearchBar and the resolved " +
-      "page's. This waits for the streamed boundary to resolve; a persistent 2 means the fallback " +
-      "stopped being replaced.",
-  ).toHaveCount(1);
-  await category.click();
-  await page.getByRole("option", { name: seed.spaceTypeLabel }).click();
-  await page.locator("#search-submit").click();
-  await page.waitForURL(new RegExp(`category=${SPACE_TYPE}`));
+  // Booking specs need a result card, not another copy of the progressive search journey. Use the same
+  // complete server-validated tuple the coordinator serializes so every dependent suite enters through
+  // the shipped result boundary without preserving retired controls or streaming-era selectors.
+  const query = new URLSearchParams({
+    category: SPACE_TYPE,
+    lat: String(LISTING_LAT),
+    lng: String(LISTING_LNG),
+    locationLabel: SEARCH_LOCATION_LABEL,
+    partySize: "1",
+  });
+  await page.goto(`${BASE}/?${query.toString()}`);
+  await expect(page.getByTestId("search-results-region")).toHaveCount(1);
 
   await page.getByRole("link", { name: new RegExp(seed.title) }).click();
   await page.waitForURL(new RegExp(`/listings/${seed.listingId}`));
