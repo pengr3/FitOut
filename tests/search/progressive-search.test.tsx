@@ -3,7 +3,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
-import { SearchExperience } from "@/components/search/search-experience";
+import { parseGroupPartySize } from "@/components/search/party-step";
+import { progressiveSearchReducer, SearchExperience, type ProgressiveSearchState } from "@/components/search/search-experience";
+import { MAX_OPEN_CAPACITY } from "@/lib/validation/listing";
 
 const push = vi.fn();
 
@@ -102,4 +104,51 @@ it("keeps confirmed answers while correcting the journey and submits only an exa
   fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
 
   expect(screen.getByRole("button", { name: "For a group" })).toBeTruthy();
+});
+
+it("uses explicit history for Back, direct Edit, and destructive Cancel", () => {
+  const initial: ProgressiveSearchState = {
+    screen: "idle",
+    answers: {},
+    history: [],
+    groupDraft: "",
+    groupMode: false,
+    resultsVisible: false,
+    progress: "",
+  };
+  const engaged = progressiveSearchReducer(initial, { type: "ENGAGE" });
+  const selected = progressiveSearchReducer(engaged, { type: "SELECT_ACTIVITY", option: { value: "martial_arts_boxing", label: "Martial arts / boxing gym", group: "Activities" } });
+  const located = progressiveSearchReducer(selected, { type: "RESOLVE_LOCATION", address: { lat: 14.5547, lng: 121.0244, locationLabel: "Makati" } });
+
+  expect(located.screen).toBe("party");
+  expect(progressiveSearchReducer(located, { type: "BACK" })).toMatchObject({ screen: "location", answers: located.answers });
+  expect(progressiveSearchReducer(located, { type: "EDIT", step: "activity" })).toMatchObject({ screen: "activity", answers: located.answers, history: ["idle"] });
+  expect(progressiveSearchReducer(located, { type: "CANCEL" })).toMatchObject({ screen: "idle", answers: {}, history: [], groupDraft: "", resultsVisible: false });
+
+  renderSearch();
+  fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(push).toHaveBeenCalledWith("/");
+  expect(screen.getByRole("button", { name: "Start your search" })).toBeTruthy();
+});
+
+it("parses and submits only exact bounded group sizes", () => {
+  for (const invalid of ["", "1", "1.5", "-2", "2e1", "two", String(MAX_OPEN_CAPACITY + 1)]) {
+    expect(parseGroupPartySize(invalid)).toBeNull();
+  }
+  expect(parseGroupPartySize("2")).toBe(2);
+  expect(parseGroupPartySize(String(MAX_OPEN_CAPACITY))).toBe(MAX_OPEN_CAPACITY);
+
+  renderSearch();
+  selectActivity();
+  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
+  fireEvent.click(screen.getByRole("button", { name: "For a group" }));
+  const groupInput = screen.getByLabelText("Number of people");
+  const submit = screen.getByRole("button", { name: "See spaces" });
+  fireEvent.change(groupInput, { target: { value: "1.5" } });
+  expect(submit.hasAttribute("disabled")).toBe(true);
+  fireEvent.change(groupInput, { target: { value: "2" } });
+  expect(submit.hasAttribute("disabled")).toBe(false);
+  fireEvent.click(submit);
+  expect(push).toHaveBeenCalledWith("/?category=martial_arts_boxing&lat=14.5547&lng=121.0244&locationLabel=2+Real+Street%2C+Makati%2C+Metro+Manila%2C+Philippines&partySize=2");
 });
