@@ -374,7 +374,6 @@ export const LIVE_REGION_FILES = [
   "src/components/booking/request-countdown.tsx",
   "src/components/booking/reserve-actions.tsx",
   // ─── search ─────────────────────────────────────────────────────────────────────────────────────
-  "src/components/search/relax-band.tsx",
   "src/components/search/search-results.tsx",
   "src/components/search/search-experience.tsx",
   // ─── the group lifecycle (plan 13-14's discharge — see the header) ──────────────────────────────
@@ -698,8 +697,6 @@ export const LIVE_REGION_IDS = [
   "request-countdown-threshold",
   // reserve-actions.tsx
   "reserve-actions-notice",
-  // relax-band.tsx
-  "search-relax-band",
   // search-results.tsx
   "search-results-fetch-error",
   // search-experience.tsx
@@ -1091,46 +1088,6 @@ export const LIVE_REGIONS: Record<LiveRegionId, LiveRegionRow> = {
       "alert variant because nothing went wrong — their other tab is winning. `role=\"alert\"` here " +
       "would tell the booker something failed at the exact moment their booking is proceeding normally " +
       "somewhere else, which is RULE 2's reserved role spent on a non-failure.",
-  },
-
-  // ─── relax-band.tsx ─────────────────────────────────────────────────────────────────────────────
-  "search-relax-band": {
-    file: "src/components/search/relax-band.tsx",
-    kind: "status",
-    at: 1,
-    announces:
-      '"Showing 6 spaces with the distance filter widened." — ONCE, on arrival, when a zero-result ' +
-      "search is answered by relaxing one constraint. That `sr-only` sentence is the region's FIRST " +
-      "child and it is followed by the two visible lines, which are also announced: \"Nothing at " +
-      '9–11 AM on Fri, Aug 21 within 10 km." and "Showing 6 badminton courts within 25 km instead — ' +
-      'same day and time. Your other filters are unchanged." It says nothing again — not on scroll, ' +
-      "not on a Load more, and not on any re-render carrying the same rung.",
-    why:
-      "RULE 1 and RULE 6, and the sr-only lead is the part worth checking rather than skimming.\n" +
-      "\n" +
-      "RULE 1: this is the RESULT of something the booker did — they searched, and the system answered " +
-      "with a different search. `role=\"status\"`, implicit polite, never `assertive`: nothing has " +
-      "gone wrong and nothing needs interrupting.\n" +
-      "\n" +
-      "WHY THE ANNOUNCEMENT IS NOT SIMPLY LINE 1. Line 1 is a NEGATIVE statement, and a live region " +
-      "that opens with \"Nothing at 9–11 AM…\" tells a blind booker their search failed at the exact " +
-      "moment it succeeded differently. The `sr-only` first child front-loads the OUTCOME; the visible " +
-      "lines follow as the detail. That is a deliberate duplication and not a stray label — which is " +
-      "also why this region carries NO `aria-label`: `status` is nameFrom:author, and on the " +
-      "VoiceOver/Safari pairing a named live region can be announced BY ITS NAME INSTEAD OF ITS " +
-      "CONTENT, i.e. the sentence the booker needs would be replaced by a label nobody wrote for them " +
-      "(the argument this module records at `reserve-actions-notice` and the five regions beside it).\n" +
-      "\n" +
-      "RULE 6 — ONE REGION PER OUTCOME, AND THE OTHER HALF OF IT IS STRUCTURAL. `search-results.tsx` " +
-      "renders this band and the zero-result `EmptyState` in MUTUALLY EXCLUSIVE branches of one " +
-      "ternary: if a rung fired there is a band and no empty state, and if every rung was exhausted " +
-      "there is an empty state and no band. The two can never announce the same event, because they " +
-      "can never be mounted together. `e2e/zero-result-relax.spec.ts` case (c) is the browser half — " +
-      "after `Undo` the band's count is 0.\n" +
-      "\n" +
-      "ANNOUNCE-ONCE IS A PROPERTY OF THE DOM STAYING STILL, not of a flag: the rendered strings are " +
-      "held in a ref KEYED BY THE RUNG, so a re-render carrying the same outcome produces " +
-      "byte-identical children, mutates no text node, and gives the region nothing to re-announce.",
   },
 
   // ─── search-results.tsx ─────────────────────────────────────────────────────────────────────────
@@ -2190,8 +2147,8 @@ type Assert<T extends true> = T;
  * what that does and does not now resolve. Nothing was relaxed — the name must still be non-empty
  * and must still equal the string recorded below.
  */
-export type DeclaredFileCountIsThirtyTwo = Assert<
-  (typeof LIVE_REGION_FILES)["length"] extends 32 ? true : false
+export type DeclaredFileCountIsThirtyOne = Assert<
+  (typeof LIVE_REGION_FILES)["length"] extends 31 ? true : false
 >;
 
 // ---------------------------------------------------------------------------
