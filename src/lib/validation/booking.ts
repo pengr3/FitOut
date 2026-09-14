@@ -57,6 +57,15 @@ export const RADIUS_PRESETS = [2, 5, 10, 25] as const;
 /** The declared max the radius rung may climb to — the last preset, never a number of its own. */
 export const MAX_RADIUS_KM = RADIUS_PRESETS[RADIUS_PRESETS.length - 1];
 
+// Next delivers search params as strings or repeated string arrays. Accept a direct number for internal
+// callers, but reject every other shape before numeric coercion so Number(["4"]) cannot authorize a
+// repeated URL parameter.
+const scalarPartySizeSchema = z
+  .union([z.string(), z.number()])
+  .transform((value) => Number(value))
+  .pipe(z.number().int().min(1).max(MAX_OPEN_CAPACITY))
+  .optional();
+
 /**
  * The search-page URL contract (V5 input-validation control). Every param here is attacker-controllable
  * (T-04-ORIGIN / T-04-VOCAB / T-04-PRICEIN) and is bounds-validated BEFORE any SQL runs. URL params
@@ -94,7 +103,7 @@ export const searchParamsSchema = z
     category: z.union([z.enum(spaceTypeValues), z.enum(activityTagValues)]).optional(),
     // A submitted search is party-aware, but the configured listing capacity remains the server-side
     // authority. The label is presentation-only; coordinates are the only location query authority.
-    partySize: z.coerce.number().int().min(1).max(MAX_OPEN_CAPACITY).optional(),
+    partySize: scalarPartySizeSchema,
     locationLabel: z.string().trim().min(1).max(120).optional(),
     // Sort control (T-04-VOCAB) — only a known key reaches the ORDER BY. Default nearest-first (D-37).
     sort: z.enum(["nearest", "price"]).default("nearest"),
@@ -122,6 +131,20 @@ export const searchParamsSchema = z
   .refine((v) => (v.lat === undefined) === (v.lng === undefined), {
     message: "Provide both lat and lng for a radius search.",
     path: ["lng"],
+  })
+  .transform((params) => {
+    // A valid partySize is the server-side marker for the Phase 24 journey. Retired refinements must not
+    // regain authority when manually appended to its canonical URL; old URLs without it stay untouched.
+    if (params.partySize === undefined) return params;
+    return {
+      ...params,
+      date: undefined,
+      start: undefined,
+      end: undefined,
+      priceMax: undefined,
+      radius: 10,
+      relax: 1,
+    };
   });
 
 export type SearchParams = z.infer<typeof searchParamsSchema>;

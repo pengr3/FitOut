@@ -36,7 +36,7 @@ describe("searchParamsSchema — accepts valid / bounded input", () => {
       expect(r.data.lat).toBeCloseTo(14.55, 5);
       expect(r.data.lng).toBeCloseTo(121.03, 5);
       expect(r.data.radius).toBe(10);
-      expect(r.data.priceMax).toBe(50000);
+      expect(r.data.priceMax).toBeUndefined();
       expect(r.data.page).toBe(0);
       expect(r.data.sort).toBe("nearest");
       expect(r.data.category).toBe("basketball_court");
