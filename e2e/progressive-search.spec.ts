@@ -42,12 +42,12 @@ test.describe.serial("progressive search", () => {
     await expect(page.getByLabel("Search for activity or type")).toHaveCount(0);
 
     await page.getByRole("button", { name: "Start your search" }).click();
-    await page.getByLabel("Search for activity or type").fill("martial");
+    await page.getByPlaceholder("Search activities and space types").fill("martial");
     await expect(page).toHaveURL(BASE + "/");
     await page.getByRole("option", { name: eligible.spaceTypeLabel, exact: true }).click();
 
     await page.getByRole("button", { name: "Search for your address" }).click();
-    await page.getByPlaceholder("Start typing a street, city…").fill("Makati");
+    await page.getByPlaceholder("Type a street or city…").fill("Makati");
     await page.getByRole("option", { name: /2 Real Street, Makati/i }).click();
     await page.getByRole("button", { name: "For me" }).click();
 

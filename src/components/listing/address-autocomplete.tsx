@@ -163,10 +163,13 @@ export function AddressAutocomplete({
   initialLabel,
   hasCoordinates,
   onResolved,
+  audience = "host",
 }: {
   initialLabel?: string;
   hasCoordinates?: boolean;
   onResolved: (addr: ResolvedAddress) => void;
+  /** Host copy remains the default; public search uses booker-facing guidance. */
+  audience?: "host" | "search";
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -281,6 +284,13 @@ export function AddressAutocomplete({
   const showLoading = !isQueryTooShort && loading;
 
   const located = Boolean(hasCoordinates) || selectedLabel.length > 0;
+  const isSearchAudience = audience === "search";
+  const triggerCopy = isSearchAudience ? "Search for your address" : "Search for your address";
+  const inputCopy = isSearchAudience ? "Type a street or city…" : "Start typing a street, city…";
+  const emptyCopy = isSearchAudience ? "No matching addresses. Try another street or city." : "No matches yet. Keep typing.";
+  const hintCopy = isSearchAudience
+    ? "Choose an address suggestion to search nearby spaces."
+    : "Pick a suggestion so we can place you on the map.";
 
   return (
     <div className="space-y-1.5">
@@ -291,14 +301,14 @@ export function AddressAutocomplete({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            aria-label="Search for your address"
+            aria-label={triggerCopy}
             className={cn(
               "w-full justify-start gap-2 font-normal",
               !selectedLabel && "text-muted-foreground",
             )}
           >
             <MapPinIcon className="size-4 shrink-0" />
-            <span className="truncate">{selectedLabel || "Search for your address"}</span>
+            <span className="truncate">{selectedLabel || triggerCopy}</span>
           </Button>
         </PopoverTrigger>
         <PopoverContent
@@ -309,14 +319,14 @@ export function AddressAutocomplete({
             <CommandInput
               value={query}
               onValueChange={handleQueryChange}
-              placeholder="Start typing a street, city…"
+              placeholder={inputCopy}
             />
             <CommandList>
               {showLoading && (
                 <div className="px-3 py-2 text-sm text-muted-foreground">Searching…</div>
               )}
               {!showLoading && query.trim().length >= 3 && visibleResults.length === 0 && (
-                <CommandEmpty>No matches yet. Keep typing.</CommandEmpty>
+                <CommandEmpty>{emptyCopy}</CommandEmpty>
               )}
               <CommandGroup>
                 {visibleResults.map((s) => (
@@ -339,7 +349,7 @@ export function AddressAutocomplete({
           region and is not inside one. */}
       {!located && error === null ? (
         <p className="text-label text-muted-foreground">
-          Pick a suggestion so we can place you on the map.
+          {hintCopy}
         </p>
       ) : null}
 

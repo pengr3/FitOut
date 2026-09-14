@@ -166,7 +166,7 @@ export async function searchListings(
   now: Date = new Date(),
   options: SearchListingsOptions = {},
 ): Promise<SearchResult> {
-  const { lat, lng, radius, priceMax, category, sort, page } = params;
+  const { lat, lng, radius, priceMax, category, partySize, sort, page } = params;
 
   const hasOrigin = lat !== undefined && lng !== undefined;
   // Axis order x=lng / y=lat (Pitfall 4). Cast to ::geography at each use site so the radius is metric.
@@ -268,6 +268,7 @@ export async function searchListings(
         l.primary_space_type::text = ${category}
         OR EXISTS (SELECT 1 FROM listing_activity_tag t WHERE t.listing_id = l.id AND t.tag = ${category})
       )` : sql``}
+      ${partySize !== undefined ? sql`AND l.max_occupancy >= ${partySize}` : sql``}
       ${priceMax !== undefined ? sql`AND ${effectivePriceSql} <= ${priceMax}` : sql``}
       -- The per-request FILTER, distinct from the sell gate above and left exactly as it was: is the
       -- venue open on the day THIS booker picked. Two clauses, two jobs — oh_any asks whether the

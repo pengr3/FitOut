@@ -10,6 +10,7 @@
 
 import { z } from "zod";
 import { spaceTypeValues, activityTagValues } from "@/lib/listing-vocab";
+import { MAX_OPEN_CAPACITY } from "@/lib/validation/listing";
 // The two strict param parsers, from the isomorphic leaf rather than from `@/lib/search/query` — that
 // module transitively imports the `server-only` read model and this file is in the client graph via
 // `search-bar.tsx`. `window-params.ts`'s header carries the measured build failure.
@@ -91,6 +92,10 @@ export const searchParamsSchema = z
     // activity tag. Deliberately NOT split into separate `type`/`activity` params (which would no-op an
     // activity-tag-only search). Sourced from the single vocab authority (`@/lib/listing-vocab`).
     category: z.union([z.enum(spaceTypeValues), z.enum(activityTagValues)]).optional(),
+    // A submitted search is party-aware, but the configured listing capacity remains the server-side
+    // authority. The label is presentation-only; coordinates are the only location query authority.
+    partySize: z.coerce.number().int().min(1).max(MAX_OPEN_CAPACITY).optional(),
+    locationLabel: z.string().trim().min(1).max(120).optional(),
     // Sort control (T-04-VOCAB) — only a known key reaches the ORDER BY. Default nearest-first (D-37).
     sort: z.enum(["nearest", "price"]).default("nearest"),
     // Load-more page index (D-32). Non-negative int, default 0.
