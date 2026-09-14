@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/search/progressive-search.test.tsx --reporter=tap",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 5 - keeps confirmed answers while correcting the journey and submits only an exact bounded group size\nTestingLibraryElementError: Unable to find an accessible element with the role button and name For a group\n# tests 5\n# pass 4\n# fail 1",
+  "targetTest": "keeps confirmed answers while correcting the journey and submits only an exact bounded group size",
+  "targetFile": "tests/search/progressive-search.test.tsx",
+  "expected": "A confirmed activity and location expose the For a group choice before a bounded exact party size can be submitted.",
+  "actual": "The phase 24-01 tracer rendered only For me on the party step."
+}

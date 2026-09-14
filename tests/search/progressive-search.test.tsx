@@ -95,3 +95,11 @@ it("retains submitted answers in direct-edit chips and keeps one initially empty
   fireEvent.click(screen.getByRole("button", { name: "1 person" }));
   expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Who is this for?" }));
 });
+
+it("keeps confirmed answers while correcting the journey and submits only an exact bounded group size", () => {
+  renderSearch();
+  selectActivity();
+  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
+
+  expect(screen.getByRole("button", { name: "For a group" })).toBeTruthy();
+});
