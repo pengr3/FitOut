@@ -111,6 +111,7 @@ import {
   placeHold,
   seedBookableListing,
   signUpBooker,
+  submitProgressiveSearch,
   type SeededListing,
 } from "./helpers/booker-seed";
 import { seedTheme } from "./helpers/theme";
@@ -420,12 +421,10 @@ type SurfaceRow = {
  * Waiting for the search bar to collapse to one is waiting for the stream to finish.
  */
 async function settleSearchHome(page: Page, where: string): Promise<void> {
+  await submitProgressiveSearch(page, { spaceTypeLabel: "Martial arts / boxing gym" });
   await expect(
-    page.locator("#search-category"),
-    `${where}: \`/\` still holds two \`#search-category\` controls — the pending shell's SearchBar ` +
-      "and the resolved page's. This waits for the streamed boundary to resolve before anything on " +
-      "the page is counted; a persistent 2 means the fallback stopped being replaced, which is a " +
-      "product defect rather than a race and belongs in its own finding.",
+    page.getByTestId("search-results-region"),
+    `${where}: the submitted progressive result did not render`,
   ).toHaveCount(1);
 }
 

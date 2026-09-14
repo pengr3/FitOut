@@ -407,7 +407,40 @@ const PER_HEAD_PRICE_CENTS = 25000;
 const LISTING_CITY = "Makati";
 const LISTING_LAT = 14.5547;
 const LISTING_LNG = 121.0244;
-const SEARCH_LOCATION_LABEL = "2 Real Street, Makati, Metro Manila, Philippines";
+
+/** A deterministic browser position for the public search journey's location answer. */
+export const SEARCH_LOCATION = { latitude: LISTING_LAT, longitude: LISTING_LNG };
+
+export type ProgressiveSearchOptions = {
+  /** An exact, closed-catalogue label; never free text. */
+  readonly spaceTypeLabel: string;
+};
+
+/**
+ * Complete the shipped Phase 24 progressive form through its deterministic "For me" result state.
+ *
+ * Dependent suites deliberately share this rather than pre-seeding a legacy URL or recreating the
+ * wizard. It exercises the production activity → location → party sequence and leaves the selected
+ * result identity for the caller to assert before entering a downstream contract.
+ */
+export async function submitProgressiveSearch(
+  page: Page,
+  { spaceTypeLabel }: ProgressiveSearchOptions,
+): Promise<void> {
+  await page.context().grantPermissions(["geolocation"], { origin: BASE });
+  await page.context().setGeolocation(SEARCH_LOCATION);
+  await page.goto(BASE);
+
+  await page.getByRole("button", { name: "Start your search" }).click();
+  const activity = page.locator('[data-slot="command-input"]');
+  await expect(activity).toHaveAttribute("aria-label", "Search for activity or type");
+  await activity.fill(spaceTypeLabel);
+  await page.getByRole("option", { name: spaceTypeLabel, exact: true }).click();
+  await page.getByRole("button", { name: "Use my location" }).click();
+  await expect(page.getByRole("heading", { name: "Who is this for?" })).toBeFocused();
+  await page.getByRole("button", { name: "For me" }).click();
+  await expect(page.getByTestId("search-results-region")).toHaveCount(1);
+}
 
 /**
  * Seed a payouts-enabled host + one published, bookable listing with 06:00–21:00 hours on all 7 days.
@@ -536,20 +569,11 @@ export async function signUpBooker(page: Page, seed: SeededListing): Promise<str
  * within it, so a second concurrent seed of the same type cannot make this ambiguous.
  */
 export async function openSeededListing(page: Page, seed: SeededListing): Promise<void> {
-  // Booking specs need a result card, not another copy of the progressive search journey. Use the same
-  // complete server-validated tuple the coordinator serializes so every dependent suite enters through
-  // the shipped result boundary without preserving retired controls or streaming-era selectors.
-  const query = new URLSearchParams({
-    category: SPACE_TYPE,
-    lat: String(LISTING_LAT),
-    lng: String(LISTING_LNG),
-    locationLabel: SEARCH_LOCATION_LABEL,
-    partySize: "1",
-  });
-  await page.goto(`${BASE}/?${query.toString()}`);
-  await expect(page.getByTestId("search-results-region")).toHaveCount(1);
+  await submitProgressiveSearch(page, { spaceTypeLabel: seed.spaceTypeLabel });
 
-  await page.getByRole("link", { name: new RegExp(seed.title) }).click();
+  const listing = page.getByRole("link", { name: new RegExp(seed.title) });
+  await expect(listing, "the progressive result must retain the seeded listing identity").toHaveCount(1);
+  await listing.click();
   await page.waitForURL(new RegExp(`/listings/${seed.listingId}`));
 }
 

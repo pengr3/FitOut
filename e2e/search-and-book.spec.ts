@@ -32,6 +32,8 @@ import postgres from "postgres";
 import { format } from "date-fns";
 import { tz } from "@date-fns/tz";
 
+import { submitProgressiveSearch } from "./helpers/booker-seed";
+
 const BASE = "http://localhost:3000";
 const VENUE_TZ = "Asia/Manila";
 
@@ -65,11 +67,8 @@ const LISTING_CITY = "Makati";
 const HOURLY_RATE_CENTS = 45000;
 const DAY_RATE_CENTS = 280000;
 
-// Listing at Makati CBD; the origin sits ~1.1 km north so the distance line renders a real, in-radius value.
 const LISTING_LAT = 14.5547;
 const LISTING_LNG = 121.0244;
-const ORIGIN_LAT = 14.5647;
-const ORIGIN_LNG = 121.0244;
 
 // ---- Target day: +3 days out (future, within the 90-day horizon), venue-local ----------------
 const inTz = tz(VENUE_TZ);
@@ -312,24 +311,8 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
     test.setTimeout(90_000);
     await loginAsBooker(page);
 
-    // ── Search home replaced the Next.js scaffold (D-29). ──────────────────────────────────────────────
-    await page.goto(`${BASE}/`);
-    await expect(page.getByRole("heading", { name: /find a space to play/i })).toBeVisible();
-    // CARRY-OVER, found while sweeping the other two specs: THE STREAMING-BUFFER RULE is not a
-    // `getByText` rule. The buffer parked on `/` was measured to contain the SearchBar's own ids —
-    // `search-category`, `search-date`, `search-start`, `search-end`, `search-price`, `search-radius`,
-    // `search-submit` — so during the reveal this document holds two `#search-submit`s, and an id
-    // locator matches hidden elements exactly as a text locator does. `.click()` enforces strict mode
-    // too, so the two clicks below are exposed, not just the assertion. Observed at 0/8 here, which is
-    // why they are treated on the structural fact rather than on the score: the worst site in this file
-    // was also green 5 times out of 10.
-    await expect(page.locator("#search-submit").filter({ visible: true })).toBeVisible();
-
-    // ── Apply a filter through the SearchBar (a Select + Search — no network geocoding). ────────────────
-    await page.locator("#search-category").filter({ visible: true }).click();
-    await page.getByRole("option", { name: "Tennis court" }).click();
-    await page.locator("#search-submit").filter({ visible: true }).click();
-    await page.waitForURL(/category=tennis_court/);
+    // ── The real Phase 24 conversation, not a retired filter form or pre-seeded results URL. ────────────
+    await submitProgressiveSearch(page, { spaceTypeLabel: "Tennis court" });
 
     // The result card renders photo + name + ₱ price (only the tennis listing matches the filter, SEARCH-05).
     await expect(page.getByRole("img", { name: LISTING_TITLE })).toBeVisible();
@@ -343,17 +326,9 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
       "the category filter narrows to exactly one result card, hence one ₱/hr price (SEARCH-05)",
     ).toHaveCount(1);
 
-    // A location-origin search shows the distance line (SEARCH-03 radius + SEARCH-05 distance) — deterministic.
-    await page.goto(
-      `${BASE}/?lat=${ORIGIN_LAT}&lng=${ORIGIN_LNG}&category=tennis_court&radius=25`,
-    );
-    // ⚠ THE SITE THAT WAS STILL RED after the first pass at this bug fixed only the reference in the
-    // next test. Bare, straight after a `goto` — 5 strict-mode violations in 10 warm runs, the worst in
-    // the file. See THE STREAMING-BUFFER RULE above. Settled at total=1 / visible=1.
-    await expect(
-      page.getByText(/\d+(\.\d+)?\s*km away/i).filter({ visible: true }),
-      "the location-origin search renders exactly one distance line (SEARCH-03 radius + SEARCH-05)",
-    ).toHaveCount(1);
+    await expect(page.getByRole("button", { name: /^Activity:/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Location:/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: "1 person" })).toBeVisible();
 
     // ── Click the card → the public listing detail page. ───────────────────────────────────────────────
     await page.getByRole("link", { name: new RegExp(LISTING_TITLE) }).click();
