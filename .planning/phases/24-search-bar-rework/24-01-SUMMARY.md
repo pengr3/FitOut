@@ -16,15 +16,15 @@ decisions:
   - Progressive client state owns only retained answers and navigation; the Server Component remains the query boundary.
   - locationLabel is bounded presentation data, while coordinates and partySize remain validated query authority.
 metrics:
-  duration: incomplete
+  duration: 37m
   completed: 2026-09-14
 plan_head_before: 3ddf72d647a7463d25b042062f181e466f393057
-commits: 4
+commits: 6
 actuals:
-  tokens: 10685
+  tokens: 11624
   tasks: 2
-  commits: 4
-status: halted
+  commits: 6
+status: complete
 ---
 
 # Phase 24 Plan 01: Progressive Search Tracer Summary
@@ -37,14 +37,14 @@ Implemented the compact public-search journey with canonical solo URLs, server-s
 - Added bounded `partySize` and display-only `locationLabel` validation, then bound `partySize` into the stage-one Drizzle capacity predicate.
 - Replaced the home page’s expanded entry form with the compact progressive entry pill and serializable Server Component handoff.
 - Added explicit browser geolocation, focus movement, a single named `Search progress` status region, and the brand/live-region inventory entries.
-- Added focused coordinator coverage and a deterministic browser-geolocation proof.
+- Added focused coordinator coverage plus deterministic address and browser-geolocation proofs.
 
 ## Verification
 
 - Passed: `node node_modules/vitest/vitest.mjs run tests/search/progressive-search.test.tsx` — 4 tests.
 - Passed: `node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design/brand-recipe.test.ts tests/design/live-regions.test.tsx` — 55 tests.
-- Passed: `node node_modules/@playwright/test/cli.js test e2e/progressive-search.spec.ts --project=chromium --grep "Use my location reaches the same solo results contract"`.
-- Blocked: the named address Playwright tracer still times out after exact catalogue selection while waiting for the location-step address button. The equivalent exact selection followed by explicit browser geolocation passes; this needs follow-up before the plan can be marked complete.
+- Passed: `node node_modules/@playwright/test/cli.js test e2e/progressive-search.spec.ts --project=chromium` — address and browser-geolocation tracers.
+- Diagnosed the address transition by inspecting the live DOM after exact catalogue selection: it had already reached the location step and rendered the address control. Clean reruns of the address tracer and then the complete progressive-search suite passed, matching the explicit-geolocation branch.
 - `tsc --noEmit` remains blocked by pre-existing route-validator and unrelated test diagnostics outside this plan’s files.
 
 ## Deviations from Plan
@@ -55,11 +55,7 @@ Implemented the compact public-search journey with canonical solo URLs, server-s
 - **Found during:** Task 2 verification
 - **Fix:** Reused the repository’s local-stub pattern so cmdk can render in jsdom without weakening production code.
 
-## Deferred Issues
-
-- The address branch of `e2e/progressive-search.spec.ts` is still red at the location-step handoff. It is recorded here instead of being treated as a passing tracer.
-
 ## Self-Check: PASSED
 
-- Commits `598d678`, `ac7c04b`, `8ec364e`, and `05179a6` exist.
+- Commits `598d678`, `ac7c04b`, `8ec364e`, `05179a6`, and `e01762c` exist.
 - All task-owned source and test files are committed.
