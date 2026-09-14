@@ -206,7 +206,8 @@ async function signUpHost(page: Page, tag: string): Promise<string> {
   await page.getByRole("radio", { name: "Host a space" }).click();
   await page.getByLabel("First name").fill("Hedwig");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("Confirm password").fill(PASSWORD);
   await page.getByRole("button", { name: /sign up to host/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 30_000 });
   return email;

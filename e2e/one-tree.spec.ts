@@ -867,7 +867,8 @@ async function seedHostSurfaces(page: Page): Promise<Omit<HostFixture, "cookies"
   await page.getByRole("radio", { name: "Host a space" }).click();
   await page.getByLabel("First name").fill("Onetree");
   await page.getByLabel("Email").fill(hostEmail);
-  await page.getByLabel("Password").fill("averylongpassword");
+  await page.getByLabel("Password", { exact: true }).fill("averylongpassword");
+  await page.getByLabel("Confirm password").fill("averylongpassword");
   await page.getByRole("button", { name: /sign up to host/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 60_000 });
 
@@ -1408,7 +1409,8 @@ async function signUpAndReachProfile(page: Page): Promise<string | null> {
   await page.getByRole("radio", { name: "Book a space" }).click();
   await page.getByLabel("First name").fill("Onetree");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill("averylongpassword");
+  await page.getByLabel("Password", { exact: true }).fill("averylongpassword");
+  await page.getByLabel("Confirm password").fill("averylongpassword");
   await page.getByRole("button", { name: /sign up to book/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 60_000 });
   return "/profile";

@@ -367,9 +367,9 @@ export const WALK_BOUND = 40;
  * WHAT IT COSTS, MEASURED RATHER THAN GUESSED — and the first guess was wrong, which is why the
  * numbers are here. On a FRESHLY LOADED document the first Shift+Tab does not leave immediately: it
  * WRAPS to the last stop, so the reset walks the whole order backwards before it falls off the top.
- * Presses observed 25 August 2026: `/login` 13, `/signup` 16, `/forgot-password` 11, post-submit 2
+ * Presses observed 14 September 2026: `/login` 13, `/signup` 17, `/forgot-password` 11, post-submit 2
  * (focus was already one stop below the wordmark), reset-with-token 11, missing-token 10,
- * `/signup` at 320 16. All well inside the 40-press bound, and the bound is what stops a focus trap
+ * `/signup` at 320 17. All well inside the 40-press bound, and the bound is what stops a focus trap
  * turning this into a hang.
  *
  * A NOTE THE NEXT READER IS OWED: the underlying behaviour is not a bug and is not being papered

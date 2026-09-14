@@ -15,6 +15,7 @@ describe("signupSchema", () => {
     const r = signupSchema.safeParse({
       email: "a@b.com",
       password: "averylongpassword",
+      confirmPassword: "averylongpassword",
       firstName: "Ann",
       intent: "book",
     });
@@ -25,6 +26,7 @@ describe("signupSchema", () => {
     const r = signupSchema.safeParse({
       email: "not-an-email",
       password: "averylongpassword",
+      confirmPassword: "averylongpassword",
       firstName: "Ann",
       intent: "book",
     });
@@ -35,6 +37,7 @@ describe("signupSchema", () => {
     const r = signupSchema.safeParse({
       email: "a@b.com",
       password: "short",
+      confirmPassword: "short",
       firstName: "Ann",
       intent: "book",
     });
@@ -45,6 +48,7 @@ describe("signupSchema", () => {
     const r = signupSchema.safeParse({
       email: "a@b.com",
       password: "averylongpassword",
+      confirmPassword: "averylongpassword",
       firstName: "Ann",
     });
     expect(r.success).toBe(false);
@@ -54,6 +58,7 @@ describe("signupSchema", () => {
     const r = signupSchema.safeParse({
       email: "a@b.com",
       password: "averylongpassword",
+      confirmPassword: "averylongpassword",
       firstName: "Ann",
       intent: "admin",
     });
@@ -64,10 +69,26 @@ describe("signupSchema", () => {
     const r = signupSchema.safeParse({
       email: "a@b.com",
       password: "averylongpassword",
+      confirmPassword: "averylongpassword",
       firstName: "",
       intent: "host",
     });
     expect(r.success).toBe(false);
+  });
+
+  it("rejects mismatched passwords", () => {
+    const r = signupSchema.safeParse({
+      email: "a@b.com",
+      password: "averylongpassword",
+      confirmPassword: "adifferentpassword",
+      firstName: "Ann",
+      intent: "book",
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues[0]?.path).toEqual(["confirmPassword"]);
+      expect(r.error.issues[0]?.message).toBe("Passwords do not match.");
+    }
   });
 });
 

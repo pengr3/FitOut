@@ -521,7 +521,8 @@ export async function signUpBooker(page: Page, seed: SeededListing): Promise<str
   await page.getByRole("radio", { name: "Book a space" }).click();
   await page.getByLabel("First name").fill("Booker");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill("averylongpassword");
+  await page.getByLabel("Password", { exact: true }).fill("averylongpassword");
+  await page.getByLabel("Confirm password").fill("averylongpassword");
   await page.getByRole("button", { name: /sign up to book/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 30_000 });
   return email;
@@ -750,7 +751,8 @@ export async function signUpStaff(page: Page): Promise<SeededStaff> {
   await page.getByRole("radio", { name: "Book a space" }).click();
   await page.getByLabel("First name").fill("Ops");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill("averylongpassword");
+  await page.getByLabel("Password", { exact: true }).fill("averylongpassword");
+  await page.getByLabel("Confirm password").fill("averylongpassword");
   await page.getByRole("button", { name: /sign up to book/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 60_000 });
 
@@ -1020,7 +1022,8 @@ export async function seedHostGridFixture(page: Page): Promise<SeededHostGrid> {
   await page.getByRole("radio", { name: "Host a space" }).click();
   await page.getByLabel("First name").fill("Gretel");
   await page.getByLabel("Email").fill(hostEmail);
-  await page.getByLabel("Password").fill("averylongpassword");
+  await page.getByLabel("Password", { exact: true }).fill("averylongpassword");
+  await page.getByLabel("Confirm password").fill("averylongpassword");
   await page.getByRole("button", { name: /sign up to host/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 60_000 });
 

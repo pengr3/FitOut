@@ -60,7 +60,8 @@ test("forgot -> reset -> login with new password (AUTH-03)", async ({
   await page.goto(`${BASE}/signup`);
   await page.getByLabel("First name").fill("Reset");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(oldPassword);
+  await page.getByLabel("Password", { exact: true }).fill(oldPassword);
+  await page.getByLabel("Confirm password").fill(oldPassword);
   await page.getByRole("button", { name: /sign up to book/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), {
     timeout: 15_000,

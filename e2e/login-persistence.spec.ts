@@ -33,7 +33,8 @@ test("session persists across a simulated browser restart (AUTH-02, D-12)", asyn
   await page.getByRole("radio", { name: "Book a space" }).click();
   await page.getByLabel("First name").fill("Persisty");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByLabel("Confirm password").fill(password);
   await page.getByRole("button", { name: /sign up to book/i }).click();
 
   // Signup redirects to "/" on success; wait for navigation off /signup.

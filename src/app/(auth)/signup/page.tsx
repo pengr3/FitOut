@@ -66,7 +66,13 @@ export default function SignupPage() {
 
   const form = useForm<SignupInput>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { email: "", password: "", firstName: "", intent: "book" },
+    defaultValues: {
+      email: "",
+      password: "",
+      confirmPassword: "",
+      firstName: "",
+      intent: "book",
+    },
   });
 
   const intent = form.watch("intent");
@@ -191,6 +197,25 @@ export default function SignupPage() {
                     type="password"
                     autoComplete="new-password"
                     placeholder="At least 10 characters"
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="confirmPassword"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirm password</FormLabel>
+                <FormControl>
+                  <Input
+                    type="password"
+                    autoComplete="new-password"
+                    placeholder="Enter your password again"
                     {...field}
                   />
                 </FormControl>

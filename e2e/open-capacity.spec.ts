@@ -331,7 +331,8 @@ test.beforeAll(async ({ browser }) => {
   await signupPage.getByRole("radio", { name: "Book a space" }).click();
   await signupPage.getByLabel("First name").fill("Sameday");
   await signupPage.getByLabel("Email").fill(todayBookerEmail);
-  await signupPage.getByLabel("Password").fill(todayBookerPassword);
+  await signupPage.getByLabel("Password", { exact: true }).fill(todayBookerPassword);
+  await signupPage.getByLabel("Confirm password").fill(todayBookerPassword);
   await signupPage.getByRole("button", { name: /sign up to book/i }).click();
   await signupPage.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 20_000 });
   todayBookerState = await ctx.storageState();

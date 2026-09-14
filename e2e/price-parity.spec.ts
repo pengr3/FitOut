@@ -278,7 +278,8 @@ test("the total rendered on the reserve page IS the total the database froze (GA
   await page.getByRole("radio", { name: "Book a space" }).click();
   await page.getByLabel("First name").fill("Parity");
   await page.getByLabel("Email").fill(bookerEmail);
-  await page.getByLabel("Password").fill(bookerPassword);
+  await page.getByLabel("Password", { exact: true }).fill(bookerPassword);
+  await page.getByLabel("Confirm password").fill(bookerPassword);
   await page.getByRole("button", { name: /sign up to book/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 30_000 });
 

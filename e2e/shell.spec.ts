@@ -173,7 +173,8 @@ async function signUp(page: Page, intent: "book" | "host"): Promise<string> {
     .click();
   await page.getByLabel("First name").fill("Shelly");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill("averylongpassword");
+  await page.getByLabel("Password", { exact: true }).fill("averylongpassword");
+  await page.getByLabel("Confirm password").fill("averylongpassword");
   await page
     .getByRole("button", { name: intent === "book" ? /sign up to book/i : /sign up to host/i })
     .click();

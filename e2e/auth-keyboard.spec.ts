@@ -302,10 +302,10 @@ const EXPECTED_SEQUENCES: readonly AuthDocument[] = [
     //      WAI-ARIA authoring practice is a question of AUTHORING PRACTICE, not of CONFORMANCE, and
     //      there is no accessibility defect to repair.
     //   2. **Converting would churn the declaration in this file for zero conformance gain.** The
-    //      arithmetic, MEASURED off the run rather than estimated: `/signup` declares 14 stops (the 9
+    //      arithmetic, MEASURED off the run rather than estimated: `/signup` declares 15 stops (the 10
     //      panel entries below plus `FOOTER_TAIL`'s 5), 2 of which are these radios. Roving tabindex
-    //      collapses those 2 into 1, so `/signup` goes 14 -> 13, this file's six-document total goes
-    //      59 -> 58, and the seven cases it actually walks go 73 -> 71 (`/signup · 320x568` walks the
+    //      collapses those 2 into 1, so `/signup` goes 15 -> 14, this file's six-document total goes
+    //      60 -> 59, and the seven cases it actually walks go 75 -> 73 (`/signup · 320x568` walks the
     //      same document a second time). Rewriting a declared, measured sequence to adopt a pattern
     //      that buys no conformance is a REWRITE MOVE INSIDE AN AUDIT — the one thing 17-CONTEXT says
     //      this phase does not do.
@@ -324,6 +324,7 @@ const EXPECTED_SEQUENCES: readonly AuthDocument[] = [
       "input[text]:First name",
       "input[email]:Email",
       "input[password]:Password",
+      "input[password]:Confirm password",
       "button[submit]:Sign up to book",
       "button[button]:Continue with Google",
       "a:Log in@main",

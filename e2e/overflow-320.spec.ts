@@ -310,7 +310,8 @@ async function signUpThroughTheForm(page: Page, intent: "book" | "host"): Promis
     .click();
   await page.getByLabel("First name").fill("Overflow");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill("averylongpassword");
+  await page.getByLabel("Password", { exact: true }).fill("averylongpassword");
+  await page.getByLabel("Confirm password").fill("averylongpassword");
   await page
     .getByRole("button", { name: intent === "host" ? /sign up to host/i : /sign up to book/i })
     .click();
@@ -2615,7 +2616,8 @@ async function seedHostSurfaces(page: Page): Promise<Omit<HostFixture, "cookies"
   await page.getByRole("radio", { name: "Host a space" }).click();
   await page.getByLabel("First name").fill("Ovie");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(HOST_PASSWORD);
+  await page.getByLabel("Password", { exact: true }).fill(HOST_PASSWORD);
+  await page.getByLabel("Confirm password").fill(HOST_PASSWORD);
   await page.getByRole("button", { name: /sign up to host/i }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 30_000 });
 

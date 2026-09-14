@@ -13,8 +13,12 @@ import { z } from "zod";
 export const signupSchema = z.object({
   email: z.email(),
   password: z.string().min(10).max(128),
+  confirmPassword: z.string(),
   firstName: z.string().min(1),
   intent: z.enum(["book", "host"]), // D-02 — server maps to canBook/canHost (input:false).
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match.",
+  path: ["confirmPassword"],
 });
 
 export const loginSchema = z.object({

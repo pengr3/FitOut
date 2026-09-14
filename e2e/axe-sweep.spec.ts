@@ -281,7 +281,8 @@ async function signUp(page: Page, intent: "booker" | "host", tag: string): Promi
     .click();
   await page.getByLabel("First name").fill(intent === "host" ? "Axelle" : "Axl");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("Confirm password").fill(PASSWORD);
   await page
     .getByRole("button", { name: intent === "host" ? /sign up to host/i : /sign up to book/i })
     .click();

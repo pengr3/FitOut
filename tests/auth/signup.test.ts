@@ -31,6 +31,7 @@ describe("email/password signup (AUTH-01, soft gate D-07)", () => {
     const input = {
       email: "newbooker@example.com",
       password: "averylongpassword",
+      confirmPassword: "averylongpassword",
       firstName: "Newbie",
       intent: "book" as const,
     };
