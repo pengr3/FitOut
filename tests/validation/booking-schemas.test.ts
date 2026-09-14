@@ -8,6 +8,7 @@ import { describe, it, expect } from "vitest";
 import { searchParamsSchema, bookingCreateSchema, openHoldSchema } from "@/lib/validation/booking";
 import { parsePickedDate } from "@/lib/search/query";
 import { DISPLAY_CURRENCY } from "@/lib/money";
+import { MAX_OPEN_CAPACITY } from "@/lib/validation/listing";
 
 // A valid search query as Next.js delivers it: URL params arrive as STRINGS, so coercion must apply.
 const validSearch = {
@@ -16,6 +17,7 @@ const validSearch = {
   radius: "10",
   priceMax: "50000",
   category: "basketball_court", // a space-type key
+  partySize: "4",
   sort: "nearest",
   page: "0",
 } as const;
@@ -38,6 +40,7 @@ describe("searchParamsSchema — accepts valid / bounded input", () => {
       expect(r.data.page).toBe(0);
       expect(r.data.sort).toBe("nearest");
       expect(r.data.category).toBe("basketball_court");
+      expect(r.data.partySize).toBe(4);
     }
   });
 
@@ -64,6 +67,19 @@ describe("searchParamsSchema — accepts valid / bounded input", () => {
 
   it("accepts a price sort", () => {
     expect(searchParamsSchema.safeParse({ sort: "price" }).success).toBe(true);
+  });
+
+  it("accepts partySize at both inclusive capacity boundaries and omits it for cold browse URLs", () => {
+    const minimum = searchParamsSchema.safeParse({ partySize: "1" });
+    const maximum = searchParamsSchema.safeParse({ partySize: String(MAX_OPEN_CAPACITY) });
+    const omitted = searchParamsSchema.safeParse({});
+
+    expect(minimum.success).toBe(true);
+    expect(maximum.success).toBe(true);
+    expect(omitted.success).toBe(true);
+    if (minimum.success) expect(minimum.data.partySize).toBe(1);
+    if (maximum.success) expect(maximum.data.partySize).toBe(MAX_OPEN_CAPACITY);
+    if (omitted.success) expect(omitted.data.partySize).toBeUndefined();
   });
 });
 
@@ -101,6 +117,70 @@ describe("searchParamsSchema — rejects tampered / out-of-bounds input (never t
     expect(searchParamsSchema.safeParse({ priceMax: "abc" }).success).toBe(false);
     expect(searchParamsSchema.safeParse({ page: "abc" }).success).toBe(false);
     expect(searchParamsSchema.safeParse({ radius: "abc" }).success).toBe(false);
+  });
+  it("rejects malformed, repeated, and out-of-range partySize values without throwing", () => {
+    const invalidValues = ["0", "-1", "1.5", String(MAX_OPEN_CAPACITY + 1), "", "abc", true, ["4"]];
+
+    for (const partySize of invalidValues) {
+      expect(() => searchParamsSchema.safeParse({ partySize })).not.toThrow();
+      expect(searchParamsSchema.safeParse({ partySize }).success).toBe(false);
+    }
+  });
+});
+
+describe("searchParamsSchema — Phase 24 engaged-search normalization", () => {
+  const canonical = {
+    lat: "14.55",
+    lng: "121.03",
+    category: "basketball_court",
+    locationLabel: "Makati",
+    sort: "price",
+    page: "2",
+  } as const;
+  const retired = {
+    date: "2026-09-20",
+    start: "10:00",
+    end: "12:00",
+    priceMax: "50000",
+    radius: "25",
+    relax: "0",
+  } as const;
+
+  it("preserves retired refinements for legacy URLs without partySize", () => {
+    const result = searchParamsSchema.safeParse({ ...canonical, ...retired });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toMatchObject({
+        ...retired,
+        radius: 25,
+        priceMax: 50000,
+        relax: 0,
+      });
+    }
+  });
+
+  it("removes retired refinements while retaining canonical answers after partySize engages the new journey", () => {
+    const result = searchParamsSchema.safeParse({ ...canonical, ...retired, partySize: "4" });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toMatchObject({
+        lat: 14.55,
+        lng: 121.03,
+        category: "basketball_court",
+        locationLabel: "Makati",
+        sort: "price",
+        page: 2,
+        partySize: 4,
+        radius: 10,
+        relax: 1,
+      });
+      expect(result.data.date).toBeUndefined();
+      expect(result.data.start).toBeUndefined();
+      expect(result.data.end).toBeUndefined();
+      expect(result.data.priceMax).toBeUndefined();
+    }
   });
 });
 

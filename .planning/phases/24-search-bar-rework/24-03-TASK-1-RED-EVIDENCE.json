@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/validation/booking-schemas.test.ts --reporter=tap -t \"rejects malformed, repeated, and out-of-range partySize values without throwing\"",
+  "exitCode": 1,
+  "output": "TAP version 13\n1..1\nnot ok 1 - tests/validation/booking-schemas.test.ts\nnot ok 10 - rejects malformed, repeated, and out-of-range partySize values without throwing\nerror: expected true to be false\nactual: true\nexpected: false\n# tests 31\n# pass 0\n# fail 1",
+  "targetTest": "rejects malformed, repeated, and out-of-range partySize values without throwing",
+  "targetFile": "tests/validation/booking-schemas.test.ts",
+  "expected": "Only scalar whole party sizes from 1 through MAX_OPEN_CAPACITY are accepted, and a valid partySize resets retired search refinements.",
+  "actual": "z.coerce.number() accepted a one-element array and the schema retained retired URL values."
+}
