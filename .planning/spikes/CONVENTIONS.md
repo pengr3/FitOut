@@ -61,6 +61,10 @@ NNN-descriptive-name/
 - **Stress the winner before promoting it.** Spike 006 drove the chosen 005b composition through the
   awkward states most likely to make it lie — cooldown, stale pending, grandfathered capability and
   mixed portfolios — at both desktop and 320px. A happy-path layout win is not yet a product signal.
+- **Model progressive UI separately, then drive the same model in the demo and a Node check.** Spikes
+  008 and 009 use a tiny classic-script policy/state module, deterministic assertions, and a generated
+  self-contained preview. This exposes capacity and recovery semantics before a component or URL
+  contract is changed.
 
 ## Tools & Libraries
 

@@ -4,7 +4,7 @@ idea: progressive-search-flow
 name: progressive-journey-stress
 type: standard
 validates: "Given the selected compact search pill and capacity-only party filter, when a booker starts, backs up, edits, cancels, submits, and changes viewport, then intent is retained or cleared deliberately."
-verdict: PENDING HUMAN REVIEW
+verdict: "VALIDATED — accepted at desktop and 375px"
 related: [007, 008]
 tags: [phase-24, search, ux, responsive, state-machine]
 ---
@@ -55,5 +55,6 @@ desktop and phone shells.
 
 ## Results
 
-**Pending human review.** Validate the interaction at both widths and call out any moment where the
-flow feels too formal, too sparse, or fails to make the current answer obvious.
+**VALIDATED.** The owner accepted the journey after experiencing its desktop and 375px phone shells.
+The small flow remains recoverable: Back and Edit retain intent, Cancel clears it intentionally,
+and the result handoff condenses the choices into editable chips without overclaiming availability.
