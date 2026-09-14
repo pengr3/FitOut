@@ -12,7 +12,10 @@ import { z } from "zod";
 
 export const signupSchema = z.object({
   email: z.email(),
-  password: z.string().min(10).max(128),
+  password: z
+    .string()
+    .min(10, "Your password must be at least 10 characters long.")
+    .max(128),
   confirmPassword: z.string(),
   firstName: z.string().min(1),
   intent: z.enum(["book", "host"]), // D-02 — server maps to canBook/canHost (input:false).

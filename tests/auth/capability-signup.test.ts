@@ -56,6 +56,7 @@ describe("capability at signup maps from intent atomically (AUTH-04 / D-02 / CR-
     const res = await signup({
       email,
       password: "averylongpassword",
+      confirmPassword: "averylongpassword",
       firstName: "Hostie",
       intent: "host",
     });
@@ -73,6 +74,7 @@ describe("capability at signup maps from intent atomically (AUTH-04 / D-02 / CR-
     const res = await signup({
       email,
       password: "averylongpassword",
+      confirmPassword: "averylongpassword",
       firstName: "Bookie",
       intent: "book",
     });
@@ -92,12 +94,14 @@ describe("capability at signup maps from intent atomically (AUTH-04 / D-02 / CR-
     await signup({
       email: "invariant.host@example.com",
       password: "averylongpassword",
+      confirmPassword: "averylongpassword",
       firstName: "Inv1",
       intent: "host",
     });
     await signup({
       email: "invariant.book@example.com",
       password: "averylongpassword",
+      confirmPassword: "averylongpassword",
       firstName: "Inv2",
       intent: "book",
     });
@@ -117,6 +121,7 @@ describe("capability at signup maps from intent atomically (AUTH-04 / D-02 / CR-
     const first = await signup({
       email,
       password: "averylongpassword",
+      confirmPassword: "averylongpassword",
       firstName: "Dup",
       intent: "book",
     });
@@ -125,6 +130,7 @@ describe("capability at signup maps from intent atomically (AUTH-04 / D-02 / CR-
     const second = await signup({
       email,
       password: "averylongpassword",
+      confirmPassword: "averylongpassword",
       firstName: "Dup",
       intent: "book",
     });

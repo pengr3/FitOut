@@ -42,6 +42,11 @@ describe("signupSchema", () => {
       intent: "book",
     });
     expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues[0]?.message).toBe(
+        "Your password must be at least 10 characters long."
+      );
+    }
   });
 
   it("rejects a missing intent", () => {
