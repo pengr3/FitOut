@@ -51,10 +51,49 @@ function renderSearch() {
   );
 }
 
+function setSearchViewport(isMobile: boolean) {
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: isMobile && query === "(max-width: 639px)",
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
+
 function selectActivity() {
   fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
   fireEvent.click(screen.getByText("Martial arts / boxing gym"));
 }
+
+it("opens the idle pill in one desktop portal anchored to its trigger", () => {
+  setSearchViewport(false);
+  renderSearch();
+
+  fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
+
+  expect(screen.getByTestId("progressive-search-desktop-overlay")).toBeTruthy();
+  expect(screen.getAllByRole("heading", { name: "What are you looking for?" })).toHaveLength(1);
+  expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
+});
+
+it("opens the same active question in one full-screen mobile sheet", () => {
+  setSearchViewport(true);
+  renderSearch();
+
+  fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
+
+  expect(screen.getByTestId("progressive-search-mobile-sheet")).toBeTruthy();
+  expect(screen.getAllByRole("heading", { name: "What are you looking for?" })).toHaveLength(1);
+  expect(screen.queryByTestId("progressive-search-desktop-overlay")).toBeNull();
+  expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
+});
 
 it("filters the closed catalogue without committing typed text", () => {
   renderSearch();
