@@ -15,9 +15,17 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/components/listing/address-autocomplete", () => ({
   AddressAutocomplete: ({ onResolved }: { onResolved: (address: { addressLine1: string; city: string; region: string; postalCode: string; country: string; neighborhood: string; lat: number; lng: number }) => void }) => (
-    <button type="button" onClick={() => onResolved({ addressLine1: "2 Real Street", city: "Makati", region: "Metro Manila", postalCode: "1210", country: "Philippines", neighborhood: "Poblacion", lat: 14.5547, lng: 121.0244 })}>
-      Resolve Makati address
-    </button>
+    <>
+      <button type="button" onClick={() => onResolved({ addressLine1: "2 Real Street", city: "Makati", region: "Metro Manila", postalCode: "1210", country: "Philippines", neighborhood: "Poblacion", lat: 14.5547, lng: 121.0244 })}>
+        Resolve Makati address
+      </button>
+      <button type="button" onClick={() => onResolved({ addressLine1: "12345 Very Long Street Name That Continues Well Beyond The Normal Address Display Limit For A Search Result", city: "Makati", region: "Metro Manila", postalCode: "1210", country: "Republic of the Philippines", neighborhood: "Poblacion", lat: 14.5547, lng: 121.0244 })}>
+        Resolve long address
+      </button>
+      <button type="button" onClick={() => onResolved({ addressLine1: "Bad coordinates", city: "Makati", region: "Metro Manila", postalCode: "1210", country: "Philippines", neighborhood: "Poblacion", lat: 100, lng: 121.0244 })}>
+        Resolve invalid address
+      </button>
+    </>
   ),
 }));
 
@@ -175,6 +183,32 @@ it("keeps confirmed answers while correcting the journey and submits only an exa
   fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
 
   expect(screen.getByRole("button", { name: "For a group" })).toBeTruthy();
+});
+
+it("bounds a long resolved address label without changing its coordinate-backed URL", () => {
+  renderSearch();
+  selectActivity();
+  fireEvent.click(screen.getByRole("button", { name: "Resolve long address" }));
+  fireEvent.click(screen.getByRole("button", { name: "For me" }));
+
+  const url = new URL(push.mock.calls[0][0] as string, "http://localhost");
+  expect(url.searchParams.get("locationLabel")).toBeTruthy();
+  expect(url.searchParams.get("locationLabel")?.length).toBeLessThanOrEqual(120);
+  expect(url.searchParams.get("lat")).toBe("14.5547");
+  expect(url.searchParams.get("lng")).toBe("121.0244");
+});
+
+it("returns a rejected canonical location to the correction step with preserved activity", () => {
+  renderSearch();
+  selectActivity();
+  fireEvent.click(screen.getByRole("button", { name: "Resolve invalid address" }));
+  fireEvent.click(screen.getByRole("button", { name: "For me" }));
+
+  expect(screen.getByRole("heading", { name: "Where do you want to play?" })).toBeTruthy();
+  expect(screen.getByRole("status", { name: "Search progress" }).textContent).toContain("location");
+  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
+  fireEvent.click(screen.getByRole("button", { name: "For me" }));
+  expect(push).toHaveBeenCalledWith(expect.stringContaining("category=martial_arts_boxing"));
 });
 
 it("uses explicit history for Back, direct Edit, and destructive Cancel", () => {

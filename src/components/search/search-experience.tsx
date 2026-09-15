@@ -40,6 +40,7 @@ export type ProgressiveSearchEvent =
   | { type: "CHOOSE_GROUP"; partySize?: number }
   | { type: "BACK" }
   | { type: "EDIT"; step: SearchAnswerKey }
+  | { type: "CORRECT_LOCATION" }
   | { type: "CANCEL" }
   | { type: "HYDRATE_RESULTS"; answers: SearchExperienceInitialAnswers };
 
@@ -67,6 +68,8 @@ export function progressiveSearchReducer(state: ProgressiveSearchState, event: P
     }
     case "EDIT":
       return { ...state, screen: event.step, history: ["idle"], editOrigin: event.step, groupMode: false, progress: `Editing ${event.step}.` };
+    case "CORRECT_LOCATION":
+      return { ...state, screen: "location", history: ["idle"], editOrigin: "location", groupMode: false, progress: "Check your location and try again." };
     case "CANCEL":
       return { screen: "idle", answers: {}, history: [], groupDraft: "", groupMode: false, resultsVisible: false, progress: "" };
     case "HYDRATE_RESULTS":
@@ -79,7 +82,11 @@ function categoryLabel(category?: string) {
 }
 
 function addressLabel(address: ResolvedAddress) {
-  return [address.addressLine1, address.city, address.region, address.country].filter(Boolean).join(", ");
+  return [address.addressLine1, address.city, address.region, address.country]
+    .filter(Boolean)
+    .join(", ")
+    .trim()
+    .slice(0, 120);
 }
 
 function initialState(initialAnswers: SearchExperienceInitialAnswers, hasCompletedSearch: boolean): ProgressiveSearchState {
@@ -152,7 +159,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
       partySize,
     });
     if (!candidate.success || candidate.data.category === undefined || candidate.data.lat === undefined || candidate.data.lng === undefined || candidate.data.locationLabel === undefined) {
-      dispatch({ type: "EDIT", step: "activity" });
+      dispatch({ type: "CORRECT_LOCATION" });
       return;
     }
     const query = new URLSearchParams();
@@ -205,6 +212,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   }
 
   const answers = state.answers;
+  const locationChipLabel = answers.locationLabel?.trim() || "Selected location";
   return (
     <section aria-label="Space search" className="space-y-4">
       <p role="status" aria-live="polite" aria-label="Search progress" className="sr-only">{state.progress}</p>
@@ -240,7 +248,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
       {state.resultsVisible ? (
         <div className="flex flex-wrap gap-2" aria-label="Search answers">
           <Button type="button" variant="outline" onClick={() => { setFilter(categoryLabel(answers.category)); dispatch({ type: "EDIT", step: "activity" }); }}>Activity: {categoryLabel(answers.category)}</Button>
-          <Button type="button" variant="outline" onClick={() => dispatch({ type: "EDIT", step: "location" })}>Location: {answers.locationLabel}</Button>
+          <Button type="button" variant="outline" onClick={() => dispatch({ type: "EDIT", step: "location" })}>Location: {locationChipLabel}</Button>
           <Button type="button" variant="outline" onClick={() => dispatch({ type: "EDIT", step: "party" })}>{answers.partySize === 1 ? "1 person" : `${answers.partySize ?? 1} people`}</Button>
         </div>
       ) : null}

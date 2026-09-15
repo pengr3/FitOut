@@ -89,18 +89,18 @@ function baseProps() {
   };
 }
 
-function renderCompletedSearch(overrides: Partial<ReturnType<typeof baseProps>> = {}) {
+function renderCompletedSearch(overrides: Partial<ReturnType<typeof baseProps>> = {}, initialAnswers: React.ComponentProps<typeof SearchExperience>["initialAnswers"] = {
+  category: "pickleball_court",
+  lat: 14.5547,
+  lng: 121.0244,
+  locationLabel: "Makati",
+  partySize: 2,
+}) {
   const props = { ...baseProps(), ...overrides };
   return render(
     <SearchExperience
       hasCompletedSearch
-      initialAnswers={{
-        category: "pickleball_court",
-        lat: 14.5547,
-        lng: 121.0244,
-        locationLabel: "Makati",
-        partySize: 2,
-      }}
+      initialAnswers={initialAnswers}
     >
       <SearchResults {...props} />
     </SearchExperience>,
@@ -146,6 +146,15 @@ describe("completed progressive search states", () => {
     expect(screen.getByText("Edit an answer above to try a different search.")).toBeTruthy();
     expect(screen.queryAllByTestId(CARD)).toHaveLength(0);
     expectNoRetiredControls();
+  });
+
+  it("uses an editable neutral location label when a valid shared URL omits locationLabel", () => {
+    const sharedAnswers = { category: "pickleball_court", lat: 14.5547, lng: 121.0244, partySize: 2 };
+    for (const overrides of [{}, { results: [makeRow("first", "Poblacion Pickleball Court")], heading: "1 space near you" }]) {
+      const { unmount } = renderCompletedSearch(overrides, sharedAnswers);
+      expect(within(screen.getByLabelText("Search answers")).getByRole("button", { name: "Location: Selected location" })).toBeTruthy();
+      unmount();
+    }
   });
 
   it("keeps answers during a generic failure and refreshes exactly once on retry", () => {
