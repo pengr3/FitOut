@@ -245,6 +245,15 @@ test.describe.serial("progressive search", () => {
     await chooseAddress(page);
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect(page).toHaveURL(`${BASE}/`);
+    const restoredDesktopTrigger = page.getByRole("button", { name: "Start your search" });
+    await expect(restoredDesktopTrigger).toBeVisible();
+    const restoredDesktopTriggerBox = await restoredDesktopTrigger.boundingBox();
+    const restoredDesktopViewport = await page.evaluate(() => ({ width: window.innerWidth }));
+    expect(restoredDesktopTriggerBox, "the restored desktop search pill must be measurable").not.toBeNull();
+    expect(
+      Math.abs(restoredDesktopTriggerBox!.x + restoredDesktopTriggerBox!.width / 2 - restoredDesktopViewport.width / 2),
+      "the restored idle desktop search pill must remain centered in the rendered viewport",
+    ).toBeLessThanOrEqual(1);
 
     await page.setViewportSize(VIEWPORTS[1]);
     await page.goto(BASE);
