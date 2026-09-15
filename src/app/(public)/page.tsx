@@ -1,26 +1,15 @@
 import { SearchExperience } from "@/components/search/search-experience";
 import { SearchResults } from "@/components/search/search-results";
 import { db } from "@/lib/db";
+import {
+  derivePublicSearchInput,
+  publicSearchQueryString,
+} from "@/lib/search/public-search-contract";
 import { searchListings, type SearchResultRow } from "@/lib/search/query";
-import { searchParamsSchema, type SearchParams } from "@/lib/validation/booking";
+import { searchParamsSchema } from "@/lib/validation/booking";
 
 const LAUNCH_CITY = "Manila";
 const MAX_PAGES = 50;
-
-/** Serialize only the validated progressive-search answers plus supported sort and pagination state. */
-function activeQueryString(params: SearchParams, page: number): string {
-  const query = new URLSearchParams();
-  if (params.lat !== undefined && params.lng !== undefined) {
-    query.set("lat", String(params.lat));
-    query.set("lng", String(params.lng));
-  }
-  if (params.category) query.set("category", params.category);
-  if (params.locationLabel) query.set("locationLabel", params.locationLabel);
-  if (params.partySize !== undefined) query.set("partySize", String(params.partySize));
-  if (params.sort !== "nearest") query.set("sort", params.sort);
-  if (page !== 0) query.set("page", String(page));
-  return query.toString();
-}
 
 export default async function Home({
   searchParams,
@@ -31,21 +20,8 @@ export default async function Home({
   const rawSearchParams = await searchParams;
   const parsedResult = searchParamsSchema.safeParse(rawSearchParams);
   const parsed = parsedResult.success ? parsedResult.data : searchParamsSchema.parse({});
-  const page = Math.min(parsed.page, MAX_PAGES);
-
-  // Retired URL keys may be accepted for compatibility by the validation layer, but are deliberately
-  // absent from this public query. The only fixed internal default is the ordinary 10 km origin bound.
-  const activeSearch: SearchParams = {
-    lat: parsed.lat,
-    lng: parsed.lng,
-    radius: 10,
-    category: parsed.category,
-    locationLabel: parsed.locationLabel,
-    partySize: parsed.partySize,
-    sort: parsed.sort,
-    page,
-    relax: 1,
-  };
+  const activeSearch = derivePublicSearchInput(parsed, MAX_PAGES);
+  const page = activeSearch.page;
   const hasOrigin = activeSearch.lat !== undefined && activeSearch.lng !== undefined;
   const hasQuery = activeSearch.category !== undefined && hasOrigin && activeSearch.partySize !== undefined;
 
@@ -116,7 +92,7 @@ export default async function Home({
             page={page}
             heading={heading}
             city={LAUNCH_CITY}
-            queryString={activeQueryString(activeSearch, page)}
+            queryString={publicSearchQueryString(activeSearch, page)}
             fetchError={fetchError}
           />
         </SearchExperience>
