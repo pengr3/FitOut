@@ -64,7 +64,7 @@ status: complete
 - **Duration:** 8 min
 - **Tasks:** 2/2 complete
 - **Files modified:** 4
-- **Commits:** 2 task commits; metadata commit pending
+- **Commits:** 2 task commits; plan summary committed separately
 
 ## Accomplishments
 
