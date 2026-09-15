@@ -422,6 +422,44 @@ it("accepts a browser location callback only for the active location attempt", (
   expect(stale).toEqual(returnedToActivity);
 });
 
+it("invalidates an active browser attempt at every reducer-owned location boundary", () => {
+  const locationState = (): ProgressiveSearchState => ({
+    screen: "location",
+    answers: { category: "martial_arts_boxing" },
+    history: ["idle", "activity"],
+    groupDraft: "",
+    groupMode: false,
+    resultsVisible: false,
+    progress: "Choose a location.",
+  });
+  const start = (attempt: number) => progressiveSearchReducer(
+    locationState(),
+    { type: "START_LOCATION_ATTEMPT", attempt } as unknown as ProgressiveSearchEvent,
+  );
+  const address = { lat: 14.5547, lng: 121.0244, locationLabel: "Makati" };
+
+  const boundaries: ProgressiveSearchEvent[] = [
+    { type: "BACK" },
+    { type: "CANCEL" },
+    { type: "EDIT", step: "activity" },
+    { type: "CORRECT_LOCATION" },
+    { type: "RESOLVE_LOCATION", address },
+    { type: "START_LOCATION_ATTEMPT", attempt: 2 } as unknown as ProgressiveSearchEvent,
+  ];
+
+  for (const boundary of boundaries) {
+    const active = start(1);
+    expect(active).toMatchObject({ activeLocationAttempt: 1 });
+    const next = progressiveSearchReducer(active, boundary);
+    expect(next.activeLocationAttempt).toBe(boundary.type === "START_LOCATION_ATTEMPT" ? 2 : undefined);
+  }
+
+  const active = start(3);
+  const recovered = progressiveSearchReducer(active, { type: "BROWSER_LOCATION_FAILURE", attempt: 3 } as unknown as ProgressiveSearchEvent);
+  expect(recovered).toMatchObject({ screen: "location", activeLocationAttempt: undefined });
+  expect(recovered.progress).toContain("Type an address instead");
+});
+
 it("invalidates location callbacks after Cancel and after a newer browser attempt", async () => {
   const attempts: Array<{ success: PositionCallback; failure?: PositionErrorCallback }> = [];
   Object.defineProperty(window.navigator, "geolocation", {
