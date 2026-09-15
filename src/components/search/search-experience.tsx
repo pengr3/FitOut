@@ -251,7 +251,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
       <ProgressiveSearchOverlay
         open={hasOpenQuestion}
         trigger={!state.resultsVisible ? (
-          <Button type="button" variant="outline" size="touch" aria-label="Start your search" className="w-full justify-between" onClick={() => { if (!hasOpenQuestion) dispatch({ type: "ENGAGE" }); }}>
+          <Button type="button" variant="outline" size="touch" aria-label="Start your search" className="h-14 w-full justify-between sm:mx-auto sm:max-w-3xl" onClick={() => { if (!hasOpenQuestion) dispatch({ type: "ENGAGE" }); }}>
             <span>Start your search</span><span className="text-muted-foreground">Activity, location, and party</span>
           </Button>
         ) : undefined}
@@ -264,12 +264,14 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
         onDismiss={cancel}
       >
         {hasOpenQuestion ? (
-          <div className="motion-reduce:transition-none transition duration-(--motion-base) ease-(--motion-ease-standard)">
-            <div className="mb-2 flex justify-between gap-2">
+          <div className="flex min-h-[calc(100dvh-2rem)] flex-col motion-reduce:transition-none transition duration-(--motion-base) ease-(--motion-ease-standard) sm:min-h-0">
+            <div className="order-1 sm:order-2">
+              {questionContent}
+            </div>
+            <div role="group" aria-label="Search journey actions" className="order-2 flex justify-between gap-2 max-sm:-mx-4 max-sm:-mb-4 max-sm:mt-auto max-sm:border-t max-sm:border-border max-sm:bg-card max-sm:p-4 sm:order-1 sm:mb-2">
               <Button type="button" variant="ghost" onClick={() => dispatch({ type: "BACK" })}>Back</Button>
               <Button type="button" variant="ghost" onClick={cancel}>Cancel</Button>
             </div>
-            {questionContent}
           </div>
         ) : null}
       </ProgressiveSearchOverlay>

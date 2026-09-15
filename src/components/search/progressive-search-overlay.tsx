@@ -66,6 +66,7 @@ export function ProgressiveSearchOverlay({
         <DialogContent
           data-testid="progressive-search-mobile-sheet"
           aria-describedby={undefined}
+          showCloseButton={false}
           className="max-sm:inset-0 max-sm:h-[100dvh] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:overflow-y-auto max-sm:data-open:zoom-in-100 max-sm:data-closed:zoom-out-100"
           onOpenAutoFocus={onOpenAutoFocus}
           onCloseAutoFocus={restoreFocus}
@@ -88,7 +89,7 @@ export function ProgressiveSearchOverlay({
         align="start"
         side="bottom"
         sideOffset={8}
-        className="max-h-(--radix-popover-content-available-height) w-[min(30rem,calc(100vw-2rem))] overflow-y-auto p-4"
+        className="max-h-(--radix-popover-content-available-height) w-[min(48rem,calc(100vw-2rem))] overflow-y-auto p-4"
         onOpenAutoFocus={onOpenAutoFocus}
         onCloseAutoFocus={restoreFocus}
       >
