@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
@@ -35,6 +36,7 @@ function useMobilePresentation() {
 export function ProgressiveSearchOverlay({
   open,
   trigger,
+  desktopAnchor,
   returnFocus,
   onOpenAutoFocus,
   onDismiss,
@@ -42,12 +44,14 @@ export function ProgressiveSearchOverlay({
 }: {
   open: boolean;
   trigger?: ReactNode;
+  desktopAnchor?: HTMLElement | null;
   returnFocus?: HTMLElement | null;
   onOpenAutoFocus?: (event: Event) => void;
   onDismiss: () => void;
   children: ReactNode;
 }) {
   const isMobile = useMobilePresentation();
+  const directEditAnchor = useMemo(() => ({ current: desktopAnchor ?? null }), [desktopAnchor]);
   const restoreFocus = (event: Event) => {
     if (!trigger && returnFocus) {
       event.preventDefault();
@@ -78,12 +82,13 @@ export function ProgressiveSearchOverlay({
   return (
     <Popover open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onDismiss(); }}>
       {trigger ? <PopoverTrigger asChild>{trigger}</PopoverTrigger> : null}
+      {!trigger && desktopAnchor ? <PopoverAnchor virtualRef={directEditAnchor} /> : null}
       <PopoverContent
         data-testid="progressive-search-desktop-overlay"
         align="start"
         side="bottom"
         sideOffset={8}
-        className="w-[min(30rem,calc(100vw-2rem))] p-4"
+        className="max-h-(--radix-popover-content-available-height) w-[min(30rem,calc(100vw-2rem))] overflow-y-auto p-4"
         onOpenAutoFocus={onOpenAutoFocus}
         onCloseAutoFocus={restoreFocus}
       >

@@ -137,6 +137,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   const [filter, setFilter] = useState("");
   const [locationPending, setLocationPending] = useState(false);
   const [returnFocus, setReturnFocus] = useState<HTMLElement | null>(null);
+  const [desktopAnchor, setDesktopAnchor] = useState<HTMLElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const locationAttemptRef = useRef(0);
 
@@ -234,6 +235,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
 
   function editAnswer(step: SearchAnswerKey, trigger: HTMLElement) {
     setReturnFocus(trigger);
+    setDesktopAnchor(trigger);
     if (step === "activity") setFilter(categoryLabel(answers.category));
     dispatch({ type: "EDIT", step });
   }
@@ -249,6 +251,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
             <span>Start your search</span><span className="text-muted-foreground">Activity, location, and party</span>
           </Button>
         ) : undefined}
+        desktopAnchor={desktopAnchor}
         returnFocus={returnFocus}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
