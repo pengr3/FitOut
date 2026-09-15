@@ -1,7 +1,7 @@
 # Phase 24: Search Bar Rework - Context
 
-**Gathered:** 2026-09-14
-**Status:** Ready for planning
+**Gathered:** 2026-09-15
+**Status:** Ready for gap-closure planning
 
 <domain>
 ## Phase Boundary
@@ -52,6 +52,22 @@ parsing, or a new booking flow.
   answer without restarting. The legacy date/time, price, and radius controls and their exposed
   refinement surface are removed.
 
+### Gap-closure presentation and geographic reach
+
+- **D-09:** The progressive questions open in a floating search overlay anchored to the desktop search
+  pill. On small screens it becomes a full-screen sheet. Opening a question must not push the home page
+  or result content downward; the one-question-at-a-time sequence remains unchanged.
+- **D-10:** A selected address or current location supplies the geographic origin, not a hard municipal
+  boundary. Search retrieves listings within a fixed **25 km** Metro Manila reach and ranks the closest
+  matches first. For example, a Mandaluyong search should show its nearest matches first while still
+  allowing nearby Makati listings to follow naturally.
+- **D-11:** The 25 km reach is a product default, not an exposed refinement control. Keep the radius
+  picker removed and do not silently broaden results beyond that limit. Distance may inform ordering or
+  presentation, but location coordinates remain the server-side authority.
+- **D-12:** URL-backed search state must reverse-sync when navigation moves from a completed result
+  URL back to the cold idle route. It must clear stale result answer chips without triggering lint
+  violations, and the regression requires focused coverage.
+
 ### the agent's Discretion
 
 - Choose the exact searchable-catalogue layout, copy, focus management, loading/error treatment and
@@ -99,6 +115,18 @@ parsing, or a new booking flow.
   result, empty-state, relaxation and card composition that must not claim capacity availability it
   did not check.
 
+### Gap-closure evidence and geographic authorities
+
+- `src/components/search/search-experience.tsx` — current progressive client state, inline question
+  composition, and the completed-to-idle route synchronization gap.
+- `src/lib/validation/booking.ts` — existing bounded `RADIUS_PRESETS` include 25 km and own trusted
+  search-input normalization.
+- `src/lib/search/query.ts` — PostGIS `ST_DWithin` and distance ranking implementation.
+- `src/lib/db/schema.ts` — SRID 4326 `listing.location` point plus its GiST index; no schema migration
+  is needed to use the approved reach.
+- `24-REVIEW.md` and `24-VERIFICATION.md` — canonical evidence for the Back-navigation stale-chip and
+  Phase 24 lint blockers this gap plan must close.
+
 </canonical_refs>
 
 <code_context>
@@ -123,6 +151,8 @@ parsing, or a new booking flow.
   exists after the availability read model is invoked for a selected date.
 - Existing zero-result relaxation is built around controls the phase removes. Its successor must be
   honest about what it changed and give the selected-answer chips, not resurrect hidden filters.
+- Location matching already has persisted coordinates, a spatial index, and a distance query. The
+  requested 25 km reach is a behavior/default change, not a new schema capability.
 
 ### Integration Points
 
@@ -132,6 +162,8 @@ parsing, or a new booking flow.
   it server-side and ensure result cards do not overstate date-specific availability.
 - Recompose ordinary and empty results around editable answer chips, including direct re-entry to the
   relevant progressive step.
+- Recompose the question host as an overlay/sheet and preserve accessibility, focus restoration,
+  reduced-motion behavior, and URL-driven Back/forward correctness.
 
 </code_context>
 
@@ -144,6 +176,8 @@ parsing, or a new booking flow.
 - A group is a truthful, exact headcount rather than a loose range; `For me` is the one-person shortcut.
 - Removing the old controls is deliberate. This phase must not compensate by silently parsing price,
   date or free-text intent from activity typing.
+- "Mandaluyong first, nearby Makati too" is the ranking expectation: selected coordinates lead, and
+  nearby municipal borders do not exclude otherwise reachable spaces.
 
 </specifics>
 
