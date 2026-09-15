@@ -462,6 +462,12 @@ it("invalidates an active browser attempt at every reducer-owned location bounda
     expect(active).toMatchObject({ activeLocationAttempt: 1 });
     const next = progressiveSearchReducer(active, boundary);
     expect(next.activeLocationAttempt).toBe(boundary.type === "START_LOCATION_ATTEMPT" ? 2 : undefined);
+    expect(progressiveSearchReducer(next, {
+      type: "RESOLVE_BROWSER_LOCATION",
+      attempt: 1,
+      address: { lat: 14.5547, lng: 121.0244, locationLabel: "Current location" },
+    })).toEqual(next);
+    expect(progressiveSearchReducer(next, { type: "BROWSER_LOCATION_FAILURE", attempt: 1 })).toEqual(next);
   }
 
   const active = start(3);
