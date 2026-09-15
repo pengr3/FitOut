@@ -385,6 +385,7 @@ it("ignores a late geolocation success after leaving the location step", async (
   const getCurrentPosition = vi.fn((success: PositionCallback) => { succeed = success; });
   Object.defineProperty(window.navigator, "geolocation", { configurable: true, value: { getCurrentPosition } });
 
+  setSearchViewport(true);
   renderSearch();
   selectActivity();
   fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
@@ -393,8 +394,10 @@ it("ignores a late geolocation success after leaving the location step", async (
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
   succeed?.({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition);
 
-  await waitFor(() => expect(screen.getByRole("heading", { name: "What are you looking for?" })).toBeTruthy());
+  const activityHeading = screen.getByRole("heading", { name: "What are you looking for?" });
+  await waitFor(() => expect(document.activeElement).toBe(activityHeading));
   expect(screen.queryByRole("heading", { name: "Who is this for?" })).toBeNull();
+  expect(screen.queryByText("Current location")).toBeNull();
   expect(push).not.toHaveBeenCalled();
 });
 

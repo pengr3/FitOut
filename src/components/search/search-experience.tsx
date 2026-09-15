@@ -31,12 +31,16 @@ export type ProgressiveSearchState = {
   groupMode: boolean;
   resultsVisible: boolean;
   progress: string;
+  activeLocationAttempt?: number;
 };
 
 export type ProgressiveSearchEvent =
   | { type: "ENGAGE" }
   | { type: "SELECT_ACTIVITY"; option: CatalogueOption }
   | { type: "RESOLVE_LOCATION"; address: SearchExperienceInitialAnswers }
+  | { type: "START_LOCATION_ATTEMPT"; attempt: number }
+  | { type: "RESOLVE_BROWSER_LOCATION"; attempt: number; address: SearchExperienceInitialAnswers }
+  | { type: "BROWSER_LOCATION_FAILURE"; attempt: number }
   | { type: "CHOOSE_SOLO" }
   | { type: "CHOOSE_GROUP"; partySize?: number }
   | { type: "BACK" }
@@ -46,7 +50,7 @@ export type ProgressiveSearchEvent =
   | { type: "HYDRATE_RESULTS"; answers: SearchExperienceInitialAnswers };
 
 function advance(state: ProgressiveSearchState, screen: SearchAnswerKey, answers: SearchExperienceInitialAnswers, progress: string): ProgressiveSearchState {
-  return { ...state, screen, answers, history: [...state.history, state.screen], groupMode: false, progress };
+  return { ...state, screen, answers, history: [...state.history, state.screen], groupMode: false, progress, activeLocationAttempt: undefined };
 }
 
 export function progressiveSearchReducer(state: ProgressiveSearchState, event: ProgressiveSearchEvent): ProgressiveSearchState {
@@ -57,6 +61,16 @@ export function progressiveSearchReducer(state: ProgressiveSearchState, event: P
       return advance(state, "location", { ...state.answers, category: event.option.value }, "Choose a location.");
     case "RESOLVE_LOCATION":
       return advance(state, "party", { ...state.answers, ...event.address }, "Choose who is coming.");
+    case "START_LOCATION_ATTEMPT":
+      return state.screen === "location" ? { ...state, activeLocationAttempt: event.attempt } : state;
+    case "RESOLVE_BROWSER_LOCATION":
+      return state.screen === "location" && state.activeLocationAttempt === event.attempt
+        ? advance(state, "party", { ...state.answers, ...event.address }, "Choose who is coming.")
+        : state;
+    case "BROWSER_LOCATION_FAILURE":
+      return state.screen === "location" && state.activeLocationAttempt === event.attempt
+        ? { ...state, activeLocationAttempt: undefined, progress: "We couldn't get your location. Type an address instead." }
+        : state;
     case "CHOOSE_SOLO":
       return { ...state, answers: { ...state.answers, partySize: 1 }, progress: "" };
     case "CHOOSE_GROUP":
@@ -65,16 +79,16 @@ export function progressiveSearchReducer(state: ProgressiveSearchState, event: P
         : { ...state, answers: { ...state.answers, partySize: event.partySize }, groupDraft: String(event.partySize), progress: "" };
     case "BACK": {
       const previous = state.history.at(-1) ?? "idle";
-      return { ...state, screen: previous, history: state.history.slice(0, -1), groupMode: false, progress: "" };
+      return { ...state, screen: previous, history: state.history.slice(0, -1), groupMode: false, progress: "", activeLocationAttempt: undefined };
     }
     case "EDIT":
-      return { ...state, screen: event.step, history: ["idle"], editOrigin: event.step, groupMode: false, progress: `Editing ${event.step}.` };
+      return { ...state, screen: event.step, history: ["idle"], editOrigin: event.step, groupMode: false, progress: `Editing ${event.step}.`, activeLocationAttempt: undefined };
     case "CORRECT_LOCATION":
-      return { ...state, screen: "location", history: ["idle"], editOrigin: "location", groupMode: false, progress: "Check your location and try again." };
+      return { ...state, screen: "location", history: ["idle"], editOrigin: "location", groupMode: false, progress: "Check your location and try again.", activeLocationAttempt: undefined };
     case "CANCEL":
-      return { screen: "idle", answers: {}, history: [], groupDraft: "", groupMode: false, resultsVisible: false, progress: "" };
+      return { screen: "idle", answers: {}, history: [], groupDraft: "", groupMode: false, resultsVisible: false, progress: "", activeLocationAttempt: undefined };
     case "HYDRATE_RESULTS":
-      return { ...state, screen: "idle", answers: event.answers, history: [], resultsVisible: true, progress: "" };
+      return { ...state, screen: "idle", answers: event.answers, history: [], resultsVisible: true, progress: "", activeLocationAttempt: undefined };
   }
 }
 
@@ -99,6 +113,7 @@ function initialState(initialAnswers: SearchExperienceInitialAnswers, hasComplet
     groupMode: false,
     resultsVisible: hasCompletedSearch,
     progress: "",
+    activeLocationAttempt: undefined,
   };
 }
 
@@ -135,7 +150,6 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   const router = useRouter();
   const [state, setState] = useState(() => initialState(initialAnswers, hasCompletedSearch));
   const [filter, setFilter] = useState("");
-  const [locationPending, setLocationPending] = useState(false);
   const [returnFocus, setReturnFocus] = useState<HTMLElement | null>(null);
   const [desktopAnchor, setDesktopAnchor] = useState<HTMLElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -146,10 +160,6 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   }, [state.screen]);
 
   function dispatch(event: ProgressiveSearchEvent) {
-    if (event.type === "BACK" || event.type === "CANCEL" || event.type === "EDIT") {
-      locationAttemptRef.current += 1;
-      setLocationPending(false);
-    }
     setState((current) => progressiveSearchReducer(current, event));
   }
 
@@ -175,8 +185,6 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   }
 
   function resolveAddress(address: ResolvedAddress) {
-    locationAttemptRef.current += 1;
-    setLocationPending(false);
     dispatch({ type: "RESOLVE_LOCATION", address: { lat: address.lat, lng: address.lng, locationLabel: addressLabel(address) } });
   }
 
@@ -187,23 +195,18 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
     }
     const attempt = locationAttemptRef.current + 1;
     locationAttemptRef.current = attempt;
-    setLocationPending(true);
+    dispatch({ type: "START_LOCATION_ATTEMPT", attempt });
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        if (attempt !== locationAttemptRef.current) return;
         const { latitude, longitude } = position.coords;
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-          setLocationPending(false);
-          setState((current) => ({ ...current, progress: "We couldn't get your location. Type an address instead." }));
+          dispatch({ type: "BROWSER_LOCATION_FAILURE", attempt });
           return;
         }
-        setLocationPending(false);
-        dispatch({ type: "RESOLVE_LOCATION", address: { lat: latitude, lng: longitude, locationLabel: "Current location" } });
+        dispatch({ type: "RESOLVE_BROWSER_LOCATION", attempt, address: { lat: latitude, lng: longitude, locationLabel: "Current location" } });
       },
       () => {
-        if (attempt !== locationAttemptRef.current) return;
-        setLocationPending(false);
-        setState((current) => ({ ...current, progress: "We couldn't get your location. Type an address instead." }));
+        dispatch({ type: "BROWSER_LOCATION_FAILURE", attempt });
       },
     );
   }
@@ -215,6 +218,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   }
 
   const answers = state.answers;
+  const locationPending = state.activeLocationAttempt !== undefined;
   const locationChipLabel = answers.locationLabel?.trim() || "Selected location";
   const hasOpenQuestion = state.screen !== "idle";
   const questionContent = state.screen === "activity" ? (
