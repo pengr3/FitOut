@@ -93,7 +93,14 @@ it("opens the same active question in one full-screen mobile sheet", () => {
 
   fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
 
-  expect(screen.getByTestId("progressive-search-mobile-sheet")).toBeTruthy();
+  const mobileSheet = screen.getByTestId("progressive-search-mobile-sheet");
+  expect(mobileSheet).toBeTruthy();
+  expect(mobileSheet.className).toContain("max-sm:inset-0");
+  expect(mobileSheet.className).toContain("max-sm:h-[100dvh]");
+  expect(mobileSheet.className).toContain("max-sm:translate-x-0");
+  expect(mobileSheet.className).toContain("max-sm:translate-y-0");
+  expect(mobileSheet.className).toContain("max-sm:data-open:zoom-in-100");
+  expect(mobileSheet.className).toContain("max-sm:data-closed:zoom-out-100");
   expect(screen.getAllByRole("heading", { name: "What are you looking for?" })).toHaveLength(1);
   expect(screen.queryByTestId("progressive-search-desktop-overlay")).toBeNull();
   expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
