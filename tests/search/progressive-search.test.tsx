@@ -41,6 +41,10 @@ afterEach(() => {
   cleanup();
   push.mockClear();
   vi.restoreAllMocks();
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: undefined,
+  });
 });
 
 function renderSearch() {

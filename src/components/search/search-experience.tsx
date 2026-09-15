@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ActivityStep, CATALOGUE, type CatalogueOption } from "@/components/search/activity-step";
 import { LocationStep } from "@/components/search/location-step";
 import { PartyStep } from "@/components/search/party-step";
+import { ProgressiveSearchOverlay } from "@/components/search/progressive-search-overlay";
 import type { ResolvedAddress } from "@/components/listing/address-autocomplete";
 import { Button } from "@/components/ui/button";
 import { searchParamsSchema } from "@/lib/validation/booking";
@@ -135,6 +136,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   const [state, setState] = useState(() => initialState(initialAnswers, hasCompletedSearch));
   const [filter, setFilter] = useState("");
   const [locationPending, setLocationPending] = useState(false);
+  const [returnFocus, setReturnFocus] = useState<HTMLElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const locationAttemptRef = useRef(0);
 
@@ -213,43 +215,62 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
 
   const answers = state.answers;
   const locationChipLabel = answers.locationLabel?.trim() || "Selected location";
+  const hasOpenQuestion = state.screen !== "idle";
+  const questionContent = state.screen === "activity" ? (
+    <ActivityStep filter={filter} headingRef={headingRef} onFilterChange={setFilter} onSelect={(option) => { setFilter(option.label); dispatch({ type: "SELECT_ACTIVITY", option }); }} />
+  ) : state.screen === "location" ? (
+    <LocationStep headingRef={headingRef} initialLabel={answers.locationLabel} hasCoordinates={answers.lat !== undefined && answers.lng !== undefined} locationPending={locationPending} onResolved={resolveAddress} onUseMyLocation={useMyLocation} />
+  ) : state.screen === "party" ? (
+    <PartyStep
+      headingRef={headingRef}
+      groupDraft={state.groupDraft}
+      showGroupInput={state.groupMode}
+      onChooseSolo={() => { dispatch({ type: "CHOOSE_SOLO" }); submitPartySize(1); }}
+      onChooseGroup={() => dispatch({ type: "CHOOSE_GROUP" })}
+      onGroupDraftChange={(groupDraft) => setState((current) => ({ ...current, groupDraft }))}
+      onSubmitGroup={(partySize) => { dispatch({ type: "CHOOSE_GROUP", partySize }); submitPartySize(partySize); }}
+    />
+  ) : null;
+
+  function editAnswer(step: SearchAnswerKey, trigger: HTMLElement) {
+    setReturnFocus(trigger);
+    if (step === "activity") setFilter(categoryLabel(answers.category));
+    dispatch({ type: "EDIT", step });
+  }
+
   return (
     <section aria-label="Space search" className="space-y-4">
       <p role="status" aria-live="polite" aria-label="Search progress" className="sr-only">{state.progress}</p>
 
-      {state.screen === "idle" && !state.resultsVisible ? (
-        <Button type="button" variant="outline" size="touch" aria-label="Start your search" className="w-full justify-between" onClick={() => dispatch({ type: "ENGAGE" })}>
-          <span>Start your search</span><span className="text-muted-foreground">Activity, location, and party</span>
-        </Button>
-      ) : null}
-      {state.screen !== "idle" ? (
-        <div className="flex justify-between gap-2">
-          <Button type="button" variant="ghost" onClick={() => dispatch({ type: "BACK" })}>Back</Button>
-          <Button type="button" variant="ghost" onClick={cancel}>Cancel</Button>
-        </div>
-      ) : null}
-      {state.screen === "activity" ? (
-        <div className="motion-reduce:transition-none transition duration-(--motion-base) ease-(--motion-ease-standard)"><ActivityStep filter={filter} headingRef={headingRef} onFilterChange={setFilter} onSelect={(option) => { setFilter(option.label); dispatch({ type: "SELECT_ACTIVITY", option }); }} /></div>
-      ) : null}
-      {state.screen === "location" ? (
-        <div className="motion-reduce:transition-none transition duration-(--motion-base) ease-(--motion-ease-standard)"><LocationStep headingRef={headingRef} initialLabel={answers.locationLabel} hasCoordinates={answers.lat !== undefined && answers.lng !== undefined} locationPending={locationPending} onResolved={resolveAddress} onUseMyLocation={useMyLocation} /></div>
-      ) : null}
-      {state.screen === "party" ? (
-        <div className="motion-reduce:transition-none transition duration-(--motion-base) ease-(--motion-ease-standard)"><PartyStep
-          headingRef={headingRef}
-          groupDraft={state.groupDraft}
-          showGroupInput={state.groupMode}
-          onChooseSolo={() => { dispatch({ type: "CHOOSE_SOLO" }); submitPartySize(1); }}
-          onChooseGroup={() => dispatch({ type: "CHOOSE_GROUP" })}
-          onGroupDraftChange={(groupDraft) => setState((current) => ({ ...current, groupDraft }))}
-          onSubmitGroup={(partySize) => { dispatch({ type: "CHOOSE_GROUP", partySize }); submitPartySize(partySize); }}
-        /></div>
-      ) : null}
+      <ProgressiveSearchOverlay
+        open={hasOpenQuestion}
+        trigger={!state.resultsVisible ? (
+          <Button type="button" variant="outline" size="touch" aria-label="Start your search" className="w-full justify-between" onClick={() => { if (!hasOpenQuestion) dispatch({ type: "ENGAGE" }); }}>
+            <span>Start your search</span><span className="text-muted-foreground">Activity, location, and party</span>
+          </Button>
+        ) : undefined}
+        returnFocus={returnFocus}
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          headingRef.current?.focus();
+        }}
+        onDismiss={cancel}
+      >
+        {hasOpenQuestion ? (
+          <div className="motion-reduce:transition-none transition duration-(--motion-base) ease-(--motion-ease-standard)">
+            <div className="mb-2 flex justify-between gap-2">
+              <Button type="button" variant="ghost" onClick={() => dispatch({ type: "BACK" })}>Back</Button>
+              <Button type="button" variant="ghost" onClick={cancel}>Cancel</Button>
+            </div>
+            {questionContent}
+          </div>
+        ) : null}
+      </ProgressiveSearchOverlay>
       {state.resultsVisible ? (
         <div className="flex flex-wrap gap-2" aria-label="Search answers">
-          <Button type="button" variant="outline" onClick={() => { setFilter(categoryLabel(answers.category)); dispatch({ type: "EDIT", step: "activity" }); }}>Activity: {categoryLabel(answers.category)}</Button>
-          <Button type="button" variant="outline" onClick={() => dispatch({ type: "EDIT", step: "location" })}>Location: {locationChipLabel}</Button>
-          <Button type="button" variant="outline" onClick={() => dispatch({ type: "EDIT", step: "party" })}>{answers.partySize === 1 ? "1 person" : `${answers.partySize ?? 1} people`}</Button>
+          <Button type="button" variant="outline" onClick={(event) => editAnswer("activity", event.currentTarget)}>Activity: {categoryLabel(answers.category)}</Button>
+          <Button type="button" variant="outline" onClick={(event) => editAnswer("location", event.currentTarget)}>Location: {locationChipLabel}</Button>
+          <Button type="button" variant="outline" onClick={(event) => editAnswer("party", event.currentTarget)}>{answers.partySize === 1 ? "1 person" : `${answers.partySize ?? 1} people`}</Button>
         </div>
       ) : null}
       {children}
