@@ -228,13 +228,19 @@ test.describe.serial("progressive search", () => {
     await expect(page.getByRole("heading", { name: "What are you looking for?" })).toHaveCount(1);
     await expect(page.getByRole("heading", { name: "What are you looking for?" })).toBeFocused();
 
-    const mobileSheetBox = await mobileSheet.boundingBox();
     const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
-    expect(mobileSheetBox, "the active mobile sheet must be measurable").not.toBeNull();
-    expect(Math.abs(mobileSheetBox!.x)).toBeLessThanOrEqual(1);
-    expect(Math.abs(mobileSheetBox!.y)).toBeLessThanOrEqual(1);
-    expect(Math.abs(mobileSheetBox!.width - viewport.width)).toBeLessThanOrEqual(1);
-    expect(Math.abs(mobileSheetBox!.height - viewport.height)).toBeLessThanOrEqual(1);
+    const expectFullViewportSheet = async () => {
+      const mobileSheetBox = await mobileSheet.boundingBox();
+      expect(mobileSheetBox, "the active mobile sheet must be measurable").not.toBeNull();
+      expect(Math.abs(mobileSheetBox!.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(mobileSheetBox!.y)).toBeLessThanOrEqual(1);
+      expect(Math.abs(mobileSheetBox!.width - viewport.width)).toBeLessThanOrEqual(1);
+      expect(Math.abs(mobileSheetBox!.height - viewport.height)).toBeLessThanOrEqual(1);
+    };
+
+    await expectFullViewportSheet();
+    await page.evaluate(() => new Promise((resolve) => window.requestAnimationFrame(resolve)));
+    await expectFullViewportSheet();
 
     const mobileFilter = page.locator('[data-slot="command-input"]');
     await mobileFilter.fill(equalCapacity.spaceTypeLabel);
