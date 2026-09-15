@@ -99,6 +99,51 @@ it("opens the same active question in one full-screen mobile sheet", () => {
   expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
 });
 
+it("cancels a direct result-chip edit back to the cold pill and restores focus there", async () => {
+  setSearchViewport(false);
+  render(
+    <SearchExperience
+      initialAnswers={{ category: "martial_arts_boxing", locationLabel: "Makati", lat: 14.5547, lng: 121.0244, partySize: 4 }}
+      hasCompletedSearch
+    >
+      <p>Server rendered results</p>
+    </SearchExperience>,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "4 people" }));
+  expect(screen.getByTestId("progressive-search-desktop-overlay")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+  const coldPill = await screen.findByRole("button", { name: "Start your search" });
+  expect(push).toHaveBeenCalledWith("/");
+  expect(document.activeElement).toBe(coldPill);
+});
+
+it("keeps the desktop host open while Back walks retained answers in reverse", () => {
+  setSearchViewport(false);
+  renderSearch();
+  selectActivity();
+  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
+
+  expect(screen.getByTestId("progressive-search-desktop-overlay")).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Who is this for?" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(screen.getByTestId("progressive-search-desktop-overlay")).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Where do you want to play?" })).toBeTruthy();
+  expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
+});
+
+it("routes desktop Escape through the destructive cancel boundary", async () => {
+  setSearchViewport(false);
+  renderSearch();
+  fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
+
+  fireEvent.keyDown(document, { key: "Escape" });
+
+  await screen.findByRole("button", { name: "Start your search" });
+  expect(push).toHaveBeenCalledWith("/");
+});
+
 it("filters the closed catalogue without committing typed text", () => {
   renderSearch();
   fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
