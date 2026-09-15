@@ -221,6 +221,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   const locationPending = state.activeLocationAttempt !== undefined;
   const locationChipLabel = answers.locationLabel?.trim() || "Selected location";
   const hasOpenQuestion = state.screen !== "idle";
+  const desktopPresentation = state.screen === "party" ? "compact" : "standard";
   const questionContent = state.screen === "activity" ? (
     <ActivityStep filter={filter} headingRef={headingRef} onFilterChange={setFilter} onSelect={(option) => { setFilter(option.label); dispatch({ type: "SELECT_ACTIVITY", option }); }} />
   ) : state.screen === "location" ? (
@@ -257,6 +258,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
         ) : undefined}
         desktopAnchor={desktopAnchor}
         returnFocus={returnFocus}
+        desktopPresentation={desktopPresentation}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           headingRef.current?.focus();

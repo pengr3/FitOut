@@ -17,6 +17,10 @@ import {
 } from "@/components/ui/popover";
 
 const MOBILE_QUERY = "(max-width: 639px)";
+const DESKTOP_WIDTH_CLASS = {
+  standard: "w-[min(48rem,calc(100vw-2rem))]",
+  compact: "w-[min(34rem,calc(100vw-2rem))]",
+} as const;
 
 function useMobilePresentation() {
   const [isMobile, setIsMobile] = useState(false);
@@ -40,6 +44,7 @@ export function ProgressiveSearchOverlay({
   returnFocus,
   onOpenAutoFocus,
   onDismiss,
+  desktopPresentation = "standard",
   children,
 }: {
   open: boolean;
@@ -48,6 +53,7 @@ export function ProgressiveSearchOverlay({
   returnFocus?: HTMLElement | null;
   onOpenAutoFocus?: (event: Event) => void;
   onDismiss: () => void;
+  desktopPresentation?: "standard" | "compact";
   children: ReactNode;
 }) {
   const isMobile = useMobilePresentation();
@@ -89,7 +95,7 @@ export function ProgressiveSearchOverlay({
         align="start"
         side="bottom"
         sideOffset={8}
-        className="max-h-(--radix-popover-content-available-height) w-[min(48rem,calc(100vw-2rem))] overflow-y-auto p-4"
+        className={`max-h-(--radix-popover-content-available-height) ${DESKTOP_WIDTH_CLASS[desktopPresentation]} overflow-y-auto p-4`}
         onOpenAutoFocus={onOpenAutoFocus}
         onCloseAutoFocus={restoreFocus}
       >
