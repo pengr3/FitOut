@@ -252,7 +252,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
       <ProgressiveSearchOverlay
         open={hasOpenQuestion}
         trigger={!state.resultsVisible ? (
-          <Button type="button" variant="outline" size="touch" aria-label="Start your search" className="h-14 w-full justify-between sm:mx-auto sm:max-w-3xl" onClick={() => { if (!hasOpenQuestion) dispatch({ type: "ENGAGE" }); }}>
+          <Button type="button" variant="outline" size="touch" aria-label="Start your search" className="h-14 w-full justify-between sm:mx-auto sm:flex sm:max-w-3xl" onClick={() => { if (!hasOpenQuestion) dispatch({ type: "ENGAGE" }); }}>
             <span>Start your search</span><span className="text-muted-foreground">Activity, location, and party</span>
           </Button>
         ) : undefined}
