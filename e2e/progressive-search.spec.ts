@@ -190,8 +190,13 @@ test.describe.serial("progressive search", () => {
     const desktopResultsBefore = await desktopResults.boundingBox();
     const desktopTrigger = page.getByRole("button", { name: "Start your search" });
     const desktopTriggerBox = await desktopTrigger.boundingBox();
+    const desktopViewport = await page.evaluate(() => ({ width: window.innerWidth }));
     expect(desktopResultsBefore, "the idle results region must be measurable").not.toBeNull();
     expect(desktopTriggerBox, "the desktop search pill must be measurable").not.toBeNull();
+    expect(
+      Math.abs(desktopTriggerBox!.x + desktopTriggerBox!.width / 2 - desktopViewport.width / 2),
+      "the idle desktop search pill must be centered in the rendered viewport",
+    ).toBeLessThanOrEqual(1);
 
     await desktopTrigger.click();
     const desktopOverlay = page.getByTestId("progressive-search-desktop-overlay");
