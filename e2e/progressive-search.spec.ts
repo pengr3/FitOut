@@ -5,6 +5,7 @@ import { BASE, seedBookableListing, type SeededListing } from "./helpers/booker-
 
 const ADDRESS_LABEL = "2 Real Street, Makati, Metro Manila, Philippines";
 const LOCATION = { latitude: 14.5547, longitude: 121.0244 };
+const MANDALUYONG_LOCATION = { latitude: 14.5794, longitude: 121.0359 };
 const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 800 },
   { name: "mobile-375", width: 375, height: 812 },
@@ -246,6 +247,49 @@ test.describe.serial("progressive search", () => {
     await expect(page).toHaveURL(`${BASE}/`);
   });
 
+  test("direct-edit desktop popover reachability", async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS[0]);
+    await submitSoloAddressSearch(page, equalCapacity);
+
+    const activityChip = page.getByRole("button", { name: /^Activity:/ });
+    const activityChipBox = await activityChip.boundingBox();
+    expect(activityChipBox, "the selected Activity chip must be measurable").not.toBeNull();
+
+    await activityChip.click();
+    const overlay = page.getByTestId("progressive-search-desktop-overlay");
+    const cancel = page.getByRole("button", { name: "Cancel" });
+    await expect(overlay).toBeVisible();
+    await expect(cancel).toBeVisible();
+
+    const [overlayBox, cancelBox, viewport] = await Promise.all([
+      overlay.boundingBox(),
+      cancel.boundingBox(),
+      page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight })),
+    ]);
+    expect(overlayBox, "the direct-edit desktop overlay must be measurable").not.toBeNull();
+    expect(cancelBox, "the direct-edit Cancel control must be measurable").not.toBeNull();
+
+    const verticalAnchorGap = Math.min(
+      Math.abs(overlayBox!.y - (activityChipBox!.y + activityChipBox!.height)),
+      Math.abs((overlayBox!.y + overlayBox!.height) - activityChipBox!.y),
+    );
+    expect(verticalAnchorGap, "the Popover must sit adjacent to the initiating Activity chip").toBeLessThanOrEqual(16);
+    expect(overlayBox!.x).toBeLessThanOrEqual(activityChipBox!.x + activityChipBox!.width);
+    expect(overlayBox!.x + overlayBox!.width).toBeGreaterThanOrEqual(activityChipBox!.x);
+    expect(cancelBox!.x).toBeGreaterThanOrEqual(overlayBox!.x);
+    expect(cancelBox!.y).toBeGreaterThanOrEqual(overlayBox!.y);
+    expect(cancelBox!.x + cancelBox!.width).toBeLessThanOrEqual(overlayBox!.x + overlayBox!.width);
+    expect(cancelBox!.y + cancelBox!.height).toBeLessThanOrEqual(overlayBox!.y + overlayBox!.height);
+    expect(cancelBox!.x).toBeGreaterThanOrEqual(0);
+    expect(cancelBox!.y).toBeGreaterThanOrEqual(0);
+    expect(cancelBox!.x + cancelBox!.width).toBeLessThanOrEqual(viewport.width);
+    expect(cancelBox!.y + cancelBox!.height).toBeLessThanOrEqual(viewport.height);
+
+    await cancel.click();
+    await expect(page).toHaveURL(`${BASE}/`);
+    await expect(page.getByRole("button", { name: "Start your search" })).toBeVisible();
+  });
+
   test("location denial leaves address entry recoverable without a URL", async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator.geolocation, "getCurrentPosition", {
@@ -322,4 +366,77 @@ test.describe.serial("progressive search", () => {
       await expectAxeClean(page, `${viewport.name} calm empty results`);
     });
   }
+
+  test("fixed 25 km cross-municipality reach keeps nearby Makati results nearest-first", async ({ page }) => {
+    const seeded: SeededListing[] = [];
+    try {
+      const nearestMandaluyong = await seedBookableListing({ titlePrefix: "Fixed reach Mandaluyong nearest" });
+      seeded.push(nearestMandaluyong);
+      const nearbyMakati = await seedBookableListing({ titlePrefix: "Fixed reach Makati nearby" });
+      seeded.push(nearbyMakati);
+      const beyondReach = await seedBookableListing({ titlePrefix: "Fixed reach beyond 25 km" });
+      seeded.push(beyondReach);
+
+      await nearestMandaluyong.sql`
+        UPDATE listing
+        SET address_line1 = ${"Mandaluyong origin marker"}, city = ${"Mandaluyong"},
+            location = ST_SetSRID(ST_MakePoint(${MANDALUYONG_LOCATION.longitude}, ${MANDALUYONG_LOCATION.latitude}), 4326)
+        WHERE id = ${nearestMandaluyong.listingId}
+      `;
+      await nearbyMakati.sql`
+        UPDATE listing
+        SET address_line1 = ${"Nearby Makati marker"}, city = ${"Makati"},
+            location = ST_SetSRID(ST_MakePoint(${121.0244}, ${14.5547}), 4326)
+        WHERE id = ${nearbyMakati.listingId}
+      `;
+      await beyondReach.sql`
+        UPDATE listing
+        SET address_line1 = ${"Beyond reach marker"}, city = ${"San Jose del Monte"},
+            location = ST_SetSRID(ST_MakePoint(${121.081}, ${14.878}), 4326)
+        WHERE id = ${beyondReach.listingId}
+      `;
+
+      await page.route("https://photon.komoot.io/api**", async (route) => {
+        await route.fulfill({
+          contentType: "application/json",
+          body: JSON.stringify({
+            features: [{
+              geometry: { coordinates: [MANDALUYONG_LOCATION.longitude, MANDALUYONG_LOCATION.latitude] },
+              properties: {
+                name: "Mandaluyong City Hall",
+                city: "Mandaluyong",
+                state: "Metro Manila",
+                country: "Philippines",
+              },
+            }],
+          }),
+        });
+      });
+
+      await page.goto(BASE);
+      await beginActivity(page, nearestMandaluyong);
+      await page.getByRole("combobox", { name: "Search for your address" }).click();
+      await page.getByPlaceholder("Type a street or city…").fill("Mandaluyong");
+      await page.getByRole("option", { name: /Mandaluyong City Hall, Mandaluyong/i }).click();
+      await page.getByRole("button", { name: "For me" }).click();
+      await page.waitForURL((current) => current.searchParams.get("lat") === String(MANDALUYONG_LOCATION.latitude));
+
+      const url = new URL(page.url());
+      expect(url.searchParams.get("lat")).toBe(String(MANDALUYONG_LOCATION.latitude));
+      expect(url.searchParams.get("lng")).toBe(String(MANDALUYONG_LOCATION.longitude));
+      expect(url.searchParams.has("radius")).toBe(false);
+
+      const results = page.getByTestId("search-results-region");
+      await expect(results.getByRole("link", { name: nearestMandaluyong.title })).toBeVisible();
+      await expect(results.getByRole("link", { name: nearbyMakati.title })).toBeVisible();
+      await expect(results.getByRole("link", { name: beyondReach.title })).toHaveCount(0);
+      const resultHrefs = await results.getByRole("link").evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+      const nearestIndex = resultHrefs.findIndex((href) => href?.startsWith(`/listings/${nearestMandaluyong.listingId}`));
+      const makatiIndex = resultHrefs.findIndex((href) => href?.startsWith(`/listings/${nearbyMakati.listingId}`));
+      expect(nearestIndex, "the selected Mandaluyong listing must be first by distance").toBe(0);
+      expect(makatiIndex, "the eligible Makati listing must follow the nearer Mandaluyong listing").toBeGreaterThan(nearestIndex);
+    } finally {
+      await Promise.all(seeded.map((listing) => listing.teardown()));
+    }
+  });
 });
