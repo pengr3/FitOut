@@ -119,6 +119,40 @@ it("cancels a direct result-chip edit back to the cold pill and restores focus t
   expect(document.activeElement).toBe(coldPill);
 });
 
+it("positions a direct Activity-chip edit in one reachable desktop question host", async () => {
+  setSearchViewport(false);
+  const getBoundingClientRect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+    bottom: 160,
+    height: 40,
+    left: 80,
+    right: 280,
+    top: 120,
+    width: 200,
+    x: 80,
+    y: 120,
+    toJSON: () => ({}),
+  });
+  render(
+    <SearchExperience
+      initialAnswers={{ category: "martial_arts_boxing", locationLabel: "Makati", lat: 14.5547, lng: 121.0244, partySize: 1 }}
+      hasCompletedSearch
+    >
+      <p>Server rendered results</p>
+    </SearchExperience>,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: /^Activity:/ }));
+
+  const overlay = screen.getByTestId("progressive-search-desktop-overlay");
+  expect(screen.getAllByRole("heading", { name: "What are you looking for?" })).toHaveLength(1);
+  expect(screen.getByRole("button", { name: "Back" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+  expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
+  await waitFor(() => expect(overlay.closest("[data-radix-popper-content-wrapper]")?.getAttribute("style")).not.toContain("-200%"));
+
+  getBoundingClientRect.mockRestore();
+});
+
 it("keeps the desktop host open while Back walks retained answers in reverse", () => {
   setSearchViewport(false);
   renderSearch();
