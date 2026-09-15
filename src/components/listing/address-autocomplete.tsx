@@ -197,7 +197,8 @@ export function AddressAutocomplete({
    * never by a prop. So both of the region's branches are now resolutions and neither is a seed.
    */
   const [outcome, setOutcome] = useState<"located" | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const activeRequestRef = useRef<AbortController | null>(null);
+  const requestGenerationRef = useRef(0);
 
   // A query under 3 chars has nothing to look up. This is DERIVED at render (see `visibleResults` /
   // `showLoading` below) rather than pushed into state inside the effect — clearing results and
@@ -213,32 +214,43 @@ export function AddressAutocomplete({
   // schedule the debounced fetch and abort the prior one — the external-system sync the rule expects.
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 3) return; // nothing to fetch; the short-query empty/idle state is derived at render
+    const generation = requestGenerationRef.current + 1;
+    requestGenerationRef.current = generation;
+    const controller = new AbortController();
+    activeRequestRef.current = controller;
+    const isCurrent = () => requestGenerationRef.current === generation && !controller.signal.aborted;
+    const cleanupLookup = () => {
+      controller.abort();
+      if (activeRequestRef.current === controller) activeRequestRef.current = null;
+      if (requestGenerationRef.current === generation) requestGenerationRef.current += 1;
+    };
+    if (q.length < 3) return cleanupLookup; // nothing to fetch; the short-query empty/idle state is derived at render
     const timer = setTimeout(async () => {
-      abortRef.current?.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
       try {
         const res = await fetch(`${PHOTON_URL}?q=${encodeURIComponent(q)}&limit=6`, {
           signal: controller.signal,
         });
         if (!res.ok) throw new Error("geocoder");
         const data = (await res.json()) as { features?: PhotonFeature[] };
+        if (!isCurrent()) return;
         setResults(
           (data.features ?? [])
             .map(toSuggestion)
             .filter((s): s is Suggestion => s !== null),
         );
       } catch (e) {
-        if ((e as Error).name !== "AbortError") {
+        if (isCurrent() && (e as Error).name !== "AbortError") {
           setResults([]);
           setError("We couldn't reach address search. Type your address and try again.");
         }
       } finally {
-        setLoading(false);
+        if (isCurrent()) setLoading(false);
       }
     }, 250);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      cleanupLookup();
+    };
   }, [query]);
 
   // Query changes drive both the debounce effect and the immediate UI feedback. Initialising the
@@ -246,10 +258,15 @@ export function AddressAutocomplete({
   // free of synchronous setState while preserving behaviour: the spinner appears the instant a ≥3-char
   // query is entered (through the 250ms debounce), and a fresh search clears any prior error.
   function handleQueryChange(next: string) {
+    activeRequestRef.current?.abort();
+    requestGenerationRef.current += 1;
     setQuery(next);
     const willSearch = next.trim().length >= 3;
     setLoading(willSearch);
-    if (willSearch) setError(null);
+    if (willSearch) {
+      setResults([]);
+      setError(null);
+    }
   }
 
   function handleSelect(s: Suggestion) {

@@ -221,3 +221,45 @@ describe("(4) the region is the ONLY announcing element in this component", () =
     expect(region().getAttribute("aria-label")).toBe("Address lookup");
   });
 });
+
+describe("(5) query changes invalidate an in-flight Photon lookup", () => {
+  it("keeps a delayed A response inert after B is typed, then permits B to resolve", async () => {
+    vi.useFakeTimers();
+    const onResolved = vi.fn();
+    const pending: Array<{ resolve: (value: Response) => void }> = [];
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => pending.push({ resolve }))));
+
+    mount({ audience: "search", onResolved });
+    fireEvent.click(screen.getByRole("combobox", { name: "Search for your address" }));
+    const input = screen.getByPlaceholderText("Type a street or city…");
+
+    fireEvent.change(input, { target: { value: "Ayala" } });
+    await act(async () => { vi.advanceTimersByTime(250); });
+    expect(pending).toHaveLength(1);
+
+    fireEvent.change(input, { target: { value: "BGC" } });
+    await act(async () => {
+      pending[0]?.resolve(new Response(JSON.stringify({
+        features: [{ geometry: { coordinates: [121.0244, 14.5547] }, properties: { name: "Ayala Avenue", city: "Makati", state: "Metro Manila", country: "Philippines" } }],
+      }), { status: 200 }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByText("Ayala Avenue, Makati, Metro Manila, Philippines")).toBeNull();
+    expect(onResolved).not.toHaveBeenCalled();
+
+    await act(async () => { vi.advanceTimersByTime(250); });
+    expect(pending).toHaveLength(2);
+    await act(async () => {
+      pending[1]?.resolve(new Response(JSON.stringify({
+        features: [{ geometry: { coordinates: [121.0344, 14.5547] }, properties: { name: "BGC", city: "Taguig", state: "Metro Manila", country: "Philippines" } }],
+      }), { status: 200 }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    fireEvent.click(screen.getByText("BGC, Taguig, Metro Manila, Philippines"));
+    expect(onResolved).toHaveBeenCalledWith(expect.objectContaining({ city: "Taguig", lat: 14.5547, lng: 121.0344 }));
+  });
+});
