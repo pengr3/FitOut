@@ -131,6 +131,44 @@ it("hydrates completed server answers after App Router replaces the result child
   expect(screen.getByRole("button", { name: "4 people" })).toBeTruthy();
 });
 
+it("retains a local correction for unchanged canonical props and returns completed search to cold browse", async () => {
+  const completedAnswers = {
+    category: "martial_arts_boxing",
+    locationLabel: "Makati",
+    lat: 14.5547,
+    lng: 121.0244,
+    partySize: 4,
+  };
+  const { rerender } = render(
+    <SearchExperience initialAnswers={completedAnswers} hasCompletedSearch>
+      <p>Server rendered results</p>
+    </SearchExperience>,
+  );
+
+  fireEvent.click(screen.getByRole("button", { name: "4 people" }));
+  expect(screen.getByRole("heading", { name: "Who is this for?" })).toBeTruthy();
+
+  rerender(
+    <SearchExperience initialAnswers={completedAnswers} hasCompletedSearch>
+      <p>Server rendered results</p>
+    </SearchExperience>,
+  );
+  expect(screen.getByRole("heading", { name: "Who is this for?" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "4 people" })).toBeTruthy();
+
+  rerender(
+    <SearchExperience initialAnswers={{}} hasCompletedSearch={false}>
+      <p>Cold browse</p>
+    </SearchExperience>,
+  );
+
+  await waitFor(() => expect(screen.getByRole("button", { name: "Start your search" })).toBeTruthy());
+  expect(screen.queryByLabelText("Search answers")).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Who is this for?" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+});
+
 it("keeps confirmed answers while correcting the journey and submits only an exact bounded group size", () => {
   renderSearch();
   selectActivity();

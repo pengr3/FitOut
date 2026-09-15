@@ -99,34 +99,37 @@ export function SearchExperience({ initialAnswers, hasCompletedSearch, children 
   hasCompletedSearch: boolean;
   children: ReactNode;
 }) {
+  const canonicalSearchKey = JSON.stringify([
+    hasCompletedSearch,
+    initialAnswers.category,
+    initialAnswers.locationLabel,
+    initialAnswers.lat,
+    initialAnswers.lng,
+    initialAnswers.partySize,
+  ]);
+
+  return (
+    <SearchExperienceCoordinator
+      key={canonicalSearchKey}
+      initialAnswers={initialAnswers}
+      hasCompletedSearch={hasCompletedSearch}
+    >
+      {children}
+    </SearchExperienceCoordinator>
+  );
+}
+
+function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, children }: {
+  initialAnswers: SearchExperienceInitialAnswers;
+  hasCompletedSearch: boolean;
+  children: ReactNode;
+}) {
   const router = useRouter();
   const [state, setState] = useState(() => initialState(initialAnswers, hasCompletedSearch));
   const [filter, setFilter] = useState("");
   const [locationPending, setLocationPending] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const locationAttemptRef = useRef(0);
-
-  // App Router preserves this client boundary while its Server Component children are replaced. A
-  // completed URL therefore arrives as new props after `router.push`, rather than remounting this
-  // coordinator. Rehydrate only when the canonical server answers actually change so result chips
-  // remain available for correction after a submitted search, reload, or shared navigation.
-  useEffect(() => {
-    if (!hasCompletedSearch) return;
-    setState((current) => {
-      const next = initialState(initialAnswers, true);
-      const currentAnswers = current.answers;
-      const nextAnswers = next.answers;
-      const unchanged =
-        current.screen === "idle" &&
-        current.resultsVisible &&
-        currentAnswers.category === nextAnswers.category &&
-        currentAnswers.locationLabel === nextAnswers.locationLabel &&
-        currentAnswers.lat === nextAnswers.lat &&
-        currentAnswers.lng === nextAnswers.lng &&
-        currentAnswers.partySize === nextAnswers.partySize;
-      return unchanged ? current : next;
-    });
-  }, [hasCompletedSearch, initialAnswers.category, initialAnswers.lat, initialAnswers.lng, initialAnswers.locationLabel, initialAnswers.partySize]);
 
   useEffect(() => {
     if (state.screen !== "idle") headingRef.current?.focus();
