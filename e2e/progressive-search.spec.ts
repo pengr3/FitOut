@@ -180,6 +180,72 @@ test.describe.serial("progressive search", () => {
     });
   }
 
+  test("overlay and sheet geometry anchor the progressive flow without route reflow", async ({ page }) => {
+    await mockAddressLookup(page);
+
+    await page.setViewportSize(VIEWPORTS[0]);
+    await page.goto(BASE);
+    const desktopResults = page.getByTestId("search-results-region");
+    const desktopResultsBefore = await desktopResults.boundingBox();
+    const desktopTrigger = page.getByRole("button", { name: "Start your search" });
+    const desktopTriggerBox = await desktopTrigger.boundingBox();
+    expect(desktopResultsBefore, "the idle results region must be measurable").not.toBeNull();
+    expect(desktopTriggerBox, "the desktop search pill must be measurable").not.toBeNull();
+
+    await desktopTrigger.click();
+    const desktopOverlay = page.getByTestId("progressive-search-desktop-overlay");
+    await expect(desktopOverlay).toBeVisible();
+    await expect(page.getByTestId("progressive-search-mobile-sheet")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "What are you looking for?" })).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "What are you looking for?" })).toBeFocused();
+
+    const desktopOverlayBox = await desktopOverlay.boundingBox();
+    const desktopResultsAfter = await desktopResults.boundingBox();
+    expect(desktopOverlayBox, "the active desktop popover must be measurable").not.toBeNull();
+    expect(desktopResultsAfter, "the results region must remain measurable").not.toBeNull();
+    expect(desktopResultsAfter!.y).toBe(desktopResultsBefore!.y);
+    expect(Math.abs(desktopOverlayBox!.y - (desktopTriggerBox!.y + desktopTriggerBox!.height))).toBeLessThanOrEqual(16);
+    expect(desktopOverlayBox!.x).toBeGreaterThanOrEqual(desktopTriggerBox!.x - 1);
+    expect(desktopOverlayBox!.x).toBeLessThanOrEqual(desktopTriggerBox!.x + desktopTriggerBox!.width);
+
+    const desktopFilter = page.locator('[data-slot="command-input"]');
+    await desktopFilter.fill(equalCapacity.spaceTypeLabel);
+    await page.getByRole("option", { name: equalCapacity.spaceTypeLabel, exact: true }).click();
+    await chooseAddress(page);
+    await page.getByRole("button", { name: "Back" }).click();
+    await expect(page.getByRole("heading", { name: "Where do you want to play?" })).toBeFocused();
+    await chooseAddress(page);
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page).toHaveURL(`${BASE}/`);
+
+    await page.setViewportSize(VIEWPORTS[1]);
+    await page.goto(BASE);
+    await page.getByRole("button", { name: "Start your search" }).click();
+    const mobileSheet = page.getByTestId("progressive-search-mobile-sheet");
+    await expect(mobileSheet).toBeVisible();
+    await expect(page.getByTestId("progressive-search-desktop-overlay")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "What are you looking for?" })).toHaveCount(1);
+    await expect(page.getByRole("heading", { name: "What are you looking for?" })).toBeFocused();
+
+    const mobileSheetBox = await mobileSheet.boundingBox();
+    const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+    expect(mobileSheetBox, "the active mobile sheet must be measurable").not.toBeNull();
+    expect(Math.abs(mobileSheetBox!.x)).toBeLessThanOrEqual(1);
+    expect(Math.abs(mobileSheetBox!.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(mobileSheetBox!.width - viewport.width)).toBeLessThanOrEqual(1);
+    expect(Math.abs(mobileSheetBox!.height - viewport.height)).toBeLessThanOrEqual(1);
+
+    const mobileFilter = page.locator('[data-slot="command-input"]');
+    await mobileFilter.fill(equalCapacity.spaceTypeLabel);
+    await page.getByRole("option", { name: equalCapacity.spaceTypeLabel, exact: true }).click();
+    await chooseAddress(page);
+    await page.getByRole("button", { name: "Back" }).click();
+    await expect(page.getByRole("heading", { name: "Where do you want to play?" })).toBeFocused();
+    await chooseAddress(page);
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page).toHaveURL(`${BASE}/`);
+  });
+
   test("location denial leaves address entry recoverable without a URL", async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator.geolocation, "getCurrentPosition", {
