@@ -217,6 +217,15 @@ test.describe.serial("progressive search", () => {
     await desktopFilter.fill(equalCapacity.spaceTypeLabel);
     await page.getByRole("option", { name: equalCapacity.spaceTypeLabel, exact: true }).click();
     await chooseAddress(page);
+    const [desktopPartyOverlayBox, desktopPartyCardBox] = await Promise.all([
+      desktopOverlay.boundingBox(),
+      page.getByRole("heading", { name: "Who is this for?" }).locator("..").boundingBox(),
+    ]);
+    expect(desktopPartyOverlayBox, "the compact party Popover must be measurable").not.toBeNull();
+    expect(desktopPartyCardBox, "the compact party card must be measurable").not.toBeNull();
+    expect(desktopPartyOverlayBox!.width, "the party host must be materially narrower than the standard host").toBeLessThan(desktopOverlayBox!.width - 100);
+    expect(desktopPartyCardBox!.width, "the party decision must keep a comfortable desktop width").toBeGreaterThanOrEqual(384);
+    expect(desktopPartyCardBox!.width).toBeLessThanOrEqual(desktopPartyOverlayBox!.width);
     await page.getByRole("button", { name: "Back" }).click();
     await expect(page.getByRole("heading", { name: "Where do you want to play?" })).toBeFocused();
     await chooseAddress(page);
@@ -265,6 +274,16 @@ test.describe.serial("progressive search", () => {
     await mobileFilter.fill(equalCapacity.spaceTypeLabel);
     await page.getByRole("option", { name: equalCapacity.spaceTypeLabel, exact: true }).click();
     await chooseAddress(page);
+    const mobilePartyCard = page.getByRole("heading", { name: "Who is this for?" }).locator("..");
+    const [mobilePartyCardBox, mobilePartyActionsBox] = await Promise.all([
+      mobilePartyCard.boundingBox(),
+      mobileActions.boundingBox(),
+    ]);
+    expect(mobilePartyCardBox, "the mobile party card must be measurable").not.toBeNull();
+    expect(mobilePartyActionsBox, "the mobile action region must remain measurable at party").not.toBeNull();
+    expect(mobilePartyCardBox!.x).toBeGreaterThanOrEqual(0);
+    expect(mobilePartyCardBox!.x + mobilePartyCardBox!.width).toBeLessThanOrEqual(viewport.width);
+    expect(mobilePartyCardBox!.y + mobilePartyCardBox!.height).toBeLessThanOrEqual(mobilePartyActionsBox!.y);
     await page.getByRole("button", { name: "Back" }).click();
     await expect(page.getByRole("heading", { name: "Where do you want to play?" })).toBeFocused();
     await chooseAddress(page);

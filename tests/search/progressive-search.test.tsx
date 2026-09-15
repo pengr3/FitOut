@@ -186,6 +186,27 @@ it("keeps the desktop host open while Back walks retained answers in reverse", (
   expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
 });
 
+it("uses a compact desktop party presentation without narrowing the mobile party controls", () => {
+  setSearchViewport(false);
+  renderSearch();
+  selectActivity();
+  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
+
+  const desktopOverlay = screen.getByTestId("progressive-search-desktop-overlay");
+  expect(desktopOverlay.className).toContain("34rem");
+  expect(screen.getByRole("heading", { name: "Who is this for?" }).parentElement?.className).toContain("sm:max-w-md");
+
+  cleanup();
+  setSearchViewport(true);
+  renderSearch();
+  selectActivity();
+  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
+  fireEvent.click(screen.getByRole("button", { name: "For a group" }));
+
+  expect(screen.getByLabelText("Number of people").parentElement?.className).toContain("w-full");
+  expect(screen.getByRole("button", { name: "See spaces" }).className).toContain("w-full");
+});
+
 it("routes desktop Escape through the destructive cancel boundary", async () => {
   setSearchViewport(false);
   renderSearch();
