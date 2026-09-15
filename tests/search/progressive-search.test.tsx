@@ -398,6 +398,30 @@ it("ignores a late geolocation success after leaving the location step", async (
   expect(push).not.toHaveBeenCalled();
 });
 
+it("accepts a browser location callback only for the active location attempt", () => {
+  const initial: ProgressiveSearchState = {
+    screen: "location",
+    answers: { category: "martial_arts_boxing" },
+    history: ["idle", "activity"],
+    groupDraft: "",
+    groupMode: false,
+    resultsVisible: false,
+    progress: "Choose a location.",
+  };
+
+  const active = progressiveSearchReducer(initial, { type: "START_LOCATION_ATTEMPT", attempt: 1 } as unknown as ProgressiveSearchEvent);
+  expect(active).toMatchObject({ screen: "location", activeLocationAttempt: 1 });
+
+  const returnedToActivity = progressiveSearchReducer(active, { type: "BACK" });
+  const stale = progressiveSearchReducer(returnedToActivity, {
+    type: "RESOLVE_BROWSER_LOCATION",
+    attempt: 1,
+    address: { lat: 14.5547, lng: 121.0244, locationLabel: "Current location" },
+  } as unknown as ProgressiveSearchEvent);
+
+  expect(stale).toEqual(returnedToActivity);
+});
+
 it("invalidates location callbacks after Cancel and after a newer browser attempt", async () => {
   const attempts: Array<{ success: PositionCallback; failure?: PositionErrorCallback }> = [];
   Object.defineProperty(window.navigator, "geolocation", {

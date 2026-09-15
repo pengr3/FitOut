@@ -310,7 +310,11 @@ test.describe.serial("progressive search", () => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator.geolocation, "getCurrentPosition", {
         configurable: true,
-        value: (success: PositionCallback) => window.setTimeout(() => success({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition), 100),
+        value: (success: PositionCallback) => {
+          (window as Window & { releaseLocationCallback?: () => void }).releaseLocationCallback = () => {
+            success({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition);
+          };
+        },
       });
     });
     await mockAddressLookup(page);
@@ -320,7 +324,7 @@ test.describe.serial("progressive search", () => {
     await page.getByRole("button", { name: "Use my location" }).click();
     await page.getByRole("button", { name: "Back" }).click();
     await expect(page.getByRole("heading", { name: "What are you looking for?" })).toBeFocused();
-    await page.waitForTimeout(150);
+    await page.evaluate(() => (window as Window & { releaseLocationCallback?: () => void }).releaseLocationCallback?.());
     await expect(page.getByRole("heading", { name: "Who is this for?" })).toHaveCount(0);
     await expect(page).toHaveURL(`${BASE}/`);
     await page.getByRole("option", { name: equalCapacity.spaceTypeLabel, exact: true }).click();
