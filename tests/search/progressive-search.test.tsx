@@ -80,9 +80,14 @@ it("opens the idle pill in one desktop portal anchored to its trigger", () => {
   setSearchViewport(false);
   renderSearch();
 
-  fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
+  const trigger = screen.getByRole("button", { name: "Start your search" });
+  expect(trigger.className).toContain("sm:max-w-3xl");
+  expect(trigger.className).toContain("h-14");
+  fireEvent.click(trigger);
 
-  expect(screen.getByTestId("progressive-search-desktop-overlay")).toBeTruthy();
+  const overlay = screen.getByTestId("progressive-search-desktop-overlay");
+  expect(overlay).toBeTruthy();
+  expect(overlay.className).toContain("48rem");
   expect(screen.getAllByRole("heading", { name: "What are you looking for?" })).toHaveLength(1);
   expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
 });
@@ -104,6 +109,13 @@ it("opens the same active question in one full-screen mobile sheet", () => {
   expect(screen.getAllByRole("heading", { name: "What are you looking for?" })).toHaveLength(1);
   expect(screen.queryByTestId("progressive-search-desktop-overlay")).toBeNull();
   expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
+  expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
+
+  const actions = screen.getByRole("group", { name: "Search journey actions" });
+  expect(actions.className).toContain("max-sm:mt-auto");
+  expect(actions.className).toContain("max-sm:border-t");
+  expect(screen.getByRole("button", { name: "Back" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
 });
 
 it("cancels a direct result-chip edit back to the cold pill and restores focus there", async () => {

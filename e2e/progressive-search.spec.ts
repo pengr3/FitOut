@@ -205,6 +205,10 @@ test.describe.serial("progressive search", () => {
     expect(desktopOverlayBox, "the active desktop popover must be measurable").not.toBeNull();
     expect(desktopResultsAfter, "the results region must remain measurable").not.toBeNull();
     expect(desktopResultsAfter!.y).toBe(desktopResultsBefore!.y);
+    expect(desktopTriggerBox!.width, "the desktop pill must use the 48rem hierarchy").toBeLessThanOrEqual(768);
+    expect(desktopTriggerBox!.width, "the desktop pill must grow beyond the former 30rem host").toBeGreaterThan(600);
+    expect(desktopOverlayBox!.width, "the standard desktop Popover must use the 48rem hierarchy").toBeLessThanOrEqual(768);
+    expect(desktopOverlayBox!.width, "the standard desktop Popover must grow beyond the former 30rem host").toBeGreaterThan(600);
     expect(Math.abs(desktopOverlayBox!.y - (desktopTriggerBox!.y + desktopTriggerBox!.height))).toBeLessThanOrEqual(16);
     expect(desktopOverlayBox!.x).toBeGreaterThanOrEqual(desktopTriggerBox!.x - 1);
     expect(desktopOverlayBox!.x).toBeLessThanOrEqual(desktopTriggerBox!.x + desktopTriggerBox!.width);
@@ -241,6 +245,21 @@ test.describe.serial("progressive search", () => {
     await expectFullViewportSheet();
     await page.evaluate(() => new Promise((resolve) => window.requestAnimationFrame(resolve)));
     await expectFullViewportSheet();
+
+    const mobileActions = page.getByRole("group", { name: "Search journey actions" });
+    await expect(mobileActions).toBeVisible();
+    await expect(page.getByRole("button", { name: "Close" })).toHaveCount(0);
+    const [mobileActionsBox, mobileBackBox, mobileCancelBox] = await Promise.all([
+      mobileActions.boundingBox(),
+      page.getByRole("button", { name: "Back" }).boundingBox(),
+      page.getByRole("button", { name: "Cancel" }).boundingBox(),
+    ]);
+    expect(mobileActionsBox, "the mobile actions must be measurable").not.toBeNull();
+    expect(mobileBackBox, "the mobile Back control must be measurable").not.toBeNull();
+    expect(mobileCancelBox, "the mobile Cancel control must be measurable").not.toBeNull();
+    expect(mobileActionsBox!.y, "the action region must remain in the lower viewport").toBeGreaterThan(viewport.height / 2);
+    expect(mobileActionsBox!.y + mobileActionsBox!.height).toBeLessThanOrEqual(viewport.height);
+    expect(mobileBackBox!.x + mobileBackBox!.width).toBeLessThanOrEqual(mobileCancelBox!.x);
 
     const mobileFilter = page.locator('[data-slot="command-input"]');
     await mobileFilter.fill(equalCapacity.spaceTypeLabel);
