@@ -113,9 +113,9 @@ async function PublicAuthSlot() {
   // itself not yet drawn. The slot resolves as one unit, exactly as it did before the extraction.
   return (
     <>
-      <NavIconMenu current="book" canBook={u.canBook ?? false} canHost={u.canHost ?? false} />
       {/* D-92 in-app notification centre — the SAME async child both group headers mount. */}
       <AmbientNotifications userId={session.user.id} surface="public" />
+      <NavIconMenu current="book" canBook={u.canBook ?? false} canHost={u.canHost ?? false} />
     </>
   );
 }

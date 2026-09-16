@@ -39,6 +39,23 @@ async function signUp(
     .click();
 }
 
+async function expectNotificationBeforeNavigationMenu(page: import("@playwright/test").Page) {
+  const header = page.getByTestId("site-header");
+  const notificationButton = header.getByRole("button", { name: /Notifications, \d+ unread/ });
+  const navigationMenu = header.getByRole("button", { name: "Navigation menu" });
+
+  await expect(notificationButton).toBeVisible();
+  await expect(navigationMenu).toBeVisible();
+
+  const [notificationBox, navigationMenuBox] = await Promise.all([
+    notificationButton.boundingBox(),
+    navigationMenu.boundingBox(),
+  ]);
+  expect(notificationBox).not.toBeNull();
+  expect(navigationMenuBox).not.toBeNull();
+  expect(notificationBox!.x).toBeLessThan(navigationMenuBox!.x);
+}
+
 test("a host-capable user can switch to booking from the navigation menu (AUTH-04, D-04)", async ({
   page,
 }) => {
@@ -114,10 +131,14 @@ test("the navigation menu follows the shared keyboard and grouping recipe", asyn
 
   await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
 
-  // The public header's wordmark is the first tab stop; the compact menu is the next one.
+  await expectNotificationBeforeNavigationMenu(page);
+
+  // The public header's wordmark is the first tab stop, then notifications, then the compact menu.
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
 
+  await expect(page.getByRole("button", { name: /Notifications, \d+ unread/ })).toBeFocused();
+  await page.keyboard.press("Tab");
   const trigger = page.getByRole("button", { name: "Navigation menu" });
   await expect(trigger).toBeFocused();
   await expect(trigger).toHaveAttribute("data-size", "icon");
