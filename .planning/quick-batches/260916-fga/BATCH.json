@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "batch_id": "260916-fga",
+  "created_at": "2026-09-16T03:07:33.395Z",
+  "options": {},
+  "base_revision": "8586e8926f95198620f14bfb723de31043361619",
+  "items": [
+    {
+      "quick_id": "260916-fgb",
+      "client_id": null,
+      "description": "Introduce a nav icon menu that contains the profile action and booking-mode switch.",
+      "status": "complete",
+      "depends_on": [],
+      "planned_files": [
+        "src/components/nav-icon-menu.tsx",
+        "src/components/patterns/site-chrome.tsx",
+        "src/app/(host)/host/layout.tsx",
+        "src/components/site/public-header.tsx",
+        "src/app/(app)/layout.tsx",
+        "e2e/mode-switch.spec.ts"
+      ],
+      "directory": null,
+      "worktree": null,
+      "dispatched_worktree": null,
+      "dispatched_branch": null,
+      "dispatched_base": null,
+      "wave": 0,
+      "commit": "6164867",
+      "failure_reason": null
+    },
+    {
+      "quick_id": "260916-fgc",
+      "client_id": null,
+      "description": "Add a logout action for the current session inside the new nav icon menu.",
+      "status": "complete",
+      "depends_on": [
+        "260916-fgb"
+      ],
+      "planned_files": [
+        "src/components/nav-icon-menu.tsx",
+        "e2e/mode-switch.spec.ts"
+      ],
+      "directory": null,
+      "worktree": null,
+      "dispatched_worktree": null,
+      "dispatched_branch": null,
+      "dispatched_base": null,
+      "wave": 1,
+      "commit": "a18a8df",
+      "failure_reason": null
+    },
+    {
+      "quick_id": "260916-fgd",
+      "client_id": null,
+      "description": "Ensure the new navigation menu adheres to the established UI standards.",
+      "status": "complete",
+      "depends_on": [
+        "260916-fgb",
+        "260916-fgc"
+      ],
+      "planned_files": [
+        "src/components/nav-icon-menu.tsx",
+        "e2e/mode-switch.spec.ts",
+        "src/lib/design/measurements.ts",
+        "src/components/patterns/auth-slot-skeleton.tsx",
+        "src/components/patterns/site-chrome.tsx",
+        "src/app/dev/theme/page.tsx",
+        "e2e/shell.spec.ts"
+      ],
+      "directory": null,
+      "worktree": null,
+      "dispatched_worktree": null,
+      "dispatched_branch": null,
+      "dispatched_base": null,
+      "wave": 2,
+      "commit": "dba8877",
+      "failure_reason": null
+    }
+  ]
+}
