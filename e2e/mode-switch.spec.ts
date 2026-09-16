@@ -11,6 +11,8 @@
 
 import { test, expect } from "@playwright/test";
 
+import { expectRing, readFocus } from "./helpers/focus";
+
 const BASE = "http://localhost:3000";
 
 function uniqueEmail(tag: string) {
@@ -103,6 +105,44 @@ test("a booker can activate hosting from the navigation menu", async ({ page }) 
   await page.getByRole("menuitem", { name: "Start hosting" }).click();
   await page.waitForURL((url) => url.pathname.startsWith("/host"), { timeout: 15_000 });
   await expect(page.locator("[data-host-dashboard]")).toBeVisible();
+});
+
+test("the navigation menu follows the shared keyboard and grouping recipe", async ({ page }) => {
+  const email = uniqueEmail("keyboard-menu");
+  await page.setViewportSize({ width: 320, height: 900 });
+  await signUp(page, email, "book");
+
+  await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
+
+  // The public header's wordmark is the first tab stop; the compact menu is the next one.
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
+
+  const trigger = page.getByRole("button", { name: "Navigation menu" });
+  await expect(trigger).toBeFocused();
+  await expect(trigger).toHaveAttribute("data-size", "icon");
+
+  const focus = await readFocus(page);
+  expect(focus, "the navigation trigger did not receive keyboard focus").not.toBeNull();
+  expectRing(focus!, "320px navigation-menu trigger");
+
+  await page.keyboard.press("Enter");
+  const profile = page.getByRole("menuitem", { name: "Profile" });
+  await expect(profile).toHaveAttribute("href", "/profile");
+  await expect(profile).toBeFocused();
+
+  await page.keyboard.press("ArrowDown");
+  const context = page.getByRole("menuitem", { name: "Switch context" });
+  await expect(context).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("menuitem", { name: "Switch to booking" })).toBeFocused();
+
+  // Leave the submenu before closing the menu; the account session remains active for this test.
+  await page.keyboard.press("ArrowLeft");
+  await expect(context).toBeFocused();
+  await expect(page.getByRole("menuitem", { name: "Sign out" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(trigger).toBeFocused();
 });
 
 test("a booker can end only the current browser session from the navigation menu", async ({

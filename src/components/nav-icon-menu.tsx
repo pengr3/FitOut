@@ -19,6 +19,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AUTH_SLOT_ICON } from "@/lib/design/measurements";
 
 export function NavIconMenu({
   current,
@@ -98,7 +99,8 @@ export function NavIconMenu({
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          size="icon-lg"
+          size="icon"
+          className={AUTH_SLOT_ICON}
           aria-label="Navigation menu"
           data-mode-switch
           data-current={current}
