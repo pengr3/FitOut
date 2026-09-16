@@ -37,7 +37,7 @@ async function signUp(
     .click();
 }
 
-test("a host-capable user reaches the distinct host dashboard, with the mode switch (AUTH-04, D-04)", async ({
+test("a host-capable user can switch to booking from the navigation menu (AUTH-04, D-04)", async ({
   page,
 }) => {
   const email = uniqueEmail("host");
@@ -52,8 +52,20 @@ test("a host-capable user reaches the distinct host dashboard, with the mode swi
   await expect(page.locator("[data-host-dashboard]")).toBeVisible();
   await expect(page.getByRole("heading", { name: /your hosting/i })).toBeVisible();
 
-  // The Airbnb-style mode switch is present in the host shell.
-  await expect(page.locator("[data-mode-switch]")).toBeVisible();
+  // Account navigation and context controls share one accessible icon menu.
+  const navigationMenu = page.getByRole("button", { name: "Navigation menu" });
+  await expect(navigationMenu).toBeVisible();
+  await expect(navigationMenu).toHaveAttribute("data-mode-switch", "");
+  await expect(navigationMenu).toHaveAttribute("data-current", "host");
+
+  await navigationMenu.click();
+  const profile = page.getByRole("menuitem", { name: "Profile" });
+  await expect(profile).toHaveAttribute("href", "/profile");
+
+  await page.getByRole("menuitem", { name: "Switch context" }).hover();
+  await page.getByRole("menuitem", { name: "Switch to booking" }).click();
+  await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
+  await expect(page).toHaveURL(`${BASE}/`);
 });
 
 test("a booker-only user is redirected away from /host by the server gate (T-04-02)", async ({

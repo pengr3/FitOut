@@ -29,9 +29,9 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { AmbientHostNav, AmbientNotifications } from "@/components/patterns/ambient-notifications";
 import { BellSlotSkeleton, NavSlotSkeleton } from "@/components/patterns/auth-slot-skeleton";
-import { ProfileLink, SiteChrome } from "@/components/patterns/site-chrome";
+import { SiteChrome } from "@/components/patterns/site-chrome";
 import { SiteFooter } from "@/components/patterns/site-footer";
-import { ModeSwitch } from "@/components/mode-switch";
+import { NavIconMenu } from "@/components/nav-icon-menu";
 import { HOST_NAV_LINKS } from "@/lib/nav";
 
 export default async function HostLayout({
@@ -120,10 +120,7 @@ export default async function HostLayout({
         }
         actions={
           <>
-            {/* Airbnb-style context switch — currently in the hosting context (D-04). Rendered
-                OUTSIDE the boundary: it is derived from the session this function has already
-                awaited, so it has nothing to wait for. */}
-            <ModeSwitch
+            <NavIconMenu
               current="host"
               canBook={u.canBook ?? false}
               canHost={u.canHost ?? false}
@@ -136,7 +133,6 @@ export default async function HostLayout({
             <Suspense fallback={<BellSlotSkeleton />}>
               <AmbientNotifications userId={session.user.id} surface="host" />
             </Suspense>
-            <ProfileLink />
           </>
         }
       />
