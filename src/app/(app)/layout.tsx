@@ -3,7 +3,7 @@
 // This is the REAL per-page session gate (the optimistic middleware only hints): every page under
 // (app) requires a session; if there is none we redirect to /login (threat T-04-06). The header
 // hosts the Airbnb-style mode switch so a user can flip between booking and hosting context, plus a
-// link to their profile.
+// account navigation menu.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // THE GATE IS BLOCKING AND IT STAYS BLOCKING. NOTHING BELOW IT MAY MOVE ABOVE IT.
@@ -27,9 +27,9 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { AmbientNotifications } from "@/components/patterns/ambient-notifications";
 import { BellSlotSkeleton } from "@/components/patterns/auth-slot-skeleton";
-import { ProfileLink, SiteChrome } from "@/components/patterns/site-chrome";
+import { SiteChrome } from "@/components/patterns/site-chrome";
 import { SiteFooter } from "@/components/patterns/site-footer";
-import { ModeSwitch } from "@/components/mode-switch";
+import { NavIconMenu } from "@/components/nav-icon-menu";
 import { Toaster } from "@/components/ui/sonner";
 
 export default async function AppLayout({
@@ -75,10 +75,7 @@ export default async function AppLayout({
         brandHref="/"
         actions={
           <>
-            {/* Airbnb-style booker/host context switch (D-04) — currently in the booking context.
-                Rendered OUTSIDE the boundary: it is derived from the session this function has
-                already awaited, so it has nothing to wait for. */}
-            <ModeSwitch
+            <NavIconMenu
               current="book"
               canBook={u.canBook ?? false}
               canHost={u.canHost ?? false}
@@ -89,7 +86,6 @@ export default async function AppLayout({
             <Suspense fallback={<BellSlotSkeleton />}>
               <AmbientNotifications userId={session.user.id} surface="app" />
             </Suspense>
-            <ProfileLink />
           </>
         }
       />

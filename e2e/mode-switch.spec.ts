@@ -88,3 +88,19 @@ test("a booker-only user is redirected away from /host by the server gate (T-04-
   // And the host dashboard is NOT rendered.
   await expect(page.locator("[data-host-dashboard]")).toHaveCount(0);
 });
+
+test("a booker can activate hosting from the navigation menu", async ({ page }) => {
+  const email = uniqueEmail("book-to-host");
+  await signUp(page, email, "book");
+
+  await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
+
+  await page.getByRole("button", { name: "Navigation menu" }).click();
+  const profile = page.getByRole("menuitem", { name: "Profile" });
+  await expect(profile).toHaveAttribute("href", "/profile");
+
+  await page.getByRole("menuitem", { name: "Switch context" }).hover();
+  await page.getByRole("menuitem", { name: "Start hosting" }).click();
+  await page.waitForURL((url) => url.pathname.startsWith("/host"), { timeout: 15_000 });
+  await expect(page.locator("[data-host-dashboard]")).toBeVisible();
+});

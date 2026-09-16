@@ -50,9 +50,9 @@ import { headers } from "next/headers";
 
 import { AmbientNotifications } from "@/components/patterns/ambient-notifications";
 import { AuthSlotSkeleton } from "@/components/patterns/auth-slot-skeleton";
-import { ProfileLink, SiteChrome } from "@/components/patterns/site-chrome";
+import { SiteChrome } from "@/components/patterns/site-chrome";
 import { AnonymousAuthActions } from "@/components/site/anonymous-auth-actions";
-import { ModeSwitch } from "@/components/mode-switch";
+import { NavIconMenu } from "@/components/nav-icon-menu";
 import { auth } from "@/lib/auth";
 
 /**
@@ -79,7 +79,7 @@ export function PublicHeader() {
  * hamburger. The pair measures 138px against 226px available at 320px in grove, so it fits; and
  * hiding the acquisition CTA of a two-sided marketplace behind a menu is not a responsive strategy.
  *
- * SIGNED IN it is the booker cluster — mode switch, bell, profile — because a signed-in user who
+ * SIGNED IN it is the booker cluster — navigation menu and bell — because a signed-in user who
  * moves between `/` and `/bookings` must not watch the header change identity underneath them. That
  * drift IS the problem this plan exists to end; a public header missing the bell would be a fourth
  * independently-drifting box wearing the shell's geometry.
@@ -113,11 +113,9 @@ async function PublicAuthSlot() {
   // itself not yet drawn. The slot resolves as one unit, exactly as it did before the extraction.
   return (
     <>
-      {/* Airbnb-style booker/host context switch (D-04) — the public surface is a booking context. */}
-      <ModeSwitch current="book" canBook={u.canBook ?? false} canHost={u.canHost ?? false} />
+      <NavIconMenu current="book" canBook={u.canBook ?? false} canHost={u.canHost ?? false} />
       {/* D-92 in-app notification centre — the SAME async child both group headers mount. */}
       <AmbientNotifications userId={session.user.id} surface="public" />
-      <ProfileLink />
     </>
   );
 }
