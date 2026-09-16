@@ -83,7 +83,6 @@ test("a host-capable user can switch to booking from the navigation menu (AUTH-0
   const profile = page.getByRole("menuitem", { name: "Profile" });
   await expect(profile).toHaveAttribute("href", "/profile");
 
-  await page.getByRole("menuitem", { name: "Switch context" }).hover();
   await page.getByRole("menuitem", { name: "Switch to booking" }).click();
   await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
   await expect(page).toHaveURL(`${BASE}/`);
@@ -124,7 +123,6 @@ test("a booker can activate hosting from the navigation menu", async ({ page }) 
   const profile = page.getByRole("menuitem", { name: "Profile" });
   await expect(profile).toHaveAttribute("href", "/profile");
 
-  await page.getByRole("menuitem", { name: "Switch context" }).hover();
   await page.getByRole("menuitem", { name: "Start hosting" }).click();
   await page.waitForURL((url) => url.pathname.startsWith("/host"), { timeout: 15_000 });
   await expect(page.locator("[data-host-dashboard]")).toBeVisible();
@@ -132,14 +130,14 @@ test("a booker can activate hosting from the navigation menu", async ({ page }) 
 
 test("the navigation menu follows the shared keyboard and grouping recipe", async ({ page }) => {
   const email = uniqueEmail("keyboard-menu");
-  await page.setViewportSize({ width: 320, height: 900 });
+  await page.setViewportSize({ width: 375, height: 900 });
   await signUp(page, email, "book");
 
   await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
 
   await expectNotificationBeforeNavigationMenu(page);
 
-  // The public header's wordmark is the first tab stop, then notifications, then the compact menu.
+  // The public header's wordmark is the first tab stop, then notifications, then the compact menu at 375px.
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
 
@@ -151,7 +149,7 @@ test("the navigation menu follows the shared keyboard and grouping recipe", asyn
 
   const focus = await readFocus(page);
   expect(focus, "the navigation trigger did not receive keyboard focus").not.toBeNull();
-  expectRing(focus!, "320px navigation-menu trigger");
+  expectRing(focus!, "375px navigation-menu trigger");
 
   await page.keyboard.press("Enter");
   const profile = page.getByRole("menuitem", { name: "Profile" });
@@ -159,14 +157,15 @@ test("the navigation menu follows the shared keyboard and grouping recipe", asyn
   await expect(profile).toBeFocused();
 
   await page.keyboard.press("ArrowDown");
-  const context = page.getByRole("menuitem", { name: "Switch context" });
-  await expect(context).toBeFocused();
-  await page.keyboard.press("ArrowRight");
-  await expect(page.getByRole("menuitem", { name: "Switch to booking" })).toBeFocused();
+  const oppositeContext = page.getByRole("menuitem", { name: "Start hosting" });
+  await expect(oppositeContext).toBeFocused();
+  await expect(page.getByRole("menuitem", { name: "Switch context" })).toHaveCount(0);
 
-  // Leave the submenu before closing the menu; the account session remains active for this test.
-  await page.keyboard.press("ArrowLeft");
-  await expect(context).toBeFocused();
+  const menuBox = await page.getByRole("menu").boundingBox();
+  expect(menuBox).not.toBeNull();
+  expect(menuBox!.x).toBeGreaterThanOrEqual(0);
+  expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(375);
+
   await expect(page.getByRole("menuitem", { name: "Sign out" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(trigger).toBeFocused();

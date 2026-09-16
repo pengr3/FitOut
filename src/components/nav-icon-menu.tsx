@@ -12,11 +12,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { AUTH_SLOT_ICON } from "@/lib/design/measurements";
@@ -114,38 +110,34 @@ export function NavIconMenu({
           <Link href="/profile">Profile</Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>Switch context</DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-52">
-            <DropdownMenuLabel>Switch context</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              data-mode-target="book"
-              disabled={pending}
-              onSelect={(event) => {
-                event.preventDefault();
-                goBooking();
-              }}
-            >
-              {canBook ? "Switch to booking" : "Start booking"}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              data-mode-target="host"
-              disabled={pending}
-              onSelect={(event) => {
-                event.preventDefault();
-                goHosting();
-              }}
-            >
-              {canHost ? "Switch to hosting" : "Start hosting"}
-            </DropdownMenuItem>
-            {error && (
-              <p role="alert" className="px-2 py-1 text-xs text-destructive">
-                {error}
-              </p>
-            )}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+        {current === "book" ? (
+          <DropdownMenuItem
+            data-mode-target="host"
+            disabled={pending}
+            onSelect={(event) => {
+              event.preventDefault();
+              goHosting();
+            }}
+          >
+            {canHost ? "Switch to hosting" : "Start hosting"}
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem
+            data-mode-target="book"
+            disabled={pending}
+            onSelect={(event) => {
+              event.preventDefault();
+              goBooking();
+            }}
+          >
+            {canBook ? "Switch to booking" : "Start booking"}
+          </DropdownMenuItem>
+        )}
+        {error && (
+          <p role="alert" className="px-2 py-1 text-xs text-destructive">
+            {error}
+          </p>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           variant="destructive"
