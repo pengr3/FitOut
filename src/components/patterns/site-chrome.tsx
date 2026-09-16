@@ -54,11 +54,11 @@
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // The actions cluster is session-derived on pages that are otherwise fully public, so it resolves
-// after the rest of the header. `AUTH_SLOT_BOX` (`h-8 min-w-44`) is the box it occupies whether it is
+// after the rest of the header. `AUTH_SLOT_BOX` (`h-11 min-w-22`) is the box it occupies whether it is
 // pending or resolved, and `ml-auto … justify-end` anchors it RIGHT so resolution moves only the
 // cluster's own left edge — the brand, the header box and every element on the page are outside it.
-// `min-w-44` (176px = 4 × 44) is the widest resolved state and is what stops the fallback collapsing
-// to zero. `patterns/auth-slot-skeleton.tsx` is the fallback and reads the same constant.
+// Its 88px width is the navigation trigger (32px), standard gap (12px), and bell (44px), and the
+// fallback reads the same constant.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // EXACTLY ONE NAVIGATION LANDMARK AT ANY VIEWPORT (T-11-NAVDUP)

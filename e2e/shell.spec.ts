@@ -98,13 +98,13 @@ import { seedTheme } from "./helpers/theme";
 //       Reverted; 6 passed.
 //
 //   (b) THE RESERVATION REMOVED — AND THE PROBE AS PRESCRIBED WAS VACUOUS. `AUTH_SLOT_BOX`'s
-//       `min-w-44` deleted. Plan 11-21 names this as the mutation that should turn AC#3 red.
+//       width floor deleted. Plan 11-21 names this as the mutation that should turn AC#3 red.
 //       **It did not: 6 passed.** Both prescribed boxes — the header and the brand — stayed
 //       byte-identical in all six combinations, and the reason is written in `site-chrome.tsx`
 //       itself: the slot is `ml-auto … justify-end`, the LAST flex child, so resolution moves only
 //       its own left edge and the reservation cannot reach the brand at all.
 //
-//       So a third box was added to this test — the slot itself, which is what `min-w-44` actually
+//       So a third box was added to this test — the slot itself, which is what the width floor actually
 //       pins. Re-run with the SAME mutation, **2 failed / 4 passed**:
 //
 //         Error: / · court · 375px: the site-auth-slot box CHANGED SIZE when the session landed.
@@ -350,7 +350,7 @@ test.describe("AC#3 — the header does not move when the auth slot resolves", (
 
           // THE THIRD BOX, AND THE REASON IT IS HERE IS A MEASUREMENT RATHER THAN THOROUGHNESS.
           // Plan 11-21 asks for the header and the brand only, and prescribes deleting
-          // `AUTH_SLOT_BOX`'s `min-w-44` as the mutation that should turn this test red. RUN, 17
+          // `AUTH_SLOT_BOX`'s width floor as the mutation that should turn this test red. RUN, 17
           // August 2026: it did NOT. Both boxes stayed byte-identical in all six composition/theme
           // combinations and the suite reported `6 passed`. The probe as prescribed is VACUOUS, and
           // the reason is written in `site-chrome.tsx` itself — the slot is `ml-auto … justify-end`,
@@ -358,7 +358,7 @@ test.describe("AC#3 — the header does not move when the auth slot resolves", (
           // the header box are protected by the anchoring, not by the reservation, and a mutation to
           // the reservation therefore cannot reach either of them.
           //
-          // `min-w-44`'s actual job is stated in the same paragraph: it "stops the fallback
+          // The width floor's actual job is stated in the same paragraph: it "stops the fallback
           // collapsing to zero", i.e. it pins THE SLOT'S OWN WIDTH across the swap. That is a real
           // claim, it is the one the constant makes, and nothing was asserting it. It is asserted
           // here — see the SUMMARY's Verification Run for the numbers the mutation produces.
@@ -366,10 +366,12 @@ test.describe("AC#3 — the header does not move when the auth slot resolves", (
             resolvedSlot,
             `${where}: the site-auth-slot box CHANGED SIZE when the session landed. ` +
               `pending ${JSON.stringify(pendingSlot)} resolved ${JSON.stringify(resolvedSlot)}. ` +
-              "AUTH_SLOT_BOX's `min-w-44` is the widest resolved state, rounded up to the ladder; " +
+              "AUTH_SLOT_BOX's width floor is the widest resolved state, rounded up to the ladder; " +
               "without it the slot shrink-wraps to whichever cluster is currently in it and the " +
               "reservation reserves nothing.",
           ).toEqual(pendingSlot);
+          expect(resolvedSlot?.width, ${where}: the compact auth slot must reserve 88px).toBe(88);
+          expect(resolvedSlot?.height, ${where}: the compact auth slot must reserve 44px).toBe(44);
         }
       });
     }

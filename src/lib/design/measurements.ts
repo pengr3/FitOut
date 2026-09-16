@@ -149,44 +149,18 @@ export const CONFIRMATION_MOMENT_MIN_H =
 /**
  * The header's auth slot: the box reserved WHILE the session is still resolving.
  *
- * `h-8` is the control height it will contain; `min-w-44` is the widest resolved state (an avatar
- * plus a name) rounded up to the ladder. Its entire job is to be the same size empty as it is full,
- * so the header does not reflow when the session lands.
+ * The compact cluster is the 32px navigation trigger plus a 12px header gap plus the 44px
+ * notification bell: 32 + 12 + 44 = 88px. The bell establishes the 44px height. Its entire job is
+ * to be the same size empty as it is full, so the header does not reflow when the session lands.
  */
-export const AUTH_SLOT_BOX = "h-8 min-w-44";
-
-/**
- * The auth slot's WIDE control placeholder: 32 × 96px.
- *
- * THE EIGHTH AND NINTH CONSTANTS ARE THIS ONE AND THE NEXT, AND NEITHER IS IN THE UI-SPEC'S LIST —
- * recorded here rather than quietly added, exactly as `TEXT_BAR_HEIGHT` below was. The UI-SPEC pins
- * the auth slot's fallback shape as *"one `Skeleton h-8 w-24` + one `Skeleton size-8`"* and, in the
- * same breath, AC#16 requires a `patterns/*skeleton*.tsx` file to write ZERO literal box utilities of
- * its own. `auth-slot-skeleton.tsx` matches that glob, so those two spellings cannot both be literals
- * at the call site — the choice was a pair of constants or a pair of exemptions in the source gate,
- * and the constants win for the reason `TEXT_BAR_HEIGHT` gives: an exemption for `w-24` would legalise
- * a literal WIDTH at a call site, which is the shape T-11-GEODRIFT is about.
- *
- * These two are MEASUREMENTS of real controls rather than proportions of a placeholder, which is what
- * makes them belong here at all. 11-UI-SPEC § Responsive behaviour measures the resolved booker
- * cluster as *"mode switch 96 + bell 32 + `Profile` 48 + 2 gaps 24 = 200px"*: `w-24` is 96px, the
- * mode switch, and `size-8` is 32px, the bell. The fallback is therefore the same two boxes the
- * resolved cluster puts in the same two places, which is why the slot does not reflow when the
- * session lands — and if either control's real width changes, the number that has to move is here.
- *
- * `h-8` is `AUTH_SLOT_BOX`'s height restated on the child, not a second decision: the slot is `h-8`
- * and its tallest content is `h-8`, which is what makes the height claim true of the box AND its
- * contents.
- */
-export const AUTH_SLOT_CONTROL = "h-8 w-24";
+export const AUTH_SLOT_BOX = "h-11 min-w-22";
 
 /**
  * The auth slot's ICON control placeholder: 32 × 32px.
  *
  * The square controls in the header that ARE 32px: the `aria-label="Menu"` drawer trigger
- * (`site-chrome.tsx`'s `NavDrawer`, which reads this constant), and the auth slot's own second
- * placeholder. See `AUTH_SLOT_CONTROL` above for why this is a constant rather than a literal, and
- * for the measurement it comes from.
+ * (`site-chrome.tsx`'s `NavDrawer`, which reads this constant), and the compact navigation-menu
+ * trigger. The header skeleton reads the same constant so its first placeholder cannot drift.
  *
  * CORRECTED IN PLAN 11-12. This docblock previously read *"the bell, and every square control that
  * sits beside it … all of which are `size-8`"*, and the bell half was FALSE:
@@ -215,7 +189,7 @@ export const AUTH_SLOT_ICON = "size-8";
  * WHY IT NEEDED ITS OWN CONSTANT, in one sentence: plan 11-12 puts the bell — and ONLY the bell —
  * behind a `<Suspense>` boundary in both group headers, so the boundary's fallback has to be the
  * bell's own box or the cluster reflows the moment the notification read lands. `AUTH_SLOT_BOX` is
- * the whole slot (176px) and `AUTH_SLOT_ICON` is 32px; neither is 44, and using either would cause
+ * the whole 88px slot and `AUTH_SLOT_ICON` is 32px; neither is 44, and using either would cause
  * the layout shift the auth slot exists to prevent.
  */
 export const NOTIFICATION_BELL_BOX = "size-11";
@@ -363,8 +337,8 @@ export const STICKY_BAR_CLEARANCE = "pb-20";
  *
  * A RESERVATION, not a design value. `14:52` and `0:09` are different character counts, so a box with
  * a width floor is what stops the header reflowing once per session — the same argument `AUTH_SLOT_BOX`
- * makes for the session slot. The 96px reuses `AUTH_SLOT_CONTROL`'s width rather than inventing a
- * second reservation, and `h-8` is the header's control step restated on the child.
+ * makes for the session slot. Its 96px width is the countdown's measured character reservation, and
+ * `h-8` is the header's compact-control step restated on the child.
  */
 export const HOLD_COUNTDOWN_BOX = "h-8 min-w-24";
 
@@ -521,7 +495,7 @@ export const STEP_MARKER_BOX = "size-6";
  * A request row's status column: 112px, and it is a CEILING rather than a size.
  *
  * ⚠ THE FOURTH BOX EXCEPTION, AND IT IS NOT IN 14-UI-SPEC'S LIST OF THREE — recorded here rather than
- * quietly added, exactly as `TEXT_BAR_HEIGHT` and `AUTH_SLOT_CONTROL` were before it. It exists because
+ * quietly added, exactly as `TEXT_BAR_HEIGHT` and `AUTH_SLOT_BOX` were before it. It exists because
  * plan `14-06` MEASURED the consequence deferred item `[14-03]` predicted, and the measurement was
  * worse than the prediction.
  *

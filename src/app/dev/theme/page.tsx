@@ -49,14 +49,14 @@ import type { ComponentProps } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CalendarSearchIcon } from "lucide-react";
+import { BellIcon, CalendarSearchIcon, MenuIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { THEME_NAMES, THEME_TOKENS } from "@/lib/design/tokens.generated";
 import {
   AUTH_SLOT_BOX,
-  AUTH_SLOT_CONTROL,
   AUTH_SLOT_ICON,
+  NOTIFICATION_BELL_BOX,
   RESULT_GRID_GAP,
 } from "@/lib/design/measurements";
 import { SpotsLeftChip } from "@/components/availability/spots-left-chip";
@@ -669,17 +669,25 @@ function ThemePane({ name }: { name: string }) {
                 <AuthSlotSkeleton />
               </div>
               <div className="rounded-lg border border-border p-2">
-                {/* The SAME box the shell reserves, read from the same constant `site-chrome.tsx`
-                    reads — the reservation is only worth anything if the resolved cluster occupies
-                    it, and the two children are the two controls the fallback stands in for. */}
+                {/* The shell's menu-and-bell cluster at the same shared reservation. This is a
+                    measurement illustration, not a second menu implementation. */}
                 <div className={cn(AUTH_SLOT_BOX, "flex items-center justify-end gap-3")}>
-                  <Button variant="ghost" size="sm" className={AUTH_SLOT_CONTROL}>
-                    Book
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={AUTH_SLOT_ICON}
+                    aria-label="Navigation menu"
+                  >
+                    <MenuIcon aria-hidden="true" />
                   </Button>
-                  <span
-                    aria-hidden="true"
-                    className={cn(AUTH_SLOT_ICON, "rounded-full border border-border bg-muted")}
-                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={NOTIFICATION_BELL_BOX}
+                    aria-label="Notifications"
+                  >
+                    <BellIcon aria-hidden="true" />
+                  </Button>
                 </div>
               </div>
             </div>
