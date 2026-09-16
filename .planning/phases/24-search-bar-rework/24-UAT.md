@@ -1,35 +1,31 @@
 ---
-status: testing
+status: complete
 phase: 24-search-bar-rework
 source: [24-VERIFICATION.md]
 started: 2026-09-15T09:52:05Z
-updated: 2026-09-15T11:44:12Z
+updated: 2026-09-16T10:33:41+08:00
 ---
 
 ## Current Test
 
-number: 1
-name: Corrected desktop pill centering
-expected: |
-  At 1280px, inspect the idle pill, open the journey, then Cancel to / and inspect it again. The 48rem pill is centered before and after Cancel, the Popover stays anchored, and results do not shift.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
 ### 1. Corrected desktop pill centering
 expected: At 1280px, inspect the idle pill, open the journey, then Cancel to / and inspect it again. The 48rem pill is centered before and after Cancel, the Popover stays anchored, and results do not shift.
-result: pending
+result: pass
 
 ### 2. Retained mobile presentation
 expected: At 375px, open the pill and complete activity → location → party, including Back and Cancel. One full-screen sheet appears, no desktop Popover appears, and the lower actions remain reachable and non-overlapping.
-result: pending
+result: pass
 
 ## Summary
 
 total: 2
-passed: 0
+passed: 2
 issues: 0
-pending: 2
+pending: 0
 skipped: 0
 blocked: 0
 
