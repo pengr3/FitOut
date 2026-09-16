@@ -104,3 +104,21 @@ test("a booker can activate hosting from the navigation menu", async ({ page }) 
   await page.waitForURL((url) => url.pathname.startsWith("/host"), { timeout: 15_000 });
   await expect(page.locator("[data-host-dashboard]")).toBeVisible();
 });
+
+test("a booker can end only the current browser session from the navigation menu", async ({
+  page,
+}) => {
+  const email = uniqueEmail("sign-out");
+  await signUp(page, email, "book");
+
+  await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
+  await page.getByRole("button", { name: "Navigation menu" }).click();
+  await page.getByRole("menuitem", { name: "Sign out" }).click();
+  await page.waitForURL((url) => url.pathname === "/login", { timeout: 15_000 });
+
+  const session = await page.request.get(`${BASE}/api/auth/get-session`);
+  expect(await session.json()).toBeNull();
+
+  await page.goto(`${BASE}/profile`);
+  await page.waitForURL((url) => url.pathname === "/login", { timeout: 15_000 });
+});

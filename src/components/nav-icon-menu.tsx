@@ -3,10 +3,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MenuIcon } from "lucide-react";
+import { LogOutIcon, MenuIcon } from "lucide-react";
 
 import { activateBooking, activateHosting } from "@/app/actions/capability";
 import { Button } from "@/components/ui/button";
+import { authClient } from "@/lib/auth-client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,7 +31,31 @@ export function NavIconMenu({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+
+  function signOut() {
+    if (pending) {
+      return;
+    }
+
+    startTransition(async () => {
+      setSignOutError(null);
+      await authClient.signOut({
+        fetchOptions: {
+          onError: () => {
+            setSignOutError("We couldn't sign you out. Please try again.");
+          },
+          onSuccess: () => {
+            setOpen(false);
+            router.push("/login");
+            router.refresh();
+          },
+        },
+      });
+    });
+  }
 
   function goBooking() {
     if (canBook) {
@@ -69,7 +94,7 @@ export function NavIconMenu({
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
@@ -119,6 +144,23 @@ export function NavIconMenu({
             )}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          disabled={pending}
+          onSelect={(event) => {
+            event.preventDefault();
+            signOut();
+          }}
+        >
+          <LogOutIcon aria-hidden="true" />
+          {pending ? "Signing out…" : "Sign out"}
+        </DropdownMenuItem>
+        {signOutError && (
+          <p role="alert" className="px-2 py-1 text-xs text-destructive">
+            {signOutError}
+          </p>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
