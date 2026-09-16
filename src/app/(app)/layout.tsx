@@ -75,17 +75,17 @@ export default async function AppLayout({
         brandHref="/"
         actions={
           <>
-            <NavIconMenu
-              current="book"
-              canBook={u.canBook ?? false}
-              canHost={u.canHost ?? false}
-            />
             {/* D-92 in-app notification centre — the same component the host and public headers
                 mount, and the ONLY part of this cluster that touches the database. The fallback is
                 the bell's own 44px box, so the cluster does not reflow when the read lands. */}
             <Suspense fallback={<BellSlotSkeleton />}>
               <AmbientNotifications userId={session.user.id} surface="app" />
             </Suspense>
+            <NavIconMenu
+              current="book"
+              canBook={u.canBook ?? false}
+              canHost={u.canHost ?? false}
+            />
           </>
         }
       />

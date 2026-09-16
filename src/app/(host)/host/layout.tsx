@@ -120,11 +120,6 @@ export default async function HostLayout({
         }
         actions={
           <>
-            <NavIconMenu
-              current="host"
-              canBook={u.canBook ?? false}
-              canHost={u.canHost ?? false}
-            />
             {/* D-92 in-app notification centre — the SAME component the booker and public headers
                 mount, sitting ALONGSIDE the D-65 Requests badge in the nav slot above. Two badges,
                 two meanings: `Requests` is an action you owe someone; the bell is things that
@@ -133,6 +128,11 @@ export default async function HostLayout({
             <Suspense fallback={<BellSlotSkeleton />}>
               <AmbientNotifications userId={session.user.id} surface="host" />
             </Suspense>
+            <NavIconMenu
+              current="host"
+              canBook={u.canBook ?? false}
+              canHost={u.canHost ?? false}
+            />
           </>
         }
       />

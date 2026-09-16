@@ -71,6 +71,8 @@ test("a host-capable user can switch to booking from the navigation menu (AUTH-0
   await expect(page.locator("[data-host-dashboard]")).toBeVisible();
   await expect(page.getByRole("heading", { name: /your hosting/i })).toBeVisible();
 
+  await expectNotificationBeforeNavigationMenu(page);
+
   // Account navigation and context controls share one accessible icon menu.
   const navigationMenu = page.getByRole("button", { name: "Navigation menu" });
   await expect(navigationMenu).toBeVisible();
@@ -113,6 +115,10 @@ test("a booker can activate hosting from the navigation menu", async ({ page }) 
   await signUp(page, email, "book");
 
   await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
+
+  await page.goto(`${BASE}/profile`);
+  await page.waitForURL((url) => url.pathname === "/profile", { timeout: 15_000 });
+  await expectNotificationBeforeNavigationMenu(page);
 
   await page.getByRole("button", { name: "Navigation menu" }).click();
   const profile = page.getByRole("menuitem", { name: "Profile" });
