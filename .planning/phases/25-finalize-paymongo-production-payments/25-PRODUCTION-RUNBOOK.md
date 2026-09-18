@@ -40,6 +40,20 @@ Record a dated console, deployment, Inngest, or provider reference identifier an
 | Production secret-name scope and Preview isolation | — | UNKNOWN | Awaiting authorized deployment evidence without values. |
 | Inngest registration, schedules, and alert delivery | — | UNKNOWN | Awaiting operator evidence and named owner. |
 
+### Dated console observations
+
+These are read-only observations by the authorized account operator on 2026-09-18. No key value, wallet identifier, balance, customer record, payment identifier, raw event, or configuration was copied or changed.
+
+| ID | UTC timestamp | Console scope | Result | Bounded conclusion |
+|---|---|---|---|---|
+| E-25-02-PM-LIVE | 2026-09-18T07:35:09Z | PayMongo Developers | **PASS** | Both Live and Test key sections were present; the live section establishes that the signed-in account has a live environment. Values were not viewed or recorded. |
+| E-25-02-PM-RAILS | 2026-09-18T07:35:09Z | PayMongo Payment Methods | **HOLD** | QR Ph was the only active visible payment method. Card, GCash, PayMaya, GrabPay, ShopeePay, Google Pay, listed direct-debit rails, and BillEase were inactive or required activation/business-type changes. No rail was enabled. |
+| E-25-02-PM-WEBHOOK | 2026-09-18T07:35:09Z | PayMongo Webhooks | **HOLD** | The endpoint inventory stated “No Webhooks yet.” There is therefore no configured canonical `POST /api/paymongo/webhook` destination, signing configuration, event subscription, or delivery evidence. |
+| E-25-02-PM-WALLET | 2026-09-18T07:35:09Z | PayMongo Wallets and Child Accounts | **PARTIAL** | A wallet UI offered transfers to another wallet or local bank, but Child Accounts reported none. This does not establish marketplace/linked-account merchant entitlement or authorize a host payout. |
+| E-25-02-VERCEL | 2026-09-18T07:35:09Z | Vercel `fitout-web` production deployment and environment-variable inventory | **PARTIAL** | `fitout.live` production was Ready. Production listed `PAYMONGO_SECRET_KEY`, `PAYMONGO_PUBLIC_KEY`, `PAYMONGO_WEBHOOK_SECRET`, and `OPS_ALERT_EMAIL`; Preview listed no PayMongo variables. `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` were not present in this project inventory. No value was revealed. |
+| E-25-02-INNGEST | 2026-09-18T07:35:09Z | Inngest Production environment | **HOLD** | Production showed zero received events, executions, backlog, and registered functions. No payment/payout reconciliation, schedules, or alert delivery can be evidenced from this environment. |
+| E-25-02-TSC | 2026-09-18T07:35:09Z | `node node_modules/typescript/bin/tsc --noEmit` | **BLOCKED** | The current worktree has syntax errors at `e2e/shell.spec.ts:373-374`. This unrelated E2E baseline is not repaired by this phase and the protected-console readiness checkpoint is not green on the current checkout. |
+
 ## Controlled checkout
 
 Before a single bounded live checkout: record the authority, approved rail, amount bound, release cohort, success condition, abort condition, and redacted provider reference. Confirm only from a verified `checkout_session.payment.paid` event or a provider probe. Do not treat a hosted-page return, redirect, or query parameter as payment evidence.
@@ -76,7 +90,7 @@ Record a named operations owner, monitored alert destination, response SLA, esca
 
 ## Rollout decision
 
-**Current decision: HOLD.** The local isolated-database baseline is now verified, while all live-account evidence remains `UNKNOWN`.
+**Current decision: HOLD.** Read-only console evidence establishes a live PayMongo environment and a production-only PayMongo secret boundary, but QR Ph is the only active visible rail, no PayMongo webhook endpoint exists, no linked child account exists, Inngest Production has no registered functions, and the current TypeScript baseline is blocked by unrelated E2E syntax errors. No controlled transaction is authorized.
 
 Broad availability may be authorized only when each applicable row in `COVERAGE.md` is `VERIFIED` or concrete `OPTED OUT`, the exception owner and fallback are recorded, and the authorized release decision is complete.
 
@@ -111,5 +125,12 @@ Before live traffic, document the approved provider-side method to stop new chec
 | E-25-01-LINT | Payment-path static analysis | PASS | Baseline evidence ledger above |
 | E-25-01-TSC | Payment-path type analysis | PASS | Baseline evidence ledger above |
 | E-25-01-PROBE | Opt-in test-mode provider probe | NOT RUN | Baseline evidence ledger above |
+| E-25-02-PM-LIVE | PayMongo live environment presence | PASS | Dated console observations above |
+| E-25-02-PM-RAILS | PayMongo rail activation inventory | HOLD | Dated console observations above |
+| E-25-02-PM-WEBHOOK | PayMongo webhook inventory | HOLD | Dated console observations above |
+| E-25-02-PM-WALLET | PayMongo wallet and linked-account inventory | PARTIAL | Dated console observations above |
+| E-25-02-VERCEL | Vercel production and secret-scope inventory | PARTIAL | Dated console observations above |
+| E-25-02-INNGEST | Inngest production registration inventory | HOLD | Dated console observations above |
+| E-25-02-TSC | Current TypeScript baseline | BLOCKED | Dated console observations above |
 
 No credential, wallet value, customer record, payment identifier, or raw provider payload belongs in this document.

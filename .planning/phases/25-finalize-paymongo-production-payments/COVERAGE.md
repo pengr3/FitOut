@@ -25,6 +25,19 @@
 | Controlled transaction and rollback | Existing hosted checkout flow; no discovered kill-switch contract | Product/account authority, single-transaction bounds, abort conditions, and provider-side stop method | UNKNOWN | Do not add a feature flag; hold broad release if an executable rollback boundary is not evidenced. |
 | Broad availability authorization | Evidence ledger and release decision checkpoint | All applicable rows above resolved as VERIFIED or concrete OPTED OUT with an approved fallback | UNKNOWN | A missing item produces HOLD, not an inferred launch decision. |
 
+## Current console evidence — 2026-09-18
+
+The following read-only observations are detailed in `25-PRODUCTION-RUNBOOK.md` under `E-25-02-*`; no secret value, payment data, wallet identifier, or provider payload was recorded.
+
+| Evidence | Affected capability | Current result | Release effect |
+|---|---|---|---|
+| E-25-02-PM-LIVE | Live-account state | PASS — live environment visible | This establishes only live-account presence, not rail or webhook readiness. |
+| E-25-02-PM-RAILS | Card, GCash, PayMaya, QR Ph | HOLD — QR Ph active; the other required checkout rails inactive/unapproved | Do not advertise or enable broad checkout. QR Ph also still lacks an owned manual-return path. |
+| E-25-02-PM-WEBHOOK | Paid/refund/merchant webhook paths | HOLD — no provider webhook endpoints | Payment confirmation and refund/merchant evidence cannot be obtained. |
+| E-25-02-PM-WALLET | Platform wallet and host payout | PARTIAL — wallet transfer UI exists, no child accounts | Do not infer marketplace or linked-account entitlement; no host payout. |
+| E-25-02-VERCEL | Production secret boundary | PARTIAL — required PayMongo and operations names are Production-only; no PayMongo variables in Preview; Inngest key names absent | Keep the Preview boundary, but resolve the Inngest configuration before declaring operations ready. |
+| E-25-02-INNGEST | Reconciliation, schedules, and alerts | HOLD — Production has zero events, runs, and functions | No observed reconciliation or alert delivery; broad release remains held. |
+
 ## Open questions that must remain explicit
 
 - **Q1 / A1:** Which checkout rails, limits, marketplace products, wallets, and linked-account functions are actually approved for FitOut?
