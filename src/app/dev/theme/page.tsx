@@ -614,6 +614,7 @@ function ThemePane({ name }: { name: string }) {
             titleAs="h3"
             title="No spaces match those answers"
             body="Edit an answer above to try a different search."
+            actions={null}
           />
           <EmptyState
             tone="positive"
