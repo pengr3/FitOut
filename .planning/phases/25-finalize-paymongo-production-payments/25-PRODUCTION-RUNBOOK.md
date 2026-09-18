@@ -15,10 +15,11 @@ This is an evidence ledger and controlled-operation template, not authorization 
 | ID | UTC timestamp | Scope / command | Result | Evidence and bounded conclusion |
 |---|---|---|---|---|
 | E-25-01-W0 | 2026-09-18T03:56:22Z | `docker info --format '{{.ServerVersion}}'` | **BLOCKED** | Docker CLI could not connect to the local daemon (`dockerDesktopLinuxEngine` pipe unavailable). No credentials or provider data were accessed. `npm run db:up`, `npm run db:test:setup`, and every DB-backed payment test were therefore not run and are **not green**. |
-| E-25-01-DB | 2026-09-18T03:56:22Z | Focused webhook, checkout, confirmation, reconciliation, refund, merchant, payout-sweep, and payout-reconcile suite | **NOT RUN** | Wave 0 blocked the required isolated `fitout_test` setup. Re-run only after E-25-01-W0 is resolved; record exit code and aggregate test result here. |
-| E-25-01-LINT | 2026-09-18T03:56:22Z | Scoped payment-path ESLint command from `25-01-PLAN.md` | **NOT RUN** | Execution stopped at the strict Wave 0 infrastructure gate before planned verification commands. This is not a static-analysis pass. |
-| E-25-01-TSC | 2026-09-18T03:56:22Z | `node node_modules/typescript/bin/tsc --noEmit` | **NOT RUN** | Execution stopped at the strict Wave 0 infrastructure gate before planned verification commands. This is not a type-check pass. |
-| E-25-01-PROBE | 2026-09-18T03:56:22Z | Opt-in Checkout Session test-mode probe | **NOT RUN** | The opt-in conditions were not evaluated or changed. No credential, Checkout Session, payment, customer, or provider payload was created or recorded. |
+| E-25-01-W0R | 2026-09-18T05:25:46Z | `docker info --format '{{.ServerVersion}}'` | **PASS** | Docker Engine reported version `29.6.1`; the Wave 0 infrastructure prerequisite recovered. No configuration or credentials were printed. |
+| E-25-01-DB | 2026-09-18T05:25:46Z | `npm run db:up`, `npm run db:test:setup`, then the focused webhook, checkout, confirmation, reconciliation, refund, merchant, payout-sweep, and payout-reconcile suite from `25-01-PLAN.md` | **PASS** | The isolated `fitout_test` database was prepared from migrations and the focused Vitest command exited 0. This verifies local mechanics only; it does not establish provider entitlement or live-account readiness. |
+| E-25-01-LINT | 2026-09-18T05:25:46Z | Scoped payment-path ESLint command from `25-01-PLAN.md` | **PASS** | The command exited 0 for the listed payment, webhook, checkout, refund, and reconciliation source files. |
+| E-25-01-TSC | 2026-09-18T05:25:46Z | `node node_modules/typescript/bin/tsc --noEmit` | **PASS** | The inherited TypeScript command exited 0. |
+| E-25-01-PROBE | 2026-09-18T05:25:46Z | Opt-in Checkout Session test-mode probe | **NOT RUN** | The required `RUN_LIVE_PAYMONGO_PROBE=1` opt-in is not configured. No credential was changed or displayed, and no Checkout Session, payment, customer, or provider payload was created or recorded. |
 
 ### Required rerun sequence after Wave 0 recovery
 
@@ -75,7 +76,7 @@ Record a named operations owner, monitored alert destination, response SLA, esca
 
 ## Rollout decision
 
-**Current decision: HOLD.** The local isolated-database prerequisite is blocked and all live-account evidence is `UNKNOWN`.
+**Current decision: HOLD.** The local isolated-database baseline is now verified, while all live-account evidence remains `UNKNOWN`.
 
 Broad availability may be authorized only when each applicable row in `COVERAGE.md` is `VERIFIED` or concrete `OPTED OUT`, the exception owner and fallback are recorded, and the authorized release decision is complete.
 
@@ -104,10 +105,11 @@ Before live traffic, document the approved provider-side method to stop new chec
 
 | ID | Scope | Status | Location |
 |---|---|---|---|
-| E-25-01-W0 | Local Docker prerequisite | BLOCKED | Baseline evidence ledger above |
-| E-25-01-DB | Isolated DB payment mechanics | NOT RUN | Baseline evidence ledger above |
-| E-25-01-LINT | Payment-path static analysis | NOT RUN | Baseline evidence ledger above |
-| E-25-01-TSC | Payment-path type analysis | NOT RUN | Baseline evidence ledger above |
+| E-25-01-W0 | Initial local Docker prerequisite | BLOCKED | Baseline evidence ledger above |
+| E-25-01-W0R | Recovered local Docker prerequisite | PASS | Baseline evidence ledger above |
+| E-25-01-DB | Isolated DB payment mechanics | PASS | Baseline evidence ledger above |
+| E-25-01-LINT | Payment-path static analysis | PASS | Baseline evidence ledger above |
+| E-25-01-TSC | Payment-path type analysis | PASS | Baseline evidence ledger above |
 | E-25-01-PROBE | Opt-in test-mode provider probe | NOT RUN | Baseline evidence ledger above |
 
 No credential, wallet value, customer record, payment identifier, or raw provider payload belongs in this document.

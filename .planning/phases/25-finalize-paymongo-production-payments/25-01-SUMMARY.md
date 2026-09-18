@@ -8,12 +8,12 @@ requires:
     provides: Hosted checkout, verified webhook confirmation, recovery, refund, and payout contracts
 provides:
   - Non-secret production-payment evidence runbook
-  - Explicit Wave 0 Docker/database blocker record
+  - Recovered and verified isolated Docker/database baseline
 affects: [25-02, 25-03, 25-04, production-payment-release]
 actuals:
   tokens: 2267
-  tasks: 1
-  commits: 1
+  tasks: 2
+  commits: 2
 plan_head_before: e9689ba4d157f4ae8d01eb3e4316c792451c7221
 tech-stack:
   added: []
@@ -24,7 +24,7 @@ key-files:
     - .planning/phases/25-finalize-paymongo-production-payments/25-PRODUCTION-RUNBOOK.md
   modified: []
 key-decisions:
-  - Docker unavailability is a Wave 0 blocker; the database-backed suite is neither executed nor reported green.
+  - Docker unavailability is a Wave 0 blocker; database-backed checks are green only after recovered Docker/database setup succeeds.
   - Provider entitlement and live operations remain UNKNOWN until authorized evidence exists.
 requirements-completed: []
 coverage:
@@ -41,45 +41,45 @@ coverage:
     verification:
       - kind: integration
         ref: focused payment suite in 25-01-PLAN.md
-        status: unknown
+        status: pass
     human_judgment: true
-    rationale: Docker Engine was unavailable, so the isolated database suite could not run.
-duration: 14min
+    rationale: Docker Engine recovered; `fitout_test` was prepared and the exact focused suite exited 0.
+duration: 35min
 completed: 2026-09-18
-status: halted
+status: complete
 ---
 
 # Phase 25 Plan 01: Local Payment Evidence Baseline Summary
 
-**A non-secret PayMongo production-payment runbook records a strict Docker Wave 0 blocker and keeps every live entitlement explicitly unknown.**
+**A non-secret PayMongo production-payment runbook records a passing isolated local baseline while keeping every live entitlement explicitly unknown.**
 
 ## Performance
 
-- **Duration:** 14 min
+- **Duration:** 35 min
 - **Started:** 2026-09-18T03:56:22Z
-- **Completed:** 2026-09-18T04:10:00Z
-- **Tasks:** 1 completed, 1 blocked
+- **Completed:** 2026-09-18T05:25:46Z
+- **Tasks:** 2 completed
 - **Files modified:** 1
 
 ## Accomplishments
 
 - Created the controlled-operation and evidence ledger with non-secret fields for checkout, webhooks, recovery, refunds, merchant activation, payouts, alerts, rollout, rollback, assumptions, and questions.
-- Recorded that Docker could not reach its local daemon before any database setup or focused payment test ran.
+- Retained the initial Docker outage, then recorded recovered Docker, `fitout_test` setup, focused payment tests, scoped ESLint, and TypeScript checks, all with exit code 0.
 - Kept the capability matrix's production facts at `UNKNOWN` and the rollout decision at `HOLD`.
 
 ## Task Commits
 
-1. **Task 1: Trace checkout-to-confirmation and recovery through the isolated test database** — blocked before task execution; no task commit.
+1. **Task 1: Trace checkout-to-confirmation and recovery through the isolated test database** — `test(25-01): verify local payment baseline` (runbook and summary evidence).
 2. **Task 2: Make the capability matrix and evidence template complete** — `1f802cc` (docs)
 
 ## Files Created/Modified
 
-- `.planning/phases/25-finalize-paymongo-production-payments/25-PRODUCTION-RUNBOOK.md` — redacted evidence ledger, release hold, and rerun procedure.
+- `.planning/phases/25-finalize-paymongo-production-payments/25-PRODUCTION-RUNBOOK.md` — redacted evidence ledger, recovered local baseline, release hold, and rerun procedure.
 
 ## Decisions Made
 
-- Docker must be reachable and `fitout_test` successfully configured before DB-backed payment mechanics can be described as green.
-- Missing local infrastructure is recorded as `BLOCKED`/`NOT RUN`, not treated as a failed payment contract or inferred pass.
+- Docker must be reachable and `fitout_test` successfully configured before DB-backed payment mechanics can be described as green; the recovered baseline met both conditions.
+- The initial outage remains historical evidence; the later recovered baseline is recorded separately and does not imply live-provider readiness.
 
 ## Deviations from Plan
 
@@ -97,7 +97,7 @@ status: halted
 
 ## Issues Encountered
 
-- `docker info --format '{{.ServerVersion}}'` could not reach `dockerDesktopLinuxEngine`. Per the plan's strict precondition, `npm run db:up`, `npm run db:test:setup`, all focused DB-backed tests, scoped ESLint, TypeScript, and the opt-in provider probe were not run. This is recorded in `.planning/WINDOWS.md` as an open `unrun-verify` item.
+- The initial Docker outage is retained as historical evidence. A later successful Docker check cleared the gate, and all prescribed local commands passed. The opt-in provider probe did not run because `RUN_LIVE_PAYMONGO_PROBE=1` is not configured; no credential or external payment operation was created.
 
 ## Known Stubs
 
@@ -105,8 +105,8 @@ None. `UNKNOWN`, `BLOCKED`, and `NOT RUN` are intentional evidence states rather
 
 ## Next Phase Readiness
 
-- Restore the local Docker Engine, then resume Task 1 from its Wave 0 precondition and execute the exact rerun sequence in `25-PRODUCTION-RUNBOOK.md`.
-- Do not begin live-money checkpoints or broaden payment availability while this plan remains halted.
+- Local evidence is complete. Do not begin live-money checkpoints or broaden payment availability until the authorized human gates in plans 25-02 through 25-04 are resolved.
+
 
 ## Self-Check: PASSED
 
@@ -115,4 +115,4 @@ None. `UNKNOWN`, `BLOCKED`, and `NOT RUN` are intentional evidence states rather
 
 ---
 *Phase: 25-finalize-paymongo-production-payments*
-*Plan status: halted pending Docker Engine recovery*
+*Plan status: complete; live-money work remains gated on authorized human evidence*
