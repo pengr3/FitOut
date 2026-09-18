@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import {
   Dialog,
@@ -57,7 +57,6 @@ export function ProgressiveSearchOverlay({
   children: ReactNode;
 }) {
   const isMobile = useMobilePresentation();
-  const directEditAnchor = useMemo(() => ({ current: desktopAnchor ?? null }), [desktopAnchor]);
   const restoreFocus = (event: Event) => {
     if (!trigger && returnFocus) {
       event.preventDefault();
@@ -89,7 +88,7 @@ export function ProgressiveSearchOverlay({
   return (
     <Popover open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onDismiss(); }}>
       {trigger ? <PopoverTrigger asChild>{trigger}</PopoverTrigger> : null}
-      {!trigger && desktopAnchor ? <PopoverAnchor virtualRef={directEditAnchor} /> : null}
+      {!trigger && desktopAnchor ? <PopoverAnchor virtualRef={{ current: desktopAnchor }} /> : null}
       <PopoverContent
         data-testid="progressive-search-desktop-overlay"
         align="start"
