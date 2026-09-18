@@ -2,22 +2,22 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
-current_phase: 24
-current_phase_name: Search Bar Rework
-status: planned
-stopped_at: Phase 24 gap-closure context gathered
-last_updated: "2026-09-15T00:44:26.232Z"
-last_activity: 2026-09-14
-last_activity_desc: Phase 24 planned — 8 plans across 6 dependency waves; plan-checker verified
-state_head: 7f86dd9ac37ab304bd5d426759311b1d47fb7229
+current_phase: 25
+current_phase_name: Finalize PayMongo Production Payments
+status: executing
+stopped_at: Phase 25 Plan 01 halted at Docker Wave 0 gate
+last_updated: "2026-09-18T04:05:40.708Z"
+last_activity: 2026-09-16
+last_activity_desc: Phase 24 execution started
+state_head: 1f802cce739255231a67a4d1c6a9f66d21e1639e
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
   # of 2026-09-04. The plan counters cover phases 18 + 18.1 ONLY -- phases 19-23
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
-  total_phases: 10
+  total_phases: 11
   completed_phases: 2
-  total_plans: 102
+  total_plans: 116
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
   # A halted plan counted as a completed one is the same fabricated counter this file
@@ -56,8 +56,8 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 98
-  percent: 20
+  completed_plans: 109
+  percent: 18
 ---
 
 # Project State
@@ -67,7 +67,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 21 — The Host Can See Where They Stand — Verification Roadmap & the Deliberate Resubmit
+**Current focus:** Phase 24 — Search Bar Rework
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues
 from 19; coverage is 25/25 with no orphans and no duplicates. The order is dependency-derived, not
 brief-derived: **19** (cheap independents — the `/host/listings` card fix, the reproduction-gated
@@ -111,10 +111,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 24 (Search Bar Rework) — READY TO EXECUTE
-Plan: Not started
+Phase: 25 (Finalize PayMongo Production Payments) — READY TO EXECUTE
+Plan: 1 of 18
 Status: Ready to execute
-Last activity: 2026-09-14 — Completed quick task 260914-f5o: Remove the public footer link to FitOut Ops
+Last activity: 2026-09-16 — Completed quick task 260916-kfp: simplify the mobile context switch
 
 ## Performance Metrics
 
@@ -895,6 +895,7 @@ deferred walk is inconsistent rather than honest.*
 - Phase 18.1 inserted after Phase 18: Close Phase 18 - the verification path FitOut is legally required to have (URGENT)
 - Phase 19.1 inserted after Phase 19: CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, close the checker's own coverage holes (URGENT)
 - Phase 22.1 inserted after Phase 22: Host Enforcement Surface & Manual Queue Removal (URGENT)
+- Phase 25 added: Finalize PayMongo Production Payments
 
 ### Decisions
 
@@ -1697,6 +1698,7 @@ Open product decisions to resolve before their relevant phase begins (from resea
 - Two of the five required-status-check contexts (gate-e2e, gate-visual) are RED today, and the flaky set is redrawn each run - six different tests across four runs of one tree. 19.1-15 must not make either a required check before the three D-02 plans land.
 - Publication HOLD (PM, 2026-09-06) blocks SC5: the repository stays PRIVATE, so 19.1-15 cannot install the branch ruleset (gh api repos/pengr3/FitOut/rulesets => 403). Unblocks only after SC4 closes via 19.1-16/-17/-18 (+ 19.1-19 for the gate-visual half) — PLANNED and checker-passed 2026-09-06 (`ff10020`, revised `48016ed`), not yet executed.
 - 19.1-17 Task 4 criterion UNMET: run 34004929856 records OWNED host-headings|present and OWNED overflow-320|present. Both are 19.1-16's, inherited already-red and byte-identical to run 34000975768; this plan's own two specs are absent from the failure AND the flaky lists.
+- Phase 25 Plan 01 Wave 0 is blocked: Docker Engine is unavailable; fitout_test setup and DB-backed payment verification have not run.
 
 ### Quick Tasks Completed
 
@@ -1755,6 +1757,11 @@ means the task predates that flag being used here, not that it failed.
 | 260914-e90 | Add password confirmation to registration to prevent mismatched-password registrations | 2026-09-14 | 13514ba | | [260914-e90-add-password-confirmation-to-registratio](./quick/260914-e90-add-password-confirmation-to-registratio/) |
 | 260914-ew2 | Replace technical registration password validation feedback with plain English | 2026-09-14 | e4bc921 | | [260914-ew2-replace-technical-registration-password-](./quick/260914-ew2-replace-technical-registration-password-/) |
 | 260914-f5o | Remove the public footer link to FitOut Ops | 2026-09-14 | 95363f5 | | [260914-f5o-remove-this-link-to-fitout-ops](./quick/260914-f5o-remove-this-link-to-fitout-ops/) |
+| 260916-fgb | Introduce a nav icon menu that contains the profile action and booking-mode switch. | 2026-09-16 | 6164867 | — | C:/Users/Admin/Roaming/FitOut/.planning/quick/260916-fgb-introduce-a-nav-icon-menu-that-contains-the-profile-action-and-booking-mode-switch |
+| 260916-fgc | Add a logout action for the current session inside the new nav icon menu. | 2026-09-16 | a18a8df | — | C:/Users/Admin/Roaming/FitOut/.planning/quick/260916-fgc-add-a-logout-action-for-the-current-session-inside-the-new-nav-icon-menu |
+| 260916-fgd | Ensure the new navigation menu adheres to the established UI standards. | 2026-09-16 | dba8877 | — | C:/Users/Admin/Roaming/FitOut/.planning/quick/260916-fgd-ensure-the-new-navigation-menu-adheres-to-the-established-ui-standards |
+| 260916-jip | Switch the notification and navigation-menu icon positions, with navigation rightmost | 2026-09-16 | 8dfd769 | — | [260916-jip-switch-the-places-of-the-notification-ic](./quick/260916-jip-switch-the-places-of-the-notification-ic/) |
+| 260916-kfp | Replace the overflowing mobile Switch context submenu with one direct opposite-context action | 2026-09-16 | 730756c | — | [260916-kfp-at-375px-replace-the-overflowing-switch-](./quick/260916-kfp-at-375px-replace-the-overflowing-switch-/) |
 
 ## Deferred Items
 
@@ -1801,8 +1808,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-15T00:44:24.131Z
-Stopped at: Phase 24 gap-closure context gathered
+Last session: 2026-09-18T04:05:38.634Z
+Stopped at: Phase 25 Plan 01 halted at Docker Wave 0 gate
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1955,7 +1962,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/24-search-bar-rework/24-CONTEXT.md
+Resume file: .planning/phases/25-finalize-paymongo-production-payments/25-PRODUCTION-RUNBOOK.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered

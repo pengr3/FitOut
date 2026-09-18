@@ -204,13 +204,13 @@ categories Phase 18/18.1 opened; `STATE-05` and `TRUST-01` keep their v1.1 IDs.
       staff `200`, non-staff `404`, signed-out `404`, nonexistent `404`, with the three 404 bodies
       byte-identical by hash — and there is still **no `(ops)`-scoped `not-found.tsx`**.
       *D-275's non-negotiable condition.*
-- [ ] **OPS-13** — An operator can read **every fact needed to decide** about a listing — photos,
+- [x] **OPS-13** — An operator can read **every fact needed to decide** about a listing — photos,
       description, address, capacity, pricing, amenities, host facts — **expanded in place** on the
       queue row behind **one** disclosure level. The row stays **terminal**: zero anchors of any
       scheme and zero `[role="link"]` elements, on both row kinds, before and after expansion.
-- [ ] **OPS-14** — Expanding the evidence **does not push the decision controls off-screen**. The
+- [x] **OPS-14** — Expanding the evidence **does not push the decision controls off-screen**. The
       decision widget stays one widget, visually separated from the evidence.
-- [ ] **OPS-15** — The **host's standing renders as a fact** on the listing row rather than a blank
+- [x] **OPS-15** — The **host's standing renders as a fact** on the listing row rather than a blank
       cell — it is already selected fail-closed and simply never displayed.
 
 ### ENF — Enforcement, reachable by a human
@@ -329,10 +329,10 @@ Explicitly excluded, with the reasoning, so they are not re-added by a later pla
 | LVER-07 | Phase 21 | Complete |
 | LVER-08 | Phase 21 | Complete |
 | LVER-09 | Phase 21 | Complete |
-| ENF-04 | Phase 22 | Pending |
-| OPS-13 | Phase 22 | Pending |
-| OPS-14 | Phase 22 | Pending |
-| OPS-15 | Phase 22 | Pending |
+| ENF-04 | Phase 22.1 | Pending |
+| OPS-13 | Phase 22 | Complete |
+| OPS-14 | Phase 22 | Complete |
+| OPS-15 | Phase 22 | Complete |
 | STATE-05 | Phase 23 | Pending — **blocked on a business fact**, not on code (a monitored support address; D-64 forbids a placeholder) |
 | TRUST-01 | Phase 23 | Pending — same one-line unblock as `STATE-05` |
 
@@ -358,9 +358,10 @@ phase's goal and success criteria):
   set is complete. `OPS-11` is a **recorded reversal** of PM-B, not a new rule.
 - **Phase 21 · 10** — `HVER-09`…`HVER-14`, `LVER-06`…`LVER-09`. Lands **before** the Phase-22 queue
   removal by design: `HVER-14` is the human rescue D-276 removes, restored on the host side.
-- **Phase 22 · 4** — `ENF-04`, `OPS-13`, `OPS-14`, `OPS-15`. ⚠ `ENF-04` is **build**, not preserve —
-  `suspendHost` has no UI caller today — and it ships in the same phase as the queue removal because
-  both touch the same two files.
+- **Phase 22 · 3** — `OPS-13`, `OPS-14`, `OPS-15`: improve the existing listing queue with in-place
+  inspection, stable terminal rows, visible verification standing, and decision controls kept in view.
+- **Phase 22.1 · 1** — `ENF-04`: build the staff enforcement surface, then remove the manual host queue
+  only after enforcement and contact reveal remain reachable from the surviving listing queue.
 - **Phase 23 · 2** — `STATE-05`, `TRUST-01`. Phased last and alone so nothing else waits on a business
   fact.
 

@@ -103,8 +103,10 @@ phase numbering **continues from 19**.
       invite/onboard without a production `DATABASE_URL` · OPS-07…OPS-12
 - [x] **Phase 21: The Host Can See Where They Stand** — the verification roadmap, the named cause, the (completed 2026-09-10)
       stale-pending rescue, and the deliberate resubmit · HVER-09…HVER-14, LVER-06…LVER-09
-- [ ] **Phase 22: Ops Decides With the Whole Picture** — the manual host queue goes, enforcement gets a
-      surface, and listing detail expands in place · ENF-04, OPS-13…OPS-15
+- [x] **Phase 22: Ops Decides With the Whole Picture** — listing detail expands in place on the existing (reopened 2026-09-10 for mandatory operating-hours evidence) (completed 2026-09-10)
+      queue · OPS-13…OPS-15
+- [ ] **Phase 22.1: Host Enforcement Surface & Manual Queue Removal** — enforcement gains a staff UI and
+      the manual host queue is removed only with its replacement · ENF-04
 - [ ] **Phase 23: The Support Path Becomes Reachable** — one line, blocked on a monitored address ·
       STATE-05, TRUST-01
 
@@ -1007,93 +1009,69 @@ a host. **Zero migrations, zero new queries.**
     codes replacing the operator's sentence, and **any "get in touch" clause** — `SUPPORT_EMAIL` is
     `null` until Phase 23, and every new sentence must stand alone so half a sentence never renders.
 
-### Phase 22: Ops Decides With the Whole Picture — Queue Removal, Enforcement & Expand-in-Place
+### Phase 22: Ops Decides With the Whole Picture — Expand-in-Place Inspection MVP
 
-**Goal**: The manual host-approval queue is gone and Didit's verdict stands on its own; an operator can
-reach a host to **enforce** against them from a control on screen rather than from a POST no UI issues;
-and every fact needed to judge a listing **expands in place** on its own queue row.
+**Goal:** As a signed-in FitOut staff reviewer, I want to inspect a host listing submission, so that I can decide its action.
+**Mode:** mvp
 
 **Depends on**: Phase 20 (the staff-surface patterns and the moved action census) **and** Phase 21 (the
 host-side legibility that replaces the human this phase removes)
-**Requirements**: ENF-04, OPS-13, OPS-14, OPS-15
-**UI hint**: yes — a host lookup / enforcement panel and the expanded queue row.
+**Requirements**: OPS-13, OPS-14, OPS-15
+**UI hint**: yes — the expanded existing queue row.
 
 **Success Criteria** (what must be TRUE):
 
-  1. An operator can **find a host, suspend them and freeze their payouts from a surface** — a control on
-     screen, not a POST no UI issues — and can still reach that host's contact details on demand, audited
-     per reveal.
-  2. An operator can read **every fact needed to judge a listing** — photos, description, address,
+  1. An operator can read **every fact needed to judge a listing** — photos, description, address,
      capacity, pricing, amenities, host facts — by expanding the queue row **in place**, behind **one**
      disclosure level, without leaving the row.
-  3. **The row is still terminal after the change**: zero anchors of any scheme and zero `[role="link"]`
+  2. **The row is still terminal after the change**: zero anchors of any scheme and zero `[role="link"]`
      elements, **before and after** expansion, on every row kind that survives.
-  4. **Expanding the evidence never pushes the decision controls off-screen.** The decision widget stays
+  3. **Expanding the evidence never pushes the decision controls off-screen.** The decision widget stays
      one widget, visually separated from the evidence.
-  5. **The host's verification standing reads as a fact on the listing row** rather than a blank cell.
+  4. **The host's verification standing reads as a fact on the listing row** rather than a blank cell.
 
-**Plans**: TBD
+**Plans**: 2 plans
 
-**⚠ ENF-04 IS BIGGER THAN IT LOOKS, and it is this milestone's most undercounted item.** `suspendHost`
-(`src/app/actions/ops-review.ts:542`) has **ZERO UI callers today** — measured, repo-wide. So D-276's
-promise to "keep enforcement in ops" is currently a promise to preserve **something unreachable**.
-**This phase BUILDS the enforcement surface ENF-01 / ENF-02 never got**; it does not merely avoid
-deleting code. Treat it as first-class work, not cleanup. Do an **action-to-UI-caller inventory before
-the host branch is deleted**, and treat any zero-caller action as a PM question — not as dead code to
-delete, and not as a working feature to preserve.
+Plans:
+**Wave 1**
 
-**The removal and its replacement ship TOGETHER, or ENF-01, ENF-02 and OPS-06 have no reachable home.**
-`OpsContactReveal` is mounted twice and **both mounts are on queue rows**; deleting the host branch would
-leave a host with no pending listing uncontactable from ops.
+- [x] 22-01-PLAN.md — Trace staff inspection from explicit queue evidence through the existing in-place row disclosure.
 
-**Order inside the phase: remove the host branch FIRST, then widen the listing branch.** Both changes
-land in the **same two files** (`src/lib/ops/review-queue.ts`, `src/components/ops/ops-queue-row.tsx`),
-and doing the widening first means editing both twice with the second edit fighting the first. Migrating
-`u.created_at` and `u.email_verified` from the departing host branch onto the listing row is cleanest as
-one continuous move.
+**Wave 2** *(blocked on Wave 1 completion)*
 
-  - **`approveHost` and `rejectHost` are REMOVED, not left as dead `"use server"` exports.** A live
-    approve-host endpoint with no UI is exactly the "two authorities on one question" D-276 exists to
-    end. `EXPECTED_OPS_ACTIONS` moves **down two** here and up by the enforcement panel's actions — pin
-    and paragraph in one commit, as the constant exists to force.
-  - **Eight named test cases go red and must be deleted DELIBERATELY, in the branch's own commit** — five
-    in `tests/ops/queue-query.test.ts` (cases 1, 3, 8, 9, 10) and three in
-    `tests/ops/ops-queue-row.test.tsx`. ⚠ **Case 8 is also the standing witness for HVER-02 / D-206 /
-    D-220 (no document column)** — confirm `tests/ops/verification-schema.test.ts`'s exact-column
-    allow-list still carries that proof **before** the case goes. ⚠ **Case 10 is the end-to-end proof that
-    the host queue fills from ordinary product use**; deleting it *is* the product decision, and it
-    should read that way in the commit.
-  - **Keep the discriminated union as a ONE-MEMBER union.** It exists so a third kind fails to *compile*
-    rather than throwing in front of an operator; keeping it costs nothing and leaves the exhaustiveness
-    machinery in place. Keep `LISTING_QUEUE_PREDICATE` a **named constant** — `queue-query.test.ts` case 2
-    reads it.
-  - **OPS-13's data gap is `l.description` plus two `LEFT JOIN LATERAL … json_agg` blocks** (amenities,
-    activity tags) on the shape of the existing photos lateral, each with the same `?? []` null-collapse
-    — `json_agg` over an empty set is NULL, not `[]`. **This is the only genuine new-data gap in the whole
-    milestone, and it is still zero migrations.** Every column named **explicitly**; there is no
-    `select()` over a whole table anywhere in that file and there must not be one now.
-  - ⚠ **Add no field that could carry a document reference**, and render no placeholder implying one is
-    coming. The listing branch **inherits** the HVER-02 / D-206 / D-220 prohibition when it inherits the
-    host facts.
-  - **The disclosure goes in the row's `children` slot**, beside or below the existing `<dl>` — never in
-    `meta` (a `<dl>` there hydrates mismatched) and never in `actions`. A wrapper around a single
-    `<dt>`/`<dd>` pair is invalid inside a `<dl>`, so the disclosure wraps the **whole** extra block.
-  - **Performance**: load the detail **on disclosure**, or in **one grouped read for the page** — the
-    `coverByListing` / `rejectionReasonByListing` idiom. **Never a query inside `rows.map`.**
-  - **One `/ops` page still (D-246).** The host lookup / enforcement panel is a **panel on the one page**,
-    not `/ops/hosts` — a second page also moves all three `loading-coverage` counts.
-  - **The accepted cost, stated rather than discovered later**: with the manual queue gone, a verdict
-    **Didit drops** (it retries twice, then drops permanently) has **no human rescue** except the Inngest
-    reconciliation sweep shipped in 18.1-09, plus HVER-14's host-side affordance from Phase 21.
+- [x] 22-02-PLAN.md — Prove semantic, terminal, and Court/Grove responsive inspection states.
+
+### Phase 22.1: Host Enforcement Surface & Manual Queue Removal (INSERTED)
+
+**Goal:** A signed-in FitOut staff member can enforce against a host from the existing Ops surface, so that the manual host-approval queue can be removed without leaving enforcement or contact unreachable.
+**Requirements**: ENF-04
+**Depends on:** Phase 22
+**UI hint**: yes — one host lookup/enforcement panel on the existing `/ops` page.
+
+**Success Criteria** (what must be TRUE):
+
+  1. A staff member can find a host, suspend them, and freeze payouts from the existing Ops page; authorization and audit evidence remain server-enforced.
+  2. The manual host-approval queue is removed only after the enforcement and contact-reveal replacement is reachable from the surviving listing queue.
+  3. No `approveHost` or `rejectHost` Server Action remains exported, queue rows remain terminal, and the one-`/ops`-page constraint holds.
+
+**Scope notes:** This phase owns the former Phase 22 enforcement/removal instructions, including the action-to-UI-caller inventory, deliberate removal of obsolete host-queue tests/actions, and preserving an accessible contact-reveal path.
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run $gsd-plan-phase 22.1 to break down)
 
 ### Phase 23: The Support Path Becomes Reachable
 
 **Goal**: A booker who needs help can find a support path from any booking, in any payment state.
 
-**Depends on**: nothing in code. ⚠ **Blocked on a BUSINESS FACT — a monitored support address.**
-Deliberately phased last and alone so that nothing else in v1.2 waits on it; if the address arrives
-earlier, this phase can be pulled forward without disturbing any other phase.
+**Depends on**: nothing in code. The monitored support address and fitout.live domain are now available.
 **Requirements**: STATE-05, TRUST-01
+
+**Scope refinement**: Make `https://fitout.live` the canonical public origin, redirect `www` to the
+apex, preserve `https://ops.fitout.live` as a host-isolated staff surface, authenticate Resend through
+`send.fitout.live`, and inventory the narrow set of public provider callbacks that must move with the
+domain.
 
 **Success Criteria** (what must be TRUE):
 
@@ -1102,13 +1080,19 @@ earlier, this phase can be pulled forward without disturbing any other phase.
   3. Until the address exists, every surface that owes a support path renders **nothing at all** rather
      than a placeholder or half a sentence — and it fills in from **one line** at `src/lib/site.ts:70`.
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+
+- [x] 23-01-PLAN.md — Trace shared support delivery and the production/Preview origin contract.
+- [ ] 23-02-PLAN.md — Extend central public-origin authority to booking and provider runtime callers.
+- [ ] 23-03-PLAN.md — Configure Vercel, Resend, callbacks, and redacted live production proof.
 
   - **Code-complete since v1.1.** The support path is written, composed and guarded on every surface that
     owes one and renders nothing while `SUPPORT_EMAIL` is `null`. `src/lib/site.ts:70` is the only line
     that changes.
-  - ⚠ **D-64 explicitly forbids setting a placeholder to make the gate pass.** This phase does not open
-    until a real, monitored address exists.
+  - `pengr.clmc.3@gmail.com` is the monitored `SUPPORT_EMAIL` and shared Reply-To address for this
+    phase; no inbox, helpdesk, or inbound-email system is introduced.
   - **Consequence for Phase 21**: no new v1.2 copy may carry a "get in touch" clause, because half a
     sentence must never render.
 
@@ -1134,8 +1118,8 @@ earlier, this phase can be pulled forward without disturbing any other phase.
 | 19.1 CI Signal Becomes Real (INSERTED) | v1.2 | 18/20 | In Progress — Plan 19 visual closure complete and PM-approved; gate-visual green on run 34043991189. Plan 20 remains for the two host-wizard/edit-route E2E failures; SC4 + SC5 OPEN |  |
 | 20. Ops Gets Its Own Front Door (`ops.` host, sign-in, invite) | v1.2 | 0/TBD | In Progress|  |
 | 21. The Host Can See Where They Stand | v1.2 | 2/5 | Complete    | 2026-09-10 |
-| 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Not started | - |
-| 23. The Support Path Becomes Reachable | v1.2 | 0/TBD | **Blocked on a business fact** — a monitored support address (D-64 forbids a placeholder) | - |
+| 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Complete    | 2026-09-10 |
+| 23. The Support Path Becomes Reachable | v1.2 | 0/3 | Planned — fitout.live domain, monitored support replies, and constrained provider callbacks | - |
 | 24. Search Bar Rework | v1.2 | 0/8 | Planned — progressive activity, location, and party-size journey ready to execute | - |
 
 ### Phase 24: Search Bar Rework
@@ -1172,6 +1156,30 @@ Plans:
 **Wave 6** *(blocked on Wave 5 completion)*
 
 - [ ] 24-08-PLAN.md — Reconcile design registries, drive and baseline six progressive states at both widths, prove repeat-run stability, and run the repository-wide release gate.
+
+### Phase 25: Finalize PayMongo Production Payments
+
+**Goal:** Authorized operators can prove PayMongo checkout, webhook/recovery, refund, and payout paths in production, then decide whether broad availability is safe.
+**Requirements**: TBD
+**Depends on:** Phase 24
+**Plans:** 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 25-01-PLAN.md — Establish the local payment baseline and complete non-secret capability/evidence artifacts.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 25-02-PLAN.md — Gate production-account, secret-scope, webhook, Inngest, and controlled-transaction readiness.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 25-03-PLAN.md — Prove one authorized payment through provider confirmation, recovery, and return handling.
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 25-04-PLAN.md — Gate merchant/payout evidence and authorize broad availability or retain a safe hold.
 
 ## Carried Forward (not v1.2 scope until promoted)
 

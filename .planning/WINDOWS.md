@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 37
+open_count: 38
 waived_count: 0
 fixed_count: 8
-total_count: 45
-last_updated: 2026-09-10T12:27:04.267Z
+total_count: 46
+last_updated: 2026-09-18T04:04:29.295Z
 ---
 
 # Broken Windows Ledger
@@ -60,6 +60,7 @@ last_updated: 2026-09-10T12:27:04.267Z
 | 44 | 21 | deviation | .next/dev |  | Stale generated development route types were removed before the production build. | open |  | 2026-09-09T12:37:09.186Z |  |
 | 45 | 21 | deviation | e2e/host-dashboard.spec.ts |  | Managed Windows Playwright server teardown required the final matrix to use a manually managed local server for a clean exit. | open |  | 2026-09-10T04:16:06.297Z |  |
 | 46 | 22 | deviation | tests/ops/ops-queue-row.test.tsx |  | Scoped the existing amenities-list assertion after operating-hours evidence added its required semantic list. | open |  | 2026-09-10T12:27:04.267Z |  |
+| 47 | 25 | unrun-verify | .planning/phases/25-finalize-paymongo-production-payments/25-PRODUCTION-RUNBOOK.md |  | Focused DB-backed payment suite, scoped ESLint, TypeScript, and opt-in probe were not run because Docker Engine was unavailable. | open |  | 2026-09-18T04:04:29.295Z |  |
 
 ````json
 [
@@ -601,6 +602,18 @@ last_updated: 2026-09-10T12:27:04.267Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-10T12:27:04.267Z",
+    "resolved_at": null
+  },
+  {
+    "id": 47,
+    "kind": "unrun-verify",
+    "phase": "25",
+    "file": ".planning/phases/25-finalize-paymongo-production-payments/25-PRODUCTION-RUNBOOK.md",
+    "line": null,
+    "description": "Focused DB-backed payment suite, scoped ESLint, TypeScript, and opt-in probe were not run because Docker Engine was unavailable.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-18T04:04:29.295Z",
     "resolved_at": null
   }
 ]
