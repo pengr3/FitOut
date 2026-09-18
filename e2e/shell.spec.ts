@@ -370,8 +370,8 @@ test.describe("AC#3 — the header does not move when the auth slot resolves", (
               "without it the slot shrink-wraps to whichever cluster is currently in it and the " +
               "reservation reserves nothing.",
           ).toEqual(pendingSlot);
-          expect(resolvedSlot?.width, ${where}: the compact auth slot must reserve 88px).toBe(88);
-          expect(resolvedSlot?.height, ${where}: the compact auth slot must reserve 44px).toBe(44);
+          expect(resolvedSlot?.width, `${where}: the compact auth slot must reserve 88px`).toBe(88);
+          expect(resolvedSlot?.height, `${where}: the compact auth slot must reserve 44px`).toBe(44);
         }
       });
     }
