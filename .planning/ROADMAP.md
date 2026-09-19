@@ -1221,6 +1221,21 @@ Unsequenced ideas parked outside the active phase sequence (999.x). Promote with
 > Deferred in `.planning/REQUIREMENTS.md` rather than being deleted. Promote with
 > `/gsd:review-backlog`.
 
+### Phase 25.1: PayMongo Production Release Readiness & Controlled Proofs (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 25
+**Plans:** 1/5 plans executed
+
+Plans:
+
+- [x] 25.1-01-PLAN.md
+- [ ] 25.1-02-PLAN.md
+- [ ] 25.1-03-PLAN.md
+- [ ] 25.1-04-PLAN.md
+- [ ] 25.1-05-PLAN.md
+
 ### Phase 999.3: Search & Discovery — one-box query model + results map (BACKLOG)
 
 **Goal**: A booker can say what they want, and see *where* it is.

@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 38
+open_count: 39
 waived_count: 0
 fixed_count: 8
-total_count: 46
-last_updated: 2026-09-18T04:04:29.295Z
+total_count: 47
+last_updated: 2026-09-19T13:57:51.543Z
 ---
 
 # Broken Windows Ledger
@@ -61,6 +61,7 @@ last_updated: 2026-09-18T04:04:29.295Z
 | 45 | 21 | deviation | e2e/host-dashboard.spec.ts |  | Managed Windows Playwright server teardown required the final matrix to use a manually managed local server for a clean exit. | open |  | 2026-09-10T04:16:06.297Z |  |
 | 46 | 22 | deviation | tests/ops/ops-queue-row.test.tsx |  | Scoped the existing amenities-list assertion after operating-hours evidence added its required semantic list. | open |  | 2026-09-10T12:27:04.267Z |  |
 | 47 | 25 | unrun-verify | .planning/phases/25-finalize-paymongo-production-payments/25-PRODUCTION-RUNBOOK.md |  | Focused DB-backed payment suite, scoped ESLint, TypeScript, and opt-in probe were not run because Docker Engine was unavailable. | open |  | 2026-09-18T04:04:29.295Z |  |
+| 48 | 25.1 | unmet-truth | .planning/phases/25.1-paymongo-production-release-readiness-controlled-proofs/25.1-VALIDATION-EVIDENCE.md |  | TypeScript validation failed; HOLD remains until engineering resolves TYPESCRIPT_CHECK_FAILED and records a fresh passing run. | open |  | 2026-09-19T13:57:51.543Z |  |
 
 ````json
 [
@@ -614,6 +615,18 @@ last_updated: 2026-09-18T04:04:29.295Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-18T04:04:29.295Z",
+    "resolved_at": null
+  },
+  {
+    "id": 48,
+    "kind": "unmet-truth",
+    "phase": "25.1",
+    "file": ".planning/phases/25.1-paymongo-production-release-readiness-controlled-proofs/25.1-VALIDATION-EVIDENCE.md",
+    "line": null,
+    "description": "TypeScript validation failed; HOLD remains until engineering resolves TYPESCRIPT_CHECK_FAILED and records a fresh passing run.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-19T13:57:51.543Z",
     "resolved_at": null
   }
 ]

@@ -2,14 +2,14 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
-current_phase: 19
-current_phase_name: Host Listing Surfaces & Gates That Actually Run
-status: planning
-stopped_at: Phase 25 completed as an accountable HOLD, ready to plan Phase 19
-last_updated: "2026-09-19T11:09:52.238Z"
+current_phase: "25.1"
+current_phase_name: PayMongo Production Release Readiness & Controlled Proofs (INSERTED)
+status: executing
+stopped_at: Completed 25.1-01-PLAN.md
+last_updated: "2026-09-19T13:59:26.900Z"
 last_activity: 2026-09-19
-last_activity_desc: Phase 25 completed as an accountable HOLD; transitioned to Phase 19
-state_head: 8cfa30ceec73ff7bf25b82e8cee2a457e0ac8e59
+last_activity_desc: Phase 25.1 execution started
+state_head: 8749fa52f1621df4d972765b9b59a61039448f3f
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -67,7 +67,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 19 — Host Listing Surfaces & Gates That Actually Run
+**Current focus:** Phase 25.1 — PayMongo Production Release Readiness & Controlled Proofs (INSERTED)
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues
 from 19; coverage is 25/25 with no orphans and no duplicates. The order is dependency-derived, not
 brief-derived: **19** (cheap independents — the `/host/listings` card fix, the reproduction-gated
@@ -111,10 +111,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 19 — Host Listing Surfaces & Gates That Actually Run
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-09-19 — Phase 25 completed as an accountable HOLD; no payment capability released
+Phase: 25.1 (PayMongo Production Release Readiness & Controlled Proofs (INSERTED)) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-09-19 — Phase 25.1 execution started
 
 ## Performance Metrics
 
@@ -516,6 +516,7 @@ deferred walk is inconsistent rather than honest.*
 | Phase 21 P06 | 10min | 2 tasks | 5 files |
 | Phase 21 P07 | 15min | 2 tasks | 4 files |
 | Phase 21 P08 | 24min | 2 tasks | 4 files |
+| Phase 25.1 P01 | 52m | 3 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -897,6 +898,7 @@ deferred walk is inconsistent rather than honest.*
 - Phase 19.1 inserted after Phase 19: CI signal becomes real — constrain gate-db-free, repair the red e2e baseline, close the checker's own coverage holes (URGENT)
 - Phase 22.1 inserted after Phase 22: Host Enforcement Surface & Manual Queue Removal (URGENT)
 - Phase 25 added: Finalize PayMongo Production Payments
+- Phase 25.1 inserted after Phase 25: PayMongo Production Release Readiness & Controlled Proofs (URGENT)
 
 ### Decisions
 
@@ -1611,6 +1613,8 @@ Recent decisions affecting current work:
 - [Phase 21]: Removed only the inner roadmap stack's redundant h-full; the outer list-item and PanelCard stretch chain remains the equal-height authority. — Recorded by completed plan 21-08.
 - [Phase 21]: Vertical acceptance measures both descendant rectangles and scrollHeight/clientHeight because overflow-hidden can conceal clipped content. — Recorded by completed plan 21-08.
 - [Phase 21]: The geometry helper is scoped to the roadmap or receipt section so unrelated dashboard PanelCards cannot dilute a failure. — Recorded by completed plan 21-08.
+- [Phase 25.1]: Fresh local validation must not be inferred from Phase 25 historic evidence.
+- [Phase 25.1]: TypeScript failure keeps every release and live-money capability on HOLD.
 
 ### Pending Todos
 
@@ -1809,8 +1813,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-19T11:09:52.238Z
-Stopped at: Phase 25 completed as an accountable HOLD, ready to plan Phase 19
+Last session: 2026-09-19T13:59:21.694Z
+Stopped at: Completed 25.1-01-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1963,7 +1967,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: .planning/phases/25-finalize-paymongo-production-payments/25-PRODUCTION-RUNBOOK.md
+Resume file: None
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
