@@ -1162,24 +1162,25 @@ Plans:
 **Goal:** Authorized operators can prove PayMongo checkout, webhook/recovery, refund, and payout paths in production, then decide whether broad availability is safe.
 **Requirements**: TBD
 **Depends on:** Phase 24
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
+**Release decision:** HOLD — production wiring is documented, but no live payment, refund, payout, or broad availability is authorized.
 
 Plans:
 **Wave 1**
 
-- [ ] 25-01-PLAN.md — Establish the local payment baseline and complete non-secret capability/evidence artifacts.
+- [x] 25-01-PLAN.md — Establish the local payment baseline and complete non-secret capability/evidence artifacts.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 25-02-PLAN.md — Gate production-account, secret-scope, webhook, Inngest, and controlled-transaction readiness.
+- [x] 25-02-PLAN.md — Gate production-account, secret-scope, webhook, Inngest, and controlled-transaction readiness.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 25-03-PLAN.md — Prove one authorized payment through provider confirmation, recovery, and return handling.
+- [x] 25-03-PLAN.md — Prove one authorized payment through provider confirmation, recovery, and return handling.
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 25-04-PLAN.md — Gate merchant/payout evidence and authorize broad availability or retain a safe hold.
+- [x] 25-04-PLAN.md — Gate merchant/payout evidence and authorize broad availability or retain a safe hold.
 
 ## Carried Forward (not v1.2 scope until promoted)
 

@@ -2,21 +2,21 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
-current_phase: 25
-current_phase_name: Finalize PayMongo Production Payments
-status: executing
-stopped_at: Phase 25 Plan 01 halted at Docker Wave 0 gate
-last_updated: "2026-09-18T04:05:40.708Z"
-last_activity: 2026-09-16
-last_activity_desc: Phase 24 execution started
-state_head: 1f802cce739255231a67a4d1c6a9f66d21e1639e
+current_phase: 19
+current_phase_name: Host Listing Surfaces & Gates That Actually Run
+status: planning
+stopped_at: Phase 25 completed as an accountable HOLD, ready to plan Phase 19
+last_updated: "2026-09-19T11:09:52.238Z"
+last_activity: 2026-09-19
+last_activity_desc: Phase 25 completed as an accountable HOLD; transitioned to Phase 19
+state_head: 8cfa30ceec73ff7bf25b82e8cee2a457e0ac8e59
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
   # of 2026-09-04. The plan counters cover phases 18 + 18.1 ONLY -- phases 19-23
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 11
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 116
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
@@ -56,8 +56,8 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 109
-  percent: 18
+  completed_plans: 112
+  percent: 27
 ---
 
 # Project State
@@ -67,7 +67,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 24 — Search Bar Rework
+**Current focus:** Phase 19 — Host Listing Surfaces & Gates That Actually Run
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues
 from 19; coverage is 25/25 with no orphans and no duplicates. The order is dependency-derived, not
 brief-derived: **19** (cheap independents — the `/host/listings` card fix, the reproduction-gated
@@ -111,16 +111,16 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 25 (Finalize PayMongo Production Payments) — READY TO EXECUTE
-Plan: 1 of 18
-Status: Ready to execute
-Last activity: 2026-09-16 — Completed quick task 260916-kfp: simplify the mobile context switch
+Phase: 19 — Host Listing Surfaces & Gates That Actually Run
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-09-19 — Phase 25 completed as an accountable HOLD; no payment capability released
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 182
+- Total plans completed: 186
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -144,6 +144,7 @@ Last activity: 2026-09-16 — Completed quick task 260916-kfp: simplify the mobi
 | 18.1 | 16 | - | - |
 | 21 | 8 | - | - |
 | 22 | 3 | - | - |
+| 25 | 4 | - | - |
 
 *18.1-16: ~62 min wall-clock, 2 tasks (both auto, task 1 under TDD), 0 files created + 7 modified, 3 commits
 (RED / GREEN / records) + 1 metadata. ⚠ The durations column is left `-` for this phase rather than filled in from
@@ -1808,8 +1809,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-18T04:05:38.634Z
-Stopped at: Phase 25 Plan 01 halted at Docker Wave 0 gate
+Last session: 2026-09-19T11:09:52.238Z
+Stopped at: Phase 25 completed as an accountable HOLD, ready to plan Phase 19
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
