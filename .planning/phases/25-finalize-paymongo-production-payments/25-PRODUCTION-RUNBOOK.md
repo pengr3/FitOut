@@ -117,6 +117,32 @@ Before live traffic, document the approved provider-side method to stop new chec
 
 **Plan 25-03 HOLD record:** No financial operation occurred, so no rollback or return was executed. The provider-side stop method and accountable authority remain unrecorded and are required before a future controlled operation can start.
 
+## Plan 25-04 final payout and release HOLD disposition — 2026-09-19
+
+**Rollout decision: HOLD.** No broad payment or payout availability is authorized. The user-selected HOLD applies to controlled host payouts as well as the previously held checkout and return paths. No payout, transfer, payment, checkout, refund, manual return, forged webhook, provider probe, provider-side stop, or other provider action was initiated for this plan.
+
+### Controlled payout record
+
+| Required boundary | Final evidence state | HOLD consequence |
+|---|---|---|
+| Authority | **UNVERIFIED** — no accountable product decision-maker or PayMongo account authority has recorded payout authorization | No payout authorization exists. |
+| Merchant, linked-account, and platform-wallet entitlement | **UNVERIFIED** — the existing child-account/wallet inventory is not entitlement evidence | No marketplace, wallet, or host-payout capability is inferred. |
+| Amount and recipient boundary | **UNVERIFIED** — no amount or cap and no redacted booking/ledger-to-activated-wallet correlation are recorded | No recipient is selected and no transfer is initiated. |
+| Executing operator | **UNVERIFIED** — no authorized operator is recorded | The payout path remains unavailable for manual or automated execution. |
+| Stop, cancellation, return, and escalation boundary | **UNVERIFIED** — no provider-side irreversible-cutoff procedure, authority, or terminal-transfer return/escalation procedure is recorded | A controlled payout cannot start. Stop on the first mismatch remains mandatory for any future authorization. |
+| Durable execution and recovery | **UNVERIFIED** — no provider transfer was made or read back into a durable paid or failed ledger state | No payout execution claim; unknown states would remain processing. |
+| Alert ownership | **UNVERIFIED** — no monitored recipient, response owner, SLA, or observed failure/stuck-transfer response is recorded | Broad release remains blocked. |
+
+The evidence for `E-25-03-PM-WEBHOOK`, `E-25-03-VERCEL`, and `E-25-03-INNGEST` is preserved exactly as configuration and registration evidence. It does not establish merchant entitlement, a correlated recipient, payout execution, reconciliation outcome, alert delivery, or alert ownership.
+
+### Payout follow-up record
+
+Before any future controlled payout, the accountable product release authority and authorized PayMongo account authority must jointly record: provider-approved marketplace/linked-account and platform-wallet entitlement; one exact amount or cap; a redacted correlated activated-recipient boundary; the executing operator; provider-side cancellation before the irreversible cutoff; the return or escalation procedure and owner after a terminal transfer; and the monitored alert owner, destination, SLA, and recovery evidence. If any field is unavailable, the only permitted disposition is HOLD and the existing held payout row remains unexecuted.
+
+### Final rollback boundary
+
+No rollback was executed because no financial operation occurred. Before any future authorization, the runbook must contain the provider-side method and accountable authority to stop new payment activity, the payout-specific cancellation or return boundary, customer/host communication ownership, and reconciliation follow-up. Repository code, a registered Inngest function, or a private console view does not substitute for that executable provider-side boundary.
+
 ## Assumptions and open questions
 
 ### Unresolved assumptions
@@ -155,5 +181,6 @@ Before live traffic, document the approved provider-side method to stop new chec
 | E-25-03-VERCEL | Production Inngest deployment configuration | PASS | Dated console observations above |
 | E-25-03-INNGEST | Production Inngest app and function registration | PASS | Dated console observations above |
 | E-25-03-HOLD | Controlled checkout, recovery, and return disposition | HOLD | Plan 25-03 formal HOLD disposition above |
+| E-25-04-HOLD | Controlled payout and broad-availability disposition | HOLD | Plan 25-04 final payout and release HOLD disposition above |
 
 No credential, wallet value, customer record, payment identifier, or raw provider payload belongs in this document.

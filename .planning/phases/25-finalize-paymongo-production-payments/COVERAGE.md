@@ -63,6 +63,23 @@ The following records preserve current configuration facts only. They are not ev
 | Controlled transaction and rollback | HOLD | Plan 25-02 authorization and an executable provider-side stop boundary | No controlled checkout or rollback action occurred. |
 | Broad availability authorization | HOLD | All applicable capabilities verified or concretely opted out with owned fallback | Existing configuration evidence does not authorize launch. |
 
+## Plan 25-04 final payout and release HOLD disposition — 2026-09-19
+
+**Controlled payout decision: HOLD.** No controlled host payout is authorized or executed. The required merchant, linked-account, and platform-wallet entitlement evidence is absent; no redacted correlated activated-recipient boundary is recorded; no authorized executing operator is recorded; and no provider-side stop, cancellation, return, or escalation procedure is evidenced. A transfer is one-way external money movement, so the absence of any one of those boundaries keeps the existing payout path uninvoked.
+
+**Payout execution and alert ownership: UNVERIFIED.** Existing payout sweep and reconciliation controls remain documented code and registered-function evidence only. There is no controlled provider transfer result, no provider-derived durable paid or failed ledger outcome, no observed recovery result, and no verified monitored alert recipient or response owner. Unknown payout states must remain non-terminal and under operations ownership once that ownership is formally assigned; this record does not invent an owner.
+
+**Broad availability decision: HOLD.** Payment and payout availability cannot be broadly authorized while payout entitlement, recipient correlation, execution authority, provider-side stop/return handling, payout execution evidence, recovery evidence, and alert ownership remain unresolved. The current `E-25-03-PM-WEBHOOK`, `E-25-03-VERCEL`, and `E-25-03-INNGEST` entries remain configuration evidence only and are not weakened or reclassified as live-money evidence.
+
+| Capability | Final status | Missing evidence / accountable next record | Release effect |
+|---|---|---|---|
+| Merchant / linked-account activation | **HOLD** | Authorized provider entitlement and a redacted activated-merchant observation | No host onboarding or payout readiness claim. |
+| Platform wallet and source account | **HOLD** | Provider-approved source entitlement and authorized source identity, without recording values | Never infer a source wallet or select a default recipient. |
+| Host payout transfer | **HOLD** | Authority, amount/cap, redacted correlated activated-recipient boundary, executing operator, provider-side stop/return procedure, and controlled result | No transfer is initiated. |
+| Payout reconciliation and recovery | **HOLD / UNVERIFIED** | Provider-derived read-back into a durable paid or failed state, or a concrete provider limitation with an assigned operations owner | Unknown states remain processing; no payout-ready claim. |
+| Inngest operations and alerts | **HOLD / UNVERIFIED** | Monitored destination, response owner and SLA, plus observed payout-failure or stuck-transfer handling | Alert ownership remains unverified; broad release is blocked. |
+| Broad availability authorization | **HOLD** | Joint accountable authorization after every applicable row is VERIFIED or concretely OPTED OUT with approved fallback | Do not enable or advertise broad payment or payout availability. |
+
 ## Open questions that must remain explicit
 
 - **Q1 / A1:** Which checkout rails, limits, marketplace products, wallets, and linked-account functions are actually approved for FitOut?
@@ -77,3 +94,4 @@ The following records preserve current configuration facts only. They are not ev
 - Existing security controls remain authoritative: raw-body HMAC precedes JSON parsing, event IDs deduplicate deliveries, provider evidence reaches the single confirmation writer, checkout leases retire superseded sessions, and browser return URLs are presentation only.
 - No PayMongo SDK, browser-side confirmation, second confirmation writer, timer/worker, schema migration, custom KYC/payout routing, or unverified feature flag is introduced by this phase.
 - Plan 25-03 made no financial or provider action. Its HOLD disposition leaves paid delivery, reconciliation execution, refunds, and manual returns unverified and held.
+- Plan 25-04 made no payout, transfer, payment, checkout, refund, manual return, forged webhook, provider probe, or provider-side action. It records the final HOLD caused by unresolved payout and release boundaries.
