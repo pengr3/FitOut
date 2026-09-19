@@ -36,9 +36,9 @@ Record a dated console, deployment, Inngest, or provider reference identifier an
 | Capability | Evidence reference | Status | Outcome / owner |
 |---|---|---|---|
 | Configured checkout rails: card, GCash, PayMaya, QR Ph | — | UNKNOWN | Awaiting account-owner evidence. |
-| Canonical production webhook destination and subscribed events | — | UNKNOWN | Awaiting account-owner evidence. |
-| Production secret-name scope and Preview isolation | — | UNKNOWN | Awaiting authorized deployment evidence without values. |
-| Inngest registration, schedules, and alert delivery | — | UNKNOWN | Awaiting operator evidence and named owner. |
+| Canonical production webhook destination and subscribed events | E-25-03-PM-WEBHOOK | PARTIAL | The canonical destination is enabled with five required available event types; signed delivery has not yet been observed. |
+| Production secret-name scope and Preview isolation | E-25-03-VERCEL | PARTIAL | Production holds the PayMongo and Inngest secret variables; Preview integration-created variables remain configuration-classified and need separate hygiene follow-up. |
+| Inngest registration, schedules, and alert delivery | E-25-03-INNGEST | PARTIAL | The production app is registered with its scheduled and event functions; no alert-delivery exercise has been performed. |
 
 ### Dated console observations
 
@@ -53,6 +53,23 @@ These are read-only observations by the authorized account operator on 2026-09-1
 | E-25-02-VERCEL | 2026-09-18T07:35:09Z | Vercel `fitout-web` production deployment and environment-variable inventory | **PARTIAL** | `fitout.live` production was Ready. Production listed `PAYMONGO_SECRET_KEY`, `PAYMONGO_PUBLIC_KEY`, `PAYMONGO_WEBHOOK_SECRET`, and `OPS_ALERT_EMAIL`; Preview listed no PayMongo variables. `INNGEST_EVENT_KEY` and `INNGEST_SIGNING_KEY` were not present in this project inventory. No value was revealed. |
 | E-25-02-INNGEST | 2026-09-18T07:35:09Z | Inngest Production environment | **HOLD** | Production showed zero received events, executions, backlog, and registered functions. No payment/payout reconciliation, schedules, or alert delivery can be evidenced from this environment. |
 | E-25-02-TSC | 2026-09-18T07:35:09Z | `node node_modules/typescript/bin/tsc --noEmit` | **BLOCKED** | The current worktree has syntax errors at `e2e/shell.spec.ts:373-374`. This unrelated E2E baseline is not repaired by this phase and the protected-console readiness checkpoint is not green on the current checkout. |
+| E-25-03-PM-WEBHOOK | 2026-09-19T05:51:20Z | PayMongo production Webhooks | **PARTIAL** | The enabled canonical endpoint is `POST https://fitout.live/api/paymongo/webhook`, subscribed to `checkout_session.payment.paid`, `merchant.activated`, `merchant.declined`, `payment.refund.updated`, and `payment.refunded`. `merchant.deactivated` was not available in the console. No live provider delivery or payment was initiated. |
+| E-25-03-VERCEL | 2026-09-19T05:51:20Z | Vercel `fitout-web` production deployment | **PASS** | A protected production deployment became Ready with the current Inngest production signing key. The stale Inngest custom-origin override was removed; the protected deployment uses Vercel's generated deployment URL. No value or deployment identifier was recorded. |
+| E-25-03-INNGEST | 2026-09-19T05:51:20Z | Inngest Production apps and functions | **PASS** | The `fitout` application successfully synced from the protected Vercel deployment (SDK 4.13.0, Next.js), registering 12 functions: the ten operational functions plus failure handlers for `guest-email` and `notify`. No money event or alert-delivery test was run. |
+
+## Plan 25-03 formal HOLD disposition — 2026-09-19
+
+**Decision: HOLD.** The Plan 25-02 decision remains **HOLD**, not `AUTHORIZE CONTROLLED TRANSACTION`. Its required named authority, approved rail, amount bound, participant boundary, abort condition, refund/manual-return owner, and provider-side stop method are therefore not recorded. Task 1's authorization precondition is not met.
+
+The user explicitly selected **HOLD** for Task 2. No hosted checkout, charge, payment, refund, manual return, payout, provider-side stop, delivery resend, forged webhook, or provider probe was initiated for Plan 25-03. This disposition records a release blocker; it is not a financial-operation authorization.
+
+| Capability / task | Disposition | Evidence boundary and release effect |
+|---|---|---|
+| Controlled checkout and durable confirmation | **HOLD** | No authorized transaction occurred. No signed `checkout_session.payment.paid` delivery or server-to-server Checkout Session probe was observed. A browser return remains presentation only. |
+| Webhook configuration | **PARTIAL** | E-25-03-PM-WEBHOOK confirms the canonical endpoint and available subscriptions only; it does not prove signed delivery, HMAC handling, event-ID dedupe, or a booking transition. |
+| Missed-webhook reconciliation and alerts | **HOLD / UNKNOWN** | E-25-03-INNGEST proves registration only. No provider-supported recovery exercise, payment-reconciliation execution, alert delivery, or resulting state was observed. Broad release remains blocked. |
+| API refund and manual return / clawback | **HOLD** | No rail-specific return authority, amount cap, participant boundary, operator, stop/return procedure, manual-return owner, SLA, or reconciliation record is recorded. No money-return operation occurred. |
+| Broad availability | **HOLD** | Existing configuration evidence is retained, but the unproven controlled-payment, recovery, and return paths remain release blockers. |
 
 ## Controlled checkout
 
@@ -64,9 +81,9 @@ Verify the public `POST /api/paymongo/webhook` endpoint, signing configuration, 
 
 | Event path | Status | Required evidence |
 |---|---|---|
-| Paid checkout webhook | UNKNOWN | Signed delivery observed and safely acknowledged. |
-| Refund webhook | UNKNOWN | Enabled-rail refund event observed and ledger/booking result checked. |
-| Merchant / linked-account activation | UNKNOWN | Authorized merchant event evidence and resulting host state. |
+| Paid checkout webhook | CONFIGURED | Signed delivery observed and safely acknowledged. |
+| Refund webhook | CONFIGURED | Enabled-rail refund event observed and ledger/booking result checked. |
+| Merchant / linked-account activation | CONFIGURED | Authorized merchant event evidence and resulting host state. |
 
 ## Provider-probe recovery
 
@@ -90,13 +107,15 @@ Record a named operations owner, monitored alert destination, response SLA, esca
 
 ## Rollout decision
 
-**Current decision: HOLD.** Read-only console evidence establishes a live PayMongo environment and a production-only PayMongo secret boundary, but QR Ph is the only active visible rail, no PayMongo webhook endpoint exists, no linked child account exists, Inngest Production has no registered functions, and the current TypeScript baseline is blocked by unrelated E2E syntax errors. No controlled transaction is authorized.
+**Current decision: HOLD.** Production webhook configuration and Inngest registration are now evidenced, but QR Ph is the only active visible rail, no linked child account exists, no signed provider delivery or controlled transaction has been observed, alert ownership is unverified, and the current TypeScript baseline is blocked by unrelated E2E syntax errors. No controlled transaction is authorized.
 
 Broad availability may be authorized only when each applicable row in `COVERAGE.md` is `VERIFIED` or concrete `OPTED OUT`, the exception owner and fallback are recorded, and the authorized release decision is complete.
 
 ## Rollback record
 
 Before live traffic, document the approved provider-side method to stop new checkout activity, the authority allowed to invoke it, affected customer/host communications, payout handling, and reconciliation follow-up. No kill-switch or rollback mechanism is inferred from repository source.
+
+**Plan 25-03 HOLD record:** No financial operation occurred, so no rollback or return was executed. The provider-side stop method and accountable authority remain unrecorded and are required before a future controlled operation can start.
 
 ## Assumptions and open questions
 
@@ -132,5 +151,9 @@ Before live traffic, document the approved provider-side method to stop new chec
 | E-25-02-VERCEL | Vercel production and secret-scope inventory | PARTIAL | Dated console observations above |
 | E-25-02-INNGEST | Inngest production registration inventory | HOLD | Dated console observations above |
 | E-25-02-TSC | Current TypeScript baseline | BLOCKED | Dated console observations above |
+| E-25-03-PM-WEBHOOK | Enabled production webhook configuration | PARTIAL | Dated console observations above |
+| E-25-03-VERCEL | Production Inngest deployment configuration | PASS | Dated console observations above |
+| E-25-03-INNGEST | Production Inngest app and function registration | PASS | Dated console observations above |
+| E-25-03-HOLD | Controlled checkout, recovery, and return disposition | HOLD | Plan 25-03 formal HOLD disposition above |
 
 No credential, wallet value, customer record, payment identifier, or raw provider payload belongs in this document.

@@ -38,6 +38,31 @@ The following read-only observations are detailed in `25-PRODUCTION-RUNBOOK.md` 
 | E-25-02-VERCEL | Production secret boundary | PARTIAL — required PayMongo and operations names are Production-only; no PayMongo variables in Preview; Inngest key names absent | Keep the Preview boundary, but resolve the Inngest configuration before declaring operations ready. |
 | E-25-02-INNGEST | Reconciliation, schedules, and alerts | HOLD — Production has zero events, runs, and functions | No observed reconciliation or alert delivery; broad release remains held. |
 
+## Current protected-console evidence — 2026-09-19
+
+The following records preserve current configuration facts only. They are not evidence of a payment, provider delivery, reconciliation execution, refund, manual return, payout, alert delivery, or broad-release authorization. No secret, deployment identifier, wallet identifier, customer data, payment identifier, or raw payload is recorded.
+
+| Evidence | Affected capability | Current result | Release effect |
+|---|---|---|---|
+| E-25-03-PM-WEBHOOK | Paid, refund, and merchant webhook configuration | PARTIAL — canonical endpoint enabled with the available paid, refund, and merchant event subscriptions | Configuration does not prove signed delivery, event-ID dedupe, or a payment confirmation; controlled checkout remains held. |
+| E-25-03-VERCEL | Production deployment and Inngest configuration boundary | PASS — protected deployment configuration is current | This does not supply payment, refund, or recovery evidence. |
+| E-25-03-INNGEST | Production function registration | PASS — protected production application has its scheduled and event functions registered | No event execution, reconciliation result, or alert delivery was observed. |
+
+## Plan 25-03 formal HOLD disposition — 2026-09-19
+
+**Precondition result:** **NOT MET.** Plan 25-02 records **HOLD**, not `AUTHORIZE CONTROLLED TRANSACTION`, and lacks the named authority, approved rail, amount bound, participant, abort condition, refund/manual-return owner, and provider-side stop method required for a controlled financial operation.
+
+**Return decision:** **HOLD.** The user selected HOLD for all proposed controlled refunds and manual returns. No payment, checkout, refund, manual return, payout, delivery resend, forged webhook, provider probe, or provider-side action was performed for this plan.
+
+| Capability | Plan 25-03 status | Required before status may advance | Current release effect |
+|---|---|---|---|
+| Paid checkout webhook | HOLD | An authorized controlled transaction plus signed provider delivery or bounded server-side probe, with exactly one durable confirmation | Browser navigation and configured subscriptions do not establish payment. |
+| Missed-webhook reconciliation | HOLD / UNKNOWN | Provider-supported recovery evidence and an observed registered-job execution with resulting status and alert behavior | Registration alone is insufficient; broad release is blocked. |
+| API refund rails | HOLD | Per-rail authority, amount cap, participant boundary, operator, stop procedure, and controlled provider result | No refund operation occurred. |
+| Manual refund / clawback | HOLD | Named owner, monitored destination, response SLA, communication policy, and reconciliation record for each unsupported or unverified rail | No manual return occurred; QR Ph remains unavailable for broad release. |
+| Controlled transaction and rollback | HOLD | Plan 25-02 authorization and an executable provider-side stop boundary | No controlled checkout or rollback action occurred. |
+| Broad availability authorization | HOLD | All applicable capabilities verified or concretely opted out with owned fallback | Existing configuration evidence does not authorize launch. |
+
 ## Open questions that must remain explicit
 
 - **Q1 / A1:** Which checkout rails, limits, marketplace products, wallets, and linked-account functions are actually approved for FitOut?
@@ -51,3 +76,4 @@ The following read-only observations are detailed in `25-PRODUCTION-RUNBOOK.md` 
 - This matrix does not store credentials, wallet identifiers, private account details, customer information, or raw payment payloads.
 - Existing security controls remain authoritative: raw-body HMAC precedes JSON parsing, event IDs deduplicate deliveries, provider evidence reaches the single confirmation writer, checkout leases retire superseded sessions, and browser return URLs are presentation only.
 - No PayMongo SDK, browser-side confirmation, second confirmation writer, timer/worker, schema migration, custom KYC/payout routing, or unverified feature flag is introduced by this phase.
+- Plan 25-03 made no financial or provider action. Its HOLD disposition leaves paid delivery, reconciliation execution, refunds, and manual returns unverified and held.
