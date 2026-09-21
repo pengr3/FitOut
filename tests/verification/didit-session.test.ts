@@ -70,6 +70,7 @@ import type { DiditSessionStart } from "@/lib/verification/providers/didit";
 import { isVerified } from "@/lib/verification/port";
 
 type DiditAdapter = typeof import("@/lib/verification/providers/didit");
+type DiditSessionFailure = InstanceType<DiditAdapter["DiditSessionError"]>;
 
 /** Obvious fakes. See the header: no case may depend on a real credential being present OR absent. */
 const FAKE_API_KEY = "didit-test-key-not-a-credential";
@@ -143,7 +144,7 @@ function lastCall(mock: ReturnType<typeof vi.fn>): {
  * property. A future adapter that caught its own error and returned a half-filled result would still
  * satisfy a bare `rejects.toThrow()` written the other way round.
  */
-async function refuses(label: string): Promise<DiditSessionError> {
+async function refuses(label: string): Promise<DiditSessionFailure> {
   let produced: DiditSessionStart | undefined;
   let caught: unknown;
   try {
@@ -153,7 +154,7 @@ async function refuses(label: string): Promise<DiditSessionError> {
   }
   expect(produced, `${label}: NO VerificationResult may exist on a failed vendor call`).toBeUndefined();
   expect(caught, `${label}: the refusal must be the named error`).toBeInstanceOf(DiditSessionError);
-  return caught as DiditSessionError;
+  return caught as DiditSessionFailure;
 }
 
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -415,7 +416,7 @@ describe("D5 / ADDENDUM A3 — the adapter answers ONE question about the vendor
 
     expect(answer, "no boolean may exist when the read failed").toBeUndefined();
     expect(caught).toBeInstanceOf(DiditRateLimitError);
-    expect((caught as DiditSessionError).status).toBe(429);
+    expect((caught as DiditSessionFailure).status).toBe(429);
     expect(fetchMock.mock.calls).toHaveLength(1);
   });
 
@@ -434,8 +435,8 @@ describe("D5 / ADDENDUM A3 — the adapter answers ONE question about the vendor
 
     expect(answer).toBeUndefined();
     expect(caught).toBeInstanceOf(DiditSessionError);
-    expect((caught as DiditSessionError).status).toBe(403);
-    expect((caught as DiditSessionError).message).toContain("DIDIT_API_KEY");
+    expect((caught as DiditSessionFailure).status).toBe(403);
+    expect((caught as DiditSessionFailure).message).toContain("DIDIT_API_KEY");
     expect(fetchMock.mock.calls).toHaveLength(1);
   });
 });

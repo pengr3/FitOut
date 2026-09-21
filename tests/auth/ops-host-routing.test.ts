@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getRewrittenUrl, isRewrite } from "next/experimental/testing/server";
 
 const PUBLIC_ORIGIN = "https://app.example.test";
@@ -9,7 +9,7 @@ const OPS_ORIGIN = "https://ops.example.test";
 const PREVIEW_HOST = "fitout-git-preview.example.vercel.app";
 const STALE = "better-auth.session_token=stale.but.validly-shaped";
 
-type ProxyHandler = (request: NextRequest) => Response;
+type ProxyHandler = (request: NextRequest) => NextResponse;
 
 let proxy: ProxyHandler;
 
@@ -37,7 +37,7 @@ function request(
   return new NextRequest(new URL(pathname, options.origin ?? PUBLIC_ORIGIN), { headers });
 }
 
-function outcome(response: Response): { kind: "next" | "redirect" | "rewrite"; path: string | null } {
+function outcome(response: NextResponse): { kind: "next" | "redirect" | "rewrite"; path: string | null } {
   if (isRewrite(response)) {
     const rewritten = getRewrittenUrl(response);
     return {

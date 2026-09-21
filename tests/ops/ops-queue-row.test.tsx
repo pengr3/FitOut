@@ -204,7 +204,7 @@ function listingRow(over: Partial<OpsQueueListingRow> = {}): OpsQueueListingRow 
       { id: "ph_3", url: "https://example.test/3.jpg", position: 2 },
     ],
     amenities: ["wifi", "mystery_amenity"],
-    ...({ operatingHours: OPERATING_HOURS } as object),
+    operatingHours: OPERATING_HOURS,
     submittedAt: new Date("2026-08-26T00:00:00Z"),
     waitLabel: WAIT,
     submittedLabel: SUBMITTED,

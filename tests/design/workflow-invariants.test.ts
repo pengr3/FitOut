@@ -70,7 +70,7 @@
 // about a credential's value.
 
 import { describe, it, expect } from "vitest";
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import {
   copyFileSync,
   mkdirSync,
@@ -232,7 +232,7 @@ function eolOf(text: string): string {
  * line to change instead of three. The alias is deliberately NOT `any` — the call sites still read
  * `result.status`, `result.stdout` and `result.stderr` as strings.
  */
-type CheckerRun = ReturnType<typeof spawnSync<string>>;
+type CheckerRun = SpawnSyncReturns<string>;
 
 /**
  * The single harness every case goes through. Builds a throwaway tree holding exactly what the

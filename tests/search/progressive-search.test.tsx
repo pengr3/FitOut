@@ -4,7 +4,12 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, expect, it, vi } from "vitest";
 
 import { parseGroupPartySize } from "@/components/search/party-step";
-import { progressiveSearchReducer, SearchExperience, type ProgressiveSearchState } from "@/components/search/search-experience";
+import {
+  progressiveSearchReducer,
+  SearchExperience,
+  type ProgressiveSearchEvent,
+  type ProgressiveSearchState,
+} from "@/components/search/search-experience";
 import { MAX_OPEN_CAPACITY } from "@/lib/validation/listing";
 
 const push = vi.fn();
@@ -251,7 +256,7 @@ it("keeps address entry usable when browser location is unavailable", () => {
 });
 
 it("keeps address entry usable after browser location denial", () => {
-  const getCurrentPosition = vi.fn((_success: PositionCallback, failure?: PositionErrorCallback) => failure?.({ code: 1 } as PositionError));
+  const getCurrentPosition = vi.fn((_success: PositionCallback, failure?: PositionErrorCallback) => failure?.({ code: 1 } as GeolocationPositionError));
   Object.defineProperty(window.navigator, "geolocation", { configurable: true, value: { getCurrentPosition } });
   renderSearch();
   selectActivity();
@@ -527,7 +532,7 @@ it("invalidates location callbacks after Cancel and after a newer browser attemp
   push.mockClear();
   selectActivity();
   fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-  act(() => attempts[1]?.failure?.({ code: 2 } as PositionError));
+  act(() => attempts[1]?.failure?.({ code: 2 } as GeolocationPositionError));
   await waitFor(() => expect(screen.getByRole("button", { name: "Use my location" }).hasAttribute("disabled")).toBe(false));
   fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
   act(() => attempts[1]?.success({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition));

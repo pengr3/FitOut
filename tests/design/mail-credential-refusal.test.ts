@@ -59,7 +59,7 @@
 // with — the seam that makes the two halves one value. A copy here would be a third spelling.
 
 import { describe, it, expect } from "vitest";
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import {
   copyFileSync,
   mkdtempSync,
@@ -112,7 +112,7 @@ const SENTINEL = "sentinel-value-that-must-never-be-printed-9f3a";
  * inherited that could accidentally satisfy or defeat the property under test.
  */
 function baseEnv(): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = { PATH: process.env.PATH ?? "" };
+  const env: NodeJS.ProcessEnv = { NODE_ENV: process.env.NODE_ENV ?? "test", PATH: process.env.PATH ?? "" };
   if (process.platform === "win32") {
     env.SystemRoot = process.env.SystemRoot ?? "";
     env.ComSpec = process.env.ComSpec ?? "";
@@ -157,7 +157,7 @@ function withDecoySource(assert: (decoyPath: string) => void) {
 function withScriptCopy(
   siblingText: string | null,
   assert: (
-    result: ReturnType<typeof spawnSync<string>>,
+    result: SpawnSyncReturns<string>,
     paths: { copy: string; sibling: string },
   ) => void,
 ) {
