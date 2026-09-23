@@ -273,12 +273,17 @@ function diditFailureDetail(text: string): string {
 
   const body = parsed as Record<string, unknown>;
   const detail = body.detail;
+  const detailItem =
+    Array.isArray(detail) && detail[0] !== null && typeof detail[0] === "object"
+      ? (detail[0] as Record<string, unknown>)
+      : null;
   const candidate =
     typeof detail === "string"
       ? detail
       : detail !== null && typeof detail === "object" && !Array.isArray(detail)
         ? ((detail as Record<string, unknown>).message ?? (detail as Record<string, unknown>).code)
-        : body.message ?? body.code;
+        : detailItem?.msg ?? detailItem?.message ?? detailItem?.code ?? detailItem?.type ??
+          body.message ?? body.code;
 
   if (typeof candidate !== "string") return "";
 

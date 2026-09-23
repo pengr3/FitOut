@@ -298,6 +298,28 @@ describe("T-18.1-0503 — every failure path FAILS CLOSED: no VerificationResult
     expect(refusal.message).not.toContain(USER_ID);
   });
 
+  it("case 4c — an array-shaped validation refusal omits echoed input", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        {
+          detail: [
+            {
+              loc: ["body", "workflow_id"],
+              msg: "workflow_id is not accepted for this application",
+              input: FAKE_WORKFLOW_ID,
+            },
+          ],
+        },
+        400,
+      ),
+    );
+
+    const refusal = await refuses("HTTP 400 array validation refusal");
+    expect(refusal.message).toContain("workflow_id is not accepted for this application");
+    expect(refusal.message).not.toContain(FAKE_WORKFLOW_ID);
+    expect(refusal.message).not.toContain("input");
+  });
+
   it("case 5 — a 201 whose body carries no session handle produces NO result", async () => {
     // The dangerous shape: the vendor said yes, so a hopeful reader would take the 2xx as a started
     // check and write a row with an invented or empty `vendorRef` — a compliance column pointing at
