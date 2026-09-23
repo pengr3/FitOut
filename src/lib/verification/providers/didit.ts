@@ -256,6 +256,37 @@ type DiditSessionResponse = {
 };
 
 /**
+ * Extract the one operator-useful validation message from a refused request without retaining the
+ * vendor's entire body. Didit may include session handles or echoed request values in future error
+ * schemas; those are deliberately not accepted here. The selected fields are bounded so this error
+ * remains safe for the protected server log that records it.
+ */
+function diditFailureDetail(text: string): string {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text) as unknown;
+  } catch {
+    return "";
+  }
+
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return "";
+
+  const body = parsed as Record<string, unknown>;
+  const detail = body.detail;
+  const candidate =
+    typeof detail === "string"
+      ? detail
+      : detail !== null && typeof detail === "object" && !Array.isArray(detail)
+        ? ((detail as Record<string, unknown>).message ?? (detail as Record<string, unknown>).code)
+        : body.message ?? body.code;
+
+  if (typeof candidate !== "string") return "";
+
+  const compact = candidate.replaceAll(/\s+/g, " ").trim();
+  return compact === "" ? "" : compact.slice(0, 240);
+}
+
+/**
  * The decision-endpoint response, narrowed to what FitOut is allowed to read.
  *
  * ⚠ PLURAL ARRAYS, AND THE SINGULAR SPELLINGS ARE ABSENT BY CONSTRUCTION. V3 returns one array per
@@ -367,8 +398,10 @@ export async function beginDiditVerification(userId: string): Promise<DiditSessi
         res.status,
       );
     }
+    const detail = diditFailureDetail(text);
     throw new DiditSessionError(
-      `Didit POST ${path} failed (HTTP ${res.status}). No session was created.`,
+      `Didit POST ${path} failed (HTTP ${res.status})${detail ? `: ${detail}` : ""}. ` +
+        "No session was created.",
       res.status,
     );
   }

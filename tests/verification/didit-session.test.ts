@@ -279,6 +279,25 @@ describe("T-18.1-0503 — every failure path FAILS CLOSED: no VerificationResult
     }
   });
 
+  it("case 4b — a validation refusal exposes only Didit's bounded operator detail", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(
+        {
+          detail: {
+            message: "workflow_id does not belong to this live application",
+            echoed_request: { vendor_data: USER_ID },
+          },
+        },
+        400,
+      ),
+    );
+
+    const refusal = await refuses("HTTP 400 validation refusal");
+    expect(refusal.message).toContain("workflow_id does not belong to this live application");
+    expect(refusal.message).not.toContain("echoed_request");
+    expect(refusal.message).not.toContain(USER_ID);
+  });
+
   it("case 5 — a 201 whose body carries no session handle produces NO result", async () => {
     // The dangerous shape: the vendor said yes, so a hopeful reader would take the 2xx as a started
     // check and write a row with an invented or empty `vendorRef` — a compliance column pointing at
