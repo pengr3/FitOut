@@ -8,7 +8,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { refreshOnboardingLink } from "@/app/actions/paymongo-connect";
 import { Button } from "@/components/ui/button";
 
 export default async function PayoutRefreshPage() {
@@ -21,23 +20,17 @@ export default async function PayoutRefreshPage() {
     redirect("/");
   }
 
-  // Re-mint a fresh single-use onboarding link and bounce the host back into the flow.
-  const res = await refreshOnboardingLink();
-  if (res.ok) {
-    redirect(res.url);
-  }
-
-  // Fallback (rate-limited or a transient error): let the host retry from the dashboard nudge.
+  // This legacy provider return URL is intentionally inert. Never mint a linked-account onboarding
+  // URL from a direct request; the parent-merchant payout flow lives on the host-owned settings page.
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Let&apos;s pick up where you left off</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Set your payout destination</h1>
       <p className="mt-2 max-w-prose text-muted-foreground">
-        We couldn&apos;t reopen payout setup just now. Head back to your dashboard and choose
-        &ldquo;Finish payout setup&rdquo; to continue.
+        Choose the bank account or e-wallet where FitOut should send your earnings after a completed session.
       </p>
       <div className="mt-8">
         <Button asChild variant="outline">
-          <Link href="/host">Back to your dashboard</Link>
+          <Link href="/host/payouts">Set payout destination</Link>
         </Button>
       </div>
     </div>

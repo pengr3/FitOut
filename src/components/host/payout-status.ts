@@ -14,7 +14,10 @@ export function derivePayoutStatus(
     | undefined
     | null,
 ): PayoutStatus {
-  if (!row || !row.paymongoAccountId) return "not_started";
+  // A host_payout row is created only by an explicit setup attempt.  Older rows may carry a legacy
+  // PayMongo linked-account id; newer parent-merchant rows intentionally do not.  Both mean setup
+  // has started, while an absent row remains the only honest "not started" state.
+  if (!row) return "not_started";
   if (row.payoutsEnabled) return "enabled";
   if (row.activationStatus === "declined") return "paused";
   return "incomplete";

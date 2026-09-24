@@ -549,6 +549,51 @@ export async function createBatchTransfer(input: {
 }
 
 /**
+ * Release a host's held earnings to their verified external bank/e-wallet through InstaPay.  This
+ * intentionally has a separate function and idempotency namespace from the legacy in-house wallet
+ * transfer and from QRPh refunds: mixing either pair risks replaying the wrong money movement.
+ */
+export async function createExternalHostPayout(input: {
+  netCents: number;
+  currency?: string;
+  bookingId: string;
+  description: string;
+  destination: { number: string; name: string; bic: string };
+}): Promise<BatchTransfer> {
+  if (input.netCents > INSTAPAY_CEILING_CENTS) {
+    throw new Error(`Host payout for ${input.bookingId} exceeds the InstaPay ceiling.`);
+  }
+  const sourceAccount = platformWallet();
+  const json = await paymongoFetch<{
+    data?: { id?: string; attributes?: { transfers?: Array<{ id?: string; status?: string }> } };
+  }>("/v2/batch_transfers", {
+    method: "POST",
+    idempotencyKey: `host-external-payout:${input.bookingId}`,
+    body: {
+      transfers: [
+        {
+          provider: "instapay",
+          amount: input.netCents,
+          currency: (input.currency ?? "PHP").toUpperCase(),
+          purpose: "Disbursement",
+          description: input.description,
+          reference_number: `host-payout-${input.bookingId}`,
+          source_account: { number: sourceAccount.number, name: sourceAccount.name, bic: sourceAccount.bic },
+          destination_account: {
+            number: input.destination.number,
+            name: input.destination.name,
+            bic: input.destination.bic,
+          },
+          metadata: { booking_id: input.bookingId },
+        },
+      ],
+    },
+  });
+  const transfer = json.data?.attributes?.transfers?.[0];
+  return { batchId: json.data?.id ?? "", transferId: transfer?.id ?? "", status: transfer?.status ?? "" };
+}
+
+/**
  * InstaPay's real-time ceiling: ₱50,000 = 5_000_000 centavos (07-RESEARCH § InstaPay transfer shape).
  * A transfer above it is DOOMED — do not fire it. createRefundTransfer throws below as defence in depth;
  * the cancel action checks this constant FIRST and takes the `needs_attention` operator-alert path instead

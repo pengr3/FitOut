@@ -233,8 +233,8 @@ describe("the zero-listing host roadmap through the real dashboard composition",
   });
 });
 
-describe("payout onboarding recovery", () => {
-  it("keeps a rejected payout action inline and available for retry without navigating", async () => {
+describe("payout destination route", () => {
+  it("routes the payout step to the encrypted destination form rather than the legacy provider onboarding", async () => {
     queueSelectResult(
       [{ id: "listing_draft", status: "draft", reviewState: "pending" }],
       [{ p: 0 }],
@@ -246,85 +246,9 @@ describe("payout onboarding recovery", () => {
       suspended: false,
       updatedAt: DB_NOW,
     });
-    h.startPayoutOnboardingMock.mockRejectedValueOnce(
-      new Error("server action transport failed"),
-    );
-    const hrefBefore = window.location.href;
-
     render(await HostDashboardPage());
 
-    const payoutAction = screen.getByRole("button", { name: "Set up payouts" });
-    fireEvent.click(payoutAction);
-
-    expect(
-      await screen.findByText("We couldn't start payout setup. Please try again."),
-    ).not.toBeNull();
-    expect(window.location.href).toBe(hrefBefore);
-    await waitFor(() => {
-      expect(
-        screen
-          .getByRole("button", { name: "Set up payouts" })
-          .hasAttribute("disabled"),
-      ).toBe(false);
-    });
-    expect(h.startPayoutOnboardingMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("clears a stale rejection during retry and replaces it with the new refusal", async () => {
-    queueSelectResult(
-      [{ id: "listing_draft", status: "draft", reviewState: "pending" }],
-      [{ p: 0 }],
-      [],
-    );
-    h.loadVerificationMock.mockResolvedValue({
-      status: "approved",
-      reason: null,
-      suspended: false,
-      updatedAt: DB_NOW,
-    });
-
-    let resolveRetry!: (result: {
-      ok: false;
-      error: string;
-    }) => void;
-    const retryResult = new Promise<{ ok: false; error: string }>((resolve) => {
-      resolveRetry = resolve;
-    });
-    h.startPayoutOnboardingMock
-      .mockRejectedValueOnce(new Error("server action transport failed"))
-      .mockReturnValueOnce(retryResult);
-    const hrefBefore = window.location.href;
-
-    render(await HostDashboardPage());
-
-    const payoutAction = screen.getByRole("button", { name: "Set up payouts" });
-    fireEvent.click(payoutAction);
-    expect(
-      await screen.findByText("We couldn't start payout setup. Please try again."),
-    ).not.toBeNull();
-
-    await waitFor(() => {
-      expect(
-        screen
-          .getByRole("button", { name: "Set up payouts" })
-          .hasAttribute("disabled"),
-      ).toBe(false);
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Set up payouts" }));
-    await waitFor(() => {
-      expect(
-        screen.queryByText("We couldn't start payout setup. Please try again."),
-      ).toBeNull();
-    });
-    expect(h.startPayoutOnboardingMock).toHaveBeenCalledTimes(2);
-
-    resolveRetry({ ok: false, error: "Payout setup is unavailable." });
-
-    expect(await screen.findByText("Payout setup is unavailable.")).not.toBeNull();
-    expect(
-      screen.queryByText("We couldn't start payout setup. Please try again."),
-    ).toBeNull();
-    expect(window.location.href).toBe(hrefBefore);
-    expect(h.startPayoutOnboardingMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("link", { name: "Set up payouts" }).getAttribute("href")).toBe("/host/payouts");
+    expect(h.startPayoutOnboardingMock).not.toHaveBeenCalled();
   });
 });

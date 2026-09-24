@@ -347,6 +347,31 @@ export const hostPayout = pgTable("host_payout", {
     .notNull(),
 });
 
+// External payout destinations for the parent-merchant model.  FitOut receives the booking payment,
+// then makes an InstaPay disbursement to this host-selected bank/e-wallet.  Only institution metadata and
+// a masked suffix are readable in normal queries: account name and number are AES-GCM ciphertext.  A
+// changed destination is always `pending` again, so `host_payout.payouts_enabled` is disabled before any
+// new booking can be paid toward it.
+export const hostPayoutDestination = pgTable("host_payout_destination", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  institutionBic: text("institution_bic").notNull(),
+  institutionName: text("institution_name").notNull(),
+  accountNameCiphertext: text("account_name_ciphertext").notNull(),
+  accountNumberCiphertext: text("account_number_ciphertext").notNull(),
+  accountLast4: text("account_last4").notNull(),
+  verificationStatus: text("verification_status").default("pending").notNull(), // pending|verified|rejected
+  verificationReference: text("verification_reference"), // staff-recorded manual account-ownership check reference
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  verifiedBy: text("verified_by"), // authenticated FitOut staff id; deliberately no FK for durable history
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => /* @__PURE__ */ new Date())
+    .notNull(),
+});
+
 // ---------------------------------------------------------------------------
 // Phase-18 host verification & listing review (HVER-02 / LVER-04, D-206/D-211/D-220/D-221/D-222/D-223).
 // ---------------------------------------------------------------------------

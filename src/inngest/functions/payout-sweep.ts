@@ -1,10 +1,9 @@
 // The T+24h host-payout sweep cron (D-55/D-56, PAY-03/PAY-02) — the FIRST async-scheduled job in the
 // codebase. Hourly (timezone-aware), it finds bookings whose session ended ≥ PAYOUT_DELAY_HOURS ago with NO
 // payout row yet, claims each at-most-once with an `INSERT ... ON CONFLICT (booking_id, kind)` ledger row
-// that FREEZES the applied commission (D-51), CORRELATES the payout wallet to THAT booking's host
-// (wallet.id === host_payout.paymongo_account_id — NEVER an arbitrary wallet), NETS any outstanding
-// host-cancellation debit (D-71), and fires an inhouse `/v2/batch_transfers` of exactly the netted amount
-// (D-52), moving the ledger Held → Processing.
+// that FREEZES the applied commission (D-51), joins a VERIFIED encrypted destination belonging to THAT host,
+// NETS any outstanding host-cancellation debit (D-71), and fires an InstaPay `/v2/batch_transfers` release
+// of exactly the netted amount (D-52), moving the ledger Held → Processing.
 //
 // CORRECTNESS RESTS ON FOUR INVARIANTS. The first three are DB-LEVEL, exactly as double-booking rests on
 // the GiST EXCLUDE; the fourth is a PREDICATE, and WHERE it sits is the whole of its design:
@@ -15,9 +14,10 @@
 //      one signed `host_cancel_fee` debit row. The payout guarantee is UNCHANGED: this INSERT omits `kind`,
 //      so the NOT NULL DEFAULT 'payout' applies before conflict resolution and the arbiter matches the
 //      composite index — at most one kind='payout' row per booking, exactly as before.
-//   2. `wallet.id === b.paymongoAccountId` — the payout can ONLY address the booking's own host's wallet.
-//      No match ⇒ ROLL THE CLAIM BACK (retry next sweep) + operator alert + fire NOTHING (never wallets[0],
-//      never cross-pay). CR-01: a `held` row is never a dead end — any post-claim failure becomes `failed`.
+//   2. `host_payout_destination.user_id === listing.host_id` plus `verification_status='verified'` and the
+//      host's enabled gate — the payout can ONLY address the booking's own reviewed destination. No global
+//      wallet list exists in this path. CR-01: a `held` row is never a dead end — any post-claim failure
+//      becomes `failed`.
 //   3. `kind` SCOPES EVERY LEDGER READ AND WRITE (Phase 7, D-71 / 07-RESEARCH Finding 3). A
 //      `host_cancel_fee` row is a SIGNED DEBIT (negative net_cents) that NEVER transfers — it only NETS
 //      against a future payout, accumulating `recovered_cents` toward `-net_cents`. Every query in this
@@ -58,7 +58,8 @@ import {
   PAYOUT_RETRY_BACKOFF_HOURS,
   PAYOUT_RETRY_MAX_AGE_HOURS,
 } from "@/lib/payments/config";
-import { createBatchTransfer, listWalletAccounts } from "@/lib/paymongo";
+import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
+import { createExternalHostPayout } from "@/lib/paymongo";
 
 /** How many due bookings a single sweep pass claims (coarse T+24h cadence — one pass drains the backlog). */
 const SWEEP_BATCH_SIZE = 100;
@@ -83,8 +84,12 @@ export type DuePayout = {
   hostId: string;
   /** PayMongo pay_... captured at confirm (may be null on legacy rows). */
   paymentId: string | null;
-  /** The host's PayMongo Linked-Account id — the wallet is CORRELATED against this (never [0]). */
-  paymongoAccountId: string | null;
+  /** The verified, owner-bound external destination. The two sensitive fields are ciphertext. */
+  institutionBic: string;
+  accountNameCiphertext: string;
+  accountNumberCiphertext: string;
+  /** @deprecated Legacy fixture field. It is never read by the parent-merchant payout path. */
+  paymongoAccountId?: string | null;
 };
 
 /** The per-booking outcome of a payout attempt (JSON-serializable for the Inngest step boundary). */
@@ -103,8 +108,8 @@ export type PayOneResult =
  * payout row yet (`p.id IS NULL`) OR — WR-04 bounded retry — its row is `failed`, the retry backoff has
  * elapsed (`updated_at` ≥ PAYOUT_RETRY_BACKOFF_HOURS ago), and its ORIGINAL claim is still within
  * PAYOUT_RETRY_MAX_AGE_HOURS (so a transient PayMongo error recovers automatically without retrying forever).
- * `hp.paymongo_account_id` is aliased → `paymongoAccountId` so the caller can correlate the wallet. Takes an
- * explicit `dbConn` so a test can inject an isolated-schema db.
+ * The encrypted recipient columns are read only for a verified destination bound to the listing host. Takes
+ * an explicit `dbConn` so a test can inject an isolated-schema db.
  *
  * ⚠️ `AND p.kind = 'payout'` on the LEFT JOIN is load-bearing (Finding 3): without it a `host_cancel_fee`
  * DEBIT row would make the booking look already-claimed and would silently SUPPRESS a legitimate payout.
@@ -118,10 +123,13 @@ export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
     SELECT b.id AS "bookingId", b.listing_id AS "listingId",
            COALESCE(b.retained_space_cents, b.space_price_cents) AS "payoutGrossCents",
            b.currency AS "currency", b.payment_id AS "paymentId",
-           l.host_id AS "hostId", hp.paymongo_account_id AS "paymongoAccountId"
+           l.host_id AS "hostId", hpd.institution_bic AS "institutionBic",
+           hpd.account_name_ciphertext AS "accountNameCiphertext",
+           hpd.account_number_ciphertext AS "accountNumberCiphertext"
     FROM booking b
     JOIN listing l ON l.id = b.listing_id
     JOIN host_payout hp ON hp.user_id = l.host_id
+    JOIN host_payout_destination hpd ON hpd.user_id = l.host_id
     -- LEFT, not INNER, and for the same reason src/lib/search/query.ts states at its own copy of this
     -- join: host_verification is 1:1 to user but is NOT created with the user, so a host with NO ROW is
     -- the common case. An INNER JOIN here would silently stop paying every un-checked host.
@@ -165,6 +173,10 @@ export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
       -- missing row means NOT suspended and must still be PAID. Inverting this into the sell-gate's
       -- shape would freeze the payouts of every host nobody has checked yet -- most of them.
       AND COALESCE(hv.status::text, 'unverified') <> 'suspended'
+      -- Both predicates are release gates, not conveniences.  The destination review and the cached
+      -- booking gate must agree before a due row can even be claimed.
+      AND hp.payouts_enabled = true
+      AND hpd.verification_status = 'verified'
     ORDER BY b.ends_at ASC
     LIMIT ${SWEEP_BATCH_SIZE}
   `)) as unknown as DuePayout[];
@@ -234,29 +246,15 @@ export async function payOne(dbConn: DbConn, b: DuePayout): Promise<PayOneResult
   if (claimed.length === 0) return { status: "skipped-claimed" }; // owned by another sweep / already progressed → fire nothing
   const alreadyDeducted = claimed[0].alreadyDeducted ?? 0;
 
-  // CR-01: everything AFTER the claim is GUARDED — a `held` row must NEVER become a silent dead end. The
-  // wallet lookup lives INSIDE the try so a listWalletAccounts() throw can't strand a `held` row, and the
-  // catch turns ANY post-claim failure into a `failed` row (alerted + surfaced), never a permanent `held`.
+  // CR-01: everything AFTER the claim is GUARDED — a `held` row must NEVER become a silent dead end.
   try {
-    // (3) Resolve the payout wallet by CORRELATING it to THIS booking's host — NEVER an arbitrary wallet.
-    const wallets = (await listWalletAccounts()).filter((w) => w.status === "activated");
-    const wallet = wallets.find((w) => w.id === b.paymongoAccountId); // match the host's Linked-Account id
-    if (!wallet) {
-      // No wallet belongs to this host YET. The money must NOT be released — but leaving the `held` claim in
-      // place makes the booking a permanent dead end (queryDuePayouts never re-selects a booking that already
-      // has a ledger row). ROLL THE CLAIM BACK so a later sweep retries once the host finishes/reactivates
-      // onboarding. The money never left the platform wallet, so this stays fail-closed. Alert; fire nothing.
-      await dbConn.execute(sql`
-        DELETE FROM host_payout_ledger
-        WHERE booking_id = ${b.bookingId} AND kind = 'payout'
-          AND state = 'held' AND transfer_id IS NULL
-      `);
-      console.error("[payout-alert] no activated wallet for host", {
-        bookingId: b.bookingId,
-        paymongoAccountId: b.paymongoAccountId,
-      });
-      return { status: "skipped-no-wallet" };
-    }
+    // (3) Decrypt only after a verified destination has been joined to this host's booking.  It is
+    // never logged or returned from this function; the next use is the provider request body.
+    const destination = {
+      name: decryptPayoutRecipientValue(b.accountNameCiphertext),
+      number: decryptPayoutRecipientValue(b.accountNumberCiphertext),
+      bic: b.institutionBic,
+    };
 
     // (4) D-71 NETTING: recover any outstanding host_cancel_fee debit from this payout before transferring.
     //     A debit row carries NEGATIVE net_cents; recovered_cents accumulates toward -net_cents. The debit is
@@ -326,14 +324,14 @@ export async function payOne(dbConn: DbConn, b: DuePayout): Promise<PayOneResult
       return { status: "settled-by-netting", deductedCents: deduction };
     }
 
-    // (5) Fire the inhouse net transfer to the CORRELATED wallet (Idempotency-Key payout:<bookingId> is set
-    //     inside createBatchTransfer). (6) On success, RELEASE Held → Processing.
-    const transfer = await createBatchTransfer({
+    // (5) Fire the parent-merchant InstaPay disbursement. The provider call has a payout-specific,
+    // stable idempotency key; no legacy linked-account wallet can be selected here.
+    const transfer = await createExternalHostPayout({
       netCents: transferAmt,
       currency: b.currency,
       bookingId: b.bookingId,
       description: `FitOut payout ${b.bookingId}`,
-      destination: { number: wallet.accountNumber, name: wallet.accountName },
+      destination,
     });
     await dbConn.execute(sql`
       UPDATE host_payout_ledger
@@ -354,11 +352,8 @@ export async function payOne(dbConn: DbConn, b: DuePayout): Promise<PayOneResult
       UPDATE host_payout_ledger SET state = 'failed', updated_at = now()
       WHERE booking_id = ${b.bookingId} AND kind = 'payout' AND state = 'held'
     `);
-    console.error("[payout-alert] payout attempt failed", {
-      bookingId: b.bookingId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    return { status: "failed", error: err instanceof Error ? err.message : String(err) };
+    console.error("[payout-alert] payout attempt failed", { bookingId: b.bookingId });
+    return { status: "failed", error: "payout_attempt_failed" };
   }
 }
 

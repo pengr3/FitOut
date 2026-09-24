@@ -11,9 +11,8 @@
 // The interactive states call the startPayoutOnboarding server action, then redirect the browser to the
 // PayMongo-hosted onboarding URL it returns (single-use link, minted fresh on every click server-side).
 
-import { useState, useTransition } from "react";
+import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
-import { startPayoutOnboarding } from "@/app/actions/paymongo-connect";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,22 +24,6 @@ import type { PayoutStatus } from "./payout-status";
 export type { PayoutStatus } from "./payout-status";
 
 export function PayoutBanner({ status }: { status: PayoutStatus }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  function beginOnboarding() {
-    setError(null);
-    startTransition(async () => {
-      const res = await startPayoutOnboarding();
-      if (res.ok) {
-        // Redirect into the hosted onboarding flow (single-use link, minted fresh server-side).
-        window.location.href = res.url;
-      } else {
-        setError(res.error);
-      }
-    });
-  }
-
   // Payouts enabled → all set; a listing that's published can now accept bookings.
   //
   // DS-10 / D-14: this badge was a FILLED green chip carrying its meaning in the fill alone — no icon at
@@ -72,11 +55,10 @@ export function PayoutBanner({ status }: { status: PayoutStatus }) {
           Your payout account needs attention — guests can&apos;t book until it&apos;s resolved.
         </AlertDescription>
         <div className="mt-3">
-          <Button onClick={beginOnboarding} disabled={pending}>
-            Review payout setup
+          <Button asChild>
+            <Link href="/host/payouts">Review payout details</Link>
           </Button>
         </div>
-        {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
       </Alert>
     );
   }
@@ -94,11 +76,10 @@ export function PayoutBanner({ status }: { status: PayoutStatus }) {
           : "You can create and publish listings now. To accept bookings and get paid, set up payouts."}
       </AlertDescription>
       <div className="mt-3">
-        <Button onClick={beginOnboarding} disabled={pending}>
-          {isIncomplete ? "Finish payout setup" : "Set up payouts"}
+        <Button asChild>
+          <Link href="/host/payouts">{isIncomplete ? "Finish payout setup" : "Set up payouts"}</Link>
         </Button>
       </div>
-      {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
     </Alert>
   );
 }

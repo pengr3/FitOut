@@ -54,6 +54,7 @@ import { HOST_CANCEL_FEE_CENTS } from "@/lib/payments/fees";
 import { summarizePayouts } from "@/components/host/payout-ledger-status";
 import type { RateLimitOptions, RateLimitResult } from "@/lib/rate-limit";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
+import { encryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -300,6 +301,7 @@ beforeAll(async () => {
   vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
+    createExternalHostPayout: mockPayMongo.createBatchTransfer,
     createRefund: mockPayMongo.createRefund,
     createCheckoutSession: mockPayMongo.createCheckoutSession,
     createBatchTransfer: mockPayMongo.createBatchTransfer,
@@ -552,6 +554,9 @@ describe("cancelBookingAsHost — I3: the debit is at-most-once and payout-safe"
       hostId: netHostId,
       paymentId: "pay_bk_net_payable",
       paymongoAccountId: NET_WALLET_ID,
+      institutionBic: "TESTPHM2XXX",
+      accountNameCiphertext: encryptPayoutRecipientValue("Net Host"),
+      accountNumberCiphertext: encryptPayoutRecipientValue("9990002222"),
     };
     const result = await payOne(testDb.db, duePayout);
 

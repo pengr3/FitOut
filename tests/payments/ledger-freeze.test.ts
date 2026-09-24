@@ -13,6 +13,7 @@ import { user, listing, hostPayoutLedger, booking } from "@/lib/db/schema";
 import { computeCommission } from "@/lib/payments/commission";
 import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
+import { encryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 
 let testDb: TestDb;
 type SweepModule = typeof import("@/inngest/functions/payout-sweep");
@@ -90,6 +91,7 @@ beforeAll(async () => {
   });
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
+    createExternalHostPayout: mockPayMongo.createBatchTransfer,
     createBatchTransfer: mockPayMongo.createBatchTransfer,
     listWalletAccounts: mockPayMongo.listWalletAccounts,
     createCheckoutSession: mockPayMongo.createCheckoutSession,
@@ -122,6 +124,9 @@ describe("commission freeze (PAY-02, D-51)", () => {
       hostId: A.hostId,
       paymentId: null,
       paymongoAccountId: A.accountId,
+      institutionBic: "TESTPHM2XXX",
+      accountNameCiphertext: encryptPayoutRecipientValue("Test Host"),
+      accountNumberCiphertext: encryptPayoutRecipientValue("9990001111"),
     };
 
     // First sweep at the default 10% rate → the ledger FREEZES 1000 bps / 20000 c.

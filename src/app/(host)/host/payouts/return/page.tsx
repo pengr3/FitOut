@@ -34,11 +34,11 @@ export default async function PayoutReturnPage() {
 
   return (
     <div className="mx-auto w-full max-w-2xl px-4 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Thanks — that&apos;s submitted</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Set your payout destination</h1>
       <p className="mt-2 max-w-prose text-muted-foreground">
         {status === "enabled"
           ? "You're all set to get paid. Your published listings can now accept bookings."
-          : "We're confirming your details. This can take a moment — we'll update your dashboard as soon as your account is ready to accept bookings."}
+          : "Choose the bank account or e-wallet where FitOut should send your earnings after a completed session."}
       </p>
 
       <div className="mt-8">
@@ -47,7 +47,7 @@ export default async function PayoutReturnPage() {
 
       <div className="mt-8">
         <Button asChild variant="outline">
-          <Link href="/host">Back to your dashboard</Link>
+          <Link href="/host/payouts">Set payout destination</Link>
         </Button>
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import Link from "next/link";
 import {
   CheckCircle2,
@@ -10,7 +10,6 @@ import {
   PauseCircle,
 } from "lucide-react";
 
-import { startPayoutOnboarding } from "@/app/actions/paymongo-connect";
 import { PanelCard } from "@/components/patterns/panel-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,25 +36,6 @@ export function VerificationRoadmap({
   model,
   createListingAction,
 }: VerificationRoadmapProps) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  function beginPayoutOnboarding() {
-    setError(null);
-    startTransition(async () => {
-      try {
-        const result = await startPayoutOnboarding();
-        if (result.ok) {
-          window.location.href = result.url;
-          return;
-        }
-        setError(result.error);
-      } catch {
-        setError("We couldn't start payout setup. Please try again.");
-      }
-    });
-  }
-
   if (model.kind === "ready") {
     return (
       <section aria-labelledby="verification-roadmap-heading">
@@ -122,21 +102,9 @@ export function VerificationRoadmap({
                           </Button>
                         )
                       ) : (
-                        <>
-                          <Button
-                            type="button"
-                            size="touch"
-                            onClick={beginPayoutOnboarding}
-                            disabled={pending}
-                          >
-                            {step.action.label}
-                          </Button>
-                          {error ? (
-                            <p className="mt-2 text-sm text-muted-foreground">
-                              {error}
-                            </p>
-                          ) : null}
-                        </>
+                        <Button asChild size="touch">
+                          <Link href="/host/payouts">{step.action.label}</Link>
+                        </Button>
                       )}
                     </div>
                   ) : null}

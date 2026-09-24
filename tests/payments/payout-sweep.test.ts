@@ -19,6 +19,7 @@ import { makeVerifiedHost } from "../helpers/seed";
 import { user, listing, hostPayoutLedger, booking } from "@/lib/db/schema";
 import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
+import { encryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 
 let testDb: TestDb;
 type SweepModule = typeof import("@/inngest/functions/payout-sweep");
@@ -46,6 +47,7 @@ async function makeHost(): Promise<{ hostId: string; accountId: string }> {
     email: `${hostId}@example.com`,
     firstName: "Host",
     paymongoAccountId: accountId,
+    payoutDestinationNumber: accountId,
   });
   return { hostId, accountId };
 }
@@ -147,6 +149,9 @@ function duePayout(opts: {
     hostId: opts.hostId,
     paymentId: null,
     paymongoAccountId: opts.accountId,
+    institutionBic: "TESTPHM2XXX",
+    accountNameCiphertext: encryptPayoutRecipientValue("Test Host"),
+    accountNumberCiphertext: encryptPayoutRecipientValue(opts.accountId ?? "9990001111"),
   };
 }
 
@@ -181,6 +186,7 @@ beforeAll(async () => {
   });
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
+    createExternalHostPayout: mockPayMongo.createBatchTransfer,
     createBatchTransfer: mockPayMongo.createBatchTransfer,
     listWalletAccounts: mockPayMongo.listWalletAccounts,
     createCheckoutSession: mockPayMongo.createCheckoutSession,
@@ -226,9 +232,9 @@ describe("payout sweep — due selection (PAY-03, D-55/56)", () => {
     expect(ids).not.toContain(notDueId);
     expect(ids).not.toContain(pendingId);
 
-    // The returned row carries the host's correlating Linked-Account id (the wallet is matched against it).
+    // The returned row carries an institution allow-list identifier, never an arbitrary global wallet id.
     const row = due.find((d) => d.bookingId === dueId)!;
-    expect(row.paymongoAccountId).toBe(A.accountId);
+    expect(row.institutionBic).toBe("TESTPHM2XXX");
     // Finding 2: the sweep's basis is the SPACE price, exposed as payoutGrossCents (never the all-in total).
     expect(row.payoutGrossCents).toBe(200000);
   });
@@ -274,7 +280,7 @@ describe("payout sweep — happy payout (PAY-03/PAY-02, D-51/52/56)", () => {
       destination: { number: string };
     };
     expect(arg.netCents).toBe(180000);
-    expect(arg.destination.number).toBe("9990001111");
+    expect(arg.destination.number).toBe(A.accountId);
   });
 });
 
@@ -347,16 +353,16 @@ describe("payout sweep — multi-host wallet correlation (T-05-33)", () => {
     const numbers = mockPayMongo.createBatchTransfer.mock.calls.map(
       (c) => (c[0] as { destination: { number: string } }).destination.number,
     );
-    // A→AAA, B→BBB, and neither payout ever addressed the OTHER host's wallet.
-    expect(numbers).toEqual(["AAA", "BBB"]);
+    // A and B retain independently encrypted, host-bound destinations; no global wallet enumeration is used.
+    expect(numbers).toEqual([A.accountId, B.accountId]);
     const [rowA, rowB] = [await readLedger(bkA), await readLedger(bkB)];
     expect(rowA.transferId).toBe("tr_test_123");
     expect(rowB.transferId).toBe("tr_test_123");
   });
 });
 
-describe("payout sweep — no matching wallet (T-05-27 / CR-01)", () => {
-  it("rolls the claim back (no dead-end held row), fires NO transfer, and raises a [payout-alert]", async () => {
+describe("payout sweep — external destination isolation (T-05-27 / CR-01)", () => {
+  it("does not inspect or select any global PayMongo wallet when releasing a verified destination", async () => {
     const C = await makeHost();
     // Only OTHER hosts' wallets are activated — host C's Linked-Account id is absent.
     mockPayMongo.listWalletAccounts.mockResolvedValue([
@@ -366,26 +372,18 @@ describe("payout sweep — no matching wallet (T-05-27 / CR-01)", () => {
     const L = await makeListing(C.hostId);
     const bkC = await makeBooking({ listingId: L, status: "confirmed", quotedTotalCents: 200000, endsAtMs: dueMs() });
 
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await payOne(
       testDb.db,
       duePayout({ bookingId: bkC, listingId: L, hostId: C.hostId, accountId: C.accountId, payoutGrossCents: 200000 }),
     );
 
-    expect(res.status).toBe("skipped-no-wallet");
-    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+    expect(res.status).toBe("paid");
+    expect(mockPayMongo.listWalletAccounts).not.toHaveBeenCalled();
+    expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
 
-    // CR-01: the claim is ROLLED BACK — no held row is left behind, so the NEXT sweep re-selects this booking
-    // and retries once the host's wallet activates (a held row would be a permanent dead end). The money
-    // never left the platform wallet, so this is still fail-closed.
+    // The verified destination is released and the legacy wallets were never an input to the decision.
     const row = await readLedger(bkC);
-    expect(row).toBeUndefined();
-
-    expect(spy).toHaveBeenCalledWith(
-      "[payout-alert] no activated wallet for host",
-      expect.objectContaining({ bookingId: bkC, paymongoAccountId: C.accountId }),
-    );
-    spy.mockRestore();
+    expect(row?.state).toBe("processing");
   });
 });
 

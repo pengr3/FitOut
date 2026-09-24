@@ -18,12 +18,14 @@
 import {
   user,
   hostPayout,
+  hostPayoutDestination,
   hostVerification,
   listing,
   listingPhoto,
   listingActivityTag,
   operatingHours,
 } from "@/lib/db/schema";
+import { encryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import type { HostVerificationStatus } from "@/lib/db/schema";
 import type { SpaceTypeValue } from "@/lib/listing-vocab";
 import type { TestDb } from "./db";
@@ -65,6 +67,7 @@ export async function makeVerifiedHost(
     /** false ⇒ no `host_payout` row at all (the payouts-never-onboarded fixture). */
     insertPayout?: boolean;
     paymongoAccountId?: string;
+    payoutDestinationNumber?: string;
     /** `null` ⇒ NO `host_verification` row at all. Any enum value ⇒ a row carrying exactly that status. */
     verificationStatus?: HostVerificationStatus | null;
   } = {},
@@ -98,6 +101,19 @@ export async function makeVerifiedHost(
       payoutsEnabled,
       onboardingComplete: payoutsEnabled,
     });
+    if (payoutsEnabled) {
+      await db.insert(hostPayoutDestination).values({
+        userId: id,
+        institutionBic: "TESTPHM2XXX",
+        institutionName: "Test Bank",
+        accountNameCiphertext: encryptPayoutRecipientValue(`${id} Account`),
+        accountNumberCiphertext: encryptPayoutRecipientValue(opts.payoutDestinationNumber ?? "9990001111"),
+        accountLast4: (opts.payoutDestinationNumber ?? "9990001111").slice(-4),
+        verificationStatus: "verified",
+        verifiedAt: new Date(),
+        verifiedBy: "test_staff",
+      });
+    }
   }
   if (verificationStatus !== null) {
     await db.insert(hostVerification).values({
