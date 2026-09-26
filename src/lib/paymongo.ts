@@ -691,11 +691,20 @@ export type ReceivingInstitution = { name: string; bic: string };
  */
 export async function listReceivingInstitutions(): Promise<ReceivingInstitution[]> {
   const json = await paymongoFetch<{
-    data?: Array<{ attributes?: { name?: string; bic?: string }; name?: string; bic?: string }>;
+    data?: Array<{
+      attributes?: { name?: string; bic?: string; provider_code?: string };
+      name?: string;
+      bic?: string;
+      provider_code?: string;
+    }>;
   }>("/v1/wallets/receiving_institutions?provider=instapay");
-  // Defensive over the beta shape: tolerate both a flat and an attributes-nested entry.
+  // PayMongo calls the BIC `provider_code` on this Wallet endpoint. Keep the legacy `bic` fallbacks
+  // because some earlier response variants used that field name directly.
   return (json.data ?? [])
-    .map((r) => ({ name: r.attributes?.name ?? r.name ?? "", bic: r.attributes?.bic ?? r.bic ?? "" }))
+    .map((r) => ({
+      name: r.attributes?.name ?? r.name ?? "",
+      bic: r.attributes?.provider_code ?? r.provider_code ?? r.attributes?.bic ?? r.bic ?? "",
+    }))
     .filter((r) => r.name !== "" && r.bic !== "");
 }
 

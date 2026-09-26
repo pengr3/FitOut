@@ -588,7 +588,7 @@ describe("listReceivingInstitutions — InstaPay destination directory (/v1 Wall
     fetchMock.mockResolvedValue(
       jsonResponse({
         data: [
-          { attributes: { name: "Test Bank", bic: "TESTPHM2XXX" } },
+          { attributes: { name: "Test Bank", provider_code: "TESTPHM2XXX" } },
           { name: "Test E-Wallet", bic: "TESTPHM2EW1" },
           { attributes: { name: "", bic: "IGNORED" } },
         ],
