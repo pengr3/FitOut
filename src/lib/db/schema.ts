@@ -361,8 +361,8 @@ export const hostPayoutDestination = pgTable("host_payout_destination", {
   accountNameCiphertext: text("account_name_ciphertext").notNull(),
   accountNumberCiphertext: text("account_number_ciphertext").notNull(),
   accountLast4: text("account_last4").notNull(),
-  verificationStatus: text("verification_status").default("pending").notNull(), // pending|verified|rejected
-  verificationReference: text("verification_reference"), // staff-recorded manual account-ownership check reference
+  verificationStatus: text("verification_status").default("pending").notNull(), // pending|host_attested|verified|rejected
+  verificationReference: text("verification_reference"), // redacted host-attestation or staff-check reference
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   verifiedBy: text("verified_by"), // authenticated FitOut staff id; deliberately no FK for durable history
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

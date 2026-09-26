@@ -8,6 +8,7 @@ import { hostPayout, hostPayoutDestination } from "@/lib/db/schema";
 let testDb: TestDb;
 let testAuth: TestAuth;
 let savePayoutDestination: (typeof import("@/app/actions/payout-destination"))["savePayoutDestination"];
+let attestPayoutDestination: (typeof import("@/app/actions/payout-destination"))["attestPayoutDestination"];
 const sessionHeaders: { cookie: string } = { cookie: "" };
 const listReceivingInstitutions = vi.fn(async () => [{ name: "Test Bank", bic: "TESTPHM2XXX" }]);
 
@@ -22,7 +23,7 @@ beforeAll(async () => {
   vi.doMock("@/lib/paymongo", () => ({ listReceivingInstitutions }));
   vi.doMock("@/lib/audit", () => ({ recordAudit: vi.fn(async () => {}) }));
   vi.resetModules();
-  ({ savePayoutDestination } = await import("@/app/actions/payout-destination"));
+  ({ savePayoutDestination, attestPayoutDestination } = await import("@/app/actions/payout-destination"));
 });
 
 afterAll(async () => {
@@ -47,7 +48,7 @@ async function signInHost(email: string): Promise<string> {
 }
 
 describe("savePayoutDestination", () => {
-  it("stores only encrypted recipient values and immediately disables bookings pending staff verification", async () => {
+  it("stores only encrypted recipient values and immediately disables bookings pending host confirmation", async () => {
     const hostId = await signInHost("payout.destination@example.com");
     const result = await savePayoutDestination({
       institutionBic: "TESTPHM2XXX",
@@ -61,6 +62,21 @@ describe("savePayoutDestination", () => {
     expect(destination?.accountNumberCiphertext).not.toContain("09171234567");
     expect(destination?.accountLast4).toBe("4567");
     expect(destination?.verificationStatus).toBe("pending");
+    const [payout] = await testDb.db.select().from(hostPayout).where(eq(hostPayout.userId, hostId));
+    expect(payout?.payoutsEnabled).toBe(false);
+  });
+
+  it("records the host's attestation without enabling bookings or claiming staff verification", async () => {
+    const hostId = await signInHost("payout.destination.attest@example.com");
+    await savePayoutDestination({ institutionBic: "TESTPHM2XXX", accountName: "Host", accountNumber: "09171234567" });
+
+    await expect(attestPayoutDestination()).resolves.toEqual({ ok: true });
+
+    const [destination] = await testDb.db.select().from(hostPayoutDestination).where(eq(hostPayoutDestination.userId, hostId));
+    expect(destination?.verificationStatus).toBe("host_attested");
+    expect(destination?.verificationReference).toBe("host_attestation");
+    expect(destination?.verifiedAt).toBeNull();
+    expect(destination?.verifiedBy).toBeNull();
     const [payout] = await testDb.db.select().from(hostPayout).where(eq(hostPayout.userId, hostId));
     expect(payout?.payoutsEnabled).toBe(false);
   });

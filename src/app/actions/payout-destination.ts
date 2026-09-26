@@ -30,8 +30,8 @@ async function currentHost(): Promise<{ userId: string } | null> {
 
 /**
  * Stores a host-selected bank/e-wallet destination in encrypted form.  The provider directory is
- * consulted before any write so a free-form BIC never becomes a release target.  This action can
- * never enable payouts: a different authenticated staff action verifies the destination first.
+ * consulted before any write so a free-form BIC never becomes a release target. This action always
+ * resets the destination to pending: the host must explicitly attest after every change.
  */
 export async function savePayoutDestination(
   raw: HostPayoutRecipientInput,
@@ -109,6 +109,53 @@ export async function savePayoutDestination(
   }
 
   await recordAudit({ actorId: host.userId, action: "savePayoutDestination", outcome: "ok" });
+  revalidatePath("/host");
+  revalidatePath("/host/earnings");
+  revalidatePath("/host/payouts");
+  return { ok: true };
+}
+
+/**
+ * Records the host's explicit confirmation that the encrypted destination they entered is their own
+ * and accurate. This is deliberately distinct from staff verification: it enables no bookings and
+ * does not move money. A later bounded-release decision still controls `payoutsEnabled`.
+ */
+export async function attestPayoutDestination(): Promise<PayoutDestinationResult> {
+  const host = await currentHost();
+  if (!host) return { ok: false, error: "Start hosting before confirming a payout destination." };
+
+  const limit = rateLimit(`payout-destination-attest:${host.userId}`, DESTINATION_RATE_LIMIT);
+  if (!limit.ok) return { ok: false, error: "Too many attempts. Please try again in a moment." };
+
+  const [destination] = await db
+    .select({
+      accountNameCiphertext: hostPayoutDestination.accountNameCiphertext,
+      accountNumberCiphertext: hostPayoutDestination.accountNumberCiphertext,
+      verificationStatus: hostPayoutDestination.verificationStatus,
+    })
+    .from(hostPayoutDestination)
+    .where(eq(hostPayoutDestination.userId, host.userId));
+  if (!destination || destination.verificationStatus !== "pending") {
+    return { ok: false, error: "That payout destination is no longer awaiting confirmation." };
+  }
+
+  try {
+    // Integrity check only. The recipient values remain server-local and never cross this boundary.
+    decryptPayoutRecipientValue(destination.accountNameCiphertext);
+    decryptPayoutRecipientValue(destination.accountNumberCiphertext);
+  } catch {
+    await recordAudit({ actorId: host.userId, action: "attestPayoutDestination", outcome: "error", meta: { reason: "invalid_ciphertext" } });
+    return { ok: false, error: "The stored destination could not be confirmed. Please save it again." };
+  }
+
+  const updated = await db
+    .update(hostPayoutDestination)
+    .set({ verificationStatus: "host_attested", verificationReference: "host_attestation", updatedAt: new Date() })
+    .where(and(eq(hostPayoutDestination.userId, host.userId), eq(hostPayoutDestination.verificationStatus, "pending")))
+    .returning({ userId: hostPayoutDestination.userId });
+  if (!updated[0]) return { ok: false, error: "That payout destination is no longer awaiting confirmation." };
+
+  await recordAudit({ actorId: host.userId, action: "attestPayoutDestination", outcome: "ok", meta: { status: "host_attested" } });
   revalidatePath("/host");
   revalidatePath("/host/earnings");
   revalidatePath("/host/payouts");

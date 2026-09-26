@@ -14,8 +14,8 @@
 //      one signed `host_cancel_fee` debit row. The payout guarantee is UNCHANGED: this INSERT omits `kind`,
 //      so the NOT NULL DEFAULT 'payout' applies before conflict resolution and the arbiter matches the
 //      composite index — at most one kind='payout' row per booking, exactly as before.
-//   2. `host_payout_destination.user_id === listing.host_id` plus `verification_status='verified'` and the
-//      host's enabled gate — the payout can ONLY address the booking's own reviewed destination. No global
+//   2. `host_payout_destination.user_id === listing.host_id` plus a staff-verified or host-attested destination
+//      and the host's enabled gate — the payout can ONLY address the booking's own confirmed destination. No global
 //      wallet list exists in this path. CR-01: a `held` row is never a dead end — any post-claim failure
 //      becomes `failed`.
 //   3. `kind` SCOPES EVERY LEDGER READ AND WRITE (Phase 7, D-71 / 07-RESEARCH Finding 3). A
@@ -173,10 +173,10 @@ export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
       -- missing row means NOT suspended and must still be PAID. Inverting this into the sell-gate's
       -- shape would freeze the payouts of every host nobody has checked yet -- most of them.
       AND COALESCE(hv.status::text, 'unverified') <> 'suspended'
-      -- Both predicates are release gates, not conveniences.  The destination review and the cached
+      -- Both predicates are release gates, not conveniences. The destination confirmation and the cached
       -- booking gate must agree before a due row can even be claimed.
       AND hp.payouts_enabled = true
-      AND hpd.verification_status = 'verified'
+      AND hpd.verification_status IN ('verified', 'host_attested')
     ORDER BY b.ends_at ASC
     LIMIT ${SWEEP_BATCH_SIZE}
   `)) as unknown as DuePayout[];
