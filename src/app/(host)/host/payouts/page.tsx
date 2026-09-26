@@ -33,7 +33,7 @@ export default async function PayoutsPage() {
         </Alert>
       ) : null}
       <div className="mt-8">
-        {institutionsResult.length > 0 ? <PayoutDestinationForm institutions={institutionsResult} pendingDestination={current?.verificationStatus === "pending" ? { institutionName: current.institutionName, accountLast4: current.accountLast4 } : undefined} onAttest={current?.verificationStatus === "pending" ? attestPayoutDestination : undefined} /> : <Alert variant="destructive"><AlertTitle>Payout setup is temporarily unavailable</AlertTitle><AlertDescription>We can&apos;t load the current bank and e-wallet directory. Please return later.</AlertDescription></Alert>}
+        {institutionsResult.length > 0 ? <PayoutDestinationForm key={current?.verificationStatus ?? "none"} institutions={institutionsResult} pendingDestination={current?.verificationStatus === "pending" ? { institutionName: current.institutionName, accountLast4: current.accountLast4 } : undefined} confirmedDestination={current?.verificationStatus === "host_attested" || current?.verificationStatus === "verified" ? { institutionName: current.institutionName, accountLast4: current.accountLast4 } : undefined} onAttest={current?.verificationStatus === "pending" ? attestPayoutDestination : undefined} /> : <Alert variant="destructive"><AlertTitle>Payout setup is temporarily unavailable</AlertTitle><AlertDescription>We can&apos;t load the current bank and e-wallet directory. Please return later.</AlertDescription></Alert>}
       </div>
     </div>
   );
