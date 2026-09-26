@@ -681,20 +681,18 @@ export async function createRefundTransfer(input: {
 export type ReceivingInstitution = { name: string; bic: string };
 
 /**
- * List the InstaPay receiving institutions (GET /v2/transfers/receiving_institutions?provider=instapay) —
+ * List the InstaPay receiving institutions (GET /v1/wallets/receiving_institutions?provider=instapay) —
  * the `{ name, bic }` pairs that populate the D-72 destination form's institution picker and the server-side
  * BIC allow-list (T-07-99: a destination BIC is validated against THIS set, never accepted as a free string).
  *
- * ⚠️ CURRENTLY 404s ON THIS ACCOUNT (observed 2026-07-23): until PayMongo enables Money Movement, the
- * router resolves `receiving_institutions` as a transfer-id lookup and returns
- * `{"errors":[{"code":"not_found","detail":"failed to get transfer: resource not found"}]}`. Callers MUST
- * tolerate a throw from this function and degrade calmly (the cancel page falls back to the
+ * PayMongo's Wallet API owns this directory; it is not a Transfer API route. Callers MUST still
+ * tolerate a provider failure and degrade calmly (the cancel page falls back to the
  * `needs_attention` operator-alert seam) rather than crash the cancellation surface.
  */
 export async function listReceivingInstitutions(): Promise<ReceivingInstitution[]> {
   const json = await paymongoFetch<{
     data?: Array<{ attributes?: { name?: string; bic?: string }; name?: string; bic?: string }>;
-  }>("/v2/transfers/receiving_institutions?provider=instapay");
+  }>("/v1/wallets/receiving_institutions?provider=instapay");
   // Defensive over the beta shape: tolerate both a flat and an attributes-nested entry.
   return (json.data ?? [])
     .map((r) => ({ name: r.attributes?.name ?? r.name ?? "", bic: r.attributes?.bic ?? r.bic ?? "" }))

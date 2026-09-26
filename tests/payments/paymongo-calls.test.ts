@@ -19,6 +19,7 @@ import {
   getCheckoutSession,
   createBatchTransfer,
   createRefund,
+  listReceivingInstitutions,
   listWalletAccounts,
 } from "@/lib/paymongo";
 
@@ -578,6 +579,30 @@ describe("listWalletAccounts — activated wallets (/v2, GET)", () => {
     expect(call.url).toBe("https://api.paymongo.com/v2/wallets?status=activated");
     expect(call.method).toBe("GET");
     // GET carries no Idempotency-Key (only POSTs do).
+    expect(call.headers["Idempotency-Key"]).toBeUndefined();
+  });
+});
+
+describe("listReceivingInstitutions — InstaPay destination directory (/v1 Wallets, GET)", () => {
+  it("GETs the Wallet directory route and maps its supported name/BIC entries", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        data: [
+          { attributes: { name: "Test Bank", bic: "TESTPHM2XXX" } },
+          { name: "Test E-Wallet", bic: "TESTPHM2EW1" },
+          { attributes: { name: "", bic: "IGNORED" } },
+        ],
+      }),
+    );
+
+    await expect(listReceivingInstitutions()).resolves.toEqual([
+      { name: "Test Bank", bic: "TESTPHM2XXX" },
+      { name: "Test E-Wallet", bic: "TESTPHM2EW1" },
+    ]);
+
+    const call = lastCall(fetchMock);
+    expect(call.url).toBe("https://api.paymongo.com/v1/wallets/receiving_institutions?provider=instapay");
+    expect(call.method).toBe("GET");
     expect(call.headers["Idempotency-Key"]).toBeUndefined();
   });
 });
