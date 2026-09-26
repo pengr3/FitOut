@@ -25,7 +25,7 @@
 //   - POST-ONLY (T-04-GETHOLD): placeHold mints the hold via this POST server action + redirect, never a
 //     GET render side-effect (Pitfall 2 — a GET duplicates holds on prefetch/refresh/Back).
 
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -33,7 +33,14 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
-import { booking, listing, user, hostPayout, hostVerification } from "@/lib/db/schema";
+import {
+  booking,
+  controlledCheckoutGrant,
+  listing,
+  user,
+  hostPayout,
+  hostVerification,
+} from "@/lib/db/schema";
 import { deriveBookable } from "@/lib/bookability";
 import { bookingCreateSchema, openHoldSchema } from "@/lib/validation/booking";
 import { createPendingHold, createOpenCapacityHold } from "@/lib/availability/units";
@@ -200,7 +207,7 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
     .leftJoin(hostPayout, eq(hostPayout.userId, user.id))
     .leftJoin(hostVerification, eq(hostVerification.userId, user.id))
     .where(and(eq(listing.id, listingId), isNull(listing.deletedAt)));
-  const bookable =
+  const normallyBookable =
     !!lr &&
     deriveBookable(
       // The explicit `=== true` is not tidying: it keeps a driver-shape surprise (a `"t"` string, a `1`)
@@ -214,6 +221,35 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
         verificationStatus: lr.verificationStatus ?? "unverified",
       },
     );
+  // A controlled grant is intentionally evaluated only after every normal non-payout term has passed.
+  // It has no public route and binds this listing plus the authenticated test booker at the DB boundary.
+  const eligibleWithoutPayout =
+    !!lr &&
+    deriveBookable(
+      { status: lr.status, hasOperatingHours: lr.hasOperatingHours === true, reviewState: lr.reviewState },
+      {
+        emailVerified: lr.emailVerified,
+        payoutsEnabled: true,
+        verificationStatus: lr.verificationStatus ?? "unverified",
+      },
+    );
+  const [controlledGrant] =
+    !normallyBookable && eligibleWithoutPayout
+      ? await db
+          .select({ id: controlledCheckoutGrant.id, maxAmountCents: controlledCheckoutGrant.maxAmountCents })
+          .from(controlledCheckoutGrant)
+          .where(
+            and(
+              eq(controlledCheckoutGrant.listingId, listingId),
+              eq(controlledCheckoutGrant.bookerId, userId),
+              isNull(controlledCheckoutGrant.consumedAt),
+              isNull(controlledCheckoutGrant.revokedAt),
+              gt(controlledCheckoutGrant.expiresAt, sql`now()`),
+            ),
+          )
+          .limit(1)
+      : [];
+  const bookable = normallyBookable || controlledGrant != null;
   if (!lr || !bookable) {
     return { ok: false, reason: "not-bookable", error: "This space isn't accepting bookings right now." };
   }
@@ -226,6 +262,11 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
   // `placeOpenHold` carries the exact mirror of this guard: each mutation admits exactly one mode.
   if (lr.occupancyMode === "open_capacity") {
     return { ok: false, reason: "invalid", error: "This space sells day passes — pick a day to book." };
+  }
+
+  // The exception is one instant, exclusive checkout—not a request-to-book or open-capacity release.
+  if (controlledGrant && lr.bookingMode !== "instant") {
+    return { ok: false, reason: "not-bookable", error: "This controlled checkout isn't available for this booking type." };
   }
 
   // (4b) Fork on the SERVER-READ booking mode (D-61 / BOOK-04 / BOOK-05). A `request` listing mints a
@@ -357,6 +398,8 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
     fullDay,
     idempotencyKey: idempotencyKey ?? null,
     declaredPax, // D-108: the surcharge is re-derived server-side and folds into spacePriceCents (A1), fee>0 only
+    controlledCheckoutGrantId: controlledGrant?.id,
+    controlledCheckoutMaxAmountCents: controlledGrant?.maxAmountCents,
   });
   if ("error" in res) {
     return { ok: false, reason: "taken", error: res.error }; // "That time was just taken." (SC#4)
@@ -609,6 +652,7 @@ export async function updateDeclaredPax(holdId: string, pax: number): Promise<Up
       // D-123 arbitration snapshot — read here so the D-126 guard below can refuse a drop-in row.
       openCapacity: booking.openCapacity,
       declaredPax: booking.declaredPax,
+      controlledCheckoutGrantId: booking.controlledCheckoutGrantId,
       // CR-02: the session this booking last sent a booker to pay at, or NULL if it never reached checkout
       // (a legitimate, expected state — never an error). Read here so the expire gate below has an id.
       checkoutSessionId: booking.checkoutSessionId,
@@ -637,6 +681,12 @@ export async function updateDeclaredPax(holdId: string, pax: number): Promise<Up
   // branch would report success and the booker would never learn the count cannot move.
   if (row.openCapacity) {
     return { ok: false, error: PASSES_FIXED_MESSAGE };
+  }
+
+  // A controlled proof has one frozen all-in amount. Letting the per-head stepper alter it would either
+  // exceed the grant or create a second payable session; the test route deliberately has no re-pricing.
+  if (row.controlledCheckoutGrantId != null) {
+    return { ok: false, error: "This controlled checkout has a fixed amount." };
   }
 
   // D-108 zero-leak: a listing that does not charge per head has no surcharge machinery at all. Report
@@ -772,6 +822,7 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
       currency: booking.currency,
       // D-108 — read ONLY to scope the Idempotency-Key below. NULL on every flat-priced booking.
       declaredPax: booking.declaredPax,
+      controlledCheckoutGrantId: booking.controlledCheckoutGrantId,
       // The session (if any) this booking already named on a PRIOR confirmBooking submission — the expire-
       // before-create gate below retires it before minting the next, mirroring updateDeclaredPax.
       checkoutSessionId: booking.checkoutSessionId,
@@ -864,6 +915,35 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
       meta: { reason: "no_quote", holdId },
     });
     return { ok: false, reason: "checkout", error: "We couldn't start checkout. Please try again." };
+  }
+
+  // Re-check the one-use grant immediately before a provider call. A hold cannot turn a revoked, expired,
+  // cross-booker, or over-cap grant into a live checkout; no browser state is trusted for this boundary.
+  if (bk.controlledCheckoutGrantId != null) {
+    const [grant] = await db
+      .select({ id: controlledCheckoutGrant.id })
+      .from(controlledCheckoutGrant)
+      .where(
+        and(
+          eq(controlledCheckoutGrant.id, bk.controlledCheckoutGrantId),
+          eq(controlledCheckoutGrant.listingId, bk.listingId),
+          eq(controlledCheckoutGrant.bookerId, userId),
+          eq(controlledCheckoutGrant.consumedBookingId, holdId),
+          isNull(controlledCheckoutGrant.revokedAt),
+          gt(controlledCheckoutGrant.expiresAt, sql`now()`),
+          sql`${controlledCheckoutGrant.maxAmountCents} >= ${bk.quotedTotalCents}`,
+        ),
+      )
+      .limit(1);
+    if (!grant) {
+      await recordAudit({
+        actorId: userId,
+        action: "confirm_pay",
+        outcome: "denied",
+        meta: { reason: "controlled_checkout_grant_unavailable", holdId },
+      });
+      return { ok: false, reason: "checkout", error: "This controlled checkout is no longer available." };
+    }
   }
 
   // EXTEND the hold BEFORE creating the checkout (D-58 / T-05-16): push expires_at out (DB clock) so the

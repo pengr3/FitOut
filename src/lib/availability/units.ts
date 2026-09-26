@@ -78,6 +78,14 @@ export class NoUnitAvailableError extends Error {
   }
 }
 
+/** A one-use controlled checkout was claimed, revoked, or expired before this hold could own it. */
+class ControlledCheckoutGrantUnavailableError extends Error {
+  constructor() {
+    super("Controlled checkout grant is unavailable");
+    this.name = "ControlledCheckoutGrantUnavailableError";
+  }
+}
+
 export type CreateBookingInput = {
   listingId: string;
   bookerId: string;
@@ -210,6 +218,12 @@ export type CreatePendingHoldInput = {
    * quote is byte-identical to today.
    */
   declaredPax?: number;
+  /**
+   * Operator-only controlled proof binding. The booking action derives these from the signed-in booker
+   * and an active DB grant; they never originate in the browser payload.
+   */
+  controlledCheckoutGrantId?: string;
+  controlledCheckoutMaxAmountCents?: number;
 };
 
 /**
@@ -573,6 +587,14 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
         // seam and keeps its tests valid. `allInCents` is an ADDITION of the two frozen values, never a
         // second rounding, so `quoted == space + fee` holds exactly at every price point.
         const fee = computeServiceFee(quote.totalCents);
+        // The controlled-proof cap is on the ALL-IN charge, not the listing rate. This blocks a PHP 20
+        // grant from silently becoming PHP 20 plus fees, and it happens before any booking write.
+        if (
+          input.controlledCheckoutMaxAmountCents != null &&
+          fee.allInCents > input.controlledCheckoutMaxAmountCents
+        ) {
+          return { error: "This controlled checkout is limited to PHP 20.00 all-in." };
+        }
 
         /**
          * EVERY "units exhausted" exit routes through here — the D-42 trap, in its last remaining form.
@@ -635,6 +657,7 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
                   // charges per head (else NULL). Frozen alongside the price so a later listing edit can't lie.
                   declaredPax: declaredPaxToPersist,
                   idempotencyKey,
+                  controlledCheckoutGrantId: input.controlledCheckoutGrantId ?? null,
                 })
                 .returning({
                   expiresAt: booking.expiresAt,
@@ -642,6 +665,23 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
                   serviceFeeCents: booking.serviceFeeCents,
                   quotedTotalCents: booking.quotedTotalCents,
                 });
+              // Claim the grant inside the same SAVEPOINT as the hold. The booking-side partial unique
+              // index makes concurrent holds unable to share a grant; this update additionally rejects a
+              // just-revoked/expired grant and leaves no hold behind when it loses that race.
+              if (input.controlledCheckoutGrantId != null) {
+                const claimed = (await sp.execute(sql`
+                  UPDATE controlled_checkout_grant
+                  SET consumed_at = now(), consumed_booking_id = ${id}
+                  WHERE id = ${input.controlledCheckoutGrantId}
+                    AND listing_id = ${input.listingId}
+                    AND booker_id = ${input.bookerId}
+                    AND consumed_at IS NULL
+                    AND revoked_at IS NULL
+                    AND expires_at > now()
+                  RETURNING id
+                `)) as unknown as { id: string }[];
+                if (claimed.length !== 1) throw new ControlledCheckoutGrantUnavailableError();
+              }
               return inserted[0] ?? null;
             });
             // Read the frozen values straight back OUT of the insert rather than echoing the locals: the
@@ -744,6 +784,9 @@ export async function createPendingHold(db: DbConn, input: CreatePendingHoldInpu
  * re-throw so genuine failures are not swallowed (threat T-03-500).
  */
 export function mapBookingError(e: unknown): { error: string } {
+  if (e instanceof ControlledCheckoutGrantUnavailableError) {
+    return { error: "This controlled checkout is no longer available." };
+  }
   if (e instanceof NoUnitAvailableError || isPgError(e, "23P01") || isPgError(e, "40P01")) {
     return { error: "That time was just taken. Pick another slot." };
   }

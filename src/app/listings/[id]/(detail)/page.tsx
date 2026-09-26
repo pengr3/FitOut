@@ -24,8 +24,9 @@
 //     booking is Phase 4+, so the coral CTA is a state-reflecting placeholder.
 
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { format } from "date-fns";
 import { tz, TZDate } from "@date-fns/tz";
 import { UsersIcon } from "lucide-react";
@@ -40,6 +41,7 @@ import {
   user,
   hostPayout,
   hostVerification,
+  controlledCheckoutGrant,
   listingPhoto,
   listingAmenity,
   listingActivityTag,
@@ -94,6 +96,7 @@ import type { SlotSelectionValue } from "@/components/availability/slot-selectio
 import { gmtLabelFor, cityLabelFor } from "@/lib/venue-time";
 import { listingCardFacts, listingShareDescription } from "@/lib/listing/og-facts";
 import { devTodayOverride } from "@/lib/dev/today-override";
+import { auth } from "@/lib/auth";
 
 /**
  * SHELL-04 — what this page's link says about itself when it is pasted somewhere.
@@ -302,7 +305,7 @@ export default async function PublicListingPage({
   // The sell-gate (never status alone). payoutsEnabled is false until Plan 06 → "Not bookable yet".
   // Moved BELOW the batch above so it can read `hasOperatingHours`; safe because `bookable` is not read
   // until far further down the render, well after this point.
-  const bookable = deriveBookable(
+  const normallyBookable = deriveBookable(
     { status: row.listing.status, hasOperatingHours, reviewState: row.listing.reviewState },
     {
       emailVerified: row.user.emailVerified,
@@ -312,6 +315,27 @@ export default async function PublicListingPage({
       verificationStatus: row.host_verification?.status ?? "unverified",
     },
   );
+
+  // Keep the public listing public: only the signed-in booker who owns a live controlled grant sees an
+  // enabled CTA. The server action repeats this query and performs the actual write-time enforcement.
+  const session = await auth.api.getSession({ headers: await headers() });
+  const [controlledGrant] =
+    !normallyBookable && session?.user?.id
+      ? await db
+          .select({ id: controlledCheckoutGrant.id })
+          .from(controlledCheckoutGrant)
+          .where(
+            and(
+              eq(controlledCheckoutGrant.listingId, id),
+              eq(controlledCheckoutGrant.bookerId, session.user.id),
+              isNull(controlledCheckoutGrant.consumedAt),
+              isNull(controlledCheckoutGrant.revokedAt),
+              sql`${controlledCheckoutGrant.expiresAt} > now()`,
+            ),
+          )
+          .limit(1)
+      : [];
+  const bookable = normallyBookable || controlledGrant != null;
 
   // HVER-05 / D-212 — REDUCED TO A BOOLEAN HERE, IN THE RSC, AND THAT IS THE WHOLE MECHANISM.
   //

@@ -218,6 +218,13 @@
       "when": 1790217600000,
       "tag": "0030_host_payout_destination",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1790467200000,
+      "tag": "0031_controlled_checkout_grant",
+      "breakpoints": true
     }
   ]
 }

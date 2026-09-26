@@ -27,6 +27,7 @@
     "ops:alerts:resolve": "tsx scripts/ops-alerts.ts resolve",
     "ops:alerts:history": "tsx scripts/ops-alerts.ts history",
     "ops:stop-checkout": "tsx scripts/ops-stop-checkout.ts",
+    "ops:controlled-checkout": "tsx scripts/ops-controlled-checkout.ts",
     "ops:grant": "tsx scripts/ops-grant.ts grant",
     "ops:revoke": "tsx scripts/ops-grant.ts revoke",
     "ops:staff": "tsx scripts/ops-grant.ts list",

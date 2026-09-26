@@ -1206,6 +1206,9 @@ export const booking = pgTable(
     // stale-hold sweep, no cron expiry sweep and no read model, so it can never change what a slot's
     // availability says. A lease is about who may talk to PayMongo, never about who holds the slot.
     checkoutLockAt: timestamp("checkout_lock_at", { withTimezone: true }),
+    // NULL for normal bookings. A non-NULL value is written only after the server matches a narrowly
+    // scoped operator grant to the signed-in test booker and listing; it never enables payouts.
+    controlledCheckoutGrantId: text("controlled_checkout_grant_id"),
     // The PAYMENT RAIL the booker actually used ("card" / "gcash" / "paymaya" / "qrph" / "dob_ubp" / …),
     // captured by the same payment.paid webhook that captures paymentId, from the SAME verified event
     // resource (never a client field). Phase-7 addition (07-09).
@@ -1275,6 +1278,41 @@ export const booking = pgTable(
     // Drizzle CAN express a partial unique index via .where() (same idiom as listing_photo_position_uq);
     // scoping to non-NULL keys lets the many holds placed without a token coexist.
     uniqueIndex("booking_idem_uq").on(t.idempotencyKey).where(sql`idempotency_key IS NOT NULL`),
+    uniqueIndex("booking_controlled_checkout_grant_uq")
+      .on(t.controlledCheckoutGrantId)
+      .where(sql`controlled_checkout_grant_id IS NOT NULL`),
+  ],
+);
+
+// An operator creates this record out-of-band for one listing and one test booker. It substitutes only
+// for the legacy `host_payout.payouts_enabled` booking term; identity, listing review, publication,
+// operating hours, booker capability, frozen quoting, payment confirmation, and payout locks remain.
+export const controlledCheckoutGrant = pgTable(
+  "controlled_checkout_grant",
+  {
+    id: text("id").primaryKey(),
+    listingId: text("listing_id")
+      .notNull()
+      .references(() => listing.id, { onDelete: "restrict" }),
+    bookerId: text("booker_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "restrict" }),
+    // An opaque/redacted reference, never a credential, provider id, account value, or raw payload.
+    authorizationReference: text("authorization_reference").notNull(),
+    // The grant CLI fixes this at PHP 20.00. No host or client input can raise it.
+    maxAmountCents: integer("max_amount_cents").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    // Plain text avoids a circular booking/grant foreign key. The booking-side unique index enforces use.
+    consumedBookingId: text("consumed_booking_id"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("controlled_checkout_grant_lookup_idx").on(t.listingId, t.bookerId, t.expiresAt),
+    uniqueIndex("controlled_checkout_grant_consumed_booking_uq")
+      .on(t.consumedBookingId)
+      .where(sql`consumed_booking_id IS NOT NULL`),
   ],
 );
 
