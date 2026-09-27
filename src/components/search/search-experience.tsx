@@ -9,6 +9,7 @@ import { PartyStep } from "@/components/search/party-step";
 import { ProgressiveSearchOverlay } from "@/components/search/progressive-search-overlay";
 import type { ResolvedAddress } from "@/components/listing/address-autocomplete";
 import { Button } from "@/components/ui/button";
+import { SEARCH_BAR_SHELL_MIN_HEIGHT } from "@/lib/design/measurements";
 import { searchParamsSchema } from "@/lib/validation/booking";
 
 export type SearchAnswerKey = "activity" | "location" | "party";
@@ -151,7 +152,6 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   const [state, setState] = useState(() => initialState(initialAnswers, hasCompletedSearch));
   const [filter, setFilter] = useState("");
   const [returnFocus, setReturnFocus] = useState<HTMLElement | null>(null);
-  const [desktopAnchor, setDesktopAnchor] = useState<HTMLElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const locationAttemptRef = useRef(0);
 
@@ -238,7 +238,6 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
 
   function editAnswer(step: SearchAnswerKey, trigger: HTMLElement) {
     setReturnFocus(trigger);
-    setDesktopAnchor(trigger);
     if (step === "activity") setFilter(answers.category ? categoryLabel(answers.category) : "");
     dispatch({ type: "EDIT", step });
   }
@@ -247,7 +246,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
     <section aria-label="Space search" className="space-y-4">
       <p role="status" aria-live="polite" aria-label="Search progress" className="sr-only">{state.progress}</p>
 
-      <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-2 sm:mx-auto sm:max-w-3xl" role="group" aria-label="Search spaces">
+      <div className={`grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-2 sm:mx-auto sm:max-w-3xl ${SEARCH_BAR_SHELL_MIN_HEIGHT}`} role="group" aria-label="Search spaces">
         <Button type="button" variant="ghost" aria-label="Search activity" className="h-auto min-h-14 flex-col items-start rounded-xl px-3 text-left" onClick={(event) => editAnswer("activity", event.currentTarget)}>
           <span className="text-xs font-semibold">Activity</span><span className="max-w-full truncate text-sm text-muted-foreground">{answers.category ? categoryLabel(answers.category) : "Any activity"}</span>
         </Button>
@@ -261,7 +260,6 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
 
       <ProgressiveSearchOverlay
         open={hasOpenQuestion}
-        desktopAnchor={desktopAnchor}
         returnFocus={returnFocus}
         desktopPresentation={desktopPresentation}
         onOpenAutoFocus={(event) => {

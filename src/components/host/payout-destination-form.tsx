@@ -70,7 +70,7 @@ export function PayoutDestinationForm({
   return (
     <div className="space-y-5">
       {confirmedDestination && !editing ? (
-        <div className="flex flex-col gap-3 rounded-lg border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-lg border bg-muted p-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">Need to use a different bank or e-wallet? Replacing this destination pauses it until you confirm the new details.</p>
           <Button type="button" variant="outline" onClick={() => setEditing(true)}>Change payout destination</Button>
         </div>

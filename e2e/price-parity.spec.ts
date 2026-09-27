@@ -195,7 +195,7 @@ async function selectTargetDay(page: Page): Promise<void> {
 /** Open the listing, navigate to the target day, and pick the [startLabel, endLabel] hourly run. */
 // VERBATIM from search-and-book.spec.ts:227-233 — see the header's copy note.
 async function pickWindow(page: Page, startLabel: string, endLabel: string): Promise<void> {
-  await expect(page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)).toBeVisible();
+  await expect(page.getByText(/Times shown in Philippine Time \(GMT\+8\)/i)).toBeVisible();
   await selectTargetDay(page);
   await page.getByRole("button", { name: startLabel, exact: true }).click(); // start anchor
   await page.getByRole("button", { name: endLabel, exact: true }).click(); // end → fills the run

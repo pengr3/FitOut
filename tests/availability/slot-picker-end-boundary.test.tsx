@@ -26,7 +26,7 @@ it("books 12 PM to 1 PM as one hour even when the 1 PM slot is unavailable", () 
   });
   const checkout = screen.getByRole("button", { name: "1:00 PM — checkout selected; booking ends here" });
   expect(checkout.getAttribute("aria-pressed")).toBe("true");
-  expect(checkout.getAttribute("class")).toContain("bg-brand/15");
+  expect(checkout.getAttribute("class")).toContain("bg-brand/10");
   expect(checkout.hasAttribute("disabled")).toBe(true);
 });
 
@@ -44,7 +44,7 @@ it("highlights an available checkout time without adding another charged hour", 
   });
   const checkout = screen.getByRole("button", { name: "1:00 PM — checkout selected; booking ends here" });
   expect(checkout.getAttribute("aria-pressed")).toBe("true");
-  expect(checkout.getAttribute("class")).toContain("bg-brand/15");
+  expect(checkout.getAttribute("class")).toContain("bg-brand/10");
 });
 
 it("offers hourly checkout without a full-day control when the host has no day rate", () => {

@@ -345,6 +345,8 @@ export async function createDraftListing(): Promise<CreateDraftListingResult> {
           // `blocks.ts`'s addBlock inserts a subtractive block and performs no update of the listing
           // row, so a draft the host has blocked dates on still reads `updated_at = created_at`.
           sql`NOT EXISTS (SELECT 1 FROM availability_block WHERE listing_id = ${listing.id})`,
+          // An operator grant can attach to a draft without updating the parent row.
+          sql`NOT EXISTS (SELECT 1 FROM controlled_checkout_grant WHERE listing_id = ${listing.id})`,
         ),
       )
       .orderBy(desc(listing.createdAt))

@@ -381,7 +381,7 @@ export function SlotPicker({
                   "data-[state=on]:border-transparent data-[state=on]:bg-brand data-[state=on]:text-brand-foreground data-[state=on]:hover:bg-[color-mix(in_oklch,var(--brand),var(--foreground)_10%)]",
                   // Checkout is selected as the END boundary, with a lighter fill so it cannot be
                   // mistaken for a second charged hour. Preserve that cue when the next hour is booked.
-                  isCheckoutBoundary && "border-brand bg-muted text-foreground ring-1 ring-brand disabled:opacity-100",
+                  isCheckoutBoundary && "border-brand bg-brand/10 aria-pressed:bg-brand/10! text-foreground ring-1 ring-brand disabled:opacity-100",
                   // Pending anchor = coral RING (not filled), so start vs committed reads at a glance.
                   // The ring is SOLID (CR-01 of the phase-10 review). At 50% alpha it composited to
                   // #ed969a on card and measured 2.23:1 (court) / 2.03:1 (grove) against the 3:1
@@ -450,7 +450,7 @@ export function SlotPicker({
               className={cn(
                 CHIP_BASE,
                 "border border-border bg-card text-foreground",
-                checkoutBoundaryUtc === slots[slots.length - 1].endUtc && "border-brand bg-muted text-foreground ring-1 ring-brand disabled:opacity-100",
+                checkoutBoundaryUtc === slots[slots.length - 1].endUtc && "border-brand bg-brand/10 aria-pressed:bg-brand/10! text-foreground ring-1 ring-brand disabled:opacity-100",
               )}
             >
               {format(new Date(slots[slots.length - 1].endUtc), "h:mm a", { in: inTz })}

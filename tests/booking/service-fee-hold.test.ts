@@ -128,6 +128,7 @@ beforeAll(async () => {
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
     createBatchTransfer: mockPayMongo.createBatchTransfer,
+    createExternalHostPayout: mockPayMongo.createBatchTransfer,
     listWalletAccounts: mockPayMongo.listWalletAccounts,
     getTransfer: mockPayMongo.getTransfer,
     createRefund: mockPayMongo.createRefund,

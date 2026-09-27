@@ -337,7 +337,7 @@ export async function pickWindow(
   // ⚠ THE COUNT SETTLE IS `openSeededListing`'s `#search-category` IDIOM, ONE ROUTE OVER, AND IT CLOSES
   // A MEASURED FLAKE. Plan 19.1-04 measured `/listings/[id]` holding TWO copies of this note while the
   // route streams — React's server and client forms of the same booking surface — and this assertion
-  // then failed Playwright's strict mode: `getByText(/Times shown in .*Makati.*\(GMT\+8\)/i) resolved
+  // then failed Playwright's strict mode: `getByText(/Times shown in Philippine Time \(GMT\+8\)/i) resolved
   // to 2 elements` at this line (that plan's DEFECT 3, evidence/triage-collision-in-place.txt §7). The
   // repair it shipped derived the note's `id` per instance, which fixes the HTML and the
   // `aria-describedby` — and CANNOT fix this, because this locator matches TEXT and the text is
@@ -346,7 +346,7 @@ export async function pickWindow(
   // ⚠ NOT `.first()`, and that is plan 19.1-04's explicit brief rather than a preference: `.first()`
   // goes green against a page rendering ONLY the pending shell, which is exactly the state the day
   // click below must not run against. A persistent 2 still fails here, as it should.
-  const tzNote = page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i);
+  const tzNote = page.getByText(/Times shown in Philippine Time \(GMT\+8\)/i);
   await expect(
     tzNote,
     "`/listings/[id]` still holds two venue-timezone notes — the streaming boundary's pending copy " +
@@ -431,7 +431,7 @@ export async function submitProgressiveSearch(
   await page.context().setGeolocation(SEARCH_LOCATION);
   await page.goto(BASE);
 
-  await page.getByRole("button", { name: "Start your search" }).click();
+  await page.getByRole("button", { name: "Search activity" }).click();
   const activity = page.locator('[data-slot="command-input"]');
   await expect(activity).toHaveAttribute("aria-label", "Search for activity or type");
   await activity.fill(spaceTypeLabel);

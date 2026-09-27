@@ -296,7 +296,7 @@ async function pickWindow(page: Page, startLabel: string, endLabel: string): Pro
   // ONE visible tz note. Measured total=1 / visible=1 over 10 runs, and on a surface whose whole
   // subject is venue-local time a SECOND tz note would be a real defect worth failing on (SC#2).
   await expect(
-    page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i).filter({ visible: true }),
+    page.getByText(/Times shown in Philippine Time \(GMT\+8\)/i).filter({ visible: true }),
     "the listing shows exactly one venue-tz note before a window is picked (SC#2)",
   ).toHaveCount(1);
   await selectTargetDay(page);

@@ -217,10 +217,11 @@ describe("route streaming fallback", () => {
     const shell = screen.getByTestId("search-idle-pill-shell");
     expect(shell.getAttribute("aria-hidden")).toBe("true");
     expect(shell.className).toContain("w-full");
-    expect(shell.className).toContain("h-11");
+    expect(shell.className).toContain("min-h-[4.625rem]");
+    expect(shell.querySelectorAll("span")).toHaveLength(3);
     expect(shell.className).toContain("rounded");
     expect(shell.className).toContain("border");
-    expect(shell.className).toContain("px-");
+    expect(shell.className).toContain("p-2");
     expect(shell.querySelectorAll("button, input, a, select, textarea, [tabindex], [role=status], [role=alert], [aria-live]")).toHaveLength(0);
     expect(screen.getAllByRole("status", { name: "Loading spaces" })).toHaveLength(1);
     expect(container.querySelectorAll('[aria-label="Search progress"]')).toHaveLength(0);

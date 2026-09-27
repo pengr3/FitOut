@@ -157,13 +157,12 @@ const EXPECTED_ALARM_OCCURRENCES: Readonly<Record<string, { count: number; why: 
       "control is deliberately NOT the alarm variant.",
   },
   "src/components/host/payout-banner.tsx": {
-    count: 3,
-    why:
-      "the paused-payout banner: the alert VARIANT on the paused branch, plus the two refusal lines " +
-      "(one per branch) that render the server's sentence when the onboarding call fails. A paused " +
-      "payout account is money that will not reach the host and bookings that cannot be taken — a " +
-      "genuine failure needing a human, which is exactly what DS-10 reserves this role for. Frozen by " +
-      "D-156: HFLOW-05 is a token pass, and plan 14-01's string-literal gate is what proves it.",
+    count: 1,
+    why: "The paused-payout banner signals a real failure that prevents bookings and needs a human.",
+  },
+  "src/app/(host)/host/payouts/page.tsx": {
+    count: 1,
+    why: "The bank and e-wallet directory failed to load, so payout setup cannot proceed.",
   },
   "src/components/host/payout-state-badge.tsx": {
     count: 3,
@@ -216,7 +215,7 @@ const DECLARED_NEUTRAL_SIGNALS: Readonly<Record<string, string>> = {
     "/host/listings and /host/earnings. It takes the DECLARED ADVISORY SURFACE — PanelCard at its " +
     "muted tone, the same container the dashboard's requests and no-hours rows take — and NOT the " +
     "alerting composition beside it. The distinction is this file's own: the alarm role is reserved " +
-    "for a genuine failure needing a human, and `payout-banner.tsx` (3x, declared above) is that — " +
+    "for a genuine failure needing a human, and `payout-banner.tsx` (1x, declared above) is that — " +
     "money that cannot reach the host because something broke. A suspension is the opposite kind of " +
     "event: a named person at FitOut decided it deliberately, the host is being told what was decided " +
     "and why, and nothing is malfunctioning. Painting it red would also make the one genuinely broken " +
@@ -236,7 +235,7 @@ const DECLARED_NEUTRAL_SIGNALS: Readonly<Record<string, string>> = {
     "checking partner's answer, and a host the partner did NOT pass. Both are NORMAL LIFECYCLE " +
     "STATES of a working marketplace — an identity check that is still running is the ordinary " +
     "consequence of asking for one, and a decline is an answer rather than a fault. The alarm role " +
-    "is reserved for a genuine failure needing a person, and `payout-banner.tsx` (3x, declared " +
+    "is reserved for a genuine failure needing a person, and `payout-banner.tsx` (1x, declared " +
     "above) is what that looks like: money that cannot reach the host because something broke. This " +
     "module names no tone, no variant and no role token AT ALL — the panel chooses the presentation " +
     "and may not reach for the elevated one — so a zero here is the module keeping its own contract " +
