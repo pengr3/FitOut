@@ -118,23 +118,27 @@ function initialState(initialAnswers: SearchExperienceInitialAnswers, hasComplet
   };
 }
 
+function answersKey(answers: SearchExperienceInitialAnswers, hasCompletedSearch: boolean): string {
+  return JSON.stringify([
+    hasCompletedSearch,
+    answers.category,
+    answers.locationLabel,
+    answers.lat,
+    answers.lng,
+    answers.partySize,
+  ]);
+}
+
 export function SearchExperience({ initialAnswers, hasCompletedSearch, children }: {
   initialAnswers: SearchExperienceInitialAnswers;
   hasCompletedSearch: boolean;
   children: ReactNode;
 }) {
-  const canonicalSearchKey = JSON.stringify([
-    hasCompletedSearch,
-    initialAnswers.category,
-    initialAnswers.locationLabel,
-    initialAnswers.lat,
-    initialAnswers.lng,
-    initialAnswers.partySize,
-  ]);
+  const canonicalSearchKey = answersKey(initialAnswers, hasCompletedSearch);
 
   return (
     <SearchExperienceCoordinator
-      key={canonicalSearchKey}
+      canonicalSearchKey={canonicalSearchKey}
       initialAnswers={initialAnswers}
       hasCompletedSearch={hasCompletedSearch}
     >
@@ -143,7 +147,8 @@ export function SearchExperience({ initialAnswers, hasCompletedSearch, children 
   );
 }
 
-function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, children }: {
+function SearchExperienceCoordinator({ canonicalSearchKey, initialAnswers, hasCompletedSearch, children }: {
+  canonicalSearchKey: string;
   initialAnswers: SearchExperienceInitialAnswers;
   hasCompletedSearch: boolean;
   children: ReactNode;
@@ -154,6 +159,20 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   const [returnFocus, setReturnFocus] = useState<HTMLElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const locationAttemptRef = useRef(0);
+  const syncedSearchKeyRef = useRef(canonicalSearchKey);
+  const submittedSearchKeysRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (syncedSearchKeyRef.current === canonicalSearchKey) return;
+    syncedSearchKeyRef.current = canonicalSearchKey;
+    // A search we just submitted already updated local answers. Keep a field the visitor opened
+    // while the RSC result was in flight; remounting here used to close it and lose the next click.
+    if (submittedSearchKeysRef.current.delete(canonicalSearchKey)) return;
+    submittedSearchKeysRef.current.clear();
+    locationAttemptRef.current += 1;
+    setState(initialState(initialAnswers, hasCompletedSearch));
+    setFilter("");
+  }, [canonicalSearchKey, initialAnswers, hasCompletedSearch]);
 
   useEffect(() => {
     if (state.screen !== "idle") headingRef.current?.focus();
@@ -181,6 +200,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
     }
     if (candidate.data.locationLabel) query.set("locationLabel", candidate.data.locationLabel);
     if (candidate.data.partySize !== undefined) query.set("partySize", String(candidate.data.partySize));
+    submittedSearchKeysRef.current.add(answersKey(candidate.data, true));
     setState((current) => ({ ...current, screen: "idle", answers: nextAnswers, resultsVisible: true }));
     router.push(`/?${query.toString()}`);
   }

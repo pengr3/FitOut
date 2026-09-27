@@ -1079,10 +1079,14 @@ test.describe("Phase 24 progressive search accessibility states", () => {
       await expectAxeClean(page, `progressive location · ${width}px`);
 
       await page.getByRole("button", { name: "Use my location" }).click();
+      await expect(page).toHaveURL(/lat=/);
       await page.getByRole("button", { name: "Search party size" }).click();
+      await expect(page.getByRole("heading", { name: "Who is this for?" })).toBeFocused();
+      await expect(page).toHaveTitle(/\S/);
       await expectAxeClean(page, `progressive party · ${width}px`);
 
       await page.getByRole("button", { name: "For me" }).click();
+      await expect(page).toHaveURL(/partySize=1/);
       const listing = page.getByRole("link", { name: new RegExp(seed.title) });
       await expect(listing, "the seeded listing must survive the submitted result journey").toHaveCount(1);
       await expect(page).toHaveTitle(/\S/);

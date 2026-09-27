@@ -32,6 +32,7 @@ async function chooseActivity(page: Page, label: string) {
   await filter.fill(label);
   await page.getByRole("option", { name: label, exact: true }).click();
   await expect(page.getByTestId("search-results-region")).toHaveCount(1);
+  await expect(page).toHaveURL(/category=/);
 }
 
 async function chooseAddress(page: Page) {
@@ -41,12 +42,14 @@ async function chooseAddress(page: Page) {
   await page.getByPlaceholder("Type a street or city…").fill("Makati");
   await page.getByRole("option", { name: /2 Real Street, Makati/i }).click();
   await expect(page.getByTestId("search-results-region")).toHaveCount(1);
+  await expect(page).toHaveURL(/locationLabel=/);
 }
 
 async function chooseSolo(page: Page) {
   await page.getByRole("button", { name: "Search party size" }).click();
   await expect(page.getByRole("heading", { name: "Who is this for?" })).toBeFocused();
   await page.getByRole("button", { name: "For me" }).click();
+  await expect(page).toHaveURL(/partySize=1/);
 }
 
 async function chooseGroup(page: Page, size: number) {
@@ -54,6 +57,7 @@ async function chooseGroup(page: Page, size: number) {
   await page.getByRole("button", { name: "For a group" }).click();
   await page.getByLabel("Number of people").fill(String(size));
   await page.getByRole("button", { name: "See spaces" }).click();
+  await expect(page).toHaveURL(new RegExp(`partySize=${size}`));
 }
 
 function expectOneSearchTree(page: Page) {
