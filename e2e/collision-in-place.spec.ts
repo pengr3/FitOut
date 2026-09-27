@@ -357,7 +357,11 @@ test.describe("STATE-07 — a lost race becomes a result, in place", () => {
             focused: notice !== null && document.activeElement === notice,
           },
           chips: labels.map((label) => {
-            const el = buttons.find((b) => (b.getAttribute("aria-label") ?? "").startsWith(label));
+            const el = buttons.find((b) =>
+              (b.getAttribute("aria-label") ?? "")
+                .replace(/^(?:Start at |End at )/, "")
+                .startsWith(label),
+            );
             return {
               label,
               found: el !== undefined,

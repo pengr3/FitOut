@@ -216,12 +216,9 @@ const RESET_TOKEN = "e2e-auth-keyboard-fixed-token";
 const FORGOT_ADDRESS = "e2e.auth-keyboard.no-account@example.com";
 
 /**
- * The five stops the footer contributes, identical on all six documents.
+ * The six stops the footer contributes, identical on all six documents.
  *
- * FIVE AND NOT SIX: `SUPPORT_EMAIL` is `null` (D-26/D-161), so `site-footer.tsx`'s mailto row renders
- * nothing at all — not a placeholder, not a disabled link. The day that constant is set this tail
- * grows a sixth entry and all six sequences go red at once, which is the correct blast radius for a
- * change that adds a control to every page in the app.
+ * Support is now a public footer link, so the measured tab walk includes it on every auth page.
  */
 const FOOTER_TAIL = [
   "a:FitOut@contentinfo",
@@ -229,6 +226,7 @@ const FOOTER_TAIL = [
   "a:Host your space@contentinfo",
   "a:Terms@contentinfo",
   "a:Privacy@contentinfo",
+  "a:Support@contentinfo",
 ] as const;
 
 type AuthDocument = {
@@ -245,7 +243,7 @@ type AuthDocument = {
 };
 
 /**
- * SIX DOCUMENTS, 59 STOPS, WRITTEN OUT.
+ * SIX DOCUMENTS, 65 STOPS, WRITTEN OUT.
  *
  * Descriptor format (the shared focus helper imported above produces these):
  *   links    `a:<trimmed text>@<landmark>`     e.g. `a:FitOut@main`, `a:Terms@contentinfo`

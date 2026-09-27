@@ -205,7 +205,7 @@ test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {
     // …then clicking any hour clears full-day back to a fresh PENDING anchor (mutual clear → no summary).
     await sixAm.click();
     await expect(page.getByText("Full day", { exact: true })).toHaveCount(0);
-    await expect(page.getByText(/pick an end hour/i)).toBeVisible();
+    await expect(page.getByText(/pick your checkout time/i)).toBeVisible();
   });
 
   test("range-fill: non-adjacent clean fill selects the whole run, then a 3rd click re-anchors", async ({
@@ -235,7 +235,7 @@ test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {
     // pending helper returns (selection resets to null).
     await page.getByRole("button", { name: /^(?:Start at |End at )?12:00 PM(?:$| —)/ }).click();
     await expect(page.getByText(/5:00 PM\s*[–-]\s*8:00 PM/i)).toHaveCount(0);
-    await expect(page.getByText(/pick an end hour/i)).toBeVisible();
+    await expect(page.getByText(/pick your checkout time/i)).toBeVisible();
     // Completing the fresh anchor yields a new run 12:00 PM to 1:00 PM.
     await page.getByRole("button", { name: /^(?:Start at |End at )?1:00 PM(?:$| —)/ }).click();
     await expect(page.getByText(/12:00 PM\s*[–-]\s*1:00 PM/i)).toBeVisible();
