@@ -436,7 +436,9 @@ export async function submitProgressiveSearch(
   await expect(activity).toHaveAttribute("aria-label", "Search for activity or type");
   await activity.fill(spaceTypeLabel);
   await page.getByRole("option", { name: spaceTypeLabel, exact: true }).click();
+  await page.getByRole("button", { name: "Search location" }).click();
   await page.getByRole("button", { name: "Use my location" }).click();
+  await page.getByRole("button", { name: "Search party size" }).click();
   await expect(page.getByRole("heading", { name: "Who is this for?" })).toBeFocused();
   await page.getByRole("button", { name: "For me" }).click();
   await expect(page.getByTestId("search-results-region")).toHaveCount(1);

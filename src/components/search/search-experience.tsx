@@ -164,6 +164,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   }
 
   function submitAnswers(nextAnswers: SearchExperienceInitialAnswers) {
+    locationAttemptRef.current += 1;
     const candidate = searchParamsSchema.safeParse({
       category: nextAnswers.category,
       lat: nextAnswers.lat,
@@ -198,6 +199,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
     dispatch({ type: "START_LOCATION_ATTEMPT", attempt });
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        if (attempt !== locationAttemptRef.current) return;
         const { latitude, longitude } = position.coords;
         if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
           dispatch({ type: "BROWSER_LOCATION_FAILURE", attempt });
@@ -206,12 +208,13 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
         submitAnswers({ ...state.answers, lat: latitude, lng: longitude, locationLabel: "Current location" });
       },
       () => {
-        dispatch({ type: "BROWSER_LOCATION_FAILURE", attempt });
+        if (attempt === locationAttemptRef.current) dispatch({ type: "BROWSER_LOCATION_FAILURE", attempt });
       },
     );
   }
 
   function cancel() {
+    locationAttemptRef.current += 1;
     setState((current) => ({ ...current, screen: "idle", groupMode: false, progress: "", activeLocationAttempt: undefined }));
     setFilter("");
   }

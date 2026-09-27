@@ -1067,7 +1067,7 @@ test.describe("Phase 24 progressive search accessibility states", () => {
       await page.context().setGeolocation(SEARCH_LOCATION);
       await page.goto(BASE);
 
-      await page.getByRole("button", { name: "Start your search" }).click();
+      await page.getByRole("button", { name: "Search activity" }).click();
       const activity = page.locator('[data-slot="command-input"]');
       await activity.fill("not-in-the-catalogue");
       await expect(page.getByText("No matching activity or type")).toBeVisible();
@@ -1075,9 +1075,11 @@ test.describe("Phase 24 progressive search accessibility states", () => {
 
       await activity.fill(seed.spaceTypeLabel);
       await page.getByRole("option", { name: seed.spaceTypeLabel, exact: true }).click();
+      await page.getByRole("button", { name: "Search location" }).click();
       await expectAxeClean(page, `progressive location · ${width}px`);
 
       await page.getByRole("button", { name: "Use my location" }).click();
+      await page.getByRole("button", { name: "Search party size" }).click();
       await expectAxeClean(page, `progressive party · ${width}px`);
 
       await page.getByRole("button", { name: "For me" }).click();
@@ -1085,21 +1087,22 @@ test.describe("Phase 24 progressive search accessibility states", () => {
       await expect(listing, "the seeded listing must survive the submitted result journey").toHaveCount(1);
       await expectAxeClean(page, `progressive results · ${width}px`);
 
-      await page.getByRole("button", { name: "1 person" }).click();
+      await page.getByRole("button", { name: "Search party size" }).click();
       await page.getByRole("button", { name: "For a group" }).click();
       await page.getByLabel("Number of people").fill("1000");
       await page.getByRole("button", { name: "See spaces" }).click();
       await expect(page.getByRole("heading", { name: "No spaces match those answers" })).toBeVisible();
       await expectAxeClean(page, `progressive empty results · ${width}px`);
 
-      await page.getByRole("button", { name: "1000 people" }).click();
+      await page.getByRole("button", { name: "Search party size" }).click();
       await page.getByRole("button", { name: "For me" }).click();
       await expect(listing).toHaveCount(1);
 
-      await page.getByRole("button", { name: "1 person" }).click();
+      await page.getByRole("button", { name: "Search party size" }).click();
+      const currentSearchUrl = page.url();
       await page.getByRole("button", { name: "Cancel" }).click();
-      await expect(page).toHaveURL(`${BASE}/`);
-      await expect(page.getByRole("button", { name: "Start your search" })).toBeVisible();
+      await expect(page).toHaveURL(currentSearchUrl);
+      await expect(page.getByRole("button", { name: "Search activity" })).toBeVisible();
       await expectAxeClean(page, `progressive cancel browse · ${width}px`);
 
       await submitProgressiveSearch(page, { spaceTypeLabel: seed.spaceTypeLabel });
