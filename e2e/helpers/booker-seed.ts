@@ -298,9 +298,9 @@ function escapeForName(label: string): string {
  *   absent-with-no-hours-at-all      — no day is selected, or the listing has no hours that day.
  */
 async function clickHourChip(page: Page, label: string, which: string): Promise<void> {
-  const chip = page.getByRole("button", { name: label, exact: true });
+  const chip = page.getByRole("button", { name: new RegExp(`^(?:Start at |End at )${escapeForName(label)}$|^${escapeForName(label)} — (?:start selected|checkout selected)`) });
   const taken = page.getByRole("button", { name: new RegExp(`^${escapeForName(label)}\\s+—\\s`) });
-  const anyHour = page.getByRole("button", { name: /^\d{1,2}:00 (AM|PM)(\s|$)/ });
+  const anyHour = page.getByRole("button", { name: /^(?:Start at |End at )?\d{1,2}:00 (AM|PM)(\s|$)/ });
 
   await expect
     .poll(

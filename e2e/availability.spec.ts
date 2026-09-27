@@ -175,13 +175,13 @@ test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {
 
     // (1) SC#2 — the calendar always names the venue timezone, independent of the browser tz.
     await expect(page.getByRole("heading", { name: /availability/i })).toBeVisible();
-    await expect(page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)).toBeVisible();
+    await expect(page.getByText(/Times shown in Philippine Time \(GMT\+8\)/i)).toBeVisible();
 
     await selectTargetDay(page);
 
     // The two adjacent early hours are available (booking is 08:00, block is 10:00).
-    const sixAm = page.getByRole("button", { name: "6:00 AM", exact: true });
-    const sevenAm = page.getByRole("button", { name: "7:00 AM", exact: true });
+    const sixAm = page.getByRole("button", { name: /^(?:Start at |End at )?6:00 AM(?:$| —)/ });
+    const sevenAm = page.getByRole("button", { name: /^(?:Start at |End at )?7:00 AM(?:$| —)/ });
     await expect(sixAm).toBeVisible();
 
     // (2) AVAIL-05 — the booked hour and the blocked hour are aria-disabled + unselectable, not red.
@@ -192,12 +192,12 @@ test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {
     await expect(blockedHour).toHaveAttribute("aria-disabled", "true");
 
     // (3) AVAIL-04 range fill — click a start hour, then an adjacent end hour: the run fills between and
-    // the rail summary appears. Both endpoints read as pressed (they ARE selected).
+    // the rail summary appears. The start and checkout boundary both read as pressed.
     await sixAm.click(); // start anchor (coral ring; selection is still pending)
-    await sevenAm.click(); // end → the run spans 6:00 AM – 8:00 AM (end = the second hour's end)
+    await sevenAm.click(); // end → the run spans 6:00 AM to 7:00 AM
     await expect(sixAm).toHaveAttribute("aria-pressed", "true");
     await expect(sevenAm).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByText(/6:00 AM\s*[–-]\s*8:00 AM/i)).toBeVisible();
+    await expect(page.getByText(/6:00 AM\s*[–-]\s*7:00 AM/i)).toBeVisible();
 
     // (4) D-23 — "Book full day" selects the whole operating day and MUTUALLY clears the run…
     await page.getByRole("button", { name: /book full day/i }).click();
@@ -216,29 +216,29 @@ test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {
     expect(res?.status()).toBe(200);
     await selectTargetDay(page);
 
-    // 5:00 PM … 8:00 PM are all available (no afternoon booking/block) → a clean 4-hour run in two clicks.
-    await page.getByRole("button", { name: "5:00 PM", exact: true }).click(); // start anchor
-    await page.getByRole("button", { name: "8:00 PM", exact: true }).click(); // end
-    // The run spans 5:00 PM – 9:00 PM (end = the 8:00 PM slot's end).
-    await expect(page.getByText(/5:00 PM\s*[–-]\s*9:00 PM/i)).toBeVisible();
+    // 5:00 PM to 8:00 PM are available (no afternoon booking/block): a clean 3-hour run in two clicks.
+    await page.getByRole("button", { name: /^(?:Start at |End at )?5:00 PM(?:$| —)/ }).click(); // start anchor
+    await page.getByRole("button", { name: /^(?:Start at |End at )?8:00 PM(?:$| —)/ }).click(); // end
+    // The run spans 5:00 PM to 8:00 PM, with 8:00 PM as the checkout boundary.
+    await expect(page.getByText(/5:00 PM\s*[–-]\s*8:00 PM/i)).toBeVisible();
     // Interior hours are FILLED (proves the range fill, not just the two clicked endpoints).
-    await expect(page.getByRole("button", { name: "6:00 PM", exact: true })).toHaveAttribute(
+    await expect(page.getByRole("button", { name: /^(?:Start at |End at )?6:00 PM(?:$| —)/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    await expect(page.getByRole("button", { name: "7:00 PM", exact: true })).toHaveAttribute(
+    await expect(page.getByRole("button", { name: /^(?:Start at |End at )?7:00 PM(?:$| —)/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
 
     // A 3rd click AFTER a completed run re-anchors a FRESH start: the old summary clears and the
     // pending helper returns (selection resets to null).
-    await page.getByRole("button", { name: "12:00 PM", exact: true }).click();
-    await expect(page.getByText(/5:00 PM\s*[–-]\s*9:00 PM/i)).toHaveCount(0);
+    await page.getByRole("button", { name: /^(?:Start at |End at )?12:00 PM(?:$| —)/ }).click();
+    await expect(page.getByText(/5:00 PM\s*[–-]\s*8:00 PM/i)).toHaveCount(0);
     await expect(page.getByText(/pick an end hour/i)).toBeVisible();
-    // Completing the fresh anchor yields a new run 12:00 PM – 2:00 PM.
-    await page.getByRole("button", { name: "1:00 PM", exact: true }).click();
-    await expect(page.getByText(/12:00 PM\s*[–-]\s*2:00 PM/i)).toBeVisible();
+    // Completing the fresh anchor yields a new run 12:00 PM to 1:00 PM.
+    await page.getByRole("button", { name: /^(?:Start at |End at )?1:00 PM(?:$| —)/ }).click();
+    await expect(page.getByText(/12:00 PM\s*[–-]\s*1:00 PM/i)).toBeVisible();
   });
 
   test("range-fill: a gap truncates the run to before the booked hour with a soft hint", async ({
@@ -251,8 +251,8 @@ test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {
 
     // 7:00 AM (start) → 9:00 AM (end), but 8:00 AM is booked between them. The fill TRUNCATES at the
     // last available hour before the gap → 7:00 AM – 8:00 AM only (a single hour).
-    await page.getByRole("button", { name: "7:00 AM", exact: true }).click();
-    await page.getByRole("button", { name: "9:00 AM", exact: true }).click();
+    await page.getByRole("button", { name: /^(?:Start at |End at )?7:00 AM(?:$| —)/ }).click();
+    await page.getByRole("button", { name: /^(?:Start at |End at )?9:00 AM(?:$| —)/ }).click();
     await expect(page.getByText(/7:00 AM\s*[–-]\s*8:00 AM/i)).toBeVisible();
 
     // A soft, non-error hint names the blocking hour (never red — occupancy is a normal state).
@@ -260,7 +260,7 @@ test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {
     await expect(page.getByText(/pick a later start/i)).toBeVisible();
 
     // 9:00 AM was excluded by the truncation → it is NOT selected.
-    await expect(page.getByRole("button", { name: "9:00 AM", exact: true })).toHaveAttribute(
+    await expect(page.getByRole("button", { name: /^(?:Start at |End at )?9:00 AM(?:$| —)/ })).toHaveAttribute(
       "aria-pressed",
       "false",
     );
@@ -274,13 +274,13 @@ test.describe("booker availability calendar (AVAIL-03/04/05, SC#2)", () => {
     expect(res?.status()).toBe(200);
 
     await expect(page.getByRole("heading", { name: /availability/i })).toBeVisible();
-    await expect(page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)).toBeVisible();
+    await expect(page.getByText(/Times shown in Philippine Time \(GMT\+8\)/i)).toBeVisible();
 
     // The "Not bookable yet" affordance is shown (deriveBookable false — no host_payout row).
     await expect(page.getByRole("button", { name: /not bookable yet/i })).toBeVisible();
 
     // The real availability is still SHOWN, but every slot is read-only (the group is disabled).
     await selectTargetDay(page);
-    await expect(page.getByRole("button", { name: "6:00 AM", exact: true })).toBeDisabled();
+    await expect(page.getByRole("button", { name: /^(?:Start at |End at )?6:00 AM(?:$| —)/ })).toBeDisabled();
   });
 });

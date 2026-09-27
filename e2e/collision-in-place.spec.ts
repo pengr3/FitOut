@@ -167,8 +167,8 @@ const THEMES = ["court", "grove"] as const;
 
 /** The two-hour windows each theme's case books and then loses. Disjoint — see the header. */
 const WINDOWS = {
-  court: { startLabel: "9:00 AM", endLabel: "10:00 AM", from: 9, to: 11, named: "9:00–11:00 AM" },
-  grove: { startLabel: "1:00 PM", endLabel: "2:00 PM", from: 13, to: 15, named: "1:00–3:00 PM" },
+  court: { startLabel: "9:00 AM", endLabel: "10:00 AM", checkoutLabel: "11:00 AM", from: 9, to: 11, named: "9:00–11:00 AM" },
+  grove: { startLabel: "1:00 PM", endLabel: "2:00 PM", checkoutLabel: "3:00 PM", from: 13, to: 15, named: "1:00–3:00 PM" },
 } as const;
 
 const NOTICE = '[data-testid="collision-notice"]';
@@ -245,7 +245,7 @@ test.describe("STATE-07 — a lost race becomes a result, in place", () => {
       await expectListingReachable(page, "the listing before the race");
 
       // ── STEP 1: THE BOOKER SELECTS HOURS THE GRID SHOWS AS FREE ────────────────────────────────
-      await pickWindow(page, win.startLabel, win.endLabel);
+      await pickWindow(page, win.startLabel, win.checkoutLabel);
       const bookButton = page.getByRole("button", { name: /^Book(?: this space| · )/ });
       await expect(bookButton).toHaveCount(1);
       await expect(
@@ -334,7 +334,7 @@ test.describe("STATE-07 — a lost race becomes a result, in place", () => {
       // fails HERE, with this sentence, instead of one floor down wearing a message about staleness
       // that its own received value contradicts.
       await expect(
-        page.getByRole("button", { name: new RegExp(`^${win.startLabel}`) }),
+        page.getByRole("button", { name: new RegExp(`^(?:Start at |End at )?${win.startLabel}(?:$| —)`) }),
         `the day panel never re-rendered its hour chips after the refusal: no \`${win.startLabel}\` ` +
           "chip is mounted at all. That is NOT the stale-grid defect the assertion below is about — " +
           "a stale grid still mounts its chips — it is a grid that emptied and did not come back, " +
