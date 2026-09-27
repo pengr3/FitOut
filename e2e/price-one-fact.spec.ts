@@ -575,8 +575,8 @@ test.describe("RESP-02 — one price hook per placement, on one document", () =>
     // Scoped to the sheet: with it open the document holds two month grids, and `selectTargetDayIn`'s
     // CSS half does not inherit the accessibility-tree filter its role half gets for free.
     await selectTargetDayIn(sheet);
-    await sheet.getByRole("button", { name: WINDOWS.perSurface[0], exact: true }).click();
-    await sheet.getByRole("button", { name: WINDOWS.perSurface[1], exact: true }).click();
+    await sheet.getByRole("button", { name: `Start at ${WINDOWS.perSurface[0]}`, exact: true }).click();
+    await sheet.getByRole("button", { name: `End at ${WINDOWS.perSurface[1]}`, exact: true }).click();
 
     expectReachable(await countHook(page, "sheet-price-total"), "sheet-price-total", phoneWhere);
     expectReachable(await countHook(page, "rail-price-total"), "rail-price-total", phoneWhere);

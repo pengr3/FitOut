@@ -72,13 +72,10 @@ export const FITOUT_CHECK_LABEL = "Checked by FitOut";
 /**
  * Listing detail only — the surface where a booker has room to read a sentence.
  *
- * The second sentence is a DELIBERATE NEGATIVE, not a hedge. Success Criterion 6 says the badge must
- * never imply inspection; saying plainly what did not happen is the only wording that cannot be read
- * as implying it did.
+ * This describes the account and listing checks without implying an in-person inspection.
  */
 export const FITOUT_CHECK_EXPLAINER =
-  "Someone at FitOut checked this host's account and this listing before it could take bookings. " +
-  "We haven't visited the space.";
+  "Someone at FitOut checked this host's account and this listing before it could take bookings.";
 
 export function FitoutCheckBadge({
   checked,

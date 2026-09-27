@@ -264,13 +264,13 @@ describe("wizard occupancy fork (OPEN-01)", () => {
     expect(screen.queryByText("Capacity")).toBeNull();
   });
 
-  it("(7) the whole-space checklist is unchanged — capacity and both rates, no drop-in rows", async () => {
+  it("(7) the whole-space checklist requires capacity and hourly rate, no drop-in rows", async () => {
     mount(makeListing());
     await advanceTo(TITLE.review);
 
     expect(screen.getByText("Capacity")).toBeTruthy();
     expect(screen.getByText("Hourly rate")).toBeTruthy();
-    expect(screen.getByText("Day rate")).toBeTruthy();
+    expect(screen.queryByText("Day rate")).toBeNull();
     expect(screen.queryByText("Drop-in cap")).toBeNull();
     expect(screen.queryByText("Price per person")).toBeNull();
   });

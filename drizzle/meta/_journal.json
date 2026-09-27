@@ -225,6 +225,13 @@
       "when": 1790467200000,
       "tag": "0031_controlled_checkout_grant",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790467201000,
+      "tag": "0032_bouldering_space_type",
+      "breakpoints": true
     }
   ]
 }

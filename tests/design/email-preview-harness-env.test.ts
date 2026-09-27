@@ -69,6 +69,7 @@ const EMAIL_MODULE = resolve(process.cwd(), "src/lib/email.ts");
 
 const harnessSource = readFileSync(HARNESS, "utf8");
 const emailSource = readFileSync(EMAIL_MODULE, "utf8");
+const originsSource = readFileSync(resolve(process.cwd(), "src/lib/app-origins.ts"), "utf8");
 
 /** The single `loadFromEnvLocal([...])` call site, parsed to the keys it actually allow-lists. */
 function allowListedKeys(): string[] {
@@ -104,13 +105,10 @@ describe("the email-preview harness hydrates the environment @/lib/email reads",
 });
 
 describe("the coupling this guard depends on", () => {
-  it("email.ts still reads BETTER_AUTH_URL at module scope", () => {
-    // If this ever stops being true, the allow-list assertion above is guarding a key nothing
-    // consumes, and would stay green while protecting nothing.
-    expect(
-      /process\.env\.BETTER_AUTH_URL/.test(emailSource),
-      "src/lib/email.ts no longer reads BETTER_AUTH_URL — re-aim this guard at whatever replaced it",
-    ).toBe(true);
+  it("email.ts uses the validated public origin that reads BETTER_AUTH_URL", () => {
+    expect(emailSource).toContain('import { PUBLIC_APP_ORIGIN } from "@/lib/app-origins"');
+    expect(emailSource).toContain("const APP_URL = PUBLIC_APP_ORIGIN");
+    expect(originsSource).toMatch(/process\.env\.BETTER_AUTH_URL/);
   });
 
   it("still has exactly one CTA composing its href from APP_URL", () => {

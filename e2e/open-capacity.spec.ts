@@ -432,7 +432,7 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     ).toBeVisible();
     // SC#2 — the venue timezone is named regardless of the browser's.
     await expect(
-      page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i).filter({ visible: true }),
+      page.getByText(/Times shown in Philippine Time \(GMT\+8\)/i).filter({ visible: true }),
     ).toBeVisible();
 
     // ── THE ABSENCE IS THE PRIMARY SIGNAL (§ 2). The hour picker is not disabled, it is NOT MOUNTED. ──
@@ -492,7 +492,7 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     await expect(page.getByRole("heading", { name: "Availability", exact: true })).toBeVisible();
     await pickDay(page, spotsDate);
     await expect(page.getByRole("group", { name: "Available hours" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "6:00 AM", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Start at 6:00 AM$/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /book full day/i })).toBeVisible();
   });
 

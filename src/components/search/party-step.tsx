@@ -27,7 +27,7 @@ export function PartyStep({ headingRef, groupDraft, showGroupInput, onChooseSolo
   const partySize = parseGroupPartySize(groupDraft);
   return (
     <div className="mx-auto w-full space-y-3 rounded-card border border-border bg-card p-4 shadow-card sm:max-w-md sm:min-w-96 sm:p-5">
-      <p className="text-label text-muted-foreground">Step 3 of 3</p>
+      <p className="text-label text-muted-foreground">People</p>
       <h2 ref={headingRef} tabIndex={-1} className="text-xl font-semibold outline-none">Who is this for?</h2>
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="brand" size="touch" onClick={onChooseSolo}>For me</Button>

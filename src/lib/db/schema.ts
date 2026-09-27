@@ -147,6 +147,7 @@ export const spaceType = pgEnum("space_type", [
   "dance_studio",
   "pilates_barre_studio",
   "martial_arts_boxing",
+  "bouldering_gym",
   "home_private_gym",
   "multi_purpose_event",
 ]);
@@ -329,9 +330,10 @@ export const listingActivityTag = pgTable(
 );
 
 // Host payout state — a SEPARATE table keyed 1:1 to user (NOT Better Auth additionalFields, to keep
-// the auth schema CLI-clean). PayMongo shape (D-20): activation is set ONLY by the Plan-06
-// merchant.activated webhook; payoutsEnabled is the provider-agnostic cached gate flag deriveBookable
-// reads (KEEP THIS NAME). These flags are webhook/server-set ONLY — never from a client body.
+// the auth schema CLI-clean). `activationStatus` remains the legacy Linked Account lifecycle signal,
+// written by the merchant webhook when that model is used. `payoutsEnabled` is the provider-agnostic
+// cached gate flag deriveBookable reads (KEEP THIS NAME): it is set only by a verified provider event
+// or the guarded staff release of a host-attested parent-merchant destination, never by a client body.
 export const hostPayout = pgTable("host_payout", {
   userId: text("user_id")
     .primaryKey()

@@ -23,7 +23,7 @@ export default async function Home({
   const activeSearch = derivePublicSearchInput(parsed, MAX_PAGES);
   const page = activeSearch.page;
   const hasOrigin = activeSearch.lat !== undefined && activeSearch.lng !== undefined;
-  const hasQuery = activeSearch.category !== undefined && hasOrigin && activeSearch.partySize !== undefined;
+  const hasQuery = activeSearch.category !== undefined || hasOrigin || activeSearch.partySize !== undefined;
 
   let results: SearchResultRow[] = [];
   let hasMore = false;

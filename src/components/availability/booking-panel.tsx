@@ -208,6 +208,7 @@ export function BookingPanel({
           gmtLabel={gmtLabel}
           unitCount={unitCount}
           bookable={bookable}
+          dayRateCents={dayRateCents}
           initialDate={initialDate}
           initialDay={initialDay}
           occupancyMode={occupancyMode}

@@ -165,6 +165,7 @@ function renderPicker(opts: {
         gmtLabel="GMT+8"
         unitCount={1}
         bookable={opts.bookable ?? true}
+        dayRateCents={null}
         initialDate={DAY_A}
         initialDay={opts.initialDay === undefined ? openDay(DAY_A) : opts.initialDay}
         occupancyMode="open_capacity"
@@ -201,7 +202,7 @@ describe("DatePassPicker — a day and a pass count, never an hour (OPEN-02 · �
 
     expect(screen.getByText(labelFor(DAY_A))).toBeTruthy();
     expect(screen.getByText("Spots available")).toBeTruthy();
-    expect(screen.getByText(`Open 6:00 AM – 10:00 PM · ${CITY} time`)).toBeTruthy();
+    expect(screen.getByText("Open 6:00 AM – 10:00 PM · Philippine Time")).toBeTruthy();
     expect(
       screen.getByText("Your pass covers the whole day — come any time while they're open."),
     ).toBeTruthy();
@@ -287,7 +288,7 @@ describe("DatePassPicker — a day and a pass count, never an hour (OPEN-02 · �
     ).toBeTruthy();
     // Nothing of the previous day survives: no chip, no entry window, no pass count.
     expect(screen.queryByText("Spots available")).toBeNull();
-    expect(screen.queryByText(`Open 6:00 AM – 10:00 PM · ${CITY} time`)).toBeNull();
+    expect(screen.queryByText("Open 6:00 AM – 10:00 PM · Philippine Time")).toBeNull();
     expect(screen.queryByText("How many passes?")).toBeNull();
     // ...and the CTA is no longer armed with the date that failed.
     expect(screen.getByRole("button", { name: "Book this space" }).hasAttribute("disabled")).toBe(true);
@@ -400,7 +401,7 @@ describe("DatePassPicker — a day and a pass count, never an hour (OPEN-02 · �
   it("(9) the tz note stays, aria-linked, and the grid is described by it (SC#2)", () => {
     const { container } = renderPicker({});
 
-    const note = screen.getByText(`Times shown in ${CITY} time (GMT+8)`);
+    const note = screen.getByText("Times shown in Philippine Time (GMT+8)");
 
     // THE ASSOCIATION IS THE ASSERTION, NOT THE SPELLING (19.1-04). This used to pin the literal
     // `availability-tz-note`, which was a module-level constant — and that is exactly what made the

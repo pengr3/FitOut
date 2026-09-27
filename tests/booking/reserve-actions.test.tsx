@@ -94,7 +94,7 @@ describe("ReserveActions — the checkout-lease refusal is calm, inline, and lea
     expect(onResult).toHaveBeenCalledWith(IN_FLIGHT);
   });
 
-  it("(2) does NOT render a notice for `checkout` — that reason is the whole-page recovery path", async () => {
+  it("(2) keeps a failed checkout retryable without claiming the hold expired", async () => {
     const CALM_RETRY = "We couldn't start checkout. Please try again.";
     confirmBooking.mockResolvedValue({ ok: false, reason: "checkout", error: CALM_RETRY });
     const { onResult, cta } = renderActions();
@@ -105,10 +105,8 @@ describe("ReserveActions — the checkout-lease refusal is calm, inline, and lea
       expect(onResult).toHaveBeenCalled();
     });
 
-    // The inline notice is scoped to `in-flight` ONLY. Showing it here as well would give the booker two
-    // competing recoveries — the parent's HoldExpiredState and a stray line under the CTA.
-    expect(screen.queryByText(CALM_RETRY)).toBeNull();
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("status").textContent).toBe(CALM_RETRY);
+    expect(cta().hasAttribute("disabled")).toBe(false);
   });
 
   it("(3) a second attempt CLEARS the previous notice before the next result lands", async () => {

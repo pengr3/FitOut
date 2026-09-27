@@ -76,7 +76,7 @@ afterEach(() => {
 const LOCATED = /Location set\./i;
 
 /** The static hint, matched the same way and for the same reason. */
-const PICK_HINT = /Pick a suggestion so we can place you on the map\./i;
+const PICK_HINT = /Pick the nearest result, then enter the exact street address and place the pin\./i;
 
 /**
  * THE region — asserted to be exactly one, never sampled.
@@ -172,9 +172,9 @@ describe("(3) a lookup that FAILS writes the region — so the region is not mer
 
     // Open the combobox and type past the three-character floor the debounce gates on.
     await act(async () => {
-      fireEvent.click(screen.getByRole("combobox", { name: "Search for your address" }));
+      fireEvent.click(screen.getByRole("combobox", { name: "Search for a nearby address" }));
     });
-    const input = screen.getByPlaceholderText("Start typing a street, city…");
+    const input = screen.getByPlaceholderText("Type a street, landmark or city…");
     await act(async () => {
       fireEvent.change(input, { target: { value: "Ayala" } });
     });

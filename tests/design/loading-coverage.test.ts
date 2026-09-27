@@ -318,8 +318,8 @@ const APP_DIR = resolve(process.cwd(), "src/app");
 // Phase 20 added four synchronous routing/auth pages (the shared cloak plus login, recovery, and
 // reset) and this async invitation lookup with its sibling loading state. The split is therefore
 // measured at 40 = 24 async + 16 synchronous, with one loading file per async page.
-const EXPECTED_PAGES = 40;
-const EXPECTED_QUALIFYING = 24;
+const EXPECTED_PAGES = 41;
+const EXPECTED_QUALIFYING = 25;
 const EXPECTED_NON_QUALIFYING = 16;
 
 /**

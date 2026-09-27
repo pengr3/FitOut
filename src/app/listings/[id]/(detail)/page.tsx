@@ -671,6 +671,7 @@ export default async function PublicListingPage({
               gmtLabel={gmtLabel}
               unitCount={row.listing.unitCount}
               bookable={bookable}
+              dayRateCents={pub.dayRateCents}
               initialDate={initialDate}
               initialDay={initialDay}
               occupancyMode={row.listing.occupancyMode}

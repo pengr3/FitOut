@@ -500,9 +500,9 @@ export const VISUAL_SURFACES = {
   "search-idle-pill": {
     kind: "document",
     url: "/",
-    hook: 'section[aria-label="Space search"] button[aria-label="Start your search"]',
+    hook: 'section[aria-label="Space search"] button[aria-label="Search activity"]',
     hookWhy:
-      "the real progressive-search trigger after the route has settled. The streaming loading shell " +
+      "the activity field in the search bar after the route has settled. The streaming loading shell " +
       "is deliberately aria-hidden, so this semantic hook cannot be satisfied by its inert geometry " +
       "or by a page that has already advanced into a later search step.",
     blocked: null,
@@ -514,7 +514,7 @@ export const VISUAL_SURFACES = {
     hook: '[data-slot="command-input"][aria-label="Search for activity or type"]',
     hookWhy:
       "the command input that only appears after the user activates the idle pill. It rejects both " +
-      "the idle state and the later address/party states, so this capture cannot quietly baseline the " +
+      "the idle state and the address/party overlays, so this capture cannot quietly baseline the " +
       "wrong step of the journey.",
     blocked: null,
   },
@@ -522,17 +522,17 @@ export const VISUAL_SURFACES = {
   "search-location-step": {
     kind: "document",
     url: "/",
-    hook: 'section[aria-label="Space search"] [role="combobox"][aria-label="Search for your address"]',
+    hook: '[role="dialog"] [role="combobox"][aria-label="Search for your address"]',
     hookWhy:
-      "the address combobox that appears only after a catalogue activity is selected. A structural " +
-      "section prefix keeps it distinct from any unrelated combobox a later route could add.",
+      "the address combobox that appears when the independent location field is opened. A structural " +
+      "dialog prefix keeps it distinct from any unrelated combobox a later route could add.",
     blocked: null,
   },
 
   "search-party-step": {
     kind: "document",
     url: "/",
-    hook: 'section[aria-label="Space search"] #group-party-size',
+    hook: '[role="dialog"] #group-party-size',
     hookWhy:
       "the group-size input, not merely the party-step heading: it exists only after the user chooses " +
       "For a group, so the baseline fails if the drive stops at the generic party choice state.",
@@ -570,7 +570,7 @@ export const VISUAL_SURFACES = {
     // two struck-through hours: a picture of real availability, not of an empty day. `today` is its
     // sibling pin: without it the opening month, disabled past days and ring move with the dispatch
     // clock. The fixture-contract assertion checks both literals against the seed's exported values.
-    url: "/listings/vrt_listing_exclusive?date=2026-09-16&today=2026-09-15",
+    url: "/listings/vrt_listing_exclusive?date=2026-12-16&today=2026-12-15",
     hook: '[data-testid="listing-key-facts"]',
     hookWhy:
       "the key-facts strip — BFLOW-02's `<dl>`, which only the RESOLVED page renders. This route has a " +
@@ -584,7 +584,7 @@ export const VISUAL_SURFACES = {
 
   "listing-lightbox": {
     kind: "document",
-    url: "/listings/vrt_listing_exclusive?date=2026-09-16",
+    url: "/listings/vrt_listing_exclusive?date=2026-12-16",
     hook: '[data-testid="photo-lightbox"]',
     hookWhy:
       "the lightbox's own hook, and it is the only handle that can prove the overlay OPENED. " +
@@ -599,7 +599,7 @@ export const VISUAL_SURFACES = {
 
   "listing-sheet": {
     kind: "document",
-    url: "/listings/vrt_listing_exclusive?date=2026-09-16",
+    url: "/listings/vrt_listing_exclusive?date=2026-12-16",
     // Scoped INSIDE the overlay on purpose. `booking-panel` alone resolves to TWO elements on this
     // route by design (RESP-02 mounts the panel in the rail and in the sheet), and `expectReachable`
     // reads `.first()` — so an unscoped hook is satisfied by the RAIL's panel on a page where the
@@ -642,7 +642,7 @@ export const VISUAL_SURFACES = {
     // IN PLACE, so the URL is deliberately the listing page's own.
     // `today` pins the same opening month, disabled set and ring as listing-detail above. Dropping it
     // makes this reference clock-dependent again; the spec checks its VALUE, not mere presence.
-    url: "/listings/vrt_listing_exclusive?date=2026-09-16&today=2026-09-15",
+    url: "/listings/vrt_listing_exclusive?date=2026-12-16&today=2026-12-15",
     hook: '[data-testid="collision-notice"]',
     hookWhy:
       "the notice, which exists ONLY after a hold has been refused. Everything weaker is satisfied by " +
@@ -893,7 +893,7 @@ export const VISUAL_SURFACES = {
   //   • `VRT_HOST_ID` = "vrt_host_1", first name "Vera", `can_host`, `email_verified`
   //   • an ACTIVATED `host_payout` row — `activation_status='activated'`, `payouts_enabled=true`
   //   • FIVE published listings owned by that host, with photos, operating hours and activity tags
-  //   • `VRT_CLOCK_ISO` = "2026-09-15T04:00:00Z" — noon Asia/Manila — which the spec installs
+  //   • `VRT_CLOCK_ISO` = "2026-12-15T04:00:00Z" — noon Asia/Manila — which the spec installs
   //   • fixed literal ids throughout, and a `reset()` that deletes every `vrt_%` row FK-safely
   //
   // WHAT IT DOES NOT GIVE, and this is the whole of the shared work:
@@ -931,7 +931,7 @@ export const VISUAL_SURFACES = {
       "`scripts/seed-baseline-fixtures.ts` contains no `booking` block at all — it seeds a host, a " +
       "payout wallet and five listings and stops. This surface needs at least two CONFIRMED bookings " +
       "whose `starts_at` falls inside `VRT_CLOCK_ISO`'s venue-local day (noon Asia/Manila on " +
-      "2026-09-15), written as LITERALS: a `now()`-relative seed puts a different window in frame on " +
+      "2026-12-15), written as LITERALS: a `now()`-relative seed puts a different window in frame on " +
       "every dispatch, and the row prints that window. It also needs a booker row with a FIXED " +
       "`first_name`, because D-140 makes the booker's first name the row's TITLE and the shipped " +
       "sign-up helpers mint a random identity per run. Neither exists.",
@@ -2741,7 +2741,7 @@ export function baselineArg(row: BaselineRow): string {
  *     seeded theme paints only the header strip and the page background. A hard-coded colour inside
  *     a pattern component would appear IDENTICALLY in both panes and this probe would never see it.
  *   • `listing-detail` / `listing-lightbox` / `listing-sheet` — their URLs embed the fixture's
- *     `2026-09-16` collision day, which the NOT COVERED section below records as having a shelf
+ *     `2026-12-16` collision day, which the NOT COVERED section below records as having a shelf
  *     life. A permanent fixed set must not carry a dated time bomb.
  *   • `checkout` / `collision-notice` — they mint database rows, and the probe runs each surface
  *     twice.
@@ -2793,7 +2793,7 @@ export function blockedSurfaces(): readonly { id: SurfaceId; reason: string }[] 
 //   • THE COUNTS ARE COMPILE-CHECKED; THE CONTENTS ARE NOT. Nothing here can tell a correct width
 //     from a plausible one, and a row whose `why` is true but whose `width` is wrong compiles.
 //   • ⚠ THE FIXTURE HAS A SHELF LIFE, AND SO THEREFORE DO SEVEN OF THESE SURFACES. Every Phase-12
-//     URL above names `2026-09-16` — the fixture's own collision day — because the alternative is a
+//     URL above names `2026-12-16` — the fixture's own collision day — because the alternative is a
 //     baseline whose month grid changes with the wall clock. `scripts/seed-baseline-fixtures.ts`
 //     chose fixed literals over relative dates for the same reason, and the cost is the same: once
 //     real time passes that day the seeded window is in the PAST, the server refuses to seed it, and

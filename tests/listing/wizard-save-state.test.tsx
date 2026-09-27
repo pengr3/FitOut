@@ -687,8 +687,8 @@ describe("(6) the two toasts that PRECEDE A NAVIGATION survive", () => {
       fireEvent.click(screen.getByRole("button", { name: "Publish listing" }));
     });
 
-    expect(toastSpy.success).toHaveBeenCalledWith("Your listing is live!");
-    expect(nav.push).toHaveBeenCalledWith("/host/listings");
+    expect(toastSpy.success).toHaveBeenCalledWith("Listing details saved. Set your weekly hours next.");
+    expect(nav.push).toHaveBeenCalledWith("/host/listings/listing-1/availability");
   });
 
   it("a refused PUBLISH keeps its own toast and leaves the SAVE state truthful", async () => {

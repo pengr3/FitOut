@@ -49,6 +49,9 @@
  */
 export const RESULT_CARD_MEDIA = "aspect-[4/3]";
 
+/** Three search fields share a 56px touch target inside 8px padding and a 1px border. */
+export const SEARCH_BAR_SHELL_MIN_HEIGHT = "min-h-[4.625rem]";
+
 /**
  * A booking/request row's height: 80px.
  *

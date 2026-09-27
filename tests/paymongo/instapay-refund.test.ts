@@ -74,7 +74,7 @@ async function fetchInterceptor(input: RequestInfo | URL, init?: RequestInit): P
   const body = init?.body ? JSON.parse(String(init.body)) : undefined;
   paymongoRequests.push({ url, method, headers, body });
 
-  if (url.includes("/v2/transfers/receiving_institutions")) {
+  if (url.includes("/v1/wallets/receiving_institutions")) {
     if (institutionsMode === "notfound") {
       // The OBSERVED live behaviour (2026-07-23) until PayMongo enables Money Movement — see refund-rail.ts.
       return new Response(

@@ -294,7 +294,7 @@ async function pickWindowInSheet(
   where: string,
 ): Promise<void> {
   await selectTargetDayIn(sheet);
-  const start = sheet.getByRole("button", { name: window[0], exact: true });
+  const start = sheet.getByRole("button", { name: `Start at ${window[0]}`, exact: true });
   await expect(
     start,
     `${where}: the sheet's slot picker never rendered ${window[0]}. The sheet mounts the same ` +
@@ -302,7 +302,7 @@ async function pickWindowInSheet(
       "render its calendar at all.",
   ).toHaveCount(1);
   await start.click();
-  await sheet.getByRole("button", { name: window[1], exact: true }).click();
+  await sheet.getByRole("button", { name: `End at ${window[1]}`, exact: true }).click();
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1192,7 +1192,7 @@ test.describe("RESP-02 — two views, one state, ONE fetch", () => {
       await selectTargetDayIn(sheet);
       // Wait for the day panel to resolve so a slow response is not read as an absent one.
       await expect(
-        sheet.getByRole("button", { name: WINDOWS[theme][0], exact: true }),
+        sheet.getByRole("button", { name: `Start at ${WINDOWS[theme][0]}`, exact: true }),
         `${phoneWhere}: the sheet's day never resolved, so the request count below may be short.`,
       ).toHaveCount(1, { timeout: 15_000 });
 
@@ -1218,7 +1218,7 @@ test.describe("RESP-02 — two views, one state, ONE fetch", () => {
 
       await selectTargetDayIn(page);
       await expect(
-        page.getByRole("button", { name: WINDOWS[theme][0], exact: true }),
+        page.getByRole("button", { name: `Start at ${WINDOWS[theme][0]}`, exact: true }),
         `${deskWhere}: the day never resolved, so the request count below may be short.`,
       ).toHaveCount(1, { timeout: 15_000 });
 

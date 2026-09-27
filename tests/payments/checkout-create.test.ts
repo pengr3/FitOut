@@ -251,4 +251,25 @@ describe("confirmBooking — Confirm & pay checkout (D-49/D-57/D-58)", () => {
     expect(url).toBe(`/bookings/${id}`);
     expect(mockPayMongo.createCheckoutSession).not.toHaveBeenCalled();
   });
+
+  it("a provider failure leaves the hold retryable and returns its extended deadline", async () => {
+    session.userId = BOOKER;
+    const id = "bk_provider_retry";
+    await seedBooking({
+      id,
+      bookerId: BOOKER,
+      status: "pending",
+      quotedTotalCents: 150000,
+      expiresAtMs: Date.now() + 2 * 60 * 1000,
+      hourUtc: 10,
+    });
+    mockPayMongo.createCheckoutSession.mockRejectedValueOnce(new Error("provider unavailable"));
+
+    const result = await confirmBooking(id);
+    const row = await readBooking(id);
+    expect(result).toMatchObject({ ok: false, reason: "checkout", expiresAt: row.expiresAt?.toISOString() });
+    expect(row.status).toBe("pending");
+    expect(row.checkoutSessionId).toBeNull();
+    expect(row.expiresAt!.getTime()).toBeGreaterThan(Date.now() + 50 * 60 * 1000);
+  });
 });

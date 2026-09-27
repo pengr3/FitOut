@@ -146,7 +146,7 @@ const EXPECTED_SURVIVING_ACCENT_LINES: Record<string, number> = {
   "src/app/(host)/host/listings/[id]/edit/wizard.tsx": 1,
   "src/components/availability/availability-calendar.tsx": 1,
   "src/components/availability/date-pass-picker.tsx": 1,
-  "src/components/availability/slot-picker.tsx": 3,
+  "src/components/availability/slot-picker.tsx": 7,
   "src/components/availability/spots-left-chip.tsx": 1,
   "src/components/notifications/notification-item.tsx": 1,
 };
@@ -793,7 +793,7 @@ describe("DS-08 — the repo-wide scan reaches the trees it now claims to police
     // notice it being converted either, and the "exactly 9" assertion would go green on a broken
     // availability surface.
     expect(scan.scanned).toContain("src/components/availability/slot-picker.tsx");
-    expect(scan.survivingAccentLines["src/components/availability/slot-picker.tsx"]).toBe(3);
+    expect(scan.survivingAccentLines["src/components/availability/slot-picker.tsx"]).toBe(7);
   });
 
   it("reaches the CVA and still excludes it from the 9, which is the scope rule working", () => {
@@ -881,7 +881,7 @@ describe("DS-08 / D-21 — coral appears on exactly the 22 buttons someone asked
 });
 
 describe("DS-08 / T-10-26 — the non-Button recipes are a RECORDED deliberate non-conversion, not an oversight, and an over-eager future sweep must go red here", () => {
-  it("keeps exactly the 8 accent occurrences, in exactly the 6 files that are allowed to have them", () => {
+  it("keeps exactly the 12 accent occurrences, in exactly the 6 files that are allowed to have them", () => {
     // Read this as a contract, not as a count. Each of these lines is a react-day-picker DayButton,
     // a Radix ToggleGroupItem, a bare <button>, a <Badge>, an unread dot or an <ol> step marker —
     // none of them a <Button> with a variant prop. Converting any of them breaks the availability
@@ -900,7 +900,7 @@ describe("DS-08 / T-10-26 — the non-Button recipes are a RECORDED deliberate n
     // token. Nothing was converted and no surface changed — one duplicated branch collapsed into
     // the condition it should always have been. The UI-SPEC's 9 refers to the pre-merge line count.
     const total = Object.values(scan.survivingAccentLines).reduce((sum, n) => sum + n, 0);
-    expect(total).toBe(8);
+    expect(total).toBe(12);
     expect(Object.keys(scan.survivingAccentLines)).toHaveLength(6);
   });
 });

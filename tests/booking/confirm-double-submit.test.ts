@@ -326,7 +326,7 @@ describe("deferred item 5 — a SEQUENTIAL double-submit cannot leave two payabl
       new Error("PayMongo POST /v1/checkout_sessions failed (503): service unavailable"),
     );
     const res = await confirmBooking(id);
-    expect(res).toEqual({ ok: false, reason: "checkout", error: CALM_RETRY });
+    expect(res).toEqual({ ok: false, reason: "checkout", error: CALM_RETRY, expiresAt: expect.any(String) });
     expect(mockPayMongo.expireCheckoutSession).toHaveBeenCalledWith("cs_1");
     expect((await readRow(id)).checkoutSessionId).toBe("cs_1");
 
@@ -483,7 +483,7 @@ describe("T-08-79 — the checkout lease admits ONE attempt per booking, and eve
     );
     const res = await confirmBooking(id);
 
-    expect(res).toEqual({ ok: false, reason: "checkout", error: CALM_RETRY });
+    expect(res).toEqual({ ok: false, reason: "checkout", error: CALM_RETRY, expiresAt: expect.any(String) });
     const after = await readRow(id);
     expect(after.checkoutSessionId).toBe("cs_1"); // the persist write never ran
     expect(after.checkoutLockAt).toBeNull(); // ...but the lease was released on the way out
