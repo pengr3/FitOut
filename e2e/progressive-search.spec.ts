@@ -135,6 +135,7 @@ test.describe.serial("independent search fields", () => {
       await page.setViewportSize(viewport);
       await page.goto(BASE);
       const results = page.getByTestId("search-results-region");
+      await expect(results).toBeVisible();
       const before = await results.boundingBox();
       await page.getByRole("button", { name: "Search activity" }).click();
       const dialog = page.getByRole("dialog", { name: "Search spaces" });

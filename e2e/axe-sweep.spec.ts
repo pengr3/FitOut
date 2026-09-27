@@ -1085,6 +1085,7 @@ test.describe("Phase 24 progressive search accessibility states", () => {
       await page.getByRole("button", { name: "For me" }).click();
       const listing = page.getByRole("link", { name: new RegExp(seed.title) });
       await expect(listing, "the seeded listing must survive the submitted result journey").toHaveCount(1);
+      await expect(page).toHaveTitle(/\S/);
       await expectAxeClean(page, `progressive results · ${width}px`);
 
       await page.getByRole("button", { name: "Search party size" }).click();

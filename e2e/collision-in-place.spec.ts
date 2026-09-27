@@ -479,7 +479,7 @@ test.describe("STATE-07 — a lost race becomes a result, in place", () => {
       // never made it into the compiled stylesheet, which is the shape 12-09 measured at 25.08px.
       const outline = await page.evaluate(() => {
         const chips = Array.from(document.querySelectorAll<HTMLButtonElement>("main button")).filter(
-          (b) => /^\d{1,2}:\d{2} (AM|PM)$/.test(b.getAttribute("aria-label") ?? ""),
+          (b) => /^(?:Start at |End at )\d{1,2}:\d{2} (AM|PM)$/.test(b.getAttribute("aria-label") ?? ""),
         );
         const marked = chips.filter((b) => b.classList.contains("border-brand"));
         const plain = chips.find((b) => !b.classList.contains("border-brand"));
