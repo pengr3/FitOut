@@ -83,6 +83,7 @@ function markedDayAt(
         gmtLabel="GMT+8"
         unitCount={1}
         bookable={false}
+        dayRateCents={300000}
         initialDate={PINNED_TODAY}
         initialDay={initialDay}
         occupancyMode={occupancyMode}

@@ -108,11 +108,11 @@ function renderCompletedSearch(overrides: Partial<ReturnType<typeof baseProps>> 
 }
 
 function expectSharedAnswers() {
-  const answers = screen.getByLabelText("Search answers");
+  const answers = screen.getByRole("group", { name: "Search spaces" });
   expect(within(answers).getAllByRole("button")).toHaveLength(3);
-  expect(within(answers).getByRole("button", { name: /Activity:/ })).toBeTruthy();
-  expect(within(answers).getByRole("button", { name: /Location:/ })).toBeTruthy();
-  expect(within(answers).getByRole("button", { name: /2 people/ })).toBeTruthy();
+  expect(within(answers).getByRole("button", { name: "Search activity" }).textContent).toContain("Pickleball court");
+  expect(within(answers).getByRole("button", { name: "Search location" }).textContent).toContain("Makati");
+  expect(within(answers).getByRole("button", { name: "Search party size" }).textContent).toContain("2 people");
 }
 
 function expectNoRetiredControls() {
@@ -152,7 +152,7 @@ describe("completed progressive search states", () => {
     const sharedAnswers = { category: "pickleball_court", lat: 14.5547, lng: 121.0244, partySize: 2 };
     for (const overrides of [{}, { results: [makeRow("first", "Poblacion Pickleball Court")], heading: "1 space near you" }]) {
       const { unmount } = renderCompletedSearch(overrides, sharedAnswers);
-      expect(within(screen.getByLabelText("Search answers")).getByRole("button", { name: "Location: Selected location" })).toBeTruthy();
+      expect(within(screen.getByRole("group", { name: "Search spaces" })).getByRole("button", { name: "Search location" }).textContent).toContain("Selected location");
       unmount();
     }
   });

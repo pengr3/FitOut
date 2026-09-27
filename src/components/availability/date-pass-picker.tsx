@@ -110,7 +110,6 @@ function monthKeyFor(year: number, month: number): string {
 export function DatePassPicker({
   listingId,
   timezone,
-  cityLabel,
   gmtLabel,
   bookable,
   initialDate,
@@ -267,7 +266,7 @@ export function DatePassPicker({
         {"Pick a day — your pass is good any time they're open."}
       </p>
       <p id={tzNoteId} className="text-sm text-muted-foreground">
-        Times shown in {cityLabel} time ({gmtLabel})
+        Times shown in Philippine Time ({gmtLabel})
       </p>
 
       <div
@@ -382,7 +381,7 @@ export function DatePassPicker({
               <SpotsLeftChip state={oc.state} remaining={oc.remaining} />
               <p className="text-sm tabular-nums text-muted-foreground">
                 Open {format(new Date(oc.dayOpenUtc), "h:mm a", { in: inTz })} –{" "}
-                {format(new Date(oc.dayCloseUtc), "h:mm a", { in: inTz })} · {cityLabel} time
+                {format(new Date(oc.dayCloseUtc), "h:mm a", { in: inTz })} · Philippine Time
               </p>
               <p className="max-w-prose text-base">
                 {"Your pass covers the whole day — come any time while they're open."}

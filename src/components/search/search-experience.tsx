@@ -163,29 +163,29 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
     setState((current) => progressiveSearchReducer(current, event));
   }
 
-  function submitPartySize(partySize: number) {
+  function submitAnswers(nextAnswers: SearchExperienceInitialAnswers) {
     const candidate = searchParamsSchema.safeParse({
-      category: state.answers.category,
-      lat: state.answers.lat,
-      lng: state.answers.lng,
-      locationLabel: state.answers.locationLabel,
-      partySize,
+      category: nextAnswers.category,
+      lat: nextAnswers.lat,
+      lng: nextAnswers.lng,
+      locationLabel: nextAnswers.locationLabel,
+      partySize: nextAnswers.partySize,
     });
-    if (!candidate.success || candidate.data.category === undefined || candidate.data.lat === undefined || candidate.data.lng === undefined || candidate.data.locationLabel === undefined) {
-      dispatch({ type: "CORRECT_LOCATION" });
-      return;
-    }
+    if (!candidate.success) return;
     const query = new URLSearchParams();
-    query.set("category", candidate.data.category);
-    query.set("lat", String(candidate.data.lat));
-    query.set("lng", String(candidate.data.lng));
-    query.set("locationLabel", candidate.data.locationLabel);
-    query.set("partySize", String(partySize));
+    if (candidate.data.category) query.set("category", candidate.data.category);
+    if (candidate.data.lat !== undefined && candidate.data.lng !== undefined) {
+      query.set("lat", String(candidate.data.lat));
+      query.set("lng", String(candidate.data.lng));
+    }
+    if (candidate.data.locationLabel) query.set("locationLabel", candidate.data.locationLabel);
+    if (candidate.data.partySize !== undefined) query.set("partySize", String(candidate.data.partySize));
+    setState((current) => ({ ...current, screen: "idle", answers: nextAnswers, resultsVisible: true }));
     router.push(`/?${query.toString()}`);
   }
 
   function resolveAddress(address: ResolvedAddress) {
-    dispatch({ type: "RESOLVE_LOCATION", address: { lat: address.lat, lng: address.lng, locationLabel: addressLabel(address) } });
+    submitAnswers({ ...state.answers, lat: address.lat, lng: address.lng, locationLabel: addressLabel(address) });
   }
 
   function useMyLocation() {
@@ -203,7 +203,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
           dispatch({ type: "BROWSER_LOCATION_FAILURE", attempt });
           return;
         }
-        dispatch({ type: "RESOLVE_BROWSER_LOCATION", attempt, address: { lat: latitude, lng: longitude, locationLabel: "Current location" } });
+        submitAnswers({ ...state.answers, lat: latitude, lng: longitude, locationLabel: "Current location" });
       },
       () => {
         dispatch({ type: "BROWSER_LOCATION_FAILURE", attempt });
@@ -212,18 +212,16 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   }
 
   function cancel() {
-    dispatch({ type: "CANCEL" });
+    setState((current) => ({ ...current, screen: "idle", groupMode: false, progress: "", activeLocationAttempt: undefined }));
     setFilter("");
-    router.push("/");
   }
 
   const answers = state.answers;
   const locationPending = state.activeLocationAttempt !== undefined;
-  const locationChipLabel = answers.locationLabel?.trim() || "Selected location";
   const hasOpenQuestion = state.screen !== "idle";
   const desktopPresentation = state.screen === "party" ? "compact" : "standard";
   const questionContent = state.screen === "activity" ? (
-    <ActivityStep filter={filter} headingRef={headingRef} onFilterChange={setFilter} onSelect={(option) => { setFilter(option.label); dispatch({ type: "SELECT_ACTIVITY", option }); }} />
+    <ActivityStep filter={filter} headingRef={headingRef} onFilterChange={setFilter} onSelect={(option) => { setFilter(option.label); submitAnswers({ ...answers, category: option.value }); }} />
   ) : state.screen === "location" ? (
     <LocationStep headingRef={headingRef} initialLabel={answers.locationLabel} hasCoordinates={answers.lat !== undefined && answers.lng !== undefined} locationPending={locationPending} onResolved={resolveAddress} onUseMyLocation={useMyLocation} />
   ) : state.screen === "party" ? (
@@ -231,17 +229,17 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
       headingRef={headingRef}
       groupDraft={state.groupDraft}
       showGroupInput={state.groupMode}
-      onChooseSolo={() => { dispatch({ type: "CHOOSE_SOLO" }); submitPartySize(1); }}
+      onChooseSolo={() => submitAnswers({ ...answers, partySize: 1 })}
       onChooseGroup={() => dispatch({ type: "CHOOSE_GROUP" })}
       onGroupDraftChange={(groupDraft) => setState((current) => ({ ...current, groupDraft }))}
-      onSubmitGroup={(partySize) => { dispatch({ type: "CHOOSE_GROUP", partySize }); submitPartySize(partySize); }}
+      onSubmitGroup={(partySize) => submitAnswers({ ...answers, partySize })}
     />
   ) : null;
 
   function editAnswer(step: SearchAnswerKey, trigger: HTMLElement) {
     setReturnFocus(trigger);
     setDesktopAnchor(trigger);
-    if (step === "activity") setFilter(categoryLabel(answers.category));
+    if (step === "activity") setFilter(answers.category ? categoryLabel(answers.category) : "");
     dispatch({ type: "EDIT", step });
   }
 
@@ -249,13 +247,20 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
     <section aria-label="Space search" className="space-y-4">
       <p role="status" aria-live="polite" aria-label="Search progress" className="sr-only">{state.progress}</p>
 
+      <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-2 sm:mx-auto sm:max-w-3xl" role="group" aria-label="Search spaces">
+        <Button type="button" variant="ghost" aria-label="Search activity" className="h-auto min-h-14 flex-col items-start rounded-xl px-3 text-left" onClick={(event) => editAnswer("activity", event.currentTarget)}>
+          <span className="text-xs font-semibold">Activity</span><span className="max-w-full truncate text-sm text-muted-foreground">{answers.category ? categoryLabel(answers.category) : "Any activity"}</span>
+        </Button>
+        <Button type="button" variant="ghost" aria-label="Search location" className="h-auto min-h-14 flex-col items-start rounded-xl px-3 text-left" onClick={(event) => editAnswer("location", event.currentTarget)}>
+          <span className="text-xs font-semibold">Location</span><span className="max-w-full truncate text-sm text-muted-foreground">{answers.locationLabel || (answers.lat !== undefined && answers.lng !== undefined ? "Selected location" : "Any location")}</span>
+        </Button>
+        <Button type="button" variant="ghost" aria-label="Search party size" className="h-auto min-h-14 flex-col items-start rounded-xl px-3 text-left" onClick={(event) => editAnswer("party", event.currentTarget)}>
+          <span className="text-xs font-semibold">People</span><span className="max-w-full truncate text-sm text-muted-foreground">{answers.partySize ? `${answers.partySize} ${answers.partySize === 1 ? "person" : "people"}` : "Any group"}</span>
+        </Button>
+      </div>
+
       <ProgressiveSearchOverlay
         open={hasOpenQuestion}
-        trigger={!state.resultsVisible ? (
-          <Button type="button" variant="outline" size="touch" aria-label="Start your search" className="h-14 w-full justify-between sm:mx-auto sm:flex sm:max-w-3xl" onClick={() => { if (!hasOpenQuestion) dispatch({ type: "ENGAGE" }); }}>
-            <span>Start your search</span><span className="text-muted-foreground">Activity, location, and party</span>
-          </Button>
-        ) : undefined}
         desktopAnchor={desktopAnchor}
         returnFocus={returnFocus}
         desktopPresentation={desktopPresentation}
@@ -271,19 +276,12 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
               {questionContent}
             </div>
             <div role="group" aria-label="Search journey actions" className="order-2 flex justify-between gap-2 max-sm:-mx-4 max-sm:-mb-4 max-sm:mt-auto max-sm:border-t max-sm:border-border max-sm:bg-card max-sm:p-4 sm:order-1 sm:mb-2">
-              <Button type="button" variant="ghost" onClick={() => dispatch({ type: "BACK" })}>Back</Button>
+              <span className="text-sm text-muted-foreground">Search with any one field</span>
               <Button type="button" variant="ghost" onClick={cancel}>Cancel</Button>
             </div>
           </div>
         ) : null}
       </ProgressiveSearchOverlay>
-      {state.resultsVisible ? (
-        <div className="flex flex-wrap gap-2" aria-label="Search answers">
-          <Button type="button" variant="outline" onClick={(event) => editAnswer("activity", event.currentTarget)}>Activity: {categoryLabel(answers.category)}</Button>
-          <Button type="button" variant="outline" onClick={(event) => editAnswer("location", event.currentTarget)}>Location: {locationChipLabel}</Button>
-          <Button type="button" variant="outline" onClick={(event) => editAnswer("party", event.currentTarget)}>{answers.partySize === 1 ? "1 person" : `${answers.partySize ?? 1} people`}</Button>
-        </div>
-      ) : null}
       {children}
     </section>
   );

@@ -68,6 +68,7 @@ import {
   AddressAutocomplete,
   type ResolvedAddress,
 } from "@/components/listing/address-autocomplete";
+import { HostLocationMap } from "@/components/listing/host-location-map";
 import { PhotoUploader } from "@/components/listing/photo-uploader";
 import { type ListingPhotoRow } from "@/app/actions/listing-photo";
 import {
@@ -425,7 +426,9 @@ function toPayload(v: DraftListingInput): DraftListingInput {
     lng: num(v.lng),
     maxOccupancy: num(v.maxOccupancy),
     hourlyRateCents: num(v.hourlyRateCents),
-    dayRateCents: num(v.dayRateCents),
+    dayRateCents: v.occupancyMode === "open_capacity"
+      ? num(v.dayRateCents)
+      : (num(v.dayRateCents) ?? null),
     // D-108 group pricing. Both carry the app-level defaults (₱0 fee = flat pricing, 1 included head), so
     // saving them is a no-op for a host who never opens the subsection.
     included: num(v.included),
@@ -734,8 +737,8 @@ export function ListingWizard({
       return;
     }
     // SURVIVES for the same reason `Draft saved` does — the next line replaces this whole surface.
-    toast.success("Your listing is live!");
-    router.push("/host/listings");
+    toast.success("Listing details saved. Set your weekly hours next.");
+    router.push(`/host/listings/${listing.id}/availability`);
   }
 
   /**
@@ -820,11 +823,6 @@ export function ListingWizard({
           {
             label: "Hourly rate",
             done: Boolean(values.hourlyRateCents && values.hourlyRateCents > 0),
-            step: stepIndex("pricing"),
-          },
-          {
-            label: "Day rate",
-            done: Boolean(values.dayRateCents && values.dayRateCents > 0),
             step: stepIndex("pricing"),
           },
         ]),
@@ -1341,7 +1339,7 @@ export function ListingWizard({
           {currentKey === "location" && (
             <div className="space-y-6">
               <FormItem>
-                <FormLabel>Address</FormLabel>
+                <FormLabel>Find a nearby address or street</FormLabel>
                 <AddressAutocomplete
                   initialLabel={
                     [listing.addressLine1, listing.city, listing.region]
@@ -1352,6 +1350,72 @@ export function ListingWizard({
                   onResolved={applyResolvedAddress}
                 />
               </FormItem>
+
+              <FormField
+                control={form.control}
+                name="addressLine1"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Exact street address</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value ?? ""} placeholder="e.g. 133 Pinatubo Street" autoComplete="street-address" />
+                    </FormControl>
+                    <FormDescription>
+                      Add the building or street number even if the search suggestion only found the street.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {hasCoords ? (
+                <HostLocationMap
+                  lat={values.lat!}
+                  lng={values.lng!}
+                  onMove={(lat, lng) => {
+                    form.setValue("lat", lat, { shouldDirty: true });
+                    form.setValue("lng", lng, { shouldDirty: true });
+                  }}
+                />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Choose a nearby result above to show the map, then place the pin at your entrance.
+                </p>
+              )}
+
+              <details className="text-sm text-muted-foreground">
+                <summary className="cursor-pointer">Enter coordinates instead</summary>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-1.5">
+                    <span>Latitude</span>
+                    <Input
+                      type="number"
+                      step="any"
+                      min="-90"
+                      max="90"
+                      value={values.lat ?? ""}
+                      onChange={(event) => {
+                        const lat = Number.parseFloat(event.target.value);
+                        form.setValue("lat", Number.isFinite(lat) ? lat : undefined, { shouldDirty: true });
+                      }}
+                    />
+                  </label>
+                  <label className="space-y-1.5">
+                    <span>Longitude</span>
+                    <Input
+                      type="number"
+                      step="any"
+                      min="-180"
+                      max="180"
+                      value={values.lng ?? ""}
+                      onChange={(event) => {
+                        const lng = Number.parseFloat(event.target.value);
+                        form.setValue("lng", Number.isFinite(lng) ? lng : undefined, { shouldDirty: true });
+                      }}
+                    />
+                  </label>
+                </div>
+              </details>
 
               <FormField
                 control={form.control}
@@ -1644,7 +1708,9 @@ export function ListingWizard({
                         />
                       </div>
                     </FormControl>
-                    <FormDescription>Charged for a full day. Required to publish.</FormDescription>
+                    <FormDescription>
+                      Optional. Leave blank to offer hourly bookings only; guests won&apos;t see a full-day option.
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

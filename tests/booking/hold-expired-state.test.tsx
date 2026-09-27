@@ -40,7 +40,7 @@
 
 import * as React from "react";
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react";
 
 // `ReserveActions` — reached through `ReserveView`'s LIVE branch in case (3) — imports the confirm
 // server action at module scope. `vi.hoisted` because vi.mock's factory is hoisted above every
@@ -80,10 +80,16 @@ function ExpireOnMount() {
   return null;
 }
 
-function renderReserveView({ expire }: { expire: boolean }) {
+function DeadlineProbe() {
+  const { expiresAt } = useHold();
+  return <output data-testid="deadline-probe">{expiresAt}</output>;
+}
+
+function renderReserveView({ expire, observeDeadline = false }: { expire: boolean; observeDeadline?: boolean }) {
   return render(
     <HoldProvider>
       {expire ? <ExpireOnMount /> : null}
+      {observeDeadline ? <DeadlineProbe /> : null}
       <ReserveView
         holdId="hold_1"
         listingId={LISTING_ID}
@@ -146,6 +152,17 @@ describe("GATE-03 rule 7 — an expired hold moves focus to the primary recovery
         "booker who is still working. The rule-7 move is conditional on the hold being OVER.",
     ).toBe(document.body);
   });
+
+  it("keeps a live hold on the pay screen when PayMongo checkout fails", async () => {
+    const extendedDeadline = "2026-10-01T10:00:00.000Z";
+    confirmBooking.mockResolvedValue({ ok: false, reason: "checkout", error: "We couldn't start checkout. Please try again.", expiresAt: extendedDeadline });
+    renderReserveView({ expire: false, observeDeadline: true });
+    fireEvent.click(screen.getAllByRole("button", { name: "Confirm & pay" })[0]);
+    await waitFor(() => expect(screen.getByText("We couldn't start checkout. Please try again.")).toBeTruthy());
+    expect(screen.getByText("The frozen quote")).toBeTruthy();
+    expect(screen.queryByText("Your hold expired")).toBeNull();
+    expect(screen.getByTestId("deadline-probe").textContent).toBe(extendedDeadline);
+  });
 });
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -157,7 +174,4 @@ describe("GATE-03 rule 7 — an expired hold moves focus to the primary recovery
 //     checkable here is that focus lands on the named element; the listening pass is Phase 17's.
 //   • jsdom PERFORMS NO LAYOUT, so nothing here says the focus ring is visible, sized, or contrasting.
 //     DS-05 owns the ring recipe and `tests/design` owns its contrast.
-//   • THE SECOND ROUTE INTO THE SAME STATE — a `Confirm & pay` that comes back `expired`/`denied`/
-//     `checkout` — sets the same internal flag as case (2) and reaches the same branch, so it is covered
-//     by construction rather than by a fourth case. `tests/booking/reserve-actions.test.tsx` owns the
-//     mapping from a server verdict to that flag.
+//   • The `checkout` refusal is covered above: a live hold remains visible and retryable.

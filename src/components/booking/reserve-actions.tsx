@@ -105,9 +105,8 @@ export function ReserveActions({
       // graceful failure resolves a ConfirmResult we surface + re-enable so the user can retry.
       const result: ConfirmResult | undefined = await confirmBooking(holdId);
       if (result) {
-        // Scoped to `in-flight` ONLY. `checkout`/`expired`/`denied` stay the parent's whole-page recovery
-        // path — surfacing them here too would show the booker two different recoveries at once.
-        if (result.reason === "in-flight") setNotice(result.error);
+        // In-flight and checkout failures leave the hold in place and allow a retry.
+        if (result.reason === "in-flight" || result.reason === "checkout") setNotice(result.error);
         onResult?.(result);
         setPending(false);
       }

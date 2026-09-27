@@ -1,543 +1,80 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
-
-import { parseGroupPartySize } from "@/components/search/party-step";
-import {
-  progressiveSearchReducer,
-  SearchExperience,
-  type ProgressiveSearchEvent,
-  type ProgressiveSearchState,
-} from "@/components/search/search-experience";
-import { MAX_OPEN_CAPACITY } from "@/lib/validation/listing";
+import { SearchExperience } from "@/components/search/search-experience";
 
 const push = vi.fn();
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push, refresh: vi.fn() }),
-}));
-
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
 vi.mock("@/components/listing/address-autocomplete", () => ({
-  AddressAutocomplete: ({ onResolved }: { onResolved: (address: { addressLine1: string; city: string; region: string; postalCode: string; country: string; neighborhood: string; lat: number; lng: number }) => void }) => (
-    <>
-      <button type="button" onClick={() => onResolved({ addressLine1: "2 Real Street", city: "Makati", region: "Metro Manila", postalCode: "1210", country: "Philippines", neighborhood: "Poblacion", lat: 14.5547, lng: 121.0244 })}>
-        Resolve Makati address
-      </button>
-      <button type="button" onClick={() => onResolved({ addressLine1: "12345 Very Long Street Name That Continues Well Beyond The Normal Address Display Limit For A Search Result", city: "Makati", region: "Metro Manila", postalCode: "1210", country: "Republic of the Philippines", neighborhood: "Poblacion", lat: 14.5547, lng: 121.0244 })}>
-        Resolve long address
-      </button>
-      <button type="button" onClick={() => onResolved({ addressLine1: "Bad coordinates", city: "Makati", region: "Metro Manila", postalCode: "1210", country: "Philippines", neighborhood: "Poblacion", lat: 100, lng: 121.0244 })}>
-        Resolve invalid address
-      </button>
-    </>
+  AddressAutocomplete: ({ onResolved }: { onResolved: (address: {
+    addressLine1: string; city: string; region: string; country: string; lat: number; lng: number;
+  }) => void }) => (
+    <button type="button" onClick={() => onResolved({
+      addressLine1: "2 Real Street", city: "Makati", region: "Metro Manila",
+      country: "Philippines", lat: 14.5547, lng: 121.0244,
+    })}>Resolve Makati address</button>
   ),
 }));
 
-class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
+class ResizeObserverStub { observe() {} unobserve() {} disconnect() {} }
 globalThis.ResizeObserver = globalThis.ResizeObserver ?? (ResizeObserverStub as unknown as typeof ResizeObserver);
 Element.prototype.scrollIntoView = Element.prototype.scrollIntoView ?? (() => {});
 
-afterEach(() => {
-  cleanup();
-  push.mockClear();
-  vi.restoreAllMocks();
-  Object.defineProperty(window, "matchMedia", {
-    configurable: true,
-    value: undefined,
-  });
+afterEach(() => { cleanup(); push.mockClear(); });
+
+function renderSearch(initialAnswers: { category?: string; locationLabel?: string; lat?: number; lng?: number; partySize?: number } = {}) {
+  return render(<SearchExperience initialAnswers={initialAnswers} hasCompletedSearch={Object.keys(initialAnswers).length > 0}>
+    <p>Server rendered results</p>
+  </SearchExperience>);
+}
+
+it("shows three independent search controls", () => {
+  renderSearch();
+  expect(screen.getByRole("button", { name: "Search activity" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Search location" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Search party size" })).toBeTruthy();
 });
 
-function renderSearch() {
-  return render(
-    <SearchExperience initialAnswers={{}} hasCompletedSearch={false}>
-      <p>Server rendered results</p>
-    </SearchExperience>,
-  );
-}
-
-function setSearchViewport(isMobile: boolean) {
-  Object.defineProperty(window, "matchMedia", {
-    configurable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
-      matches: isMobile && query === "(max-width: 639px)",
-      media: query,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-}
-
-function selectActivity() {
-  fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
+it("submits an activity without requiring location or people", async () => {
+  renderSearch();
+  fireEvent.click(screen.getByRole("button", { name: "Search activity" }));
   fireEvent.click(screen.getByText("Martial arts / boxing gym"));
-}
+  await waitFor(() => expect(push).toHaveBeenCalledWith("/?category=martial_arts_boxing"));
+});
 
-it("opens the idle pill in one desktop portal anchored to its trigger", () => {
-  setSearchViewport(false);
+it("submits a location without requiring activity or people", async () => {
   renderSearch();
-
-  const trigger = screen.getByRole("button", { name: "Start your search" });
-  expect(trigger.className).toContain("sm:max-w-3xl");
-  expect(trigger.className).toContain("h-14");
-  fireEvent.click(trigger);
-
-  const overlay = screen.getByTestId("progressive-search-desktop-overlay");
-  expect(overlay).toBeTruthy();
-  expect(overlay.className).toContain("48rem");
-  expect(screen.getAllByRole("heading", { name: "What are you looking for?" })).toHaveLength(1);
-  expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
-});
-
-it("opens the same active question in one full-screen mobile sheet", () => {
-  setSearchViewport(true);
-  renderSearch();
-
-  fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
-
-  const mobileSheet = screen.getByTestId("progressive-search-mobile-sheet");
-  expect(mobileSheet).toBeTruthy();
-  expect(mobileSheet.className).toContain("max-sm:inset-0");
-  expect(mobileSheet.className).toContain("max-sm:h-[100dvh]");
-  expect(mobileSheet.className).toContain("max-sm:translate-x-0");
-  expect(mobileSheet.className).toContain("max-sm:translate-y-0");
-  expect(mobileSheet.className).toContain("max-sm:data-open:zoom-in-100");
-  expect(mobileSheet.className).toContain("max-sm:data-closed:zoom-out-100");
-  expect(screen.getAllByRole("heading", { name: "What are you looking for?" })).toHaveLength(1);
-  expect(screen.queryByTestId("progressive-search-desktop-overlay")).toBeNull();
-  expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
-  expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
-
-  const actions = screen.getByRole("group", { name: "Search journey actions" });
-  expect(actions.className).toContain("max-sm:mt-auto");
-  expect(actions.className).toContain("max-sm:border-t");
-  expect(screen.getByRole("button", { name: "Back" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
-});
-
-it("cancels a direct result-chip edit back to the cold pill and restores focus there", async () => {
-  setSearchViewport(false);
-  render(
-    <SearchExperience
-      initialAnswers={{ category: "martial_arts_boxing", locationLabel: "Makati", lat: 14.5547, lng: 121.0244, partySize: 4 }}
-      hasCompletedSearch
-    >
-      <p>Server rendered results</p>
-    </SearchExperience>,
-  );
-
-  fireEvent.click(screen.getByRole("button", { name: "4 people" }));
-  expect(screen.getByTestId("progressive-search-desktop-overlay")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-  const coldPill = await screen.findByRole("button", { name: "Start your search" });
-  expect(push).toHaveBeenCalledWith("/");
-  expect(document.activeElement).toBe(coldPill);
-});
-
-it("positions a direct Activity-chip edit in one reachable desktop question host", async () => {
-  setSearchViewport(false);
-  const getBoundingClientRect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
-    bottom: 160,
-    height: 40,
-    left: 80,
-    right: 280,
-    top: 120,
-    width: 200,
-    x: 80,
-    y: 120,
-    toJSON: () => ({}),
+  fireEvent.click(screen.getByRole("button", { name: "Search location" }));
+  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
+  await waitFor(() => {
+    const url = push.mock.lastCall?.[0] as string;
+    expect(url).toContain("lat=14.5547");
+    expect(url).toContain("lng=121.0244");
+    expect(url).not.toContain("category=");
+    expect(url).not.toContain("partySize=");
   });
-  render(
-    <SearchExperience
-      initialAnswers={{ category: "martial_arts_boxing", locationLabel: "Makati", lat: 14.5547, lng: 121.0244, partySize: 1 }}
-      hasCompletedSearch
-    >
-      <p>Server rendered results</p>
-    </SearchExperience>,
-  );
-
-  fireEvent.click(screen.getByRole("button", { name: /^Activity:/ }));
-
-  const overlay = screen.getByTestId("progressive-search-desktop-overlay");
-  expect(screen.getAllByRole("heading", { name: "What are you looking for?" })).toHaveLength(1);
-  expect(screen.getByRole("button", { name: "Back" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
-  expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
-  await waitFor(() => expect(overlay.closest("[data-radix-popper-content-wrapper]")?.getAttribute("style")).not.toContain("-200%"));
-
-  getBoundingClientRect.mockRestore();
 });
 
-it("keeps the desktop host open while Back walks retained answers in reverse", () => {
-  setSearchViewport(false);
+it("submits a party size without requiring activity or location", async () => {
   renderSearch();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
-
-  expect(screen.getByTestId("progressive-search-desktop-overlay")).toBeTruthy();
-  expect(screen.getByRole("heading", { name: "Who is this for?" })).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  expect(screen.getByTestId("progressive-search-desktop-overlay")).toBeTruthy();
-  expect(screen.getByRole("heading", { name: "Where do you want to play?" })).toBeTruthy();
-  expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
-});
-
-it("uses a compact desktop party presentation without narrowing the mobile party controls", () => {
-  setSearchViewport(false);
-  renderSearch();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
-
-  const desktopOverlay = screen.getByTestId("progressive-search-desktop-overlay");
-  expect(desktopOverlay.className).toContain("34rem");
-  expect(screen.getByRole("heading", { name: "Who is this for?" }).parentElement?.className).toContain("sm:max-w-md");
-
-  cleanup();
-  setSearchViewport(true);
-  renderSearch();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
-  fireEvent.click(screen.getByRole("button", { name: "For a group" }));
-
-  expect(screen.getByLabelText("Number of people").parentElement?.className).toContain("w-full");
-  expect(screen.getByRole("button", { name: "See spaces" }).className).toContain("w-full");
-});
-
-it("routes desktop Escape through the destructive cancel boundary", async () => {
-  setSearchViewport(false);
-  renderSearch();
-  fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
-
-  fireEvent.keyDown(document, { key: "Escape" });
-
-  await screen.findByRole("button", { name: "Start your search" });
-  expect(push).toHaveBeenCalledWith("/");
-});
-
-it("filters the closed catalogue without committing typed text", () => {
-  renderSearch();
-  fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
-  fireEvent.change(screen.getByPlaceholderText("Search activities and space types"), { target: { value: "not a listing" } });
-  expect(screen.getByText("No matching activity or type")).toBeTruthy();
-  expect(push).not.toHaveBeenCalled();
-});
-
-it("requests browser location only after explicit activation and submits the canonical solo URL", async () => {
-  const getCurrentPosition = vi.fn((success: PositionCallback) => success({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition));
-  Object.defineProperty(window.navigator, "geolocation", { configurable: true, value: { getCurrentPosition } });
-
-  renderSearch();
-  expect(getCurrentPosition).not.toHaveBeenCalled();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-  expect(getCurrentPosition).toHaveBeenCalledTimes(1);
-  const partyHeading = screen.getByRole("heading", { name: "Who is this for?" });
-  await waitFor(() => expect(document.activeElement).toBe(partyHeading));
+  fireEvent.click(screen.getByRole("button", { name: "Search party size" }));
   fireEvent.click(screen.getByRole("button", { name: "For me" }));
-  expect(push).toHaveBeenCalledWith("/?category=martial_arts_boxing&lat=14.5547&lng=121.0244&locationLabel=Current+location&partySize=1");
+  await waitFor(() => expect(push).toHaveBeenCalledWith("/?partySize=1"));
 });
 
-it("keeps address entry usable when browser location is unavailable", () => {
-  Object.defineProperty(window.navigator, "geolocation", { configurable: true, value: undefined });
-  renderSearch();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-  expect(screen.getByRole("button", { name: "Resolve Makati address" }).hasAttribute("disabled")).toBe(false);
-  expect(screen.getByRole("status", { name: "Search progress" }).textContent).toContain("Type an address instead");
-});
-
-it("keeps address entry usable after browser location denial", () => {
-  const getCurrentPosition = vi.fn((_success: PositionCallback, failure?: PositionErrorCallback) => failure?.({ code: 1 } as GeolocationPositionError));
-  Object.defineProperty(window.navigator, "geolocation", { configurable: true, value: { getCurrentPosition } });
-  renderSearch();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-  expect(screen.getByRole("heading", { name: "Where do you want to play?" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Resolve Makati address" }).hasAttribute("disabled")).toBe(false);
-  expect(screen.getByRole("status", { name: "Search progress" }).textContent).toContain("Type an address instead");
-});
-
-it("retains submitted answers in direct-edit chips and keeps one initially empty progress region", () => {
-  render(
-    <SearchExperience
-      initialAnswers={{ category: "martial_arts_boxing", locationLabel: "Makati", lat: 14.5547, lng: 121.0244, partySize: 1 }}
-      hasCompletedSearch
-    >
-      <p>Server rendered results</p>
-    </SearchExperience>,
-  );
-  const progress = screen.getByRole("status", { name: "Search progress" });
-  expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
-  expect(progress.textContent).toBe("");
-  expect(screen.getByRole("button", { name: /Activity: Martial arts/i })).toBeTruthy();
-  expect(screen.getByRole("button", { name: /Location: Makati/i })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "1 person" })).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "1 person" }));
-  expect(document.activeElement).toBe(screen.getByRole("heading", { name: "Who is this for?" }));
-});
-
-it("hydrates completed server answers after App Router replaces the result children", async () => {
-  const { rerender } = render(
-    <SearchExperience initialAnswers={{}} hasCompletedSearch={false}>
-      <p>Cold browse</p>
-    </SearchExperience>,
-  );
-
-  rerender(
-    <SearchExperience
-      initialAnswers={{ category: "martial_arts_boxing", locationLabel: "Makati", lat: 14.5547, lng: 121.0244, partySize: 4 }}
-      hasCompletedSearch
-    >
-      <p>Server rendered results</p>
-    </SearchExperience>,
-  );
-
-  await waitFor(() => expect(screen.getByRole("button", { name: /Activity: Martial arts/i })).toBeTruthy());
-  expect(screen.getByRole("button", { name: /Location: Makati/i })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "4 people" })).toBeTruthy();
-});
-
-it("retains a local correction for unchanged canonical props and returns completed search to cold browse", async () => {
-  const completedAnswers = {
-    category: "martial_arts_boxing",
-    locationLabel: "Makati",
-    lat: 14.5547,
-    lng: 121.0244,
-    partySize: 4,
-  };
-  const { rerender } = render(
-    <SearchExperience initialAnswers={completedAnswers} hasCompletedSearch>
-      <p>Server rendered results</p>
-    </SearchExperience>,
-  );
-
-  fireEvent.click(screen.getByRole("button", { name: "4 people" }));
-  expect(screen.getByRole("heading", { name: "Who is this for?" })).toBeTruthy();
-
-  rerender(
-    <SearchExperience initialAnswers={completedAnswers} hasCompletedSearch>
-      <p>Server rendered results</p>
-    </SearchExperience>,
-  );
-  expect(screen.getByRole("heading", { name: "Who is this for?" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "4 people" })).toBeTruthy();
-
-  rerender(
-    <SearchExperience initialAnswers={{}} hasCompletedSearch={false}>
-      <p>Cold browse</p>
-    </SearchExperience>,
-  );
-
-  await waitFor(() => expect(screen.getByRole("button", { name: "Start your search" })).toBeTruthy());
-  expect(screen.queryByLabelText("Search answers")).toBeNull();
-  expect(screen.queryByRole("heading", { name: "Who is this for?" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
-  expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
-});
-
-it("keeps confirmed answers while correcting the journey and submits only an exact bounded group size", () => {
-  renderSearch();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
-
-  expect(screen.getByRole("button", { name: "For a group" })).toBeTruthy();
-});
-
-it("bounds a long resolved address label without changing its coordinate-backed URL", () => {
-  renderSearch();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Resolve long address" }));
+it("keeps previous answers when one field is changed", async () => {
+  renderSearch({ category: "martial_arts_boxing" });
+  fireEvent.click(screen.getByRole("button", { name: "Search party size" }));
   fireEvent.click(screen.getByRole("button", { name: "For me" }));
-
-  const url = new URL(push.mock.calls[0][0] as string, "http://localhost");
-  expect(url.searchParams.get("locationLabel")).toBeTruthy();
-  expect(url.searchParams.get("locationLabel")?.length).toBeLessThanOrEqual(120);
-  expect(url.searchParams.get("lat")).toBe("14.5547");
-  expect(url.searchParams.get("lng")).toBe("121.0244");
+  await waitFor(() => expect(push).toHaveBeenCalledWith("/?category=martial_arts_boxing&partySize=1"));
 });
 
-it("returns a rejected canonical location to the correction step with preserved activity", () => {
-  renderSearch();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Resolve invalid address" }));
-  fireEvent.click(screen.getByRole("button", { name: "For me" }));
-
-  expect(screen.getByRole("heading", { name: "Where do you want to play?" })).toBeTruthy();
-  expect(screen.getByRole("status", { name: "Search progress" }).textContent).toContain("location");
-  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
-  fireEvent.click(screen.getByRole("button", { name: "For me" }));
-  expect(push).toHaveBeenCalledWith(expect.stringContaining("category=martial_arts_boxing"));
-});
-
-it("uses explicit history for Back, direct Edit, and destructive Cancel", () => {
-  const initial: ProgressiveSearchState = {
-    screen: "idle",
-    answers: {},
-    history: [],
-    groupDraft: "",
-    groupMode: false,
-    resultsVisible: false,
-    progress: "",
-  };
-  const engaged = progressiveSearchReducer(initial, { type: "ENGAGE" });
-  const selected = progressiveSearchReducer(engaged, { type: "SELECT_ACTIVITY", option: { value: "martial_arts_boxing", label: "Martial arts / boxing gym", group: "Activities" } });
-  const located = progressiveSearchReducer(selected, { type: "RESOLVE_LOCATION", address: { lat: 14.5547, lng: 121.0244, locationLabel: "Makati" } });
-
-  expect(located.screen).toBe("party");
-  expect(progressiveSearchReducer(located, { type: "BACK" })).toMatchObject({ screen: "location", answers: located.answers });
-  expect(progressiveSearchReducer(located, { type: "EDIT", step: "activity" })).toMatchObject({ screen: "activity", answers: located.answers, history: ["idle"] });
-  expect(progressiveSearchReducer(located, { type: "CANCEL" })).toMatchObject({ screen: "idle", answers: {}, history: [], groupDraft: "", resultsVisible: false });
-
-  renderSearch();
-  fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
+it("cancel closes the picker without clearing an existing search", async () => {
+  renderSearch({ category: "martial_arts_boxing" });
+  fireEvent.click(screen.getByRole("button", { name: "Search location" }));
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  expect(push).toHaveBeenCalledWith("/");
-  expect(screen.getByRole("button", { name: "Start your search" })).toBeTruthy();
-});
-
-it("parses and submits only exact bounded group sizes", () => {
-  for (const invalid of ["", "1", "1.5", "-2", "2e1", "two", String(MAX_OPEN_CAPACITY + 1)]) {
-    expect(parseGroupPartySize(invalid)).toBeNull();
-  }
-  expect(parseGroupPartySize("2")).toBe(2);
-  expect(parseGroupPartySize(String(MAX_OPEN_CAPACITY))).toBe(MAX_OPEN_CAPACITY);
-
-  renderSearch();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
-  fireEvent.click(screen.getByRole("button", { name: "For a group" }));
-  const groupInput = screen.getByLabelText("Number of people");
-  const submit = screen.getByRole("button", { name: "See spaces" });
-  fireEvent.change(groupInput, { target: { value: "1.5" } });
-  expect(submit.hasAttribute("disabled")).toBe(true);
-  fireEvent.change(groupInput, { target: { value: "2" } });
-  expect(submit.hasAttribute("disabled")).toBe(false);
-  fireEvent.click(submit);
-  expect(push).toHaveBeenCalledWith("/?category=martial_arts_boxing&lat=14.5547&lng=121.0244&locationLabel=2+Real+Street%2C+Makati%2C+Metro+Manila%2C+Philippines&partySize=2");
-});
-
-it("ignores a late geolocation success after leaving the location step", async () => {
-  let succeed: PositionCallback | undefined;
-  const getCurrentPosition = vi.fn((success: PositionCallback) => { succeed = success; });
-  Object.defineProperty(window.navigator, "geolocation", { configurable: true, value: { getCurrentPosition } });
-
-  setSearchViewport(true);
-  renderSearch();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-  expect(getCurrentPosition).toHaveBeenCalledTimes(1);
-  expect(succeed).toBeDefined();
-  fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  succeed?.({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition);
-
-  const activityHeading = screen.getByRole("heading", { name: "What are you looking for?" });
-  await waitFor(() => expect(document.activeElement).toBe(activityHeading));
-  expect(screen.queryByRole("heading", { name: "Who is this for?" })).toBeNull();
-  expect(screen.queryByText("Current location")).toBeNull();
+  await waitFor(() => expect(screen.queryByRole("heading", { name: "Where do you want to play?" })).toBeNull());
   expect(push).not.toHaveBeenCalled();
-});
-
-it("accepts a browser location callback only for the active location attempt", () => {
-  const initial: ProgressiveSearchState = {
-    screen: "location",
-    answers: { category: "martial_arts_boxing" },
-    history: ["idle", "activity"],
-    groupDraft: "",
-    groupMode: false,
-    resultsVisible: false,
-    progress: "Choose a location.",
-  };
-
-  const active = progressiveSearchReducer(initial, { type: "START_LOCATION_ATTEMPT", attempt: 1 } as unknown as ProgressiveSearchEvent);
-  expect(active).toMatchObject({ screen: "location", activeLocationAttempt: 1 });
-
-  const returnedToActivity = progressiveSearchReducer(active, { type: "BACK" });
-  const stale = progressiveSearchReducer(returnedToActivity, {
-    type: "RESOLVE_BROWSER_LOCATION",
-    attempt: 1,
-    address: { lat: 14.5547, lng: 121.0244, locationLabel: "Current location" },
-  } as unknown as ProgressiveSearchEvent);
-
-  expect(stale).toEqual(returnedToActivity);
-});
-
-it("invalidates an active browser attempt at every reducer-owned location boundary", () => {
-  const locationState = (): ProgressiveSearchState => ({
-    screen: "location",
-    answers: { category: "martial_arts_boxing" },
-    history: ["idle", "activity"],
-    groupDraft: "",
-    groupMode: false,
-    resultsVisible: false,
-    progress: "Choose a location.",
-  });
-  const start = (attempt: number) => progressiveSearchReducer(
-    locationState(),
-    { type: "START_LOCATION_ATTEMPT", attempt } as unknown as ProgressiveSearchEvent,
-  );
-  const address = { lat: 14.5547, lng: 121.0244, locationLabel: "Makati" };
-
-  const boundaries: ProgressiveSearchEvent[] = [
-    { type: "BACK" },
-    { type: "CANCEL" },
-    { type: "EDIT", step: "activity" },
-    { type: "CORRECT_LOCATION" },
-    { type: "RESOLVE_LOCATION", address },
-    { type: "START_LOCATION_ATTEMPT", attempt: 2 } as unknown as ProgressiveSearchEvent,
-  ];
-
-  for (const boundary of boundaries) {
-    const active = start(1);
-    expect(active).toMatchObject({ activeLocationAttempt: 1 });
-    const next = progressiveSearchReducer(active, boundary);
-    expect(next.activeLocationAttempt).toBe(boundary.type === "START_LOCATION_ATTEMPT" ? 2 : undefined);
-    expect(progressiveSearchReducer(next, {
-      type: "RESOLVE_BROWSER_LOCATION",
-      attempt: 1,
-      address: { lat: 14.5547, lng: 121.0244, locationLabel: "Current location" },
-    })).toEqual(next);
-    expect(progressiveSearchReducer(next, { type: "BROWSER_LOCATION_FAILURE", attempt: 1 })).toEqual(next);
-  }
-
-  const active = start(3);
-  const recovered = progressiveSearchReducer(active, { type: "BROWSER_LOCATION_FAILURE", attempt: 3 } as unknown as ProgressiveSearchEvent);
-  expect(recovered).toMatchObject({ screen: "location", activeLocationAttempt: undefined });
-  expect(recovered.progress).toContain("Type an address instead");
-});
-
-it("invalidates location callbacks after Cancel and after a newer browser attempt", async () => {
-  const attempts: Array<{ success: PositionCallback; failure?: PositionErrorCallback }> = [];
-  Object.defineProperty(window.navigator, "geolocation", {
-    configurable: true,
-    value: { getCurrentPosition: (success: PositionCallback, failure?: PositionErrorCallback) => attempts.push({ success, failure }) },
-  });
-
-  renderSearch();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  act(() => attempts[0]?.success({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Start your search" })).toBeTruthy());
-  expect(push).toHaveBeenCalledWith("/");
-
-  push.mockClear();
-  selectActivity();
-  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-  act(() => attempts[1]?.failure?.({ code: 2 } as GeolocationPositionError));
-  await waitFor(() => expect(screen.getByRole("button", { name: "Use my location" }).hasAttribute("disabled")).toBe(false));
-  fireEvent.click(screen.getByRole("button", { name: "Use my location" }));
-  act(() => attempts[1]?.success({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition));
-  expect(screen.getByRole("heading", { name: "Where do you want to play?" })).toBeTruthy();
-  act(() => attempts[2]?.success({ coords: { latitude: 14.5547, longitude: 121.0244 } } as GeolocationPosition));
-  await waitFor(() => expect(screen.getByRole("heading", { name: "Who is this for?" })).toBeTruthy());
-  expect(push).not.toHaveBeenCalled();
+  expect(screen.getByText("Martial arts / boxing gym")).toBeTruthy();
 });

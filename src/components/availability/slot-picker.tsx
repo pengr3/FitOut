@@ -3,9 +3,9 @@
 // Booker hour-slot picker (AVAIL-04 / AVAIL-05 · D-22/D-23 · sketch 001 variant A "Range fill"). A
 // toggle-group of 60-min, on-the-hour chips for one venue-local day, rendered in the venue's local
 // 12-hour time (SC#2 — never the browser tz). The booker picks a START hour (a coral-ring anchor), then
-// an END hour, and the CONTIGUOUS available run between them fills in (either direction). If the run
+// a checkout boundary, and the CONTIGUOUS available run before it fills in. If the run
 // would cross an unavailable hour it TRUNCATES at the last available hour before the gap and shows a
-// soft, non-error hint naming the blocking hour. A same-anchor second click is a 1-hour block; a click
+// soft, non-error hint naming the blocking hour. A same-anchor second click leaves the start pending; a click
 // after a completed run re-anchors a fresh start. "Book full day" (D-23) selects the whole operating day
 // and mutually clears any run/anchor. Occupied / blocked / past / beyond-horizon hours are visibly
 // distinct (muted + line-through + tooltip), `aria-disabled`, and CANNOT be selected — never red
@@ -57,6 +57,7 @@ type SlotPickerProps = {
   /** D-100: selects which minimum-notice copy the `too_soon` chips carry. */
   mode: BookingMode;
   disabled: boolean;
+  allowFullDay?: boolean;
   onSelectionChange: (sel: SlotSelectionValue | null) => void;
   /**
    * Phase-12 (D-59 #1) — the selection this picker MOUNTS with, read once. The listing RSC seeds the
@@ -210,6 +211,7 @@ export function SlotPicker({
   unitCount,
   mode,
   disabled,
+  allowFullDay = true,
   onSelectionChange,
   initialSelection,
   lostStartUtcs,
@@ -226,12 +228,13 @@ export function SlotPicker({
   // every transition so the DOM shell never re-implements the range-fill rules.
   // Lazy initializer: `initialSelection` is consulted exactly once, at mount. See the prop's docblock.
   const [sel, setSel] = React.useState<SelectionState>(() =>
-    seedSelection(initialSelection ?? null, slots),
+    seedSelection(allowFullDay || !initialSelection?.fullDay ? initialSelection ?? null : null, slots),
   );
 
   const startToIndex = React.useMemo(() => {
     const m = new Map<string, number>();
     slots.forEach((s, i) => m.set(s.startUtc, i));
+    if (slots.length > 0) m.set(slots[slots.length - 1].endUtc, slots.length);
     return m;
   }, [slots]);
 
@@ -241,6 +244,7 @@ export function SlotPicker({
     if (!sel.run) return [];
     return slots.slice(sel.run.lo, sel.run.hi + 1).map((s) => s.startUtc);
   }, [sel.run, slots]);
+  const checkoutBoundaryUtc = sel.run ? slots[sel.run.hi]?.endUtc : null;
 
   /** Set the reducer state AND lift the resulting {start,end,fullDay}|null selection to the rail. */
   const apply = React.useCallback(
@@ -291,6 +295,7 @@ export function SlotPicker({
 
   return (
     <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">Choose a start time, then a checkout time. For example, 12:00 PM to 1:00 PM is one hour.</p>
       <ScrollArea className="max-h-72 w-full">
         <ToggleGroup
           type="multiple"
@@ -302,11 +307,14 @@ export function SlotPicker({
         >
           {slots.map((slot, index) => {
             const timeLabel = format(new Date(slot.startUtc), "h:mm a", { in: inTz });
-            const isAvailable = slot.state === "available";
+            // A booked hour can still be the checkout boundary for the free hour before it.
+            const isEndBoundary = sel.anchor !== null && index > sel.anchor && slots[index - 1]?.state === "available";
+            const isAvailable = slot.state === "available" || isEndBoundary;
             const isSelected = selectedValues.includes(slot.startUtc);
+            const isCheckoutBoundary = slot.startUtc === checkoutBoundaryUtc;
             const isAnchor = sel.anchor === index;
 
-            if (!isAvailable) {
+            if (!isAvailable && !isCheckoutBoundary) {
               // Occupied / blocked / past / beyond-horizon / too-soon: visible, muted, struck-through,
               // NEVER selectable, NEVER red. The fourth state (D-98/D-100) flows through this EXACT
               // treatment with zero visual change: too-soon is a normal state, not an error. This is
@@ -351,12 +359,17 @@ export function SlotPicker({
               <ToggleGroupItem
                 key={slot.startUtc}
                 value={slot.startUtc}
-                aria-pressed={isSelected}
+                disabled={slot.state !== "available" && !isEndBoundary}
+                aria-pressed={isSelected || isCheckoutBoundary}
                 // The pending START anchor announces itself (coral ring alone is not enough for SR).
                 aria-label={
-                  isAnchor
+                  isCheckoutBoundary
+                    ? `${timeLabel} — checkout selected; booking ends here`
+                    : isAnchor
                     ? `${timeLabel} — start selected, pick an end hour`
-                    : timeLabel
+                    : sel.anchor !== null && index > sel.anchor
+                      ? `End at ${timeLabel}`
+                      : `Start at ${timeLabel}`
                 }
                 className={cn(
                   CHIP_BASE,
@@ -366,6 +379,9 @@ export function SlotPicker({
                   // token class and converting it breaks hour selection. The hover darkens with
                   // a color-mix rather than tinting at 90% alpha (4.04:1 court / 3.87:1 grove).
                   "data-[state=on]:border-transparent data-[state=on]:bg-brand data-[state=on]:text-brand-foreground data-[state=on]:hover:bg-[color-mix(in_oklch,var(--brand),var(--foreground)_10%)]",
+                  // Checkout is selected as the END boundary, with a lighter fill so it cannot be
+                  // mistaken for a second charged hour. Preserve that cue when the next hour is booked.
+                  isCheckoutBoundary && "border-brand bg-muted text-foreground ring-1 ring-brand disabled:opacity-100",
                   // Pending anchor = coral RING (not filled), so start vs committed reads at a glance.
                   // The ring is SOLID (CR-01 of the phase-10 review). At 50% alpha it composited to
                   // #ed969a on card and measured 2.23:1 (court) / 2.03:1 (grove) against the 3:1
@@ -393,7 +409,7 @@ export function SlotPicker({
                 )}
               >
                 <span className="tabular-nums">{timeLabel}</span>
-                {unitCount > 1 && (
+                {unitCount > 1 && !isCheckoutBoundary && (
                   <span
                     className={cn(
                       "text-xs font-normal",
@@ -423,6 +439,23 @@ export function SlotPicker({
               </ToggleGroupItem>
             );
           })}
+          {slots.length > 0 && slots[slots.length - 1].state === "available" && (
+            <ToggleGroupItem
+              value={slots[slots.length - 1].endUtc}
+              disabled={sel.anchor === null || disabled}
+              aria-pressed={checkoutBoundaryUtc === slots[slots.length - 1].endUtc}
+              aria-label={checkoutBoundaryUtc === slots[slots.length - 1].endUtc
+                ? `${format(new Date(slots[slots.length - 1].endUtc), "h:mm a", { in: inTz })} — checkout selected; booking ends here`
+                : `End at ${format(new Date(slots[slots.length - 1].endUtc), "h:mm a", { in: inTz })}`}
+              className={cn(
+                CHIP_BASE,
+                "border border-border bg-card text-foreground",
+                checkoutBoundaryUtc === slots[slots.length - 1].endUtc && "border-brand bg-muted text-foreground ring-1 ring-brand disabled:opacity-100",
+              )}
+            >
+              {format(new Date(slots[slots.length - 1].endUtc), "h:mm a", { in: inTz })}
+            </ToggleGroupItem>
+          )}
         </ToggleGroup>
       </ScrollArea>
 
@@ -458,7 +491,7 @@ export function SlotPicker({
           aria-live="polite"
           className="text-sm text-muted-foreground"
         >
-          Start selected — pick an end hour.
+          Start selected — pick your checkout time.
         </p>
       )}
 
@@ -482,7 +515,7 @@ export function SlotPicker({
         </div>
       )}
 
-      {hasSlots && (
+      {hasSlots && allowFullDay && (
         <button
           type="button"
           aria-pressed={sel.fullDay}

@@ -556,7 +556,7 @@ export async function saveListingStep(
   // surely as moving the hourly rate does. `quoteGroup`/`paxSurcharge` read all four.
   const priceChanged =
     changed(d.hourlyRateCents, owned.hourlyRateCents) ||
-    changed(d.dayRateCents, owned.dayRateCents) ||
+    (d.dayRateCents !== undefined && d.dayRateCents !== owned.dayRateCents) ||
     changed(d.perHeadPriceCents, owned.perHeadPriceCents) ||
     changed(d.extraHeadFee, owned.extraHeadFee) ||
     changed(d.included, owned.included);
@@ -683,7 +683,7 @@ export async function saveListingStep(
 
 /**
  * The strict draft→publish gate (D-02), enforced ENTIRELY server-side. Publishing requires:
- *   1. publishSchema.parse(row) — all core fields + BOTH positive integer-cents rates + lat/lng (D-03/D-10)
+ *   1. publishSchema.parse(row) — all core fields + an hourly rate for whole-space listings + lat/lng
  *   2. ≥3 photos (D-04)
  *   3. host.emailVerified === true (the Phase-1 soft gate, 01-CONTEXT D-07)
  * On any failure it returns a structured error naming exactly what's missing (drives the wizard's

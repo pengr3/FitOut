@@ -90,7 +90,7 @@ export type ConfirmResult =
   | { ok: false; reason: "sign-in"; error: string }
   | { ok: false; reason: "denied"; error: string }
   | { ok: false; reason: "expired"; error: string }
-  | { ok: false; reason: "checkout"; error: string }
+  | { ok: false; reason: "checkout"; error: string; expiresAt?: string }
   | { ok: false; reason: "in-flight"; error: string };
 
 /** updateDeclaredPax failure shapes. Every one is a calm, retryable sentence — nothing here is red. */
@@ -262,6 +262,10 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
   // `placeOpenHold` carries the exact mirror of this guard: each mutation admits exactly one mode.
   if (lr.occupancyMode === "open_capacity") {
     return { ok: false, reason: "invalid", error: "This space sells day passes — pick a day to book." };
+  }
+
+  if (fullDay && lr.dayRateCents == null) {
+    return { ok: false, reason: "invalid", error: "This space offers hourly bookings only. Choose a start and checkout time." };
   }
 
   // The exception is one instant, exclusive checkout—not a request-to-book or open-capacity release.
@@ -951,10 +955,12 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
   // the owner + a still-live hold ('pending' instant OR 'approved' pay-on-approval) so it can never touch a
   // confirmed/other row (T-06-10). GREATEST guarantees a fresh 24h `approved` payment window is never
   // SHRUNK to the 60-min instant window (Pitfall 6) — we only ever push expires_at forward, never back.
-  await db.execute(sql`
+  const extendedRows = (await db.execute(sql`
     UPDATE booking
     SET expires_at = GREATEST(expires_at, now() + make_interval(mins => ${PAYMENT_WINDOW_MINUTES}))
-    WHERE id = ${holdId} AND booker_id = ${userId} AND status IN ('pending','approved')`);
+    WHERE id = ${holdId} AND booker_id = ${userId} AND status IN ('pending','approved')
+    RETURNING expires_at`)) as unknown as { expires_at: Date | string }[];
+  const extendedExpiresAt = extendedRows[0]?.expires_at;
 
   // ── CLAIM THE CHECKOUT LEASE (T-08-79, quick task 260801-kv2). ──────────────────────────────────────
   // One atomic compare-and-swap on booking.checkout_lock_at, in AUTOCOMMIT — it has COMMITTED before the
@@ -1098,7 +1104,12 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
     // Release the lease before refusing, for the same reason as the expire-failure branch: without it the
     // documented NOT-TRAPPED recovery above would be blocked for the whole TTL.
     await releaseCheckoutLease(db, holdId, lease.lockedAt);
-    return { ok: false, reason: "checkout", error: "We couldn't start checkout. Please try again." };
+    return {
+      ok: false,
+      reason: "checkout",
+      error: "We couldn't start checkout. Please try again.",
+      expiresAt: extendedExpiresAt ? new Date(extendedExpiresAt).toISOString() : undefined,
+    };
   }
 
   // NAME the session we just created on its own booking row (CR-02). This is the only place a checkout

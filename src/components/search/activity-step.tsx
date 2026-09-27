@@ -25,7 +25,7 @@ export function ActivityStep({ filter, headingRef, onFilterChange, onSelect }: A
 
   return (
     <div className="space-y-3 rounded-card border border-border bg-card p-4 shadow-card">
-      <p className="text-label text-muted-foreground">Step 1 of 3</p>
+      <p className="text-label text-muted-foreground">Activity</p>
       <h2 ref={headingRef} tabIndex={-1} className="text-xl font-semibold outline-none">What are you looking for?</h2>
       <Command shouldFilter={false} className="rounded-md border">
         <CommandInput aria-label="Search for activity or type" value={filter} onValueChange={onFilterChange} placeholder="Search activities and space types" />

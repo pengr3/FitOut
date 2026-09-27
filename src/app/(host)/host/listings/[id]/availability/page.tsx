@@ -151,7 +151,9 @@ export default async function HostAvailabilityPage({
           host page's title already renders at, and this route was the outlier. */}
       <PageHeader
         title="Availability"
-        lede="Set when your space is open and block off any dates you can't host."
+        lede={hours.length === 0
+          ? "Your listing details are saved. Set and save your weekly hours so guests can find available times."
+          : "Set when your space is open and block off any dates you can't host."}
       />
 
       {/* THE TWO ADVISORIES, EACH ON THE DECLARED ADVISORY SURFACE at the muted tone. Both were bare
