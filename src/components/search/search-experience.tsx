@@ -160,15 +160,21 @@ function SearchExperienceCoordinator({ canonicalSearchKey, initialAnswers, hasCo
   const headingRef = useRef<HTMLHeadingElement>(null);
   const locationAttemptRef = useRef(0);
   const syncedSearchKeyRef = useRef(canonicalSearchKey);
-  const submittedSearchKeysRef = useRef(new Set<string>());
+  const submittedSearchKeysRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (syncedSearchKeyRef.current === canonicalSearchKey) return;
     syncedSearchKeyRef.current = canonicalSearchKey;
     // A search we just submitted already updated local answers. Keep a field the visitor opened
     // while the RSC result was in flight; remounting here used to close it and lose the next click.
-    if (submittedSearchKeysRef.current.delete(canonicalSearchKey)) return;
-    submittedSearchKeysRef.current.clear();
+    const submittedIndex = submittedSearchKeysRef.current.indexOf(canonicalSearchKey);
+    if (submittedIndex !== -1) {
+      // A newer search result may arrive before an older one. Retire every submission through
+      // this URL so a later Back navigation cannot be mistaken for an in-flight submission.
+      submittedSearchKeysRef.current.splice(0, submittedIndex + 1);
+      return;
+    }
+    submittedSearchKeysRef.current.length = 0;
     locationAttemptRef.current += 1;
     setState(initialState(initialAnswers, hasCompletedSearch));
     setFilter("");
@@ -200,7 +206,7 @@ function SearchExperienceCoordinator({ canonicalSearchKey, initialAnswers, hasCo
     }
     if (candidate.data.locationLabel) query.set("locationLabel", candidate.data.locationLabel);
     if (candidate.data.partySize !== undefined) query.set("partySize", String(candidate.data.partySize));
-    submittedSearchKeysRef.current.add(answersKey(candidate.data, true));
+    submittedSearchKeysRef.current.push(answersKey(candidate.data, true));
     setState((current) => ({ ...current, screen: "idle", answers: nextAnswers, resultsVisible: true }));
     router.push(`/?${query.toString()}`);
   }

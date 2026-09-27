@@ -59,6 +59,28 @@ it("keeps the next field open when the previous search result arrives", async ()
   expect(screen.getByRole("heading", { name: "Where do you want to play?" })).toBeTruthy();
 });
 
+it("restores URL answers on Back after two quick searches", async () => {
+  const view = renderSearch();
+  fireEvent.click(screen.getByRole("button", { name: "Search activity" }));
+  fireEvent.click(screen.getByText("Martial arts / boxing gym"));
+  fireEvent.click(screen.getByRole("button", { name: "Search party size" }));
+  fireEvent.click(screen.getByRole("button", { name: "For me" }));
+
+  view.rerender(
+    <SearchExperience initialAnswers={{ category: "martial_arts_boxing", partySize: 1 }} hasCompletedSearch>
+      <p>Combined results</p>
+    </SearchExperience>,
+  );
+  expect(screen.getByText("1 person")).toBeTruthy();
+
+  view.rerender(
+    <SearchExperience initialAnswers={{ category: "martial_arts_boxing" }} hasCompletedSearch>
+      <p>Activity results</p>
+    </SearchExperience>,
+  );
+  await waitFor(() => expect(screen.getByText("Any group")).toBeTruthy());
+});
+
 it("submits a location without requiring activity or people", async () => {
   renderSearch();
   fireEvent.click(screen.getByRole("button", { name: "Search location" }));
