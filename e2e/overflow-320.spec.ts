@@ -699,6 +699,11 @@ const ROUTES: readonly RouteRow[] = [
     tell: 'h1:has-text("no longer active")',
   },
   {
+    name: "ops cloak · gateway denial",
+    path: "/_ops-cloak",
+    tell: 'h1:has-text("Page not found")',
+  },
+  {
     name: "/signup",
     // THE TALLEST OF THE FOUR — the intent radio pair, four fields and two submits. Plan 15-07
     // measured its geometry at this width with a ruler rather than reasoning about it: the
@@ -3914,11 +3919,7 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
   // gates. It is additionally the ONLY list surface in the product whose row carries a photograph,
   // which makes it the hardest 320px case in this file rather than the softest.
   { surface: "/ops", coveredBy: ["/ops"] },
-  {
-    surface: "/_ops-cloak",
-    excluded:
-      "The historical cloak file unconditionally calls notFound and direct requests are rewritten to the constant ops gateway denial before this page renders. It has no independent document to measure at 320px; the gateway denial and host partition are asserted by the ops security tests.",
-  },
+  { surface: "/_ops-cloak", coveredBy: ["ops cloak · gateway denial"] },
 
   // ─── PAGE ROUTES · THE `src/app/dev` EXCLUSION (D-201, exclusion 1 of 4) ──────────────────────
   {

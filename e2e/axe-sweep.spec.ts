@@ -886,9 +886,8 @@ const ROWS: readonly SweepRow[] = [
   {
     file: "src/app/_ops-cloak/page.tsx",
     name: "ops cloak · gateway denial",
-    path: null,
-    skip: "Direct requests to the historical cloak path are rewritten by the host-partition proxy to the constant ops gateway denial. This page file calls notFound() on every render and produces no independent document for an accessibility scan; the gateway response is covered by the ops host-partition security tests.",
-    tell: "h1",
+    path: "/_ops-cloak",
+    tell: 'h1:has-text("Page not found")',
   },
 
   // ─── the ops tier (plan 18-12) — staff-only, and inside the audited set on the same terms ────────

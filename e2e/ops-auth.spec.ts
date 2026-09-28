@@ -226,8 +226,12 @@ test("terminates the ops session and returns to the bounded signed-out notice", 
     expect(priorCookieHeader, "the staff sign-in did not issue an ops-host cookie").not.toBe("");
 
     const page = await opsContext.newPage();
-    await page.goto(`${OPS_ORIGIN}/ops`);
-    await page.getByRole("button", { name: "Sign out", exact: true }).click();
+    const opsPageResponse = await page.goto(`${OPS_ORIGIN}/ops`, {
+      waitUntil: "domcontentloaded",
+      timeout: 30_000,
+    });
+    expect(opsPageResponse?.status(), "the signed-in staff member did not reach the ops console").toBe(200);
+    await page.getByRole("button", { name: "Sign out", exact: true }).click({ timeout: 30_000 });
 
     await expect(page).toHaveURL(`${OPS_ORIGIN}/login?signedOut=1`, { timeout: 30_000 });
     await expect(page.getByText("Staff session ended.", { exact: true })).toBeVisible();
@@ -365,7 +369,7 @@ async function captureApproveAction(page: Page, targetName: string): Promise<Cap
     await route.abort("blockedbyclient");
   });
 
-  await page.getByRole("button", { name: `Approve ${targetName}` }).click();
+  await page.getByRole("button", { name: `Approve ${targetName}` }).click({ timeout: 30_000 });
   await expect.poll(() => captured, { message: "no real next-action request was captured" }).not.toBeNull();
   await page.unroute("**/*");
 
@@ -417,7 +421,11 @@ test("refuses marketplace-host action dispatch even with an ops staff cookie", a
     expect(signInResponse.status(), "ops-host Better Auth sign-in failed").toBe(200);
 
     const page = await opsContext.newPage();
-    await page.goto(`${OPS_ORIGIN}/ops`);
+    const opsPageResponse = await page.goto(`${OPS_ORIGIN}/ops`, {
+      waitUntil: "domcontentloaded",
+      timeout: 30_000,
+    });
+    expect(opsPageResponse?.status(), "the signed-in staff member did not reach the ops action queue").toBe(200);
 
     const captured = await captureApproveAction(page, targetName);
     expect(captured.headers["next-action"], "the request carried no real action id").toBeTruthy();
