@@ -1699,8 +1699,10 @@ jobs:
       # Both the app under test (the dev server Playwright boots) and any spec's own postgres.js
       # client read this one variable, so they cannot drift onto different databases.
       #
-      # ⚠ THIS IS THE ONLY ENVIRONMENT INPUT THIS JOB HAS.
+      # The ops response gateway signs its inward handoff with the same secret Better Auth uses.
+      # CI has no deployment secret, so use a fixed test-only value for this disposable database.
       DATABASE_URL: postgres://fitout:fitout@postgres:5432/fitout
+      BETTER_AUTH_SECRET: fitout-ci-e2e-only-secret-never-use-in-deployments
 
     steps:
       - uses: actions/checkout@v4

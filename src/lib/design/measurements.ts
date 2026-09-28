@@ -153,10 +153,11 @@ export const CONFIRMATION_MOMENT_MIN_H =
  * The header's auth slot: the box reserved WHILE the session is still resolving.
  *
  * The compact cluster is the 32px navigation trigger plus a 12px header gap plus the 44px
- * notification bell: 32 + 12 + 44 = 88px. The bell establishes the 44px height. Its entire job is
+ * widest signed-in cluster, including the host context control, fits inside 160px. The bell
+ * establishes the 44px height. Its entire job is
  * to be the same size empty as it is full, so the header does not reflow when the session lands.
  */
-export const AUTH_SLOT_BOX = "h-11 min-w-22";
+export const AUTH_SLOT_BOX = "h-11 min-w-40";
 
 /**
  * The auth slot's ICON control placeholder: 32 × 32px.
@@ -936,7 +937,12 @@ export const HOST_BOOKING_ROW_HEIGHT = "h-44 md:h-9";
 export const OPS_QUEUE_SHELL = "mx-auto w-full max-w-5xl px-4 py-10";
 
 /**
- * The `/ops` review queue's row: 576px below the large breakpoint, 892px at and above it.
+ * The `/ops` review queue's collapsed listing row: 216px at the 320px floor and 176px at 1280px.
+ *
+ * Re-measured in an isolated Playwright/PostGIS run on 2026-09-28. The listing evidence disclosure
+ * now starts closed, so the photo mosaic and fact list no longer belong to the arriving row. The
+ * loading plate must describe that initial row, not the older expanded state. The measurements below
+ * document the historical expanded state and are not the basis for the current skeleton height.
  *
  * THE SLOT CONFIGURATION IT DESCRIBES: a title, a meta line, a status column holding the lead-scale
  * wait figure, a `PhotoGallery` mosaic, a SEVEN-term description list — six facts plus D-271's
@@ -1050,4 +1056,4 @@ export const OPS_QUEUE_SHELL = "mx-auto w-full max-w-5xl px-4 py-10";
  * to `src/components/ops/ops-queue-row.tsx`'s copy and a product decision rather than a measurement.
  * Logged in the phase's `deferred-items.md`.
  */
-export const OPS_QUEUE_ROW_HEIGHT = "h-144 lg:h-223";
+export const OPS_QUEUE_ROW_HEIGHT = "h-54 lg:h-44";

@@ -7,7 +7,7 @@
 // `/` and `/listings/[id]` read no session today. A session-aware header opts them into dynamic
 // rendering, and the session read is the one thing in the header that resolves LATER than the rest of
 // it — so the boundary between "resolving" and "resolved" is the only place a layout shift can come
-// from. `site-chrome.tsx` reserves the box (`AUTH_SLOT_BOX` — `h-11 min-w-22`, right-anchored) and
+// from. `site-chrome.tsx` reserves the box (`AUTH_SLOT_BOX` — `h-11 min-w-40`, right-anchored) and
 // this component fills it while the session is in flight.
 //
 // Every box class here is read from `@/lib/design/measurements`, and that is mechanical rather than

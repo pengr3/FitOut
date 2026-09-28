@@ -67,13 +67,13 @@ export type Truncator = {
  * Only `resourceType() === "document"` requests are rewritten; every asset, RSC payload and API call
  * continues untouched, which is what keeps the stylesheet and the fonts real.
  */
-export function installTruncator(page: Page): Truncator {
+export function installTruncator(page: Page, origin: string = BASE_URL): Truncator {
   const state: TruncatorState & { truncate: boolean } = {
     truncate: true,
     cut: -1,
     length: 0,
   };
-  const ready = page.route(`${BASE_URL}/**`, async (route) => {
+  const ready = page.route(`${origin}/**`, async (route) => {
     if (route.request().resourceType() !== "document") return route.continue();
     const response = await route.fetch();
     const body = await response.text();

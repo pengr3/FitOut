@@ -213,6 +213,8 @@ type SweepRow = {
    * landing in `src/app/` with no row here is a FAILING TEST, not a silent absence.
    */
   readonly file: string;
+  /** The dedicated staff hostname for visible ops authentication routes. */
+  readonly origin?: string;
   /** How the row is named in titles, failures and skip messages. */
   readonly name: string;
   /**
@@ -717,26 +719,24 @@ const ROWS: readonly SweepRow[] = [
     name: "/host/payouts/return",
     path: "/host/payouts/return",
     session: "host",
-    // ⚠ THE TELL IS THE HEADING'S TEXT, not a declared id, because this surface has none — it is a
-    // hand-composed landing rather than a pattern composition. The text is what separates it from the
-    // refresh landing next door, which renders the same shape under a different sentence, and from the
-    // `/host` dashboard the page's own button links back to. A host with no payout row renders the
-    // "we're confirming your details" branch, which is the branch a fresh sign-up reaches.
-    tell: 'h1:has-text("submitted")',
+    // The banner exists only on this resolved return route, not its loading plate.
+    tell: '[data-payout-banner]',
+  },
+  {
+    file: "src/app/(host)/host/payouts/page.tsx",
+    name: "/host/payouts",
+    path: "/host/payouts",
+    session: "host",
+    tell: 'h1:has-text("Payout destination")',
   },
   {
     file: "src/app/(host)/host/payouts/refresh/page.tsx",
-    name: "/host/payouts/refresh · fallback",
+    name: "/host/payouts/refresh · destination",
     path: "/host/payouts/refresh",
     session: "host",
-    // ⚠ THIS ROW AUDITS THE FALLBACK BRANCH, AND THE REASON IS D-35 RATHER THAN CONVENIENCE. The page
-    // re-mints a single-use onboarding link and `redirect()`s into it when the provider answers; with
-    // no live key configured the call cannot succeed, so the rendered document is the retry fallback.
-    // That is the branch every environment without a live key produces, CI included, and it is the
-    // only one this suite is permitted to reach — minting a real hosted link inside the suite is what
-    // D-35 forbids. If a key is ever configured locally this row goes red at its tell rather than
-    // quietly auditing a redirect target, which is the correct direction for it to fail in.
-    tell: 'h1:has-text("pick up where you left off")',
+    // The legacy provider return now routes to the host-owned payout destination page. Its own
+    // heading distinguishes the resolved document from the loading status and login redirect.
+    tell: 'h1:has-text("Set your payout destination")',
   },
 
   // ─── the error boundaries ────────────────────────────────────────────────────────────────────────
@@ -853,6 +853,43 @@ const ROWS: readonly SweepRow[] = [
     // unverified host, which is the same host it needs pending for the `/ops` row above.
     tell: '[data-testid="panel-card"]:has-text("Your check is in progress")',
   },
+  // The staff auth pages are served on the dedicated ops hostname. Their internal route folder is
+  // deliberately unreachable by direct URL; the proxy maps these visible paths to it.
+  {
+    file: "src/app/(ops-auth)/%5Fops-auth/login/page.tsx",
+    name: "ops sign in",
+    origin: "http://ops.localhost:3000",
+    path: "/login",
+    tell: 'h1:has-text("Sign in")',
+  },
+  {
+    file: "src/app/(ops-auth)/%5Fops-auth/forgot-password/page.tsx",
+    name: "ops forgot password",
+    origin: "http://ops.localhost:3000",
+    path: "/forgot-password",
+    tell: 'h1:has-text("Reset your password")',
+  },
+  {
+    file: "src/app/(ops-auth)/%5Fops-auth/reset-password/page.tsx",
+    name: "ops reset password · missing token",
+    origin: "http://ops.localhost:3000",
+    path: "/reset-password",
+    tell: 'h1:has-text("Set a new password")',
+  },
+  {
+    file: "src/app/(ops-auth)/%5Fops-auth/invite/[token]/page.tsx",
+    name: "ops invitation · inactive",
+    origin: "http://ops.localhost:3000",
+    path: "/invite/unmatched-e2e-token",
+    tell: 'h1:has-text("no longer active")',
+  },
+  {
+    file: "src/app/_ops-cloak/page.tsx",
+    name: "ops cloak · gateway denial",
+    path: "/_ops-cloak",
+    tell: 'h1:has-text("Page not found")',
+  },
+
   // ─── the ops tier (plan 18-12) — staff-only, and inside the audited set on the same terms ────────
   //
   // 18-UI-SPEC states there is no "it's only for staff" exemption anywhere in this repository's
@@ -861,6 +898,7 @@ const ROWS: readonly SweepRow[] = [
   {
     file: "src/app/(ops)/ops/page.tsx",
     name: "/ops · the review queue",
+    origin: "http://ops.localhost:3000",
     path: "/ops",
     session: "staff",
     // THE TELL IS A REAL QUEUE ROW, NOT THE PAGE HEADER, and the difference is the whole vacuity
@@ -1253,7 +1291,7 @@ test.describe(`AC#16 — zero axe violations in ${THEME} at ${WIDTHS.join(" and 
           truncator.set(true);
         }
 
-        await page.goto(`${BASE}${path}`);
+        await page.goto(`${row.origin ?? BASE}${path}`);
         await page.evaluate(() => document.fonts.ready);
 
         if (row.open) {

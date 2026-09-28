@@ -359,6 +359,7 @@ async function showMonthOf(page: Page, d: DayLocal): Promise<void> {
   const already = await page
     .getByRole("button", { name: availableDayLabel(d) })
     .or(page.getByRole("button", { name: fullDayLabel(d), exact: true }))
+    .and(page.locator("td:not([data-outside='true']) button:not([disabled])"))
     .count();
   if (already === 0) {
     await page.getByRole("button", { name: /next month/i }).click();
@@ -451,7 +452,7 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     ).toBeVisible();
     await expect(
       page
-        .getByText("Open 6:00 AM – 10:00 PM · Makati time", { exact: true })
+        .getByText("Open 6:00 AM – 10:00 PM · Philippine Time", { exact: true })
         .filter({ visible: true }),
     ).toBeVisible();
     await expect(
@@ -559,13 +560,13 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     ).toBeVisible();
   });
 
-  test("3 · a drop-in search card names the day, never a time range, and links with `date` alone", async ({
+  test("3 · progressive search ignores legacy date and time query parameters", async ({
     page,
   }) => {
     test.setTimeout(90_000);
 
-    // A searched WINDOW is supplied on purpose: a drop-in listing matches on the DATE alone (OC-12), so the
-    // start/end hours must be ignored by the match, absent from the card, and absent from its link.
+    // Progressive search accepts category, location and party. Legacy date/time URL parameters
+    // must not imply availability or scarcity that the search has not actually checked.
     await page.goto(
       `${BASE}/?category=${SPACE_TYPE}&date=${isoOf(spotsDate)}&start=09:00&end=11:00`,
     );
@@ -584,32 +585,27 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     // The all-in per-person rate, composed SERVER-side from the same fee the checkout charges (D-75).
     expect(cardText).toMatch(/₱[\d,]+\.\d{2}\/person/);
     expect(cardText).toContain("Service fee included");
-    // The scarcity chip rides straight through from the read model — the date has 1 of 3 left (case 2).
-    expect(cardText).toContain("Only 1 left");
-    // O2 — no clock time of ANY kind on a drop-in card. A `:` is the cheapest total proof: the drop-in
-    // availability line is composed from the date STRING alone (search-result-card.tsx datePassLine), so the
-    // searched 9:00 AM–11:00 AM cannot reach it.
+    expect(cardText).not.toContain("Only 1 left");
+    // The legacy window must not appear as a promise of bookable hours.
     expect(cardText, `drop-in card must render no clock time; got: ${JSON.stringify(cardText)}`).not.toMatch(
       /\d{1,2}:\d{2}/,
     );
     // And it must not fall back to the leftover hourly rate the fixture deliberately keeps on the row.
     expect(cardText).not.toContain("/hr");
 
-    // ── The link carries the DATE ALONE. `start`/`end` are not merely unused on the listing page (which has
-    // no hour picker in this mode) — they are never put on the URL, because a window it cannot resume would
-    // be a dead link and, worse, a promise of hours the pass does not reserve.
+    // Neither listing mode forwards an ignored search window.
     const href = await card.getAttribute("href");
-    expect(href).toContain(`date=${isoOf(spotsDate)}`);
+    expect(href).not.toContain("date=");
     expect(href).not.toContain("start=");
     expect(href).not.toContain("end=");
 
-    // The exclusive control, same query, KEEPS the searched window on its link — the difference above is the
-    // fork, not a param that stopped being forwarded.
     const controlHref = await page
       .locator(`a[href*="/listings/${exclusiveListingId}"]`)
+      .filter({ visible: true })
       .getAttribute("href");
-    expect(controlHref).toContain("start=09%3A00");
-    expect(controlHref).toContain("end=11%3A00");
+    expect(controlHref).not.toContain("date=");
+    expect(controlHref).not.toContain("start=");
+    expect(controlHref).not.toContain("end=");
   });
 
   test("4 · selling out is calm, unselectable, and never a dead end (OC-11/OC-13/OC-14)", async ({
@@ -664,24 +660,23 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     await expect(page.getByText("Only 1 left", { exact: true }).filter({ visible: true })).toBeVisible();
   });
 
-  test("5 · a sold-out date drops the drop-in listing out of search, and only it (OC-12)", async ({
+  test("5 · progressive search keeps listings discoverable when legacy dates are supplied", async ({
     page,
   }) => {
     test.setTimeout(90_000);
 
     await page.goto(`${BASE}/?category=${SPACE_TYPE}&date=${isoOf(soldDate)}&start=09:00&end=11:00`);
 
-    // Stage-2 keeps an open candidate only while the picked date still has a spot, so a `full` date can never
-    // reach a search card at all — there is deliberately no sold-out card treatment to fall back on.
-    await expect(page.locator(`a[href*="/listings/${openListingId}"]`)).toHaveCount(0);
-    // …and the exclusive control on the same date, same query, same host is still there — proving the
-    // disappearance is a fact about that date's occupancy, not a search that returned nothing.
+    // The public search no longer filters by date. A sold-out day is guarded in the listing's date
+    // picker (case 4), while a category search still lets the booker discover the space.
+    await expect(
+      page.locator(`a[href*="/listings/${openListingId}"]`).filter({ visible: true }),
+    ).toBeVisible();
     await expect(
       page.locator(`a[href*="/listings/${exclusiveListingId}"]`).filter({ visible: true }),
     ).toBeVisible();
 
-    // The same query one date earlier still shows both: the drop-in listing is gone from the sold-out date
-    // only, not from search.
+    // A different ignored date has the same result set.
     await page.goto(`${BASE}/?category=${SPACE_TYPE}&date=${isoOf(spotsDate)}&start=09:00&end=11:00`);
     await expect(
       page.locator(`a[href*="/listings/${openListingId}"]`).filter({ visible: true }),

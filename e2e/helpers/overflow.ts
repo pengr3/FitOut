@@ -110,15 +110,19 @@ export async function measureOverflow(page: Page): Promise<OverflowMeasurement> 
  * container that scrolls on its own), and this milestone puts two `position: fixed` bars on the booker
  * path, so that clause is now the one doing the work rather than a hedge.
  */
-export async function expectNoOverflow(page: Page, where: string): Promise<OverflowMeasurement> {
+export async function expectNoOverflow(
+  page: Page,
+  where: string,
+  minExaminedElements: number = MIN_EXAMINED_ELEMENTS,
+): Promise<OverflowMeasurement> {
   const m = await measureOverflow(page);
 
   expect(
     m.examined,
     `${where}: the measurement examined ${m.examined} elements. A page with nothing laid out on it ` +
       "never overflows, so this number is what makes the two assertions below mean something. The " +
-      `floor is ${MIN_EXAMINED_ELEMENTS} — see the constant for the two surfaces it was measured from.`,
-  ).toBeGreaterThanOrEqual(MIN_EXAMINED_ELEMENTS);
+      `floor is ${minExaminedElements} — see the constant for the two surfaces it was measured from.`,
+  ).toBeGreaterThanOrEqual(minExaminedElements);
 
   expect(
     m.scrollWidth,

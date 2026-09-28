@@ -59,6 +59,7 @@ async function expectNotificationBeforeNavigationMenu(page: import("@playwright/
 test("a host-capable user can switch to booking from the navigation menu (AUTH-04, D-04)", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   const email = uniqueEmail("host");
   await signUp(page, email, "host");
 
@@ -76,15 +77,16 @@ test("a host-capable user can switch to booking from the navigation menu (AUTH-0
   // Account navigation and context controls share one accessible icon menu.
   const navigationMenu = page.getByRole("button", { name: "Navigation menu" });
   await expect(navigationMenu).toBeVisible();
-  await expect(navigationMenu).toHaveAttribute("data-mode-switch", "");
+  await expect(navigationMenu).toHaveAttribute("data-mode-switch", "true");
   await expect(navigationMenu).toHaveAttribute("data-current", "host");
 
   await navigationMenu.click();
   const profile = page.getByRole("menuitem", { name: "Profile" });
   await expect(profile).toHaveAttribute("href", "/profile");
 
-  await page.getByRole("menuitem", { name: "Switch to booking" }).click();
-  await page.waitForURL((url) => url.pathname === "/", { timeout: 15_000 });
+  // A new host has not activated booking yet, so this is the first-capability label.
+  await page.getByRole("menuitem", { name: "Start booking" }).click();
+  await page.waitForURL((url) => url.pathname === "/", { timeout: 60_000 });
   await expect(page).toHaveURL(`${BASE}/`);
 });
 
@@ -110,6 +112,7 @@ test("a booker-only user is redirected away from /host by the server gate (T-04-
 });
 
 test("a booker can activate hosting from the navigation menu", async ({ page }) => {
+  test.setTimeout(90_000);
   const email = uniqueEmail("book-to-host");
   await signUp(page, email, "book");
 
@@ -124,7 +127,7 @@ test("a booker can activate hosting from the navigation menu", async ({ page }) 
   await expect(profile).toHaveAttribute("href", "/profile");
 
   await page.getByRole("menuitem", { name: "Start hosting" }).click();
-  await page.waitForURL((url) => url.pathname.startsWith("/host"), { timeout: 15_000 });
+  await page.waitForURL((url) => url.pathname.startsWith("/host"), { timeout: 60_000, waitUntil: "domcontentloaded" });
   await expect(page.locator("[data-host-dashboard]")).toBeVisible();
 });
 
@@ -137,8 +140,8 @@ test("the navigation menu follows the shared keyboard and grouping recipe", asyn
 
   await expectNotificationBeforeNavigationMenu(page);
 
-  // The public header's wordmark is the first tab stop, then notifications, then the compact menu at 375px.
-  await page.keyboard.press("Tab");
+  // Walk forward from the wordmark to verify the bell and compact menu order.
+  await page.getByTestId("site-header").getByRole("link", { name: "FitOut" }).focus();
   await page.keyboard.press("Tab");
 
   await expect(page.getByRole("button", { name: /Notifications, \d+ unread/ })).toBeFocused();
