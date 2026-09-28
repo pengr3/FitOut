@@ -452,7 +452,7 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     ).toBeVisible();
     await expect(
       page
-        .getByText("Open 6:00 AM – 10:00 PM · Makati time", { exact: true })
+        .getByText("Open 6:00 AM – 10:00 PM · Philippine Time", { exact: true })
         .filter({ visible: true }),
     ).toBeVisible();
     await expect(

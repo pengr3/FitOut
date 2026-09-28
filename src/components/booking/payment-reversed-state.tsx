@@ -247,7 +247,7 @@ export function PaymentReversedState({
           headroom on a geometric assertion is a flake waiting for a font metric to move. */}
       <div className="space-y-3 sm:space-y-6">
         <div className="flex flex-col items-center gap-2 text-center sm:gap-4">
-          <Undo2Icon className="size-8 text-muted-foreground" aria-hidden="true" />
+          <Undo2Icon className="hidden size-8 text-muted-foreground sm:block" aria-hidden="true" />
           {/* THE HEADING BLOCK. The `<h1>` is the shipped string, preserved byte-for-byte — it was
               never the defect — followed by the one line that says what the status MEANS rather than
               only what it is (TRUST-01). Nothing renders between this block and the money panel. */}

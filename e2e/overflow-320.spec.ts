@@ -690,7 +690,7 @@ const ROUTES: readonly RouteRow[] = [
     name: "ops reset password · missing token",
     origin: "http://ops.localhost:3000",
     path: "/reset-password",
-    tell: 'h1:has-text("Reset your password")',
+    tell: 'h1:has-text("Set a new password")',
   },
   {
     name: "ops invitation · inactive",
@@ -2886,6 +2886,8 @@ type Phase14Row = {
    * made the original guard's own sentence false of the shipped app.
    */
   readonly noOwnControls?: string;
+  /** A provider outage can replace a form with a read-only fallback; both states remain measured. */
+  readonly noOwnControlsWhen?: { readonly tell: string; readonly reason: string };
 };
 
 /**
@@ -3255,6 +3257,10 @@ const PHASE_14_ROWS: readonly Phase14Row[] = [
     tellWhy: "the destination heading is rendered by the resolved host page, while its loading plate has no heading and a login redirect has different copy.",
     touch: [],
     touchWhy: "No control on this row declares a 44px target; this row measures the complete payout destination document for horizontal overflow at the phone width.",
+    noOwnControlsWhen: {
+      tell: 'text="Payout setup is temporarily unavailable"',
+      reason: "the provider bank directory is unavailable in the credential-free CI run, so this resolved page deliberately renders a read-only outage alert instead of the payout form",
+    },
   },
   {
     // ─── /host/verify (plan 18.1-11) ─────────────────────────────────────────────────────────────
@@ -3482,7 +3488,11 @@ test.describe(`AC#36 — every Phase-14 host surface at ${FLOOR_PX}px, in both t
         }
 
         await expectNoOverflow(page, where);
-        await expectTargets(page, where, row.noOwnControls);
+        const fallback = row.noOwnControlsWhen;
+        const noOwnControls = fallback && (await page.locator(fallback.tell).isVisible())
+          ? fallback.reason
+          : row.noOwnControls;
+        await expectTargets(page, where, noOwnControls);
         await expectTouchTargets(page, where, row);
         await expectVisibleFocus(page, where);
       });

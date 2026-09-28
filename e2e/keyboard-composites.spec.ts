@@ -221,13 +221,9 @@ const DAY_CELL = 'td:not([data-outside="true"]) button';
 const FIRST_HOUR = "6:00 AM";
 
 /**
- * The five stops the footer contributes, identical on every document in this file.
+ * The six stops the footer contributes, identical on every document in this file.
  *
- * FIVE AND NOT SIX, for `auth-keyboard.spec.ts`'s reason restated rather than imported (that file
- * does not export it): `SUPPORT_EMAIL` is `null` (D-26/D-161), so `site-footer.tsx`'s mailto row
- * renders nothing at all. The day that constant is set, this tail grows a sixth entry and every
- * sequence in both files goes red at once — the correct blast radius for a change that adds a control
- * to every page in the app.
+ * The configured support inbox adds the final footer link after Privacy.
  */
 const FOOTER_TAIL = [
   "a:FitOut@contentinfo",
@@ -235,6 +231,7 @@ const FOOTER_TAIL = [
   "a:Host your space@contentinfo",
   "a:Terms@contentinfo",
   "a:Privacy@contentinfo",
+  "a:Support@contentinfo",
 ] as const;
 
 /**
@@ -421,7 +418,7 @@ async function settleListing(page: Page, where: string): Promise<void> {
   ).toHaveCount(1, { timeout: 30_000 });
 
   await expect(
-    page.getByRole("button", { name: FIRST_HOUR, exact: true }),
+    page.getByRole("button", { name: `Start at ${FIRST_HOUR}`, exact: true }),
     `${where}: the chosen day's hour list never resolved. \`${FIRST_HOUR}\` is the fixture's own ` +
       "opening hour on all seven days, and it is the slot picker's ONE tab stop — without it this " +
       "row measures a calendar with no hours beside it.",
@@ -1199,12 +1196,12 @@ const HOST_SPACE_TYPE_LABEL = "Multi-sport court";
  * The publish checklist's collapsed summary, which is a STOP in the declared sequence below.
  *
  * DERIVED FROM THE SEED, stated here rather than left as a magic number: `publish-checklist.tsx`
- * counts ten rows and this fixture satisfies eight — title, description, space type, address,
- * capacity, hourly rate, day rate and cancellation policy. The two it does not are `3+ photos` (the
+ * counts nine rows and this fixture satisfies seven — title, description, space type, address,
+ * capacity, hourly rate and cancellation policy. The two it does not are `3+ photos` (the
  * seed inserts exactly one, for `openWizardPhotosStep`'s reason) and `Verified email` (the host signs
  * up through the UI and never confirms). Seed a second photo and this literal moves.
  */
-const CHECKLIST_SUMMARY = "8 of 10 ready to publish";
+const CHECKLIST_SUMMARY = "7 of 9 ready to publish";
 
 /**
  * The advance action's label ON STEP 1 ONLY — `wizard.tsx:823` reads
@@ -1319,13 +1316,12 @@ async function seedWizardHost(page: Page): Promise<Omit<HostFixture, "cookies">>
 const WIZARD_STOPS: readonly string[] = [
   "a:FitOut · Hosting@none",
   "button[button]:Menu",
-  "button[button]:Hosting",
   // The bell's count is part of its accessible name, and this fixture seeds no requests — so `0` here
   // is a fact about the seed. A fixture with a live request would read `1 unread` and this row would
   // go red naming the reason, which is the correct blast radius for a shell control that changes its
   // own name.
   "button[button]:Notifications, 0 unread",
-  "a:Profile@none",
+  "button[button]:Navigation menu",
   `button[button]:${CHECKLIST_SUMMARY}`,
   `button[combobox]:${HOST_SPACE_TYPE_LABEL}`,
   "button[button]:Add activity tags",

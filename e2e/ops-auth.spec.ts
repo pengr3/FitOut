@@ -46,6 +46,7 @@ test("onboards a separate staff identity before removing legacy staff", async ({
   const suffix = randomUUID();
   const replacementEmail = `phase20.replacement.${suffix}@fitout.test`;
   const replacementToken = "20STAFFREPCMT1234567";
+  let createdLegacyId: string | null = null;
 
   try {
     const passwordHash = await hashPassword(PASSWORD);
@@ -66,6 +67,19 @@ test("onboards a separate staff identity before removing legacy staff", async ({
         ON CONFLICT (id) DO UPDATE SET password = ${passwordHash}, updated_at = now()
       `;
     });
+
+    // The demo seed has no historical staff-host account. Supply that precondition in the
+    // disposable CI database, while preserving an existing local fixture for remediation runs.
+    const [createdLegacy] = await sql<{ id: string }[]>`
+      INSERT INTO "user"
+        (id, name, first_name, email, email_verified, can_book, can_host, role, created_at, updated_at)
+      VALUES
+        (${`e2e_ops_legacy_${suffix}`}, ${"Legacy Host"}, ${"Legacy"}, ${LEGACY_HOST_EMAIL},
+         true, false, true, ${"staff"}, now(), now())
+      ON CONFLICT (email) DO NOTHING
+      RETURNING id
+    `;
+    createdLegacyId = createdLegacy?.id ?? null;
 
     const [legacyBefore] = await sql<
       Array<{ id: string; role: string | null; canHost: boolean }>
@@ -176,6 +190,7 @@ test("onboards a separate staff identity before removing legacy staff", async ({
   } finally {
     await operatorContext.close();
     await replacementContext.close();
+    if (createdLegacyId) await sql`DELETE FROM "user" WHERE id = ${createdLegacyId}`;
     await sql.end({ timeout: 5 });
   }
 });

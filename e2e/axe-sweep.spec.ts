@@ -874,7 +874,7 @@ const ROWS: readonly SweepRow[] = [
     name: "ops reset password · missing token",
     origin: "http://ops.localhost:3000",
     path: "/reset-password",
-    tell: 'h1:has-text("Reset your password")',
+    tell: 'h1:has-text("Set a new password")',
   },
   {
     file: "src/app/(ops-auth)/%5Fops-auth/invite/[token]/page.tsx",
