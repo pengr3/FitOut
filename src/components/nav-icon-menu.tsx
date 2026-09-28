@@ -68,7 +68,6 @@ export function NavIconMenu({
         return;
       }
       router.push(res.redirectTo);
-      router.refresh();
     });
   }
 
@@ -86,7 +85,6 @@ export function NavIconMenu({
         return;
       }
       router.push(res.redirectTo);
-      router.refresh();
     });
   }
 
