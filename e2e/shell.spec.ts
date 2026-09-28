@@ -370,7 +370,7 @@ test.describe("AC#3 — the header does not move when the auth slot resolves", (
               "without it the slot shrink-wraps to whichever cluster is currently in it and the " +
               "reservation reserves nothing.",
           ).toEqual(pendingSlot);
-          expect(resolvedSlot?.width, `${where}: the compact auth slot must reserve 88px`).toBe(88);
+          expect(resolvedSlot?.width, `${where}: the auth slot must reserve 160px`).toBe(160);
           expect(resolvedSlot?.height, `${where}: the compact auth slot must reserve 44px`).toBe(44);
         }
       });
@@ -1436,7 +1436,7 @@ test.describe("SHELL-01 — the host composition raises no hydration mismatch (C
     // reported. Opening and closing the nav drawer needs live client JavaScript in BOTH directions,
     // and it is the very subtree under suspicion — the cheapest available proof is also the most
     // relevant one here.
-    await page.getByRole("button", { name: "Menu" }).click();
+    await page.getByTestId("site-nav").getByRole("button", { name: "Menu", exact: true }).click();
     await expect(page.locator('[data-testid="responsive-dialog"]')).toHaveCount(1);
     await page.keyboard.press("Escape");
     await expect(page.locator('[data-testid="responsive-dialog"]')).toHaveCount(0);

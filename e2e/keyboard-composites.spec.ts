@@ -1371,7 +1371,7 @@ test.describe("GATE-02 keyboard — the listing wizard and its drawer", () => {
     // drawer trigger missing — observed, and it is the difference between a 14-stop and a 13-stop
     // reading of the same correct document.
     await expect(
-      page.getByRole("button", { name: "Menu" }),
+      page.getByTestId("site-nav").getByRole("button", { name: "Menu", exact: true }),
       `${where}: the host nav never resolved past its Suspense fallback, so the drawer trigger — a ` +
         "declared stop, and the subject of the escapable block — would be absent from a walk of a " +
         "document that does render it.",

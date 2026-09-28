@@ -21,7 +21,7 @@ const LONG_DESCRIPTION =
 function assertLocalDatabase(): void {
   const hostname = new URL(DATABASE_URL).hostname.toLowerCase().replace(/^\[|\]$/g, "");
   expect(
-    ["localhost", "127.0.0.1", "::1"],
+    ["localhost", "127.0.0.1", "::1", ...(process.env.CI === "true" ? ["postgres"] : [])],
     "the ops queue tracer must never seed a non-local database",
   ).toContain(hostname);
 }

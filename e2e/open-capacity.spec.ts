@@ -359,6 +359,7 @@ async function showMonthOf(page: Page, d: DayLocal): Promise<void> {
   const already = await page
     .getByRole("button", { name: availableDayLabel(d) })
     .or(page.getByRole("button", { name: fullDayLabel(d), exact: true }))
+    .and(page.locator("td:not([data-outside='true']) button:not([disabled])"))
     .count();
   if (already === 0) {
     await page.getByRole("button", { name: /next month/i }).click();

@@ -416,6 +416,8 @@ async function openAvatarCropDialog(page: Page): Promise<void> {
 type RouteRow = {
   /** How the route is named in failures and skip messages. */
   readonly name: string;
+  /** Staff authentication is exposed only on the separate ops hostname. */
+  readonly origin?: string;
   /**
    * `null` for a route this harness cannot reach, in which case `skip` says why, IN THE MESSAGE.
    * A resolver rather than a literal where the path depends on the catalogue.
@@ -671,6 +673,30 @@ const ROUTES: readonly RouteRow[] = [
     name: "/login",
     path: "/login",
     tell: '[data-testid="panel-card"]',
+  },
+  {
+    name: "ops login",
+    origin: "http://ops.localhost:3000",
+    path: "/login",
+    tell: 'h1:has-text("Sign in")',
+  },
+  {
+    name: "ops forgot password",
+    origin: "http://ops.localhost:3000",
+    path: "/forgot-password",
+    tell: 'h1:has-text("Reset your password")',
+  },
+  {
+    name: "ops reset password · missing token",
+    origin: "http://ops.localhost:3000",
+    path: "/reset-password",
+    tell: 'h1:has-text("Reset your password")',
+  },
+  {
+    name: "ops invitation · inactive",
+    origin: "http://ops.localhost:3000",
+    path: "/invite/unmatched-e2e-token",
+    tell: 'h1:has-text("no longer active")',
   },
   {
     name: "/signup",
@@ -956,7 +982,7 @@ test.describe(`AC#29 — nothing scrolls sideways at ${FLOOR_PX}px`, () => {
           truncator.set(true);
         }
 
-        await page.goto(`${BASE}${path}`);
+        await page.goto(`${row.origin ?? BASE}${path}`);
         await page.evaluate(() => document.fonts.ready);
 
         // The one row whose subject is behind an interaction. It runs BEFORE `expectReachable`, because
@@ -3229,9 +3255,9 @@ const PHASE_14_ROWS: readonly Phase14Row[] = [
     //
     // AND THE PLATE IS NOT A TRAP HERE, unusually: `payouts/refresh/loading.tsx` renders one
     // `Reopening payout setup…` paragraph and no heading at all.
-    tell: 'h1:has-text("pick up where you left off")',
+    tell: 'h1:has-text("Set your payout destination")',
     tellWhy:
-      "the retry sentence's own heading, which exists on no other route and which the route's plate " +
+      "the payout destination heading, which exists on no other route and which the route's plate " +
       "does not render (its whole content is a `Reopening payout setup…` status paragraph). It is " +
       "matched on a substring rather than in full because the shipped copy contains a typographic " +
       "apostrophe (`&apos;`), and a spec re-typing one is the drift `AVATAR_CROP_TITLE`'s import note " +
@@ -3241,6 +3267,14 @@ const PHASE_14_ROWS: readonly Phase14Row[] = [
       "NONE DECLARED. The fallback renders exactly one control, `Back to your dashboard`, " +
       "`variant=\"outline\"` at the Button's default height and with no height note in the spec — the " +
       "same opt-in argument every row above records.",
+  },
+  {
+    name: "/host/payouts",
+    path: () => "/host/payouts",
+    tell: 'h1:has-text("Payout destination")',
+    tellWhy: "the destination heading is rendered by the resolved host page, while its loading plate has no heading and a login redirect has different copy.",
+    touch: [],
+    touchWhy: "No control on this row declares a 44px target; this row measures the complete payout destination document for horizontal overflow at the phone width.",
   },
   {
     // ─── /host/verify (plan 18.1-11) ─────────────────────────────────────────────────────────────
@@ -3652,7 +3686,7 @@ test.describe(`AC#22 / D-196 — the signed-in header cluster at ${FLOOR_PX}px`,
   test.describe.configure({ timeout: 60_000 });
 
   for (const theme of THEMES) {
-    test(`${theme} · Profile clears ${TARGET_FLOOR_PX}px and the cluster fits its budget`, async ({
+    test(`${theme} · account menu clears ${TARGET_FLOOR_PX}px and the cluster fits its budget`, async ({
       page,
     }) => {
       await seedTheme(page.context(), theme);
@@ -3676,33 +3710,28 @@ test.describe(`AC#22 / D-196 — the signed-in header cluster at ${FLOOR_PX}px`,
       // and the case would fail here rather than passing on a measurement nothing else can see.
       const controls = await collectControls(page);
       const shell = controls.filter((c) => c.inShell);
-      const profile = shell.find((c) => c.label === "a[Profile]");
+      const menu = shell.find((c) => c.label === "button[Navigation menu]");
       expect(
-        profile,
-        `${where}: the target-size scan returned no \`a[Profile]\` from inside \`site-header\`. The ` +
+        menu,
+        `${where}: the target-size scan returned no account menu from inside \`site-header\`. The ` +
           `scan found ${shell.length} shell control(s): ${shell.map((c) => `${c.label} ${c.w}x${c.h}`).join(", ") || "(none)"}. ` +
-          "Either the header is excluded from `collectControls` again — the exclusion D-196 narrowed " +
-          "— or the signed-in cluster stopped rendering the Profile control, and the two assertions " +
-          "below would be vacuous either way.",
+          "The account control must appear in the measured header control set.",
       ).toBeDefined();
 
-      const { w, h } = profile as Control;
+      const { w, h } = menu as Control;
       expect(
         w,
-        `${where}: the Profile control measures ${w}x${h}px, and its WIDTH is ` +
+        `${where}: the account menu measures ${w}x${h}px, and its WIDTH is ` +
           `${Math.round((TARGET_FLOOR_PX - w) * 10) / 10}px under the ${TARGET_FLOOR_PX}px WCAG 2.5.8 ` +
-          "AA target-size floor. This is the control that reaches a user's own account, on every " +
-          "signed-in route in the product. D-196's fix is PADDING on the link (`p-1.5`, 6px, taking " +
-          "a 16px glyph to 28px) — not a bigger glyph, and not on `NAV_LINK_CLASS`, which four " +
-          "header links share.",
+          "AA target-size floor. This is the control that opens account actions.",
       ).toBeGreaterThanOrEqual(TARGET_FLOOR_PX);
       expect(
         h,
-        `${where}: the Profile control measures ${w}x${h}px, and its HEIGHT is ` +
-          `${Math.round((TARGET_FLOOR_PX - h) * 10) / 10}px under the ${TARGET_FLOOR_PX}px floor. ` +
-          "Both axes are asserted separately so the failure names which one moved: padding fixes " +
-          "both, a width-only change fixes neither.",
+        `${where}: the account menu measures ${w}x${h}px, below the ${TARGET_FLOOR_PX}px height floor.`,
       ).toBeGreaterThanOrEqual(TARGET_FLOOR_PX);
+
+      await page.getByRole("button", { name: "Navigation menu" }).click();
+      await expect(page.getByRole("menuitem", { name: "Profile" })).toHaveAttribute("href", "/profile");
 
       // ── THE OTHER HALF OF D-196: THE BUDGET THE PADDING SPENDS FROM ──────────────────────────────
       const slot = page.getByTestId("site-auth-slot");
@@ -3851,6 +3880,10 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
   { surface: "/forgot-password", coveredBy: ["/forgot-password", "/forgot-password · post-submit"] },
   { surface: "/reset-password", coveredBy: ["/reset-password", "/reset-password · missing token"] },
   { surface: "/profile", coveredBy: ["/profile", "/profile · crop dialog open"] },
+  { surface: "/%5Fops-auth/login", coveredBy: ["ops login"] },
+  { surface: "/%5Fops-auth/forgot-password", coveredBy: ["ops forgot password"] },
+  { surface: "/%5Fops-auth/reset-password", coveredBy: ["ops reset password · missing token"] },
+  { surface: "/%5Fops-auth/invite/[token]", coveredBy: ["ops invitation · inactive"] },
 
   // ─── PAGE ROUTES · BOOKER (Phase 13, plan 13-15 · `/bookings` added by 17-11) ─────────────────
   { surface: "/bookings", coveredBy: ["/bookings (the booker's list)"] },
@@ -3885,6 +3918,7 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
   { surface: "/host/listings/[id]/availability", coveredBy: ["/host/listings/[id]/availability"] },
   { surface: "/host/payouts/return", coveredBy: ["/host/payouts/return"] },
   { surface: "/host/payouts/refresh", coveredBy: ["/host/payouts/refresh"] },
+  { surface: "/host/payouts", coveredBy: ["/host/payouts"] },
 
   // ─── PAGE ROUTES · HOST STANDING (plan 18.1-11) ───────────────────────────────────────────────
   //
@@ -3905,6 +3939,11 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
   // gates. It is additionally the ONLY list surface in the product whose row carries a photograph,
   // which makes it the hardest 320px case in this file rather than the softest.
   { surface: "/ops", coveredBy: ["/ops"] },
+  {
+    surface: "/_ops-cloak",
+    excluded:
+      "The historical cloak file unconditionally calls notFound and direct requests are rewritten to the constant ops gateway denial before this page renders. It has no independent document to measure at 320px; the gateway denial and host partition are asserted by the ops security tests.",
+  },
 
   // ─── PAGE ROUTES · THE `src/app/dev` EXCLUSION (D-201, exclusion 1 of 4) ──────────────────────
   {

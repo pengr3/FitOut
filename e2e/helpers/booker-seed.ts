@@ -775,7 +775,11 @@ export async function signUpStaff(page: Page): Promise<SeededStaff> {
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 60_000 });
 
   const userId = await withClient(async (sql) => {
-    const result = await grantStaff(drizzle(sql, { schema }), email, STAFF_GRANT_ACTOR);
+    // Sign-up creates a booker account. Converting this synthetic fixture to staff must be
+    // explicit, just as it is for the operator command; the production policy stays strict.
+    const result = await grantStaff(drizzle(sql, { schema }), email, STAFF_GRANT_ACTOR, {
+      convertMarketplaceAccount: true,
+    });
     expect(
       result.outcome,
       `the staff grant refused ${email} (${result.outcome}). Every /ops row in this suite would then ` +

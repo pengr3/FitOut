@@ -27,7 +27,7 @@ const BOOTSTRAP_ACCOUNT_ID = "phase20_bootstrap_staff_account";
 function assertLocalDatabase(): void {
   const hostname = new URL(DATABASE_URL).hostname.toLowerCase();
   expect(
-    ["localhost", "127.0.0.1", "::1", "db"],
+    ["localhost", "127.0.0.1", "::1", "db", ...(process.env.CI === "true" ? ["postgres"] : [])],
     "the staff-separation producer must never mutate a nonlocal database",
   ).toContain(hostname);
 }

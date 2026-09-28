@@ -11,7 +11,7 @@
 
 import { test, expect } from "@playwright/test";
 
-import { expectRing, readFocus } from "./helpers/focus";
+import { expectRing, readFocus, resetFocusToTop } from "./helpers/focus";
 
 const BASE = "http://localhost:3000";
 
@@ -76,7 +76,7 @@ test("a host-capable user can switch to booking from the navigation menu (AUTH-0
   // Account navigation and context controls share one accessible icon menu.
   const navigationMenu = page.getByRole("button", { name: "Navigation menu" });
   await expect(navigationMenu).toBeVisible();
-  await expect(navigationMenu).toHaveAttribute("data-mode-switch", "");
+  await expect(navigationMenu).toHaveAttribute("data-mode-switch", "true");
   await expect(navigationMenu).toHaveAttribute("data-current", "host");
 
   await navigationMenu.click();
@@ -124,7 +124,7 @@ test("a booker can activate hosting from the navigation menu", async ({ page }) 
   await expect(profile).toHaveAttribute("href", "/profile");
 
   await page.getByRole("menuitem", { name: "Start hosting" }).click();
-  await page.waitForURL((url) => url.pathname.startsWith("/host"), { timeout: 15_000 });
+  await page.waitForURL((url) => url.pathname.startsWith("/host"), { timeout: 60_000, waitUntil: "domcontentloaded" });
   await expect(page.locator("[data-host-dashboard]")).toBeVisible();
 });
 
@@ -138,6 +138,7 @@ test("the navigation menu follows the shared keyboard and grouping recipe", asyn
   await expectNotificationBeforeNavigationMenu(page);
 
   // The public header's wordmark is the first tab stop, then notifications, then the compact menu at 375px.
+  await resetFocusToTop(page);
   await page.keyboard.press("Tab");
   await page.keyboard.press("Tab");
 

@@ -153,10 +153,11 @@ export const CONFIRMATION_MOMENT_MIN_H =
  * The header's auth slot: the box reserved WHILE the session is still resolving.
  *
  * The compact cluster is the 32px navigation trigger plus a 12px header gap plus the 44px
- * notification bell: 32 + 12 + 44 = 88px. The bell establishes the 44px height. Its entire job is
+ * widest signed-in cluster, including the host context control, fits inside 160px. The bell
+ * establishes the 44px height. Its entire job is
  * to be the same size empty as it is full, so the header does not reflow when the session lands.
  */
-export const AUTH_SLOT_BOX = "h-11 min-w-22";
+export const AUTH_SLOT_BOX = "h-11 min-w-40";
 
 /**
  * The auth slot's ICON control placeholder: 32 × 32px.
