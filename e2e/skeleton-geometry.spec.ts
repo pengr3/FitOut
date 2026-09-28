@@ -13,6 +13,8 @@ import {
   type SeededListing,
 } from "./helpers/booker-seed";
 
+const OPS_ORIGIN = "http://ops.localhost:3000";
+
 // STATE-01 / AC#17 / GATE-STATES — the RENDERED half of "the skeleton does not shift".
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -2646,7 +2648,7 @@ test.describe("18-12 — the /ops plate draws the row that is actually coming", 
     // already resolved by the time the shell flushes, so React emits no out-of-order completion
     // segment and there is no marker to cut at.
     truncator.set(false);
-    await page.goto(`${BASE_URL}/ops`);
+    await page.goto(`${OPS_ORIGIN}/ops`);
 
     for (const step of OPS_STEPS) {
       const where = `/ops · ${step.width}px`;
@@ -2655,7 +2657,7 @@ test.describe("18-12 — the /ops plate draws the row that is actually coming", 
       // ── PENDING: the route's own `loading.tsx` ────────────────────────────────────────────────
       truncator.set(true);
       for (let attempt = 1; attempt <= 3; attempt += 1) {
-        await page.goto(`${BASE_URL}/ops`);
+        await page.goto(`${OPS_ORIGIN}/ops`);
         if (truncator.state.cut > 0) break;
       }
       await page.evaluate(() => document.fonts.ready);
@@ -2705,7 +2707,7 @@ test.describe("18-12 — the /ops plate draws the row that is actually coming", 
 
       // ── RESOLVED: the whole document, the real listing row ────────────────────────────────────
       truncator.set(false);
-      await page.goto(`${BASE_URL}/ops`);
+      await page.goto(`${OPS_ORIGIN}/ops`);
       await page.evaluate(() => document.fonts.ready);
 
       // THE LISTING ROW, addressed through its gallery. The queue also holds a HOST row, which is

@@ -560,13 +560,13 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     ).toBeVisible();
   });
 
-  test("3 · a drop-in search card names the day, never a time range, and links with `date` alone", async ({
+  test("3 · progressive search ignores legacy date and time query parameters", async ({
     page,
   }) => {
     test.setTimeout(90_000);
 
-    // A searched WINDOW is supplied on purpose: a drop-in listing matches on the DATE alone (OC-12), so the
-    // start/end hours must be ignored by the match, absent from the card, and absent from its link.
+    // Progressive search accepts category, location and party. Legacy date/time URL parameters
+    // must not imply availability or scarcity that the search has not actually checked.
     await page.goto(
       `${BASE}/?category=${SPACE_TYPE}&date=${isoOf(spotsDate)}&start=09:00&end=11:00`,
     );
@@ -585,32 +585,27 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     // The all-in per-person rate, composed SERVER-side from the same fee the checkout charges (D-75).
     expect(cardText).toMatch(/₱[\d,]+\.\d{2}\/person/);
     expect(cardText).toContain("Service fee included");
-    // The scarcity chip rides straight through from the read model — the date has 1 of 3 left (case 2).
-    expect(cardText).toContain("Only 1 left");
-    // O2 — no clock time of ANY kind on a drop-in card. A `:` is the cheapest total proof: the drop-in
-    // availability line is composed from the date STRING alone (search-result-card.tsx datePassLine), so the
-    // searched 9:00 AM–11:00 AM cannot reach it.
+    expect(cardText).not.toContain("Only 1 left");
+    // The legacy window must not appear as a promise of bookable hours.
     expect(cardText, `drop-in card must render no clock time; got: ${JSON.stringify(cardText)}`).not.toMatch(
       /\d{1,2}:\d{2}/,
     );
     // And it must not fall back to the leftover hourly rate the fixture deliberately keeps on the row.
     expect(cardText).not.toContain("/hr");
 
-    // ── The link carries the DATE ALONE. `start`/`end` are not merely unused on the listing page (which has
-    // no hour picker in this mode) — they are never put on the URL, because a window it cannot resume would
-    // be a dead link and, worse, a promise of hours the pass does not reserve.
+    // Neither listing mode forwards an ignored search window.
     const href = await card.getAttribute("href");
-    expect(href).toContain(`date=${isoOf(spotsDate)}`);
+    expect(href).not.toContain("date=");
     expect(href).not.toContain("start=");
     expect(href).not.toContain("end=");
 
-    // The exclusive control, same query, KEEPS the searched window on its link — the difference above is the
-    // fork, not a param that stopped being forwarded.
     const controlHref = await page
       .locator(`a[href*="/listings/${exclusiveListingId}"]`)
+      .filter({ visible: true })
       .getAttribute("href");
-    expect(controlHref).toContain("start=09%3A00");
-    expect(controlHref).toContain("end=11%3A00");
+    expect(controlHref).not.toContain("date=");
+    expect(controlHref).not.toContain("start=");
+    expect(controlHref).not.toContain("end=");
   });
 
   test("4 · selling out is calm, unselectable, and never a dead end (OC-11/OC-13/OC-14)", async ({

@@ -418,7 +418,7 @@ async function settleListing(page: Page, where: string): Promise<void> {
   ).toHaveCount(1, { timeout: 30_000 });
 
   await expect(
-    page.getByRole("button", { name: `Start at ${FIRST_HOUR}`, exact: true }),
+    page.locator(`${AVAILABILITY} button`).filter({ hasText: new RegExp(`^${FIRST_HOUR}$`) }),
     `${where}: the chosen day's hour list never resolved. \`${FIRST_HOUR}\` is the fixture's own ` +
       "opening hour on all seven days, and it is the slot picker's ONE tab stop — without it this " +
       "row measures a calendar with no hours beside it.",

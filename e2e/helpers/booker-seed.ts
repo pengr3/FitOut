@@ -44,6 +44,7 @@ import { tz } from "@date-fns/tz";
 
 import { grantStaff } from "@/lib/ops/grant";
 import * as schema from "@/lib/db/schema";
+import { signInOps } from "./ops-sign-in";
 
 /** Every route these specs drive is served by the dev server Playwright boots on :3000. */
 export const BASE = "http://localhost:3000";
@@ -795,9 +796,14 @@ export async function signUpStaff(page: Page): Promise<SeededStaff> {
     return row.id;
   });
 
-  // The session cookie is already minted and the role is re-read from the row on the NEXT request —
-  // `src/lib/ops/staff.ts` depends on `session.cookieCache` staying unconfigured, and its header says
-  // so. If that ever changes, this helper has to mint the session AFTER the grant instead.
+  // Public and ops use separate host-only cookie jars. Mint the staff session on the ops host;
+  // copying the sign-up cookie from localhost to a fresh context never authenticates ops.localhost.
+  const opsSignIn = await signInOps(page.context().request, email, "averylongpassword");
+  expect(opsSignIn.status(), "the test staff account could not sign in on the ops host").toBe(200);
+  expect((await page.context().cookies(`http://ops.localhost:${process.env.FITOUT_OPS_E2E_PORT ?? "3000"}`)).length)
+    .toBeGreaterThan(0);
+
+  // The public signup session and the new ops session now live in separate host-only cookie jars.
   return {
     email,
     userId,

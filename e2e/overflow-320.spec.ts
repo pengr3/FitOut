@@ -42,6 +42,8 @@ import { AVATAR_CROP_TITLE } from "../src/lib/avatar";
 // was in fact still standing on the wizard's first step (D10).
 import { COVER_PREVIEW_TITLE } from "../src/lib/listing/cover-frames";
 
+const OPS_ORIGIN = "http://ops.localhost:3000";
+
 // RESP-01 / AC#29 — nothing overflows the viewport horizontally at 320px, on seventeen named routes
 // plus three route STATES, in both themes. Measured in real pixels in real Chromium.
 //
@@ -418,6 +420,8 @@ type RouteRow = {
   readonly name: string;
   /** Staff authentication is exposed only on the separate ops hostname. */
   readonly origin?: string;
+  /** The fixed ops gateway 404 has four laid-out elements; keep its overflow check non-vacuous. */
+  readonly minExaminedElements?: number;
   /**
    * `null` for a route this harness cannot reach, in which case `skip` says why, IN THE MESSAGE.
    * A resolver rather than a literal where the path depends on the catalogue.
@@ -702,6 +706,7 @@ const ROUTES: readonly RouteRow[] = [
     name: "ops cloak · gateway denial",
     path: "/_ops-cloak",
     tell: 'h1:has-text("Page not found")',
+    minExaminedElements: 4,
   },
   {
     name: "/signup",
@@ -1000,7 +1005,7 @@ test.describe(`AC#29 — nothing scrolls sideways at ${FLOOR_PX}px`, () => {
         const where = `${title} · ${FLOOR_PX}px`;
         await expectReachable(page, row, where);
 
-        await expectNoOverflow(page, where);
+        await expectNoOverflow(page, where, row.minExaminedElements);
 
         // The overlay rows' second measurement. Runs AFTER the document scan rather than instead of
         // it: the document clause is still the right question for the page BEHIND the overlay, and
@@ -3588,7 +3593,7 @@ test.describe(`OPS-04 — the /ops review queue at ${FLOOR_PX}px, in both themes
       await seedTheme(page.context(), theme);
       await page.setViewportSize({ width: FLOOR_PX, height: 900 });
 
-      await page.goto(`${BASE}/ops`);
+      await page.goto(`${OPS_ORIGIN}/ops`);
       await page.evaluate(() => document.fonts.ready);
 
       const where = `/ops · ${theme} · ${FLOOR_PX}px`;

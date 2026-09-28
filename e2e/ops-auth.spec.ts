@@ -10,6 +10,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { hashPassword } from "better-auth/crypto";
 import postgres from "postgres";
+import { signInOps } from "./helpers/ops-sign-in";
 
 const E2E_PORT = process.env.FITOUT_OPS_E2E_PORT ?? "3000";
 const PUBLIC_HOST = `localhost:${E2E_PORT}`;
@@ -92,11 +93,7 @@ test("onboards a separate staff identity before removing legacy staff", async ({
     expect(legacyBefore, "the known legacy host fixture is missing").toBeTruthy();
     expect(legacyBefore?.canHost, "the legacy identity must retain host capability").toBe(true);
 
-    const signIn = await operatorContext.request.post(`${OPS_ORIGIN}/api/auth/sign-in/email`, {
-      headers: { host: OPS_HOST, origin: OPS_ORIGIN },
-      data: { email: BOOTSTRAP_STAFF_EMAIL, password: PASSWORD },
-      failOnStatusCode: false,
-    });
+    const signIn = await signInOps(operatorContext.request, BOOTSTRAP_STAFF_EMAIL, PASSWORD);
     expect(signIn.status(), "the local bootstrap staff sign-in failed").toBe(200);
 
     const operatorPage = await operatorContext.newPage();
@@ -151,14 +148,7 @@ test("onboards a separate staff identity before removing legacy staff", async ({
     await replacementPage.getByRole("button", { name: "Create staff account" }).click();
     await expect(replacementPage).toHaveURL(`${OPS_ORIGIN}/login?accepted=1`);
 
-    const replacementSignIn = await replacementContext.request.post(
-      `${OPS_ORIGIN}/api/auth/sign-in/email`,
-      {
-        headers: { host: OPS_HOST, origin: OPS_ORIGIN },
-        data: { email: replacementEmail, password: PASSWORD },
-        failOnStatusCode: false,
-      },
-    );
+    const replacementSignIn = await signInOps(replacementContext.request, replacementEmail, PASSWORD);
     expect(replacementSignIn.status(), "the accepted replacement staff sign-in failed").toBe(200);
     const replacementOps = await replacementContext.request.get(`${OPS_ORIGIN}/ops`, {
       headers: { host: OPS_HOST },
@@ -224,14 +214,7 @@ test("terminates the ops session and returns to the bounded signed-out notice", 
       VALUES (${randomUUID()}, ${staffId}, ${"credential"}, ${staffId}, ${passwordHash}, now(), now())
     `;
 
-    const signInResponse = await opsContext.request.post(
-      `${OPS_ORIGIN}/api/auth/sign-in/email`,
-      {
-        headers: { host: OPS_HOST, origin: OPS_ORIGIN },
-        data: { email: staffEmail, password: PASSWORD },
-        failOnStatusCode: false,
-      },
-    );
+    const signInResponse = await signInOps(opsContext.request, staffEmail, PASSWORD);
     expect(signInResponse.status(), "ops-host Better Auth sign-in failed").toBe(200);
 
     const priorCookies = await opsContext.cookies(OPS_ORIGIN);
@@ -317,11 +300,7 @@ test("cross-host exits use exact configured origins without carrying source cook
     );
     expect((await opsSessionFromPublic.json())?.user ?? null).toBeNull();
 
-    const opsSignIn = await opsContext.request.post(`${OPS_ORIGIN}/api/auth/sign-in/email`, {
-      headers: { host: OPS_HOST, origin: OPS_ORIGIN },
-      data: { email: staffEmail, password: PASSWORD },
-      failOnStatusCode: false,
-    });
+    const opsSignIn = await signInOps(opsContext.request, staffEmail, PASSWORD);
     expect(opsSignIn.status(), "ops-host Better Auth sign-in failed").toBe(200);
     const opsPage = await opsContext.newPage();
     await opsPage.goto(`${OPS_ORIGIN}/login`);
@@ -425,14 +404,7 @@ test("refuses marketplace-host action dispatch even with an ops staff cookie", a
       `;
     });
 
-    const signInResponse = await opsContext.request.post(
-      `${OPS_ORIGIN}/api/auth/sign-in/email`,
-      {
-        headers: { host: OPS_HOST, origin: OPS_ORIGIN },
-        data: { email: staffEmail, password: PASSWORD },
-        failOnStatusCode: false,
-      },
-    );
+    const signInResponse = await signInOps(opsContext.request, staffEmail, PASSWORD);
     expect(signInResponse.status(), "ops-host Better Auth sign-in failed").toBe(200);
 
     const page = await opsContext.newPage();

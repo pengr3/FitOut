@@ -898,6 +898,7 @@ const ROWS: readonly SweepRow[] = [
   {
     file: "src/app/(ops)/ops/page.tsx",
     name: "/ops · the review queue",
+    origin: "http://ops.localhost:3000",
     path: "/ops",
     session: "staff",
     // THE TELL IS A REAL QUEUE ROW, NOT THE PAGE HEADER, and the difference is the whole vacuity
