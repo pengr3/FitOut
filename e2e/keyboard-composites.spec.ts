@@ -429,7 +429,10 @@ async function settleListing(page: Page, where: string): Promise<void> {
 }
 
 async function armNextMonthDayOne(scope: Page | Locator, where: string): Promise<void> {
+  const caption = scope.locator('[data-slot="calendar"] .rdp-caption_label');
+  const previousMonth = await caption.innerText();
   await scope.getByRole("button", { name: /next month/i }).click();
+  await expect(caption, `${where}: next month did not replace the previous month grid`).not.toHaveText(previousMonth);
   const dayOne = scope.locator(DAY_CELL).filter({ hasText: /^1$/ });
   await expect(
     dayOne,
@@ -438,6 +441,10 @@ async function armNextMonthDayOne(scope: Page | Locator, where: string): Promise
       "selected, so an ambiguous match here would silently measure a different day.",
   ).toHaveCount(1);
   await dayOne.click();
+  await expect(
+    dayOne.and(scope.locator('button[data-selected-single="true"]')),
+    `${where}: day one did not become selected after the click`,
+  ).toHaveCount(1);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════

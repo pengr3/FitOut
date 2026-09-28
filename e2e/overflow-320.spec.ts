@@ -3214,57 +3214,32 @@ const PHASE_14_ROWS: readonly Phase14Row[] = [
   {
     name: "/host/payouts/return",
     path: () => "/host/payouts/return",
-    // ⚠ THE WORST PLATE TRAP IN THE TABLE, AND IT IS WORTH NAMING AS ONE. `payouts/return/loading.tsx`
-    // renders `<h1>Thanks — that&apos;s submitted</h1>` BYTE-IDENTICALLY to the page it stands in for —
-    // deliberately, so the sentence does not move when the payout state lands. A heading hook here does
-    // not merely fail to prove the resolved page; it proves the SKELETON. `PayoutBanner` is the one
-    // element the plate replaces with a `PanelSkeleton`, so it is the only honest tell on this route.
+    // The banner is present only after the route resolves; a heading may also appear in its plate.
     tell: "[data-payout-banner]",
     tellWhy:
       "the payout banner, which is the entire difference between this route's resolved document and " +
-      "its plate — the plate renders the SAME `h1` verbatim and a `PanelSkeleton` in the banner's " +
+      "its plate — the plate renders a `PanelSkeleton` in the banner's " +
       "slot. The attribute is state-agnostic on purpose: the banner renders one of four states and " +
       "`derivePayoutStatus` picks it from the fixture's `host_payout` row, so pinning a single state " +
       "here would make the row a fixture assertion rather than a reachability guard.",
     touch: [],
     touchWhy:
-      "NONE DECLARED. The one control is `Back to your dashboard`, `variant=\"outline\"` at the " +
+      "NONE DECLARED. The one control is `Set payout destination`, `variant=\"outline\"` at the " +
       "Button's default height (`payouts/return/page.tsx:49`), with no height note anywhere in the " +
       "spec. The banner's own `Set up payouts` action does not render in the fixture's enabled state.",
   },
   {
     name: "/host/payouts/refresh",
     path: () => "/host/payouts/refresh",
-    // ⚠ THIS ROW MEASURES A FALLBACK, AND THE FALLBACK IS THE ONLY THING IT CAN MEASURE — MEASURED
-    // 30 August 2026 rather than reasoned about, because the plan's own threat model got this route
-    // wrong (T-17-59 asserts these two rows "issue no PayMongo call").
-    //
-    // `payouts/refresh/page.tsx` calls `refreshOnboardingLink()` → `startPayoutOnboarding()` →
-    // `createOnboardingLink()`, which is a REAL `POST https://api.paymongo.com/v1/linked_accounts/
-    // onboarding_links` with whatever `PAYMONGO_SECRET_KEY` the local `.env` carries. On success the
-    // page `redirect()`s to PayMongo and there is no document here at all. Platforms / Linked Accounts
-    // is beta / sales-gated (src/lib/paymongo.ts's own BETA NOTE), so the call fails, `res.ok` is
-    // false, and the host lands on the retry sentence this row names. PROBED on a freshly signed-up
-    // host, both directions of the failure: `h1: "Let's pick up where you left off"`, no redirect.
-    //
-    // WHAT THAT COSTS, stated so nobody discovers it: two outbound POSTs per run (one per theme), each
-    // writing one `audit` row with `outcome: "error"`. Neither creates a PayMongo resource — the
-    // endpoint 404s before it reaches one — and `afterAll` deletes the audit rows. It also spends 2 of
-    // `startPayoutOnboarding`'s 5-per-60s per-identity budget, which is why the two cases are the only
-    // visits this file makes to this route.
-    //
-    // AND THE PLATE IS NOT A TRAP HERE, unusually: `payouts/refresh/loading.tsx` renders one
-    // `Reopening payout setup…` paragraph and no heading at all.
+    // The legacy provider-return route is now an inert handoff into host-owned payout setup. It
+    // renders this heading without contacting the provider. Its loading plate has no heading.
     tell: 'h1:has-text("Set your payout destination")',
     tellWhy:
       "the payout destination heading, which exists on no other route and which the route's plate " +
-      "does not render (its whole content is a `Reopening payout setup…` status paragraph). It is " +
-      "matched on a substring rather than in full because the shipped copy contains a typographic " +
-      "apostrophe (`&apos;`), and a spec re-typing one is the drift `AVATAR_CROP_TITLE`'s import note " +
-      "warns about — the substring carries no apostrophe and cannot go quietly wrong.",
+      "does not render (its whole content is a `Reopening payout setup…` status paragraph).",
     touch: [],
     touchWhy:
-      "NONE DECLARED. The fallback renders exactly one control, `Back to your dashboard`, " +
+      "NONE DECLARED. The page renders one outline control for payout setup, " +
       "`variant=\"outline\"` at the Button's default height and with no height note in the spec — the " +
       "same opt-in argument every row above records.",
   },
