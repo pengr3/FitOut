@@ -401,7 +401,7 @@ test.describe("BFLOW-08 — the confirmation moment fills the first screen and t
       "Back landed on the moment's own URL. The history entry must be REPLACED rather than pushed, " +
         "or the booker walks back into a screen that is no longer true.",
     ).not.toContain("paid=1");
-    expect(page.url()).toBe(`${BASE}/bookings`);
+    await expect(page).toHaveURL(`${BASE}/bookings`);
   });
 
   // ═══════════════════════════════════════════════════════════════════════════════════════════════

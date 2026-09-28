@@ -547,7 +547,15 @@ const LISTING_ROWS: readonly WalkCase[] = [
       await tabUntil(page, `button[button]:${FIRST_HOUR}`, where);
       await page.keyboard.press("Enter");
       await page.keyboard.press("ArrowRight");
-      await page.keyboard.press(" ");
+      // Radix may activate the next roving item as focus moves. Press Space only when the
+      // checkout boundary has not already been committed, or it would start a new choice.
+      const checkout = page.locator(`${AVAILABILITY} button`).filter({ hasText: /^7:00 AM$/ });
+      if ((await checkout.getAttribute("aria-pressed")) !== "true") {
+        await page.keyboard.press(" ");
+      }
+      await expect(checkout).toHaveAttribute("aria-pressed", "true");
+      await expect(page.locator(BOOKING_PANEL).getByRole("button", { name: "Book this space" }))
+        .toBeEnabled();
     },
     tell: `${BOOKING_PANEL} button:has-text("Book this space")`,
     tellWhy:

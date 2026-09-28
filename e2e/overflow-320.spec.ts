@@ -3597,6 +3597,8 @@ test.describe(`OPS-04 — the /ops review queue at ${FLOOR_PX}px, in both themes
       await page.evaluate(() => document.fonts.ready);
 
       const where = `/ops · ${theme} · ${FLOOR_PX}px`;
+      const listingCard = page.getByTestId("row-card").filter({ hasText: seed!.title });
+      await listingCard.getByRole("button", { name: "Show listing evidence" }).click();
 
       // THE TELL IS A PHOTOGRAPH, not the page header and not a row card. `row-card` would be
       // satisfied by the HOST row alone, which carries no image and is therefore not the shape this
@@ -3606,7 +3608,7 @@ test.describe(`OPS-04 — the /ops review queue at ${FLOOR_PX}px, in both themes
       // (18-UI-SPEC's does-not-move table), and its scope rule is explicit: an id is added only where
       // a role or label query cannot express the target. `section[aria-label]` can.
       await expect(
-        page.locator('[data-testid="row-card"] section[aria-label^="Photos of "]'),
+        listingCard.locator('section[aria-label^="Photos of "]'),
         `${where}: the queue rendered no photo mosaic, so the row this block exists to measure is ` +
           "not on the page. Either the fixture's listing did not reach the queue (check " +
           "`review_state`), or the session is not staff and this is the root 404 — which does not " +

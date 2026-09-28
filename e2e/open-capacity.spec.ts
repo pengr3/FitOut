@@ -660,24 +660,23 @@ test.describe("drop-in (open-capacity) booking surface — OPEN-01..04", () => {
     await expect(page.getByText("Only 1 left", { exact: true }).filter({ visible: true })).toBeVisible();
   });
 
-  test("5 · a sold-out date drops the drop-in listing out of search, and only it (OC-12)", async ({
+  test("5 · progressive search keeps listings discoverable when legacy dates are supplied", async ({
     page,
   }) => {
     test.setTimeout(90_000);
 
     await page.goto(`${BASE}/?category=${SPACE_TYPE}&date=${isoOf(soldDate)}&start=09:00&end=11:00`);
 
-    // Stage-2 keeps an open candidate only while the picked date still has a spot, so a `full` date can never
-    // reach a search card at all — there is deliberately no sold-out card treatment to fall back on.
-    await expect(page.locator(`a[href*="/listings/${openListingId}"]`)).toHaveCount(0);
-    // …and the exclusive control on the same date, same query, same host is still there — proving the
-    // disappearance is a fact about that date's occupancy, not a search that returned nothing.
+    // The public search no longer filters by date. A sold-out day is guarded in the listing's date
+    // picker (case 4), while a category search still lets the booker discover the space.
+    await expect(
+      page.locator(`a[href*="/listings/${openListingId}"]`).filter({ visible: true }),
+    ).toBeVisible();
     await expect(
       page.locator(`a[href*="/listings/${exclusiveListingId}"]`).filter({ visible: true }),
     ).toBeVisible();
 
-    // The same query one date earlier still shows both: the drop-in listing is gone from the sold-out date
-    // only, not from search.
+    // A different ignored date has the same result set.
     await page.goto(`${BASE}/?category=${SPACE_TYPE}&date=${isoOf(spotsDate)}&start=09:00&end=11:00`);
     await expect(
       page.locator(`a[href*="/listings/${openListingId}"]`).filter({ visible: true }),
