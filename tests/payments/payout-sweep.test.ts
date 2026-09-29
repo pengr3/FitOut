@@ -27,6 +27,10 @@ type SweepModule = typeof import("@/inngest/functions/payout-sweep");
 let queryDuePayouts: SweepModule["queryDuePayouts"];
 let payOne: SweepModule["payOne"];
 let fridayPayoutWindow: ((now: Date) => { cohortNoon: Date } | null) | undefined;
+const mockWalletFunding = vi.fn(async () => ({
+  walletId: "wallet_fitout_test", availableCents: 10_000_000, feeCents: 1_000,
+  observedAt: new Date("2026-10-02T04:00:00.000Z"),
+}));
 
 const BOOKER = "sweep_booker";
 const FRIDAY_NOON = new Date("2026-10-02T04:00:00.000Z");
@@ -202,6 +206,7 @@ beforeAll(async () => {
   });
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
+    readPayoutWalletFunding: mockWalletFunding,
     createExternalHostPayout: mockPayMongo.createBatchTransfer,
     createBatchTransfer: mockPayMongo.createBatchTransfer,
     listWalletAccounts: mockPayMongo.listWalletAccounts,
@@ -212,6 +217,82 @@ beforeAll(async () => {
   const sweep = await import("@/inngest/functions/payout-sweep");
   ({ queryDuePayouts, payOne } = sweep);
   fridayPayoutWindow = (sweep as unknown as { fridayPayoutWindow?: typeof fridayPayoutWindow }).fridayPayoutWindow;
+});
+
+describe("Friday Wallet funding preflight (HPAY-03)", () => {
+  async function candidate(grossCents = 200000) {
+    const host = await makeHost();
+    const listingId = await makeListing(host.hostId);
+    const bookingId = await makeBooking({ listingId, status: "confirmed", quotedTotalCents: grossCents,
+      endsAtMs: FRIDAY_NOON.getTime() - 48 * 3_600_000 });
+    return { bookingId, b: duePayout({ bookingId, listingId, hostId: host.hostId,
+      accountId: host.accountId, payoutGrossCents: grossCents }) };
+  }
+
+  it("permits exact available coverage of the net amount and fee", async () => {
+    const { b } = await candidate();
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 181000,
+      feeCents: 1000, observedAt: FRIDAY_NOON });
+    mockPayMongo.createBatchTransfer.mockClear();
+    expect((await payOne(testDb.db, b)).status).toBe("paid");
+    expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits unclaimed when available funds are one centavo short", async () => {
+    const { bookingId, b } = await candidate();
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 180999,
+      feeCents: 1000, observedAt: FRIDAY_NOON });
+    mockPayMongo.createBatchTransfer.mockClear();
+    expect((await payOne(testDb.db, b)).status).toBe("skipped-no-wallet");
+    expect(await readLedger(bookingId)).toBeUndefined();
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+  });
+
+  it("never spends pending-only funds or an unknown fee", async () => {
+    const first = await candidate();
+    const second = await candidate();
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 0,
+      feeCents: 1000, observedAt: FRIDAY_NOON });
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 500000,
+      feeCents: Number.NaN, observedAt: FRIDAY_NOON });
+    expect((await payOne(testDb.db, first.b)).status).toBe("skipped-no-wallet");
+    expect((await payOne(testDb.db, second.b)).status).toBe("skipped-no-wallet");
+    expect(await readLedger(first.bookingId)).toBeUndefined();
+    expect(await readLedger(second.bookingId)).toBeUndefined();
+  });
+
+  it("treats a stale or inaccessible Wallet read as waiting without a failed claim", async () => {
+    const first = await candidate();
+    const second = await candidate();
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 500000,
+      feeCents: 1000, observedAt: new Date(FRIDAY_NOON.getTime() - 10 * 60_000) });
+    mockWalletFunding.mockRejectedValueOnce(new Error("wallet unavailable"));
+    expect((await payOne(testDb.db, first.b)).status).toBe("skipped-no-wallet");
+    expect((await payOne(testDb.db, second.b)).status).toBe("skipped-no-wallet");
+    expect(await readLedger(first.bookingId)).toBeUndefined();
+    expect(await readLedger(second.bookingId)).toBeUndefined();
+  });
+
+  it("serializes two bookings against one balance snapshot", async () => {
+    const first = await candidate();
+    const second = await candidate();
+    mockWalletFunding.mockResolvedValue({ walletId: "wallet_fitout_test", availableCents: 181000,
+      feeCents: 1000, observedAt: FRIDAY_NOON });
+    const clients = makeRacingClients(testDb.schema, 2);
+    try {
+      const results = await Promise.all([
+        payOne(drizzle(clients[0]), first.b), payOne(drizzle(clients[1]), second.b),
+      ]);
+      expect(results.filter((result) => result.status === "paid")).toHaveLength(1);
+      expect(results.filter((result) => result.status === "skipped-no-wallet")).toHaveLength(1);
+      expect([await readLedger(first.bookingId), await readLedger(second.bookingId)]
+        .filter(Boolean)).toHaveLength(1);
+    } finally {
+      await Promise.all(clients.map((client) => client.end()));
+      mockWalletFunding.mockResolvedValue({ walletId: "wallet_fitout_test", availableCents: 10_000_000,
+        feeCents: 1000, observedAt: FRIDAY_NOON });
+    }
+  });
 });
 
 describe("Friday Manila dispatch window (HPAY-02)", () => {

@@ -229,6 +229,8 @@ beforeAll(async () => {
   });
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
+    readPayoutWalletFunding: vi.fn(async () => ({ walletId: "wallet_fitout_test", availableCents: 10_000_000,
+      feeCents: 1000, observedAt: FRIDAY_NOON })),
     createExternalHostPayout: mockPayMongo.createBatchTransfer,
     createBatchTransfer: mockPayMongo.createBatchTransfer,
     listWalletAccounts: mockPayMongo.listWalletAccounts,
