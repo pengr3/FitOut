@@ -1285,6 +1285,43 @@ export const booking = pgTable(
   ],
 );
 
+// Phase 26: one immutable provider observation per booking/payment/payout status version.
+// No legacy booking is backfilled; a booking without a row has unknown settlement.
+export const bookingSettlementObservation = pgTable(
+  "booking_settlement_observation",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    bookingId: text("booking_id").notNull().references(() => booking.id, { onDelete: "restrict" }),
+    paymentId: text("payment_id").notNull(),
+    payoutId: text("payout_id").notNull(),
+    transactionId: text("transaction_id").notNull(),
+    transactionType: text("transaction_type").notNull(),
+    providerStatus: text("provider_status").notNull(),
+    providerStatusAt: timestamp("provider_status_at", { withTimezone: true }).notNull(),
+    depositedAt: timestamp("deposited_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }).notNull(),
+    walletDestinationMatched: boolean("wallet_destination_matched").notNull(),
+    mappingVerified: boolean("mapping_verified").notNull(),
+    liveMode: boolean("live_mode").notNull(),
+    currency: text("currency").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    unique("booking_settlement_observation_version_uq").on(t.bookingId, t.payoutId, t.transactionId, t.providerStatus, t.providerStatusAt),
+    index("booking_settlement_observation_current_idx").on(t.bookingId, t.providerStatusAt, t.id),
+    index("booking_settlement_observation_payout_idx").on(t.payoutId),
+  ],
+);
+
+// Mutable pointer/freshness cache; immutable provider history above remains queryable.
+export const bookingSettlementCurrent = pgTable("booking_settlement_current", {
+  bookingId: text("booking_id").primaryKey().references(() => booking.id, { onDelete: "restrict" }),
+  observationId: integer("observation_id").notNull().references(() => bookingSettlementObservation.id, { onDelete: "restrict" }),
+  providerStatusAt: timestamp("provider_status_at", { withTimezone: true }).notNull(),
+  statusPriority: integer("status_priority").notNull(),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }).notNull(),
+});
+
 // An operator creates this record out-of-band for one listing and one test booker. It substitutes only
 // for the legacy `host_payout.payouts_enabled` booking term; identity, listing review, publication,
 // operating hours, booker capability, frozen quoting, payment confirmation, and payout locks remain.
