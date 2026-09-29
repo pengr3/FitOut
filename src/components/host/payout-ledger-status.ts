@@ -78,6 +78,12 @@ export function projectHostEarnings(rows: EarningSource[], hostId: string, now: 
         if (row.ledger.transferId && row.ledger.paidAt) {
           status = "paid";
           timing = `Paid ${new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", month: "short", day: "numeric", year: "numeric" }).format(row.ledger.paidAt)}`;
+        } else if (!row.ledger.transferId && row.ledger.paidAt &&
+          row.ledger.recoveredCents === row.ledger.netCents) {
+          status = "paid";
+          timing = row.ledger.recoveredCents > 0
+            ? "Settled by cancellation fee offset; no cash transfer was needed."
+            : "Settled with no cash payout.";
         } else { status = "failed"; timing = "We're checking a delay with this payout. You don't need to request it again."; }
       } else if (row.attention) {
         status = "failed"; timing = "We're checking a delay with this payout. You don't need to request it again.";

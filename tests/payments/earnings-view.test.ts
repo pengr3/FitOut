@@ -165,6 +165,20 @@ describe("host earnings booking projection (HPAY-05)", () => {
     expect(paid.status).toBe("paid");
     expect(summarizeHostEarnings([paid]).paidCents).toBe(180_000);
   });
+
+  it("shows a fully netted paid payout as settled in earnings and booking views", () => {
+    const ledger = { grossCents: 100_000, commissionCents: 10_000, netCents: 90_000,
+      recoveredCents: 90_000, state: "paid" as const, transferId: null, paidAt: projectionNow };
+    const [earning] = project([source("netted", { ledger })]);
+    expect(earning.status).toBe("paid");
+    expect(earning.netCents).toBe(0);
+    expect(earning.timing).toContain("Settled by cancellation fee offset");
+    expect(summarizeHostEarnings([earning])).toEqual({ upcomingCents: 0, paidCents: 0, hasEstimate: false });
+    const bookingView = bookingPayoutView(earning);
+    expect(bookingView.status).toBe("paid");
+    expect(bookingView.timing).toBe(earning.timing);
+    expect(bookingView.amountLabel).toContain("₱0.00");
+  });
 });
 
 describe("earnings route recovery", () => {
