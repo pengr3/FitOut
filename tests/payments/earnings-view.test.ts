@@ -16,6 +16,8 @@
 //      sees the fee (D-59). Runs against an isolated Postgres schema.
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 
@@ -161,6 +163,17 @@ describe("host earnings booking projection (HPAY-05)", () => {
     const paid = project([source("x", { ledger: { ...ledger, transferId: "tr_1", paidAt: projectionNow } })])[0];
     expect(paid.status).toBe("paid");
     expect(summarizeHostEarnings([paid]).paidCents).toBe(180_000);
+  });
+});
+
+describe("earnings route recovery", () => {
+  it("has a dedicated neutral boundary with the installed unstable_retry contract", () => {
+    const path = resolve(process.cwd(), "src/app/(host)/host/earnings/error.tsx");
+    expect(existsSync(path)).toBe(true);
+    const source = readFileSync(path, "utf8");
+    expect(source).toContain("unstable_retry");
+    expect(source).toContain("We couldn't load your earnings. Try again.");
+    expect(source).not.toContain("Paid out");
   });
 });
 

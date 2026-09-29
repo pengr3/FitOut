@@ -1,0 +1,9 @@
+{
+  "targetTest": "has a dedicated neutral boundary with the installed unstable_retry contract",
+  "targetFile": "tests/payments/earnings-view.test.ts",
+  "command": "node node_modules/vitest/vitest.mjs run tests/payments/earnings-view.test.ts -t 'dedicated neutral boundary' --reporter=tap",
+  "exitCode": 1,
+  "expected": "true",
+  "actual": "false",
+  "output": "TAP version 13\n1..1\nnot ok 1 - tests/payments/earnings-view.test.ts {\n  1..1\n  not ok 1 - earnings route recovery {\n    1..1\n    not ok 1 - has a dedicated neutral boundary with the installed unstable_retry contract\n      ---\n      error:\n        name: AssertionError\n        message: expected false to be true\n      actual: false\n      expected: true\n  }\n}\n# tests 1\n# pass 0\n# fail 1\nnot ok 1 - has a dedicated neutral boundary with the installed unstable_retry contract"
+}
