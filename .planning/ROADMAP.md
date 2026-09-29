@@ -123,6 +123,9 @@ phase numbering **continues from 19**.
    **A new file under `drizzle/` inside a v1.2 plan is the same scope alarm.** ⚠ For the record,
    `drizzle/` ends at **`0029_listing_review_cascade.sql`**, not `0026`; a plan asserting "migrations end
    at 0026" is false on arrival, and the next generated migration would be `0030`.
+   **Phase 26 exception (PM decision, 2026-09-29):** one narrowly scoped migration may persist
+   booking-level PayMongo settlement evidence. This later payment-release work was not part of the
+   original Phases 18–23 zero-migration estimate; its migration does not relax that rule for those phases.
 3. **The ops queue row's TERMINAL property survives.** Zero anchors of any scheme and zero
    `[role="link"]` elements, on **both row kinds**, **before and after** expansion. D-274 re-tightened
    this on 2026-09-03 and 18.1-16 reverted two widenings rather than emptying them. **A disclosure is a
@@ -1182,9 +1185,88 @@ Plans:
 
 - [x] 25-04-PLAN.md — Gate merchant/payout evidence and authorize broad availability or retain a safe hold.
 
+### Phase 25.1: PayMongo Production Release Readiness & Controlled Proofs (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 25
+**Plans:** 2/5 plans executed
+
+Plans:
+
+- [x] 25.1-01-PLAN.md
+- [x] 25.1-02-PLAN.md
+- [ ] 25.1-03-PLAN.md
+- [ ] 25.1-04-PLAN.md
+- [ ] 25.1-05-PLAN.md
+
+### Phase 26: Settlement-Aware Host Payouts
+
+**Goal:** Hosts see honest pending earnings and FitOut releases eligible earnings every Friday only after the session's 24-hour review hold and the booking's PayMongo payment have both cleared, without advancing unsettled funds.
+**Requirements:** HPAY-01…HPAY-07
+**Depends on:** Phase 25.1; broad payment and payout release remains on HOLD until its controlled proofs
+and Phase 26's settlement-aware path are verified.
+**Plans:** 8/8 active plans executed; terms publication deferred separately. Account and controlled-proof outcome: HOLD.
+
+**Success Criteria** (what must be TRUE):
+
+1. A durable, booking-linked settlement record proves that the matching PayMongo payment belongs to a
+   provider payout actually deposited in FitOut's verified Wallet; a pending, returned, unavailable, or
+   unmatchable provider record cannot authorize a host transfer.
+2. The Friday run starts at **12:00 Asia/Manila** and may retry only through **23:00 Friday**. A booking
+   is eligible only when `ends_at + 24 hours` has passed, settlement is verified, the host and destination
+   gates still pass, and available Wallet funds cover the net transfer plus provider fees. Anything that
+   misses the cutoff remains pending until the next Friday; no automatic off-cycle release occurs.
+3. Existing per-booking at-most-once claiming, frozen commission, cancellation/debit netting, and terminal
+   transfer reconciliation remain intact. Insufficient or late settlement is a normal waiting state, not
+   a terminal failed transfer or a case that exhausts the current 72-hour retry window.
+4. The host earnings view includes confirmed bookings before a transfer is claimed, distinguishes waiting
+   for settlement from processing and paid, and shows an eligible Friday only when evidence supports it.
+   Host-facing copy and terms no longer promise payment 24 hours after a booking.
+5. An accountable operator can see and act on missing settlement, insufficient funds, returned funds,
+   failed transfers, and missed Friday cutoffs. The actual account settlement schedule, Wallet destination,
+   payout transaction access, transfer fees, and controlled money movement are evidenced before release.
+
+**Release boundary:** Phase 25.1's HOLD persists. This phase adds no authorization to move real money;
+the existing joint product, PayMongo account, and money-alert operations release gates still apply.
+
+Plans:
+
+**Wave 1**
+
+- [x] 26-01-PLAN.md — Establish booking-linked settlement evidence and the narrow migration.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 26-02-PLAN.md — Apply the Friday cohort and funded Wallet dispatch gates.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 26-03-PLAN.md — Preserve money-path integrity and reconcile uncertain transfers.
+- [x] 26-04-PLAN.md — Show owner-scoped, evidence-aware host earnings.
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [x] 26-05-PLAN.md — Align host payout copy and related surfaces.
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [x] 26-06-PLAN.md — Make exceptions visible with an owned recovery path.
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [x] 26-07-PLAN.md — Prepare the legal publication decision packet with default HOLD.
+
+**Wave 7** *(blocked on Wave 6 completion; account review can record HOLD independently of legal publication)*
+
+- [ ] 26-08-DEFERRED.md — Full agreement and operative terms publication moved to later work by user direction; preserved outside active execution.
+- [x] 26-09-PLAN.md — Account capability and controlled-proof packet records an owned HOLD without live money movement.
+
 ## Carried Forward (not v1.2 scope until promoted)
 
-- **Real host payouts have never moved real money** — PayMongo `/v2` money movement is sales-gated.
+- **Real host payout proof — PROMOTED to Phases 25.1 and 26.** PayMongo `/v2` money movement remains
+  sales-gated and no real host payout has been proved. Phase 25.1 owns controlled live-money proof;
+  Phase 26 owns the settlement-aware implementation.
 - **PayMongo hosted Linked-Accounts KYC (PAY-04) has never been walked** — same gate.
 - **GCash and Maya have never been individually hand-paid** — closable today by a human with no new
   code; card and QR Ph are already proven.
@@ -1220,21 +1302,6 @@ Unsequenced ideas parked outside the active phase sequence (999.x). Promote with
 > threshold regardless of when that happens. Requirements `SEARCH-06..09` and `MAP-01..04` move to
 > Deferred in `.planning/REQUIREMENTS.md` rather than being deleted. Promote with
 > `/gsd:review-backlog`.
-
-### Phase 25.1: PayMongo Production Release Readiness & Controlled Proofs (INSERTED)
-
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
-**Depends on:** Phase 25
-**Plans:** 1/5 plans executed
-
-Plans:
-
-- [x] 25.1-01-PLAN.md
-- [ ] 25.1-02-PLAN.md
-- [ ] 25.1-03-PLAN.md
-- [ ] 25.1-04-PLAN.md
-- [ ] 25.1-05-PLAN.md
 
 ### Phase 999.3: Search & Discovery — one-box query model + results map (BACKLOG)
 

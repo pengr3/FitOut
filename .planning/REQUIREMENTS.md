@@ -283,6 +283,43 @@ Explicitly excluded, with the reasoning, so they are not re-added by a later pla
 
 ---
 
+## Phase 26 — Settlement-Aware Host Payouts (2026-09-29 addendum)
+
+This payment-release phase follows Phase 25.1. Its seven requirements are additive to the original
+47 v1.2 verification-and-operations requirements, whose historic counts below remain unchanged.
+The PM approved one narrowly scoped settlement-record migration for this phase.
+
+- [ ] **HPAY-01 — Settlement proof.** Persist booking-level evidence connecting the captured PayMongo
+      payment ID to a provider payout verified as `deposited` in FitOut's approved Wallet. One migration
+      may add the record. Pending, returned, inaccessible, stale, or unmatchable provider evidence
+      cannot make the booking payable; reconcile reversals without erasing the audit trail.
+- [x] **HPAY-02 — Weekly eligibility.** Run host releases Friday at 12:00 Asia/Manila and retries only
+      through 23:00 Friday. A booking qualifies only after its session ends plus 24 hours and HPAY-01
+      settlement proof exists. Anything missing the cutoff waits until the next Friday. No automated
+      transfer occurs on another day.
+- [x] **HPAY-03 — Funded transfer gate.** Immediately before release, verify available platform Wallet
+      funds cover the net host transfer and provider fee, as well as the existing confirmed booking,
+      verified destination, enabled payout, and non-suspended-host gates. Unknown or insufficient funds
+      wait; no provider transfer is attempted on an assumed balance.
+- [x] **HPAY-04 — Money-path integrity.** Preserve per-booking at-most-once payout claiming, frozen
+      commission, partial-cancellation retention, host-cancellation fee netting, refund handling, and
+      terminal transfer reconciliation. Waiting for settlement or funds must not be classified as a
+      failed transfer or expire under the existing 72-hour failure retry limit.
+- [ ] **HPAY-05 — Honest host schedule.** Confirmed bookings appear as pending earnings before the
+      transfer claim. The host can distinguish awaiting settlement, scheduled, processing, paid,
+      refunded, and needs-attention outcomes. Show a next eligible Friday only when supported by
+      verified settlement; replace the 24-hour payment promise in product copy and terms before launch.
+- [ ] **HPAY-06 — Exception ownership.** Alert a named money-operations owner to missed Friday cutoffs,
+      absent or returned settlement, insufficient Wallet funds, and failed or stuck transfers. Record
+      the cause and next action without exposing account identifiers or raw provider data to hosts.
+- [ ] **HPAY-07 — Release proof.** Establish this account's actual settlement weekday, Wallet
+      destination, payout-transaction and balance-read access, transfer fees, and a controlled payout
+      reconciliation. Phase 25.1's HOLD and joint product, PayMongo-account, and operations approval
+      remain in force until these are observed; code and documentation alone never authorize money
+      movement.
+
+---
+
 ## Traceability
 
 | Requirement | Phase | Status |
@@ -335,8 +372,17 @@ Explicitly excluded, with the reasoning, so they are not re-added by a later pla
 | OPS-15 | Phase 22 | Complete |
 | STATE-05 | Phase 23 | Pending — **blocked on a business fact**, not on code (a monitored support address; D-64 forbids a placeholder) |
 | TRUST-01 | Phase 23 | Pending — same one-line unblock as `STATE-05` |
+| **— Phase 26 payment-release addendum (2026-09-29) —** | | |
+| HPAY-01 | Phase 26 | Pending |
+| HPAY-02 | Phase 26 | Complete |
+| HPAY-03 | Phase 26 | Complete |
+| HPAY-04 | Phase 26 | Complete |
+| HPAY-05 | Phase 26 implementation; later public release | Pending — earnings and booking parity complete; product copy review and browser backstop remain. Full agreement and terms publication were deferred by user direction and do not block account proof. |
+| HPAY-06 | Phase 26 | Implementation complete in 26-06; monitored owner, controlled receipt, and acknowledgement evidence remain HOLD |
+| HPAY-07 | Phase 26 | Pending — account proof and bounded money-path authority are HOLD; broad-release authorization remains separate. Terms publication is deferred outside this account-proof gate. |
 
-**47 requirements across seven phases — 22 complete, 25 outstanding.**
+**47 original v1.2 requirements across seven phases — 22 complete, 25 outstanding.** Phase 26 adds
+seven pending `HPAY` requirements and is not included in that historic milestone-cycle count.
 
 **Coverage checked 2026-09-04 by `/gsd-roadmap`: all 25 outstanding requirements map to exactly one
 phase. No orphans, no duplicates.** Phases 18 and 18.1 keep their 22; they are not re-mapped.

@@ -27,6 +27,8 @@ must_haves:
     - { statement: "MUST NOT make the 24-hour review period read like a guaranteed host payment date or chargeback end.", verification: test }
 ---
 
+> **Deferred by the user on 2026-09-29.** The full agreement has not been prepared. This plan is preserved for later work outside Phase 26 execution. The current `/terms` page remains a nonbinding placeholder; no publication is claimed. The engineering and account-proof work in Plan 26-09 proceeds independently.
+
 <objective>
 Publish the approved host payout clause and make the legal-copy gate enforce its exact promise.
 

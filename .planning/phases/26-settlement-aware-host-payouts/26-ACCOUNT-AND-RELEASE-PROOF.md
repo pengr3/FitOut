@@ -1,10 +1,10 @@
 # Phase 26 — Account capability and controlled-proof gate
 
-**Packet status: HOLD.** Prepared 2026-09-29 UTC for Plan 26-09 Task 1. This packet is a review template, not an account observation, provider instruction, migration approval, transfer authorization, or broad-release decision. No account authority, deployment operator, product approver, legal approver, or money-operations owner has supplied the evidence below. Do not invoke a provider, scheduler, migration, checkout, transfer, refund, or alert merely to fill a blank.
+**Packet status: HOLD.** Prepared 2026-09-29 UTC for Plan 26-09 Task 1. This packet is a review template, not an account observation, provider instruction, migration approval, transfer authorization, or broad-release decision. No account authority, deployment operator, product approver, or money-operations owner has supplied the evidence below. Do not invoke a provider, scheduler, migration, checkout, transfer, refund, or alert merely to fill a blank. The user deferred terms publication for later; it is outside this account-proof gate.
 
 ## Evidence and decision rules
 
-Each future entry needs an accountable **named person and role**, observation timestamp in UTC, environment and provider mode, opaque redacted evidence reference, and status: **observed**, **inaccessible**, **contradicted**, or **unverified**. A missing, stale, disputed, or redaction-invalid entry is HOLD. Source code, tests, provider documentation defaults, sandbox fixtures, configured secrets, and a created transfer response establish none of the live-account facts. Account review may proceed while legal publication is HOLD; it cannot clear that separate gate.
+Each future entry needs an accountable **named person and role**, observation timestamp in UTC, environment and provider mode, opaque redacted evidence reference, and status: **observed**, **inaccessible**, **contradicted**, or **unverified**. A missing, stale, disputed, or redaction-invalid entry is HOLD. Source code, tests, provider documentation defaults, sandbox fixtures, configured secrets, and a created transfer response establish none of the live-account facts. The separate terms work does not determine this account review or a separately authorized one-operation proof.
 
 The evidence store may hold only opaque references and generic observations. Do not paste credentials, full account numbers, raw provider payloads, unmasked payment/payout/transfer IDs, recipient details, email addresses, or protected URLs here. The account authority and deployment operator retain sensitive originals in their authorized systems. Record only the redacted reference and timestamp in this packet; a failed redaction check returns the field to HOLD. The Plan 25.1 reference-only redaction rules and scanner apply before accepting an entry.
 
@@ -46,7 +46,7 @@ Source inspection alone is recorded only as a local prerequisite. A named deploy
 | Monitored `OPS_ALERT_EMAIL` recipient, named acknowledgement owner, delivery observation, acknowledgement deadline/SLA, escalation route, and after-hours coverage | **Unverified — HOLD**; destination category, owner, UTC/reference: missing | Product authority designates the money-operations owner; that owner confirms monitoring, receipt and acknowledgement. Configured address or digest send attempt alone is insufficient. |
 | Durable exception queue and `scripts/ops-alerts.ts` resolver provenance; payout-specific lookup, reconciliation and acknowledged closure | **Unverified — HOLD**; procedure and controlled observation UTC/reference: missing | Money-operations owner. The resolver name is asserted provenance in source, not proof that a human acknowledged an alert. |
 
-## Phase 25.1 and legal release matrix
+## Phase 25.1 release matrix and deferred terms
 
 Freshness must be reread at the later decision. The actual [`25.1-RELEASE-DECISION.md`](../25.1-paymongo-production-release-readiness-controlled-proofs/25.1-RELEASE-DECISION.md) says broad availability is HOLD. Its bounded 2026-09-27 QR Ph checkout observation is checkout-track evidence only and did not resolve payout, recovery, returns, alerts, or release authority.
 
@@ -56,8 +56,8 @@ Freshness must be reread at the later decision. The actual [`25.1-RELEASE-DECISI
 | Phase 25.1 returns: card, GCash, PayMaya, QR Ph, GrabPay API/manual route or approved opt-out, each with reconciliation | **HOLD** | PayMongo account authority and return owner; no substitute rail inferred |
 | Phase 25.1 payout: source/recipient entitlement, one-operation authority, terminal provider read-back, durable reconciliation, cancellation/return escalation | **HOLD** | Product, PayMongo account and money-operations authorities; no transfer authority inferred |
 | Phase 25.1 alerts, customer/host communications, stop/return, final joint broad-release decision | **HOLD** | Named product and money-operations owners still missing; broad availability stays HOLD |
-| Phase 26 legal approval and publication of operative host terms | **HOLD**. On 2026-09-29 the user said the agreement is not yet prepared. Plan 26-07's `26-LEGAL-PUBLICATION-DECISION.md` is an unapproved candidate. Plan 26-08 has not published terms. The actual `/terms` route remains a nonbinding placeholder. | Named product and legal approvers, publishing and correction owners must approve one exact full-agreement version, effective cohort and notice, then observe the deployed route. Publication alone would not clear money-movement HOLD. |
-| Phase 26 host-facing Friday copy and account-specific funding feasibility | **HOLD** pending approved copy and the account matrix above | Product release authority and PayMongo account authority; no host Friday guarantee inferred from code |
+| Terms publication, deferred outside Phase 26 execution | **DEFERRED** by user on 2026-09-29. The agreement is not prepared; `26-08-DEFERRED.md` preserves the publication work. The actual `/terms` route remains a nonbinding placeholder. | Product and legal owners resolve later before public terms are published. This row is not a prerequisite for this account review or a separately authorized one-operation proof. |
+| Phase 26 host-facing Friday copy and account-specific funding feasibility | **HOLD** pending account evidence and product review of host copy | Product release authority and PayMongo account authority; no host Friday guarantee inferred from code |
 
 ## One bounded controlled-proof record — inactive template
 
@@ -70,7 +70,7 @@ Freshness must be reread at the later decision. The actual [`25.1-RELEASE-DECISI
 | One redacted participant, booking/payment and activated merchant-to-host-to-recipient correlation | **Absent — HOLD** | Product and PayMongo account authorities |
 | Named executing operator, independent witness and single-operation lock/claim | **Absent — HOLD** | Money-operations owner; no second operator may independently clear HOLD |
 | Expected provider-side checkout stop, transfer cancellation before irreversible cutoff, post-terminal return/escalation, authorized invoker and communications path | **Absent — HOLD** | PayMongo account, product and money-operations authorities; if a method is unavailable, record the limitation and retain HOLD |
-| Product and legal approval of the exact published operative Friday wording; actual deployed terms and affected cohort | **Absent — HOLD** | Product and legal approvers plus publishing owner |
+| Product review of host-facing Friday copy for the bounded proof | **Unverified — HOLD** | Product release authority; terms publication is tracked separately for later public release |
 
 The authorized operator, if one is ever appointed under a fresh joint decision, records each step below with an opaque redacted reference, UTC timestamp, expected generic state, observed generic state, and mismatch disposition. Every row is **not observed — HOLD** now.
 
@@ -90,7 +90,7 @@ Completion of a single proof would close only that one decision ID. It would not
 
 | Check | Local result | External conclusion |
 | --- | --- | --- |
-| Focused settlement, sweep and reconciliation Vitest suites | **PASS**, 2026-09-29; 3 files, 68 tests, exit 0; isolated `fitout_test` reported no escaped writes | No account capability or real money result inferred |
+| Focused settlement, sweep and reconciliation Vitest suites | **PASS**, rerun 2026-09-29; 3 files, 78 tests, exit 0; isolated `fitout_test` reported no escaped writes | No account capability or real money result inferred |
 | `tsc --noEmit` | **PASS**, 2026-09-29; exit 0, no diagnostics | No deployment or provider fact inferred |
 | Focused ESLint on the six planned money modules | **PASS**, 2026-09-29; exit 0, no diagnostics | No deployment or provider fact inferred |
 | Full relevant payments, PayMongo, host, and ops suite | **PASS**, 2026-09-29; 63 files/758 tests passed, 2 files/5 tests skipped; isolated test database reported no escaped writes | No account capability or real money result inferred |
@@ -99,4 +99,4 @@ Completion of a single proof would close only that one decision ID. It would not
 
 ## Current disposition and next checkpoint
 
-**HOLD.** Account authority, live schema, deployed schedule, alert ownership, published terms, one-operation scope, stop/return readiness and joint authority are absent or unverified. The next blocking-human checkpoint is Plan 26-09 Task 2: the named PayMongo account authority and deployment operator supply current redacted observations for every account and deployment row, or record inaccessible/contradicted/unverified with an owner. Product receives any Friday timing conflict. Plan 26-09 Task 3 then requires a separate one-way human HOLD or expressly capped proof decision; the default remains HOLD.
+**HOLD for account and money-proof gaps.** Account authority, live schema, deployed schedule, alert ownership, one-operation scope, stop/return readiness and joint authority are absent or unverified. Every missing field above has a responsible role and remains HOLD; no account proof or live transfer has occurred. The next review is when the named PayMongo account authority and deployment operator can supply current redacted observations. Product receives any Friday timing conflict. A future one-way proof decision requires separately recorded capped joint authorization. Terms publication is deferred and is not the cause of this packet's HOLD.

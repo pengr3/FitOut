@@ -38,9 +38,9 @@ The final plans supply these task and wave IDs. Passing local fixtures verifies 
 | 01-1/2 | 26-01 | 1 | HPAY-01 | Settlement spoofing/mis-correlation | Exact payment, payout, status, destination, pagination, freshness, and reversal checks fail closed | integration | `tests/payments/settlement-proof.test.ts` | ✅ | ✅ local; account fields HOLD |
 | 02-1/2 | 26-02 | 2 | HPAY-02/03 | Off-window or unfunded transfer | Manila Friday cohort and fee-inclusive Wallet availability gate | integration | `tests/payments/payout-sweep.test.ts`, `tests/paymongo/wallet-funding.test.ts` | ✅ | ✅ local; account funding HOLD |
 | 03-1/2 | 26-03 | 3 | HPAY-04 | Duplicate or excess transfer | Claim, uncertain read-back, frozen money and terminal reconciliation | integration | `tests/payments/payout-sweep.test.ts`, `tests/payments/payout-reconcile.test.ts`, `tests/payments/ledger-freeze.test.ts` | ✅ | ✅ local; second-attempt resend HOLD |
-| 04/05 | 26-04/05 | 3/4 | HPAY-05 | Cross-host disclosure or false promise | Owner-scoped preclaim earnings and booking projection | integration/design | `tests/payments/earnings-view.test.ts`, `tests/design/legal-copy.test.ts` | ✅ | ✅ local; operative terms HOLD |
+| 04/05 | 26-04/05 | 3/4 | HPAY-05 | Cross-host disclosure or false promise | Owner-scoped preclaim earnings and booking projection | integration/design | `tests/payments/earnings-view.test.ts`, `tests/design/legal-copy.test.ts` | ✅ | ✅ local; operative terms deferred |
 | 06-1/2 | 26-06 | 5 | HPAY-06 | Unowned money exception | Durable, redacted payout alert and owner-scoped attention | integration | `tests/ops/alerts.test.ts`, `tests/ops/alert-digest.test.ts`, `tests/payments/payout-attention.test.ts` | ✅ | ✅ local; monitored owner HOLD |
-| 07/08/09 | 26-07/08/09 | 6/7 | HPAY-07 | Unauthorized release | HOLD packets, guarded placeholder and bounded proof template | static/design | `tests/paymongo/preview-environment.test.ts`, `tests/design/legal-copy.test.ts`, account packet field check | ✅ | ✅ local; human checkpoints HOLD |
+| 07/09 | 26-07/09 | 6/7 | HPAY-07 | Unauthorized release | HOLD packets, guarded placeholder and bounded proof template | static/design | `tests/paymongo/preview-environment.test.ts`, `tests/design/legal-copy.test.ts`, account packet field check | ✅ | ✅ local; account and money checkpoints HOLD; 08 deferred |
 
 ## Wave 0 Requirements
 
@@ -62,7 +62,7 @@ The full design run had 19 failures in 12 files. Follow-up payout-specific repai
 |----------|-------------|------------|-------------------|
 | Actual merchant settlement weekday, verified Wallet destination, payout-transaction field mapping and pagination, available-balance access, transfer fee | HPAY-01, HPAY-03, HPAY-07 | Account-specific capabilities and settings cannot be inferred from docs or fixtures | Account authority records redacted observations; any inaccessible or contradictory field retains HOLD. |
 | Controlled settlement-to-host-transfer proof with terminal read-back and operator alert ownership | HPAY-06, HPAY-07 | Requires explicit joint authorization under Phase 25.1 HOLD | Only after authorization, use a capped controlled transaction, reconcile exactly one transfer, exercise stop/return and alerts, and record a release decision. |
-| Host-facing Friday copy and contractual wording | HPAY-05 | A human must approve the promise and review rendered copy | Product and legal owners inspect earnings, payment copy, and terms at mobile and desktop widths; unresolved terms publication retains HOLD. |
+| Host-facing Friday product copy | HPAY-05 | A human must review the rendered promise | Product owner reviews earnings and payment copy at mobile and desktop widths. Full agreement and terms publication are deferred to later work. |
 
 ## Validation Sign-Off
 
@@ -72,6 +72,6 @@ The full design run had 19 failures in 12 files. Follow-up payout-specific repai
 - [x] Commands run once and exit; no watch-mode flags.
 - [x] Feedback latency has been measured and recorded above.
 - [ ] Full project and design gates are green, or outstanding failures are closed with scoped evidence.
-- [ ] Account, publication, and one-operation checkpoints are decided with the required authority.
+- [ ] Account and one-operation checkpoints have live evidence and authority; their current disposition is HOLD. Terms publication is deferred outside this phase execution.
 
 **Approval:** pending; `nyquist_compliant` remains false while external and full-suite gates are open.

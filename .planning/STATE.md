@@ -2,22 +2,22 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
-current_phase: "25.1"
-current_phase_name: PayMongo Production Release Readiness & Controlled Proofs (INSERTED)
+current_phase: 26
+current_phase_name: settlement-aware-host-payouts
 status: executing
-stopped_at: Completed 25.1-01-PLAN.md
-last_updated: "2026-09-19T13:59:26.900Z"
-last_activity: 2026-09-19
-last_activity_desc: Phase 25.1 execution started
-state_head: 8749fa52f1621df4d972765b9b59a61039448f3f
+stopped_at: Phase 26 active plans summarized; verification human_needed
+last_updated: "2026-09-29T12:01:58Z"
+last_activity: 2026-09-29
+last_activity_desc: Phase 26 engineering and account HOLD packet summarized; terms publication deferred; live account, ops ownership, and controlled transfer proof still require evidence
+state_head: e0889e9f7c513f733451b079408b84e67ec6fc3e
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
   # of 2026-09-04. The plan counters cover phases 18 + 18.1 ONLY -- phases 19-23
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
-  total_phases: 11
-  completed_phases: 3
-  total_plans: 116
+  total_phases: 13
+  completed_phases: 2
+  total_plans: 130
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
   # A halted plan counted as a completed one is the same fabricated counter this file
@@ -56,8 +56,8 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 112
-  percent: 27
+  completed_plans: 124
+  percent: 15
 ---
 
 # Project State
@@ -111,10 +111,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 25.1 (PayMongo Production Release Readiness & Controlled Proofs (INSERTED)) — EXECUTING
-Plan: 2 of 5
+Phase: 26 (settlement-aware-host-payouts) — EXECUTING
+Plan: 7 of 9
 Status: Ready to execute
-Last activity: 2026-09-19 — Phase 25.1 execution started
+Last activity: 2026-09-29 — Phase 26 Plan 07 legal publication packet complete; product/legal approval, terms publication, and money-movement proofs remain HOLD
 
 ## Performance Metrics
 
@@ -517,6 +517,14 @@ deferred walk is inconsistent rather than honest.*
 | Phase 21 P07 | 15min | 2 tasks | 4 files |
 | Phase 21 P08 | 24min | 2 tasks | 4 files |
 | Phase 25.1 P01 | 52m | 3 tasks | 1 files |
+| Phase 25.1 P02 | 36h 23m | 3 tasks | 1 files |
+| Phase 26 P01 | 47min | 2 tasks | 9 files |
+| Phase 26 P02 | 30min | 2 tasks | 11 files |
+| Phase 26 P03 | 21min | 2 tasks | 7 files |
+| Phase 26 P04 | 26min | 2 tasks | 12 files |
+| Phase 26 P05 | 14min | 2 tasks | 8 files |
+| Phase 26 P06 | 30min | 2 tasks | 19 files |
+| Phase 26 P07 | 5min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -899,6 +907,7 @@ deferred walk is inconsistent rather than honest.*
 - Phase 22.1 inserted after Phase 22: Host Enforcement Surface & Manual Queue Removal (URGENT)
 - Phase 25 added: Finalize PayMongo Production Payments
 - Phase 25.1 inserted after Phase 25: PayMongo Production Release Readiness & Controlled Proofs (URGENT)
+- Phase 26 added: Settlement-Aware Host Payouts — Friday release after the 24-hour hold and verified PayMongo settlement; Phase 25.1 HOLD remains
 
 ### Decisions
 
@@ -1615,6 +1624,21 @@ Recent decisions affecting current work:
 - [Phase 21]: The geometry helper is scoped to the roadmap or receipt section so unrelated dashboard PanelCards cannot dilute a failure. — Recorded by completed plan 21-08.
 - [Phase 25.1]: Fresh local validation must not be inferred from Phase 25 historic evidence.
 - [Phase 25.1]: TypeScript failure keeps every release and live-money capability on HOLD.
+- [Phase 25.1]: User-provided bounded authority data remains an attestation, not provider evidence.
+- [Phase 25.1]: HOLD is required while stop, recovery, and alert ownership evidence is incomplete or unobserved.
+- [Phase 26]: Phase 26-01 keeps account-specific payment-field and Wallet destination mapping on HOLD pending account-authority evidence.
+- [Phase 26]: Phase 26-01 stores immutable provider observations and a monotonic current settlement projection; later returns revoke eligibility.
+- [Phase 26]: Friday payout cohort uses immutable first noon-qualified observation and fresh current proof.
+- [Phase 26]: Unknown Wallet funding or provider transfer result stays held and requires controlled reconciliation; Phase 25.1 remains HOLD.
+- [Phase 26]: Phase 26-03 keeps empty or inaccessible PayMongo reference reads on HOLD with a durable operator exception.
+- [Phase 26]: Phase 26-03 requires exact transfer GET and guarded payout-kind transition before terminal Paid or Failed.
+- [Phase 26]: A dated Friday requires current deposited proof, validated account policy, enabled payout setup, verified destination, and no host suspension
+- [Phase 26]: A booking payout-kind ledger row replaces its preclaim estimate at booking ID
+- [Phase 26]: Confirmed booking list and detail use the earnings projector; no-earnings rows alone retain the em dash
+- [Phase 26]: Booking Friday dates require current settlement proof and the same host readiness gates as earnings
+- [Phase 26]: Phase 26 Plan 06: deterministic audit IDs guard one booking/cause/Friday cohort and cannot reopen resolved alerts on replay.
+- [Phase 26]: Phase 26 Plan 06: Friday cutoff event and 23:10 fallback use the bounded redacted ops digest; delivery is not acknowledgement.
+- [Phase 26]: Phase 26 Plan 07: legal publication remains HOLD until named product and legal authorities approve one exact full agreement, effective cohort, publication action, and correction owner.
 
 ### Pending Todos
 
@@ -1813,8 +1837,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-19T13:59:21.694Z
-Stopped at: Completed 25.1-01-PLAN.md
+Last session: 2026-09-29T10:06:08.944Z
+Stopped at: Completed 26-07-PLAN.md
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
