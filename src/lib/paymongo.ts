@@ -861,13 +861,14 @@ export async function getTransfer(transferId: string): Promise<Transfer> {
     { method: "GET" }, // GET — no Idempotency-Key
   );
   const attrs = json.data.attributes ?? json.data;
-  if (typeof json.data.id !== "string" || typeof attrs.status !== "string") {
+  if (typeof json.data.id !== "string" || typeof attrs.status !== "string" ||
+      typeof attrs.reference_number !== "string" || !attrs.reference_number ||
+      typeof attrs.amount !== "number" || !Number.isSafeInteger(attrs.amount) ||
+      typeof attrs.currency !== "string" || !attrs.currency) {
     throw new Error("PayMongo transfer read returned an unverified shape");
   }
   return { id: json.data.id, status: attrs.status,
-    referenceNumber: typeof attrs.reference_number === "string" ? attrs.reference_number : undefined,
-    amount: typeof attrs.amount === "number" ? attrs.amount : undefined,
-    currency: typeof attrs.currency === "string" ? attrs.currency : undefined };
+    referenceNumber: attrs.reference_number, amount: attrs.amount, currency: attrs.currency };
 }
 
 // Read-only merchant-payout surfaces. Raw responses stay in process memory and are validated by

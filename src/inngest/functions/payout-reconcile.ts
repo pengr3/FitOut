@@ -170,9 +170,9 @@ export async function reconcileOne(
     await recordPayoutException(dbConn, row.bookingId, "transfer_read_unavailable");
     return { bookingId: row.bookingId, state: "processing" };
   }
-  if (tr.id !== transferId || (tr.referenceNumber && tr.referenceNumber !== `host-payout-${row.bookingId}`) ||
-      (tr.amount !== undefined && tr.amount !== claim.netCents - claim.recoveredCents) ||
-      (tr.currency && tr.currency.toLowerCase() !== claim.currency.toLowerCase())) {
+  if (tr.id !== transferId || tr.referenceNumber !== `host-payout-${row.bookingId}` ||
+      tr.amount !== claim.netCents - claim.recoveredCents ||
+      tr.currency?.toLowerCase() !== claim.currency.toLowerCase()) {
     console.error("[payout-alert] transfer read mismatch", { bookingId: row.bookingId, transferId });
     await recordPayoutException(dbConn, row.bookingId, "transfer_read_mismatch");
     return { bookingId: row.bookingId, state: "processing" };
