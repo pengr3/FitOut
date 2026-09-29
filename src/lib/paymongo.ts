@@ -84,6 +84,8 @@ type FetchInit = {
    * cannot be added here in silence.
    */
   signal?: AbortSignal;
+  /** Money-read preflight: reject a cached or stale HTTP response. */
+  freshAt?: Date;
 };
 
 /**
@@ -97,6 +99,7 @@ async function paymongoFetch<T>(path: string, init: FetchInit = {}): Promise<T> 
     "Content-Type": "application/json",
     Accept: "application/json",
   };
+  if (init.freshAt) headers["Cache-Control"] = "no-store";
   if (method === "POST") {
     // Every POST carries an Idempotency-Key so a retried create can't duplicate (PayMongo requirement).
     headers["Idempotency-Key"] = init.idempotencyKey ?? randomUUID();
@@ -109,6 +112,12 @@ async function paymongoFetch<T>(path: string, init: FetchInit = {}): Promise<T> 
     // The ONLY place a deadline can be threaded. `undefined` here === no signal at all (see FetchInit).
     signal: init.signal,
   });
+  if (init.freshAt) {
+    const servedAt = Date.parse(res.headers.get("date") ?? "");
+    if (!Number.isFinite(servedAt) || Math.abs(init.freshAt.getTime() - servedAt) > 120_000) {
+      throw new Error("PayMongo Wallet response is missing a fresh server Date header.");
+    }
+  }
 
   const text = await res.text();
   const json = text ? (JSON.parse(text) as unknown) : {};
@@ -589,6 +598,7 @@ export async function createExternalHostPayout(input: {
       ],
     },
   });
+
   const transfer = json.data?.attributes?.transfers?.[0];
   return { batchId: json.data?.id ?? "", transferId: transfer?.id ?? "", status: transfer?.status ?? "" };
 }
@@ -714,6 +724,46 @@ export type WalletAccount = {
   accountName: string;
   status: string;
 };
+
+export type PayoutWalletFunding = {
+  walletId: string;
+  availableCents: number;
+  feeCents: number;
+  observedAt: Date;
+};
+
+/** A read-only Wallet preflight. Missing account mapping or fee evidence keeps host payout on HOLD. */
+export async function readPayoutWalletFunding(now: Date = new Date()): Promise<PayoutWalletFunding | null> {
+  const walletId = process.env.PAYMONGO_WALLET_ID ?? "";
+  const merchantId = process.env.PAYMONGO_ORGANIZATION_ID ?? "";
+  const walletNumber = process.env.PLATFORM_WALLET_NUMBER ?? "";
+  const walletName = process.env.PLATFORM_WALLET_NAME ?? "";
+  const key = process.env.PAYMONGO_SECRET_KEY ?? "";
+  const liveMode = key.startsWith("sk_live_") ? true : key.startsWith("sk_test_") ? false : null;
+  const feeCents = Number(process.env.PAYMONGO_INSTAPAY_FEE_CENTS);
+  const feeVerifiedAt = Date.parse(process.env.PAYMONGO_INSTAPAY_FEE_VERIFIED_AT ?? "");
+  if (!walletId || !merchantId || !walletNumber || !walletName || liveMode === null ||
+      !Number.isSafeInteger(feeCents) || feeCents < 0 || !Number.isFinite(feeVerifiedAt) ||
+      feeVerifiedAt > now.getTime() || now.getTime() - feeVerifiedAt > 30 * 24 * 3_600_000) return null;
+
+  const json = await paymongoFetch<{ data?: {
+    id?: unknown; merchant_id?: unknown; livemode?: unknown; status?: unknown;
+    balance?: { available?: unknown; pending?: unknown };
+    account?: { provider?: unknown; account_number?: unknown; account_name?: unknown; currency?: unknown };
+  } }>(`/v2/wallets/${encodeURIComponent(walletId)}?fields=balance&fields=account`, {
+    method: "GET", freshAt: now, signal: AbortSignal.timeout(5000),
+  });
+  const wallet = json.data;
+  const available = wallet?.balance?.available;
+  const pending = wallet?.balance?.pending;
+  if (wallet?.id !== walletId || wallet.merchant_id !== merchantId || wallet.livemode !== liveMode ||
+      wallet.status !== "activated" || wallet.account?.provider !== "paymongo" ||
+      wallet.account.account_number !== walletNumber || wallet.account.account_name !== walletName ||
+      wallet.account.currency !== "PHP" ||
+      !Number.isSafeInteger(available) || !Number.isSafeInteger(pending) ||
+      (available as number) < 0 || (pending as number) < 0) return null;
+  return { walletId, availableCents: available as number, feeCents, observedAt: new Date() };
+}
 
 /**
  * List ALL activated PayMongo wallet accounts (/v2/wallets?status=activated).

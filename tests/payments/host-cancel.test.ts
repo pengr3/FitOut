@@ -55,6 +55,7 @@ import { summarizePayouts } from "@/components/host/payout-ledger-status";
 import type { RateLimitOptions, RateLimitResult } from "@/lib/rate-limit";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
 import { encryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
+import { recordSettlementObservation } from "@/lib/payments/settlement";
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -301,6 +302,8 @@ beforeAll(async () => {
   vi.doMock("@/lib/auth", () => ({ auth: testAuth }));
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
+    readPayoutWalletFunding: vi.fn(async () => ({ walletId: "wallet_fitout_test", availableCents: 10_000_000,
+      feeCents: 1000, observedAt: new Date("2026-10-02T04:00:00.000Z") })),
     createExternalHostPayout: mockPayMongo.createBatchTransfer,
     createRefund: mockPayMongo.createRefund,
     createCheckoutSession: mockPayMongo.createCheckoutSession,
@@ -535,6 +538,18 @@ describe("cancelBookingAsHost — I3: the debit is at-most-once and payout-safe"
     // An UNRELATED, genuinely payable booking for the SAME host. Gross ₱2,000 → commission ₱200 → net ₱1,800.
     await seedListing("L_net_payable", { hostId: netHostId });
     await seedBooking("bk_net_payable", "L_net_payable", 5 * HOUR, { spacePriceCents: 200000 });
+    const fridayNoon = new Date("2026-10-02T04:00:00.000Z");
+    await testDb.db.update(booking).set({
+      startsAt: new Date(fridayNoon.getTime() - 49 * HOUR),
+      endsAt: new Date(fridayNoon.getTime() - 48 * HOUR),
+    }).where(eq(booking.id, "bk_net_payable"));
+    await recordSettlementObservation("bk_net_payable", {
+      paymentId: "pay_bk_net_payable", payoutId: "po_bk_net_payable", transactionId: "txn_bk_net_payable",
+      transactionType: "payment", currency: "PHP", liveMode: true,
+      providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+      mappingVerified: true, providerStatusAt: new Date(fridayNoon.getTime() - HOUR),
+      verifiedAt: new Date(fridayNoon.getTime() - MIN),
+    }, testDb.db);
 
     // This host's own wallet — the sweep correlates `wallet.id === paymongoAccountId` and never takes [0].
     mockPayMongo.listWalletAccounts.mockResolvedValueOnce([
@@ -558,7 +573,7 @@ describe("cancelBookingAsHost — I3: the debit is at-most-once and payout-safe"
       accountNameCiphertext: encryptPayoutRecipientValue("Net Host"),
       accountNumberCiphertext: encryptPayoutRecipientValue("9990002222"),
     };
-    const result = await payOne(testDb.db, duePayout);
+    const result = await payOne(testDb.db, duePayout, fridayNoon);
 
     expect(result.status).toBe("paid");
     // 180000 net − 30000 debit = 150000 transferred. The host is paid, less exactly the fee they owe.

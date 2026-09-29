@@ -12,11 +12,11 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../helpers/db";
 import { mockPayMongo } from "../helpers/mocks";
 import { makeVerifiedHost } from "../helpers/seed";
-import { user, listing, hostPayoutLedger, booking } from "@/lib/db/schema";
+import { user, listing, hostPayoutLedger, hostVerification, hostPayoutDestination, booking } from "@/lib/db/schema";
 import { PAYOUT_DELAY_HOURS, PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
 import { encryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
@@ -82,7 +82,7 @@ async function makeBooking(opts: {
   quotedTotalCents: number;
   endsAtMs: number;
   /** Defaults to quotedTotalCents (the pre-service-fee shape drizzle/0014 backfilled). */
-  spacePriceCents?: number;
+  spacePriceCents?: number | null;
   serviceFeeCents?: number;
   /** D-69: the retained (non-refunded) space price on a cancellation. null ⇒ not cancelled. */
   retainedSpaceCents?: number | null;
@@ -103,7 +103,7 @@ async function makeBooking(opts: {
     quotedTotalCents: opts.quotedTotalCents,
     // 07-04 Finding 2: the sweep's payout basis is space_price_cents, NOT the all-in charged total. With
     // no service fee the two are equal — exactly what drizzle/0014 backfilled for pre-Phase-7 rows.
-    spacePriceCents: opts.spacePriceCents ?? opts.quotedTotalCents,
+    spacePriceCents: opts.spacePriceCents === undefined ? opts.quotedTotalCents : opts.spacePriceCents,
     serviceFeeCents: opts.serviceFeeCents ?? 0,
     retainedSpaceCents: opts.retainedSpaceCents ?? null,
     currency: "php",
@@ -273,10 +273,54 @@ describe("Friday Wallet funding preflight (HPAY-03)", () => {
     expect(await readLedger(second.bookingId)).toBeUndefined();
   });
 
+  it("does not apply a host debit while Wallet funding waits", async () => {
+    const { bookingId, b } = await candidate();
+    await seedDebit(b.hostId, bookingId, 30000);
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 150999,
+      feeCents: 1000, observedAt: FRIDAY_NOON });
+    expect((await payOne(testDb.db, b)).status).toBe("skipped-no-wallet");
+    expect(await readLedger(bookingId)).toBeUndefined();
+    expect((await readDebits(b.hostId))[0].recoveredCents).toBe(0);
+  });
+
+  it("rechecks a suspension and destination revocation after due selection", async () => {
+    const suspended = await candidate();
+    const revoked = await candidate();
+    const due = await queryDuePayouts(testDb.db, FRIDAY_NOON);
+    expect(due.map((row) => row.bookingId)).toEqual(expect.arrayContaining([
+      suspended.bookingId, revoked.bookingId,
+    ]));
+    await testDb.db.update(hostVerification).set({ status: "suspended" })
+      .where(eq(hostVerification.userId, suspended.b.hostId));
+    await testDb.db.update(hostPayoutDestination).set({ verificationStatus: "pending" })
+      .where(eq(hostPayoutDestination.userId, revoked.b.hostId));
+    mockPayMongo.createBatchTransfer.mockClear();
+    expect((await payOne(testDb.db, suspended.b)).status).toBe("skipped-claimed");
+    expect((await payOne(testDb.db, revoked.b)).status).toBe("skipped-claimed");
+    expect(await readLedger(suspended.bookingId)).toBeUndefined();
+    expect(await readLedger(revoked.bookingId)).toBeUndefined();
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+  });
+
+  it("commits the held claim before the provider can accept a transfer", async () => {
+    const { bookingId, b } = await candidate();
+    mockPayMongo.createBatchTransfer.mockImplementationOnce(async () => {
+      expect((await readLedger(bookingId)).state).toBe("held");
+      return { batchId: "batch_claim_first", transferId: "tr_claim_first", status: "pending" };
+    });
+    expect((await payOne(testDb.db, b)).status).toBe("paid");
+    expect((await readLedger(bookingId)).state).toBe("processing");
+  });
+
   it("serializes two bookings against one balance snapshot", async () => {
     const first = await candidate();
     const second = await candidate();
-    mockWalletFunding.mockResolvedValue({ walletId: "wallet_fitout_test", availableCents: 181000,
+    const [{ reserved }] = (await testDb.db.execute(sql`
+      SELECT (COALESCE(SUM(GREATEST(net_cents - recovered_cents, 0)), 0)
+        + COUNT(*) * 1000)::int AS "reserved"
+      FROM host_payout_ledger WHERE kind = 'payout' AND state IN ('held', 'processing')
+    `)) as unknown as Array<{ reserved: number }>;
+    mockWalletFunding.mockResolvedValue({ walletId: "wallet_fitout_test", availableCents: reserved + 181000,
       feeCents: 1000, observedAt: FRIDAY_NOON });
     const clients = makeRacingClients(testDb.schema, 2);
     try {
@@ -350,6 +394,23 @@ describe("Friday Manila dispatch window (HPAY-02)", () => {
     const fridayAfternoon = new Date(FRIDAY_NOON.getTime() + 3_600_000);
     expect((await queryDuePayouts(testDb.db, fridayAfternoon)).map((row) => row.bookingId))
       .not.toContain(bookingId);
+  });
+
+  it("keeps a noon-qualified deposit eligible when the same provider version is refreshed after noon", async () => {
+    const host = await makeHost();
+    const listingId = await makeListing(host.hostId);
+    const bookingId = await makeBooking({ listingId, status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: FRIDAY_NOON.getTime() - 48 * 3_600_000 });
+    await recordSettlementObservation(bookingId, {
+      paymentId: `pay_${bookingId}`, payoutId: `po_${bookingId}`, transactionId: `txn_${bookingId}`,
+      transactionType: "payment", currency: "PHP", liveMode: true,
+      providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+      mappingVerified: true, providerStatusAt: new Date(FRIDAY_NOON.getTime() - 3_600_000),
+      verifiedAt: new Date(FRIDAY_NOON.getTime() + 30 * 60_000),
+    }, testDb.db);
+    const fridayAfternoon = new Date(FRIDAY_NOON.getTime() + 3_600_000);
+    expect((await queryDuePayouts(testDb.db, fridayAfternoon)).map((row) => row.bookingId))
+      .toContain(bookingId);
   });
 
   it("refuses off-window direct dispatch even with a due booking", async () => {
@@ -578,16 +639,19 @@ describe("payout sweep — failed payout is retryable (WR-04)", () => {
       payoutGrossCents: 200000,
     });
 
-    // First pass: a transient PayMongo error throws from createBatchTransfer → the claim is marked `failed`
-    // (never a silent held), and a [payout-alert] fires.
+    // An uncertain provider response leaves a durable held claim and cannot be blindly retried.
     mockPayMongo.createBatchTransfer.mockRejectedValueOnce(new Error("paymongo 503"));
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const first = await payOne(testDb.db, b);
-    expect(first.status).toBe("failed");
-    expect((await readLedger(bkId)).state).toBe("failed");
+    expect(first.status).toBe("held-uncertain");
+    expect((await readLedger(bkId)).state).toBe("held");
+    expect((await payOne(testDb.db, b)).status).toBe("skipped-claimed");
 
-    // Second pass: the transfer now succeeds → the `failed` row is RE-CLAIMED (failed → held) and RELEASED to
-    // processing. The stable payout:<bookingId> Idempotency-Key makes this re-attempt double-pay-safe.
+    // A separate authoritative provider read-back may mark the transfer definitively failed.
+    await testDb.db.update(hostPayoutLedger).set({ state: "failed", createdAt: FRIDAY_NOON })
+      .where(and(eq(hostPayoutLedger.bookingId, bkId), eq(hostPayoutLedger.kind, "payout")));
+
+    // A definitive failed row can be reclaimed while preserving the original financial freeze.
     mockPayMongo.createBatchTransfer.mockResolvedValueOnce({
       batchId: "batch_tr_retry",
       transferId: "tr_retry_1",
@@ -922,6 +986,7 @@ describe("payout sweep — a booking with no frozen payout basis fails CLOSED", 
       status: "confirmed",
       quotedTotalCents: 105000,
       endsAtMs: dueMs(),
+      spacePriceCents: null,
     });
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 

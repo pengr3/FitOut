@@ -14,12 +14,14 @@ import { computeCommission } from "@/lib/payments/commission";
 import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
 import { encryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
+import { recordSettlementObservation } from "@/lib/payments/settlement";
 
 let testDb: TestDb;
 type SweepModule = typeof import("@/inngest/functions/payout-sweep");
 let payOne: SweepModule["payOne"];
 
 const BOOKER = "freeze_booker";
+const FRIDAY_NOON = new Date("2026-10-02T04:00:00.000Z");
 let seq = 0;
 const uid = (p: string) => `${p}_${seq++}`;
 const dueMs = () => Date.now() - (PAYOUT_DELAY_HOURS + 1) * 3_600_000;
@@ -66,10 +68,19 @@ async function makeConfirmedBooking(listingId: string, quotedTotalCents: number)
     startsAt: new Date(dueMs() - 3_600_000),
     endsAt,
     status: "confirmed",
+    paymentId: `pay_${id}`,
     quotedTotalCents,
+    spacePriceCents: quotedTotalCents,
     currency: "php",
     expiresAt: null,
   });
+  await recordSettlementObservation(id, {
+    paymentId: `pay_${id}`, payoutId: `po_${id}`, transactionId: `txn_${id}`,
+    transactionType: "payment", currency: "PHP", liveMode: true,
+    providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+    mappingVerified: true, providerStatusAt: new Date(FRIDAY_NOON.getTime() - 3_600_000),
+    verifiedAt: new Date(FRIDAY_NOON.getTime() - 60_000),
+  }, testDb.db);
   return id;
 }
 
@@ -82,6 +93,8 @@ async function readLedger(bookingId: string) {
 }
 
 beforeAll(async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(FRIDAY_NOON);
   testDb = await setupTestDb();
   await testDb.db.insert(user).values({
     id: BOOKER,
@@ -91,6 +104,8 @@ beforeAll(async () => {
   });
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
+    readPayoutWalletFunding: vi.fn(async () => ({ walletId: "wallet_fitout_test", availableCents: 10_000_000,
+      feeCents: 1000, observedAt: FRIDAY_NOON })),
     createExternalHostPayout: mockPayMongo.createBatchTransfer,
     createBatchTransfer: mockPayMongo.createBatchTransfer,
     listWalletAccounts: mockPayMongo.listWalletAccounts,
@@ -102,6 +117,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  vi.useRealTimers();
   vi.doUnmock("@/lib/db");
   vi.doUnmock("@/lib/paymongo");
   await teardownTestDb(testDb);
@@ -122,7 +138,7 @@ describe("commission freeze (PAY-02, D-51)", () => {
       payoutGrossCents: 200000,
       currency: "php",
       hostId: A.hostId,
-      paymentId: null,
+      paymentId: `pay_${bkId}`,
       paymongoAccountId: A.accountId,
       institutionBic: "TESTPHM2XXX",
       accountNameCiphertext: encryptPayoutRecipientValue("Test Host"),
