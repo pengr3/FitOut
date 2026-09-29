@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/ops/alerts.test.ts -t 'persists one unresolved' --reporter=tap",
+  "exitCode": 1,
+  "targetFile": "tests/ops/alerts.test.ts",
+  "targetTest": "money payout exceptions",
+  "expected": "a durable unresolved audit id",
+  "actual": "null",
+  "output": "TAP version 13\n1..1\nnot ok 1 - money payout exceptions\n  not ok 1 - persists one unresolved, actionable alert under simultaneous observations\n    error:\n      name: AssertionError\n      message: expected null to be truthy\n      actual: null\n      expected: true\n# tests 1\n# pass 0\n# fail 1"
+}

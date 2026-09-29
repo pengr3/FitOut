@@ -249,6 +249,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import { sql } from "drizzle-orm";
 
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
+import { recordMoneyException } from "@/lib/payments/payout-exceptions";
 import {
   listUnresolvedAlerts,
   resolveAlert,
@@ -342,6 +343,22 @@ afterAll(async () => {
 // leftover rows from a prior case would make an exact-order assertion impossible to write honestly.
 beforeEach(async () => {
   await testDb.db.execute(sql`DELETE FROM audit`);
+});
+
+describe("money payout exceptions", () => {
+  it("persists one unresolved, actionable alert under simultaneous observations", async () => {
+    const at = new Date("2026-10-02T15:00:00Z");
+    const ids = await Promise.all(Array.from({ length: 5 }, () =>
+      recordMoneyException(testDb.db, "booking-🏸-1", "wallet_insufficient", at)));
+    expect(new Set(ids).size).toBe(1);
+    expect(ids[0]).toBeTruthy();
+    const rows = (await testDb.db.execute(sql`
+      SELECT id, outcome, meta FROM audit WHERE action = 'host_payout_recovery'
+    `)) as unknown as Array<{ id: string; outcome: string; meta: Record<string, unknown> }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].meta).toMatchObject({ cause: "wallet_insufficient", nextAction: expect.any(String) });
+    expect(JSON.stringify(rows[0].meta)).not.toContain("🏸");
+  });
 });
 
 describe("listUnresolvedAlerts", () => {
