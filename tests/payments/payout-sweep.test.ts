@@ -31,6 +31,9 @@ const mockWalletFunding = vi.fn(async () => ({
   walletId: "wallet_fitout_test", availableCents: 10_000_000, feeCents: 1_000,
   observedAt: new Date("2026-10-02T04:00:00.000Z"),
 }));
+const mockLookup = vi.fn<(...args: [string]) => Promise<Array<{
+  id: string; status: string; referenceNumber: string; amount: number; currency: string;
+}>>>(async () => []);
 
 const BOOKER = "sweep_booker";
 const FRIDAY_NOON = new Date("2026-10-02T04:00:00.000Z");
@@ -207,6 +210,7 @@ beforeAll(async () => {
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
     readPayoutWalletFunding: mockWalletFunding,
+    findHostPayoutTransfers: mockLookup,
     createExternalHostPayout: mockPayMongo.createBatchTransfer,
     createBatchTransfer: mockPayMongo.createBatchTransfer,
     listWalletAccounts: mockPayMongo.listWalletAccounts,
@@ -618,8 +622,8 @@ describe("payout sweep — external destination isolation (T-05-27 / CR-01)", ()
   });
 });
 
-describe("payout sweep — failed payout is retryable (WR-04)", () => {
-  it("re-claims a `failed` ledger row on a later pass and releases it — exactly one row throughout", async () => {
+describe("payout sweep — uncertain create recovery (HPAY-04)", () => {
+  it("finds an accepted timeout by exact booking reference after key expiry without a second POST", async () => {
     const A = await makeHost();
     mockPayMongo.listWalletAccounts.mockResolvedValue([
       { id: A.accountId, accountNumber: "9990003333", accountName: "Host A Wallet", status: "activated" },
@@ -647,18 +651,12 @@ describe("payout sweep — failed payout is retryable (WR-04)", () => {
     expect((await readLedger(bkId)).state).toBe("held");
     expect((await payOne(testDb.db, b)).status).toBe("skipped-claimed");
 
-    // A separate authoritative provider read-back may mark the transfer definitively failed.
-    await testDb.db.update(hostPayoutLedger).set({ state: "failed", createdAt: FRIDAY_NOON })
-      .where(and(eq(hostPayoutLedger.bookingId, bkId), eq(hostPayoutLedger.kind, "payout")));
-
-    // A definitive failed row can be reclaimed while preserving the original financial freeze.
-    mockPayMongo.createBatchTransfer.mockResolvedValueOnce({
-      batchId: "batch_tr_retry",
-      transferId: "tr_retry_1",
-      status: "pending",
-    });
-    const second = await payOne(testDb.db, b);
-    expect(second.status).toBe("paid");
+    mockLookup.mockResolvedValueOnce([{
+      id: "tr_accepted", status: "pending", referenceNumber: `host-payout-${bkId}`,
+      amount: 180000, currency: "PHP",
+    }]);
+    const second = await payOne(testDb.db, b, new Date(FRIDAY_NOON.getTime() + 7 * 24 * 3_600_000));
+    expect(second.status).toBe("skipped-claimed");
     spy.mockRestore();
 
     // Exactly ONE ledger row throughout (the re-claim never mints a second), now released to processing with
@@ -669,7 +667,30 @@ describe("payout sweep — failed payout is retryable (WR-04)", () => {
       .where(eq(hostPayoutLedger.bookingId, bkId));
     expect(rows).toHaveLength(1);
     expect(rows[0].state).toBe("processing");
-    expect(rows[0].transferId).toBe("tr_retry_1");
+    expect(rows[0].transferId).toBe("tr_accepted");
+    expect(mockLookup).toHaveBeenCalledWith(bkId);
+    expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an ambiguous or inaccessible prior claim held and never resends", async () => {
+    const A = await makeHost();
+    const L = await makeListing(A.hostId);
+    const bkId = await makeBooking({ listingId: L, status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: dueMs() });
+    const b = duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId,
+      accountId: A.accountId, payoutGrossCents: 200000 });
+    mockPayMongo.createBatchTransfer.mockRejectedValueOnce(new Error("timeout"));
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await payOne(testDb.db, b);
+    mockLookup.mockResolvedValueOnce([
+      { id: "tr_1", status: "pending", referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" },
+      { id: "tr_2", status: "pending", referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" },
+    ]).mockRejectedValueOnce(new Error("403"));
+    expect((await payOne(testDb.db, b)).status).toBe("held-uncertain");
+    expect((await payOne(testDb.db, b)).status).toBe("held-uncertain");
+    expect((await readLedger(bkId)).state).toBe("held");
+    expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
   });
 
   it("queryDuePayouts re-selects a backed-off `failed` row within the retry window", async () => {

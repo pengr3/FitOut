@@ -1,0 +1,9 @@
+{
+  "targetTest": "finds an accepted timeout by exact booking reference after key expiry without a second POST",
+  "targetFile": "tests/payments/payout-sweep.test.ts",
+  "command": "node node_modules/vitest/vitest.mjs run tests/payments/payout-sweep.test.ts -t 'payout sweep — uncertain create recovery' --reporter=tap",
+  "exitCode": 1,
+  "expected": "processing",
+  "actual": "held",
+  "output": "TAP version 13\n1..1\nnot ok 1 - tests/payments/payout-sweep.test.ts {\n  1..1\n  not ok 1 - payout sweep — uncertain create recovery (HPAY-04) {\n    1..3\n    not ok 1 - finds an accepted timeout by exact booking reference after key expiry without a second POST\n      ---\n      error:\n        name: AssertionError\n        message: expected 'held' to be 'processing'\n      actual: held\n      expected: processing\n      ...\n    not ok 2 - keeps an ambiguous or inaccessible prior claim held and never resends\n    ok 3 - queryDuePayouts re-selects a backed-off `failed` row within the retry window\n  }\n}\n# tests 3\n# pass 1\n# fail 2\nnot ok 1 - finds an accepted timeout by exact booking reference after key expiry without a second POST"
+}
