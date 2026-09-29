@@ -28,6 +28,12 @@ gets. Two visually distinct themes (court, grove) prove the contract holds, and 
 proves nothing leaked around it — a raw hex, `rgb(`, `oklch(` or an arbitrary `text-[NNpx]` under
 `src/components/**` or `src/app/**` fails `npm run build`. Locking real branding is now a token edit.
 
+**Current theme decision (2026-09-29): Court is FitOut's only theme.** The earlier Grove
+probe was useful while choosing a direction, but it is no longer a design target or a
+required second-theme test. New UI contracts, plans, and visual checks use Court alone;
+retire Grove-specific runtime and test scaffolding when that cleanup is scoped. Keep the
+token contract and contrast/accessibility gates without maintaining a second palette.
+
 **Two requirements carry forward unsatisfied**, both closed by one line at `src/lib/site.ts:70`:
 `STATE-05` and `TRUST-01` need a monitored support address. D-64 forbids a placeholder.
 
@@ -212,6 +218,7 @@ inside this milestone (see below); what follows is what v1.2 still owes.
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
+| **D-279 — Court is FitOut's sole theme; retire Grove even as a token-contract probe.** Future UI work uses Court's coral/red-pink direction only and does not prepare alternate theme palettes, typography, screenshots, or switchers. Preserve reusable semantic tokens and accessibility checks for Court. This supersedes D-138's retained Grove probe, while leaving the historical v1.1 account intact. | The PM has selected Court and wants design and verification work focused on the one product theme instead of continuing to pay for theme optionality. | **Adopted — PM decision, 2026-09-29.** Phase 26's UI contract applies Court only; removal of existing Grove runtime/test scaffolding is implementation work, not a prerequisite for documenting the decision. |
 | Broad fitness-space marketplace (courts, gyms, studios, home gyms) rather than a single vertical | Maximizes available supply and addressable demand in the launch market; the booking flow generalizes across space types | **✓ Good — v1.0.** The flow did generalize: one listing model with a `primary_space_type` + activity tags carried gyms, courts and studios through search, availability, booking and payment without a per-vertical fork. Untested against real supply. |
 | Optimize for the booking (demand) side first | The core transaction — find & book — is where value is proven; supply tooling serves it | **✓ Good — v1.0.** Held through nine phases: search shipped in Phase 4 before payments, and host tooling (hours editor, requests inbox, earnings) was consistently built only as far as the booker flow required. |
 | Host's choice: instant-book or request-to-book per listing | Different space types/hosts have different comfort levels; flexibility increases supply without forcing one model | **✓ Good — shipped in Phase 6.** Cost was real but contained: the fork needed two new holding statuses (`requested`/`approved`), a widened GiST `EXCLUDE`, and an SLA cron. Pay-on-approval (D-63) meant nothing ever had to be refunded or voided on the request path. |
