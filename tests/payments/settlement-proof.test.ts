@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { booking, listing, user } from "@/lib/db/schema";
 import { currentSettlementProof, isCorrelatedSettlement, recordSettlementObservation } from "@/lib/payments/settlement";
+import { bookingExceptionRef } from "@/lib/payments/payout-exceptions";
 import { refreshBookingSettlement, type ProviderReader, type SettlementAccountEvidence } from "@/inngest/functions/settlement-reconcile";
 import { getMerchantPayout, listMerchantPayouts, listMerchantPayoutTransactions } from "@/lib/paymongo";
 
@@ -233,7 +234,7 @@ describe("booking settlement proof", () => {
     expect((await refreshBookingSettlement(deniedId, denied, accountEvidence, testDb.db)).state).toBe("exception");
     expect((await refreshBookingSettlement(deniedId, denied, accountEvidence, testDb.db)).state).toBe("exception");
     const alerts = await testDb.db.execute(sql`
-      SELECT id FROM audit WHERE action = 'settlement_refresh' AND meta->>'bookingId' = ${deniedId}
+      SELECT id FROM audit WHERE action = 'host_payout_recovery' AND meta->>'bookingRef' = ${bookingExceptionRef(deniedId)}
     `);
     expect(alerts).toHaveLength(1);
     const unmappedId = await seedBooking();

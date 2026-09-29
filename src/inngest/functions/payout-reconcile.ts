@@ -33,12 +33,12 @@
 // sweep + Phase-4 lazy-expiry; only the stuck-age comparison uses createdAt vs Date.now() (advisory alert
 // timing, not a money-moving decision).
 
-import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import type { DbConn } from "@/lib/availability/read-model";
 import { findHostPayoutTransfers, getTransfer } from "@/lib/paymongo";
+import { recordMoneyException, type PayoutExceptionCause } from "@/lib/payments/payout-exceptions";
 
 /**
  * How long a payout may sit `processing` before the reconcile raises a stuck-row operator alert (config,
@@ -61,20 +61,15 @@ export type ReconcileResult = { bookingId: string; state: "paid" | "failed" | "p
 export async function recordPayoutException(
   dbConn: DbConn, bookingId: string, reason: string,
 ): Promise<void> {
-  try {
-    await dbConn.execute(sql`
-      INSERT INTO audit (id, actor_id, action, outcome, meta)
-      SELECT ${randomUUID()}, 'system', 'host_payout_recovery', 'needs_attention',
-        ${JSON.stringify({ bookingId, reason })}::jsonb
-      WHERE NOT EXISTS (
-        SELECT 1 FROM audit WHERE action = 'host_payout_recovery'
-          AND outcome = 'needs_attention' AND resolved_at IS NULL
-          AND meta->>'bookingId' = ${bookingId} AND meta->>'reason' = ${reason}
-      )
-    `);
-  } catch {
-    console.error("[payout-alert] durable exception write failed", { bookingId, reason });
-  }
+  const causes: Record<string, PayoutExceptionCause> = {
+    reference_unresolved: "transfer_outcome_uncertain",
+    reference_read_unavailable: "transfer_read_unavailable",
+    transfer_read_unavailable: "transfer_read_unavailable",
+    transfer_read_mismatch: "transfer_outcome_uncertain",
+    settlement_reversed_after_claim: "settlement_returned",
+    create_outcome_uncertain: "transfer_outcome_uncertain",
+  };
+  await recordMoneyException(dbConn, bookingId, causes[reason] ?? "transfer_outcome_uncertain");
 }
 
 /**
@@ -219,6 +214,7 @@ export async function reconcileOne(
       transferId,
       status: tr.status,
     });
+    await recordMoneyException(dbConn, row.bookingId, "transfer_failed");
     return { bookingId: row.bookingId, state: "failed" };
   }
 
@@ -230,6 +226,7 @@ export async function reconcileOne(
       transferId,
       ageHours,
     });
+    await recordMoneyException(dbConn, row.bookingId, "transfer_stuck");
   }
   return { bookingId: row.bookingId, state: "processing" };
 }
@@ -277,6 +274,7 @@ export async function alertStuckHeld(dbConn: DbConn = db): Promise<number> {
       bookingId: r.bookingId,
       createdAt: r.createdAt,
     });
+    await recordMoneyException(dbConn, r.bookingId, "transfer_stuck");
   }
   return rows.length;
 }

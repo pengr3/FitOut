@@ -1,6 +1,5 @@
 import "server-only";
 
-import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
@@ -9,6 +8,7 @@ import {
   getMerchantPayout, listMerchantPayouts, listMerchantPayoutTransactions,
 } from "@/lib/paymongo";
 import { currentSettlementProof, recordSettlementObservation, type SettlementObservation } from "@/lib/payments/settlement";
+import { recordMoneyException } from "@/lib/payments/payout-exceptions";
 
 export type ProviderReader = {
   listPayouts(after?: string): Promise<unknown>;
@@ -90,17 +90,7 @@ function transactionMatch(raw: Dict, payoutId: string, paymentId: string, curren
 
 async function exception(bookingId: string, reason: string, dbConn: DbConn): Promise<RefreshResult> {
   console.error("[settlement-alert] booking settlement read unavailable", { bookingId, reason });
-  // The existing unresolved needs_attention queue is the durable operator exception sink. Deduplicate
-  // repeated hourly reads for this booking/reason; record only IDs and a fixed reason code.
-  await dbConn.execute(sql`
-    INSERT INTO audit (id, actor_id, action, outcome, meta)
-    SELECT ${randomUUID()}, 'system', 'settlement_refresh', 'needs_attention',
-      ${JSON.stringify({ bookingId, reason })}::jsonb
-    WHERE NOT EXISTS (
-      SELECT 1 FROM audit WHERE action = 'settlement_refresh' AND outcome = 'needs_attention'
-        AND resolved_at IS NULL AND meta->>'bookingId' = ${bookingId} AND meta->>'reason' = ${reason}
-    )
-  `);
+  await recordMoneyException(dbConn, bookingId, "settlement_read_unavailable");
   return { bookingId, state: "exception", reason };
 }
 
@@ -166,6 +156,9 @@ export async function refreshBookingSettlement(
           mappingVerified: true, providerStatusAt: finalStatus.statusAt, verifiedAt: new Date(),
         };
         await recordSettlementObservation(bookingId, observation, dbConn);
+        if (finalStatus.status === "returned" || finalStatus.status === "cancelled") {
+          await recordMoneyException(dbConn, bookingId, "settlement_returned");
+        }
         return { bookingId, state: (await currentSettlementProof(bookingId, dbConn)) ? "proved" : "unproved" };
       }
       if (listings.next === null) return { bookingId, state: "unproved", reason: "payment_not_in_payouts" };

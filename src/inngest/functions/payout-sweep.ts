@@ -19,6 +19,7 @@ import {
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import { createExternalHostPayout, findHostPayoutTransfers, readPayoutWalletFunding } from "@/lib/paymongo";
 import { currentSettlementProof } from "@/lib/payments/settlement";
+import { recordMoneyException } from "@/lib/payments/payout-exceptions";
 import { recordPayoutException } from "@/inngest/functions/payout-reconcile";
 
 /** Maximum bookings inspected during one Friday sweep pass. */
@@ -263,6 +264,7 @@ export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date(
     }
     if (!Number.isSafeInteger(live.grossCents) || (live.grossCents as number) < 0) {
       console.error("[payout-alert] booking has no frozen payout basis", { bookingId: b.bookingId });
+      await recordMoneyException(tx as unknown as DbConn, b.bookingId, "payout_basis_missing", now);
       return { status: "skipped-no-basis" } as PayOneResult;
     }
     const destination = {
@@ -297,6 +299,7 @@ export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date(
     const outstandingCents = Number(outstanding);
     if (!Number.isSafeInteger(outstandingCents) || !Number.isSafeInteger(netCents) || netCents < 0 ||
         !Number.isSafeInteger(alreadyDeducted) || alreadyDeducted < 0 || alreadyDeducted > netCents) {
+      await recordMoneyException(tx as unknown as DbConn, b.bookingId, "payout_basis_missing", now);
       return { status: "skipped-no-basis" } as PayOneResult;
     }
     const deduction = alreadyDeducted || Math.min(outstandingCents, netCents);
@@ -309,6 +312,7 @@ export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date(
           !Number.isSafeInteger(funding.feeCents) || funding.feeCents < 0 ||
           funding.availableCents < 0 || !Number.isFinite(funding.observedAt?.getTime()) ||
           Math.abs(now.getTime() - funding.observedAt.getTime()) > 120_000) {
+        await recordMoneyException(tx as unknown as DbConn, b.bookingId, "wallet_unavailable", now);
         return { status: "skipped-no-wallet" } as PayOneResult;
       }
       const [{ amount, count }] = (await tx.execute(sql`
@@ -321,6 +325,7 @@ export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date(
       const reservation = BigInt(amount) + BigInt(count) * BigInt(funding.feeCents);
       const required = BigInt(transferAmt) + BigInt(funding.feeCents);
       if (BigInt(funding.availableCents) - reservation < required) {
+        await recordMoneyException(tx as unknown as DbConn, b.bookingId, "wallet_insufficient", now);
         return { status: "skipped-no-wallet" } as PayOneResult;
       }
     }
@@ -394,6 +399,40 @@ export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date(
   }
 }
 
+/** Final Friday pass includes bookings that were never selected because proof or host gates failed. */
+export async function recordMissedFridayPayouts(dbConn: DbConn, now: Date): Promise<number> {
+  const window = fridayPayoutWindow(now);
+  if (!window || now.getTime() < window.cohortNoon.getTime() + 11 * 3_600_000) return 0;
+  const rows = (await dbConn.execute(sql`
+    SELECT b.id AS "bookingId", o.provider_status AS "settlementStatus",
+      p.state AS "ledgerState", hpd.verification_status AS "destinationStatus",
+      hp.payouts_enabled AS "payoutsEnabled"
+    FROM booking b
+    JOIN listing l ON l.id = b.listing_id
+    LEFT JOIN host_payout hp ON hp.user_id = l.host_id
+    LEFT JOIN host_payout_destination hpd ON hpd.user_id = l.host_id
+    LEFT JOIN host_payout_ledger p ON p.booking_id = b.id AND p.kind = 'payout'
+    LEFT JOIN booking_settlement_current c ON c.booking_id = b.id
+    LEFT JOIN booking_settlement_observation o ON o.id = c.observation_id
+    WHERE (b.status = 'confirmed' OR (b.status = 'cancelled' AND COALESCE(b.retained_space_cents, 0) > 0))
+      AND b.ends_at + (${PAYOUT_HOLD_HOURS}::numeric * interval '1 hour') <= ${window.cohortNoon.toISOString()}::timestamptz
+      AND (p.id IS NULL OR p.state NOT IN ('paid', 'refunded'))
+    ORDER BY b.ends_at, b.id
+  `)) as unknown as Array<{ bookingId: string; settlementStatus: string | null;
+    ledgerState: string | null; destinationStatus: string | null; payoutsEnabled: boolean | null }>;
+  for (const row of rows) {
+    if (!row.settlementStatus) await recordMoneyException(dbConn, row.bookingId, "settlement_missing", now);
+    else if (row.settlementStatus === "returned" || row.settlementStatus === "cancelled") {
+      await recordMoneyException(dbConn, row.bookingId, "settlement_returned", now);
+    }
+    if (row.payoutsEnabled !== true || !["verified", "host_attested"].includes(row.destinationStatus ?? "")) {
+      await recordMoneyException(dbConn, row.bookingId, "destination_action_required", now);
+    }
+    await recordMoneyException(dbConn, row.bookingId, "missed_friday_cutoff", now);
+  }
+  return rows.length;
+}
+
 /**
  * The D-56 payout sweep: a Friday-only, timezone-aware, SINGLETON (`concurrency: 1`) cron. Each due booking is
  * paid inside its OWN Inngest step so a mid-batch failure retries just that booking, never the whole sweep.
@@ -408,11 +447,19 @@ export const payoutSweep = inngest.createFunction(
   },
   async ({ step }) => {
     const now = new Date();
-    if (!fridayPayoutWindow(now)) return { swept: 0 };
-    const due = await step.run("find-due", () => queryDuePayouts(db, now));
+    // Cron invocation has transport latency. Normalize only the 23:00 minute to its
+    // scheduled instant; the public release-window rule remains exactly 23:00:00.
+    const runAt = new Date(now);
+    if (now.getUTCHours() === 15 && now.getUTCMinutes() === 0) runAt.setUTCSeconds(0, 0);
+    if (!fridayPayoutWindow(runAt)) return { swept: 0 };
+    const due = await step.run("find-due", () => queryDuePayouts(db, runAt));
     for (const b of due) {
-      await step.run(`payout-${b.bookingId}`, () => payOne(db, b, new Date()));
+      await step.run(`payout-${b.bookingId}`, () => payOne(db, b, runAt));
     }
-    return { swept: due.length };
+    const missed = await step.run("record-friday-cutoff", () => recordMissedFridayPayouts(db, runAt));
+    if (missed > 0) {
+      await step.run("notify-money-ops-cutoff", () => inngest.send({ name: "fitout/payout-cutoff-alert", data: {} }));
+    }
+    return { swept: due.length, missed };
   },
 );

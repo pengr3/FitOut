@@ -21,11 +21,13 @@ import { PAYOUT_DELAY_HOURS, PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
 import { encryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import { recordSettlementObservation } from "@/lib/payments/settlement";
+import { bookingExceptionRef } from "@/lib/payments/payout-exceptions";
 
 let testDb: TestDb;
 type SweepModule = typeof import("@/inngest/functions/payout-sweep");
 let queryDuePayouts: SweepModule["queryDuePayouts"];
 let payOne: SweepModule["payOne"];
+let recordMissedFridayPayouts: SweepModule["recordMissedFridayPayouts"];
 let fridayPayoutWindow: ((now: Date) => { cohortNoon: Date } | null) | undefined;
 const mockWalletFunding = vi.fn(async () => ({
   walletId: "wallet_fitout_test", availableCents: 10_000_000, feeCents: 1_000,
@@ -219,7 +221,7 @@ beforeAll(async () => {
   }));
   vi.resetModules();
   const sweep = await import("@/inngest/functions/payout-sweep");
-  ({ queryDuePayouts, payOne } = sweep);
+  ({ queryDuePayouts, payOne, recordMissedFridayPayouts } = sweep);
   fridayPayoutWindow = (sweep as unknown as { fridayPayoutWindow?: typeof fridayPayoutWindow }).fridayPayoutWindow;
 });
 
@@ -427,6 +429,27 @@ describe("Friday Manila dispatch window (HPAY-02)", () => {
     expect((await payOne(testDb.db, b, new Date("2026-10-01T04:00:00.000Z"))).status)
       .toBe("skipped-claimed");
     expect(await readLedger(bookingId)).toBeUndefined();
+  });
+});
+
+describe("Friday 23:00 exception handoff (HPAY-06)", () => {
+  it("keeps a missing-settlement booking in the owned queue once, but excludes a next-week joiner", async () => {
+    const host = await makeHost();
+    const due = await makeBooking({ listingId: await makeListing(host.hostId), status: "confirmed",
+      quotedTotalCents: 200000, endsAtMs: FRIDAY_NOON.getTime() - 48 * 3_600_000, settled: false });
+    const nextWeek = await makeBooking({ listingId: await makeListing(host.hostId), status: "confirmed",
+      quotedTotalCents: 200000, endsAtMs: FRIDAY_NOON.getTime() - 2 * 3_600_000, settled: false });
+    const cutoff = new Date("2026-10-02T15:00:00.000Z");
+    await recordMissedFridayPayouts(testDb.db, cutoff);
+    await recordMissedFridayPayouts(testDb.db, cutoff);
+    const rows = (await testDb.db.execute(sql`
+      SELECT meta->>'bookingRef' AS ref, meta->>'cause' AS cause FROM audit
+      WHERE action = 'host_payout_recovery' AND outcome = 'needs_attention'
+    `)) as unknown as Array<{ ref: string; cause: string }>;
+    expect(rows.filter((row) => row.ref === bookingExceptionRef(due) && row.cause === "missed_friday_cutoff")).toHaveLength(1);
+    expect(rows.filter((row) => row.ref === bookingExceptionRef(due) && row.cause === "settlement_missing")).toHaveLength(1);
+    expect(rows.some((row) => row.ref === bookingExceptionRef(nextWeek))).toBe(false);
+    expect(await readPayoutRows(due)).toHaveLength(0);
   });
 });
 

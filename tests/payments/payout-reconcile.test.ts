@@ -18,6 +18,7 @@ import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { mockPayMongo } from "../helpers/mocks";
 import { user, listing, hostPayoutLedger, booking, audit } from "@/lib/db/schema";
 import { recordSettlementObservation } from "@/lib/payments/settlement";
+import { bookingExceptionRef } from "@/lib/payments/payout-exceptions";
 
 let testDb: TestDb;
 type ReconcileModule = typeof import("@/inngest/functions/payout-reconcile");
@@ -214,7 +215,7 @@ describe("uncertain claim read-back (HPAY-04)", () => {
     }
     const rows = await testDb.db.select().from(audit);
     expect(rows.filter((r) => r.action === "host_payout_recovery" &&
-      (r.meta as { bookingId?: string })?.bookingId === bkId)).toHaveLength(1);
+      (r.meta as { bookingRef?: string })?.bookingRef === bookingExceptionRef(bkId))).toHaveLength(1);
     expect((await readLedger(bkId)).paidAt).toBeNull();
     expect(mockPayMongo.getTransfer).not.toHaveBeenCalled();
     spy.mockRestore();
