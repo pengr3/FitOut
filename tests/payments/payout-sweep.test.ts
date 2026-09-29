@@ -25,6 +25,7 @@ let testDb: TestDb;
 type SweepModule = typeof import("@/inngest/functions/payout-sweep");
 let queryDuePayouts: SweepModule["queryDuePayouts"];
 let payOne: SweepModule["payOne"];
+let fridayPayoutWindow: ((now: Date) => { cohortNoon: Date } | null) | undefined;
 
 const BOOKER = "sweep_booker";
 
@@ -193,7 +194,32 @@ beforeAll(async () => {
     createRefund: mockPayMongo.createRefund,
   }));
   vi.resetModules();
-  ({ queryDuePayouts, payOne } = await import("@/inngest/functions/payout-sweep"));
+  const sweep = await import("@/inngest/functions/payout-sweep");
+  ({ queryDuePayouts, payOne } = sweep);
+  fridayPayoutWindow = (sweep as unknown as { fridayPayoutWindow?: typeof fridayPayoutWindow }).fridayPayoutWindow;
+});
+
+describe("Friday Manila dispatch window (HPAY-02)", () => {
+  const cases: Array<[string, string, string | null]> = [
+    ["Thursday", "2026-10-01T04:00:00.000Z", null],
+    ["Friday one second before noon", "2026-10-02T03:59:59.000Z", null],
+    ["Friday noon", "2026-10-02T04:00:00.000Z", "2026-10-02T04:00:00.000Z"],
+    ["Friday 23:00", "2026-10-02T15:00:00.000Z", "2026-10-02T04:00:00.000Z"],
+    ["Friday one second after 23:00", "2026-10-02T15:00:01.000Z", null],
+    ["Saturday", "2026-10-03T04:00:00.000Z", null],
+  ];
+  it.each(cases)("%s maps to the fixed noon cohort only inside the release window", (_label, instant, expected) => {
+    expect(fridayPayoutWindow?.(new Date(instant))?.cohortNoon.toISOString() ?? null).toBe(expected);
+  });
+
+  it("does not select an otherwise due booking without its own deposited settlement proof", async () => {
+    const host = await makeHost();
+    const listingId = await makeListing(host.hostId);
+    const bookingId = await makeBooking({ listingId, status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: new Date("2026-09-20T00:00:00.000Z").getTime() });
+    const due = await queryDuePayouts(testDb.db, new Date("2026-10-02T04:00:00.000Z"));
+    expect(due.map((row) => row.bookingId)).not.toContain(bookingId);
+  });
 });
 
 afterAll(async () => {
