@@ -420,7 +420,7 @@ const FROZEN: Readonly<Record<string, readonly string[]>> = {
     " at 12:00 Manila time. Subject to final payout checks.",
     "Asia/Manila",
     "Expected",
-    "Friday payout checks and retries are in progress for ",
+    "Friday payout checks are in progress for ",
     "Needs attention",
     "Next eligible release: ",
     "Paid",

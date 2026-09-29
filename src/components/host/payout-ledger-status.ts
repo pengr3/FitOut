@@ -45,7 +45,7 @@ function nextSupportedFriday(now: Date, eligibleAt: Date): Date {
   const manila = new Date(now.getTime() + 8 * HOUR);
   const days = (5 - manila.getUTCDay() + 7) % 7;
   const noon = new Date(Date.UTC(manila.getUTCFullYear(), manila.getUTCMonth(), manila.getUTCDate() + days, 4));
-  // Friday retries run from noon through 23:00 Manila time. Keep the current
+  // Friday eligibility checks run from noon through 23:00 Manila time. Keep the current
   // cohort visible throughout that window when the booking qualified by noon.
   if (now.getTime() - noon.getTime() > 11 * HOUR) noon.setUTCDate(noon.getUTCDate() + 7);
   while (noon < eligibleAt) noon.setUTCDate(noon.getUTCDate() + 7);
@@ -103,7 +103,7 @@ export function projectHostEarnings(rows: EarningSource[], hostId: string, now: 
         fridayNoon = nextSupportedFriday(now, new Date(Math.max(holdEnd.getTime(), row.settlement.depositedAt.getTime(), row.settlement.verifiedAt.getTime())));
         const date = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", weekday: "short", month: "short", day: "numeric", year: "numeric" }).format(fridayNoon);
         timing = fridayNoon <= now
-          ? `Friday payout checks and retries are in progress for ${date}. We'll update this page when confirmed.`
+          ? `Friday payout checks are in progress for ${date}. We'll update this page when confirmed.`
           : `Next eligible release: ${date} at 12:00 Manila time. Subject to final payout checks.`;
       }
       return { ...row, grossCents, commissionCents, netCents, debitCents, estimated, status, fridayNoon, timing };

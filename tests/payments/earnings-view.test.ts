@@ -157,12 +157,13 @@ describe("host earnings booking projection (HPAY-05)", () => {
     expect(project([source("x", { settlement: { ...proof, verifiedAt: new Date("2026-09-28T04:00:00Z") } })], true)[0].fridayNoon).toBeNull();
   });
 
-  it("shows the current Friday cohort during its retry window and advances only after closing", () => {
+  it("shows the current Friday cohort during its release window and advances only after closing", () => {
     const settlement = { depositedAt: new Date("2026-10-01T14:00:00Z"), verifiedAt: new Date("2026-10-01T15:05:00Z") };
     for (const instant of ["2026-10-02T04:01:00Z", "2026-10-02T14:59:00Z"]) {
       const [row] = projectHostEarnings([source("retry", { settlement })], "host-A", new Date(instant), 24, 1000, true);
       expect(row.fridayNoon?.toISOString()).toBe("2026-10-02T04:00:00.000Z");
-      expect(row.timing).toContain("checks and retries are in progress");
+      expect(row.timing).toContain("payout checks are in progress");
+      expect(row.timing).not.toContain("retries");
       expect(row.timing).not.toContain("Next eligible release");
     }
     const [after] = projectHostEarnings([source("retry", { settlement })], "host-A", new Date("2026-10-02T15:00:01Z"), 24, 1000, true);
