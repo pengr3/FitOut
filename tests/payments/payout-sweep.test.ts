@@ -649,7 +649,7 @@ describe("payout sweep — uncertain create recovery (HPAY-04)", () => {
     const first = await payOne(testDb.db, b);
     expect(first.status).toBe("held-uncertain");
     expect((await readLedger(bkId)).state).toBe("held");
-    expect((await payOne(testDb.db, b)).status).toBe("skipped-claimed");
+    expect((await payOne(testDb.db, b)).status).toBe("held-uncertain");
 
     mockLookup.mockResolvedValueOnce([{
       id: "tr_accepted", status: "pending", referenceNumber: `host-payout-${bkId}`,
@@ -690,6 +690,26 @@ describe("payout sweep — uncertain create recovery (HPAY-04)", () => {
     expect((await payOne(testDb.db, b)).status).toBe("held-uncertain");
     expect((await readLedger(bkId)).state).toBe("held");
     expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+
+  it("treats a crash after the durable claim and a wrong-reference response as unresolved", async () => {
+    const A = await makeHost();
+    const L = await makeListing(A.hostId);
+    const bkId = await makeBooking({ listingId: L, status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: dueMs() });
+    const b = duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId,
+      accountId: A.accountId, payoutGrossCents: 200000 });
+    await testDb.db.insert(hostPayoutLedger).values({ id: uid("ledger"), bookingId: bkId,
+      hostId: A.hostId, paymentId: `pay_${bkId}`, grossCents: 200000,
+      commissionRateBps: 1000, commissionCents: 20000, netCents: 180000,
+      currency: "php", state: "held", kind: "payout" });
+    mockLookup.mockResolvedValueOnce([{ id: "tr_foreign", status: "succeeded",
+      referenceNumber: "host-payout-someone-else", amount: 180000, currency: "PHP" }]);
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect((await payOne(testDb.db, b)).status).toBe("held-uncertain");
+    expect((await readLedger(bkId)).transferId).toBeNull();
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
     spy.mockRestore();
   });
 

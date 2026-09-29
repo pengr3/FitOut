@@ -792,7 +792,54 @@ export async function listWalletAccounts(): Promise<WalletAccount[]> {
   }));
 }
 
-export type Transfer = { id: string; status: string };
+export type Transfer = {
+  id: string;
+  status: string;
+  referenceNumber?: string;
+  amount?: number;
+  currency?: string;
+};
+
+/** Read-only reference lookup. An empty result is not proof that a timed-out POST was never accepted. */
+export async function findHostPayoutTransfers(bookingId: string): Promise<Transfer[]> {
+  const reference = `host-payout-${bookingId}`;
+  const matches: Transfer[] = [];
+  let afterId: string | null = null;
+  const seen = new Set<string>();
+  for (let page = 0; page < 10; page++) {
+    const cursor: string = afterId ? `&after_id=${encodeURIComponent(afterId)}` : "";
+    const json = await paymongoFetch<unknown>(
+      `/v2/transfers?reference_number=${encodeURIComponent(reference)}&limit=100${cursor}`,
+      { method: "GET" },
+    );
+    if (!json || typeof json !== "object" || !Array.isArray((json as { data?: unknown }).data)) {
+      throw new Error("PayMongo transfer reference lookup returned an unverified shape");
+    }
+    const rows = (json as { data: unknown[] }).data;
+    const parsed = rows.map((raw) => {
+    if (!raw || typeof raw !== "object") throw new Error("Malformed PayMongo transfer lookup row");
+    const item = raw as Record<string, unknown>;
+    const attrs = item.attributes && typeof item.attributes === "object"
+      ? item.attributes as Record<string, unknown> : item;
+    if (typeof item.id !== "string" || typeof attrs.status !== "string" ||
+        typeof attrs.reference_number !== "string" || typeof attrs.amount !== "number" ||
+        typeof attrs.currency !== "string") {
+      throw new Error("Incomplete PayMongo transfer lookup row");
+    }
+    return { id: item.id, status: attrs.status, referenceNumber: attrs.reference_number,
+      amount: attrs.amount, currency: attrs.currency };
+    });
+    for (const transfer of parsed) {
+      if (seen.has(transfer.id)) throw new Error("PayMongo transfer lookup cursor repeated");
+      seen.add(transfer.id);
+      if (transfer.referenceNumber === reference) matches.push(transfer);
+    }
+    if (rows.length < 100) return matches;
+    afterId = parsed.at(-1)?.id ?? null;
+    if (!afterId) throw new Error("PayMongo transfer lookup has no next cursor");
+  }
+  throw new Error("PayMongo transfer lookup exceeded the bounded scan");
+}
 
 /**
  * Poll a single /v2 transfer's terminal status (GET /v2/transfers/{id}, PAY-03).

@@ -17,7 +17,7 @@ import {
   PAYOUT_RETRY_MAX_AGE_HOURS,
 } from "@/lib/payments/config";
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
-import { createExternalHostPayout, readPayoutWalletFunding } from "@/lib/paymongo";
+import { createExternalHostPayout, findHostPayoutTransfers, readPayoutWalletFunding } from "@/lib/paymongo";
 import { currentSettlementProof } from "@/lib/payments/settlement";
 
 /** Maximum bookings inspected during one Friday sweep pass. */
@@ -176,6 +176,41 @@ export async function queryDuePayouts(dbConn: DbConn, now: Date = new Date()): P
 
 /** Commit a Wallet-reserved claim and debit memo before any external transfer POST. */
 export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date()): Promise<PayOneResult> {
+  const existing = (await dbConn.execute(sql`
+    SELECT state, transfer_id AS "transferId", net_cents AS "netCents",
+      recovered_cents AS "recoveredCents", currency
+    FROM host_payout_ledger WHERE booking_id = ${b.bookingId} AND kind = 'payout'
+  `)) as unknown as Array<{ state: string; transferId: string | null;
+    netCents: number; recoveredCents: number; currency: string }>;
+  const priorClaim = existing[0];
+  if (priorClaim && ["held", "processing", "failed"].includes(priorClaim.state)) {
+    // A previous POST may have succeeded even if its response was lost. Never treat key expiry,
+    // an empty list, or a provider read error as proof of no transfer.
+    try {
+      const candidates = await findHostPayoutTransfers(b.bookingId);
+      const expectedReference = `host-payout-${b.bookingId}`;
+      if (candidates.length === 1 && candidates[0].id &&
+          candidates[0].referenceNumber === expectedReference &&
+          candidates[0].amount === priorClaim.netCents - priorClaim.recoveredCents &&
+          candidates[0].currency?.toLowerCase() === priorClaim.currency.toLowerCase() &&
+          (!priorClaim.transferId || priorClaim.transferId === candidates[0].id)) {
+        await dbConn.execute(sql`
+          UPDATE host_payout_ledger SET state = 'processing', transfer_id = ${candidates[0].id},
+            updated_at = now()
+          WHERE booking_id = ${b.bookingId} AND kind = 'payout'
+            AND state = 'held' AND transfer_id IS NULL
+        `);
+        return { status: "skipped-claimed" };
+      }
+      console.error("[payout-alert] payout reference unresolved", {
+        bookingId: b.bookingId, matchCount: candidates.length,
+      });
+    } catch {
+      console.error("[payout-alert] payout reference read unavailable", { bookingId: b.bookingId });
+    }
+    return priorClaim.state === "processing" ? { status: "skipped-claimed" } : { status: "held-uncertain" };
+  }
+  if (priorClaim) return { status: "skipped-claimed" };
   const window = fridayPayoutWindow(now);
   if (!window) return { status: "skipped-claimed" };
   const cohortNoon = window.cohortNoon;
