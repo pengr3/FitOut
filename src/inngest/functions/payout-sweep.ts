@@ -74,7 +74,7 @@ export type DuePayout = {
 
 /** The per-booking outcome of a payout attempt (JSON-serializable for the Inngest step boundary). */
 export type PayOneResult =
-  | { status: "paid"; transferId: string; netCents: number; deductedCents: number }
+  | { status: "processing"; transferId: string; netCents: number; deductedCents: number }
   // D-71: the whole payout was consumed by an outstanding cancellation fee — settled, no transfer fired.
   | { status: "settled-by-netting"; deductedCents: number }
   | { status: "skipped-claimed" } // another (concurrent/prior) sweep already owns this booking
@@ -393,7 +393,7 @@ export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date(
       UPDATE host_payout_ledger SET state = 'processing', transfer_id = ${transfer.transferId}, updated_at = now()
       WHERE booking_id = ${b.bookingId} AND kind = 'payout' AND state = 'held' AND transfer_id IS NULL
     `);
-    return { status: "paid", transferId: transfer.transferId,
+    return { status: "processing", transferId: transfer.transferId,
       netCents: prepared.transferAmt, deductedCents: prepared.deduction };
   } catch {
     // The provider may have accepted a request whose response was lost. The durable held claim

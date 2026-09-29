@@ -240,7 +240,7 @@ describe("Friday Wallet funding preflight (HPAY-03)", () => {
     mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 181000,
       feeCents: 1000, observedAt: FRIDAY_NOON });
     mockPayMongo.createBatchTransfer.mockClear();
-    expect((await payOne(testDb.db, b)).status).toBe("paid");
+    expect((await payOne(testDb.db, b)).status).toBe("processing");
     expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
   });
 
@@ -323,8 +323,10 @@ describe("Friday Wallet funding preflight (HPAY-03)", () => {
       expect((await readLedger(bookingId)).state).toBe("held");
       return { batchId: "batch_claim_first", transferId: "tr_claim_first", status: "pending" };
     });
-    expect((await payOne(testDb.db, b)).status).toBe("paid");
+    const result = await payOne(testDb.db, b);
+    expect(result).toMatchObject({ status: "processing", transferId: "tr_claim_first" });
     expect((await readLedger(bookingId)).state).toBe("processing");
+    expect((await readLedger(bookingId)).paidAt).toBeNull();
   });
 
   it("serializes two bookings against one balance snapshot", async () => {
@@ -342,7 +344,7 @@ describe("Friday Wallet funding preflight (HPAY-03)", () => {
       const results = await Promise.all([
         payOne(drizzle(clients[0]), first.b), payOne(drizzle(clients[1]), second.b),
       ]);
-      expect(results.filter((result) => result.status === "paid")).toHaveLength(1);
+      expect(results.filter((result) => result.status === "processing")).toHaveLength(1);
       expect(results.filter((result) => result.status === "skipped-no-wallet")).toHaveLength(1);
       expect([await readLedger(first.bookingId), await readLedger(second.bookingId)]
         .filter(Boolean)).toHaveLength(1);
@@ -525,7 +527,7 @@ describe("payout sweep — happy payout (PAY-03/PAY-02, D-51/52/56)", () => {
       testDb.db,
       duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 200000 }),
     );
-    expect(res.status).toBe("paid");
+    expect(res.status).toBe("processing");
 
     // Exactly one ledger row, released to Processing, commission FROZEN (10% of 200000), transfer id set.
     const rows = await testDb.db
@@ -576,9 +578,9 @@ describe("payout sweep — at-most-once under concurrency (T-05-23)", () => {
     const [c1, c2] = makeRacingClients(testDb.schema, 2);
     try {
       const results = await Promise.all([payOne(drizzle(c1), b), payOne(drizzle(c2), b)]);
-      const paid = results.filter((r) => r.status === "paid").length;
+      const submitted = results.filter((r) => r.status === "processing").length;
       const skipped = results.filter((r) => r.status === "skipped-claimed").length;
-      expect(paid).toBe(1); // exactly one sweep won the claim and fired the transfer
+      expect(submitted).toBe(1); // exactly one sweep won the claim and fired the transfer
       expect(skipped).toBe(1); // the ON CONFLICT loser fired nothing
     } finally {
       await c1.end();
@@ -644,7 +646,7 @@ describe("payout sweep — external destination isolation (T-05-27 / CR-01)", ()
       duePayout({ bookingId: bkC, listingId: L, hostId: C.hostId, accountId: C.accountId, payoutGrossCents: 200000 }),
     );
 
-    expect(res.status).toBe("paid");
+    expect(res.status).toBe("processing");
     expect(mockPayMongo.listWalletAccounts).not.toHaveBeenCalled();
     expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
 
@@ -809,7 +811,7 @@ describe("payout sweep — retained cancellation IS swept (Finding 1, D-69)", ()
       testDb.db,
       duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 50000 }),
     );
-    expect(res.status).toBe("paid");
+    expect(res.status).toBe("processing");
 
     const rows = await readPayoutRows(bkId);
     expect(rows).toHaveLength(1); // exactly ONE ledger row
@@ -904,7 +906,7 @@ describe("payout sweep — D-71 debit netting (netting floor)", () => {
       testDb.db,
       duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 100000 }),
     );
-    expect(res).toMatchObject({ status: "paid", netCents: 60000, deductedCents: 30000 });
+    expect(res).toMatchObject({ status: "processing", netCents: 60000, deductedCents: 30000 });
 
     // The TRANSFER carries the NETTED amount, never the raw net.
     expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
@@ -1037,7 +1039,7 @@ describe("payout sweep — concurrent cancel × sweep race (T-07-17)", () => {
     const [c1, c2] = makeRacingClients(testDb.schema, 2);
     try {
       const results = await Promise.all([payOne(drizzle(c1), b), payOne(drizzle(c2), b)]);
-      expect(results.filter((r) => r.status === "paid")).toHaveLength(1);
+      expect(results.filter((r) => r.status === "processing")).toHaveLength(1);
       expect(results.filter((r) => r.status === "skipped-claimed")).toHaveLength(1);
     } finally {
       await c1.end();

@@ -575,13 +575,13 @@ describe("cancelBookingAsHost — I3: the debit is at-most-once and payout-safe"
     };
     const result = await payOne(testDb.db, duePayout, fridayNoon);
 
-    expect(result.status).toBe("paid");
-    // 180000 net − 30000 debit = 150000 transferred. The host is paid, less exactly the fee they owe.
+    expect(result.status).toBe("processing");
+    // 180000 net − 30000 debit = 150000 submitted for transfer; terminal payment awaits reconciliation.
     expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
     expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledWith(
       expect.objectContaining({ netCents: 150000 }),
     );
-    if (result.status === "paid") {
+    if (result.status === "processing") {
       expect(result.netCents).toBe(150000);
       expect(result.deductedCents).toBe(30000);
     }
