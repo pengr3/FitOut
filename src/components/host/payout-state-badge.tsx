@@ -22,7 +22,7 @@ export function PayoutStateBadge(props: { status?: HostEarningStatus; state?: Pa
     <AlertDescription className="text-destructive">Needs attention</AlertDescription>
   </Alert>;
   const { label, Icon, iconClassName } = RECIPES[status];
-  return <Badge variant="secondary" className="max-w-full gap-1 whitespace-normal break-words text-foreground">
+  return <Badge variant="secondary" className="max-w-full gap-1 whitespace-normal break-words bg-muted text-foreground">
     <Icon className={cn("size-3 shrink-0", iconClassName)} aria-hidden="true" />{label}
   </Badge>;
 }

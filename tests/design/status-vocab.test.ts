@@ -656,7 +656,7 @@ describe("DS-10 — every status badge recipe declares an icon", () => {
   });
 
   it("the payout badge map gives every badge-rendered state an Icon, and routes `failed` to an Alert", () => {
-    for (const state of ["held", "processing", "paid", "refunded"] as const) {
+    for (const state of ["upcoming", "review", "clearing", "scheduled", "processing", "paid", "refunded"] as const) {
       expect(
         declaresIcon("src/components/host/payout-state-badge.tsx", state),
         `payout badge recipe for ${state} has no Icon`,
@@ -674,7 +674,8 @@ describe("DS-10 — every status badge recipe declares an icon", () => {
     // the code rather than by the code is the collision this phase has now hit repeatedly.
     const badge = scan.code.get("src/components/host/payout-state-badge.tsx") ?? "";
     expect(badge.length, "payout-state-badge.tsx was not read").toBeGreaterThan(0);
-    expect(badge).toContain('state === "failed"');
+    expect(badge).toContain('status === "failed"');
+    expect(badge).toContain('props.state === "held" ? "clearing"');
     expect(badge).toContain('variant="destructive"');
     // The guard must NOT be re-expressed against the derived view: that is what let a cast claim a
     // branch was unreachable while nothing checked the value the lookup actually indexes on.

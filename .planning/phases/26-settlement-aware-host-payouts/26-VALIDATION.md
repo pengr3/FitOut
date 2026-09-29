@@ -1,15 +1,15 @@
 ---
 phase: "26"
 slug: "settlement-aware-host-payouts"
-status: draft
+status: in_progress
 nyquist_compliant: false
-wave_0_complete: false
+wave_0_complete: true
 created: "2026-09-29"
 ---
 
 # Phase 26 — Validation Strategy
 
-> Per-phase validation contract. Reconcile provisional task rows with the final PLAN.md files before execution.
+> Current local validation record. Account and publication checkpoints remain HOLD.
 
 ## Test Infrastructure
 
@@ -20,36 +20,41 @@ created: "2026-09-29"
 | **Quick run command** | `node node_modules/vitest/vitest.mjs run tests/payments/payout-sweep.test.ts tests/payments/payout-reconcile.test.ts` |
 | **Full relevant suite command** | `node node_modules/vitest/vitest.mjs run tests/payments tests/paymongo tests/host tests/ops` |
 | **Prerequisite** | Isolated `fitout_test` database prepared by `scripts/db-test-setup.ts`; never point tests at a live or development database |
-| **Estimated runtime** | Measure on the target machine before setting a feedback budget; the database and full suite were not run during planning |
+| **Measured runtime** | Full relevant money suite: 74.66 s (63 passed files, 758 passed tests); full project suite: 346.59 s (six failures, described below) |
 
 ## Sampling Rate
 
 - **After each implementation task:** Run the smallest affected test file, plus typecheck when TypeScript changed.
 - **After every plan wave:** Run the relevant payment, PayMongo, host, and ops suites above after isolated database setup.
 - **Before `$gsd-verify-work`:** Run the full project test and static checks, then separately review the account-specific proof and release decision.
-- **Max feedback latency:** To be measured from the first execution wave; split the suite by changed area if the full relevant run is slow.
+- **Max feedback latency:** Use focused files after an edit (the payout booking fixture ran in 2.81 s); allow about 90 s for the relevant money suite and about 6 minutes for the full project suite on this machine.
 
 ## Per-Task Verification Map
 
-Plan and wave IDs remain provisional until PLAN.md files exist. Every implementation task must gain an `<automated>` check or an explicit Wave 0 dependency.
+The final plans supply these task and wave IDs. Passing local fixtures verifies code behavior, not account entitlement or live money movement.
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | TBD | HPAY-01 | Settlement spoofing/mis-correlation | Exact payment, payout, status, destination, pagination, freshness, and reversal checks fail closed | integration | `node node_modules/vitest/vitest.mjs run tests/payments/settlement-proof.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | HPAY-02 | Off-window transfer | Manila Friday noon cohort and 23:00 retry boundary; no other-day dispatch | integration | `node node_modules/vitest/vitest.mjs run tests/payments/payout-sweep.test.ts` | ✅ | ⬜ pending |
-| TBD | TBD | TBD | HPAY-03 | Unfunded transfer | Unknown or insufficient available Wallet funds, including fee and concurrent claims, block transfer | integration | `node node_modules/vitest/vitest.mjs run tests/payments/payout-sweep.test.ts` | ✅ | ⬜ pending |
-| TBD | TBD | TBD | HPAY-04 | Duplicate or excess transfer | Claim, uncertain-outcome read-back, frozen commission, debit/refund netting, and terminal reconciliation remain intact | integration | `node node_modules/vitest/vitest.mjs run tests/payments/payout-sweep.test.ts tests/payments/payout-reconcile.test.ts tests/payments/ledger-freeze.test.ts tests/payments/cancellation.test.ts` | ✅ | ⬜ pending |
-| TBD | TBD | TBD | HPAY-05 | Cross-host disclosure/false promise | Preclaim earnings are owner-scoped and labels/dates match actual evidence and transfer state | integration/component | `node node_modules/vitest/vitest.mjs run tests/payments/earnings-view.test.ts` | ✅ | ⬜ pending |
-| TBD | TBD | TBD | HPAY-06 | Unowned money exception | Missing/returned settlement, missed cutoff, insufficient funds, and failed/stuck transfer yield durable actionable alert without sensitive data | integration | `node node_modules/vitest/vitest.mjs run tests/ops/alerts.test.ts tests/ops/alert-digest.test.ts` | ✅ | ⬜ pending |
-| TBD | TBD | TBD | HPAY-07 | Unauthorized release | Code cannot change HOLD or authorize live money movement; proof packet names authority and redacted observations | static contract | `node node_modules/vitest/vitest.mjs run tests/paymongo/preview-environment.test.ts` | ✅ | ⬜ pending |
+| 01-1/2 | 26-01 | 1 | HPAY-01 | Settlement spoofing/mis-correlation | Exact payment, payout, status, destination, pagination, freshness, and reversal checks fail closed | integration | `tests/payments/settlement-proof.test.ts` | ✅ | ✅ local; account fields HOLD |
+| 02-1/2 | 26-02 | 2 | HPAY-02/03 | Off-window or unfunded transfer | Manila Friday cohort and fee-inclusive Wallet availability gate | integration | `tests/payments/payout-sweep.test.ts`, `tests/paymongo/wallet-funding.test.ts` | ✅ | ✅ local; account funding HOLD |
+| 03-1/2 | 26-03 | 3 | HPAY-04 | Duplicate or excess transfer | Claim, uncertain read-back, frozen money and terminal reconciliation | integration | `tests/payments/payout-sweep.test.ts`, `tests/payments/payout-reconcile.test.ts`, `tests/payments/ledger-freeze.test.ts` | ✅ | ✅ local; second-attempt resend HOLD |
+| 04/05 | 26-04/05 | 3/4 | HPAY-05 | Cross-host disclosure or false promise | Owner-scoped preclaim earnings and booking projection | integration/design | `tests/payments/earnings-view.test.ts`, `tests/design/legal-copy.test.ts` | ✅ | ✅ local; operative terms HOLD |
+| 06-1/2 | 26-06 | 5 | HPAY-06 | Unowned money exception | Durable, redacted payout alert and owner-scoped attention | integration | `tests/ops/alerts.test.ts`, `tests/ops/alert-digest.test.ts`, `tests/payments/payout-attention.test.ts` | ✅ | ✅ local; monitored owner HOLD |
+| 07/08/09 | 26-07/08/09 | 6/7 | HPAY-07 | Unauthorized release | HOLD packets, guarded placeholder and bounded proof template | static/design | `tests/paymongo/preview-environment.test.ts`, `tests/design/legal-copy.test.ts`, account packet field check | ✅ | ✅ local; human checkpoints HOLD |
 
 ## Wave 0 Requirements
 
-- [ ] Add `tests/payments/settlement-proof.test.ts` with provider payout and transaction-list fixtures, including incomplete pagination and returned/out-of-order observations.
-- [ ] Extend payout sweep fixtures for Manila time boundaries, Wallet balance and transfer fee, concurrent bookings, and uncertain provider outcomes after the documented 24-hour idempotency window.
-- [ ] Extend earnings and ops tests for owner-scoped preclaim rows, supported schedule labels, durable exceptions, and redaction.
-- [ ] Measure quick and full relevant suite runtimes after isolated database setup, then replace the provisional latency entry above.
-- [ ] Reconcile this table's task IDs and commands with the final plans; do not leave a missing test file as a green verification step.
+- [x] Settlement proof fixtures include incomplete pagination and returned/out-of-order observations.
+- [x] Payout sweep fixtures cover Friday boundaries, Wallet and fee, concurrency, and lost responses after key expiry.
+- [x] Earnings and ops fixtures cover owner scope, status labels, durable exceptions, and redaction.
+- [x] Quick, relevant, and full project suite runtimes measured against the isolated test database.
+- [x] Task IDs, waves, commands, and existing files reconciled with final plans.
+
+## Full project gate — 2026-09-29
+
+The full `vitest run` finished with 245 files passing, 2 skipped and 4 failing; 3,081 tests passed, 5 skipped and 6 failed. One failed booking test still assumed that a confirmed booking without settlement proof was due and that dispatch immediately meant Paid. Its fixture now supplies exact deposited proof, Friday time and a funded Wallet, and expects Processing; its focused rerun passed 11/11. The other five failures are in `tests/auth/public-origin-callers.test.ts`, `tests/availability/slot-picker-end-boundary.test.tsx`, and `tests/validation/listing-schema.test.ts`, outside the Phase 26 payout change. The full run also reported two escaped `public.audit` rows (`guest-email`, `notify`) in the dedicated test database; this is an isolation gap to fix before a full-suite PASS claim. Do not report the full suite as green from the focused rerun.
+
+The full design run had 19 failures in 12 files. Follow-up payout-specific repairs made `brand-recipe`, `host-tone-census`, and `status-vocab` pass. `loading-coverage` now recognizes the async payout setup page and its loading file, but its remaining failure names unrelated dimensions in `src/app/(public)/loading.tsx`. Other full design failures include search, email, ops-panel and source-inventory changes outside this payout slice. TypeScript passed; repository-wide ESLint exited 0 with 33 warnings and no errors. Rerun the full gates after the other work in this shared checkout is settled.
 
 ## Manual-Only Verifications
 
@@ -61,11 +66,12 @@ Plan and wave IDs remain provisional until PLAN.md files exist. Every implementa
 
 ## Validation Sign-Off
 
-- [ ] Every plan task has an automated check or Wave 0 dependency.
-- [ ] No three consecutive implementation tasks lack automated verification.
-- [ ] All missing test references above are created before their first use.
-- [ ] Commands run once and exit; no watch-mode flags.
-- [ ] Feedback latency has been measured and a practical limit recorded.
-- [ ] `nyquist_compliant: true` is set only after validation against the completed plans.
+- [x] Every automated implementation task has a test or an explicit external evidence gate.
+- [x] No three consecutive implementation tasks lack automated verification.
+- [x] All referenced test files exist.
+- [x] Commands run once and exit; no watch-mode flags.
+- [x] Feedback latency has been measured and recorded above.
+- [ ] Full project and design gates are green, or outstanding failures are closed with scoped evidence.
+- [ ] Account, publication, and one-operation checkpoints are decided with the required authority.
 
-**Approval:** pending
+**Approval:** pending; `nyquist_compliant` remains false while external and full-suite gates are open.
