@@ -15,10 +15,10 @@ provides:
 affects: [26-07, 26-08, 26-09, payout-release-readiness]
 plan_head_before: 519deb16c2931bf9093d99a1579c27153b8d89a8
 actuals:
-  tokens: 7741
+  tokens: 7773
   tasks: 2
-  commits: 4
-commits: 4
+  commits: 6
+commits: 6
 tech-stack:
   added: []
   patterns: [deterministic audit primary key, redacted booking reference, safe public category, event plus cron fallback]
@@ -62,7 +62,7 @@ coverage:
         ref: tests/payments/payout-attention.test.ts
         status: pass
     human_judgment: false
-duration: 25min
+duration: 30min
 completed: 2026-09-29
 status: complete
 ---
@@ -74,9 +74,9 @@ Blocked Friday payouts now leave one durable, actionable audit row per booking, 
 ## Performance
 
 - Started: 2026-09-29T09:28:11Z
-- Completed: 2026-09-29T09:53:00Z
+- Completed: 2026-09-29T09:58:00Z
 - Tasks: 2
-- Production and RED commits: 4
+- Production, RED, and correction commits: 5 (plus the first summary commit)
 - Changed files: 19
 
 ## Accomplishments
@@ -92,6 +92,7 @@ Blocked Friday payouts now leave one durable, actionable audit row per booking, 
 2. Task 1 GREEN: `9e745712` — durable money-path exceptions and Friday cutoff pass.
 3. Task 2 RED: `2abf68c7` — prompt delivery and safe host state assertions.
 4. Task 2 GREEN: `31305c4b` — digest, operator queue, and owner-scoped host state.
+5. Correction: `c4487cd5` — exclude suspended hosts from the missed-cutoff queue.
 
 ## Verification
 
@@ -108,6 +109,7 @@ Blocked Friday payouts now leave one durable, actionable audit row per booking, 
 1. **[Rule 1 - Bug] Cron start latency at the final minute.** The public Friday window intentionally ends at exact 23:00:00. An Inngest invocation a few milliseconds later would skip its own final pass. The handler now normalizes an invocation during the 23:00 minute to the scheduled instant before due selection, without widening the public dispatch window. Verified by the existing Friday boundary cases and the cutoff integration test. Commit: `9e745712`.
 2. **[Rule 2 - Missing critical functionality] Local recovery from a redacted reference.** A hash-only audit row was safe to email but could not identify the booking to an operator. Added a local-only booking lookup, complete payout exception queue, and runbook procedure. Commit: `31305c4b`.
 3. **[Rule 2 - Missing critical functionality] Booking surface parity.** The plan named earnings, but booking list/detail share the payout projector and would otherwise contradict earnings after an exception. The owner-scoped attention read now feeds both. Commit: `31305c4b`.
+4. **[Rule 1 - Bug] Suspended host cutoff false positive.** The cutoff pass initially included bookings whose hosts had been deliberately suspended, even though the dispatch query excluded them. Mirrored the suspension predicate in the exception pass. Verified by the focused payout and ops suites. Commit: `c4487cd5`.
 
 ## Release Boundary
 
@@ -115,4 +117,4 @@ Phase 25.1 and payout release remain **HOLD**. The monitored `OPS_ALERT_EMAIL` r
 
 ## Self-Check: PASSED
 
-The created files and commits named above exist; required automated checks passed. No known stubs, skipped tests, or unrun plan verification remain. The controlled owner/account proof is an explicit release gate, not a stub in this plan.
+The created files and commits named above exist; required automated checks passed. No known stubs, skipped tests, or unrun plan verification remain. The controlled owner/account proof is an explicit release gate, not a stub in this plan. The measured six-commit count includes the first summary commit because the suspension correction followed it.
