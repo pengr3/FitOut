@@ -16,7 +16,8 @@ import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { eq } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { mockPayMongo } from "../helpers/mocks";
-import { user, listing, hostPayoutLedger, booking } from "@/lib/db/schema";
+import { user, listing, hostPayoutLedger, booking, audit } from "@/lib/db/schema";
+import { recordSettlementObservation } from "@/lib/payments/settlement";
 
 let testDb: TestDb;
 type ReconcileModule = typeof import("@/inngest/functions/payout-reconcile");
@@ -160,7 +161,7 @@ afterAll(async () => {
 });
 
 describe("queryProcessingLedger — selectivity (PAY-03)", () => {
-  it("returns only processing rows with a transfer_id (held + paid excluded)", async () => {
+  it("returns processing and unresolved held payout rows, excluding terminal rows", async () => {
     const proc = await seedLedger({ state: "processing", transferId: "tr_sel" });
     const held = await seedLedger({ state: "held", transferId: null });
     const paid = await seedLedger({ state: "paid", transferId: "tr_paid_sel", paidAtMs: Date.now() });
@@ -169,10 +170,9 @@ describe("queryProcessingLedger — selectivity (PAY-03)", () => {
     const ids = rows.map((r) => r.bookingId);
 
     expect(ids).toContain(proc);
-    expect(ids).not.toContain(held); // no transfer_id AND not processing
+    expect(ids).toContain(held); // crash or lost create response needs discovery
     expect(ids).not.toContain(paid); // terminal — already reconciled
-    // Every returned row is genuinely processing with a transfer_id.
-    for (const r of rows) expect(r.transferId).toBeTruthy();
+    expect(rows.find((r) => r.bookingId === held)?.transferId).toBeNull();
   });
 });
 
@@ -183,7 +183,7 @@ describe("uncertain claim read-back (HPAY-04)", () => {
     mockLookup.mockResolvedValueOnce([{ id: "tr_discovered", status: "succeeded",
       referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" }]);
     mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_discovered", status: "succeeded",
-      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" });
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" } as never);
     const result = await reconcileOne({ bookingId: bkId, transferId: null, createdAt: new Date() }, testDb.db);
     expect(result.state).toBe("paid");
     expect((await readLedger(bkId)).transferId).toBe("tr_discovered");
@@ -198,6 +198,67 @@ describe("uncertain claim read-back (HPAY-04)", () => {
       createdAt: new Date() }, testDb.db);
     expect(result.state).toBe("processing");
     expect((await readLedger(bkId)).paidAt).toBeNull();
+    spy.mockRestore();
+  });
+
+  it("keeps an ambiguous held claim nonterminal and creates one owned exception on replay", async () => {
+    const bkId = await seedLedger({ state: "held", transferId: null });
+    mockLookup.mockResolvedValue([{ id: "tr_a", status: "pending",
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" },
+    { id: "tr_b", status: "pending", referenceNumber: `host-payout-${bkId}`,
+      amount: 180000, currency: "PHP" }]);
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    for (let i = 0; i < 2; i++) {
+      expect((await reconcileOne({ bookingId: bkId, transferId: null, createdAt: new Date() },
+        testDb.db)).state).toBe("held");
+    }
+    const rows = await testDb.db.select().from(audit);
+    expect(rows.filter((r) => r.action === "host_payout_recovery" &&
+      (r.meta as { bookingId?: string })?.bookingId === bkId)).toHaveLength(1);
+    expect((await readLedger(bkId)).paidAt).toBeNull();
+    expect(mockPayMongo.getTransfer).not.toHaveBeenCalled();
+    spy.mockRestore();
+    mockLookup.mockResolvedValue([]);
+  });
+
+  it("moves a discovered failed transfer to Failed and leaves a wrong-reference GET held", async () => {
+    const failedId = await seedLedger({ state: "held", transferId: null });
+    mockLookup.mockResolvedValueOnce([{ id: "tr_failed_discovered", status: "failed",
+      referenceNumber: `host-payout-${failedId}`, amount: 180000, currency: "PHP" }]);
+    mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_failed_discovered", status: "failed",
+      referenceNumber: `host-payout-${failedId}` } as never);
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect((await reconcileOne({ bookingId: failedId, transferId: null,
+      createdAt: new Date() }, testDb.db)).state).toBe("failed");
+    expect((await readLedger(failedId)).state).toBe("failed");
+
+    const mismatchId = await seedLedger({ state: "held", transferId: null });
+    mockLookup.mockResolvedValueOnce([{ id: "tr_mismatch", status: "succeeded",
+      referenceNumber: `host-payout-${mismatchId}`, amount: 180000, currency: "PHP" }]);
+    mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_mismatch", status: "succeeded",
+      referenceNumber: "host-payout-other" } as never);
+    expect((await reconcileOne({ bookingId: mismatchId, transferId: null,
+      createdAt: new Date() }, testDb.db)).state).toBe("processing");
+    expect((await readLedger(mismatchId)).paidAt).toBeNull();
+    spy.mockRestore();
+  });
+
+  it("records a returned settlement after dispatch without rewriting successful transfer history", async () => {
+    const bkId = await seedLedger({ state: "processing", transferId: "tr_returned_settlement" });
+    await testDb.db.update(booking).set({ paymentId: `pay_${bkId}` }).where(eq(booking.id, bkId));
+    const at = new Date(Date.now() - 60_000);
+    await recordSettlementObservation(bkId, { paymentId: `pay_${bkId}`, payoutId: `po_${bkId}`,
+      transactionId: `txn_${bkId}`, transactionType: "payment", currency: "PHP",
+      liveMode: true, providerStatus: "returned", destinationMatched: true,
+      paginationComplete: true, mappingVerified: true, providerStatusAt: at,
+      verifiedAt: new Date(at.getTime() + 1000) }, testDb.db);
+    mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_returned_settlement", status: "succeeded" });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect((await reconcileOne({ bookingId: bkId, transferId: "tr_returned_settlement",
+      createdAt: new Date() }, testDb.db)).state).toBe("paid");
+    expect((await readLedger(bkId)).state).toBe("paid");
+    expect(spy).toHaveBeenCalledWith("[payout-alert] settlement reversed after transfer claim",
+      expect.objectContaining({ bookingId: bkId }));
     spy.mockRestore();
   });
 });
@@ -246,7 +307,6 @@ describe("reconcileOne — idempotency (the AND state='processing' guard)", () =
     const paidAtMs = Date.UTC(2026, 0, 1, 0, 0, 0); // fixed instant, round ms → round-trips exactly
     const bkId = await seedLedger({ state: "paid", transferId: "tr_done", paidAtMs });
     const before = await readLedger(bkId);
-    mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_done", status: "succeeded" });
 
     await reconcileOne(
       { bookingId: bkId, transferId: "tr_done", createdAt: new Date() },

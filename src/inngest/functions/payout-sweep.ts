@@ -19,6 +19,7 @@ import {
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import { createExternalHostPayout, findHostPayoutTransfers, readPayoutWalletFunding } from "@/lib/paymongo";
 import { currentSettlementProof } from "@/lib/payments/settlement";
+import { recordPayoutException } from "@/inngest/functions/payout-reconcile";
 
 /** Maximum bookings inspected during one Friday sweep pass. */
 const SWEEP_BATCH_SIZE = 100;
@@ -205,8 +206,10 @@ export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date(
       console.error("[payout-alert] payout reference unresolved", {
         bookingId: b.bookingId, matchCount: candidates.length,
       });
+      await recordPayoutException(dbConn, b.bookingId, "reference_unresolved");
     } catch {
       console.error("[payout-alert] payout reference read unavailable", { bookingId: b.bookingId });
+      await recordPayoutException(dbConn, b.bookingId, "reference_read_unavailable");
     }
     return priorClaim.state === "processing" ? { status: "skipped-claimed" } : { status: "held-uncertain" };
   }
@@ -386,6 +389,7 @@ export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date(
     // The provider may have accepted a request whose response was lost. The durable held claim
     // prevents a blind retry after PayMongo's short idempotency-key window; ops must read back.
     console.error("[payout-alert] payout outcome uncertain; read-back required", { bookingId: b.bookingId });
+    await recordPayoutException(dbConn, b.bookingId, "create_outcome_uncertain");
     return { status: "held-uncertain" };
   }
 }

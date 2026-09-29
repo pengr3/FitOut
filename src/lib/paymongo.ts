@@ -855,11 +855,19 @@ export async function findHostPayoutTransfers(bookingId: string): Promise<Transf
  * `processing` so an unrecognized status can never spuriously flip a payout to Paid.
  */
 export async function getTransfer(transferId: string): Promise<Transfer> {
-  const json = await paymongoFetch<{ data: { id: string; attributes: { status: string } } }>(
+  const json = await paymongoFetch<{ data: { id: string; attributes?: Record<string, unknown>;
+    status?: string; reference_number?: string; amount?: number; currency?: string } }>(
     `/v2/transfers/${transferId}`,
     { method: "GET" }, // GET — no Idempotency-Key
   );
-  return { id: json.data.id, status: json.data.attributes.status };
+  const attrs = json.data.attributes ?? json.data;
+  if (typeof json.data.id !== "string" || typeof attrs.status !== "string") {
+    throw new Error("PayMongo transfer read returned an unverified shape");
+  }
+  return { id: json.data.id, status: attrs.status,
+    referenceNumber: typeof attrs.reference_number === "string" ? attrs.reference_number : undefined,
+    amount: typeof attrs.amount === "number" ? attrs.amount : undefined,
+    currency: typeof attrs.currency === "string" ? attrs.currency : undefined };
 }
 
 // Read-only merchant-payout surfaces. Raw responses stay in process memory and are validated by
