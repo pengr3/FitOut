@@ -19,7 +19,7 @@ key-files:
     - .planning/phases/26-settlement-aware-host-payouts/26-09-PLAN.md
     - .planning/phases/26-settlement-aware-host-payouts/26-VALIDATION.md
 key-decisions:
-  - "Account and deployment facts remain unverified with responsible roles; the account-proof outcome is HOLD."
+  - "The signed-in dashboard shows a configured weekly Wednesday payout cadence, while its Home and Payouts pages disagree on the upcoming receipt date; remaining account and deployment facts retain responsible roles and HOLD."
   - "No one-operation ID, cap, participant, operator, stop/return path, or joint authority exists; no live transfer was attempted."
   - "The user deferred terms publication outside Phase 26 execution. Its incomplete status does not gate account review or a separately authorized bounded proof."
 requirements-completed: []
@@ -49,7 +49,7 @@ status: complete
 
 # Phase 26 Plan 09: Account and Controlled-Proof Gate
 
-The packet records an explicit **HOLD** for account capability, deployment read-back, monitored operations, and one controlled money-path proof. Every missing field names a responsible role. No PayMongo call, production migration, live schedule change, or transfer was made for this plan.
+The packet records an explicit **HOLD** for account capability, deployment read-back, monitored operations, and one controlled money-path proof. A later read-only Dashboard inspection observed a configured weekly Wednesday cadence, but its Home and Payouts pages gave different receipt dates for the upcoming payout. Every missing or conflicting field names a responsible role. No PayMongo API call, production migration, live schedule change, or transfer was made for this plan.
 
 Task 1 produced the redacted packet and recorded the focused 78-test pass, TypeScript pass, and scoped ESLint pass. The host/legal-copy source guard also passed 38 tests. Tasks 2 and 3 took their planned HOLD branches: account-specific observations and deployment evidence are absent, and no immutable one-operation decision or joint bounded authorization exists. The two packet field checks pass. A future review begins when account and deployment authorities can provide current redacted observations; no review date was assigned by the user.
 

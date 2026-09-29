@@ -22,7 +22,7 @@ behavior_unverified: 0
 | At-most-once claim, frozen amount, uncertain-create recovery, and terminal reconciliation remain fail closed | Verified locally | Payout sweep and reconciliation tests; terminal failed rows are excluded from automatic resend pending the attempt-identity design in `26-RETRY-ATTEMPT-GAP.md` |
 | Owner-scoped preclaim earnings and honest Friday host copy | Verified locally | Earnings projection and legal-copy source gates; terms route remains an explicit nonbinding placeholder |
 | Durable payout exception and alert path exists in source | Verified locally | Ops payout attention, alert/digest implementation and prior relevant-suite results; monitored human owner is not evidenced |
-| This PayMongo account's weekday, Wallet, transaction mapping/pagination, balance permission, fee, reference lookup, and deployed schema/schedule are observed | Unverified — HOLD | All fields in `26-ACCOUNT-AND-RELEASE-PROOF.md` have responsible roles and missing observations |
+| This PayMongo account's weekday, Wallet, transaction mapping/pagination, balance permission, fee, reference lookup, and deployed schema/schedule are observed | Partly observed — HOLD | Dashboard shows Weekly Wednesday cadence, but Home and Payouts give conflicting upcoming receipt dates; Wallet arrival, transaction mapping, balance, fee, reference and deployment evidence remain missing in `26-ACCOUNT-AND-RELEASE-PROOF.md` |
 | One capped settlement-to-host transfer is authorized and reconciled to terminal provider state | Unverified — HOLD | No immutable decision ID, cap, participant, operator, joint authority, stop/return observation, or live transfer exists |
 
 **Score:** 6/8 scoped truths verified locally. The two unverified truths require external account and one-operation evidence; a HOLD is a safe decision, not proof that money moved.
@@ -31,7 +31,7 @@ behavior_unverified: 0
 
 | Requirement | Verification state |
 | --- | --- |
-| HPAY-01 | Local settlement persistence and fail-closed tests pass; account-specific field mapping and live migration remain HOLD. |
+| HPAY-01 | Local settlement persistence and fail-closed tests pass; the configured account cadence is observed but current-cycle receipt dates conflict. Field mapping and live migration remain HOLD. |
 | HPAY-02 | Friday schedule and hold rules pass local tests. |
 | HPAY-03 | Funding and fee guard pass local tests; account balance entitlement remains HOLD. |
 | HPAY-04 | Local money-path integrity tests pass; automatic resend of a terminal failed transfer remains disabled pending per-attempt identity. |

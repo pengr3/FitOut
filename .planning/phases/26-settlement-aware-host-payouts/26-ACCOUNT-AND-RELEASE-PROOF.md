@@ -1,6 +1,6 @@
 # Phase 26 — Account capability and controlled-proof gate
 
-**Packet status: HOLD.** Prepared 2026-09-29 UTC for Plan 26-09 Task 1. This packet is a review template, not an account observation, provider instruction, migration approval, transfer authorization, or broad-release decision. No account authority, deployment operator, product approver, or money-operations owner has supplied the evidence below. Do not invoke a provider, scheduler, migration, checkout, transfer, refund, or alert merely to fill a blank. The user deferred terms publication for later; it is outside this account-proof gate.
+**Packet status: HOLD.** Prepared 2026-09-29 UTC for Plan 26-09 Task 1 and updated with one read-only, user-authorized Dashboard schedule observation. This packet is not provider instruction, migration approval, transfer authorization, or broad-release decision. No account authority has confirmed the conflicting receipt dates, and no deployment operator, product approver, or money-operations owner has supplied the remaining evidence below. Do not invoke a provider, scheduler, migration, checkout, transfer, refund, or alert merely to fill a blank. The user deferred terms publication for later; it is outside this account-proof gate.
 
 ## Evidence and decision rules
 
@@ -17,11 +17,11 @@ The evidence store may hold only opaque references and generic observations. Do 
 | Marketplace, linked-account, platform Wallet, transfer-create and transfer-read entitlement for the intended single host path | **Unverified — HOLD**; category, UTC, reference: missing | PayMongo account authority |
 | Account-specific provider event subscription, if payout or transfer events are used, plus signed-event entitlement and polling/read-back fallback | **Unverified — HOLD**; event categories, UTC, reference: missing; no event is an authority by itself | PayMongo account authority and deployment operator |
 
-## Account capability matrix — all values unresolved
+## Account capability matrix — schedule partly observed; other values unresolved
 
 | Required observed fact | Status and redacted evidence slot | Owner and HOLD consequence |
 | --- | --- | --- |
-| Actual merchant settlement **weekday**, arrival window, payout cadence, clearing delay, holiday/weekend behavior, and forwarding into the intended Wallet | **Unverified — HOLD**; observed weekday and holiday rule: unknown; UTC/reference: missing | PayMongo account authority. If this account cannot fund an eligible Friday, return the PM timing conflict to product; do not advance from unrelated receipts or silently change the host promise. The public Wednesday default is not account proof. |
+| Actual merchant settlement **weekday**, arrival window, payout cadence, clearing delay, holiday/weekend behavior, and forwarding into the intended Wallet | **Contradicted for current receipt date — HOLD**. The signed-in Dashboard Payouts page observed on 2026-09-29 shows **Weekly**, with cleared payments issued **every Wednesday** and holiday payouts released the next available banking day. It lists the upcoming payout for **2026-09-30** and the next for **2026-10-07**. Dashboard Home for the same upcoming payout instead says **“Receive by Thu, Oct 1, 2026.”** Opaque references: dashboard `/payouts` and `/home`, read-only session at 2026-09-29T12:13Z; account ID, amount and recipient omitted. No completed payout appears in Payout History, so actual Wallet arrival and clearing delay are unobserved. | PayMongo account authority resolves the conflicting current-cycle receipt dates and confirms the eventual Wallet deposit. Product evaluates Friday feasibility. Do not advance from unrelated receipts or silently change the host promise. |
 | Approved FitOut **Wallet** destination and source boundary for the deposited payout, including verified ownership and mode match | **Unverified — HOLD**; destination category, UTC/reference: missing | PayMongo account authority. A configured or first-listed Wallet is insufficient. |
 | Exact payout-transaction **payment ID** field mapping (`payment` versus `split_payment` or another account-observed shape), transaction type, matching captured booking payment, and duplicate/ambiguous-ID treatment | **Unverified — HOLD**; mapping category, UTC/reference: missing | PayMongo account authority. A fixture mapping cannot establish this account's field. |
 | Complete **pagination** of payout transactions: page/cursor traversal through terminal page, count/continuation consistency, and no omitted matching payment | **Unverified — HOLD**; traversal result, UTC/reference: missing | PayMongo account authority. An initial page or empty partial page is not a negative proof. |
@@ -31,6 +31,10 @@ The evidence store may hold only opaque references and generic observations. Do 
 | Transfer lookup by provider ID and by stable **reference** after uncertain create, including outcome beyond idempotency-key expiry | **Unverified — HOLD**; lookup capability, UTC/reference: missing | PayMongo account authority. Unknown create outcome stays processing/HOLD; never issue a second create to learn the first result. |
 
 Account verdict: **HOLD**. The product rule is Friday 12:00 Asia/Manila admission, hourly retry through 23:00 that Friday, and next-Friday consideration after a missed cutoff. This rule does not prove this merchant receives funds before any Friday. The 24-hour post-session interval is a minimum review hold, not a payment deadline or dispute-finality claim. A contradicted funding schedule is a named PM decision, not permission to use another booking's cash.
+
+### Read-only account schedule observation — 2026-09-29
+
+The user authorized inspection of the signed-in PayMongo Dashboard. The Payouts page identifies the **configured generation cadence as Weekly on Wednesday**. This is account-screen evidence, stronger than a public default, but it does not establish the arrival time of funds in the verified Wallet or the clearing rule for a particular booking payment. The Home and Payouts screens disagree on the upcoming payout's receipt date (October 1 versus September 30). The account authority should resolve that discrepancy against the eventual payout record. No schedule setting was changed, no provider API was called, and no transfer was initiated. Dashboard mode and account entitlement were not established by this navigation, so the other capability rows remain HOLD.
 
 ## Deployment and operations read-back
 
