@@ -71,6 +71,7 @@ import { audit, availabilityBlock, booking, hostPayoutLedger, listing, user } fr
 import { readDbNow } from "@/lib/booking/bookings-query";
 import { formatMoney } from "@/lib/money";
 import { OPS_CANCEL_REFUNDS_SERVICE_FEE } from "@/lib/payments/fees";
+import { recordSettlementObservation } from "@/lib/payments/settlement";
 import { LISTING_REJECT_REASONS } from "@/lib/validation/ops";
 import type { RateLimitOptions, RateLimitResult } from "@/lib/rate-limit";
 
@@ -606,13 +607,21 @@ describe("D-244 / ENF-03 — the durable record of who decided, and what the hos
   });
 
   it("case 7 — retained_space_cents = 0, and the payout sweep therefore EXCLUDES the booking (before/after)", async () => {
-    // Ended 25h ago, so `ends_at + PAYOUT_DELAY_HOURS <= now()` and the sweep genuinely wants it.
+    // The old before/after control now needs a Friday cohort and exact deposited proof.
     const l = await seedListing("oc_l_sweep");
     await seedBooking("oc_b_sweep", l, -26 * HOUR);
+    const fridayNoon = new Date("2026-10-02T04:00:00.000Z");
+    expect(await recordSettlementObservation("oc_b_sweep", {
+      paymentId: "pay_oc_b_sweep", payoutId: "po_oc_b_sweep", transactionId: "txn_oc_b_sweep",
+      transactionType: "payment", currency: "PHP", liveMode: true,
+      providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+      mappingVerified: true, providerStatusAt: new Date(fridayNoon.getTime() - HOUR),
+      verifiedAt: new Date(fridayNoon.getTime() - MIN),
+    }, testDb.db)).toBe(true);
 
     // BEFORE — the control. Without it the exclusion below would also pass for a booking the sweep
     // never selected in the first place.
-    const before = await queryDuePayouts(testDb.db);
+    const before = await queryDuePayouts(testDb.db, fridayNoon);
     expect(
       before.map((d) => d.bookingId),
       "the sweep never wanted this booking — case 7's exclusion would prove nothing",
@@ -632,7 +641,7 @@ describe("D-244 / ENF-03 — the durable record of who decided, and what the hos
     expect(row.retainedSpaceCents).not.toBeNull();
 
     // AFTER — "the host is paid nothing", enforced by an EXISTING predicate with no new code.
-    const after = await queryDuePayouts(testDb.db);
+    const after = await queryDuePayouts(testDb.db, fridayNoon);
     expect(after.map((d) => d.bookingId)).not.toContain("oc_b_sweep");
   });
 });

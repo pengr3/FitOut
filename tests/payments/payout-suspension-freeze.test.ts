@@ -406,7 +406,10 @@ describe("ENF-02 — the mirror does NOT reach `processing`: a stranded transfer
     expect(row).toBeDefined();
     expect(row!.transferId).toBe("tr_stranded_1");
 
-    mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_stranded_1", status: "pending" });
+    mockPayMongo.getTransfer.mockResolvedValueOnce({
+      id: "tr_stranded_1", status: "pending",
+      referenceNumber: `host-payout-${s.bookingId}`, amount: 180000, currency: "PHP",
+    });
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await reconcileOne(
       { bookingId: s.bookingId, transferId: "tr_stranded_1", createdAt: new Date(createdAtMs) },

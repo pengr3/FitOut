@@ -147,7 +147,8 @@ describe("commission freeze (PAY-02, D-51)", () => {
 
     // First sweep at the default 10% rate → the ledger FREEZES 1000 bps / 20000 c.
     const first = await payOne(testDb.db, b);
-    expect(first.status).toBe("paid");
+    // Transfer creation is Processing until the terminal provider read confirms Paid.
+    expect(first.status).toBe("processing");
     const frozen = await readLedger(bkId);
     expect(frozen.commissionRateBps).toBe(1000);
     expect(frozen.commissionCents).toBe(20000);
