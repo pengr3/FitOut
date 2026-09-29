@@ -33,6 +33,7 @@ import {
   type PayoutLedgerState,
 } from "@/components/host/payout-ledger-status";
 import * as earningsProjection from "@/components/host/payout-ledger-status";
+import { bookingPayoutView } from "@/lib/host/booking-payout";
 
 // ---------------------------------------------------------------------------
 // 1. Pure state derivation (no DB)
@@ -183,6 +184,40 @@ describe("booking detail payout wiring (HPAY-05)", () => {
     expect(detail).toContain("loadBookingPayouts");
     expect(detail).toContain("<HostPayoutCell view=");
     expect(detail).not.toContain("<HostPayoutCell state=");
+  });
+
+  it("carries the earnings status, timing and supported amount through every booking state", () => {
+    const frozen = { grossCents: 200_000, commissionCents: 20_000, netCents: 180_000,
+      recoveredCents: 0, state: "processing" as const, transferId: null, paidAt: null };
+    const proof = { depositedAt: new Date("2026-09-30T04:00:00Z"), verifiedAt: new Date("2026-09-30T04:10:00Z") };
+    const cases: Array<[string, EarningSource, boolean]> = [
+      ["upcoming", source("upcoming", { endsAt: new Date("2026-10-02T05:00:00Z") }), false],
+      ["review", source("review", { endsAt: new Date("2026-09-30T20:00:00Z") }), false],
+      ["clearing", source("clearing"), false],
+      ["scheduled", source("scheduled", { settlement: proof }), true],
+      ["processing", source("processing", { ledger: frozen }), false],
+      ["paid", source("paid", { ledger: { ...frozen, state: "paid", transferId: "tr_1", paidAt: projectionNow } }), false],
+      ["refunded", source("refunded", { bookingStatus: "cancelled", retainedSpaceCents: 0 }), false],
+      ["failed", source("failed", { ledger: { ...frozen, state: "failed" } }), false],
+    ];
+    for (const [expected, input, policy] of cases) {
+      const earning = project([input], policy)[0];
+      const bookingView = bookingPayoutView(earning);
+      expect(bookingView.status).toBe(expected);
+      expect(bookingView.timing).toBe(earning.timing);
+      if (expected === "paid") expect(bookingView.timing).toContain("Paid Oct 1, 2026");
+      if (expected === "scheduled") expect(bookingView.timing).toContain("Oct 2, 2026 at 12:00 Manila time");
+      if (expected === "refunded") expect(bookingView.amountLabel).toBeNull();
+      else expect(bookingView.amountLabel).toContain(earning.estimated ? "Estimated payout" : "Your payout");
+    }
+  });
+
+  it("withdraws a previously supported Friday when current settlement proof is returned", () => {
+    const proof = { depositedAt: new Date("2026-09-30T04:00:00Z"), verifiedAt: new Date("2026-09-30T04:10:00Z") };
+    expect(bookingPayoutView(project([source("x", { settlement: proof })], true)[0]).status).toBe("scheduled");
+    const returned = bookingPayoutView(project([source("x", { settlement: null })], true)[0]);
+    expect(returned.status).toBe("clearing");
+    expect(returned.timing).not.toContain("Oct 2");
   });
 });
 

@@ -24,7 +24,8 @@ import { and, eq } from "drizzle-orm";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { booking, hostPayoutLedger, listing, user } from "@/lib/db/schema";
+import { booking, listing, user } from "@/lib/db/schema";
+import { loadBookingPayouts } from "@/lib/host/booking-payout";
 import { readDbNow } from "@/lib/booking/bookings-query";
 import { composeWhenLabel } from "@/lib/booking/when-label";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
@@ -80,23 +81,17 @@ export default async function HostBookingDetailPage({
       // The formatter's pre-0016 positive-match reference only.
       dayRateCents: listing.dayRateCents,
       bookerFirstName: user.firstName,
-      payoutState: hostPayoutLedger.state,
     })
     .from(booking)
     .innerJoin(listing, eq(booking.listingId, listing.id))
     .innerJoin(user, eq(booking.bookerId, user.id))
-    // kind-scoped (07-04): a host_cancel_fee DEBIT must never be read as this booking's payout state.
-    .leftJoin(
-      hostPayoutLedger,
-      and(
-        eq(hostPayoutLedger.bookingId, booking.id),
-        eq(hostPayoutLedger.kind, "payout"),
-      ),
-    )
     .where(and(eq(booking.id, id), eq(listing.hostId, session.user.id)));
 
   // Missing OR not-mine → the same bare notFound(). Never a distinguishing message.
   if (!row) notFound();
+  const payout = row.status === "confirmed" || row.status === "cancelled"
+    ? (await loadBookingPayouts(session.user.id, now)).get(row.id) ?? null
+    : null;
 
   const currency = row.currency ?? DISPLAY_CURRENCY;
   const guestLabel = row.bookerFirstName?.trim() || "A guest";
@@ -153,10 +148,13 @@ export default async function HostBookingDetailPage({
         <div className="flex items-baseline justify-between gap-4">
           <dt className="text-muted-foreground">Payout</dt>
           <dd>
-            <HostPayoutCell state={row.payoutState ?? null} />
+            <HostPayoutCell view={payout} />
           </dd>
         </div>
       </dl>
+      <p className="mt-3 max-w-prose text-label text-muted-foreground">
+        We send eligible payouts on Fridays after the booking payment reaches FitOut and at least 24 hours after the session ends.
+      </p>
 
       {/* D-104 — the cancel entry point sits BELOW the primary content, behind a Separator: present, but not
           competing with it, and never inline on a list row. */}
