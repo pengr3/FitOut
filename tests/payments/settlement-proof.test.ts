@@ -1,9 +1,10 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { booking, listing, user } from "@/lib/db/schema";
 import { currentSettlementProof, isCorrelatedSettlement, recordSettlementObservation } from "@/lib/payments/settlement";
 import { refreshBookingSettlement, type ProviderReader, type SettlementAccountEvidence } from "@/inngest/functions/settlement-reconcile";
+import { getMerchantPayout, listMerchantPayouts, listMerchantPayoutTransactions } from "@/lib/paymongo";
 
 let testDb: TestDb;
 let serial = 0;
@@ -67,6 +68,24 @@ it("correlates only a complete deposited payment into the verified Wallet", () =
   expect(isCorrelatedSettlement(deposited, "pay_exact", "php", true)).toBe(true);
   expect(isCorrelatedSettlement({ ...deposited, paginationComplete: false }, "pay_exact", "php", true)).toBe(false);
   expect(isCorrelatedSettlement({ ...deposited, destinationMatched: false }, "pay_exact", "php", true)).toBe(false);
+});
+
+it("uses only authenticated GETs for payout list, detail and cursor pages", async () => {
+  const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+    new Response(JSON.stringify({ data: [], pagination: { next_cursor: null } }), { status: 200 }));
+  try {
+    await listMerchantPayouts("page one");
+    await getMerchantPayout("po_exact");
+    await listMerchantPayoutTransactions("po_exact", "page two");
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://api.paymongo.com/v1/payouts?limit=20&after=page%20one",
+      "https://api.paymongo.com/v1/payouts/po_exact",
+      "https://api.paymongo.com/v1/payouts/po_exact/transactions?limit=20&after=page%20two",
+    ]);
+    for (const [, init] of fetchMock.mock.calls) expect(init?.method).toBe("GET");
+  } finally {
+    fetchMock.mockRestore();
+  }
 });
 
 describe("booking settlement proof", () => {

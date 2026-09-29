@@ -32,6 +32,7 @@ import { guestEmail } from "@/inngest/functions/guest-email";
 import { remindersSweep } from "@/inngest/functions/reminders";
 import { opsAlertDigest } from "@/inngest/functions/ops-alert-digest";
 import { diditReconcile } from "@/inngest/functions/didit-reconcile";
+import { settlementReconcile } from "@/inngest/functions/settlement-reconcile";
 
 // serve() verifies the Paymongo-style signed Inngest request with node crypto — Node runtime, not edge.
 export const runtime = "nodejs";
@@ -50,7 +51,7 @@ if (
 }
 
 // serve() reads INNGEST_SIGNING_KEY / INNGEST_EVENT_KEY from env automatically; the guard above just makes
-// a missing prod key fatal. Registers all TEN functions — the EIGHT crons on offset minutes so they never
+// a missing prod key fatal. Registers all ELEVEN functions — the NINE crons on offset minutes so they never
 // contend (Pitfall 4): the hourly payout sweep (05a, :00), the request-to-book expiry sweep (06-06, :15),
 // the payout reconcile (05b, :30) and the D-85 reminder sweep (07-13, :45), plus the DAILY ops alert digest
 // (quick 260810-j3z, 08:50 Asia/Manila — minute :50, which none of the four hourly crons occupy), plus the
@@ -110,5 +111,6 @@ export const { GET, POST, PUT } = serve({
     remindersSweep,
     opsAlertDigest,
     diditReconcile,
+    settlementReconcile,
   ],
 });

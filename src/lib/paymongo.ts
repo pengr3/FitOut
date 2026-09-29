@@ -764,3 +764,19 @@ export async function getTransfer(transferId: string): Promise<Transfer> {
   );
   return { id: json.data.id, status: json.data.attributes.status };
 }
+
+// Read-only merchant-payout surfaces. Raw responses stay in process memory and are validated by
+// settlement-reconcile before any booking observation is written. Account field mapping remains HOLD.
+export async function listMerchantPayouts(after?: string): Promise<unknown> {
+  const cursor = after ? `&after=${encodeURIComponent(after)}` : "";
+  return paymongoFetch<unknown>(`/v1/payouts?limit=20${cursor}`, { method: "GET" });
+}
+
+export async function getMerchantPayout(payoutId: string): Promise<unknown> {
+  return paymongoFetch<unknown>(`/v1/payouts/${encodeURIComponent(payoutId)}`, { method: "GET" });
+}
+
+export async function listMerchantPayoutTransactions(payoutId: string, after?: string): Promise<unknown> {
+  const cursor = after ? `&after=${encodeURIComponent(after)}` : "";
+  return paymongoFetch<unknown>(`/v1/payouts/${encodeURIComponent(payoutId)}/transactions?limit=20${cursor}`, { method: "GET" });
+}
