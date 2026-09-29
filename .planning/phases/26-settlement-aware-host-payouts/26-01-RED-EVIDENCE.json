@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run --config vitest.settlement-red.config.ts --reporter=tap tests/payments/settlement-proof.test.ts -t 'correlates only a complete deposited'",
+  "exitCode": 1,
+  "output": "TAP version 13\r\n1..1\r\nnot ok 1 - tests/payments/settlement-proof.test.ts # time=8.90ms {\r\n    1..2\r\n    not ok 1 - correlates only a complete deposited payment into the verified Wallet # time=7.49ms\r\n        ---\r\n        error:\r\n            name: \"AssertionError\"\r\n            message: \"expected false to be true // Object.is equality\"\r\n        at: \"C:/Users/Admin/Roaming/FitOut/tests/payments/settlement-proof.test.ts:40:71\"\r\n        actual: \"false\"\r\n        expected: \"true\"\r\n        ...\r\n    ok 2 - booking settlement proof # SKIP {\r\n        1..3\r\n        ok 1 - persists one exact deposited payment and Wallet observation as current proof # SKIP\r\n        ok 2 - does not prove a booking without a captured matching payment or complete pages # SKIP\r\n        ok 3 - retains deposit history while a later returned observation revokes proof # SKIP\r\n    }\r\n}\r\n",
+  "targetTest": "correlates only a complete deposited payment into the verified Wallet",
+  "actual": "false",
+  "targetFile": "tests/payments/settlement-proof.test.ts",
+  "expected": "true"
+}
