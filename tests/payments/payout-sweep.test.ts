@@ -254,6 +254,47 @@ describe("Friday Wallet funding preflight (HPAY-03)", () => {
     expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
   });
 
+  it("retries after an open Wallet shortfall alert when fresh funding arrives", async () => {
+    const { bookingId, b } = await candidate();
+    mockPayMongo.createBatchTransfer.mockClear();
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 180999,
+      feeCents: 1000, observedAt: FRIDAY_NOON });
+    expect((await payOne(testDb.db, b, FRIDAY_NOON)).status).toBe("skipped-no-wallet");
+    expect(await readLedger(bookingId)).toBeUndefined();
+    const retryAt = new Date(FRIDAY_NOON.getTime() + 3_600_000);
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 10_000_000,
+      feeCents: 1000, observedAt: retryAt });
+    expect((await payOne(testDb.db, b, retryAt)).status).toBe("processing");
+    expect((await readLedger(bookingId)).state).toBe("processing");
+    expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
+    const alerts = await testDb.db.execute(sql`
+      SELECT id FROM audit WHERE action = 'host_payout_recovery' AND resolved_at IS NULL
+        AND meta->>'bookingRef' = ${bookingExceptionRef(bookingId)}
+        AND meta->>'cause' = 'wallet_insufficient'
+    `);
+    expect(alerts).toHaveLength(1);
+  });
+
+  it("retries next Friday despite an unresolved missed-cutoff alert after fresh settlement proof", async () => {
+    const { bookingId, b } = await candidate();
+    await recordMoneyException(testDb.db, bookingId, "missed_friday_cutoff",
+      new Date("2026-10-02T15:00:00.000Z"));
+    const nextFriday = new Date("2026-10-09T04:00:00.000Z");
+    await recordSettlementObservation(bookingId, {
+      paymentId: `pay_${bookingId}`, payoutId: `po_${bookingId}`, transactionId: `txn_${bookingId}`,
+      transactionType: "payment", currency: "PHP", liveMode: true,
+      providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+      mappingVerified: true, providerStatusAt: new Date(FRIDAY_NOON.getTime() - 3_600_000),
+      verifiedAt: new Date(nextFriday.getTime() - 60_000),
+    }, testDb.db);
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 10_000_000,
+      feeCents: 1000, observedAt: nextFriday });
+    mockPayMongo.createBatchTransfer.mockClear();
+    expect((await payOne(testDb.db, b, nextFriday)).status).toBe("processing");
+    expect((await readLedger(bookingId)).state).toBe("processing");
+    expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
+  });
+
   it("never spends pending-only funds or an unknown fee", async () => {
     const first = await candidate();
     const second = await candidate();

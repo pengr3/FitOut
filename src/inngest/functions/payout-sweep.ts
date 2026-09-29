@@ -19,7 +19,7 @@ import {
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import { createExternalHostPayout, findHostPayoutTransfers, readPayoutWalletFunding } from "@/lib/paymongo";
 import { currentSettlementProof } from "@/lib/payments/settlement";
-import { recordMoneyException, unresolvedPayoutAttention } from "@/lib/payments/payout-exceptions";
+import { recordMoneyException } from "@/lib/payments/payout-exceptions";
 import { recordPayoutException } from "@/inngest/functions/payout-reconcile";
 
 /** Maximum bookings inspected during one Friday sweep pass. */
@@ -250,11 +250,8 @@ export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date(
         new Date(live.endsAt).getTime() + holdHours * 3_600_000 > cohortNoon.getTime()) {
       return { status: "skipped-claimed" } as PayOneResult;
     }
-    // An unresolved contradictory or incomplete settlement read must block a fresh
-    // transfer even while the previous deposited observation remains within 24 hours.
-    if ((await unresolvedPayoutAttention(tx as unknown as DbConn, [b.bookingId])).has(b.bookingId)) {
-      return { status: "skipped-claimed" } as PayOneResult;
-    }
+    // currentSettlementProof denies unresolved settlement-read contradictions. Other
+    // operator alerts remain visible but do not suppress a later eligible retry.
     const proof = await currentSettlementProof(b.bookingId, tx as unknown as DbConn, now);
     if (!proof || proof.paymentId !== live.paymentId ||
         proof.depositedAt > cohortNoon) return { status: "skipped-claimed" } as PayOneResult;
