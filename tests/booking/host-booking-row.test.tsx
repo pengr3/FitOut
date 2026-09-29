@@ -57,7 +57,7 @@ function makeRow(overrides: Partial<HostBookingRowData> = {}): HostBookingRowDat
     startsAt: new Date("2026-08-01T02:00:00Z"),
     endsAt: new Date("2026-08-01T03:00:00Z"),
     now: new Date("2026-07-24T00:00:00Z"),
-    payoutState: null,
+    payout: null,
     cancelledBy: null,
     ...overrides,
   };
@@ -92,8 +92,26 @@ describe("T8 — the host card tells the truth about who cancelled", () => {
 
 describe("HPAY-05 — booking payout status agrees with earnings", () => {
   it("shows payment clearing for a confirmed booking before its payout claim", () => {
-    render(<HostPayoutCell state={null} status="clearing" />);
+    render(<HostPayoutCell view={{ status: "clearing", amountLabel: "Estimated payout ₱900.00", timing: "The guest's payment is confirmed. We're waiting for it to reach FitOut before scheduling your payout." }} />);
     expect(screen.getByText("Payment clearing")).toBeTruthy();
+    expect(screen.getByText("Estimated payout ₱900.00")).toBeTruthy();
     expect(screen.queryByLabelText("No payout yet")).toBeNull();
+  });
+
+  it("uses the same projected payout cell in the mobile booking card", () => {
+    render(<HostBookingRow row={makeRow({ payout: { status: "review", amountLabel: "Estimated payout ₱900.00", timing: "Your session has ended. Payout review continues for at least 24 hours." } })} />);
+    expect(screen.getByText("Review window")).toBeTruthy();
+    expect(screen.getByText(/Payout review continues for at least 24 hours/)).toBeTruthy();
+  });
+
+  it("keeps a genuine no-earnings booking as an em dash", () => {
+    render(<HostPayoutCell view={null} />);
+    expect(screen.getByLabelText("No payout yet")).toBeTruthy();
+  });
+
+  it("wraps long timing and keeps terminal state labels distinct", () => {
+    const { container } = render(<HostPayoutCell view={{ status: "paid", amountLabel: "Your payout ₱900.00", timing: "Paid Sep 29, 2026" }} />);
+    expect(screen.getByText("Paid")).toBeTruthy();
+    expect(container.querySelector(".whitespace-normal")).not.toBeNull();
   });
 });

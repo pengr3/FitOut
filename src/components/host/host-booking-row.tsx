@@ -8,10 +8,8 @@
 // action lift. This file decides what a host booking row SAYS.
 //
 // PAYOUT PARITY IS THE POINT: the payout cell renders PayoutStateBadge, imported UNCHANGED from the HOST-03
-// earnings surface, so a host reads the same word for the same money state on both pages. When a booking has
-// no ledger row yet there is simply no payout — that renders as an em dash with an accessible label, NOT as
-// an invented badge state. Inventing one would put a vocabulary on this page that /host/earnings does not
-// have, which is exactly the drift D-105 exists to prevent.
+// earnings surface, so a host reads the same word for the same evidence-derived money state on both pages.
+// A confirmed booking before its ledger claim has projected earnings, not an absent payout.
 //
 // D-104 — the only inline action is Approve/Decline on a `requested` row, via RequestActions imported
 // unchanged from the 06-08 request inbox. Nothing else is actionable from a row; a host ending a confirmed
@@ -29,7 +27,7 @@ import { RowCard } from "@/components/patterns/row-card";
 import { BookingStatusBadge } from "@/components/booking/booking-status-badge";
 import type { BookingDbStatus } from "@/components/booking/booking-status";
 import { PayoutStateBadge } from "./payout-state-badge";
-import type { PayoutLedgerState } from "./payout-ledger-status";
+import type { BookingPayoutView } from "@/lib/host/booking-payout";
 import { RequestActions } from "./request-row";
 
 export type HostBookingRowData = {
@@ -57,23 +55,26 @@ export type HostBookingRowData = {
   endsAt: Date;
   /** The DB clock, threaded from the page so the badge and the tab partition agree. */
   now: Date;
-  /** Scoped to payout-kind ledger rows by the query; null means no payout exists yet. */
-  payoutState: PayoutLedgerState | null;
+  /** Server-derived earnings status; null is reserved for bookings with no host earnings. */
+  payout: BookingPayoutView | null;
 };
 
 /**
- * The payout cell, shared by this card and the desktop table so the em-dash fallback can never diverge
- * between the two breakpoints.
+ * Shared by mobile, desktop and detail. The projection comes from the earnings status mapper.
  */
-export function HostPayoutCell({ state }: { state: PayoutLedgerState | null }) {
-  if (!state) {
+export function HostPayoutCell({ view }: { view: BookingPayoutView | null }) {
+  if (!view) {
     return (
       <span className="text-muted-foreground" aria-label="No payout yet">
         —
       </span>
     );
   }
-  return <PayoutStateBadge state={state} />;
+  return <div className="flex min-w-0 max-w-56 flex-col items-start gap-1 whitespace-normal break-words">
+    <PayoutStateBadge status={view.status} />
+    {view.amountLabel ? <span className="text-label tabular-nums">{view.amountLabel}</span> : null}
+    <span className="text-label text-muted-foreground tabular-nums">{view.timing}</span>
+  </div>;
 }
 
 export function HostBookingRow({ row }: { row: HostBookingRowData }) {
@@ -130,7 +131,7 @@ export function HostBookingRow({ row }: { row: HostBookingRowData }) {
         <div className="flex items-baseline justify-between gap-4">
           <dt className="text-muted-foreground">Payout</dt>
           <dd>
-            <HostPayoutCell state={row.payoutState} />
+            <HostPayoutCell view={row.payout} />
           </dd>
         </div>
       </dl>

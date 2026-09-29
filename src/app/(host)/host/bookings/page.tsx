@@ -147,6 +147,7 @@ import { db } from "@/lib/db";
 import { listing } from "@/lib/db/schema";
 import { HOST_LIST_SHELL } from "@/lib/design/measurements";
 import { HOST_BOOKINGS_HEADER } from "@/lib/host/bookings-copy";
+import { loadBookingPayouts } from "@/lib/host/booking-payout";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { composeWhenLabelShort } from "@/lib/booking/when-label";
 import { resolveListCity } from "@/lib/booking/venue-clock-scope";
@@ -231,6 +232,7 @@ export default async function HostBookingsPage({
     cursor,
     limit: BOOKINGS_PAGE_SIZE,
   });
+  const payouts = page.rows.length ? await loadBookingPayouts(session.user.id, now) : new Map();
 
   // Server-side display mapping — venue-local labels from the SHARED formatter (07-02), money via
   // formatMoney. Nothing below this line computes a price or a date.
@@ -264,7 +266,7 @@ export default async function HostBookingsPage({
     startsAt: r.startsAt,
     endsAt: r.endsAt,
     now,
-    payoutState: r.payoutState ?? null,
+    payout: payouts.get(r.id) ?? null,
   }));
 
   const carriedParams = listingFilter ? { listing: listingFilter } : undefined;
@@ -285,6 +287,9 @@ export default async function HostBookingsPage({
       {/* SPREAD, not two props. The pair cannot be half-adopted, so "the page and the plate render an
           identical title and lede" is a property of the syntax rather than of a reviewer noticing. */}
       <PageHeader {...HOST_BOOKINGS_HEADER} />
+      <p className="mt-3 max-w-prose text-label text-muted-foreground">
+        We send eligible payouts on Fridays after the booking payment reaches FitOut and at least 24 hours after the session ends.
+      </p>
 
       <div className="mt-8 flex flex-wrap items-center gap-4">
         <BookingsTabs basePath="/host/bookings" active={tab} extraParams={carriedParams} />
@@ -421,8 +426,8 @@ export default async function HostBookingsPage({
                           ) : null}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <HostPayoutCell state={row.payoutState} />
+                      <TableCell className="max-w-56 whitespace-normal">
+                        <HostPayoutCell view={row.payout} />
                       </TableCell>
                       <TableCell>
                         {row.status === "requested" ? (
