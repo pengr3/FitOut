@@ -59,6 +59,7 @@ import { db } from "@/lib/db";
 import type { DbConn } from "@/lib/availability/read-model";
 import { listUnresolvedAlerts, DEFAULT_ALERT_LIMIT } from "@/lib/ops/alerts";
 import { sendOpsAlertDigest, type OpsDigestRow } from "@/lib/email";
+import { listUnsentFridayCutoffAlerts, recordPayoutAlertDelivery } from "@/lib/payments/payout-exceptions";
 
 /**
  * Age past which an unresolved alert is flagged AGING in the digest. 24h because the digest is DAILY — a
@@ -88,10 +89,14 @@ export type DigestResult =
  * The whole testable core of the digest. Kept OUT of the Inngest handler so every branch below is reachable
  * from a plain integration call — a branch only reachable through a scheduler is a branch nothing measures.
  */
-export async function buildAndSendDigest(dbConn: DbConn): Promise<DigestResult> {
+export async function buildAndSendDigest(
+  dbConn: DbConn, opts: { mode?: "daily" | "friday-cutoff"; now?: Date } = {},
+): Promise<DigestResult> {
   // LIMIT + 1: one query answers both "which rows" and "are there more than we will show", with no separate
   // COUNT and no claim the rendered list cannot back (D-J3Z-09).
-  const rows = await listUnresolvedAlerts(dbConn, { limit: DEFAULT_ALERT_LIMIT + 1 });
+  const rows = opts.mode === "friday-cutoff"
+    ? await listUnsentFridayCutoffAlerts(dbConn, opts.now ?? new Date(), DEFAULT_ALERT_LIMIT + 1)
+    : await listUnresolvedAlerts(dbConn, { limit: DEFAULT_ALERT_LIMIT + 1 });
 
   // ZERO ROWS → NOTHING HAPPENS. Before the recipient check, no email, and NO error log (D-J3Z-05).
   if (rows.length === 0) return { sent: false, reason: "no_unresolved" };
@@ -104,13 +109,14 @@ export async function buildAndSendDigest(dbConn: DbConn): Promise<DigestResult> 
       count: rows.length,
       ids: rows.map((r) => r.id),
     });
+    await recordPayoutAlertDelivery(dbConn, rows.map((row) => row.id), "no_recipient");
     return { sent: false, reason: "no_recipient", count: rows.length };
   }
 
   const truncated = rows.length > DEFAULT_ALERT_LIMIT;
   const shown = truncated ? rows.slice(0, DEFAULT_ALERT_LIMIT) : rows;
   const threshold = agingHours();
-  const now = Date.now();
+  const now = opts.now?.getTime() ?? Date.now();
 
   const digestRows: OpsDigestRow[] = shown.map((r) => {
     const age = Math.floor((now - r.createdAt.getTime()) / 3_600_000);
@@ -124,7 +130,17 @@ export async function buildAndSendDigest(dbConn: DbConn): Promise<DigestResult> 
     };
   });
 
-  await sendOpsAlertDigest(to, digestRows, { truncated, limit: DEFAULT_ALERT_LIMIT });
+  await recordPayoutAlertDelivery(dbConn, shown.map((row) => row.id), "attempting");
+  try {
+    await sendOpsAlertDigest(to, digestRows, { truncated, limit: DEFAULT_ALERT_LIMIT });
+  } catch (error) {
+    await recordPayoutAlertDelivery(dbConn, shown.map((row) => row.id), "failed");
+    console.error("[ops-alert] delivery failed; unresolved money alerts remain open", {
+      ids: shown.map((row) => row.id), error: error instanceof Error ? error.name : "unknown",
+    });
+    throw error;
+  }
+  await recordPayoutAlertDelivery(dbConn, shown.map((row) => row.id), "sent");
 
   return {
     sent: true,
@@ -144,7 +160,15 @@ export const opsAlertDigest = inngest.createFunction(
   {
     id: "ops-alert-digest",
     concurrency: 1, // singleton — no overlapping digest passes
-    triggers: [{ cron: "TZ=Asia/Manila 50 8 * * *" }], // daily 08:50 Manila; collides with no existing cron
+    triggers: [
+      { cron: "TZ=Asia/Manila 50 8 * * *" }, // daily unresolved queue
+      { cron: "TZ=Asia/Manila 10 23 * * 5" }, // Friday fallback if the cutoff event was lost
+      { event: "fitout/payout-cutoff-alert" }, // sweep-completion delivery, normally just after 23:00
+    ],
   },
-  async ({ step }) => step.run("digest", () => buildAndSendDigest(db)),
+  async ({ step, event }) => step.run("digest", () => buildAndSendDigest(db, {
+    mode: event.name === "fitout/payout-cutoff-alert" ||
+      (event.name === "inngest/scheduled.timer" && new Date().getUTCHours() === 15)
+      ? "friday-cutoff" : "daily",
+  })),
 );

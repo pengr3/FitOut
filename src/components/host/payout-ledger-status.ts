@@ -33,6 +33,8 @@ export type EarningSource = {
   ledger: null | { grossCents: number; commissionCents: number; netCents: number; recoveredCents: number;
     state: PayoutLedgerState; transferId: string | null; paidAt: Date | null };
   settlement: null | { depositedAt: Date; verifiedAt: Date };
+  /** Owner-scoped, derived public category only. No audit cause or provider detail enters this type. */
+  attention?: boolean;
 };
 export type HostEarning = EarningSource & { grossCents: number | null; commissionCents: number | null;
   netCents: number | null; debitCents: number; estimated: boolean; status: HostEarningStatus;
@@ -77,6 +79,8 @@ export function projectHostEarnings(rows: EarningSource[], hostId: string, now: 
           status = "paid";
           timing = `Paid ${new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Manila", month: "short", day: "numeric", year: "numeric" }).format(row.ledger.paidAt)}`;
         } else { status = "failed"; timing = "We're checking a delay with this payout. You don't need to request it again."; }
+      } else if (row.attention) {
+        status = "failed"; timing = "We're checking a delay with this payout. You don't need to request it again.";
       } else if (row.ledger?.state === "failed") {
         status = "failed"; timing = "We're checking a delay with this payout. You don't need to request it again.";
       } else if (row.ledger) {

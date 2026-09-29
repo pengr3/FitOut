@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { headers } from "next/headers";
 import { and, eq, isNotNull, or, sql } from "drizzle-orm";
 import { format } from "date-fns";
@@ -13,6 +14,7 @@ import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import { COMMISSION_RATE_BPS } from "@/lib/payments/fees";
 import { SETTLEMENT_PROOF_MAX_AGE_MS } from "@/lib/payments/settlement";
+import { unresolvedPayoutAttention } from "@/lib/payments/payout-exceptions";
 import { loadHostVerification } from "@/lib/host/verification-status";
 import { frozenSessionSentence, loadFrozenPayoutSummary } from "@/lib/host/frozen-payouts";
 import { CancellationFeeNotice } from "@/components/host/cancellation-fee-notice";
@@ -61,6 +63,8 @@ export default async function HostEarningsPage() {
     .leftJoin(bookingSettlementObservation, eq(bookingSettlementObservation.id, bookingSettlementCurrent.observationId))
     .where(and(eq(listing.hostId, hostId), or(eq(booking.status, "confirmed"), and(eq(booking.status, "cancelled"), or(isNotNull(hostPayoutLedger.id), sql`COALESCE(${booking.retainedSpaceCents}, 0) > 0`)))));
 
+  const attention = await unresolvedPayoutAttention(db, booked.map((row) => row.bookingId));
+
   const [{ outstandingDebitCents = 0 } = { outstandingDebitCents: 0 }] = (await db.execute(sql`
     SELECT COALESCE(SUM(-net_cents - recovered_cents), 0)::int AS "outstandingDebitCents"
     FROM host_payout_ledger WHERE host_id = ${hostId} AND kind = 'host_cancel_fee'
@@ -85,6 +89,7 @@ export default async function HostEarningsPage() {
             netCents: r.ledgerNetCents, recoveredCents: r.ledgerRecoveredCents, state: r.ledgerState,
             transferId: r.ledgerTransferId, paidAt: r.ledgerPaidAt } : null,
       settlement,
+      attention: attention.has(r.bookingId),
     };
   });
   const [payoutRow] = await db.select().from(hostPayout).where(eq(hostPayout.userId, hostId));
@@ -100,6 +105,8 @@ export default async function HostEarningsPage() {
     !verification.suspended && ["verified", "host_attested"].includes(destination?.verificationStatus ?? "");
   const earnings = projectHostEarnings(sources, hostId, now, PAYOUT_HOLD_HOURS, COMMISSION_RATE_BPS,
     fridayPolicyValidated, outstandingDebitCents);
+  const needsDestinationAction = earnings.some((row) => row.status === "failed") &&
+    !["verified", "host_attested"].includes(destination?.verificationStatus ?? "");
   const { upcomingCents, paidCents, hasEstimate } = summarizeHostEarnings(earnings);
   const currency = earnings[0]?.currency ?? DISPLAY_CURRENCY;
   const displayRows: PayoutRowData[] = earnings.map((row) => ({
@@ -113,6 +120,9 @@ export default async function HostEarningsPage() {
     <PageHeader title="Earnings" />
     {verification.suspended ? <div className="mt-6"><HostingPausedNotice reason={verification.reason} frozen={frozen} /></div> : null}
     {payoutStatus !== "enabled" ? <div className="mt-6"><PayoutBanner status={payoutStatus} /></div> : null}
+    {needsDestinationAction && payoutStatus === "enabled" ? <p className="mt-6 text-label text-muted-foreground">
+      Your payout details need a review. <Link href="/host/payouts" className="underline underline-offset-4">Review payout details</Link>
+    </p> : null}
     <div className="mt-8"><PayoutSummary upcomingCents={upcomingCents} paidCents={paidCents} currency={currency} hasEstimate={hasEstimate} /></div>
     {outstandingDebitCents > 0 ? <CancellationFeeNotice cents={outstandingDebitCents} currency={currency} /> : null}
     <p className="mt-3 max-w-prose text-label text-muted-foreground">FitOut keeps a 10% commission. We send eligible payouts on Fridays after the booking payment reaches FitOut and at least 24 hours after the session ends.</p>

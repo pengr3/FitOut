@@ -1,8 +1,7 @@
-import "server-only";
-
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import type { DbConn } from "@/lib/availability/read-model";
+import type { UnresolvedAlert } from "@/lib/ops/alerts";
 
 /** Only fixed, public-safe codes cross into the durable audit record. */
 export type PayoutExceptionCause =
@@ -85,4 +84,73 @@ export async function unresolvedPayoutAttention(dbConn: DbConn, bookingIds: stri
   `)) as unknown as Array<{ ref: string }>;
   const active = new Set(rows.map((row) => row.ref));
   return new Set(bookingIds.filter((id) => active.has(bookingExceptionRef(id))));
+}
+
+/** The prompt pass reads only unnotified cutoff rows for this Friday, with the same safe mail fields. */
+export async function listUnsentFridayCutoffAlerts(
+  dbConn: DbConn, now: Date, limit: number,
+): Promise<UnresolvedAlert[]> {
+  const cohort = exceptionFridayCohort(now);
+  const rows = (await dbConn.execute(sql`
+    SELECT id, action, actor_id AS "actorId", created_at AS "createdAt"
+    FROM audit WHERE action = 'host_payout_recovery' AND outcome = 'needs_attention'
+      AND resolved_at IS NULL AND meta->>'cause' = 'missed_friday_cutoff'
+      AND meta->>'cohort' = ${cohort}
+      AND COALESCE(meta->>'lastDeliveryStatus', '') <> 'sent'
+    ORDER BY created_at DESC NULLS LAST LIMIT ${limit}
+  `)) as unknown as Array<Omit<UnresolvedAlert, "createdAt"> & { createdAt: Date | string }>;
+  return rows.map((row) => ({ ...row, createdAt: new Date(row.createdAt) }));
+}
+
+/** Delivery is evidence of an attempt, never resolution or authenticated acknowledgement. */
+export async function recordPayoutAlertDelivery(
+  dbConn: DbConn, ids: string[], status: "attempting" | "sent" | "failed" | "no_recipient",
+): Promise<void> {
+  if (ids.length === 0) return;
+  await dbConn.execute(sql`
+    UPDATE audit SET meta = jsonb_set(
+      jsonb_set(meta, '{lastDeliveryAttemptAt}', to_jsonb(now()::text), true),
+      '{lastDeliveryStatus}', to_jsonb(${status}::text), true)
+    WHERE action = 'host_payout_recovery' AND outcome = 'needs_attention' AND resolved_at IS NULL
+      AND id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+  `);
+}
+
+export type PayoutExceptionQueueRow = {
+  id: string; bookingRef: string; cause: PayoutExceptionCause | "unknown";
+  nextAction: string; createdAt: Date; lastDeliveryStatus: string | null;
+};
+
+/** Unbounded local operator view; the external email stays bounded to 200 safe rows. */
+export async function listPayoutExceptionQueue(dbConn: DbConn): Promise<PayoutExceptionQueueRow[]> {
+  const rows = (await dbConn.execute(sql`
+    SELECT id, meta->>'bookingRef' AS "bookingRef", meta->>'cause' AS cause,
+      meta->>'lastDeliveryStatus' AS "lastDeliveryStatus", created_at AS "createdAt"
+    FROM audit WHERE action = 'host_payout_recovery' AND outcome = 'needs_attention'
+      AND resolved_at IS NULL ORDER BY created_at DESC, id DESC
+  `)) as unknown as Array<{ id: string; bookingRef: string; cause: string;
+    lastDeliveryStatus: string | null; createdAt: Date | string }>;
+  return rows.map((row) => {
+    const cause = Object.hasOwn(NEXT_ACTION, row.cause) ? row.cause as PayoutExceptionCause : "unknown";
+    return {
+      id: row.id, bookingRef: /^[a-f0-9]{16}$/.test(row.bookingRef) ? row.bookingRef : "unknown",
+      cause, nextAction: cause === "unknown" ? "Inspect the audit row locally and retain HOLD." : NEXT_ACTION[cause],
+      lastDeliveryStatus: row.lastDeliveryStatus, createdAt: new Date(row.createdAt),
+    };
+  });
+}
+
+/** Local-only recovery lookup; the durable audit row and email still contain only a hash reference. */
+export async function lookupExceptionBooking(dbConn: DbConn, ref: string): Promise<string[]> {
+  if (!/^[a-f0-9]{16}$/.test(ref)) return [];
+  const matches: string[] = [];
+  let cursor = "";
+  for (;;) {
+    const page = (await dbConn.execute(sql`
+      SELECT id FROM booking WHERE id > ${cursor} ORDER BY id LIMIT 500
+    `)) as unknown as Array<{ id: string }>;
+    for (const row of page) if (bookingExceptionRef(row.id) === ref) matches.push(row.id);
+    if (page.length < 500) return matches;
+    cursor = page[page.length - 1].id;
+  }
 }

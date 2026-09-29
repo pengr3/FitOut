@@ -9,6 +9,7 @@ import { formatMoney } from "@/lib/money";
 import { PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import { COMMISSION_RATE_BPS } from "@/lib/payments/fees";
 import { SETTLEMENT_PROOF_MAX_AGE_MS } from "@/lib/payments/settlement";
+import { unresolvedPayoutAttention } from "@/lib/payments/payout-exceptions";
 import { loadHostVerification } from "@/lib/host/verification-status";
 import { derivePayoutStatus } from "@/components/host/payout-status";
 import {
@@ -47,6 +48,8 @@ export async function loadBookingPayouts(hostId: string, now: Date): Promise<Map
     .leftJoin(bookingSettlementObservation, eq(bookingSettlementObservation.id, bookingSettlementCurrent.observationId))
     .where(and(eq(listing.hostId, hostId), or(eq(booking.status, "confirmed"), and(eq(booking.status, "cancelled"), or(isNotNull(hostPayoutLedger.id), sql`COALESCE(${booking.retainedSpaceCents}, 0) > 0`)))));
 
+  const attention = await unresolvedPayoutAttention(db, booked.map((row) => row.bookingId));
+
   const [{ outstandingDebitCents = 0 } = { outstandingDebitCents: 0 }] = (await db.execute(sql`
     SELECT COALESCE(SUM(-net_cents - recovered_cents), 0)::int AS "outstandingDebitCents"
     FROM host_payout_ledger WHERE host_id = ${hostId} AND kind = 'host_cancel_fee'
@@ -71,6 +74,7 @@ export async function loadBookingPayouts(hostId: string, now: Date): Promise<Map
             netCents: r.ledgerNetCents, recoveredCents: r.ledgerRecoveredCents, state: r.ledgerState,
             transferId: r.ledgerTransferId, paidAt: r.ledgerPaidAt } : null,
       settlement,
+      attention: attention.has(r.bookingId),
     };
   });
   const [payoutRow] = await db.select().from(hostPayout).where(eq(hostPayout.userId, hostId));
