@@ -3,6 +3,7 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import type { DbConn } from "@/lib/availability/read-model";
+import { bookingExceptionRef, recordMoneyException } from "@/lib/payments/payout-exceptions";
 
 /** A normalized provider read. The adapter must finish pagination and verify account mapping first. */
 export type SettlementObservation = {
@@ -68,7 +69,11 @@ export async function recordSettlementObservation(
     SELECT payment_id AS "paymentId", currency FROM booking WHERE id = ${bookingId} LIMIT 1
   `)) as unknown as { paymentId: string | null; currency: string }[];
   const booked = bookingRows[0];
-  if (!booked || !correlated(observation, booked.paymentId ?? "", booked.currency, true)) return false;
+  if (!booked) return false;
+  if (!correlated(observation, booked.paymentId ?? "", booked.currency, true)) {
+    await recordMoneyException(dbConn, bookingId, "settlement_read_unavailable");
+    return false;
+  }
 
   const depositedAt = observation.providerStatus === "deposited" ? observation.providerStatusAt : null;
   const inserted = (await dbConn.execute(sql`
@@ -84,15 +89,30 @@ export async function recordSettlementObservation(
     ON CONFLICT ON CONSTRAINT booking_settlement_observation_version_uq DO NOTHING
     RETURNING id
   `)) as unknown as { id: number }[];
-  const observationRows = inserted.length ? inserted : (await dbConn.execute(sql`
-    SELECT id FROM booking_settlement_observation
-    WHERE booking_id = ${bookingId} AND payout_id = ${observation.payoutId}
-      AND transaction_id = ${observation.transactionId}
-      AND provider_status = ${observation.providerStatus}
-      AND provider_status_at = ${observation.providerStatusAt.toISOString()}::timestamptz
-    LIMIT 1
-  `)) as unknown as { id: number }[];
-  const observationId = observationRows[0]?.id;
+  let observationId = inserted[0]?.id;
+  if (!inserted.length) {
+    const observationRows = (await dbConn.execute(sql`
+      SELECT id, payment_id AS "paymentId", transaction_type AS "transactionType",
+        currency, live_mode AS "liveMode", wallet_destination_matched AS "destinationMatched",
+        mapping_verified AS "mappingVerified"
+      FROM booking_settlement_observation
+      WHERE booking_id = ${bookingId} AND payout_id = ${observation.payoutId}
+        AND transaction_id = ${observation.transactionId}
+        AND provider_status = ${observation.providerStatus}
+        AND provider_status_at = ${observation.providerStatusAt.toISOString()}::timestamptz
+      LIMIT 1
+    `)) as unknown as Array<{ id: number; paymentId: string; transactionType: string; currency: string;
+      liveMode: boolean; destinationMatched: boolean; mappingVerified: boolean }>;
+    const prior = observationRows[0];
+    if (!prior) throw new Error("settlement observation version unavailable");
+    observationId = prior.id;
+    if (prior.paymentId !== observation.paymentId || prior.transactionType !== observation.transactionType ||
+        prior.currency !== observation.currency.toUpperCase() || prior.liveMode !== observation.liveMode ||
+        prior.destinationMatched !== observation.destinationMatched || prior.mappingVerified !== observation.mappingVerified) {
+      await recordMoneyException(dbConn, bookingId, "settlement_read_unavailable");
+      return false;
+    }
+  }
   if (observationId === undefined) throw new Error("settlement observation version unavailable");
   await dbConn.execute(sql`
     INSERT INTO booking_settlement_current
@@ -120,6 +140,14 @@ export async function currentSettlementProof(
   dbConn: DbConn = db,
   now: Date = new Date(),
 ): Promise<SettlementProof | null> {
+  // A later contradictory provider read is a durable HOLD even if an older deposited
+  // observation is still inside its normal freshness window.
+  const activeExceptions = (await dbConn.execute(sql`
+    SELECT id FROM audit WHERE action = 'host_payout_recovery' AND outcome = 'needs_attention'
+      AND resolved_at IS NULL AND meta->>'bookingRef' = ${bookingExceptionRef(bookingId)}
+      AND meta->>'cause' = 'settlement_read_unavailable' LIMIT 1
+  `)) as unknown as Array<{ id: string }>;
+  if (activeExceptions.length) return null;
   const rows = (await dbConn.execute(sql`
     SELECT o.booking_id AS "bookingId", o.payment_id AS "paymentId", o.payout_id AS "payoutId",
       o.transaction_id AS "transactionId", o.provider_status AS "providerStatus",

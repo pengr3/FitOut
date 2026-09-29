@@ -169,6 +169,34 @@ describe("booking settlement proof", () => {
     expect(ledger).toHaveLength(0);
   });
 
+  it("does not renew a matched version when the same provider version later has a mismatched Wallet", async () => {
+    const bookingId = await seedBooking();
+    await recordSettlementObservation(bookingId, deposited, testDb.db);
+    expect(await currentSettlementProof(bookingId, testDb.db)).not.toBeNull();
+    expect(await recordSettlementObservation(bookingId, {
+      ...deposited, destinationMatched: false, verifiedAt: new Date(Date.now() + 1_000),
+    }, testDb.db)).toBe(false);
+    expect(await currentSettlementProof(bookingId, testDb.db)).toBeNull();
+    const rows = await testDb.db.execute(sql`
+      SELECT wallet_destination_matched FROM booking_settlement_observation WHERE booking_id = ${bookingId}
+    `);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].wallet_destination_matched).toBe(true);
+    const alerts = await testDb.db.execute(sql`
+      SELECT id FROM audit WHERE action = 'host_payout_recovery' AND resolved_at IS NULL
+        AND meta->>'bookingRef' = ${bookingExceptionRef(bookingId)}
+        AND meta->>'cause' = 'settlement_read_unavailable'
+    `);
+    expect(alerts).toHaveLength(1);
+  });
+
+  it("blocks a previous match when mapping verification is later withdrawn", async () => {
+    const bookingId = await seedBooking();
+    await recordSettlementObservation(bookingId, deposited, testDb.db);
+    expect(await recordSettlementObservation(bookingId, { ...deposited, mappingVerified: false }, testDb.db)).toBe(false);
+    expect(await currentSettlementProof(bookingId, testDb.db)).toBeNull();
+  });
+
   it("refreshes a booking only after a complete two-page transaction read", async () => {
     const bookingId = await seedBooking();
     const observedAt = Math.floor(Date.now() / 1000) - 60;
