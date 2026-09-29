@@ -32,3 +32,31 @@
 | Phase 25.1 money-movement authorization | **HOLD**; this packet cannot change it |
 
 **Publication gate:** A product timing choice and passing local tests do not supply product/legal authority. Keep the current nonbinding notice until both named approvers approve the same exact final text, the complete agreement and refund/cancellation cross-references, publication owner and target, effective date and cohort, host communication, and correction procedure. A separate publication decision and implementation must make the terms replacement and removal of its source gate one reviewed change. Missing or conflicting fields mean HOLD.
+
+## Current source and release checks
+
+| Checked source | Observed state | Decision effect |
+| --- | --- | --- |
+| `src/app/(legal)/terms/page.tsx` | Its lead says “Placeholder — these are not FitOut's terms of service”; its body says nothing there is a binding agreement and displays no effective date. | `/terms` is still nonbinding. The candidate above is not on the route. |
+| `tests/design/legal-copy.test.ts` | The source gate pins the exact notice, notice hook and panel, and excludes operative clause language on legal placeholder pages. | A green test proves the placeholder guard remains; it is not approval to publish. |
+| `26-CONTEXT.md` decisions D-01–D-04 and `26-UI-SPEC.md` interaction item 8 | The PM selected a Friday-after-receipt design with a minimum review hold and no off-cycle automated payment, and the UI contract requires a separate legal publication gate. | Product design input only; no named product or legal sign-off on contract text. |
+| `25.1-RELEASE-DECISION.md` | Broad availability and money movement remain HOLD pending account, operating, reconciliation, and joint authority proofs. | This document cannot turn on checkout, a transfer, payout, or release. |
+
+## Open review questions and source limits
+
+1. Counsel and the product owner must confirm the full agreement's legal entity, governing law, contact, host eligibility, existing-booking transition, and how the candidate payout clause connects to the cancellation and refund policy. The current outline itself says core legal identity and governing-law facts are undecided.
+2. Counsel must ensure the payout adjustment sentence does not purport to remove any applicable consumer remedy. The [Philippine Supreme Court's text of Republic Act No. 11967, section 20](https://elibrary.judiciary.gov.ph/thebookshelf/showdocs/2/96902) describes consumer remedies including refund in relevant circumstances. This packet makes no determination that a particular cancellation qualifies, that the Act applies to any specific booking, or that the candidate is legally sufficient.
+3. [PayMongo's refund documentation](https://developers.paymongo.com/v1/docs/refunding-transactions) describes refunds as deductions from an upcoming merchant payout balance and notes method-specific refund constraints. That public documentation is not proof of FitOut's current account entitlement, a booking's deposited settlement, or a particular refund result. Account-specific capability and the final refund policy remain unresolved under Phase 25.1 HOLD.
+4. The phrase “FitOut may retry” needs counsel review against what hosts should be told if a transfer fails at 23:00 or a provider result remains unknown. It must not imply that a failed transfer is automatically sent the next Friday. Operations must own the host update and reconciliation path.
+
+## Correction and rollback procedure proposed for approval
+
+**Before publication:** The publishing owner records the named product and legal approvals, exact final text and version/hash, public route, effective date and time zone, affected booking cohort, host notice wording and channel, and a tested correction owner. Compare the approved text against the actual page content. Confirm refund/cancellation terms and the current UI promise do not conflict. If any item differs or is absent, stop and retain the nonbinding notice.
+
+**Publication change:** In a separately authorized change, replace the full `/terms` outline with the approved full agreement. Remove its placeholder notice and adjust its two source assertions in the same commit; retain or replace the independent `/privacy` protections. Record the deployed version and effective date only after the actual route is observed. Passing the local legal-copy source test alone cannot record publication.
+
+**After a mistake or conflict:** The named correction owner (currently **missing — HOLD**) stops further publication or host notice, preserves the version and decision record, and asks product and legal owners to choose corrected wording and an effective/affected cohort. Publish a dated correction and host communication only with their approval. If no approved binding replacement is available, restore an explicitly nonbinding page without erasing evidence of what was shown; determine any host remediation with counsel. A code revert alone cannot retract a public promise already seen, so a correction record and affected-host assessment are required. Phase 25.1 money-movement HOLD remains independent throughout.
+
+## Recorded disposition and next blocking checkpoint
+
+**HOLD — candidate unapproved; `/terms` nonbinding; no publication date or effective date; no money-movement authority.** The next checkpoint is an explicit human product-and-legal decision on one exact full-agreement version, including the Friday clause, refund/cancellation cross-reference, affected cohort, publication and correction owners, effective date, and host communication. Conflicting wording or any missing named authority retains HOLD and blocks plan 26-08 from publishing terms.
