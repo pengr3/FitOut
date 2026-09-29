@@ -24,6 +24,9 @@ let queryProcessingLedger: ReconcileModule["queryProcessingLedger"];
 let reconcileOne: ReconcileModule["reconcileOne"];
 let mapTransferStatus: ReconcileModule["mapTransferStatus"];
 let alertStuckHeld: ReconcileModule["alertStuckHeld"];
+const mockLookup = vi.fn<(...args: [string]) => Promise<Array<{
+  id: string; status: string; referenceNumber: string; amount: number; currency: string;
+}>>>(async () => []);
 
 const BOOKER = "reconcile_booker";
 let prevStuckHours: string | undefined;
@@ -141,7 +144,8 @@ beforeAll(async () => {
     firstName: "Booker",
   });
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
-  vi.doMock("@/lib/paymongo", () => ({ getTransfer: mockPayMongo.getTransfer }));
+  vi.doMock("@/lib/paymongo", () => ({ getTransfer: mockPayMongo.getTransfer,
+    findHostPayoutTransfers: mockLookup }));
   vi.resetModules();
   ({ queryProcessingLedger, reconcileOne, mapTransferStatus, alertStuckHeld } = await import(
     "@/inngest/functions/payout-reconcile"
@@ -169,6 +173,32 @@ describe("queryProcessingLedger — selectivity (PAY-03)", () => {
     expect(ids).not.toContain(paid); // terminal — already reconciled
     // Every returned row is genuinely processing with a transfer_id.
     for (const r of rows) expect(r.transferId).toBeTruthy();
+  });
+});
+
+describe("uncertain claim read-back (HPAY-04)", () => {
+  it("selects a held payout with no transfer ID and pays only after exact reference discovery and GET", async () => {
+    const bkId = await seedLedger({ state: "held", transferId: null });
+    expect((await queryProcessingLedger(testDb.db)).map((r) => r.bookingId)).toContain(bkId);
+    mockLookup.mockResolvedValueOnce([{ id: "tr_discovered", status: "succeeded",
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" }]);
+    mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_discovered", status: "succeeded",
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" });
+    const result = await reconcileOne({ bookingId: bkId, transferId: null, createdAt: new Date() }, testDb.db);
+    expect(result.state).toBe("paid");
+    expect((await readLedger(bkId)).transferId).toBe("tr_discovered");
+    expect((await readLedger(bkId)).paidAt).not.toBeNull();
+  });
+
+  it("never marks Paid when GET returns another transfer ID", async () => {
+    const bkId = await seedLedger({ state: "processing", transferId: "tr_expected" });
+    mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_other", status: "succeeded" });
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const result = await reconcileOne({ bookingId: bkId, transferId: "tr_expected",
+      createdAt: new Date() }, testDb.db);
+    expect(result.state).toBe("processing");
+    expect((await readLedger(bkId)).paidAt).toBeNull();
+    spy.mockRestore();
   });
 });
 
