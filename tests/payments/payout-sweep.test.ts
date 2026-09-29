@@ -17,9 +17,10 @@ import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../
 import { mockPayMongo } from "../helpers/mocks";
 import { makeVerifiedHost } from "../helpers/seed";
 import { user, listing, hostPayoutLedger, booking } from "@/lib/db/schema";
-import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
+import { PAYOUT_DELAY_HOURS, PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
 import { encryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
+import { recordSettlementObservation } from "@/lib/payments/settlement";
 
 let testDb: TestDb;
 type SweepModule = typeof import("@/inngest/functions/payout-sweep");
@@ -28,6 +29,7 @@ let payOne: SweepModule["payOne"];
 let fridayPayoutWindow: ((now: Date) => { cohortNoon: Date } | null) | undefined;
 
 const BOOKER = "sweep_booker";
+const FRIDAY_NOON = new Date("2026-10-02T04:00:00.000Z");
 
 let seq = 0;
 const uid = (p: string) => `${p}_${seq++}`;
@@ -80,6 +82,7 @@ async function makeBooking(opts: {
   serviceFeeCents?: number;
   /** D-69: the retained (non-refunded) space price on a cancellation. null ⇒ not cancelled. */
   retainedSpaceCents?: number | null;
+  settled?: boolean;
 }): Promise<string> {
   const id = uid("bk");
   const endsAt = new Date(opts.endsAtMs);
@@ -92,6 +95,7 @@ async function makeBooking(opts: {
     startsAt,
     endsAt,
     status: opts.status,
+    paymentId: `pay_${id}`,
     quotedTotalCents: opts.quotedTotalCents,
     // 07-04 Finding 2: the sweep's payout basis is space_price_cents, NOT the all-in charged total. With
     // no service fee the two are equal — exactly what drizzle/0014 backfilled for pre-Phase-7 rows.
@@ -101,6 +105,15 @@ async function makeBooking(opts: {
     currency: "php",
     expiresAt: opts.status === "pending" ? endsAt : null,
   });
+  if (opts.settled !== false) {
+    await recordSettlementObservation(id, {
+      paymentId: `pay_${id}`, payoutId: `po_${id}`, transactionId: `txn_${id}`,
+      transactionType: "payment", currency: "PHP", liveMode: true,
+      providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+      mappingVerified: true, providerStatusAt: new Date(FRIDAY_NOON.getTime() - 3_600_000),
+      verifiedAt: new Date(FRIDAY_NOON.getTime() - 60_000),
+    }, testDb.db);
+  }
   return id;
 }
 
@@ -148,7 +161,7 @@ function duePayout(opts: {
     payoutGrossCents: opts.payoutGrossCents,
     currency: "php",
     hostId: opts.hostId,
-    paymentId: null,
+    paymentId: `pay_${opts.bookingId}`,
     paymongoAccountId: opts.accountId,
     institutionBic: "TESTPHM2XXX",
     accountNameCiphertext: encryptPayoutRecipientValue("Test Host"),
@@ -178,6 +191,8 @@ async function readPayoutRows(bookingId: string) {
 }
 
 beforeAll(async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(FRIDAY_NOON);
   testDb = await setupTestDb();
   await testDb.db.insert(user).values({
     id: BOOKER,
@@ -216,13 +231,61 @@ describe("Friday Manila dispatch window (HPAY-02)", () => {
     const host = await makeHost();
     const listingId = await makeListing(host.hostId);
     const bookingId = await makeBooking({ listingId, status: "confirmed", quotedTotalCents: 200000,
-      endsAtMs: new Date("2026-09-20T00:00:00.000Z").getTime() });
+      endsAtMs: new Date("2026-09-20T00:00:00.000Z").getTime(), settled: false });
     const due = await queryDuePayouts(testDb.db, new Date("2026-10-02T04:00:00.000Z"));
     expect(due.map((row) => row.bookingId)).not.toContain(bookingId);
+  });
+
+  it("keeps the post-session review hold at least 24 hours", () => {
+    expect(PAYOUT_HOLD_HOURS).toBeGreaterThanOrEqual(24);
+  });
+
+  it("requires the hold at Friday noon to the millisecond, including a Thursday afternoon end", async () => {
+    const host = await makeHost();
+    const exact = await makeBooking({ listingId: await makeListing(host.hostId), status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: FRIDAY_NOON.getTime() - PAYOUT_HOLD_HOURS * 3_600_000 });
+    const oneMsLate = await makeBooking({ listingId: await makeListing(host.hostId), status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: FRIDAY_NOON.getTime() - PAYOUT_HOLD_HOURS * 3_600_000 + 1 });
+    const thursdayAfternoon = await makeBooking({ listingId: await makeListing(host.hostId), status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: new Date("2026-10-01T08:00:00.000Z").getTime() });
+    const ids = (await queryDuePayouts(testDb.db, FRIDAY_NOON)).map((row) => row.bookingId);
+    expect(ids).toContain(exact);
+    expect(ids).not.toContain(oneMsLate);
+    expect(ids).not.toContain(thursdayAfternoon);
+  });
+
+  it("holds a deposit first verified after noon until a later Friday", async () => {
+    const host = await makeHost();
+    const listingId = await makeListing(host.hostId);
+    const bookingId = await makeBooking({ listingId, status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: FRIDAY_NOON.getTime() - 48 * 3_600_000, settled: false });
+    await recordSettlementObservation(bookingId, {
+      paymentId: `pay_${bookingId}`, payoutId: `po_${bookingId}`, transactionId: `txn_${bookingId}`,
+      transactionType: "payment", currency: "PHP", liveMode: true,
+      providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+      mappingVerified: true, providerStatusAt: new Date(FRIDAY_NOON.getTime() - 3_600_000),
+      verifiedAt: new Date(FRIDAY_NOON.getTime() + 60_000),
+    }, testDb.db);
+    const fridayAfternoon = new Date(FRIDAY_NOON.getTime() + 3_600_000);
+    expect((await queryDuePayouts(testDb.db, fridayAfternoon)).map((row) => row.bookingId))
+      .not.toContain(bookingId);
+  });
+
+  it("refuses off-window direct dispatch even with a due booking", async () => {
+    const host = await makeHost();
+    const listingId = await makeListing(host.hostId);
+    const bookingId = await makeBooking({ listingId, status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: FRIDAY_NOON.getTime() - 48 * 3_600_000 });
+    const b = duePayout({ bookingId, listingId, hostId: host.hostId,
+      accountId: host.accountId, payoutGrossCents: 200000 });
+    expect((await payOne(testDb.db, b, new Date("2026-10-01T04:00:00.000Z"))).status)
+      .toBe("skipped-claimed");
+    expect(await readLedger(bookingId)).toBeUndefined();
   });
 });
 
 afterAll(async () => {
+  vi.useRealTimers();
   vi.doUnmock("@/lib/db");
   vi.doUnmock("@/lib/paymongo");
   await teardownTestDb(testDb);

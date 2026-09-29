@@ -21,6 +21,10 @@
 /** Payout eligibility delay after the session ENDS (D-55). T+24h anchored to booking.endsAt. */
 export const PAYOUT_DELAY_HOURS = Number(process.env.PAYOUT_DELAY_HOURS ?? 24);
 
+/** D-02: environment tuning can extend the review hold, never shorten its 24-hour floor. */
+export const PAYOUT_HOLD_HOURS = Math.max(24,
+  Number.isFinite(PAYOUT_DELAY_HOURS) ? PAYOUT_DELAY_HOURS : 24);
+
 /** Checkout payment window (D-58). Extends the 15-min pending hold to align with the PayMongo session
  *  so a paying booker keeps their slot and the hold no longer expires mid-payment. */
 export const PAYMENT_WINDOW_MINUTES = Number(process.env.PAYMENT_WINDOW_MINUTES ?? 60);

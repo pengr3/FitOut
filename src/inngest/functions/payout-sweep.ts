@@ -54,15 +54,35 @@ import { db } from "@/lib/db";
 import type { DbConn } from "@/lib/availability/read-model";
 import { computeCommission } from "@/lib/payments/commission";
 import {
-  PAYOUT_DELAY_HOURS,
+  PAYOUT_HOLD_HOURS,
   PAYOUT_RETRY_BACKOFF_HOURS,
   PAYOUT_RETRY_MAX_AGE_HOURS,
 } from "@/lib/payments/config";
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import { createExternalHostPayout } from "@/lib/paymongo";
+import { currentSettlementProof } from "@/lib/payments/settlement";
 
 /** How many due bookings a single sweep pass claims (coarse T+24h cadence — one pass drains the backlog). */
 const SWEEP_BATCH_SIZE = 100;
+
+/** The single Manila calendar rule used by dispatch and the host schedule projection. */
+export function fridayPayoutWindow(now: Date): { cohortNoon: Date } | null {
+  if (!Number.isFinite(now.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila", weekday: "short", year: "numeric", month: "2-digit",
+    day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (kind: string) => parts.find((part) => part.type === kind)?.value ?? "";
+  const hour = Number(get("hour"));
+  const minute = Number(get("minute"));
+  const second = Number(get("second"));
+  if (get("weekday") !== "Fri" || hour < 12 || hour > 23 ||
+      (hour === 23 && (minute !== 0 || second !== 0 || now.getUTCMilliseconds() !== 0))) return null;
+  // Asia/Manila is UTC+08:00 throughout the payout policy's supported calendar.
+  const cohortNoon = new Date(Date.UTC(Number(get("year")), Number(get("month")) - 1,
+    Number(get("day")), 4));
+  return { cohortNoon };
+}
 
 /** A booking whose session has ended ≥ PAYOUT_DELAY_HOURS ago with no payout ledger row yet. */
 export type DuePayout = {
@@ -118,7 +138,11 @@ export type PayOneResult =
  * SELECT, so `payOne`'s claim INSERT never runs for it. See the comment at the predicate for why the
  * placement — not the predicate — is the design.
  */
-export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
+export async function queryDuePayouts(dbConn: DbConn, now: Date = new Date()): Promise<DuePayout[]> {
+  const window = fridayPayoutWindow(now);
+  if (!window) return [];
+  const cutoff = window.cohortNoon.toISOString();
+  const runAt = now.toISOString();
   const rows = (await dbConn.execute(sql`
     SELECT b.id AS "bookingId", b.listing_id AS "listingId",
            COALESCE(b.retained_space_cents, b.space_price_cents) AS "payoutGrossCents",
@@ -135,6 +159,8 @@ export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
     -- the common case. An INNER JOIN here would silently stop paying every un-checked host.
     LEFT JOIN host_verification hv ON hv.user_id = l.host_id
     LEFT JOIN host_payout_ledger p ON p.booking_id = b.id AND p.kind = 'payout'
+    JOIN booking_settlement_current sc ON sc.booking_id = b.id
+    JOIN booking_settlement_observation so ON so.id = sc.observation_id
     -- Finding 1 — D-69's "zero new mechanism" was not true: a cancellation sets status='cancelled', and the
     -- old "status = 'confirmed'" predicate meant a partially-refunded booking was NEVER swept, so the host
     -- never received their share of the RETAINED amount. This is a PAYOUT predicate, NOT an OCCUPANCY
@@ -148,13 +174,19 @@ export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
             b.status = 'confirmed'
          OR (b.status = 'cancelled' AND COALESCE(b.retained_space_cents, 0) > 0)
           )
-      AND b.ends_at + make_interval(hours => ${PAYOUT_DELAY_HOURS}::int) <= now()
+      AND b.ends_at + (${PAYOUT_HOLD_HOURS}::numeric * interval '1 hour') <= ${cutoff}::timestamptz
+      AND so.payment_id = b.payment_id AND so.provider_status = 'deposited'
+      AND so.deposited_at IS NOT NULL AND so.deposited_at <= ${cutoff}::timestamptz
+      AND sc.verified_at <= ${cutoff}::timestamptz
+      AND sc.verified_at >= ${runAt}::timestamptz - interval '24 hours'
+      AND so.wallet_destination_matched = true AND so.mapping_verified = true
+      AND so.live_mode = true AND lower(so.currency) = lower(b.currency)
       AND (
         p.id IS NULL
         OR (
           p.state = 'failed'
-          AND p.updated_at <= now() - make_interval(hours => ${PAYOUT_RETRY_BACKOFF_HOURS}::int)
-          AND p.created_at >= now() - make_interval(hours => ${PAYOUT_RETRY_MAX_AGE_HOURS}::int)
+          AND p.updated_at <= ${runAt}::timestamptz - make_interval(hours => ${PAYOUT_RETRY_BACKOFF_HOURS}::int)
+          AND p.created_at >= ${runAt}::timestamptz - make_interval(hours => ${PAYOUT_RETRY_MAX_AGE_HOURS}::int)
         )
       )
       -- INVARIANT 4 / ENF-02 (D-222/D-234) — THE SUSPENSION FREEZE, AND THE PLACEMENT IS THE DESIGN.
@@ -201,7 +233,12 @@ export async function queryDuePayouts(dbConn: DbConn): Promise<DuePayout[]> {
  *
  * Factored to take an explicit `dbConn` so a test can drive it against an isolated schema / racing clients.
  */
-export async function payOne(dbConn: DbConn, b: DuePayout): Promise<PayOneResult> {
+export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date()): Promise<PayOneResult> {
+  const window = fridayPayoutWindow(now);
+  if (!window) return { status: "skipped-claimed" };
+  const proof = await currentSettlementProof(b.bookingId, dbConn, now);
+  if (!proof || proof.paymentId !== b.paymentId || proof.verifiedAt > window.cohortNoon ||
+      proof.depositedAt > window.cohortNoon) return { status: "skipped-claimed" };
   // (0) The payout basis MUST be a real integer. `space_price_cents` is NULLABLE: drizzle/0014 backfilled
   //     every pre-Phase-7 row, but a booking created after that migration and before the Phase-7 checkout
   //     write path freezes the split has neither a space price nor a retained amount. FAIL CLOSED and LOUD
@@ -358,7 +395,7 @@ export async function payOne(dbConn: DbConn, b: DuePayout): Promise<PayOneResult
 }
 
 /**
- * The D-56 payout sweep: an hourly, timezone-aware, SINGLETON (`concurrency: 1`) cron. Each due booking is
+ * The D-56 payout sweep: a Friday-only, timezone-aware, SINGLETON (`concurrency: 1`) cron. Each due booking is
  * paid inside its OWN Inngest step so a mid-batch failure retries just that booking, never the whole sweep.
  */
 // NOTE: inngest 4.13.0 uses the 2-arg createFunction(options, handler) form — the cron trigger lives in
@@ -367,12 +404,14 @@ export const payoutSweep = inngest.createFunction(
   {
     id: "payout-sweep",
     concurrency: 1, // singleton — no overlapping sweeps
-    triggers: [{ cron: "TZ=Asia/Manila 0 * * * *" }], // hourly, timezone-aware (Asia/Manila)
+    triggers: [{ cron: "TZ=Asia/Manila 0 12-23 * * 5" }],
   },
   async ({ step }) => {
-    const due = await step.run("find-due", () => queryDuePayouts(db));
+    const now = new Date();
+    if (!fridayPayoutWindow(now)) return { swept: 0 };
+    const due = await step.run("find-due", () => queryDuePayouts(db, now));
     for (const b of due) {
-      await step.run(`payout-${b.bookingId}`, () => payOne(db, b));
+      await step.run(`payout-${b.bookingId}`, () => payOne(db, b, new Date()));
     }
     return { swept: due.length };
   },

@@ -52,6 +52,7 @@ import {
 import type { HostVerificationStatus } from "@/lib/db/schema";
 import { loadHostVerification } from "@/lib/host/verification-status";
 import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
+import { recordSettlementObservation } from "@/lib/payments/settlement";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
 
 let testDb: TestDb;
@@ -64,6 +65,7 @@ let reconcileOne: ReconcileModule["reconcileOne"];
 let alertStuckHeld: ReconcileModule["alertStuckHeld"];
 
 const BOOKER = "freeze_booker";
+const FRIDAY_NOON = new Date("2026-10-02T04:00:00.000Z");
 const STUCK_HOURS = 48;
 let prevStuckHours: string | undefined;
 
@@ -73,7 +75,7 @@ const uid = (p: string) => `${p}_${seq++}`;
 /** Comfortably past ends_at + PAYOUT_DELAY_HOURS, so the booking is DUE on the DB clock. */
 const dueMs = () => Date.now() - (PAYOUT_DELAY_HOURS + 1) * 3_600_000;
 /** Older than the reconcile stuck threshold, so an aged row would page an operator. */
-const stuckMs = () => Date.now() - (STUCK_HOURS + 24) * 3_600_000;
+const stuckMs = () => new Date("2026-09-20T00:00:00.000Z").getTime();
 
 /**
  * A host who can be paid: user + activated host_payout + (by default) an ops-APPROVED
@@ -90,6 +92,7 @@ async function makeHost(
     email: `${hostId}@example.com`,
     firstName: "Host",
     paymongoAccountId: accountId,
+    payoutDestinationNumber: accountId,
     verificationStatus,
   });
   return { hostId, accountId };
@@ -124,12 +127,20 @@ async function makeDueBooking(listingId: string, endsAtMs = dueMs()): Promise<st
     startsAt: new Date(endsAtMs - 3_600_000),
     endsAt,
     status: "confirmed",
+    paymentId: `pay_${id}`,
     quotedTotalCents: 200000,
     spacePriceCents: 200000,
     serviceFeeCents: 0,
     currency: "php",
     expiresAt: null,
   });
+  await recordSettlementObservation(id, {
+    paymentId: `pay_${id}`, payoutId: `po_${id}`, transactionId: `txn_${id}`,
+    transactionType: "payment", currency: "PHP", liveMode: true,
+    providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+    mappingVerified: true, providerStatusAt: new Date(FRIDAY_NOON.getTime() - 3_600_000),
+    verifiedAt: new Date(FRIDAY_NOON.getTime() - 60_000),
+  }, testDb.db);
   return id;
 }
 
@@ -204,6 +215,8 @@ async function runWholeSweep(): Promise<DuePayout[]> {
 }
 
 beforeAll(async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(FRIDAY_NOON);
   testDb = await setupTestDb();
   // Pin the stuck threshold BEFORE payout-reconcile loads it (read once at import time).
   prevStuckHours = process.env.PAYOUT_RECONCILE_STUCK_HOURS;
@@ -216,6 +229,7 @@ beforeAll(async () => {
   });
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
+    createExternalHostPayout: mockPayMongo.createBatchTransfer,
     createBatchTransfer: mockPayMongo.createBatchTransfer,
     listWalletAccounts: mockPayMongo.listWalletAccounts,
     getTransfer: mockPayMongo.getTransfer,
@@ -230,6 +244,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  vi.useRealTimers();
   vi.doUnmock("@/lib/db");
   vi.doUnmock("@/lib/paymongo");
   process.env.PAYOUT_RECONCILE_STUCK_HOURS = prevStuckHours;
@@ -269,6 +284,7 @@ describe("ENF-02 — the freeze is PRE-CLAIM: a suspended host's booking creates
     const suspended = await seedPayableSession("approved");
     await setVerificationStatus(suspended.hostId, "suspended");
     const control = await seedPayableSession("approved");
+    mockPayMongo.createBatchTransfer.mockClear();
     mockPayMongo.listWalletAccounts.mockResolvedValue([
       { id: control.accountId, accountNumber: "CTL0001", accountName: "Control Wallet", status: "activated" },
     ]);
@@ -291,11 +307,12 @@ describe("ENF-02 — the freeze is PRE-CLAIM: a suspended host's booking creates
     expect(await ledgerRowCount(suspended.bookingId)).toBe(0);
     expect(due.map((d) => d.bookingId)).not.toContain(suspended.bookingId);
 
-    // And no money moved for the suspended host: every transfer that fired addressed the control wallet.
+    // The control transfers, while the suspended host is absent even when earlier fixtures remain due.
     const destinations = mockPayMongo.createBatchTransfer.mock.calls.map(
       (c) => (c[0] as { destination: { number: string } }).destination.number,
     );
-    expect(destinations.every((n) => n === "CTL0001")).toBe(true);
+    expect(destinations).toContain(control.accountId);
+    expect(destinations).not.toContain(suspended.accountId);
   });
 });
 
