@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/payments/earnings-view.test.ts -t 'uses the same projected status view' --reporter=verbose",
+  "exitCode": 1,
+  "targetFile": "tests/payments/earnings-view.test.ts",
+  "targetTest": "uses the same projected status view as booking list and earnings",
+  "expected": "detail page loads owner-scoped booking payout projection",
+  "actual": "detail page still renders raw ledger payoutState",
+  "output": "TAP version 13\n1..1\nnot ok 1 - uses the same projected status view as booking list and earnings\n  ---\n  error:\n    name: AssertionError\n    message: expected detail page to contain loadBookingPayouts\n    actual: HostPayoutCell state={row.payoutState ?? null}\n    expected: loadBookingPayouts\n# tests 1\n# pass 0\n# fail 1"
+}

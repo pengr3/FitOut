@@ -177,6 +177,15 @@ describe("earnings route recovery", () => {
   });
 });
 
+describe("booking detail payout wiring (HPAY-05)", () => {
+  it("uses the same projected status view as booking list and earnings", () => {
+    const detail = readFileSync(resolve(process.cwd(), "src/app/(host)/host/bookings/[id]/page.tsx"), "utf8");
+    expect(detail).toContain("loadBookingPayouts");
+    expect(detail).toContain("<HostPayoutCell view=");
+    expect(detail).not.toContain("<HostPayoutCell state=");
+  });
+});
+
 // ---------------------------------------------------------------------------
 // 3. Owner-scoped ledger read (integration) — Security V4 / T-05-29
 // ---------------------------------------------------------------------------
