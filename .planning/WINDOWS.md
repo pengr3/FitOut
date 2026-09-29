@@ -637,7 +637,7 @@ last_updated: 2026-09-29T10:49:56.000Z
     "phase": "26",
     "file": "src/inngest/functions/payout-sweep.ts",
     "line": null,
-    "description": "Automatic resend after terminal failure remains held until a durable per-attempt identity exists",
+    "description": "Automatic resend after terminal failure remains held until a durable per-attempt identity exists; failed rows are excluded from dispatch selection and the attempt design is recorded in 26-RETRY-ATTEMPT-GAP.md",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-29T08:35:26.548Z",

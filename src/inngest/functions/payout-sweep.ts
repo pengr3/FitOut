@@ -11,11 +11,7 @@ import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import type { DbConn } from "@/lib/availability/read-model";
 import { computeCommission } from "@/lib/payments/commission";
-import {
-  PAYOUT_HOLD_HOURS,
-  PAYOUT_RETRY_BACKOFF_HOURS,
-  PAYOUT_RETRY_MAX_AGE_HOURS,
-} from "@/lib/payments/config";
+import { PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import { createExternalHostPayout, findHostPayoutTransfers, readPayoutWalletFunding } from "@/lib/paymongo";
 import { currentSettlementProof } from "@/lib/payments/settlement";
@@ -84,9 +80,10 @@ export type PayOneResult =
 
 /**
  * Select the fixed Friday noon cohort. A booking is eligible when it has NO
- * payout row yet (`p.id IS NULL`) OR — WR-04 bounded retry — its row is `failed`, the retry backoff has
- * elapsed (`updated_at` ≥ PAYOUT_RETRY_BACKOFF_HOURS ago), and its ORIGINAL claim is still within
- * PAYOUT_RETRY_MAX_AGE_HOURS (so a definite failed transfer can retry in the Friday window).
+ * payout row yet (`p.id IS NULL`). A failed row is an existing transfer claim, not a new
+ * dispatch candidate: the single ledger transfer ID and booking-wide provider reference cannot
+ * identify a second attempt after a lost response. Its terminal failure stays in the operator
+ * exception queue until a durable per-attempt identity and recovery path are implemented.
  * The encrypted recipient columns are read only for a verified destination bound to the listing host. Takes
  * an explicit `dbConn` so a test can inject an isolated-schema db.
  *
@@ -142,14 +139,7 @@ export async function queryDuePayouts(dbConn: DbConn, now: Date = new Date()): P
       AND sc.verified_at >= ${runAt}::timestamptz - interval '24 hours'
       AND so.wallet_destination_matched = true AND so.mapping_verified = true
       AND so.live_mode = true AND lower(so.currency) = lower(b.currency)
-      AND (
-        p.id IS NULL
-        OR (
-          p.state = 'failed'
-          AND p.updated_at <= ${runAt}::timestamptz - make_interval(hours => ${PAYOUT_RETRY_BACKOFF_HOURS}::int)
-          AND p.created_at >= ${runAt}::timestamptz - make_interval(hours => ${PAYOUT_RETRY_MAX_AGE_HOURS}::int)
-        )
-      )
+      AND p.id IS NULL
       -- INVARIANT 4 / ENF-02 (D-222/D-234) — THE SUSPENSION FREEZE, AND THE PLACEMENT IS THE DESIGN.
       -- Filtering HERE means payOne's claim INSERT never runs, so no ledger row is ever created, so
       -- payout-reconcile's stuck-held alert has NOTHING to page an operator about. Freezing after the

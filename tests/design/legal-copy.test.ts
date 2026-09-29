@@ -632,6 +632,45 @@ describe("AC#10 — neither page's body carries clause language", () => {
   });
 });
 
+// This source guard is independent of binding terms publication. The review hold may be 24 hours;
+// a host transfer is considered on an eligible Friday after the matching payment reaches FitOut.
+const PAYOUT_PROMISE_FILES = [
+  "src/app/(legal)/terms/page.tsx",
+  "src/app/(host)/host/earnings/page.tsx",
+  "src/app/(host)/host/bookings/page.tsx",
+  "src/app/(host)/host/bookings/[id]/page.tsx",
+] as const;
+
+function guaranteed24HourPayouts(scan: PageScan): string[] {
+  return scan.chunks.flatMap((chunk) => {
+    const sentence = chunk.text.replace(/\s+/g, " ");
+    const deadline = /\b(?:pay|payouts?|paid|transfers?)\b.{0,80}\b(?:within|by|exactly|no later than)\s+24\s*(?:hours?|hrs?)\b/i;
+    const direct = /\b(?:pay|payouts?|paid|transfers?)\b.{0,25}\b24\s*(?:hours?|hrs?)\s+after\b/i;
+    return deadline.test(sentence) || direct.test(sentence)
+      ? [`${scan.file}:${chunk.line} — ${sentence.slice(0, 110)}`] : [];
+  });
+}
+
+describe("host payout timing — 24 hours is a review floor, not a payment deadline", () => {
+  it("rejects the former guaranteed payday and permits the current review wording", () => {
+    const old = scanSource("old-promise.tsx",
+      "export const A = () => <p>We pay hosts within 24 hours after the session ends.</p>;");
+    const oldDirect = scanSource("old-direct.tsx",
+      "export const A = () => <p>Your payout arrives 24 hours after the session ends.</p>;");
+    const current = scanSource("review.tsx",
+      "export const A = () => <p>We send eligible payouts on Fridays after payment reaches FitOut and at least 24 hours after the session ends.</p>;");
+    expect(guaranteed24HourPayouts(old)).toHaveLength(1);
+    expect(guaranteed24HourPayouts(oldDirect)).toHaveLength(1);
+    expect(guaranteed24HourPayouts(current)).toEqual([]);
+  });
+
+  it.each(PAYOUT_PROMISE_FILES)("$0 does not promise payment at 24 hours", (file) => {
+    const scan = scanSource(file, readFileSync(resolve(process.cwd(), file), "utf8"));
+    expect(scan.chunks.length, `${file} yielded no source text`).toBeGreaterThan(0);
+    expect(guaranteed24HourPayouts(scan)).toEqual([]);
+  });
+});
+
 describe("both-directions self-tests, over fixtures never written to disk", () => {
   it("flags a banned phrase in JSX text", () => {
     const scan = scanSource(

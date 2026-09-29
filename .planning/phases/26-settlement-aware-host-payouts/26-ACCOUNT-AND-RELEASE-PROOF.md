@@ -56,7 +56,7 @@ Freshness must be reread at the later decision. The actual [`25.1-RELEASE-DECISI
 | Phase 25.1 returns: card, GCash, PayMaya, QR Ph, GrabPay API/manual route or approved opt-out, each with reconciliation | **HOLD** | PayMongo account authority and return owner; no substitute rail inferred |
 | Phase 25.1 payout: source/recipient entitlement, one-operation authority, terminal provider read-back, durable reconciliation, cancellation/return escalation | **HOLD** | Product, PayMongo account and money-operations authorities; no transfer authority inferred |
 | Phase 25.1 alerts, customer/host communications, stop/return, final joint broad-release decision | **HOLD** | Named product and money-operations owners still missing; broad availability stays HOLD |
-| Phase 26 legal approval and publication of operative host terms | **HOLD**. Plan 26-07's `26-LEGAL-PUBLICATION-DECISION.md` is an unapproved candidate. Plan 26-08 has not published terms. The actual `/terms` route remains a nonbinding placeholder. | Named product and legal approvers, publishing and correction owners must approve one exact full-agreement version, effective cohort and notice, then observe the deployed route. Publication alone would not clear money-movement HOLD. |
+| Phase 26 legal approval and publication of operative host terms | **HOLD**. On 2026-09-29 the user said the agreement is not yet prepared. Plan 26-07's `26-LEGAL-PUBLICATION-DECISION.md` is an unapproved candidate. Plan 26-08 has not published terms. The actual `/terms` route remains a nonbinding placeholder. | Named product and legal approvers, publishing and correction owners must approve one exact full-agreement version, effective cohort and notice, then observe the deployed route. Publication alone would not clear money-movement HOLD. |
 | Phase 26 host-facing Friday copy and account-specific funding feasibility | **HOLD** pending approved copy and the account matrix above | Product release authority and PayMongo account authority; no host Friday guarantee inferred from code |
 
 ## One bounded controlled-proof record — inactive template
@@ -93,6 +93,9 @@ Completion of a single proof would close only that one decision ID. It would not
 | Focused settlement, sweep and reconciliation Vitest suites | **PASS**, 2026-09-29; 3 files, 68 tests, exit 0; isolated `fitout_test` reported no escaped writes | No account capability or real money result inferred |
 | `tsc --noEmit` | **PASS**, 2026-09-29; exit 0, no diagnostics | No deployment or provider fact inferred |
 | Focused ESLint on the six planned money modules | **PASS**, 2026-09-29; exit 0, no diagnostics | No deployment or provider fact inferred |
+| Full relevant payments, PayMongo, host, and ops suite | **PASS**, 2026-09-29; 63 files/758 tests passed, 2 files/5 tests skipped; isolated test database reported no escaped writes | No account capability or real money result inferred |
+| Host timing source guard and earnings freeze | **PASS**, 2026-09-29; 2 design files/38 tests passed; a fixture with the old guaranteed 24-hour payday is rejected | The actual `/terms` route remains nonbinding and no publication was inferred |
+| Failed-transfer resend | **HOLD**, 2026-09-29; failed claims excluded from automatic dispatch; design and prerequisite migration in `26-RETRY-ATTEMPT-GAP.md` | A terminal failed transfer remains an owned exception; no second provider POST is authorized |
 
 ## Current disposition and next checkpoint
 

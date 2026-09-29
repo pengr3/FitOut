@@ -788,7 +788,7 @@ describe("payout sweep — uncertain create recovery (HPAY-04)", () => {
     spy.mockRestore();
   });
 
-  it("queryDuePayouts re-selects a backed-off `failed` row within the retry window", async () => {
+  it("does not dispatch a failed row without a durable second-attempt identity", async () => {
     const A = await makeHost();
     const L = await makeListing(A.hostId);
     const bkId = await makeBooking({
@@ -797,25 +797,40 @@ describe("payout sweep — uncertain create recovery (HPAY-04)", () => {
       quotedTotalCents: 200000,
       endsAtMs: dueMs(),
     });
-    // A `failed` row whose last attempt (updated_at) is well past the 1h backoff but whose original claim
-    // (created_at) is still inside the 72h max-age window → eligible for an automated retry.
+    // Even an old terminal failure cannot become a fresh send using the same booking-wide
+    // reference and single ledger transfer ID. A lost response to that second send would be
+    // indistinguishable from the first attempt.
     await testDb.db.insert(hostPayoutLedger).values({
       id: uid("ledger"),
       bookingId: bkId,
       hostId: A.hostId,
-      paymentId: null,
+      paymentId: `pay_${bkId}`,
       grossCents: 200000,
       commissionRateBps: 1000,
       commissionCents: 20000,
       netCents: 180000,
       currency: "php",
       state: "failed",
+      transferId: "tr_terminal_failed",
       createdAt: new Date(Date.now() - 3 * 3_600_000),
       updatedAt: new Date(Date.now() - 3 * 3_600_000),
     });
 
     const due = await queryDuePayouts(testDb.db);
-    expect(due.map((d) => d.bookingId)).toContain(bkId);
+    expect(due.map((d) => d.bookingId)).not.toContain(bkId);
+
+    // A direct or replayed call also cannot POST, even if the provider lists the matching
+    // terminal transfer. The failed ledger row and its transfer ID remain the authority.
+    mockPayMongo.createBatchTransfer.mockClear();
+    mockLookup.mockResolvedValueOnce([{ id: "tr_terminal_failed", status: "failed",
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" }]);
+    const result = await payOne(testDb.db, duePayout({ bookingId: bkId, listingId: L,
+      hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 200000 }));
+    expect(result.status).toBe("skipped-claimed");
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+    const ledger = await readLedger(bkId);
+    expect(ledger.state).toBe("failed");
+    expect(ledger.transferId).toBe("tr_terminal_failed");
   });
 });
 

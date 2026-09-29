@@ -29,17 +29,6 @@ export const PAYOUT_HOLD_HOURS = Math.max(24,
  *  so a paying booker keeps their slot and the hold no longer expires mid-payment. */
 export const PAYMENT_WINDOW_MINUTES = Number(process.env.PAYMENT_WINDOW_MINUTES ?? 60);
 
-/** WR-04 bounded retry of a `failed` payout. A failed row is re-swept only after this backoff has elapsed
- *  (since its last attempt / updated_at), so a transient PayMongo error (network blip, 5xx) recovers on the
- *  next cadence instead of parking forever. The stable `payout:<bookingId>` Idempotency-Key makes the
- *  re-attempt double-pay-safe. */
-export const PAYOUT_RETRY_BACKOFF_HOURS = Number(process.env.PAYOUT_RETRY_BACKOFF_HOURS ?? 1);
-
-/** WR-04 upper bound on automated payout retries: a `failed` row is only re-swept while its ORIGINAL claim
- *  (created_at) is within this window. Beyond it the row stays `failed` for manual operator review (the
- *  reconcile stuck-held / transfer-failed alerts surface it) so a genuinely-broken payout can't retry forever. */
-export const PAYOUT_RETRY_MAX_AGE_HOURS = Number(process.env.PAYOUT_RETRY_MAX_AGE_HOURS ?? 72);
-
 /** D-64 request-to-book host approval SLA (hours). A `requested` hold auto-declines if the host does not
  *  approve within this window — the Phase-6 approval sweep reads this. Config-tunable so policy can change
  *  without touching the plumbing; never hardcode 24 at a call site (import this NAME). */

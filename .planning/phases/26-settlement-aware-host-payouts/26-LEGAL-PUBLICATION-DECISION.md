@@ -1,6 +1,6 @@
 # Phase 26 — Host payout terms publication decision
 
-**Decision: HOLD.** This is a review packet dated 29 September 2026, not published terms, legal approval, a host notice, or authority to move money. The current `/terms` route remains a nonbinding outline. Phase 25.1's production checkout and payout release decision remains HOLD.
+**Decision: HOLD.** On 29 September 2026 the user said the agreement has not yet been prepared and directed that publication work wait. This is a review packet, not published terms, legal approval, a host notice, or authority to move money. The current `/terms` route remains a nonbinding outline. Phase 25.1's production checkout and payout release decision remains HOLD.
 
 ## Candidate clause — exact text offered for product and counsel review
 
@@ -59,4 +59,4 @@
 
 ## Recorded disposition and next blocking checkpoint
 
-**HOLD — candidate unapproved; `/terms` nonbinding; no publication date or effective date; no money-movement authority.** The next checkpoint is an explicit human product-and-legal decision on one exact full-agreement version, including the Friday clause, refund/cancellation cross-reference, affected cohort, publication and correction owners, effective date, and host communication. Conflicting wording or any missing named authority retains HOLD and blocks plan 26-08 from publishing terms.
+**HOLD — agreement not yet prepared; candidate unapproved; `/terms` nonbinding; no publication date or effective date; no money-movement authority.** The user's 29 September instruction resolves Plan 26-08 Task 1 to HOLD for this execution. Task 2's publication precondition is false. The independent source guard against a guaranteed 24-hour payday was strengthened without changing the route. When a full agreement exists, the next checkpoint is an explicit product-and-legal decision on one exact version, including the Friday clause, refund/cancellation cross-reference, affected cohort, publication and correction owners, effective date, and host communication. Conflicting wording or any missing named authority retains HOLD.
