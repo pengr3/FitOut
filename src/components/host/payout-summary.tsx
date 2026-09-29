@@ -26,19 +26,22 @@ export function PayoutSummary({
   upcomingCents,
   paidCents,
   currency,
+  hasEstimate = false,
 }: {
   upcomingCents: number;
   paidCents: number;
   currency: string;
+  hasEstimate?: boolean;
 }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <PanelCard>
         <div className="space-y-1">
-          <p className="text-sm font-semibold text-muted-foreground">Upcoming payouts</p>
+          <p className="text-label text-muted-foreground">Pending earnings</p>
           <p className="text-2xl font-semibold tracking-tight tabular-nums sm:text-display">
             {formatMoney(upcomingCents, currency)}
           </p>
+          {hasEstimate ? <p className="text-label text-muted-foreground">Includes estimated amounts for confirmed bookings that have not reached payout processing. Cancellations or fees may change them.</p> : null}
         </div>
       </PanelCard>
       <PanelCard>
