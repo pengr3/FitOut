@@ -27,12 +27,22 @@ import {
   summarizePayouts,
   type PayoutLedgerState,
 } from "@/components/host/payout-ledger-status";
+import * as earningsProjection from "@/components/host/payout-ledger-status";
 
 // ---------------------------------------------------------------------------
 // 1. Pure state derivation (no DB)
 // ---------------------------------------------------------------------------
 
 describe("derivePayoutLedgerView — calm state presentation (05-UI-SPEC)", () => {
+  it("uses the Friday settlement vocabulary rather than the old 24-hour promise", () => {
+    expect(derivePayoutLedgerView("held").label).toBe("Payment clearing");
+    expect(derivePayoutLedgerView("held").helper).toContain("reach FitOut");
+    expect(derivePayoutLedgerView("processing").helper).toContain("confirmed");
+  });
+
+  it("exposes a booking projection that can represent confirmed preclaim earnings", () => {
+    expect(typeof (earningsProjection as Record<string, unknown>).projectHostEarnings).toBe("function");
+  });
   it("Paid → positive tone, 'Paid' label + date prefix", () => {
     const v = derivePayoutLedgerView("paid");
     expect(v.tone).toBe("positive");
