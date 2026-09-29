@@ -147,6 +147,7 @@ export const spaceType = pgEnum("space_type", [
   "dance_studio",
   "pilates_barre_studio",
   "martial_arts_boxing",
+  "bouldering_gym",
   "home_private_gym",
   "multi_purpose_event",
 ]);
