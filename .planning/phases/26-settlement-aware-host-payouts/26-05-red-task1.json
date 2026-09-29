@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/booking/host-booking-row.test.tsx -t 'shows payment clearing' --reporter=tap",
+  "exitCode": 1,
+  "targetFile": "tests/booking/host-booking-row.test.tsx",
+  "targetTest": "shows payment clearing for a confirmed booking before its payout claim",
+  "expected": "Payment clearing",
+  "actual": "No payout yet (em dash)",
+  "output": "TAP version 13\n1..1\nnot ok 1 - shows payment clearing for a confirmed booking before its payout claim\n  ---\n  error:\n    name: AssertionError\n    message: Unable to find an element with the text: Payment clearing\n    actual: No payout yet\n    expected: Payment clearing\n# tests 1\n# pass 0\n# fail 1"
+}

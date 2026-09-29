@@ -41,7 +41,7 @@ vi.mock("@/app/actions/host-requests", () => ({
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-import { HostBookingRow, type HostBookingRowData } from "@/components/host/host-booking-row";
+import { HostBookingRow, HostPayoutCell, type HostBookingRowData } from "@/components/host/host-booking-row";
 
 afterEach(cleanup);
 
@@ -87,5 +87,13 @@ describe("T8 — the host card tells the truth about who cancelled", () => {
     render(<HostBookingRow row={makeRow({ status: "declined", cancelledBy: null })} />);
     expect(screen.getByText("Declined")).toBeTruthy();
     expect(screen.queryByText("Cancelled")).toBeNull();
+  });
+});
+
+describe("HPAY-05 — booking payout status agrees with earnings", () => {
+  it("shows payment clearing for a confirmed booking before its payout claim", () => {
+    render(<HostPayoutCell state={null} status="clearing" />);
+    expect(screen.getByText("Payment clearing")).toBeTruthy();
+    expect(screen.queryByLabelText("No payout yet")).toBeNull();
   });
 });
