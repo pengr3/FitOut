@@ -172,7 +172,7 @@ describe("earnings route recovery", () => {
     expect(existsSync(path)).toBe(true);
     const source = readFileSync(path, "utf8");
     expect(source).toContain("unstable_retry");
-    expect(source).toContain("We couldn't load your earnings. Try again.");
+    expect(source).toContain("We couldn&apos;t load your earnings. Try again.");
     expect(source).not.toContain("Paid out");
   });
 });

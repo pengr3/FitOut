@@ -3132,9 +3132,9 @@ const PHASE_14_ROWS: readonly Phase14Row[] = [
     // ⚠ THE PLATE COMPOSES THE SAME `PageHeader title="Earnings"` — MEASURED, `earnings/loading.tsx:28`,
     // and it reads one shared constant with the page precisely so the two cannot drift. So the heading
     // is the trap here, not the tell: an `h1` hook would report this route covered off its own skeleton.
-    // `PayoutSummary` is what only the resolved page renders, and the panel carrying `Upcoming payouts`
+    // `PayoutSummary` is what only the resolved page renders, and the panel carrying `Pending earnings`
     // is the one element on the surface that exists in every state — empty ledger or full.
-    tell: '[data-testid="panel-card"]:has-text("Upcoming payouts")',
+    tell: '[data-testid="panel-card"]:has-text("Pending earnings")',
     tellWhy:
       "the earnings summary pair. The route's plate renders `PageHeader` with the IDENTICAL title and " +
       "a `skeleton-row-list`, and carries no panel card — so the heading is satisfied by the skeleton " +

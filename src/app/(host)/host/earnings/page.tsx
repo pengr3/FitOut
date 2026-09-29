@@ -7,7 +7,7 @@ import { BanknoteIcon } from "lucide-react";
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { booking, bookingSettlementCurrent, bookingSettlementObservation, hostPayout, hostPayoutLedger, listing } from "@/lib/db/schema";
+import { booking, bookingSettlementCurrent, bookingSettlementObservation, hostPayout, hostPayoutDestination, hostPayoutLedger, listing } from "@/lib/db/schema";
 import { HOST_LIST_SHELL } from "@/lib/design/measurements";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
@@ -87,9 +87,17 @@ export default async function HostEarningsPage() {
       settlement,
     };
   });
-  // A dated Friday requires both current per-booking proof and explicit account policy validation.
+  const [payoutRow] = await db.select().from(hostPayout).where(eq(hostPayout.userId, hostId));
+  const [destination] = await db.select({ verificationStatus: hostPayoutDestination.verificationStatus })
+    .from(hostPayoutDestination).where(eq(hostPayoutDestination.userId, hostId));
+  const payoutStatus = derivePayoutStatus(payoutRow);
+  const verification = await loadHostVerification(db, hostId);
+  const frozen = frozenSessionSentence(await loadFrozenPayoutSummary(db, hostId));
+
+  // A dated Friday requires current per-booking proof, validated account policy and a usable host gate.
   const fridayPolicyValidated = process.env.PAYMONGO_SETTLEMENT_ACCOUNT_EVIDENCE_VERIFIED === "true" &&
-    process.env.HOST_FRIDAY_POLICY_VALIDATED === "true";
+    process.env.HOST_FRIDAY_POLICY_VALIDATED === "true" && payoutStatus === "enabled" &&
+    !verification.suspended && ["verified", "host_attested"].includes(destination?.verificationStatus ?? "");
   const earnings = projectHostEarnings(sources, hostId, now, PAYOUT_HOLD_HOURS, COMMISSION_RATE_BPS,
     fridayPolicyValidated, outstandingDebitCents);
   const { upcomingCents, paidCents, hasEstimate } = summarizeHostEarnings(earnings);
@@ -101,11 +109,6 @@ export default async function HostEarningsPage() {
     debitCents: row.debitCents, currency: row.currency, status: row.status,
     estimated: row.estimated, timing: row.timing,
   }));
-  const [payoutRow] = await db.select().from(hostPayout).where(eq(hostPayout.userId, hostId));
-  const payoutStatus = derivePayoutStatus(payoutRow);
-  const verification = await loadHostVerification(db, hostId);
-  const frozen = frozenSessionSentence(await loadFrozenPayoutSummary(db, hostId));
-
   return <div className={HOST_LIST_SHELL}>
     <PageHeader title="Earnings" />
     {verification.suspended ? <div className="mt-6"><HostingPausedNotice reason={verification.reason} frozen={frozen} /></div> : null}
