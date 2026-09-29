@@ -228,6 +228,28 @@ describe("booking settlement proof", () => {
     expect(await currentSettlementProof(bookingId, testDb.db)).toBeNull();
   });
 
+  it("blocks a prior deposit when a later payout also contains the booking payment", async () => {
+    const bookingId = await seedBooking();
+    expect((await refreshBookingSettlement(bookingId, fixtureReader(), accountEvidence, testDb.db)).state).toBe("proved");
+    const base = fixtureReader();
+    const conflicting: ProviderReader = {
+      ...base,
+      listPayouts: async () => ({ data: [{ id: "po_exact" }, { id: "po_returned" }], pagination: { next_cursor: null } }),
+      getPayout: async (payoutId) => fixtureReader({ payoutId, status: payoutId === "po_returned" ? "returned" : "deposited" }).getPayout(payoutId),
+      listTransactions: async (payoutId) => fixtureReader({ payoutId }).listTransactions(payoutId),
+    };
+    expect(await refreshBookingSettlement(bookingId, conflicting, accountEvidence, testDb.db))
+      .toMatchObject({ state: "exception", reason: "multiple_payment_payouts" });
+    const rows = await testDb.db.execute(sql`SELECT payout_id FROM booking_settlement_observation WHERE booking_id = ${bookingId}`);
+    expect(rows).toHaveLength(1);
+    const alerts = await testDb.db.execute(sql`
+      SELECT id FROM audit WHERE action = 'host_payout_recovery' AND resolved_at IS NULL
+        AND meta->>'bookingRef' = ${bookingExceptionRef(bookingId)}
+        AND meta->>'cause' = 'settlement_read_unavailable'
+    `);
+    expect(alerts).toHaveLength(1);
+  });
+
   it("records provider denial and unverified account mapping as exceptions without proof", async () => {
     const deniedId = await seedBooking();
     const denied: ProviderReader = { ...fixtureReader(), listPayouts: async () => { throw new Error("403 provider denied"); } };

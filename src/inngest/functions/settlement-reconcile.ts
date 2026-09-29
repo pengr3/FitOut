@@ -111,6 +111,8 @@ export async function refreshBookingSettlement(
   try {
     let payoutAfter: string | undefined;
     const seenPayoutCursors = new Set<string>();
+    const matches: Array<{ payoutId: string; transactionId: string; status: NonNullable<ReturnType<typeof providerStatus>> }> = [];
+    let payoutScanComplete = false;
     for (let payoutPage = 0; payoutPage < MAX_PAYOUT_PAGES; payoutPage++) {
       const listings = page(await reader.listPayouts(payoutAfter));
       if (!listings) return exception(bookingId, "payout_page_invalid", dbConn);
@@ -148,25 +150,29 @@ export async function refreshBookingSettlement(
         // become the current observation, never a stale deposited proof.
         const finalStatus = providerStatus(await reader.getPayout(payoutId), payoutId, account);
         if (!finalStatus || finalStatus.statusAt < status.statusAt) return exception(bookingId, "payout_detail_changed_invalidly", dbConn);
-        const observation: SettlementObservation = {
-          paymentId: booked.paymentId, payoutId, transactionId: matchingTransactionId,
-          transactionType: account.transactionType, currency: booked.currency,
-          liveMode: account.liveMode, providerStatus: finalStatus.status,
-          destinationMatched: finalStatus.destinationMatched, paginationComplete: true,
-          mappingVerified: true, providerStatusAt: finalStatus.statusAt, verifiedAt: new Date(),
-        };
-        await recordSettlementObservation(bookingId, observation, dbConn);
-        if (finalStatus.status === "returned" || finalStatus.status === "cancelled") {
-          await recordMoneyException(dbConn, bookingId, "settlement_returned");
-        }
-        return { bookingId, state: (await currentSettlementProof(bookingId, dbConn)) ? "proved" : "unproved" };
+        matches.push({ payoutId, transactionId: matchingTransactionId, status: finalStatus });
       }
-      if (listings.next === null) return { bookingId, state: "unproved", reason: "payment_not_in_payouts" };
+      if (listings.next === null) { payoutScanComplete = true; break; }
       if (seenPayoutCursors.has(listings.next)) return exception(bookingId, "payout_cursor_cycle", dbConn);
       seenPayoutCursors.add(listings.next);
       payoutAfter = listings.next;
     }
-    return exception(bookingId, "payout_pagination_incomplete", dbConn);
+    if (!payoutScanComplete) return exception(bookingId, "payout_pagination_incomplete", dbConn);
+    if (matches.length > 1) return exception(bookingId, "multiple_payment_payouts", dbConn);
+    const match = matches[0];
+    if (!match) return { bookingId, state: "unproved", reason: "payment_not_in_payouts" };
+    const observation: SettlementObservation = {
+      paymentId: booked.paymentId, payoutId: match.payoutId, transactionId: match.transactionId,
+      transactionType: account.transactionType, currency: booked.currency,
+      liveMode: account.liveMode, providerStatus: match.status.status,
+      destinationMatched: match.status.destinationMatched, paginationComplete: true,
+      mappingVerified: true, providerStatusAt: match.status.statusAt, verifiedAt: new Date(),
+    };
+    await recordSettlementObservation(bookingId, observation, dbConn);
+    if (match.status.status === "returned" || match.status.status === "cancelled") {
+      await recordMoneyException(dbConn, bookingId, "settlement_returned");
+    }
+    return { bookingId, state: (await currentSettlementProof(bookingId, dbConn)) ? "proved" : "unproved" };
   } catch {
     // No raw provider body, destination, or credentials in logs.
     return exception(bookingId, "provider_read_failed", dbConn);

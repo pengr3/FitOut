@@ -21,7 +21,7 @@ import { PAYOUT_DELAY_HOURS, PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
 import { encryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import { recordSettlementObservation } from "@/lib/payments/settlement";
-import { bookingExceptionRef } from "@/lib/payments/payout-exceptions";
+import { bookingExceptionRef, recordMoneyException } from "@/lib/payments/payout-exceptions";
 
 let testDb: TestDb;
 type SweepModule = typeof import("@/inngest/functions/payout-sweep");
@@ -305,6 +305,15 @@ describe("Friday Wallet funding preflight (HPAY-03)", () => {
     expect((await payOne(testDb.db, revoked.b)).status).toBe("skipped-claimed");
     expect(await readLedger(suspended.bookingId)).toBeUndefined();
     expect(await readLedger(revoked.bookingId)).toBeUndefined();
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+  });
+
+  it("blocks transfer creation after contradictory settlement evidence despite a fresh prior deposit", async () => {
+    const { bookingId, b } = await candidate();
+    await recordMoneyException(testDb.db, bookingId, "settlement_read_unavailable", FRIDAY_NOON);
+    mockPayMongo.createBatchTransfer.mockClear();
+    expect((await payOne(testDb.db, b)).status).toBe("skipped-claimed");
+    expect(await readLedger(bookingId)).toBeUndefined();
     expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
   });
 
