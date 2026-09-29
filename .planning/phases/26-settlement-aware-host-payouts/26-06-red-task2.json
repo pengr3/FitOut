@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/payments/payout-attention.test.ts -t 'withdraws a former Friday' --reporter=tap",
+  "exitCode": 1,
+  "targetFile": "tests/payments/payout-attention.test.ts",
+  "targetTest": "host-safe payout attention",
+  "expected": "failed",
+  "actual": "clearing",
+  "output": "TAP version 13\n1..1\nnot ok 1 - host-safe payout attention\n  not ok 1 - withdraws a former Friday and shows only neutral attention copy for an unresolved exception\n    error:\n      name: AssertionError\n      message: expected 'clearing' to be 'failed'\n      actual: clearing\n      expected: failed\n# tests 1\n# pass 0\n# fail 1"
+}
