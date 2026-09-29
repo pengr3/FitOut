@@ -411,12 +411,14 @@ export async function recordMissedFridayPayouts(dbConn: DbConn, now: Date): Prom
     JOIN listing l ON l.id = b.listing_id
     LEFT JOIN host_payout hp ON hp.user_id = l.host_id
     LEFT JOIN host_payout_destination hpd ON hpd.user_id = l.host_id
+    LEFT JOIN host_verification hv ON hv.user_id = l.host_id
     LEFT JOIN host_payout_ledger p ON p.booking_id = b.id AND p.kind = 'payout'
     LEFT JOIN booking_settlement_current c ON c.booking_id = b.id
     LEFT JOIN booking_settlement_observation o ON o.id = c.observation_id
     WHERE (b.status = 'confirmed' OR (b.status = 'cancelled' AND COALESCE(b.retained_space_cents, 0) > 0))
       AND b.ends_at + (${PAYOUT_HOLD_HOURS}::numeric * interval '1 hour') <= ${window.cohortNoon.toISOString()}::timestamptz
       AND (p.id IS NULL OR p.state NOT IN ('paid', 'refunded'))
+      AND COALESCE(hv.status::text, 'unverified') <> 'suspended'
     ORDER BY b.ends_at, b.id
   `)) as unknown as Array<{ bookingId: string; settlementStatus: string | null;
     ledgerState: string | null; destinationStatus: string | null; payoutsEnabled: boolean | null }>;
