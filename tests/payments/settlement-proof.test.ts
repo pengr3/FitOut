@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { booking, listing, user } from "@/lib/db/schema";
 import { currentSettlementProof, isCorrelatedSettlement, recordSettlementObservation } from "@/lib/payments/settlement";
+import { refreshBookingSettlement, type ProviderReader, type SettlementAccountEvidence } from "@/inngest/functions/settlement-reconcile";
 
 let testDb: TestDb;
 let serial = 0;
@@ -35,6 +36,32 @@ const deposited = {
   mappingVerified: true, providerStatusAt: new Date(Date.now() - 3_600_000),
   verifiedAt: new Date(),
 };
+
+const accountEvidence: SettlementAccountEvidence = {
+  paymentField: "attributes.payment_id", transactionType: "payment",
+  walletAccountNumber: "wallet_test_only", walletBankId: "bank_test",
+  organizationId: "org_test", liveMode: true,
+};
+
+function fixtureReader(options: {
+  status?: string; statusAt?: number; paymentId?: string; liveMode?: boolean;
+  wallet?: string; payoutId?: string; cursor?: string | null;
+} = {}): ProviderReader {
+  const payoutId = options.payoutId ?? "po_exact";
+  return {
+    listPayouts: async () => ({ data: [{ id: payoutId }], pagination: { next_cursor: null } }),
+    getPayout: async () => ({ data: { id: payoutId, type: "payout", attributes: {
+      status: options.status ?? "deposited",
+      status_updated_at: options.statusAt ?? Math.floor(Date.now() / 1000) - 60,
+      currency: "PHP", bank_account_number: options.wallet ?? "wallet_test_only",
+      bank_id: "bank_test", organization: { id: "org_test" },
+    } } }),
+    listTransactions: async () => ({ data: [{ id: "txn_exact", type: "payment", attributes: {
+      payment_id: options.paymentId ?? "pay_exact", payout_id: payoutId,
+      currency: "PHP", livemode: options.liveMode ?? true, organization_id: "org_test",
+    } }], pagination: { next_cursor: options.cursor ?? null } }),
+  };
+}
 
 it("correlates only a complete deposited payment into the verified Wallet", () => {
   expect(isCorrelatedSettlement(deposited, "pay_exact", "php", true)).toBe(true);
@@ -122,4 +149,124 @@ describe("booking settlement proof", () => {
     expect(ledger).toHaveLength(0);
   });
 
+  it("refreshes a booking only after a complete two-page transaction read", async () => {
+    const bookingId = await seedBooking();
+    const observedAt = Math.floor(Date.now() / 1000) - 60;
+    const account: SettlementAccountEvidence = {
+      paymentField: "attributes.payment_id", transactionType: "payment", walletAccountNumber: "wallet_test_only",
+      walletBankId: "bank_test", organizationId: "org_test", liveMode: true,
+    };
+    const reader: ProviderReader = {
+      listPayouts: async () => ({ data: [{ id: "po_exact" }], pagination: { next_cursor: null } }),
+      getPayout: async () => ({ data: { id: "po_exact", type: "payout", attributes: {
+        status: "deposited", status_updated_at: observedAt, currency: "PHP",
+        bank_account_number: "wallet_test_only", bank_id: "bank_test",
+        organization: { id: "org_test" },
+      } } }),
+      listTransactions: async (_payoutId, after) => after
+        ? ({ data: [{ id: "txn_exact", type: "payment", attributes: {
+          payment_id: "pay_exact", payout_id: "po_exact", currency: "PHP",
+          livemode: true, organization_id: "org_test",
+        } }], pagination: { next_cursor: null } })
+        : ({ data: [{ id: "txn_other", type: "refund", attributes: {
+          payment_id: "pay_other", payout_id: "po_exact", currency: "PHP",
+          livemode: true, organization_id: "org_test",
+        } }], pagination: { next_cursor: "page2" } }),
+    };
+    expect(await refreshBookingSettlement(bookingId, reader, account, testDb.db)).toMatchObject({ state: "proved" });
+    expect(await currentSettlementProof(bookingId, testDb.db)).not.toBeNull();
+  });
+
+  it("leaves zero-page and wrong-payment payout listings unproved", async () => {
+    const emptyId = await seedBooking();
+    const emptyReader: ProviderReader = {
+      ...fixtureReader(), listPayouts: async () => ({ data: [], pagination: { next_cursor: null } }),
+    };
+    expect((await refreshBookingSettlement(emptyId, emptyReader, accountEvidence, testDb.db)).state).toBe("unproved");
+    const wrongId = await seedBooking();
+    expect((await refreshBookingSettlement(wrongId, fixtureReader({ paymentId: "pay_other" }), accountEvidence, testDb.db)).state).toBe("unproved");
+    expect(await currentSettlementProof(wrongId, testDb.db)).toBeNull();
+  });
+
+  it("rejects partial transaction pagination and wrong mode or Wallet", async () => {
+    const partialId = await seedBooking();
+    expect((await refreshBookingSettlement(partialId, fixtureReader({ cursor: "never_ends" }), accountEvidence, testDb.db)).state).toBe("exception");
+    expect(await currentSettlementProof(partialId, testDb.db)).toBeNull();
+    const wrongModeId = await seedBooking();
+    expect((await refreshBookingSettlement(wrongModeId, fixtureReader({ liveMode: false }), accountEvidence, testDb.db)).state).toBe("exception");
+    const wrongWalletId = await seedBooking();
+    expect((await refreshBookingSettlement(wrongWalletId, fixtureReader({ wallet: "other_wallet" }), accountEvidence, testDb.db)).state).toBe("unproved");
+    expect(await currentSettlementProof(wrongWalletId, testDb.db)).toBeNull();
+  });
+
+  it("reorders returned reads over a previously deposited payout", async () => {
+    const bookingId = await seedBooking();
+    const before = Math.floor(Date.now() / 1000) - 120;
+    expect((await refreshBookingSettlement(bookingId, fixtureReader({ statusAt: before }), accountEvidence, testDb.db)).state).toBe("proved");
+    expect((await refreshBookingSettlement(bookingId, fixtureReader({ status: "returned", statusAt: before + 60 }), accountEvidence, testDb.db)).state).toBe("unproved");
+    expect((await refreshBookingSettlement(bookingId, fixtureReader({ statusAt: before }), accountEvidence, testDb.db)).state).toBe("unproved");
+    expect(await currentSettlementProof(bookingId, testDb.db)).toBeNull();
+  });
+
+  it("records provider denial and unverified account mapping as exceptions without proof", async () => {
+    const deniedId = await seedBooking();
+    const denied: ProviderReader = { ...fixtureReader(), listPayouts: async () => { throw new Error("403 provider denied"); } };
+    expect((await refreshBookingSettlement(deniedId, denied, accountEvidence, testDb.db)).state).toBe("exception");
+    expect((await refreshBookingSettlement(deniedId, denied, accountEvidence, testDb.db)).state).toBe("exception");
+    const alerts = await testDb.db.execute(sql`
+      SELECT id FROM audit WHERE action = 'settlement_refresh' AND meta->>'bookingId' = ${deniedId}
+    `);
+    expect(alerts).toHaveLength(1);
+    const unmappedId = await seedBooking();
+    expect((await refreshBookingSettlement(unmappedId, fixtureReader(), { ...accountEvidence, walletAccountNumber: "" }, testDb.db)).state).toBe("exception");
+    expect(await currentSettlementProof(unmappedId, testDb.db)).toBeNull();
+  });
+
+  it("never guesses a payment field or accepts a conflicting payout/currency", async () => {
+    const bookingId = await seedBooking();
+    const ambiguous: ProviderReader = {
+      ...fixtureReader(), listTransactions: async () => ({ data: [{
+        id: "pay_exact", type: "payment", attributes: {
+          payout_id: "po_exact", currency: "PHP", livemode: true, organization_id: "org_test",
+        },
+      }], pagination: { next_cursor: null } }),
+    };
+    expect((await refreshBookingSettlement(bookingId, ambiguous, accountEvidence, testDb.db)).state).toBe("exception");
+    const conflicting: ProviderReader = {
+      ...fixtureReader(), listTransactions: async () => ({ data: [{
+        id: "txn_exact", type: "payment", attributes: {
+          payment_id: "pay_exact", payout_id: "po_other", currency: "USD", livemode: true,
+          organization_id: "org_test",
+        },
+      }], pagination: { next_cursor: null } }),
+    };
+    expect((await refreshBookingSettlement(bookingId, conflicting, accountEvidence, testDb.db)).state).toBe("exception");
+    expect(await currentSettlementProof(bookingId, testDb.db)).toBeNull();
+  });
+
+  it("does not treat an unfinished payout list as proof of absence", async () => {
+    const bookingId = await seedBooking();
+    const incomplete: ProviderReader = {
+      ...fixtureReader(), listPayouts: async () => ({ data: [], pagination: { next_cursor: "same_cursor" } }),
+    };
+    expect((await refreshBookingSettlement(bookingId, incomplete, accountEvidence, testDb.db)).state).toBe("exception");
+    expect(await currentSettlementProof(bookingId, testDb.db)).toBeNull();
+  });
+
+  it("uses a returned status observed after transaction pagination", async () => {
+    const bookingId = await seedBooking();
+    const first = Math.floor(Date.now() / 1000) - 120;
+    const base = fixtureReader({ statusAt: first });
+    let detailReads = 0;
+    const changing: ProviderReader = {
+      ...base,
+      getPayout: async (payoutId) => {
+        detailReads++;
+        return fixtureReader({ status: detailReads === 1 ? "deposited" : "returned", statusAt: first + detailReads * 60 }).getPayout(payoutId);
+      },
+    };
+    expect((await refreshBookingSettlement(bookingId, changing, accountEvidence, testDb.db)).state).toBe("unproved");
+    expect(detailReads).toBe(2);
+    expect(await currentSettlementProof(bookingId, testDb.db)).toBeNull();
+  });
 });
