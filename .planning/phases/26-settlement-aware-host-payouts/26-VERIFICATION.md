@@ -1,6 +1,6 @@
 ---
 phase: 26-settlement-aware-host-payouts
-verified: 2026-09-30T08:09:47Z
+verified: 2026-09-30T08:20:02Z
 status: human_needed
 score: 6/8 scoped truths verified
 behavior_unverified: 0
@@ -22,7 +22,7 @@ behavior_unverified: 0
 | At-most-once claim, frozen amount, uncertain-create recovery, and terminal reconciliation remain fail closed | Verified locally | Payout sweep and reconciliation tests; terminal failed rows are excluded from automatic resend pending the attempt-identity design in `26-RETRY-ATTEMPT-GAP.md` |
 | Owner-scoped preclaim earnings and honest Friday host copy | Verified locally | Earnings projection and legal-copy source gates; terms route remains an explicit nonbinding placeholder |
 | Durable payout exception and alert path exists in source | Verified locally | Ops payout attention, alert/digest implementation and prior relevant-suite results; monitored human owner is not evidenced |
-| This PayMongo account's weekday, Wallet, transaction mapping/pagination, balance permission, fee, reference lookup, and deployed schema/schedule are observed | Partly observed — HOLD | One Wednesday payout is now Deposited in the platform Wallet and matches the test booking. API mapping, available balance, fee, reference read-back and deployment evidence remain missing; live settlement tables are absent in `26-ACCOUNT-AND-RELEASE-PROOF.md` |
+| This PayMongo account's weekday, Wallet, transaction mapping/pagination, balance permission, fee, reference lookup, and deployed schema/schedule are observed | Partly observed — HOLD | One Wednesday payout is Deposited and matches the test booking. The Dashboard send form showed ₱19.55 available and a no-fee InstaPay option; API balance access, actual automated fee, mapping, reference read-back and deployment evidence remain missing. Live settlement tables are absent in `26-ACCOUNT-AND-RELEASE-PROOF.md` |
 | One capped settlement-to-host transfer is authorized and reconciled to terminal provider state | Unverified — HOLD | No immutable decision ID, cap, participant, operator, joint authority, stop/return observation, or live transfer exists |
 
 **Score:** 6/8 scoped truths verified locally. The two unverified truths require external account and one-operation evidence; a HOLD is a safe decision, not proof that money moved.
@@ -33,7 +33,7 @@ behavior_unverified: 0
 | --- | --- |
 | HPAY-01 | Local settlement persistence and fail-closed tests pass; one account payout is observed deposited and matched to the test booking. API field mapping and the live 0033 migration remain HOLD. |
 | HPAY-02 | Friday schedule and hold rules pass local tests. |
-| HPAY-03 | Funding and fee guard pass local tests; Wallet history shows a credit, but authoritative available balance and account-specific transfer fee remain HOLD. |
+| HPAY-03 | Funding and fee guard pass local tests. Dashboard showed ₱19.55 available and no fee for its InstaPay form, but production API balance access, automated-route fee and dispatch-time funding remain HOLD. |
 | HPAY-04 | Local money-path integrity tests pass; automatic resend of a terminal failed transfer remains disabled pending per-attempt identity. |
 | HPAY-05 | Earnings and host copy pass local checks; rendered product review remains pending. Full agreement and terms publication are deferred outside this phase execution. |
 | HPAY-06 | Durable exception path is implemented; monitored owner, delivery, acknowledgement and escalation proof remain HOLD. |
