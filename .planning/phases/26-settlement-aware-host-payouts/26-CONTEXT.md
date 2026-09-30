@@ -1,7 +1,7 @@
 # Phase 26 — Settlement-Aware Host Payouts
 
 **Added:** 2026-09-29
-**Status:** Defined; not planned or executed
+**Status:** Implemented locally; live payout proof remains on HOLD
 **Depends on:** Phase 25.1 controlled payment and payout proofs
 **Requirements:** HPAY-01…HPAY-07 in `.planning/REQUIREMENTS.md`
 
@@ -38,6 +38,13 @@ release; this context does not authorize a provider call, transfer, or release.
    palette and type scale for this phase. Do not design or verify a Grove variant or prepare
    alternate themes. This supersedes D-138's retained Grove test-probe posture; the project-wide
    decision is D-279 in `PROJECT.md`.
+- **D-07: The host confirms their own payout destination (PM, 2026-09-30).** An approved host must
+   review the complete bank/e-wallet, account name and account number they entered and explicitly
+   attest them. FitOut checks the current receiving-institution directory and exact saved values;
+   staff does not separately approve every recipient. A changed destination pauses payouts until
+   the host confirms the replacement. Host confirmation does not prove bank ownership or override
+   booking settlement, available balance, Friday timing, transfer recovery or a suspended host.
+   The former masked-only staff release cannot establish recipient ownership and is removed.
 
 ## Implementation boundaries for planning
 

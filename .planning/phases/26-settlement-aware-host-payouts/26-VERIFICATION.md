@@ -1,6 +1,6 @@
 ---
 phase: 26-settlement-aware-host-payouts
-verified: 2026-09-30T07:30:40Z
+verified: 2026-09-30T08:09:47Z
 status: human_needed
 score: 6/8 scoped truths verified
 behavior_unverified: 0
@@ -37,7 +37,7 @@ behavior_unverified: 0
 | HPAY-04 | Local money-path integrity tests pass; automatic resend of a terminal failed transfer remains disabled pending per-attempt identity. |
 | HPAY-05 | Earnings and host copy pass local checks; rendered product review remains pending. Full agreement and terms publication are deferred outside this phase execution. |
 | HPAY-06 | Durable exception path is implemented; monitored owner, delivery, acknowledgement and escalation proof remain HOLD. |
-| HPAY-07 | One credited booking payment is proven, but host payout is disabled, its recipient is only host-attested, live settlement tables are absent, and one-operation transfer authority remains HOLD. |
+| HPAY-07 | One credited booking payment is proven. The existing live host payout flag remains disabled; under the revised host-owned recipient rule, that host must reconfirm the complete saved destination after deployment. Live settlement tables are absent and one-operation transfer authority remains HOLD. Staff approval of each masked destination is no longer required. |
 
 ## Automated verification
 
@@ -45,6 +45,7 @@ behavior_unverified: 0
 - 2026-09-29: legal-copy and earnings-freeze source guards, **38/38 passed**.
 - 2026-09-29: `tsc --noEmit` passed. The Plan 09 packet field checks passed.
 - Earlier Phase 26 relevant payment/host/ops suite: **758/758 passed**. The broader full project run had 6 failures, of which the payout-related booking fixture was repaired and passed its focused rerun. Other failures and two escaped test-audit writes remain recorded in `26-VALIDATION.md`; the full project and design suites are not claimed green.
+- 2026-09-30 recipient-policy revision: approved-host exact-value attestation, replacement pause, unapproved refusal, and provider-declined refusal passed focused database tests; TypeScript and the host payout copy inventory passed. The revised flow is local source only and has not changed the live host record.
 
 ## Human verification required
 

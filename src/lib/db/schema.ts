@@ -330,9 +330,11 @@ export const listingActivityTag = pgTable(
 );
 
 // Host payout state — a SEPARATE table keyed 1:1 to user (NOT Better Auth additionalFields, to keep
-// the auth schema CLI-clean). PayMongo shape (D-20): activation is set ONLY by the Plan-06
-// merchant.activated webhook; payoutsEnabled is the provider-agnostic cached gate flag deriveBookable
-// reads (KEEP THIS NAME). These flags are webhook/server-set ONLY — never from a client body.
+// the auth schema CLI-clean). `activationStatus` remains the legacy Linked Account lifecycle signal,
+// written by the merchant webhook when that model is used. `payoutsEnabled` is the provider-agnostic
+// cached gate flag deriveBookable reads (KEEP THIS NAME): it is set only by a verified provider event
+// or an approved host's exact-value destination attestation in the parent-merchant model, never by
+// a client-supplied payout flag.
 export const hostPayout = pgTable("host_payout", {
   userId: text("user_id")
     .primaryKey()
@@ -362,8 +364,8 @@ export const hostPayoutDestination = pgTable("host_payout_destination", {
   accountNameCiphertext: text("account_name_ciphertext").notNull(),
   accountNumberCiphertext: text("account_number_ciphertext").notNull(),
   accountLast4: text("account_last4").notNull(),
-  verificationStatus: text("verification_status").default("pending").notNull(), // pending|host_attested|verified|rejected
-  verificationReference: text("verification_reference"), // redacted host-attestation or staff-check reference
+  verificationStatus: text("verification_status").default("pending").notNull(), // pending|host_attested|verified (legacy)|rejected
+  verificationReference: text("verification_reference"), // redacted host-attestation or legacy staff-check reference
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   verifiedBy: text("verified_by"), // authenticated FitOut staff id; deliberately no FK for durable history
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

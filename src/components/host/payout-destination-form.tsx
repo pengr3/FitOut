@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { savePayoutDestination } from "@/app/actions/payout-destination";
+import type { HostPayoutRecipientInput } from "@/lib/validation/payout-recipient";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,7 @@ export function PayoutDestinationForm({
   institutions: PayoutInstitutionOption[];
   pendingDestination?: { institutionName: string; accountLast4: string };
   confirmedDestination?: { institutionName: string; accountLast4: string };
-  onAttest?: () => Promise<{ ok: boolean; error?: string }>;
+  onAttest?: (details: HostPayoutRecipientInput) => Promise<{ ok: boolean; error?: string }>;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -35,7 +36,9 @@ export function PayoutDestinationForm({
   const [accountNumber, setAccountNumber] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [attested, setAttested] = useState(false);
+  const [savedDetails, setSavedDetails] = useState<{ institutionBic: string; accountName: string; accountNumber: string } | null>(null);
   const [editing, setEditing] = useState(!confirmedDestination);
+  const reviewMatchesSaved = savedDetails?.institutionBic === institutionBic && savedDetails.accountName === accountName && savedDetails.accountNumber === accountNumber;
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,9 +46,9 @@ export function PayoutDestinationForm({
     startTransition(async () => {
       const result = await savePayoutDestination({ institutionBic, accountName, accountNumber });
       if (result.ok) {
-        setAccountName("");
-        setAccountNumber("");
-        setNotice("Saved. Confirm the destination below before it can be used in an approved payout.");
+        setSavedDetails({ institutionBic, accountName, accountNumber });
+        setAttested(false);
+        setNotice("Saved. Review the full details below before confirming this destination.");
         router.refresh();
       } else {
         setNotice(result.error);
@@ -54,12 +57,15 @@ export function PayoutDestinationForm({
   }
 
   function attestDestination() {
-    if (!onAttest || !attested) return;
+    if (!onAttest || !attested || !reviewMatchesSaved) return;
     setNotice(null);
     startTransition(async () => {
-      const result = await onAttest();
+      const result = await onAttest({ institutionBic, accountName, accountNumber });
       if (result.ok) {
-        setNotice("Confirmed. This destination is available for an approved payout.");
+        setAccountName("");
+        setAccountNumber("");
+        setSavedDetails(null);
+        setNotice("Confirmed. Your destination is eligible for payout processing when a booking meets the payout rules.");
         router.refresh();
       } else {
         setNotice(result.error ?? "We couldn't confirm the destination. Please try again.");
@@ -71,7 +77,7 @@ export function PayoutDestinationForm({
     <div className="space-y-5">
       {confirmedDestination && !editing ? (
         <div className="flex flex-col gap-3 rounded-lg border bg-muted p-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">Need to use a different bank or e-wallet? Replacing this destination pauses it until you confirm the new details.</p>
+          <p className="text-sm text-muted-foreground">Need to use a different bank or e-wallet? Replacing this destination pauses payouts until you confirm the new details.</p>
           <Button type="button" variant="outline" onClick={() => setEditing(true)}>Change payout destination</Button>
         </div>
       ) : null}
@@ -80,7 +86,7 @@ export function PayoutDestinationForm({
           {confirmedDestination ? <p className="text-sm text-muted-foreground">Saving new details replaces this destination. The replacement will need your confirmation before it can be used.</p> : null}
           <div className="space-y-2">
             <Label htmlFor="payout-institution">Bank or e-wallet</Label>
-            <Select value={institutionBic} onValueChange={setInstitutionBic} disabled={pending}>
+            <Select value={institutionBic} onValueChange={(value) => { setInstitutionBic(value); setAttested(false); }} disabled={pending}>
               <SelectTrigger id="payout-institution">
                 <SelectValue placeholder="Choose your bank or e-wallet" />
               </SelectTrigger>
@@ -95,11 +101,11 @@ export function PayoutDestinationForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="payout-account-name">Name on the account</Label>
-            <Input id="payout-account-name" value={accountName} onChange={(event) => setAccountName(event.target.value)} autoComplete="name" disabled={pending} maxLength={100} required />
+            <Input id="payout-account-name" value={accountName} onChange={(event) => { setAccountName(event.target.value); setAttested(false); }} autoComplete="name" disabled={pending} maxLength={100} required />
           </div>
           <div className="space-y-2">
             <Label htmlFor="payout-account-number">Account or wallet number</Label>
-            <Input id="payout-account-number" value={accountNumber} onChange={(event) => setAccountNumber(event.target.value.replace(/\D/g, ""))} inputMode="numeric" autoComplete="off" disabled={pending} minLength={6} maxLength={20} required />
+            <Input id="payout-account-number" value={accountNumber} onChange={(event) => { setAccountNumber(event.target.value.replace(/\D/g, "")); setAttested(false); }} inputMode="numeric" autoComplete="off" disabled={pending} minLength={6} maxLength={20} required />
           </div>
           <div className="flex flex-wrap gap-3">
             <Button type="submit" disabled={pending || institutions.length === 0}>
@@ -109,13 +115,20 @@ export function PayoutDestinationForm({
           </div>
           {pendingDestination && onAttest ? (
             <div className="space-y-3 rounded-lg border p-4">
+              {reviewMatchesSaved ? (
+                <p className="text-sm">
+                  Review: {institutions.find((institution) => institution.bic === institutionBic)?.name}; {accountName}; {accountNumber}.
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">Enter and save the complete details again to review them before confirmation. The saved account number is hidden for your security.</p>
+              )}
               <div className="flex items-start gap-3">
-                <Checkbox id="payout-destination-attestation" checked={attested} onCheckedChange={(checked) => setAttested(checked === true)} disabled={pending} />
+                <Checkbox id="payout-destination-attestation" checked={attested} onCheckedChange={(checked) => setAttested(checked === true)} disabled={pending || !reviewMatchesSaved} />
                 <Label htmlFor="payout-destination-attestation" className="leading-5">
-                  I confirm that {pendingDestination.institutionName} ending in {pendingDestination.accountLast4} is my payout destination and that its account details are correct. I understand FitOut cannot recover a payout sent to incorrect details.
+                  I reviewed the complete bank or e-wallet, account name, and account number above. They belong to me and are correct. Incorrect details may delay or prevent payment, and some transfers cannot be recovered.
                 </Label>
               </div>
-              <Button type="button" variant="secondary" onClick={attestDestination} disabled={pending || !attested}>
+              <Button type="button" variant="secondary" onClick={attestDestination} disabled={pending || !attested || !reviewMatchesSaved}>
                 {pending ? "Confirming…" : "Confirm payout destination"}
               </Button>
             </div>
