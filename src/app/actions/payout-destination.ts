@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { recordAudit } from "@/lib/audit";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { hostPayout, hostPayoutDestination, user } from "@/lib/db/schema";
+import { hostPayout, hostPayoutDestination, hostVerification, user } from "@/lib/db/schema";
 import { decryptPayoutRecipientValue, encryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import { listReceivingInstitutions } from "@/lib/paymongo";
 import { rateLimit } from "@/lib/rate-limit";
@@ -189,7 +189,21 @@ export async function attestPayoutDestination(raw: HostPayoutRecipientInput): Pr
       .onConflictDoUpdate({ target: hostPayout.userId, set: { payoutsEnabled: true, onboardingComplete: true } });
     return true;
   });
-  if (!enabled) return { ok: false, error: "Your host approval or saved destination changed. Review your payout details and try again." };
+  if (!enabled) {
+    // Keep the guarded UPDATE as the authority. These owner-scoped reads only explain why it
+    // matched no row, so a host is not left retrying an approval gate they cannot fix here.
+    const [[verification], [payout]] = await Promise.all([
+      db.select({ status: hostVerification.status }).from(hostVerification).where(eq(hostVerification.userId, host.userId)),
+      db.select({ activationStatus: hostPayout.activationStatus }).from(hostPayout).where(eq(hostPayout.userId, host.userId)),
+    ]);
+    if (verification?.status !== "approved" && verification?.status !== "grandfathered") {
+      return { ok: false, error: "Your payout details were saved, but your hosting account must be approved before you can confirm them. Check your hosting verification status." };
+    }
+    if (payout?.activationStatus === "declined") {
+      return { ok: false, error: "Your payout details were saved, but payouts are unavailable for this account. Contact support for help." };
+    }
+    return { ok: false, error: "Your saved payout details changed. Review and save them again before confirming." };
+  }
 
   await recordAudit({ actorId: host.userId, action: "attestPayoutDestination", outcome: "ok", meta: { status: "host_attested" } });
   revalidatePath("/host");
