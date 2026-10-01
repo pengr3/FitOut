@@ -1710,16 +1710,15 @@ const HOST_SHAPES: readonly HostShape[] = [
       // and so is this shape's OTHER wrap count.
       //
       // ⚠ THE ROW THIS MEASURES IS SEEDED AT AN ABSOLUTE VENUE-LOCAL INSTANT (`HOST_FIXED_DAY_NOV`),
-      // which is the whole `[14-16]` repair: 176 is a property of the fixture and cannot move with
+      // which is the whole `[14-16]` repair: the measured height is a property of the fixture, not
       // the calendar. The declared label is asserted byte for byte below — and as of the 24 August
       // 2026 ruling it carries NO city suffix, because this fixture's host owns one listing and its
-      // rows therefore all sit on one venue clock. The height is unchanged at 176: the shortened
-      // label still wraps to two lines here, on every one of the 13,020 it can compose, which is
-      // now the shape's ONLY height at this width rather than the more common of two.
+      // rows therefore all sit on one venue clock. The shortened label still wraps to two lines.
+      // Phase 26's projected payout status, amount, and timing make that confirmed card 244.05px.
       {
         width: 320,
-        row: 176.0,
-        bar: 176,
+        row: 244.05,
+        bar: 244,
         tree: "card",
         meta: { lines: 2, text: HOST_BOOKING_NOV_LABEL },
       },
@@ -1727,12 +1726,10 @@ const HOST_SHAPES: readonly HostShape[] = [
       // (quick `260824-ght`). F-2's second ruling lets this route's SPACE cell wrap so the table
       // stops overflowing its container, which makes the desktop row a two-valued shape: 36.52px
       // when the title fits the residual column on one line, 57px when it does not. 36.52 is the
-      // row's FLOOR and it is what `HOST_BOOKING_ROW_HEIGHT` declares — the argument for declaring
-      // the floor rather than the wrapped value is in that constant's own docblock. The row measured
-      // HERE is `RESTING_GUEST`'s, on the SHORT-titled listing, which the sweep says is one line on
-      // all 13,020 labels. The other outcome is not left implicit: `(title)` pins it, on its own
-      // long-titled listing, in the same table on the same page.
-      { width: 1280, row: 36.52, bar: 36, tree: "table" },
+      // row's old floor. Phase 26's compact payout cell now sets an 80.53px floor, so an extra Space
+      // title line does not change this fixture's table-row height. `RESTING_GUEST`'s short title
+      // now takes two lines; the long title takes three. The `(title)` case pins both outcomes.
+      { width: 1280, row: 80.53, bar: 80, tree: "table" },
     ],
   },
 ];
@@ -2073,8 +2070,8 @@ test.describe("14-15 — every host plate draws the list that is actually coming
   }
 
   /** `HOST_BOOKING_ROW_HEIGHT`'s two compiled values, restated here as this block's own bar. */
-  const BOOKINGS_BAR_320 = 176;
-  const BOOKINGS_BAR_1280 = 36;
+  const BOOKINGS_BAR_320 = 244;
+  const BOOKINGS_BAR_1280 = 80;
 
   /** The wrap count the 320px bar is declared against — `HOST_FIXED_DAY_NOV`'s label. */
   const RESTING_META_LINES_320 = 2;
@@ -2083,16 +2080,9 @@ test.describe("14-15 — every host plate draws the list that is actually coming
   const AGENDA_320 = { lines: 3, height: 112 } as const;
   const AGENDA_1280 = { lines: 1, height: 72 } as const;
 
-  /**
-   * `/host/bookings`' desktop row is a TWO-VALUED shape since `260824-ght`, and both values are here.
-   *
-   * The floor is what `HOST_BOOKING_ROW_HEIGHT` declares and what the shape table above measures; the
-   * wrapped value is what a title too long for the residual Space column produces. Naming them
-   * together, as one line count and one height each, is what makes the `(title)` case below a
-   * statement about the RULE rather than two unrelated pins.
-   */
-  const BOOKINGS_1280_ONE_LINE = { lines: 1, height: 36.52 } as const;
-  const BOOKINGS_1280_TWO_LINES = { lines: 2, height: 57 } as const;
+  /** Phase 26: the compact payout cell sets one table-row floor across both seeded title wraps. */
+  const BOOKINGS_1280_SHORT_TITLE = { lines: 2, height: 80.53 } as const;
+  const BOOKINGS_1280_LONG_TITLE = { lines: 3, height: 81.03 } as const;
 
   // ───────────────────────────────────────────────────────────────────────────────────────────────
   // `[14-16]`, AS AMENDED BY `260824-ej2` — THE SHAPE NOW HAS EXACTLY ONE HEIGHT AT 320px
@@ -2277,7 +2267,7 @@ test.describe("14-15 — every host plate draws the list that is actually coming
   // one line: a future reader who "finishes the job" by adding the class to the When cell reddens the
   // second clause by name rather than reopening a calendar coupling nobody notices for a day.
   //
-  // WHY THE SHAPE NOW HAS TWO HEIGHTS AND BOTH ARE SEEDED. The Space column is the residual —
+  // HISTORICAL PRE-PHASE-26 HEIGHTS. The Space column is the residual —
   // 864 minus every other (non-wrapping) column — so a title wraps or not depending on its own
   // rendered width against that residual. Swept over all 13,020 labels at 1280px with the fixture's
   // two titles:
@@ -2288,7 +2278,9 @@ test.describe("14-15 — every host plate draws the list that is actually coming
   // with the residual column running 174.03…218.92px across those same labels. Each title clears its
   // boundary by ~13px and ~15px respectively, on opposite sides — so neither outcome is one date's
   // luck, which is the standard `[14-16]` set for this file and the one a wrap is easiest to fail.
-  test("(title) the Space cell wraps and the When cell does not — both heights, both seeded", async ({
+  // Phase 26's wider payout column makes these titles two and three lines; the payout cell sets an
+  // approximately 81px row floor in both cases. The current values are declared above.
+  test("(title) the Space cell wraps and the When cell does not — both wrap counts, one row floor", async ({
     page,
     context,
   }) => {
@@ -2320,12 +2312,12 @@ test.describe("14-15 — every host plate draws the list that is actually coming
     ).toBe(0);
 
     for (const [guest, title, label, declared] of [
-      [RESTING_GUEST, HOST_LISTING_TITLE, HOST_BOOKING_NOV_LABEL, BOOKINGS_1280_ONE_LINE],
+      [RESTING_GUEST, HOST_LISTING_TITLE, HOST_BOOKING_NOV_LABEL, BOOKINGS_1280_SHORT_TITLE],
       [
         LONG_TITLE_GUEST,
         HOST_LONG_LISTING_TITLE,
         HOST_BOOKING_MAY_LABEL,
-        BOOKINGS_1280_TWO_LINES,
+        BOOKINGS_1280_LONG_TITLE,
       ],
     ] as const) {
       const where = `bookings title · 1280px · ${guest}`;
@@ -2385,8 +2377,8 @@ test.describe("14-15 — every host plate draws the list that is actually coming
         cells.titleLines,
         `${where}: "${title}" wraps to ${cells.titleLines} lines in the Space cell, not ` +
           `${declared.lines}. Both of this shape's desktop outcomes are seeded — a 20-character ` +
-          "title on one line and a 30-character one on two — and each was measured with ~13px and " +
-          "~15px of margin against the residual column over all 13,020 labels. A move here is the " +
+          "title on two lines and a 30-character one on three after Phase 26's payout column widened. " +
+          "A move here is the " +
           "type scale, another column's width, or the container: re-measure the shape and move the " +
           "titles with their measurement. Do NOT widen a tolerance to absorb a line.",
       ).toBe(declared.lines);
@@ -2400,15 +2392,12 @@ test.describe("14-15 — every host plate draws the list that is actually coming
       ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
     }
 
-    // ── THE STEP BETWEEN THEM IS ONE LINE, STATED AS ITS OWN NUMBER ───────────────────────────────
-    // Two heights that are each individually right but do not differ by one line would mean the cell
-    // grew for some reason other than the wrap, which no clause above can tell apart.
+    // The payout cell is taller than either title; the extra Space line must not raise the row.
     expect(
-      Math.abs(BOOKINGS_1280_TWO_LINES.height - BOOKINGS_1280_ONE_LINE.height - META_LINE_PX),
+      Math.abs(BOOKINGS_1280_LONG_TITLE.height - BOOKINGS_1280_SHORT_TITLE.height),
       "bookings title · 1280px: the two declared desktop heights differ by " +
-        `${BOOKINGS_1280_TWO_LINES.height - BOOKINGS_1280_ONE_LINE.height}px, which is not one ` +
-        `wrapped line (${META_LINE_PX}px, measured by the (step) case). If the gap is bigger than a ` +
-        "line, this cell is growing for a reason the wrap count does not explain.",
+        `${BOOKINGS_1280_LONG_TITLE.height - BOOKINGS_1280_SHORT_TITLE.height}px. The payout cell now ` +
+        "sets the row floor, so one extra title line must not create a second table-row height.",
     ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
 
     // ── THE SAME SPLIT ON THE SECOND ROUTE, AS A RULE RATHER THAN A PIXEL ─────────────────────────
@@ -2468,11 +2457,11 @@ test.describe("14-15 — every host plate draws the list that is actually coming
   //
   // `/host/bookings` mixes two row shapes on one tab. The RESTING one is a confirmed booking and it
   // is what the plate draws. A booking still awaiting the host's answer grows an approve/decline
-  // actions row and is taller. No single bar can be right for both, and drawing the taller shape
-  // would over-claim on the ordinary case. The alternative that was explicitly NOT taken: reducing
-  // the plate's row COUNT until the totals happen to line up while every individual row disagrees.
+  // actions row. Phase 26's confirmed row also carries projected payout text, so the requested row
+  // is now shorter than the confirmed plate. No single bar can be right for both; each signed
+  // difference is measured here instead of hiding it by changing the plate's row count.
   //
-  // MEASURED 24 August 2026: the actions row costs a FLAT 56px at 320 (232 against a two-line
+  // HISTORICAL MEASUREMENT, 24 August 2026: the actions row cost a FLAT 56px at 320 (232 against a two-line
   // resting row's 176, 252 against a three-line row's 196 — the same 56 either way) and a flat 25px
   // at 1280 (61 against 36).
   //
@@ -2482,7 +2471,7 @@ test.describe("14-15 — every host plate draws the list that is actually coming
   // alone in this block — genuinely cannot be pinned. 14-15 answered that with a 40px-wide band,
   // which is a band wide enough to swallow the entire content of a wrapped line and therefore wide
   // enough to swallow the defect this file exists to catch. It is replaced by a DERIVATION: the
-  // row's own wrap count is read, and the expected over-run is the measured 56px cost of the actions
+  // row's own wrap count is read, and the expected signed difference is the current -12px at 320
   // plus 20px for each line the label wraps beyond the resting shape's two. That keeps the
   // assertion as tight as the pinned ones — ±4px around an exact expectation — while still being
   // true on every date. What it cannot catch is stated with it, below.
@@ -2495,12 +2484,14 @@ test.describe("14-15 — every host plate draws the list that is actually coming
   // The derivation is retained because it is still the CORRECT expression of the expectation: the
   // day a label grows again — a longer venue city on a two-zone list, a wider type scale, a
   // narrower column — the term becomes non-zero and the assertion stays true without being
-  // re-derived. Replacing it with a bare `+ 56` would be trading a statement of the rule for a
+  // re-derived. Replacing it with a bare constant would be trading a statement of the rule for a
   // snapshot of today's arithmetic.
-  const PENDING_ACTIONS_COST_320 = 56;
-  const PENDING_ACTIONS_COST_1280 = 25;
+  // Phase 26's confirmed payout content makes a pending row shorter than the declared confirmed
+  // plate. These are signed differences from that plate, not the actions' intrinsic pixel cost.
+  const PENDING_DELTA_FROM_PLATE_320 = -12;
+  const PENDING_DELTA_FROM_PLATE_1280 = -19;
 
-  test("(deviation) a still-pending booking over-runs the bookings plate's bar by a measured amount", async ({
+  test("(deviation) a still-pending booking differs from the confirmed plate by a measured amount", async ({
     page,
     context,
   }) => {
@@ -2525,33 +2516,32 @@ test.describe("14-15 — every host plate draws the list that is actually coming
         ).toBeVisible({ timeout: 30_000 });
 
         const rendered = await heightOf(row, `${where} · ${tree}`);
-        const overrun = Math.round((rendered - bar) * 100) / 100;
+        const delta = Math.round((rendered - bar) * 100) / 100;
 
-        // At 1280 nothing wraps — a table row is one line — so the expectation is the flat cost.
-        // At 320 it is the flat cost plus whatever this date's label costs in extra wrapped lines,
+        // At 1280 the signed difference is fixed for this fixture. At 320 it also includes any
+        // extra wrapped lines in this date's label,
         // read off the row itself rather than assumed.
-        let expected = PENDING_ACTIONS_COST_1280;
-        let wrapNote = "a table row wraps nothing, so this cost is flat";
+        let expected = PENDING_DELTA_FROM_PLATE_1280;
+        let wrapNote = "the table-row difference is fixed for this fixture";
         if (tree === "card") {
           const meta = await metaOf(row, `${where} · meta`);
           const extra = meta.lines - RESTING_META_LINES_320;
-          expected = PENDING_ACTIONS_COST_320 + extra * META_LINE_PX;
+          expected = PENDING_DELTA_FROM_PLATE_320 + extra * META_LINE_PX;
           wrapNote =
             `this row's label ("${meta.text}") wraps to ${meta.lines} lines, ${extra} more than the ` +
             `${RESTING_META_LINES_320} the ${bar}px bar is declared against, so the expected ` +
-            `over-run is ${PENDING_ACTIONS_COST_320} + ${extra} × ${META_LINE_PX}`;
+            `signed difference is ${PENDING_DELTA_FROM_PLATE_320} + ${extra} × ${META_LINE_PX}`;
         }
 
         expect(
-          Math.abs(overrun - expected),
+          Math.abs(delta - expected),
           `${where}: a still-pending booking's ${tree} measures ${rendered}px against the plate's ` +
-            `${bar}px bar — an over-run of ${overrun}px where ${expected}px was expected, because ` +
+            `${bar}px bar — a signed difference of ${delta}px where ${expected}px was expected, because ` +
             `${wrapNote}. This delta is ACCEPTED and recorded, not a target: the bookings tab mixes ` +
             "a confirmed row (which the bar draws) with a pending row (which carries approve/" +
-            "decline actions and is taller). The wrap term is read from the row, so a miss here is " +
-            "the ACTIONS row changing shape and nothing else — re-measure and move the cost with " +
-            "the change that caused it; do not widen this, and do not shrink the plate's row count " +
-            "until the totals happen to agree.",
+            "decline actions but no projected earnings). The wrap term is read from the row, so a " +
+            "miss here means one of these shapes changed. Re-measure that change rather than " +
+            "widening the tolerance or changing the plate's row count.",
         ).toBeLessThanOrEqual(HOST_TOLERANCE_PX);
       }
     }

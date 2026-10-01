@@ -4017,6 +4017,14 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
     coveredBy: ["error boundary · src/app/(host)/host/error.tsx"],
   },
   {
+    surface: "src/app/(host)/host/earnings/error.tsx",
+    excluded:
+      "The earnings segment boundary needs a controlled failure inside /host/earnings. The existing " +
+      "/host/dev-throw vehicle reaches the parent host boundary, and the ordinary earnings row " +
+      "measures the successful page. No earnings-read fault fixture exists in this harness, so this " +
+      "fallback's 320px geometry remains unmeasured rather than being attributed to another row.",
+  },
+  {
     surface: "src/app/(legal)/error.tsx",
     coveredBy: ["error boundary · src/app/(legal)/error.tsx"],
   },

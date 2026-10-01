@@ -773,7 +773,9 @@ export const HOST_AGENDA_ROW_HEIGHT = "h-28 sm:h-18";
 export const HOST_REQUEST_ROW_HEIGHT = "h-64 md:h-21";
 
 /**
- * The host bookings list's row: 176px below the medium breakpoint, 36px at and above it.
+ * The host bookings list's confirmed row: 244px below the medium breakpoint, 80px above it.
+ * The Phase 14 measurements below are retained as history; the Phase 26 remeasurement at the end
+ * of this block supersedes their row-height and deviation claims.
  *
  * ⚠ CORRECTED FROM 196 BY PLAN `[14-16]`, AND THE CORRECTION IS THE INTERESTING PART. The row's card
  * is 136px of boxes CSS fixes — 16 padding + 20 title + 12 gap + 72 description list + 16 padding —
@@ -905,8 +907,15 @@ export const HOST_REQUEST_ROW_HEIGHT = "h-64 md:h-21";
  * So the wrap strictly reduces the horizontal clip at every desktop width — it can only ever shrink
  * one column — and it converts what is left of it into vertical growth, which a page can scroll and a
  * clipped control cannot.
+ *
+ * PHASE 26 RE-MEASUREMENT (1 OCTOBER 2026): The 176/36 figures above describe the earlier row, before
+ * confirmed bookings showed projected payout status and amount. The current confirmed fixture is
+ * 244.05px at 320 and 80.53px at 1280; this plate declares 244/80. The desktop table keeps the full
+ * timing explanation available to screen readers while the visible cell shows status and amount.
+ * A requested booking has no earnings yet: its measured rows are 232px (or 252px with an extra meta
+ * line) at 320 and about 61px at 1280. Those signed deviations are pinned in skeleton-geometry.spec.ts.
  */
-export const HOST_BOOKING_ROW_HEIGHT = "h-44 md:h-9";
+export const HOST_BOOKING_ROW_HEIGHT = "h-61 md:h-20";
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 // PHASE 18 — THE FITOUT OPS CONSOLE (plan 18-12). TWO CONSTANTS, ONE ROUTE.

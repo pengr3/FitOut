@@ -715,6 +715,17 @@ const ROWS: readonly SweepRow[] = [
     tell: hookOf("host-earnings"),
   },
   {
+    file: "src/app/(host)/host/earnings/error.tsx",
+    name: "error boundary · host earnings",
+    path: null,
+    // The existing /host/dev-throw page throws under the parent host boundary. This segment's
+    // boundary requires an earnings-page failure, and this suite has no controlled database fault
+    // fixture. The ordinary earnings row above does not render this fallback. Its retry and copy
+    // are covered by earnings-view unit tests; a live axe scan of the fallback remains open.
+    skip: "the host earnings segment error boundary cannot be reached through the existing /host/dev-throw vehicle, which is caught by the parent host boundary. This sweep has no controlled earnings-read failure fixture. The retry and neutral copy have component coverage, but this fallback has not received a live axe scan.",
+    tell: '[role="alert"]:has-text("Earnings unavailable")',
+  },
+  {
     file: "src/app/(host)/host/payouts/return/page.tsx",
     name: "/host/payouts/return",
     path: "/host/payouts/return",

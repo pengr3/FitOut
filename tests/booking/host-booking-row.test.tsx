@@ -114,4 +114,15 @@ describe("HPAY-05 — booking payout status agrees with earnings", () => {
     expect(screen.getByText("Paid")).toBeTruthy();
     expect(container.querySelector(".whitespace-normal")).not.toBeNull();
   });
+
+  it("keeps the full timing accessible in the compact desktop cell", () => {
+    render(<HostPayoutCell compact view={{
+      status: "clearing",
+      amountLabel: "Estimated payout ₱900.00",
+      timing: "The guest's payment is confirmed. We're waiting for it to reach FitOut before scheduling your payout.",
+    }} />);
+    expect(screen.getByText("Payment clearing")).toBeTruthy();
+    expect(screen.getByText("Estimated payout ₱900.00")).toBeTruthy();
+    expect(screen.getByText(/waiting for it to reach FitOut/).classList.contains("sr-only")).toBe(true);
+  });
 });

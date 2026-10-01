@@ -62,7 +62,7 @@ export type HostBookingRowData = {
 /**
  * Shared by mobile, desktop and detail. The projection comes from the earnings status mapper.
  */
-export function HostPayoutCell({ view }: { view: BookingPayoutView | null }) {
+export function HostPayoutCell({ view, compact = false }: { view: BookingPayoutView | null; compact?: boolean }) {
   if (!view) {
     return (
       <span className="text-muted-foreground" aria-label="No payout yet">
@@ -73,7 +73,7 @@ export function HostPayoutCell({ view }: { view: BookingPayoutView | null }) {
   return <div className="flex min-w-0 max-w-56 flex-col items-start gap-1 whitespace-normal break-words">
     <PayoutStateBadge status={view.status} />
     {view.amountLabel ? <span className="text-label tabular-nums">{view.amountLabel}</span> : null}
-    <span className="text-label text-muted-foreground tabular-nums">{view.timing}</span>
+    <span className={compact ? "sr-only" : "text-label text-muted-foreground tabular-nums"}>{view.timing}</span>
   </div>;
 }
 
