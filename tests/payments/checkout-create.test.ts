@@ -47,13 +47,14 @@ const BOOKER = "cc_booker";
 const OTHER = "cc_other";
 const LISTING = "L_cc";
 
-/** A distinct 1-hour UTC window per booking so seeded rows never collide on the booking_no_overlap EXCLUDE. */
+/** A future day and distinct 1-hour UTC window per booking keep checkout valid and rows non-overlapping. */
 function windowAt(hourUtc: number): { startsAt: Date; endsAt: Date } {
   const h = String(hourUtc).padStart(2, "0");
   const h1 = String(hourUtc + 1).padStart(2, "0");
+  const futureDay = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   return {
-    startsAt: new Date(`2026-10-01T${h}:00:00.000Z`),
-    endsAt: new Date(`2026-10-01T${h1}:00:00.000Z`),
+    startsAt: new Date(`${futureDay}T${h}:00:00.000Z`),
+    endsAt: new Date(`${futureDay}T${h1}:00:00.000Z`),
   };
 }
 
