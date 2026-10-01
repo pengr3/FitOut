@@ -78,19 +78,29 @@ describe("resolveClick — the range-fill gesture reducer", () => {
     expect(selectionValue(s, slots)).toBeNull();
   });
 
-  it("adjacent fill: anchor 06:00 then end 07:00 → run {0,1}, anchor cleared, no gap", () => {
+  it("06:00 to 07:00 reserves one hour", () => {
     const s = resolveClick(anchorAt(0), 1, slots);
-    expect(s).toEqual({ run: { lo: 0, hi: 1 }, anchor: null, fullDay: false, gapIndex: null });
+    expect(s).toEqual({ run: { lo: 0, hi: 0 }, anchor: null, fullDay: false, gapIndex: null });
   });
 
-  it("non-adjacent CLEAN fill: anchor 17:00 then end 20:00 → run {11,14}, no gap", () => {
+  it("a booked next hour is still a valid checkout boundary", () => {
+    const s = resolveClick(anchorAt(1), 2, slots); // 08:00 is booked, 07:00–08:00 is free
+    expect(selectionValue(s, slots)).toEqual({ startUtc: slots[1].startUtc, endUtc: slots[1].endUtc, fullDay: false });
+  });
+
+  it("the closing boundary can be selected after the last available hour", () => {
+    const s = resolveClick(anchorAt(14), slots.length, slots);
+    expect(selectionValue(s, slots)).toEqual({ startUtc: slots[14].startUtc, endUtc: slots[14].endUtc, fullDay: false });
+  });
+
+  it("17:00 to 20:00 reserves three hours", () => {
     const s = resolveClick(anchorAt(11), 14, slots);
-    expect(s).toEqual({ run: { lo: 11, hi: 14 }, anchor: null, fullDay: false, gapIndex: null });
+    expect(s).toEqual({ run: { lo: 11, hi: 13 }, anchor: null, fullDay: false, gapIndex: null });
   });
 
-  it("earlier-direction fill: anchor 09:00 then end 07:00 → truncates at 08:00 gap → run {1,1}, gap 2", () => {
+  it("an earlier click starts a new selection", () => {
     const s = resolveClick(anchorAt(3), 1, slots);
-    expect(s).toEqual({ run: { lo: 1, hi: 1 }, anchor: null, fullDay: false, gapIndex: 2 });
+    expect(s).toEqual({ run: null, anchor: 1, fullDay: false, gapIndex: null });
   });
 
   it("gap TRUNCATION: anchor 07:00 then end 09:00 → run {1,1} (end < hi) with gapIndex 2 (08:00)", () => {
@@ -98,9 +108,9 @@ describe("resolveClick — the range-fill gesture reducer", () => {
     expect(s).toEqual({ run: { lo: 1, hi: 1 }, anchor: null, fullDay: false, gapIndex: 2 });
   });
 
-  it("same-anchor click = a 1-hour block: anchor 11:00 then 11:00 → run {5,5}, no gap", () => {
+  it("same-anchor click keeps the start pending", () => {
     const s = resolveClick(anchorAt(5), 5, slots);
-    expect(s).toEqual({ run: { lo: 5, hi: 5 }, anchor: null, fullDay: false, gapIndex: null });
+    expect(s).toEqual({ run: null, anchor: 5, fullDay: false, gapIndex: null });
   });
 
   it("re-anchor after a completed run: clicking an IN-RUN index resets to a fresh anchor", () => {
@@ -124,7 +134,7 @@ describe("resolveClick — the range-fill gesture reducer", () => {
   it("DEFENSIVE: clicking an UNAVAILABLE index returns the state unchanged", () => {
     expect(resolveClick(EMPTY_SELECTION, 2, slots)).toEqual(EMPTY_SELECTION);
     const pending = anchorAt(1);
-    expect(resolveClick(pending, 4, slots)).toEqual(pending); // 10:00 is unavailable
+    expect(resolveClick(pending, 4, slots)).toEqual({ run: { lo: 1, hi: 1 }, anchor: null, fullDay: false, gapIndex: 2 });
   });
 });
 
@@ -160,7 +170,7 @@ describe("selectionValue — the UNCHANGED lifted contract (null on pending)", (
     const run = resolveClick(anchorAt(11), 14, slots);
     expect(selectionValue(run, slots)).toEqual({
       startUtc: slots[11].startUtc,
-      endUtc: slots[14].endUtc,
+      endUtc: slots[13].endUtc,
       fullDay: false,
     });
   });

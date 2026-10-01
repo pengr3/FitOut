@@ -67,19 +67,19 @@ const DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://fitout:fitout@localhost:5432/fitout";
 
 /**
- * THE FROZEN INSTANT. `2026-09-15T04:00:00Z` is 12:00 noon Asia/Manila (UTC+8) — mid-day, so the
+ * THE FROZEN INSTANT. `2026-12-15T04:00:00Z` is 12:00 noon Asia/Manila (UTC+8) — mid-day, so the
  * hour grid renders both elapsed and future hours rather than sitting at an edge. The spec installs
  * this exact value with `page.clock`, BEFORE navigating (the API's own caveat; `e2e/hold-countdown
  * .spec.ts` is the repo's only prior clock user and records the same ordering).
  */
-export const VRT_CLOCK_ISO = "2026-09-15T04:00:00Z";
+export const VRT_CLOCK_ISO = "2026-12-15T04:00:00Z";
 
 /**
  * THE VENUE-LOCAL TODAY THE CLOCK-BEARING REFERENCES PHOTOGRAPH. Asia/Manila has no DST, so this
  * date is the local day containing VRT_CLOCK_ISO; it is adjacent to the collision day below and
  * keeps that booking day selectable inside the 90-day horizon.
  */
-export const VRT_TODAY_ISO = "2026-09-15";
+export const VRT_TODAY_ISO = "2026-12-15";
 
 /**
  * THE BASELINE HOST'S CREATION INSTANT. Explicitly +08:00 (Asia/Manila), never evaluated at seed
@@ -88,15 +88,15 @@ export const VRT_TODAY_ISO = "2026-09-15";
 export const VRT_HOST_CREATED_AT_ISO = "2024-01-15T00:00:00+08:00";
 
 /**
- * THE COLLISION WINDOW — 09:00–11:00 Asia/Manila on 2026-09-16, i.e. the morning AFTER the frozen
+ * THE COLLISION WINDOW — 09:00–11:00 Asia/Manila on 2026-12-16, i.e. the morning AFTER the frozen
  * instant. Inside the 06:00–21:00 operating hours below, and in the future relative to the frozen
  * clock, so the day is selectable and the hours would be bookable were they not already taken.
  */
 export const VRT_COLLISION = {
   /** The local day the spec selects, as the calendar addresses it. */
-  dayIso: "2026-09-16",
-  startUtc: "2026-09-16T01:00:00Z", // 09:00 Asia/Manila
-  endUtc: "2026-09-16T03:00:00Z", // 11:00 Asia/Manila
+  dayIso: "2026-12-16",
+  startUtc: "2026-12-16T01:00:00Z", // 09:00 Asia/Manila
+  endUtc: "2026-12-16T03:00:00Z", // 11:00 Asia/Manila
   startLabel: "9:00 AM",
   endLabel: "10:00 AM",
 } as const;

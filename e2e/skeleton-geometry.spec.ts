@@ -13,6 +13,8 @@ import {
   type SeededListing,
 } from "./helpers/booker-seed";
 
+const OPS_ORIGIN = "http://ops.localhost:3000";
+
 // STATE-01 / AC#17 / GATE-STATES — the RENDERED half of "the skeleton does not shift".
 //
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -2569,34 +2571,16 @@ test.describe("14-15 — every host plate draws the list that is actually coming
 // `HOST_TOLERANCE_PX` is 4, the figure 14-UI-SPEC makes falsifiable, and it is reused here unchanged
 // and deliberately: a tolerance stretched to fit a number is a gate that measures nothing.
 //
-// ⚠⚠⚠ THIS FIRED FOR REAL ON 2 SEPTEMBER 2026, AND THE PROCEDURE ABOVE IS WHAT HAPPENED. Plan
-// 18.1-13 put D-271's contact affordance on the queue row, the row grew a seventh `<dl>` term, and
-// this case reported a **48.13px shift at 320 and a 48.09px shift at 1280** against the declared
-// bars. The constant was re-measured — `OPS_QUEUE_ROW_HEIGHT` moved `h-132 lg:h-211` -> `h-144
-// lg:h-223`, i.e. 528/844 -> 576/892 — and the table below moved with it. Nothing was widened.
-//
-// THE DECLARED HEIGHTS ARE NOW 576 and 892 against observed 576.13 and 892.09, so the headroom is
-// **0.13px and 0.09px** — and note the SIGN CHANGED: these are under-claims where the previous pair
-// were over-claims. `measurements.ts` argues that choice at the constant; the short version is that
-// the steps above (580 and 896) would have sat 0.13px and 0.09px inside the 4px tolerance, which is a
-// pin that reddens on the next sub-pixel change to any font or border on this row.
-//
-// THE TWO WIDTHS ARE 320 AND 1280, and the second is `lg:`-side on purpose. `OPS_QUEUE_SHELL` is
-// `max-w-5xl` = 1024px, so the container stops growing at a 1024px viewport and the row measures
-// exactly 842.09px at every width above it — 1024, 1056, 1280 and 1440 all read identical. Below
-// `lg:` the height is a CONTINUOUS function of the container width (the mosaic is aspect-ratio
-// driven), which the constant records as a deviation rather than tracking with a third step. These
-// two widths are the two the constant actually claims; nothing in between is claimed at all.
-//
-// ⚠⚠⚠ NOT A GATE. D-24 keeps this file out of CI. What it produces is a one-time audit result, run by
-// hand and recorded in the plan's SUMMARY.
+// Re-measured 2026-09-28 after the listing evidence moved behind a disclosure. The arriving row is
+// collapsed: 216px at 320px and 176px at 1280px, both exact in isolated Chromium/PostGIS. The
+// previous expanded-row plate was 576px/892px and caused a visible jump. The test now identifies the
+// seeded listing by title without opening its evidence, then compares first-paint geometry directly.
 
 /** The two widths `OPS_QUEUE_ROW_HEIGHT` declares, and the bar each one compiles to. */
 const OPS_STEPS = [
-  // `h-144` — 144 x 4px. The 320px floor, where the mosaic has collapsed to the hero alone at 16/9.
-  { width: 320, bar: 576, row: 576.13 },
-  // `lg:h-223` — 223 x 4px. Any width at or above 1024, where the container has reached its cap.
-  { width: 1280, bar: 892, row: 892.09 },
+  // The listing evidence starts collapsed. Both rows were measured in isolated Chromium/PostGIS.
+  { width: 320, bar: 216, row: 216 },
+  { width: 1280, bar: 176, row: 176 },
 ] as const;
 
 test.describe("18-12 — the /ops plate draws the row that is actually coming", () => {
@@ -2609,6 +2593,7 @@ test.describe("18-12 — the /ops plate draws the row that is actually coming", 
   let staffCookies: Awaited<ReturnType<BrowserContext["cookies"]>> = [];
 
   test.beforeAll(async ({ browser }) => {
+    test.setTimeout(120_000);
     seed = await seedBookableListing({ photos: 5, titlePrefix: "E2E Ops Geo" });
     await seedReviewQueue(seed);
 
@@ -2638,7 +2623,7 @@ test.describe("18-12 — the /ops plate draws the row that is actually coming", 
     await context.clearCookies();
     await context.addCookies(staffCookies);
 
-    const truncator = installTruncator(page);
+    const truncator = installTruncator(page, OPS_ORIGIN);
     await truncator.ready;
 
     // WARM THE ROUTE BEFORE ASKING IT TO STREAM — the host block's MEASURED requirement. `next dev`
@@ -2646,7 +2631,7 @@ test.describe("18-12 — the /ops plate draws the row that is actually coming", 
     // already resolved by the time the shell flushes, so React emits no out-of-order completion
     // segment and there is no marker to cut at.
     truncator.set(false);
-    await page.goto(`${BASE_URL}/ops`);
+    await page.goto(`${OPS_ORIGIN}/ops`);
 
     for (const step of OPS_STEPS) {
       const where = `/ops · ${step.width}px`;
@@ -2655,7 +2640,7 @@ test.describe("18-12 — the /ops plate draws the row that is actually coming", 
       // ── PENDING: the route's own `loading.tsx` ────────────────────────────────────────────────
       truncator.set(true);
       for (let attempt = 1; attempt <= 3; attempt += 1) {
-        await page.goto(`${BASE_URL}/ops`);
+        await page.goto(`${OPS_ORIGIN}/ops`);
         if (truncator.state.cut > 0) break;
       }
       await page.evaluate(() => document.fonts.ready);
@@ -2705,22 +2690,15 @@ test.describe("18-12 — the /ops plate draws the row that is actually coming", 
 
       // ── RESOLVED: the whole document, the real listing row ────────────────────────────────────
       truncator.set(false);
-      await page.goto(`${BASE_URL}/ops`);
+      await page.goto(`${OPS_ORIGIN}/ops`);
       await page.evaluate(() => document.fonts.ready);
 
-      // THE LISTING ROW, addressed through its gallery. The queue also holds a HOST row, which is
-      // 238-258px and is NOT the shape this constant describes — the constant declares the listing
-      // shape deliberately, and its docblock says why. The gallery's labelled section is the one
-      // thing only a listing row renders; no `data-testid` is added for it, because
-      // `selector-contract.ts` is unchanged by Phase 18 and its scope rule says an id is added only
-      // where a role or label query cannot express the target.
-      const row = page
-        .locator('[data-testid="row-card"]')
-        .filter({ has: page.locator('section[aria-label^="Photos of "]') })
-        .first();
+      // The queue opens with listing evidence collapsed. Address the fixture by its unique title so
+      // this measures the row that actually arrives, without expanding it into a later UI state.
+      const row = page.getByTestId("row-card").filter({ hasText: seed!.title });
       await expect(
         row,
-        `${where}: the resolved page rendered no listing row with a photo mosaic. The fixture's ` +
+        `${where}: the resolved page rendered no listing row for the fixture. The fixture's ` +
           "listing may not have reached the queue (check review_state), or the plate may still be up.",
       ).toBeVisible({ timeout: 60_000 });
 

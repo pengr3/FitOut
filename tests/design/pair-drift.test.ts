@@ -335,7 +335,7 @@ const ROLE_PREFIXES: readonly (readonly [Role, string])[] = [
 function classifyUtility(
   utility: string,
 ): { role: Role; token: string; alphaPercent: number | null } | null {
-  let text = utility.replace(/^-/, "");
+  let text = utility.replace(/^-/, "").replace(/!$/, "");
   const slash = text.indexOf("/");
   let alphaPercent: number | null = null;
   if (slash !== -1) {
@@ -566,6 +566,11 @@ describe("the declared pair inventory matches what components render", () => {
     expect(splitVariants("sm:lg:bg-muted").chain).toEqual(["sm", "lg"]);
     // The opacity modifier is not part of the token NAME — but it is kept alongside it, because
     // it is part of the rendered colour and `pairKey` needs it to tell a tint from a solid (WR-05).
+    expect(classifyUtility("bg-brand/10!")).toEqual({
+      role: "bg",
+      token: "brand",
+      alphaPercent: 10,
+    });
     expect(classifyUtility("bg-brand/10")).toEqual({
       role: "bg",
       token: "brand",

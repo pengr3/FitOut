@@ -27,7 +27,7 @@ export function cityLabelFor(city: string | null, timezone: string): string {
   return seg ? seg.replace(/_/g, " ") : "your city";
 }
 
-/** The canonical SC#2 note, e.g. "Times shown in Manila time (GMT+8)". One source for all price/time surfaces. */
+/** The canonical Philippine Time note, with the venue's GMT offset kept visible. */
 export function venueTzNote(city: string | null, timezone: string): string {
-  return `Times shown in ${cityLabelFor(city, timezone)} time (${gmtLabelFor(timezone)})`;
+  return `Times shown in Philippine Time (${gmtLabelFor(timezone)})`;
 }

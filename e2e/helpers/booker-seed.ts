@@ -44,6 +44,7 @@ import { tz } from "@date-fns/tz";
 
 import { grantStaff } from "@/lib/ops/grant";
 import * as schema from "@/lib/db/schema";
+import { signInOps } from "./ops-sign-in";
 
 /** Every route these specs drive is served by the dev server Playwright boots on :3000. */
 export const BASE = "http://localhost:3000";
@@ -298,9 +299,9 @@ function escapeForName(label: string): string {
  *   absent-with-no-hours-at-all      — no day is selected, or the listing has no hours that day.
  */
 async function clickHourChip(page: Page, label: string, which: string): Promise<void> {
-  const chip = page.getByRole("button", { name: label, exact: true });
+  const chip = page.getByRole("button", { name: new RegExp(`^(?:Start at |End at )${escapeForName(label)}$|^${escapeForName(label)} — (?:start selected|checkout selected)`) });
   const taken = page.getByRole("button", { name: new RegExp(`^${escapeForName(label)}\\s+—\\s`) });
-  const anyHour = page.getByRole("button", { name: /^\d{1,2}:00 (AM|PM)(\s|$)/ });
+  const anyHour = page.getByRole("button", { name: /^(?:Start at |End at )?\d{1,2}:00 (AM|PM)(\s|$)/ });
 
   await expect
     .poll(
@@ -337,7 +338,7 @@ export async function pickWindow(
   // ⚠ THE COUNT SETTLE IS `openSeededListing`'s `#search-category` IDIOM, ONE ROUTE OVER, AND IT CLOSES
   // A MEASURED FLAKE. Plan 19.1-04 measured `/listings/[id]` holding TWO copies of this note while the
   // route streams — React's server and client forms of the same booking surface — and this assertion
-  // then failed Playwright's strict mode: `getByText(/Times shown in .*Makati.*\(GMT\+8\)/i) resolved
+  // then failed Playwright's strict mode: `getByText(/Times shown in Philippine Time \(GMT\+8\)/i) resolved
   // to 2 elements` at this line (that plan's DEFECT 3, evidence/triage-collision-in-place.txt §7). The
   // repair it shipped derived the note's `id` per instance, which fixes the HTML and the
   // `aria-describedby` — and CANNOT fix this, because this locator matches TEXT and the text is
@@ -346,7 +347,7 @@ export async function pickWindow(
   // ⚠ NOT `.first()`, and that is plan 19.1-04's explicit brief rather than a preference: `.first()`
   // goes green against a page rendering ONLY the pending shell, which is exactly the state the day
   // click below must not run against. A persistent 2 still fails here, as it should.
-  const tzNote = page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i);
+  const tzNote = page.getByText(/Times shown in Philippine Time \(GMT\+8\)/i);
   await expect(
     tzNote,
     "`/listings/[id]` still holds two venue-timezone notes — the streaming boundary's pending copy " +
@@ -431,12 +432,14 @@ export async function submitProgressiveSearch(
   await page.context().setGeolocation(SEARCH_LOCATION);
   await page.goto(BASE);
 
-  await page.getByRole("button", { name: "Start your search" }).click();
+  await page.getByRole("button", { name: "Search activity" }).click();
   const activity = page.locator('[data-slot="command-input"]');
   await expect(activity).toHaveAttribute("aria-label", "Search for activity or type");
   await activity.fill(spaceTypeLabel);
   await page.getByRole("option", { name: spaceTypeLabel, exact: true }).click();
+  await page.getByRole("button", { name: "Search location" }).click();
   await page.getByRole("button", { name: "Use my location" }).click();
+  await page.getByRole("button", { name: "Search party size" }).click();
   await expect(page.getByRole("heading", { name: "Who is this for?" })).toBeFocused();
   await page.getByRole("button", { name: "For me" }).click();
   await expect(page.getByTestId("search-results-region")).toHaveCount(1);
@@ -773,7 +776,11 @@ export async function signUpStaff(page: Page): Promise<SeededStaff> {
   await page.waitForURL((url) => !url.pathname.startsWith("/signup"), { timeout: 60_000 });
 
   const userId = await withClient(async (sql) => {
-    const result = await grantStaff(drizzle(sql, { schema }), email, STAFF_GRANT_ACTOR);
+    // Sign-up creates a booker account. Converting this synthetic fixture to staff must be
+    // explicit, just as it is for the operator command; the production policy stays strict.
+    const result = await grantStaff(drizzle(sql, { schema }), email, STAFF_GRANT_ACTOR, {
+      convertMarketplaceAccount: true,
+    });
     expect(
       result.outcome,
       `the staff grant refused ${email} (${result.outcome}). Every /ops row in this suite would then ` +
@@ -789,9 +796,14 @@ export async function signUpStaff(page: Page): Promise<SeededStaff> {
     return row.id;
   });
 
-  // The session cookie is already minted and the role is re-read from the row on the NEXT request —
-  // `src/lib/ops/staff.ts` depends on `session.cookieCache` staying unconfigured, and its header says
-  // so. If that ever changes, this helper has to mint the session AFTER the grant instead.
+  // Public and ops use separate host-only cookie jars. Mint the staff session on the ops host;
+  // copying the sign-up cookie from localhost to a fresh context never authenticates ops.localhost.
+  const opsSignIn = await signInOps(page.context().request, email, "averylongpassword");
+  expect(opsSignIn.status(), "the test staff account could not sign in on the ops host").toBe(200);
+  expect((await page.context().cookies(`http://ops.localhost:${process.env.FITOUT_OPS_E2E_PORT ?? "3000"}`)).length)
+    .toBeGreaterThan(0);
+
+  // The public signup session and the new ops session now live in separate host-only cookie jars.
   return {
     email,
     userId,

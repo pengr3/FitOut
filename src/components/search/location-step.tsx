@@ -17,7 +17,7 @@ export type LocationStepProps = {
 export function LocationStep({ headingRef, initialLabel, hasCoordinates, locationPending, onResolved, onUseMyLocation }: LocationStepProps) {
   return (
     <div className="space-y-3 rounded-card border border-border bg-card p-4 shadow-card">
-      <p className="text-label text-muted-foreground">Step 2 of 3</p>
+      <p className="text-label text-muted-foreground">Location</p>
       <h2 ref={headingRef} tabIndex={-1} className="text-xl font-semibold outline-none">Where do you want to play?</h2>
       <AddressAutocomplete audience="search" initialLabel={initialLabel} hasCoordinates={hasCoordinates} onResolved={onResolved} />
       <Button type="button" variant="outline" size="touch" disabled={locationPending} onClick={onUseMyLocation}>

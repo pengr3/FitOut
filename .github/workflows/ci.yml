@@ -1120,6 +1120,9 @@ jobs:
           #   * They are literals in a public file ON PURPOSE (T-11-CISECRET). Do NOT promote
           #     them to `secrets.*`. A GitHub secret here would imply a real credential is
           #     needed to BUILD, which is exactly the property this job exists to disprove.
+          # The ops/public origin splitter also validates an exact ops authority at module load.
+          # This build-only host is not a deployed domain or authentication destination.
+          OPS_APP_URL: https://ops.ci.invalid
           BETTER_AUTH_SECRET: ci-build-only-placeholder-not-a-real-secret
           PAYMONGO_SECRET_KEY: ci-build-only-placeholder-not-a-real-key
           PAYMONGO_WEBHOOK_SECRET: ci-build-only-placeholder-not-a-real-webhook-secret
@@ -1696,8 +1699,10 @@ jobs:
       # Both the app under test (the dev server Playwright boots) and any spec's own postgres.js
       # client read this one variable, so they cannot drift onto different databases.
       #
-      # ⚠ THIS IS THE ONLY ENVIRONMENT INPUT THIS JOB HAS.
+      # The ops response gateway signs its inward handoff with the same secret Better Auth uses.
+      # CI has no deployment secret, so use a fixed test-only value for this disposable database.
       DATABASE_URL: postgres://fitout:fitout@postgres:5432/fitout
+      BETTER_AUTH_SECRET: fitout-ci-e2e-only-secret-never-use-in-deployments
 
     steps:
       - uses: actions/checkout@v4

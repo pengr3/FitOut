@@ -445,6 +445,7 @@ type AvailabilityCalendarProps = {
   gmtLabel: string;
   unitCount: number;
   bookable: boolean;
+  dayRateCents: number | null;
   initialDate: DayLocal;
   initialDay: DayAvailability | null;
   /**
@@ -495,6 +496,7 @@ export function AvailabilityCalendar({
   gmtLabel,
   unitCount,
   bookable,
+  dayRateCents,
   initialDate,
   initialDay,
   occupancyMode,
@@ -643,7 +645,7 @@ export function AvailabilityCalendar({
   return (
     <div data-testid="availability-calendar" className="space-y-3">
       <p id={tzNoteId} className="text-sm text-muted-foreground">
-        Times shown in {cityLabel} time ({gmtLabel})
+        Times shown in Philippine Time ({gmtLabel})
       </p>
 
       <div
@@ -779,6 +781,7 @@ export function AvailabilityCalendar({
               // never disagree with the thresholds the server actually enforces.
               mode={dayAvail.bookingMode}
               disabled={!bookable}
+              allowFullDay={dayRateCents != null && dayRateCents > 0}
               onSelectionChange={setSelection}
               // D-59 #1: the picker mounts showing whatever the shared context holds — the RSC-seeded
               // searched window on the first paint, and null on every subsequent day (selectDay clears

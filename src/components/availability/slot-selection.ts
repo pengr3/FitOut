@@ -4,11 +4,9 @@
 // runs in node and is unit-testable in isolation (tests/availability/slot-selection.test.ts). The picker
 // (slot-picker.tsx) is the thin DOM shell that renders state and feeds clicks through this reducer.
 //
-// The gesture (ported verbatim in behavior from the approved sketch's `rangefill` branch): click a START
-// hour to set a pending anchor (selection stays null); click an END hour to fill the CONTIGUOUS available
-// run between them, in either direction. If the run would cross an unavailable hour it TRUNCATES at the
-// last available hour before the first gap and records that gap so the picker can show a soft hint. A
-// same-anchor second click is a 1-hour block; a click after a completed run re-anchors a fresh start.
+// The first click chooses a start; the second chooses the exclusive checkout boundary.
+// A 12:00–1:00 choice therefore reserves one hour. A gap truncates the run before the
+// first unavailable hour. Clicking the same or an earlier time re-anchors the start.
 //
 // The picker stays ADVISORY (Pitfall 6): the DB booking_no_overlap EXCLUDE constraint is the sole booking
 // authority. Nothing here touches the DB, schema, or a server action — it is client interaction only.
@@ -64,12 +62,8 @@ export function firstGap(slots: AvailabilitySlot[], lo: number, hi: number): num
 }
 
 /**
- * Apply a chip click at `index`. Ports the sketch's `rangefill` onClick exactly:
- *   1. unavailable index → no-op (defensive; the picker also disables these chips).
- *   2. full-day is cleared on any chip click (mutual clear).
- *   3. a committed run → RESET to a fresh anchor at `index` (fresh start after a completed run).
- *   4. no anchor yet → SET START anchor at `index` (selection still lifts null).
- *   5. second click = END → fill [min,max], truncating at the first gap; record gapIndex if cut short.
+ * Apply a start or exclusive end-boundary click. `index === slots.length` is the
+ * operating day's closing boundary. A second click at an earlier time re-anchors.
  * Always returns a NEW state (or the same reference on the no-op) — never mutates the input.
  */
 export function resolveClick(
@@ -77,19 +71,27 @@ export function resolveClick(
   index: number,
   slots: AvailabilitySlot[],
 ): SelectionState {
-  if (!isAvailable(slots, index)) return state; // (1) unavailable chips can never be selected
+  // The second click names the checkout boundary. The hour beginning there is excluded,
+  // even when that next hour has already been booked by someone else.
+  if (state.anchor !== null && !state.run && index > state.anchor && index <= slots.length) {
+    const endIndex = index - 1;
+    const gapIndex = firstGap(slots, state.anchor, endIndex);
+    return {
+      run: { lo: state.anchor, hi: gapIndex === -1 ? endIndex : gapIndex - 1 },
+      anchor: null,
+      fullDay: false,
+      gapIndex: gapIndex === -1 ? null : gapIndex,
+    };
+  }
+  if (!isAvailable(slots, index)) return state;
 
-  // (3) fresh start after a completed run, or (4) set the pending start anchor. Both clear full-day (2).
+  // A completed run starts over on the next click; the first click only sets a start.
   if (state.run || state.anchor === null) {
     return { run: null, anchor: index, fullDay: false, gapIndex: null };
   }
 
-  // (5) second click = end: fill the contiguous available run between the anchor and here.
-  const lo = Math.min(state.anchor, index);
-  const hi = Math.max(state.anchor, index);
-  const end = contiguousEnd(slots, lo, hi);
-  const gapIndex = end < hi ? firstGap(slots, lo, hi) : null; // truncated → name the blocking hour
-  return { run: { lo, hi: end }, anchor: null, fullDay: false, gapIndex };
+  // An earlier (or the same) time starts a new choice.
+  return { run: null, anchor: index, fullDay: false, gapIndex: null };
 }
 
 /**

@@ -302,12 +302,12 @@ export function AddressAutocomplete({
 
   const located = Boolean(hasCoordinates) || selectedLabel.length > 0;
   const isSearchAudience = audience === "search";
-  const triggerCopy = isSearchAudience ? "Search for your address" : "Search for your address";
-  const inputCopy = isSearchAudience ? "Type a street or city…" : "Start typing a street, city…";
+  const triggerCopy = isSearchAudience ? "Search for your address" : "Search for a nearby address";
+  const inputCopy = isSearchAudience ? "Type a street or city…" : "Type a street, landmark or city…";
   const emptyCopy = isSearchAudience ? "No matching addresses. Try another street or city." : "No matches yet. Keep typing.";
   const hintCopy = isSearchAudience
     ? "Choose an address suggestion to search nearby spaces."
-    : "Pick a suggestion so we can place you on the map.";
+    : "Pick the nearest result, then enter the exact street address and place the pin.";
 
   return (
     <div className="space-y-1.5">

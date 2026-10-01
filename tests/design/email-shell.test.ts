@@ -150,6 +150,7 @@ import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
 
 import { renderEmail, escapeHtml, type EmailContent } from "@/lib/email-shell";
+import { SUPPORT_EMAIL } from "@/lib/site";
 
 import { stripComments } from "./helpers/strip-comments";
 
@@ -619,13 +620,13 @@ describe("15-UI-SPEC § Type — exactly five font sizes, and no send may add a 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("D-26 — the support slot is guarded, and the guard exists in source", () => {
-  it("renders no mailto: while SUPPORT_EMAIL is null", () => {
+  it("renders the support mailto only when a monitored address is configured", () => {
     for (const rendered of [verify, digest, nasty]) {
       expect(
         count(rendered.html, "mailto:"),
         "a support address rendered while the app has no monitored inbox. D-26: nothing false " +
           "ships — no placeholder, no dead link, no \"coming soon\".",
-      ).toBe(0);
+      ).toBe(SUPPORT_EMAIL === null ? 0 : 1);
     }
   });
 

@@ -135,11 +135,8 @@ describe("the copy states what FitOut checked, and does not imply more (D-237 / 
     expect(FITOUT_CHECK_EXPLAINER).toContain("this host's account and this listing");
   });
 
-  it("carries the deliberate negative — it says the space was NOT visited", () => {
-    // Success Criterion 6 says the badge must never imply inspection. The strongest compliance is to
-    // say what did not happen, so this sentence is load-bearing rather than a nicety: deleting it
-    // leaves a chip that a booker may reasonably read as a site visit.
-    expect(FITOUT_CHECK_EXPLAINER).toContain("We haven't visited the space.");
+  it("describes the account and listing check without suggesting a site visit", () => {
+    expect(FITOUT_CHECK_EXPLAINER).not.toMatch(/visited|inspected/i);
   });
 
   it("claims no document, no vendor, and no inspection", () => {

@@ -296,12 +296,12 @@ async function pickWindow(page: Page, startLabel: string, endLabel: string): Pro
   // ONE visible tz note. Measured total=1 / visible=1 over 10 runs, and on a surface whose whole
   // subject is venue-local time a SECOND tz note would be a real defect worth failing on (SC#2).
   await expect(
-    page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i).filter({ visible: true }),
+    page.getByText(/Times shown in Philippine Time \(GMT\+8\)/i).filter({ visible: true }),
     "the listing shows exactly one venue-tz note before a window is picked (SC#2)",
   ).toHaveCount(1);
   await selectTargetDay(page);
-  await page.getByRole("button", { name: startLabel, exact: true }).click(); // start anchor
-  await page.getByRole("button", { name: endLabel, exact: true }).click(); // end → fills the run
+  await page.getByRole("button", { name: new RegExp(`^Start at ${startLabel}$`) }).click(); // start anchor
+  await page.getByRole("button", { name: new RegExp(`^End at ${endLabel}$`) }).click(); // end → fills the run
 }
 
 test.describe("search → book → live hold + durable confirmation + expiry UX (SC#1–SC#4)", () => {
@@ -326,16 +326,16 @@ test.describe("search → book → live hold + durable confirmation + expiry UX 
       "the category filter narrows to exactly one result card, hence one ₱/hr price (SEARCH-05)",
     ).toHaveCount(1);
 
-    await expect(page.getByRole("button", { name: /^Activity:/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^Location:/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: "1 person" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Search activity" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Search location" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Search party size" })).toBeVisible();
 
     // ── Click the card → the public listing detail page. ───────────────────────────────────────────────
     await page.getByRole("link", { name: new RegExp(LISTING_TITLE) }).click();
     await page.waitForURL(new RegExp(`/listings/${listingId}`));
 
     // ── Pick a venue-tz window (5–7 PM) and Book. ──────────────────────────────────────────────────────
-    await pickWindow(page, "5:00 PM", "6:00 PM"); // run spans 5:00 PM – 7:00 PM (end = the 6 PM slot's end)
+    await pickWindow(page, "5:00 PM", "7:00 PM"); // a two-hour 5:00 PM to 7:00 PM booking
     const bookBtn = page.getByRole("button", { name: "Book this space" });
     await expect(bookBtn).toBeEnabled();
     await bookBtn.click();

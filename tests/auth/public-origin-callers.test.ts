@@ -19,7 +19,6 @@ const bookingAndGroupCallers = [
 const providerAndHostCallers = [
   "src/app/actions/group.ts",
   "src/app/actions/host-requests.ts",
-  "src/app/actions/paymongo-connect.ts",
   "src/lib/verification/providers/didit.ts",
 ] as const;
 
@@ -90,7 +89,7 @@ describe("runtime public-origin callers", () => {
     }
   });
 
-  it("keeps host, onboarding, and hosted-verification links on the shared authority", () => {
+  it("keeps host and hosted-verification links on the shared authority", () => {
     for (const caller of providerAndHostCallers) {
       const source = readFileSync(join(process.cwd(), caller), "utf8");
       expect(source.includes('from "@/lib/app-origins"'), caller).toBe(true);

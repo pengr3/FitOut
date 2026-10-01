@@ -1,5 +1,5 @@
 // LIST-03 / D-02 / D-03: the shared draft/publish Zod contract. draftSchema autosaves a partial
-// listing (accepts {}); publishSchema is the strict gate — all core fields, BOTH rates as positive
+// listing (accepts {}); publishSchema is the strict gate — all core fields, an hourly rate as positive
 // INTEGER cents (Pitfall 5), coordinates present (D-10). Structure mirrors auth-schema.test.ts.
 //
 // Wave-0 FOUNDATION anchor — PASSES from Task 2 onward (the schemas exist).
@@ -116,7 +116,7 @@ describe("publishSchema (D-02/D-03 strict publish gate)", () => {
     expect(publishSchema.safeParse({ ...validPublish, hourlyRateCents: 25.5 }).success).toBe(false);
   });
 
-  it("rejects when BOTH rates are missing (D-03 both required)", () => {
+  it("rejects when the hourly rate is missing", () => {
     expect(
       publishSchema.safeParse({
         ...validPublish,
@@ -126,10 +126,10 @@ describe("publishSchema (D-02/D-03 strict publish gate)", () => {
     ).toBe(false);
   });
 
-  it("rejects when only one rate is present (D-03 both required)", () => {
+  it("accepts an hourly rate without a day rate", () => {
     expect(
       publishSchema.safeParse({ ...validPublish, dayRateCents: undefined }).success,
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("rejects missing coordinates (D-10 lat/lng required at publish)", () => {
@@ -254,7 +254,7 @@ describe("publishSchema — surcharge reachability (Gap C / deferred item 7)", (
 // ── OPEN-01 / 09-06: the MODE FORK. `hourlyRateCents` / `dayRateCents` moved from object-level required to
 // superRefine-required-for-exclusive so that a drop-in listing (which has no rates at all — OC-08) can
 // publish. The load-bearing pair of properties is therefore symmetric: an OPEN listing publishes with NO
-// rates, and an EXCLUSIVE listing still cannot. If the exclusive branch of the superRefine is ever deleted,
+// rates, while an EXCLUSIVE listing still needs an hourly rate. If that superRefine is deleted,
 // the second half of that pair goes red.
 describe("publishSchema — open-capacity mode fork (OPEN-01 / OC-08 / OC-10 / D-110)", () => {
   it("PUBLISHES a drop-in listing with a price per person and NO hourly or day rate (the headline)", () => {
@@ -272,8 +272,7 @@ describe("publishSchema — open-capacity mode fork (OPEN-01 / OC-08 / OC-10 / D
     expect(messagesFor(noHourly, "hourlyRateCents")).toContain(EXCLUSIVE_RATES_REQUIRED_MESSAGE);
 
     const noDay = publishSchema.safeParse({ ...validPublish, dayRateCents: undefined });
-    expect(noDay.success).toBe(false);
-    expect(messagesFor(noDay, "dayRateCents")).toContain(EXCLUSIVE_RATES_REQUIRED_MESSAGE);
+    expect(noDay.success).toBe(true);
 
     // A listing that never set occupancyMode at all reads as exclusive (the column's NOT NULL DEFAULT).
     const legacy = publishSchema.safeParse({

@@ -179,6 +179,7 @@ function renderCalendar(bookable: boolean) {
         gmtLabel={GMT}
         unitCount={1}
         bookable={bookable}
+        dayRateCents={300000}
         initialDate={DAY}
         initialDay={INITIAL_DAY}
         occupancyMode="exclusive"
@@ -197,7 +198,8 @@ function availableChip(): HTMLElement {
  *  step 4 lifts null while pending), so a single click could never distinguish the two cases. */
 function pickOneHour(chip: HTMLElement): void {
   fireEvent.click(chip);
-  fireEvent.click(chip);
+  const checkout = screen.queryAllByRole("button", { name: /^End at / })[0];
+  if (checkout) fireEvent.click(checkout);
 }
 
 afterEach(() => {
@@ -302,6 +304,7 @@ describe("BookingSelectionProvider — one hook owns the day, and the LATEST day
           gmtLabel={GMT}
           unitCount={1}
           bookable
+          dayRateCents={300000}
           initialDate={DAY}
           initialDay={INITIAL_DAY}
           occupancyMode="exclusive"
@@ -566,6 +569,7 @@ describe("STATE-07 / D-55 — a collision drops the rail's price and fires exact
           gmtLabel={GMT}
           unitCount={1}
           bookable
+          dayRateCents={300000}
           initialDate={DAY}
           initialDay={INITIAL_DAY}
           occupancyMode="exclusive"

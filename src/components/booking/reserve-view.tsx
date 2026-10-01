@@ -57,14 +57,14 @@ export function ReserveView({
   // reaching zero (a display cue). `confirmFailed` is the SERVER refusing — the only authority. Both
   // land on the same calm interstitial, but merging them into one setter would mean the client cue and
   // the server verdict shared a write path, which is how a display bug becomes a money bug.
-  const { expired: timedOut } = useHold();
+  const { expired: timedOut, publishExpiresAt } = useHold();
   const [confirmFailed, setConfirmFailed] = React.useState(false);
 
-  // A Confirm that resolves to a graceful failure — the server released the slot (`expired`), an ownership
-  // edge (`denied`), or checkout couldn't start / going too fast (`checkout`, D-57) — flips to the SAME
-  // calm recovery state, never a red error (occupancy/expiry/checkout-retry are all normal states).
+  // Only an inactive or inaccessible hold replaces the booking. A checkout failure stays
+  // inline in ReserveActions, so a live hold is never described as expired.
   function handleResult(result: ConfirmResult) {
-    if (result.reason === "expired" || result.reason === "denied" || result.reason === "checkout") {
+    if (result.reason === "checkout" && result.expiresAt) publishExpiresAt(result.expiresAt);
+    if (result.reason === "expired" || result.reason === "denied") {
       setConfirmFailed(true);
     }
   }
@@ -134,7 +134,11 @@ export function ReserveView({
       <aside className="lg:row-span-2">
         <PanelCard sticky>
           {breakdown}
-          <ReserveActions holdId={holdId} totalLabel={totalLabel} onResult={handleResult} />
+          {/* Keep the desktop action and its mobile fixed-bar twin in one layout child. PanelCard's
+              sibling spacing otherwise leaves an extra gap below the desktop note when the bar is hidden. */}
+          <div>
+            <ReserveActions holdId={holdId} totalLabel={totalLabel} onResult={handleResult} />
+          </div>
         </PanelCard>
       </aside>
 

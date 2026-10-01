@@ -1551,7 +1551,7 @@ test.describe("RESP-04 AC#13 — the navigation landmark · signed in as a host"
     await seedTheme(page.context(), THEME);
 
     const inlineLink = page.getByRole("link", { name: HOST_NAV_LINK });
-    const drawerTrigger = page.getByRole("button", { name: HOST_NAV_DRAWER_TRIGGER });
+    const drawerTrigger = page.getByTestId("site-nav").getByRole("button", { name: HOST_NAV_DRAWER_TRIGGER, exact: true });
 
     const mechanism =
       "`SiteNav` renders one link inventory in two placements — `hidden md:flex` for the inline bar " +

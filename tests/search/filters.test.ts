@@ -12,6 +12,7 @@ import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { seedSearchListings } from "../helpers/seed";
 import { searchParamsSchema } from "@/lib/validation/booking";
 import { searchListings } from "@/lib/search/query";
+import { sql } from "drizzle-orm";
 
 let testDb: TestDb;
 
@@ -53,6 +54,17 @@ describe("searchListings — category filter (SEARCH-02, D-35 type OR tag)", () 
   it("a space-type `category` (basketball_court) filters by the type column only, not the basketball tag", async () => {
     // Only the basketball_court primary type — NOT the gym that merely carries the `basketball` tag.
     expect(await idsFor({ category: "basketball_court" })).toEqual(["seed_listing_3"]);
+  });
+
+  it("finds a bouldering gym by its type, bouldering activity, or climbing activity without optional tags", async () => {
+    await testDb.db.execute(sql`UPDATE listing SET primary_space_type = 'bouldering_gym' WHERE id = 'seed_listing_2'`);
+    try {
+      for (const category of ["bouldering_gym", "bouldering", "climbing"]) {
+        expect(await idsFor({ category })).toEqual(["seed_listing_2"]);
+      }
+    } finally {
+      await testDb.db.execute(sql`UPDATE listing SET primary_space_type = 'yoga_studio' WHERE id = 'seed_listing_2'`);
+    }
   });
 });
 
