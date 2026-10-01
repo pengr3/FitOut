@@ -68,6 +68,39 @@ export type DuePayout = {
   paymongoAccountId?: string | null;
 };
 
+/** Production dispatch is held until an operator explicitly selects a release scope. */
+export function payoutDispatchMode(env: Record<string, string | undefined> = process.env): "hold" | "controlled" | "open" {
+  if (env.PAYOUT_DISPATCH_MODE === "controlled" || env.PAYOUT_DISPATCH_MODE === "open") {
+    return env.PAYOUT_DISPATCH_MODE;
+  }
+  return "hold";
+}
+
+/** A controlled proof can dispatch only one named booking within its fee-inclusive debit cap. */
+export function selectDispatchCandidates(
+  due: DuePayout[], env: Record<string, string | undefined> = process.env,
+): DuePayout[] {
+  const mode = payoutDispatchMode(env);
+  if (mode === "open") return due;
+  if (mode !== "controlled") return [];
+
+  const bookingId = env.PAYOUT_CONTROLLED_BOOKING_ID;
+  const capText = env.PAYOUT_CONTROLLED_MAX_DEBIT_CENTS;
+  const feeText = env.PAYMONGO_INSTAPAY_FEE_CENTS;
+  const maxDebitCents = Number(capText);
+  const feeCents = Number(feeText);
+  if (!bookingId?.trim() || bookingId.trim() !== bookingId ||
+      !capText?.trim() || !feeText?.trim() ||
+      !Number.isSafeInteger(maxDebitCents) || maxDebitCents <= 0 ||
+      !Number.isSafeInteger(feeCents) || feeCents < 0) return [];
+
+  const candidate = due.find((row) => row.bookingId === bookingId);
+  if (!candidate || !Number.isSafeInteger(candidate.payoutGrossCents) ||
+      (candidate.payoutGrossCents as number) < 0 ||
+      (candidate.payoutGrossCents as number) + feeCents > maxDebitCents) return [];
+  return [candidate];
+}
+
 /** The per-booking outcome of a payout attempt (JSON-serializable for the Inngest step boundary). */
 export type PayOneResult =
   | { status: "processing"; transferId: string; netCents: number; deductedCents: number }
@@ -446,14 +479,18 @@ export const payoutSweep = inngest.createFunction(
     const runAt = new Date(now);
     if (now.getUTCHours() === 15 && now.getUTCMinutes() === 0) runAt.setUTCSeconds(0, 0);
     if (!fridayPayoutWindow(runAt)) return { swept: 0 };
+    const mode = payoutDispatchMode();
+    if (mode === "hold") return { swept: 0, missed: 0, held: true };
     const due = await step.run("find-due", () => queryDuePayouts(db, runAt));
-    for (const b of due) {
+    const selected = selectDispatchCandidates(due);
+    for (const b of selected) {
       await step.run(`payout-${b.bookingId}`, () => payOne(db, b, runAt));
     }
+    if (mode === "controlled") return { swept: selected.length, missed: 0 };
     const missed = await step.run("record-friday-cutoff", () => recordMissedFridayPayouts(db, runAt));
     if (missed > 0) {
       await step.run("notify-money-ops-cutoff", () => inngest.send({ name: "fitout/payout-cutoff-alert", data: {} }));
     }
-    return { swept: due.length, missed };
+    return { swept: selected.length, missed };
   },
 );
