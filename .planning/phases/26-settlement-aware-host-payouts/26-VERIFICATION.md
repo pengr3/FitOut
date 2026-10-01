@@ -1,6 +1,6 @@
 ---
 phase: 26-settlement-aware-host-payouts
-verified: 2026-10-01T05:13:49Z
+verified: 2026-10-01T05:38:59Z
 status: human_needed
 score: 6/8 scoped truths verified
 behavior_unverified: 0
@@ -46,6 +46,8 @@ behavior_unverified: 0
 - 2026-09-29: `tsc --noEmit` passed. The Plan 09 packet field checks passed.
 - Earlier Phase 26 relevant payment/host/ops suite: **758/758 passed**. The broader full project run had 6 failures, of which the payout-related booking fixture was repaired and passed its focused rerun. Other failures and two escaped test-audit writes remain recorded in `26-VALIDATION.md`; the full project and design suites are not claimed green.
 - 2026-09-30 recipient-policy revision: approved-host exact-value attestation, replacement pause, unapproved refusal, and provider-declined refusal passed focused database tests; TypeScript and the host payout copy inventory passed. The revised flow is local source only and has not changed the live host record.
+- 2026-10-01 production schema: source-controlled migration 0033 passed on a Neon clone of production, then applied to production through Drizzle with a direct connection. Read-only journal/catalog checks found the expected tables, constraints, indexes and immutable trigger; both settlement tables still contain zero rows.
+- 2026-10-01 release preparation: the merged local `codex/phase26-release` branch passed TypeScript, 67 focused payout/settlement tests and 34 host design checks. Its scheduled payout dispatch defaults to HOLD; controlled mode requires one booking and a fee-inclusive debit cap. The branch has not been pushed or deployed. A normal Turbopack build could not run through the worktree's external `node_modules` junction; a Webpack fallback failed on a `node:crypto` import, so no production build pass is claimed.
 
 ## Human verification required
 
@@ -56,4 +58,4 @@ behavior_unverified: 0
 
 ## Pending scope
 
-The Phase 26 implementation and owned HOLD packet are complete. This verification does **not** advance the phase to released status. Live account proof, monitored operations, a controlled money-path result, and a fresh Phase 25.1 broad-release decision remain open. Terms publication is preserved for later work and is not a gate on the account review or separately authorized one-operation proof.
+The Phase 26 implementation and owned HOLD packet are complete. The live schema is installed, but the application release is not. This verification does **not** advance the phase to released status. Live account proof, monitored operations, a controlled money-path result, and a fresh Phase 25.1 broad-release decision remain open. Terms publication is preserved for later work and is not a gate on the account review or separately authorized one-operation proof.
