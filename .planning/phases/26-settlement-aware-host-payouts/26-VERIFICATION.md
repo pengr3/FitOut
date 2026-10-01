@@ -1,6 +1,6 @@
 ---
 phase: 26-settlement-aware-host-payouts
-verified: 2026-09-30T08:20:02Z
+verified: 2026-10-01T05:13:49Z
 status: human_needed
 score: 6/8 scoped truths verified
 behavior_unverified: 0
@@ -22,7 +22,7 @@ behavior_unverified: 0
 | At-most-once claim, frozen amount, uncertain-create recovery, and terminal reconciliation remain fail closed | Verified locally | Payout sweep and reconciliation tests; terminal failed rows are excluded from automatic resend pending the attempt-identity design in `26-RETRY-ATTEMPT-GAP.md` |
 | Owner-scoped preclaim earnings and honest Friday host copy | Verified locally | Earnings projection and legal-copy source gates; terms route remains an explicit nonbinding placeholder |
 | Durable payout exception and alert path exists in source | Verified locally | Ops payout attention, alert/digest implementation and prior relevant-suite results; monitored human owner is not evidenced |
-| This PayMongo account's weekday, Wallet, transaction mapping/pagination, balance permission, fee, reference lookup, and deployed schema/schedule are observed | Partly observed — HOLD | One Wednesday payout is Deposited and matches the test booking. The Dashboard send form showed ₱19.55 available and a no-fee InstaPay option; API balance access, actual automated fee, mapping, reference read-back and deployment evidence remain missing. Live settlement tables are absent in `26-ACCOUNT-AND-RELEASE-PROOF.md` |
+| This PayMongo account's weekday, Wallet, transaction mapping/pagination, balance permission, fee, reference lookup, and deployed schema/schedule are observed | Partly observed — HOLD | One Wednesday payout is Deposited and matches the test booking. The Dashboard send form showed ₱19.55 available and a no-fee InstaPay option. Migration 0033 is applied and read back on the live database; both settlement tables have zero rows. API balance access, automated fee, mapping, reference read-back, application deployment and registered schedule evidence remain missing. |
 | One capped settlement-to-host transfer is authorized and reconciled to terminal provider state | Unverified — HOLD | No immutable decision ID, cap, participant, operator, joint authority, stop/return observation, or live transfer exists |
 
 **Score:** 6/8 scoped truths verified locally. The two unverified truths require external account and one-operation evidence; a HOLD is a safe decision, not proof that money moved.
@@ -31,13 +31,13 @@ behavior_unverified: 0
 
 | Requirement | Verification state |
 | --- | --- |
-| HPAY-01 | Local settlement persistence and fail-closed tests pass; one account payout is observed deposited and matched to the test booking. API field mapping and the live 0033 migration remain HOLD. |
+| HPAY-01 | Local settlement persistence and fail-closed tests pass; one account payout is observed deposited and matched to the test booking. Live migration 0033 is applied and catalog-verified. API field mapping and persisted booking-specific observation remain HOLD. |
 | HPAY-02 | Friday schedule and hold rules pass local tests. |
 | HPAY-03 | Funding and fee guard pass local tests. Dashboard showed ₱19.55 available and no fee for its InstaPay form, but production API balance access, automated-route fee and dispatch-time funding remain HOLD. |
 | HPAY-04 | Local money-path integrity tests pass; automatic resend of a terminal failed transfer remains disabled pending per-attempt identity. |
 | HPAY-05 | Earnings and host copy pass local checks; rendered product review remains pending. Full agreement and terms publication are deferred outside this phase execution. |
 | HPAY-06 | Durable exception path is implemented; monitored owner, delivery, acknowledgement and escalation proof remain HOLD. |
-| HPAY-07 | One credited booking payment is proven. The existing live host payout flag remains disabled; under the revised host-owned recipient rule, that host must reconfirm the complete saved destination after deployment. Live settlement tables are absent and one-operation transfer authority remains HOLD. Staff approval of each masked destination is no longer required. |
+| HPAY-07 | One credited booking payment is proven. The existing live host payout flag remains disabled; under the revised host-owned recipient rule, that host must reconfirm the complete saved destination after deployment. Live settlement tables are present but empty; application deployment and one-operation transfer authority remain HOLD. Staff approval of each masked destination is no longer required. |
 
 ## Automated verification
 
@@ -49,7 +49,7 @@ behavior_unverified: 0
 
 ## Human verification required
 
-1. **Account and deployment capability:** The account authority and deployment operator provide redacted, timestamped observations for settlement weekday, Wallet, transaction mapping and pagination, balance permission, fee, reference recovery, authorized 0033 live-schema read-back, registered Friday-only Inngest job, and duplicate-runner absence. Expected: each field is observed or retains a named HOLD; an unsupported Friday funding schedule returns to product.
+1. **Account and deployment capability:** Live migration 0033 was applied through Drizzle on 2026-10-01 after passing on a production clone; journal, tables, indexes, constraints and trigger were read back. The account authority and deployment owner still provide redacted, timestamped observations for Wallet identity, transaction mapping and pagination, balance permission, fee, reference recovery, application release, registered Friday-only Inngest job, and duplicate-runner absence. Expected: each unresolved field is observed or retains a named HOLD; an unsupported Friday funding schedule returns to product.
 2. **Operations ownership:** A named money-operations owner demonstrates monitored alert receipt, acknowledgement, SLA, escalation and stop/return handling. Expected: evidence is recorded before a bounded proof decision.
 3. **One controlled proof decision:** Product, account, and money-operations authorities either retain HOLD or record a fresh immutable one-operation decision with cap, participant, operator, expiry, and stop/return path. Expected: no provider call occurs from this verification; any later authorized transfer has settlement, funding, terminal read-back and ledger reconciliation evidence.
 4. **Product copy review:** Product owner reviews the rendered host Friday promise at mobile and desktop widths. Expected: the review hold is not described as a payday and a missed Friday is not promised as paid. The separate full agreement remains deferred.
