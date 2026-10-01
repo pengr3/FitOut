@@ -910,8 +910,9 @@ export const HOST_REQUEST_ROW_HEIGHT = "h-64 md:h-21";
  *
  * PHASE 26 RE-MEASUREMENT (1 OCTOBER 2026): The 176/36 figures above describe the earlier row, before
  * confirmed bookings showed projected payout status and amount. The current confirmed fixture is
- * 244.05px at 320 and 80.53px at 1280; this plate declares 244/80. The desktop table keeps the full
- * timing explanation available to screen readers while the visible cell shows status and amount.
+ * 244.05px at 320 and about 80px at 1280; this plate declares 244/80. The desktop row has an
+ * explicit 80px floor and the compact payout cell shows a one-line amount to avoid platform-font
+ * variation. The full timing and estimated-amount explanation remain available to screen readers.
  * A requested booking has no earnings yet: its measured rows are 232px (or 252px with an extra meta
  * line) at 320 and about 61px at 1280. Those signed deviations are pinned in skeleton-geometry.spec.ts.
  */

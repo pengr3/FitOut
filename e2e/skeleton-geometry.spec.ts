@@ -2486,10 +2486,11 @@ test.describe("14-15 — every host plate draws the list that is actually coming
   // narrower column — the term becomes non-zero and the assertion stays true without being
   // re-derived. Replacing it with a bare constant would be trading a statement of the rule for a
   // snapshot of today's arithmetic.
-  // Phase 26's confirmed payout content makes a pending row shorter than the declared confirmed
-  // plate. These are signed differences from that plate, not the actions' intrinsic pixel cost.
+  // Phase 26's confirmed payout content makes a pending mobile card shorter than the declared
+  // confirmed plate. On desktop both rows now share the explicit 80px table-row floor.
+  // These are signed differences from the plate, not the actions' intrinsic pixel cost.
   const PENDING_DELTA_FROM_PLATE_320 = -12;
-  const PENDING_DELTA_FROM_PLATE_1280 = -19;
+  const PENDING_DELTA_FROM_PLATE_1280 = 0;
 
   test("(deviation) a still-pending booking differs from the confirmed plate by a measured amount", async ({
     page,

@@ -129,11 +129,11 @@
 // runs. It measured 45, 46 and 50px on three runs a few hours apart. That is exactly why the gate in
 // `e2e/skeleton-geometry.spec.ts` asserts the overflow is ZERO rather than any measured delta.
 //
-// ⚠⚠ PHASE 26 RE-MEASUREMENT. The projected payout cell now sets the desktop row's height: 80.53px
-// for the seeded short title and 81.03px for the long one. The Space cell still wraps, and the When
-// cell does not. `HOST_BOOKING_ROW_HEIGHT` declares an 80px desktop bar; the geometry spec pins both
-// title wrap counts, zero table overflow, and the shared row floor. The full payout timing remains
-// visible on mobile and detail and available to screen readers in this compact table cell.
+// ⚠⚠ PHASE 26 RE-MEASUREMENT. The desktop row has an explicit 80px floor matching
+// `HOST_BOOKING_ROW_HEIGHT`. The compact payout cell shows the full explanation to screen readers,
+// while its visible amount stays on one line so Linux and Windows font metrics do not squeeze the
+// Space title into an extra line. The Space cell still wraps, and the When cell does not. The geometry
+// spec pins both seeded title shapes and zero table overflow. Full timing is visible on mobile/detail.
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -361,7 +361,7 @@ export default async function HostBookingsPage({
                 </TableHeader>
                 <TableBody>
                   {rows.map((row) => (
-                    <TableRow key={row.bookingId}>
+                    <TableRow key={row.bookingId} className="h-20">
                       {/* THE LABEL ROLE, NAMED. The table's own inherited small-text step already
                           computes 14px here; saying `text-label` changes no pixel and makes the cell's
                           role legible, so a later type edit moves a declared role rather than a bare

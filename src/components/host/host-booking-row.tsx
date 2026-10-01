@@ -72,7 +72,12 @@ export function HostPayoutCell({ view, compact = false }: { view: BookingPayoutV
   }
   return <div className="flex min-w-0 max-w-56 flex-col items-start gap-1 whitespace-normal break-words">
     <PayoutStateBadge status={view.status} />
-    {view.amountLabel ? <span className="text-label tabular-nums">{view.amountLabel}</span> : null}
+    {view.amountLabel ? compact && view.compactAmountLabel ? (
+      <span className="text-label tabular-nums whitespace-nowrap">
+        <span className="sr-only">{view.amountLabel}</span>
+        <span aria-hidden="true">{view.compactAmountLabel}</span>
+      </span>
+    ) : <span className="text-label tabular-nums">{view.amountLabel}</span> : null}
     <span className={compact ? "sr-only" : "text-label text-muted-foreground tabular-nums"}>{view.timing}</span>
   </div>;
 }

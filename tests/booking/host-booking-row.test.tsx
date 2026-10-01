@@ -119,10 +119,12 @@ describe("HPAY-05 — booking payout status agrees with earnings", () => {
     render(<HostPayoutCell compact view={{
       status: "clearing",
       amountLabel: "Estimated payout ₱900.00",
+      compactAmountLabel: "₱900.00",
       timing: "The guest's payment is confirmed. We're waiting for it to reach FitOut before scheduling your payout.",
     }} />);
     expect(screen.getByText("Payment clearing")).toBeTruthy();
-    expect(screen.getByText("Estimated payout ₱900.00")).toBeTruthy();
+    expect(screen.getByText("Estimated payout ₱900.00").classList.contains("sr-only")).toBe(true);
+    expect(screen.getByText("₱900.00").getAttribute("aria-hidden")).toBe("true");
     expect(screen.getByText(/waiting for it to reach FitOut/).classList.contains("sr-only")).toBe(true);
   });
 });

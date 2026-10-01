@@ -20,6 +20,8 @@ export type BookingPayoutView = {
   status: HostEarningStatus;
   timing: string;
   amountLabel: string | null;
+  /** The amount alone, for narrow desktop table cells; amountLabel remains the accessible explanation. */
+  compactAmountLabel?: string | null;
 };
 
 /** The booking pages use the earnings projector, with the same owner, proof and account gates. */
@@ -91,8 +93,10 @@ export async function loadBookingPayouts(hostId: string, now: Date): Promise<Map
 }
 
 export function bookingPayoutView(earning: HostEarning): BookingPayoutView {
+  const compactAmountLabel = earning.status === "refunded" || earning.netCents === null
+    ? null : formatMoney(earning.netCents, earning.currency);
   const amountLabel = earning.status === "refunded" ? null : earning.netCents === null
     ? "Amount being confirmed"
-    : `${earning.estimated ? "Estimated payout" : "Your payout"} ${formatMoney(earning.netCents, earning.currency)}`;
-  return { status: earning.status, timing: earning.timing, amountLabel };
+    : `${earning.estimated ? "Estimated payout" : "Your payout"} ${compactAmountLabel}`;
+  return { status: earning.status, timing: earning.timing, amountLabel, compactAmountLabel };
 }
