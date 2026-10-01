@@ -129,12 +129,11 @@
 // runs. It measured 45, 46 and 50px on three runs a few hours apart. That is exactly why the gate in
 // `e2e/skeleton-geometry.spec.ts` asserts the overflow is ZERO rather than any measured delta.
 //
-// ⚠⚠ WHAT THE WRAP COSTS, MEASURED AND NOT ROUNDED. The desktop row is now two-valued: 36.52px when a
-// title fits the residual Space column on one line and 57px when it does not. `HOST_BOOKING_ROW_HEIGHT`
-// still declares the floor and its docblock carries the argument for that choice, the ladder it was
-// checked against, and the band between 768 and 928px where the column falls to its min-content. Both
-// heights are seeded and pinned in the geometry spec's `(title)` case; neither is left to be
-// discovered as an unexplained 20px.
+// ⚠⚠ PHASE 26 RE-MEASUREMENT. The desktop row has an explicit 80px floor matching
+// `HOST_BOOKING_ROW_HEIGHT`. The compact payout cell shows the full explanation to screen readers,
+// while its visible amount stays on one line so Linux and Windows font metrics do not squeeze the
+// Space title into an extra line. The Space cell still wraps, and the When cell does not. The geometry
+// spec pins both seeded title shapes and zero table overflow. Full timing is visible on mobile/detail.
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -147,6 +146,7 @@ import { db } from "@/lib/db";
 import { listing } from "@/lib/db/schema";
 import { HOST_LIST_SHELL } from "@/lib/design/measurements";
 import { HOST_BOOKINGS_HEADER } from "@/lib/host/bookings-copy";
+import { loadBookingPayouts } from "@/lib/host/booking-payout";
 import { formatMoney, DISPLAY_CURRENCY } from "@/lib/money";
 import { composeWhenLabelShort } from "@/lib/booking/when-label";
 import { resolveListCity } from "@/lib/booking/venue-clock-scope";
@@ -231,6 +231,7 @@ export default async function HostBookingsPage({
     cursor,
     limit: BOOKINGS_PAGE_SIZE,
   });
+  const payouts = page.rows.length ? await loadBookingPayouts(session.user.id, now) : new Map();
 
   // Server-side display mapping — venue-local labels from the SHARED formatter (07-02), money via
   // formatMoney. Nothing below this line computes a price or a date.
@@ -264,7 +265,7 @@ export default async function HostBookingsPage({
     startsAt: r.startsAt,
     endsAt: r.endsAt,
     now,
-    payoutState: r.payoutState ?? null,
+    payout: payouts.get(r.id) ?? null,
   }));
 
   const carriedParams = listingFilter ? { listing: listingFilter } : undefined;
@@ -285,6 +286,9 @@ export default async function HostBookingsPage({
       {/* SPREAD, not two props. The pair cannot be half-adopted, so "the page and the plate render an
           identical title and lede" is a property of the syntax rather than of a reviewer noticing. */}
       <PageHeader {...HOST_BOOKINGS_HEADER} />
+      <p className="mt-3 max-w-prose text-label text-muted-foreground">
+        We send eligible payouts on Fridays after the booking payment reaches FitOut and at least 24 hours after the session ends.
+      </p>
 
       <div className="mt-8 flex flex-wrap items-center gap-4">
         <BookingsTabs basePath="/host/bookings" active={tab} extraParams={carriedParams} />
@@ -357,7 +361,7 @@ export default async function HostBookingsPage({
                 </TableHeader>
                 <TableBody>
                   {rows.map((row) => (
-                    <TableRow key={row.bookingId}>
+                    <TableRow key={row.bookingId} className="h-20">
                       {/* THE LABEL ROLE, NAMED. The table's own inherited small-text step already
                           computes 14px here; saying `text-label` changes no pixel and makes the cell's
                           role legible, so a later type edit moves a declared role rather than a bare
@@ -421,8 +425,8 @@ export default async function HostBookingsPage({
                           ) : null}
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <HostPayoutCell state={row.payoutState} />
+                      <TableCell className="max-w-56 whitespace-normal">
+                        <HostPayoutCell view={row.payout} compact />
                       </TableCell>
                       <TableCell>
                         {row.status === "requested" ? (

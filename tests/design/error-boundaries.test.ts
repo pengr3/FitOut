@@ -271,6 +271,10 @@ const BOUNDARIES: readonly BoundaryRow[] = [
   },
 ];
 
+// Phase 26's single-route earnings recovery has one neutral retry action by its approved UI contract.
+// It is still included in the global error-text scan below, but does not use the older two-action pattern.
+const EARNINGS_ERROR = "src/app/(host)/host/earnings/error.tsx";
+
 const GLOBAL_ERROR_PATH = "src/app/global-error.tsx";
 
 function parse(fileName: string, text: string): ts.SourceFile {
@@ -513,8 +517,8 @@ describe("AC#19 — six boundaries, two actions each, and no error text in any o
   // `loading-coverage.test.ts` records for its own pinned count, measured here in probe (c) before
   // the split.
 
-  it("finds exactly six error.tsx files on disk", () => {
-    expect(ON_DISK.length, `scanned: ${ON_DISK.join(", ") || "(nothing)"}`).toBe(BOUNDARIES.length);
+  it("finds the six group boundaries and the earnings route boundary", () => {
+    expect(ON_DISK.length, `scanned: ${ON_DISK.join(", ") || "(nothing)"}`).toBe(BOUNDARIES.length + 1);
   });
 
   it("finds exactly the six DECLARED boundaries, by name", () => {
@@ -524,7 +528,7 @@ describe("AC#19 — six boundaries, two actions each, and no error text in any o
         "in BOUNDARIES with its route out and the argument for it; a MISSING one is STATE-02 " +
         "regressing — this repository had zero boundaries before plan 11-18 and a walk-only gate " +
         "would have been green on that tree.",
-    ).toEqual(BOUNDARIES.map((b) => b.path).sort());
+    ).toEqual([...BOUNDARIES.map((b) => b.path), EARNINGS_ERROR].sort());
     // Named as well as counted, so a walk that finds only the group boundaries cannot look healthy.
     expect(
       Array.from(SCANNED.keys()),
@@ -537,6 +541,16 @@ describe("AC#19 — six boundaries, two actions each, and no error text in any o
     for (const scan of SCANNED.values()) {
       expect(scan.statements, `${scan.label} parsed to zero statements`).toBeGreaterThan(0);
     }
+  });
+
+  it("keeps the earnings-only retry boundary neutral and on the installed Next API", () => {
+    const scan = SCANNED.get(EARNINGS_ERROR);
+    expect(scan?.useClient).toBe(true);
+    const source = readFileSync(resolve(process.cwd(), EARNINGS_ERROR), "utf8");
+    expect(source).toContain("unstable_retry");
+    expect(source).toContain("We couldn&apos;t load your earnings. Try again.");
+    expect(source).not.toContain("Paid out");
+    expect(scan?.calls).toEqual([]);
   });
 
   it("has a global-error.tsx as well", () => {

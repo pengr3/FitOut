@@ -158,11 +158,18 @@ const EXPECTED_ALARM_OCCURRENCES: Readonly<Record<string, { count: number; why: 
   },
   "src/components/host/payout-banner.tsx": {
     count: 1,
-    why: "The paused-payout banner signals a real failure that prevents bookings and needs a human.",
+    why:
+      "the paused-payout banner: the alert VARIANT on the paused branch. A paused " +
+      "payout account is money that will not reach the host and bookings that cannot be taken — a " +
+      "genuine failure needing a human, which is exactly what DS-10 reserves this role for. Frozen by " +
+      "D-156: HFLOW-05 is a token pass, and plan 14-01's string-literal gate is what proves it.",
   },
   "src/app/(host)/host/payouts/page.tsx": {
     count: 1,
-    why: "The bank and e-wallet directory failed to load, so payout setup cannot proceed.",
+    why:
+      "the receiving-institution directory could not be loaded. The host cannot complete a payout " +
+      "destination until the service recovers, so the page gives a genuine setup failure an alert " +
+      "rather than implying that an empty institution list is a normal choice.",
   },
   "src/components/host/payout-state-badge.tsx": {
     count: 3,

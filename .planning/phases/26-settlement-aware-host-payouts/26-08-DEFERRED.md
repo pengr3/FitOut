@@ -1,0 +1,128 @@
+---
+phase: 26-settlement-aware-host-payouts
+plan: 08
+type: execute
+wave: 7
+depends_on: [26-07]
+files_modified:
+  - .planning/phases/26-settlement-aware-host-payouts/26-LEGAL-PUBLICATION-DECISION.md
+  - src/app/(legal)/terms/page.tsx
+  - tests/design/legal-copy.test.ts
+  - tests/design/earnings-freeze.test.ts
+autonomous: false
+requirements: [HPAY-05, HPAY-07]
+estimate: { tokens: 19000, raw_tokens: 19000, tasks: 3, confidence: low }
+must_haves:
+  truths:
+    - "The published terms route contains only the exact product/legal-approved Friday-after-receipt clause and at-least-24-hour review hold, with its approved effective date."
+    - "A HOLD or missing/contradictory legal decision leaves the nonbinding terms notice intact and blocks this plan."
+    - "No host surface promises payment at session end plus 24 hours; the 24-hour period remains a minimum review gate."
+    - "Terms publication alone does not authorize PayMongo calls, transfers, or broad launch."
+  artifacts:
+    - { path: src/app/(legal)/terms/page.tsx, provides: "approved operative payout terms after the legal gate" }
+    - { path: tests/design/legal-copy.test.ts, provides: "published clause and nonbinding-state gate" }
+  key_links:
+    - { from: "26-LEGAL-PUBLICATION-DECISION.md exact approved text", to: "terms/page.tsx", via: "word-for-word legal publication" }
+  prohibitions:
+    - { statement: "MUST NOT make the 24-hour review period read like a guaranteed host payment date or chargeback end.", verification: test }
+---
+
+> **Deferred by the user on 2026-09-29.** The full agreement has not been prepared. This plan is preserved for later work outside Phase 26 execution. The current `/terms` page remains a nonbinding placeholder; no publication is claimed. The engineering and account-proof work in Plan 26-09 proceeds independently.
+
+<objective>
+Publish the approved host payout clause and make the legal-copy gate enforce its exact promise.
+
+Purpose: The contractual host promise must match the settlement-aware product only after explicit legal authority.
+Output: terms route and legal design tests.
+</objective>
+
+<execution_context>
+@C:/Users/Admin/.codex/gsd-core/workflows/execute-plan.md
+@C:/Users/Admin/.codex/gsd-core/templates/summary.md
+</execution_context>
+
+<context>
+@.planning/phases/26-settlement-aware-host-payouts/26-LEGAL-PUBLICATION-DECISION.md
+@.planning/phases/26-settlement-aware-host-payouts/26-UI-SPEC.md
+@src/app/(legal)/terms/page.tsx
+@tests/design/legal-copy.test.ts
+@tests/design/earnings-freeze.test.ts
+</context>
+
+<interfaces>
+The current `/terms` page is an explicit nonbinding outline protected by `tests/design/legal-copy.test.ts`. Its notice cannot be removed in isolation. Plan 07 is the blocking one-way decision; this plan consumes its exact approved text and effective date. `tests/design/earnings-freeze.test.ts` pins earnings source strings and must be updated intentionally for the approved copy change.
+</interfaces>
+
+<tasks>
+
+<task type="checkpoint:decision" gate="blocking-human">
+  <name>Task 1: Decide exact binding terms publication or retain HOLD</name>
+  <read_first>26-LEGAL-PUBLICATION-DECISION.md; current terms/page.tsx; UI-SPEC legal publication contract; Phase 25.1 release decision.</read_first>
+  <files>.planning/phases/26-settlement-aware-host-payouts/26-LEGAL-PUBLICATION-DECISION.md</files>
+  <decision>Named product and legal owners approve the exact clause, effective date, and correction owner, or choose HOLD. Terms approval does not authorize provider calls, host transfer, or broad release.</decision>
+  <context>Publishing operative host terms changes a public contract; reversal requires corrective publication and potentially host notice. The current route is intentionally nonbinding.</context>
+  <options><option id="hold">HOLD: keep the current nonbinding terms route and record the missing authority or wording.</option><option id="approve">Approve exact reviewed clause, effective date, and correction owner for the next task.</option></options>
+  <action>Present the completed legal packet. Record the named product and legal approvers, exact final text, effective date, publication scope, and correction owner, or record the precise missing premise and HOLD. Do not infer approval from silence, local tests, prior PM scheduling choices, or a draft. Preserve Phase 25.1 money HOLD regardless of the terms decision.</action>
+  <verify>
+    <automated>node -e "const fs=require('node:fs');const t=fs.readFileSync('.planning/phases/26-settlement-aware-host-payouts/26-LEGAL-PUBLICATION-DECISION.md','utf8').toLowerCase();for(const s of ['hold','product','legal','effective','correction'])if(!t.includes(s))throw new Error('missing legal decision field '+s);console.log('legal decision fields present')"</automated>
+    <fails_when>nonzero exit or absent legal authority/publication field</fails_when>
+  </verify>
+  <acceptance_criteria>Exact wording and one-way publication are expressly approved or the route stays nonbinding with an owned HOLD.</acceptance_criteria>
+  <done>The binding terms decision is recorded without authorizing money movement.</done>
+  <resume-signal>Return the exact clause with named product/legal approvers and effective date, or `HOLD` and the missing item.</resume-signal>
+</task>
+
+<task type="auto" tdd="true">
+  <name>Task 2: Publish only the approved Friday host payout clause</name>
+  <precondition>26-LEGAL-PUBLICATION-DECISION.md records the exact clause, named product and legal approvals, effective date, and an approved publication disposition; otherwise halt with HOLD.</precondition>
+  <reversibility rating="one-way">Replacing nonbinding public terms with an operative host contract requires a corrective publication and notice if reversed.</reversibility>
+  <read_first>Approved decision artifact; terms/page.tsx full nonbinding notice; legal-copy.test.ts publication guard; installed Next page.md.</read_first>
+  <files>src/app/(legal)/terms/page.tsx, tests/design/legal-copy.test.ts</files>
+  <behavior>Red legal-copy cases require the exact approved Friday-after-receipt clause, effective date, review hold, and honest next-Friday/cutoff terms; a missing approval fixture must keep the old route guarded.</behavior>
+  <action>After asserting the precondition read-only, replace the current nonbinding terms outline as one reviewed publication change: insert the exact approved clause and effective date without editorial paraphrase, remove the outline notice only together with a complete approved binding page, and retain the rest of the site's legal structure and accessibility. Update the legal-copy test's expected publication mode and exact approved wording; do not weaken it to absence of the old notice alone. If the approval is HOLD or inconsistent with a Friday payday, stop and preserve the existing route. Do not modify payment release flags or invoke a provider.</action>
+  <verify>
+    <automated>node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design/legal-copy.test.ts</automated>
+    <fails_when>nonzero exit or zero legal-copy cases executed</fails_when>
+  </verify>
+  <acceptance_criteria>The route and source gate contain the exact approved host payout wording and effective date; the old nonbinding notice disappears only with the complete approved page.</acceptance_criteria>
+  <done>Hosts can read operative terms that match the authorized Friday policy.</done>
+</task>
+
+<task type="auto" tdd="true">
+  <name>Task 3: Prevent a renewed 24-hour payment promise across host and legal copy</name>
+  <read_first>terms/page.tsx after Task 1; earnings/page.tsx; bookings list/detail; tests/design/earnings-freeze.test.ts and legal-copy.test.ts.</read_first>
+  <files>tests/design/legal-copy.test.ts, tests/design/earnings-freeze.test.ts</files>
+  <behavior>Red a known old-promise fixture and assert the legal/host source gate catches it; keep the approved review-hold wording green.</behavior>
+  <action>Strengthen the existing design source gates so the exact approved terms clause remains present and a promise to pay 24 hours after session cannot return to earnings, host bookings, or terms. Preserve valid 24-hour minimum-review references. Use comment-stripped source or rendered text so a negative gate is not self-invalidated by its own explanatory comments. Keep Court as the sole target and verify the legal route at mobile and desktop widths without implying publication has cleared money-release HOLD.</action>
+  <verify>
+    <automated>node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design/legal-copy.test.ts tests/design/earnings-freeze.test.ts</automated>
+    <fails_when>nonzero exit or zero legal/earnings copy cases executed</fails_when>
+    <automated>node node_modules/eslint/bin/eslint.js 'src/app/(legal)/terms/page.tsx' tests/design/legal-copy.test.ts tests/design/earnings-freeze.test.ts</automated>
+    <fails_when>nonzero exit or ESLint error output</fails_when>
+  </verify>
+  <acceptance_criteria>Mutating a host or terms string to the old guaranteed T+24 payment promise makes the source gate red; legitimate review-window copy remains permitted.</acceptance_criteria>
+  <done>Published and product copy remain aligned with the approved settlement-aware rule.</done>
+</task>
+
+</tasks>
+
+<threat_model>
+## Trust Boundaries
+| Boundary | Description |
+|---|---|
+| Legal decision → public terms | Only exact approved wording may become the public contract. |
+
+## STRIDE Threat Register
+| Threat ID | Category | Component | Severity | Disposition | Mitigation Plan |
+|---|---|---|---|---|---|
+| T-26-21 | Tampering | legal wording | high | mitigate | Precondition exact approval, word-for-word publication, and source gate. |
+| T-26-22 | Repudiation | effective promise | high | mitigate | Approved effective date and exact wording retained in decision artifact and route test. |
+</threat_model>
+
+## Artifacts this phase produces
+
+`terms/page.tsx` changes from the guarded nonbinding outline to an operative page only after approval. Legal and earnings design tests gain exact contract assertions.
+
+<verification>Run design Vitest and ESLint; check the rendered terms and Court host copy. Missing approval is a valid blocking HOLD, never a reason to publish draft wording.</verification>
+<success_criteria>The legal page and every host payout promise express the same approved Friday-after-receipt rule without treating the 24-hour hold as a payday.</success_criteria>
+<output>Create `.planning/phases/26-settlement-aware-host-payouts/26-08-SUMMARY.md` when done.</output>

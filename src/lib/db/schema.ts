@@ -333,7 +333,8 @@ export const listingActivityTag = pgTable(
 // the auth schema CLI-clean). `activationStatus` remains the legacy Linked Account lifecycle signal,
 // written by the merchant webhook when that model is used. `payoutsEnabled` is the provider-agnostic
 // cached gate flag deriveBookable reads (KEEP THIS NAME): it is set only by a verified provider event
-// or the guarded staff release of a host-attested parent-merchant destination, never by a client body.
+// or an approved host's exact-value destination attestation in the parent-merchant model, never by
+// a client-supplied payout flag.
 export const hostPayout = pgTable("host_payout", {
   userId: text("user_id")
     .primaryKey()
@@ -363,8 +364,8 @@ export const hostPayoutDestination = pgTable("host_payout_destination", {
   accountNameCiphertext: text("account_name_ciphertext").notNull(),
   accountNumberCiphertext: text("account_number_ciphertext").notNull(),
   accountLast4: text("account_last4").notNull(),
-  verificationStatus: text("verification_status").default("pending").notNull(), // pending|host_attested|verified|rejected
-  verificationReference: text("verification_reference"), // redacted host-attestation or staff-check reference
+  verificationStatus: text("verification_status").default("pending").notNull(), // pending|host_attested|verified (legacy)|rejected
+  verificationReference: text("verification_reference"), // redacted host-attestation or legacy staff-check reference
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
   verifiedBy: text("verified_by"), // authenticated FitOut staff id; deliberately no FK for durable history
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -1285,6 +1286,43 @@ export const booking = pgTable(
       .where(sql`controlled_checkout_grant_id IS NOT NULL`),
   ],
 );
+
+// Phase 26: one immutable provider observation per booking/payment/payout status version.
+// No legacy booking is backfilled; a booking without a row has unknown settlement.
+export const bookingSettlementObservation = pgTable(
+  "booking_settlement_observation",
+  {
+    id: integer("id").generatedAlwaysAsIdentity().primaryKey(),
+    bookingId: text("booking_id").notNull().references(() => booking.id, { onDelete: "restrict" }),
+    paymentId: text("payment_id").notNull(),
+    payoutId: text("payout_id").notNull(),
+    transactionId: text("transaction_id").notNull(),
+    transactionType: text("transaction_type").notNull(),
+    providerStatus: text("provider_status").notNull(),
+    providerStatusAt: timestamp("provider_status_at", { withTimezone: true }).notNull(),
+    depositedAt: timestamp("deposited_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }).notNull(),
+    walletDestinationMatched: boolean("wallet_destination_matched").notNull(),
+    mappingVerified: boolean("mapping_verified").notNull(),
+    liveMode: boolean("live_mode").notNull(),
+    currency: text("currency").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    unique("booking_settlement_observation_version_uq").on(t.bookingId, t.payoutId, t.transactionId, t.providerStatus, t.providerStatusAt),
+    index("booking_settlement_observation_current_idx").on(t.bookingId, t.providerStatusAt, t.id),
+    index("booking_settlement_observation_payout_idx").on(t.payoutId),
+  ],
+);
+
+// Mutable pointer/freshness cache; immutable provider history above remains queryable.
+export const bookingSettlementCurrent = pgTable("booking_settlement_current", {
+  bookingId: text("booking_id").primaryKey().references(() => booking.id, { onDelete: "restrict" }),
+  observationId: integer("observation_id").notNull().references(() => bookingSettlementObservation.id, { onDelete: "restrict" }),
+  providerStatusAt: timestamp("provider_status_at", { withTimezone: true }).notNull(),
+  statusPriority: integer("status_priority").notNull(),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }).notNull(),
+});
 
 // An operator creates this record out-of-band for one listing and one test booker. It substitutes only
 // for the legacy `host_payout.payouts_enabled` booking term; identity, listing review, publication,

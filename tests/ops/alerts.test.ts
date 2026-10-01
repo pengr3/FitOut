@@ -249,6 +249,8 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll } from "vitest";
 import { sql } from "drizzle-orm";
 
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
+import { bookingExceptionRef, listPayoutExceptionQueue, recordMoneyException,
+  unresolvedPayoutAttention } from "@/lib/payments/payout-exceptions";
 import {
   listUnresolvedAlerts,
   resolveAlert,
@@ -342,6 +344,40 @@ afterAll(async () => {
 // leftover rows from a prior case would make an exact-order assertion impossible to write honestly.
 beforeEach(async () => {
   await testDb.db.execute(sql`DELETE FROM audit`);
+});
+
+describe("money payout exceptions", () => {
+  it("persists one unresolved, actionable alert under simultaneous observations", async () => {
+    const at = new Date("2026-10-02T15:00:00Z");
+    const ids = await Promise.all(Array.from({ length: 5 }, () =>
+      recordMoneyException(testDb.db, "booking-🏸-1", "wallet_insufficient", at)));
+    expect(new Set(ids).size).toBe(1);
+    expect(ids[0]).toBeTruthy();
+    const rows = (await testDb.db.execute(sql`
+      SELECT id, outcome, meta FROM audit WHERE action = 'host_payout_recovery'
+    `)) as unknown as Array<{ id: string; outcome: string; meta: Record<string, unknown> }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0].meta).toMatchObject({ cause: "wallet_insufficient", nextAction: expect.any(String) });
+    expect(JSON.stringify(rows[0].meta)).not.toContain("🏸");
+  });
+  it("gives operators a complete safe cause/action queue and leaves resolved rows closed", async () => {
+    const bookingId = "booking-account-12345";
+    const at = new Date("2026-10-02T15:00:00Z");
+    const id = await recordMoneyException(testDb.db, bookingId, "settlement_returned", at);
+    await recordMoneyException(testDb.db, "other-booking", "transfer_failed", at);
+    const queue = await listPayoutExceptionQueue(testDb.db);
+    expect(queue).toHaveLength(2);
+    expect(queue.find((row) => row.id === id)).toMatchObject({
+      bookingRef: bookingExceptionRef(bookingId), cause: "settlement_returned",
+      nextAction: expect.stringContaining("returned merchant settlement"),
+    });
+    expect(JSON.stringify(queue)).not.toContain(bookingId);
+    expect(await unresolvedPayoutAttention(testDb.db, [bookingId])).toEqual(new Set([bookingId]));
+    expect((await resolveAlert(testDb.db, id, "ops-owner-asserted")).outcome).toBe("resolved");
+    await recordMoneyException(testDb.db, bookingId, "settlement_returned", at);
+    expect((await listPayoutExceptionQueue(testDb.db)).map((row) => row.id)).not.toContain(id);
+    expect(await unresolvedPayoutAttention(testDb.db, [bookingId])).toEqual(new Set());
+  });
 });
 
 describe("listUnresolvedAlerts", () => {

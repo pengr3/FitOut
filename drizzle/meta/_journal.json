@@ -232,6 +232,13 @@
       "when": 1790467201000,
       "tag": "0032_bouldering_space_type",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790632800000,
+      "tag": "0033_booking_settlement_observation",
+      "breakpoints": true
     }
   ]
 }

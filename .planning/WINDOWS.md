@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 39
+open_count: 40
 waived_count: 0
-fixed_count: 8
-total_count: 47
-last_updated: 2026-09-19T13:57:51.543Z
+fixed_count: 9
+total_count: 49
+last_updated: 2026-09-29T10:49:56.000Z
 ---
 
 # Broken Windows Ledger
@@ -62,6 +62,8 @@ last_updated: 2026-09-19T13:57:51.543Z
 | 46 | 22 | deviation | tests/ops/ops-queue-row.test.tsx |  | Scoped the existing amenities-list assertion after operating-hours evidence added its required semantic list. | open |  | 2026-09-10T12:27:04.267Z |  |
 | 47 | 25 | unrun-verify | .planning/phases/25-finalize-paymongo-production-payments/25-PRODUCTION-RUNBOOK.md |  | Focused DB-backed payment suite, scoped ESLint, TypeScript, and opt-in probe were not run because Docker Engine was unavailable. | open |  | 2026-09-18T04:04:29.295Z |  |
 | 48 | 25.1 | unmet-truth | .planning/phases/25.1-paymongo-production-release-readiness-controlled-proofs/25.1-VALIDATION-EVIDENCE.md |  | TypeScript validation failed; HOLD remains until engineering resolves TYPESCRIPT_CHECK_FAILED and records a fresh passing run. | open |  | 2026-09-19T13:57:51.543Z |  |
+| 49 | 26 | deviation | src/inngest/functions/payout-sweep.ts |  | Automatic resend after terminal failure remains held until a durable per-attempt identity exists | open |  | 2026-09-29T08:35:26.548Z |  |
+| 50 | 26 | unrun-verify | e2e/overflow-320.spec.ts |  | Court 320px earnings browser evidence unrun: shared dev database lacks migration 0033 booking_settlement_current | fixed | Verified against a fresh fitout_visual_test database with migration 0033; earnings Court and Grove, booking detail Court and Grove, and booking list Court and Grove passed at 320px. See 26-BROWSER-VERIFY.md. | 2026-09-29T09:05:06.874Z | 2026-09-29T10:49:56.000Z |
 
 ````json
 [
@@ -628,6 +630,30 @@ last_updated: 2026-09-19T13:57:51.543Z
     "reason": "",
     "recorded_at": "2026-09-19T13:57:51.543Z",
     "resolved_at": null
+  },
+  {
+    "id": 49,
+    "kind": "deviation",
+    "phase": "26",
+    "file": "src/inngest/functions/payout-sweep.ts",
+    "line": null,
+    "description": "Automatic resend after terminal failure remains held until a durable per-attempt identity exists; failed rows are excluded from dispatch selection and the attempt design is recorded in 26-RETRY-ATTEMPT-GAP.md",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-29T08:35:26.548Z",
+    "resolved_at": null
+  },
+  {
+    "id": 50,
+    "kind": "unrun-verify",
+    "phase": "26",
+    "file": "e2e/overflow-320.spec.ts",
+    "line": null,
+    "description": "Court 320px earnings browser evidence unrun: shared dev database lacks migration 0033 booking_settlement_current",
+    "status": "fixed",
+    "reason": "Verified against a fresh fitout_visual_test database with migration 0033; earnings Court and Grove, booking detail Court and Grove, and booking list Court and Grove passed at 320px. See 26-BROWSER-VERIFY.md.",
+    "recorded_at": "2026-09-29T09:05:06.874Z",
+    "resolved_at": "2026-09-29T10:49:56.000Z"
   }
 ]
 ````

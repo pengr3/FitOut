@@ -973,6 +973,20 @@ function bookingNotFoundDrive(_purpose: DrivePurpose, url: string | null): Surfa
 const DRIVES: Partial<
   Record<SurfaceId, (purpose: DrivePurpose, url: string | null) => SurfaceDrive>
 > = {
+  "dev-theme": (_purpose, url) => ({
+    needsClock: false,
+    captureMode: "fullPage",
+    timeoutMs: 60_000,
+    async navigate({ page }) {
+      await page.goto(url as string);
+      // Both preview panes choose a three-hour run after hydration. Capturing between the
+      // first and second effect-driven clicks produces a different availability surface.
+      await expect(page.locator('[data-slot="toggle-group"] button[aria-pressed="true"]')).toHaveCount(6);
+      await expect(page.locator('[id$="-space-type"]')).toHaveCount(2);
+      await expect(page.locator('[id$="-space-type"]').first()).toContainText("Pickleball court");
+      await expect(page.locator('[id$="-space-type"]').last()).toContainText("Pickleball court");
+    },
+  }),
   "search-idle-pill": () => progressiveSearchDrive("search-idle-pill"),
   "search-activity-step": () => progressiveSearchDrive("search-activity-step"),
   "search-location-step": () => progressiveSearchDrive("search-location-step"),

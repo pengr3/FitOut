@@ -52,6 +52,7 @@ import {
 } from "@/lib/ops/alerts";
 import { parseResolveArgs, BY_FLAG_HELP } from "@/lib/ops/resolve-args";
 import type { DbConn } from "@/lib/availability/read-model";
+import { listPayoutExceptionQueue, lookupExceptionBooking } from "@/lib/payments/payout-exceptions";
 
 // The tsx process doesn't load .env; fall back to the deterministic dev URL (as scripts/seed.ts).
 const DATABASE_URL =
@@ -66,6 +67,8 @@ const USAGE = `Usage:
                                             discharge one alert (sets resolved_at and resolved_by)
   npm run ops:alerts:history [-- <days>]    review DISCHARGED alerts, newest discharge first
                                             (days: 1-36500, default ${DEFAULT_HISTORY_DAYS}; read-only)
+  npm run ops:alerts:payouts                 list every unresolved payout exception with safe cause and next action
+  npm run ops:alerts:payout-lookup -- <ref>   locate the booking behind a redacted payout reference locally
 
 ${BY_FLAG_HELP}
 
@@ -105,6 +108,16 @@ async function list(): Promise<void> {
   console.log(
     `\n${rows.length} unresolved alert(s). Discharge one with: npm run ops:alerts:resolve -- <audit-id>`,
   );
+}
+
+async function listPayouts(): Promise<void> {
+  const rows = await listPayoutExceptionQueue(db);
+  if (rows.length === 0) { console.log("No unresolved host payout exceptions."); return; }
+  for (const row of rows) {
+    console.log(`${row.id} | booking ${row.bookingRef} | ${row.cause} | ${row.createdAt.toISOString()} | delivery ${row.lastDeliveryStatus ?? "unattempted"}`);
+    console.log(`  Next action: ${row.nextAction}`);
+  }
+  console.log(`${rows.length} unresolved host payout exception(s). Resolve only after recovery with: npm run ops:alerts:resolve -- <audit-id> --by "<your name>"`);
 }
 
 async function resolve(id: string, by: string): Promise<void> {
@@ -288,6 +301,16 @@ async function main(): Promise<void> {
   const [cmd, arg] = argv;
   if (cmd === "list") {
     await list();
+    return;
+  }
+  if (cmd === "payouts") {
+    await listPayouts();
+    return;
+  }
+  if (cmd === "payout-lookup") {
+    const matches = await lookupExceptionBooking(db, arg ?? "");
+    if (matches.length === 0) console.log("No booking matches that payout reference.");
+    else for (const id of matches) console.log(id);
     return;
   }
   if (cmd === "resolve") {

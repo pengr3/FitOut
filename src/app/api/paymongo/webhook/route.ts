@@ -1,10 +1,12 @@
 // PayMongo webhook — the architectural KEYSTONE of Phase 2 (PAY-04, D-14/D-15).
 //
-// This route is the SINGLE writer of host_payout.payoutsEnabled: it verifies the Paymongo-Signature,
-// dedupes by event id, and on `merchant.activated` caches payoutsEnabled=true (on `merchant.declined`
-// caches false). Because bookability is DERIVED from that cached flag (src/lib/bookability.ts), the
-// D-14 auto-revert is free — a decline flips every one of the host's listings to not-bookable with
-// ZERO per-listing writes. The webhook is the trust boundary for payout state; nothing else may set it.
+// For the legacy Linked Account model, this route verifies the Paymongo-Signature, dedupes by event id,
+// and on `merchant.activated` caches payoutsEnabled=true (on `merchant.declined` caches false). The
+// parent-merchant model enables a destination only after an approved host confirms its exact saved
+// details; neither path accepts this booking gate from a client body. Because bookability is DERIVED
+// from that cached flag (src/lib/bookability.ts), the D-14 auto-revert is free — a decline flips
+// every one of the host's listings
+// to not-bookable with ZERO per-listing writes.
 //
 // NOTE (verified, no code change): src/proxy.ts now matches every route, but its explicit public and
 // ops route matrix passes /api/paymongo through. This endpoint remains reachable by PayMongo

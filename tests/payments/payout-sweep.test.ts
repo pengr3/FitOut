@@ -12,21 +12,33 @@
 
 import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import { drizzle } from "drizzle-orm/postgres-js";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, makeRacingClients, type TestDb } from "../helpers/db";
 import { mockPayMongo } from "../helpers/mocks";
 import { makeVerifiedHost } from "../helpers/seed";
-import { user, listing, hostPayoutLedger, booking } from "@/lib/db/schema";
-import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
+import { user, listing, hostPayoutLedger, hostVerification, hostPayoutDestination, booking } from "@/lib/db/schema";
+import { PAYOUT_DELAY_HOURS, PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import type { DuePayout } from "@/inngest/functions/payout-sweep";
 import { encryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
+import { recordSettlementObservation } from "@/lib/payments/settlement";
+import { bookingExceptionRef, recordMoneyException } from "@/lib/payments/payout-exceptions";
 
 let testDb: TestDb;
 type SweepModule = typeof import("@/inngest/functions/payout-sweep");
 let queryDuePayouts: SweepModule["queryDuePayouts"];
 let payOne: SweepModule["payOne"];
+let recordMissedFridayPayouts: SweepModule["recordMissedFridayPayouts"];
+let fridayPayoutWindow: ((now: Date) => { cohortNoon: Date } | null) | undefined;
+const mockWalletFunding = vi.fn(async () => ({
+  walletId: "wallet_fitout_test", availableCents: 10_000_000, feeCents: 1_000,
+  observedAt: new Date("2026-10-02T04:00:00.000Z"),
+}));
+const mockLookup = vi.fn<(...args: [string]) => Promise<Array<{
+  id: string; status: string; referenceNumber: string; amount: number; currency: string;
+}>>>(async () => []);
 
 const BOOKER = "sweep_booker";
+const FRIDAY_NOON = new Date("2026-10-02T04:00:00.000Z");
 
 let seq = 0;
 const uid = (p: string) => `${p}_${seq++}`;
@@ -75,10 +87,11 @@ async function makeBooking(opts: {
   quotedTotalCents: number;
   endsAtMs: number;
   /** Defaults to quotedTotalCents (the pre-service-fee shape drizzle/0014 backfilled). */
-  spacePriceCents?: number;
+  spacePriceCents?: number | null;
   serviceFeeCents?: number;
   /** D-69: the retained (non-refunded) space price on a cancellation. null ⇒ not cancelled. */
   retainedSpaceCents?: number | null;
+  settled?: boolean;
 }): Promise<string> {
   const id = uid("bk");
   const endsAt = new Date(opts.endsAtMs);
@@ -91,15 +104,25 @@ async function makeBooking(opts: {
     startsAt,
     endsAt,
     status: opts.status,
+    paymentId: `pay_${id}`,
     quotedTotalCents: opts.quotedTotalCents,
     // 07-04 Finding 2: the sweep's payout basis is space_price_cents, NOT the all-in charged total. With
     // no service fee the two are equal — exactly what drizzle/0014 backfilled for pre-Phase-7 rows.
-    spacePriceCents: opts.spacePriceCents ?? opts.quotedTotalCents,
+    spacePriceCents: opts.spacePriceCents === undefined ? opts.quotedTotalCents : opts.spacePriceCents,
     serviceFeeCents: opts.serviceFeeCents ?? 0,
     retainedSpaceCents: opts.retainedSpaceCents ?? null,
     currency: "php",
     expiresAt: opts.status === "pending" ? endsAt : null,
   });
+  if (opts.settled !== false) {
+    await recordSettlementObservation(id, {
+      paymentId: `pay_${id}`, payoutId: `po_${id}`, transactionId: `txn_${id}`,
+      transactionType: "payment", currency: "PHP", liveMode: true,
+      providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+      mappingVerified: true, providerStatusAt: new Date(FRIDAY_NOON.getTime() - 3_600_000),
+      verifiedAt: new Date(FRIDAY_NOON.getTime() - 60_000),
+    }, testDb.db);
+  }
   return id;
 }
 
@@ -147,7 +170,7 @@ function duePayout(opts: {
     payoutGrossCents: opts.payoutGrossCents,
     currency: "php",
     hostId: opts.hostId,
-    paymentId: null,
+    paymentId: `pay_${opts.bookingId}`,
     paymongoAccountId: opts.accountId,
     institutionBic: "TESTPHM2XXX",
     accountNameCiphertext: encryptPayoutRecipientValue("Test Host"),
@@ -177,6 +200,8 @@ async function readPayoutRows(bookingId: string) {
 }
 
 beforeAll(async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(FRIDAY_NOON);
   testDb = await setupTestDb();
   await testDb.db.insert(user).values({
     id: BOOKER,
@@ -186,6 +211,8 @@ beforeAll(async () => {
   });
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
+    readPayoutWalletFunding: mockWalletFunding,
+    findHostPayoutTransfers: mockLookup,
     createExternalHostPayout: mockPayMongo.createBatchTransfer,
     createBatchTransfer: mockPayMongo.createBatchTransfer,
     listWalletAccounts: mockPayMongo.listWalletAccounts,
@@ -193,10 +220,293 @@ beforeAll(async () => {
     createRefund: mockPayMongo.createRefund,
   }));
   vi.resetModules();
-  ({ queryDuePayouts, payOne } = await import("@/inngest/functions/payout-sweep"));
+  const sweep = await import("@/inngest/functions/payout-sweep");
+  ({ queryDuePayouts, payOne, recordMissedFridayPayouts } = sweep);
+  fridayPayoutWindow = (sweep as unknown as { fridayPayoutWindow?: typeof fridayPayoutWindow }).fridayPayoutWindow;
+});
+
+describe("Friday Wallet funding preflight (HPAY-03)", () => {
+  async function candidate(grossCents = 200000) {
+    const host = await makeHost();
+    const listingId = await makeListing(host.hostId);
+    const bookingId = await makeBooking({ listingId, status: "confirmed", quotedTotalCents: grossCents,
+      endsAtMs: FRIDAY_NOON.getTime() - 48 * 3_600_000 });
+    return { bookingId, b: duePayout({ bookingId, listingId, hostId: host.hostId,
+      accountId: host.accountId, payoutGrossCents: grossCents }) };
+  }
+
+  it("permits exact available coverage of the net amount and fee", async () => {
+    const { b } = await candidate();
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 181000,
+      feeCents: 1000, observedAt: FRIDAY_NOON });
+    mockPayMongo.createBatchTransfer.mockClear();
+    expect((await payOne(testDb.db, b)).status).toBe("processing");
+    expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits unclaimed when available funds are one centavo short", async () => {
+    const { bookingId, b } = await candidate();
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 180999,
+      feeCents: 1000, observedAt: FRIDAY_NOON });
+    mockPayMongo.createBatchTransfer.mockClear();
+    expect((await payOne(testDb.db, b)).status).toBe("skipped-no-wallet");
+    expect(await readLedger(bookingId)).toBeUndefined();
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+  });
+
+  it("retries after an open Wallet shortfall alert when fresh funding arrives", async () => {
+    const { bookingId, b } = await candidate();
+    mockPayMongo.createBatchTransfer.mockClear();
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 180999,
+      feeCents: 1000, observedAt: FRIDAY_NOON });
+    expect((await payOne(testDb.db, b, FRIDAY_NOON)).status).toBe("skipped-no-wallet");
+    expect(await readLedger(bookingId)).toBeUndefined();
+    const retryAt = new Date(FRIDAY_NOON.getTime() + 3_600_000);
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 10_000_000,
+      feeCents: 1000, observedAt: retryAt });
+    expect((await payOne(testDb.db, b, retryAt)).status).toBe("processing");
+    expect((await readLedger(bookingId)).state).toBe("processing");
+    expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
+    const alerts = await testDb.db.execute(sql`
+      SELECT id FROM audit WHERE action = 'host_payout_recovery' AND resolved_at IS NULL
+        AND meta->>'bookingRef' = ${bookingExceptionRef(bookingId)}
+        AND meta->>'cause' = 'wallet_insufficient'
+    `);
+    expect(alerts).toHaveLength(1);
+  });
+
+  it("retries next Friday despite an unresolved missed-cutoff alert after fresh settlement proof", async () => {
+    const { bookingId, b } = await candidate();
+    await recordMoneyException(testDb.db, bookingId, "missed_friday_cutoff",
+      new Date("2026-10-02T15:00:00.000Z"));
+    const nextFriday = new Date("2026-10-09T04:00:00.000Z");
+    await recordSettlementObservation(bookingId, {
+      paymentId: `pay_${bookingId}`, payoutId: `po_${bookingId}`, transactionId: `txn_${bookingId}`,
+      transactionType: "payment", currency: "PHP", liveMode: true,
+      providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+      mappingVerified: true, providerStatusAt: new Date(FRIDAY_NOON.getTime() - 3_600_000),
+      verifiedAt: new Date(nextFriday.getTime() - 60_000),
+    }, testDb.db);
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 10_000_000,
+      feeCents: 1000, observedAt: nextFriday });
+    mockPayMongo.createBatchTransfer.mockClear();
+    expect((await payOne(testDb.db, b, nextFriday)).status).toBe("processing");
+    expect((await readLedger(bookingId)).state).toBe("processing");
+    expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
+  });
+
+  it("never spends pending-only funds or an unknown fee", async () => {
+    const first = await candidate();
+    const second = await candidate();
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 0,
+      feeCents: 1000, observedAt: FRIDAY_NOON });
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 500000,
+      feeCents: Number.NaN, observedAt: FRIDAY_NOON });
+    expect((await payOne(testDb.db, first.b)).status).toBe("skipped-no-wallet");
+    expect((await payOne(testDb.db, second.b)).status).toBe("skipped-no-wallet");
+    expect(await readLedger(first.bookingId)).toBeUndefined();
+    expect(await readLedger(second.bookingId)).toBeUndefined();
+  });
+
+  it("treats a stale or inaccessible Wallet read as waiting without a failed claim", async () => {
+    const first = await candidate();
+    const second = await candidate();
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 500000,
+      feeCents: 1000, observedAt: new Date(FRIDAY_NOON.getTime() - 10 * 60_000) });
+    mockWalletFunding.mockRejectedValueOnce(new Error("wallet unavailable"));
+    expect((await payOne(testDb.db, first.b)).status).toBe("skipped-no-wallet");
+    expect((await payOne(testDb.db, second.b)).status).toBe("skipped-no-wallet");
+    expect(await readLedger(first.bookingId)).toBeUndefined();
+    expect(await readLedger(second.bookingId)).toBeUndefined();
+  });
+
+  it("does not apply a host debit while Wallet funding waits", async () => {
+    const { bookingId, b } = await candidate();
+    await seedDebit(b.hostId, bookingId, 30000);
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 150999,
+      feeCents: 1000, observedAt: FRIDAY_NOON });
+    expect((await payOne(testDb.db, b)).status).toBe("skipped-no-wallet");
+    expect(await readLedger(bookingId)).toBeUndefined();
+    expect((await readDebits(b.hostId))[0].recoveredCents).toBe(0);
+  });
+
+  it("rechecks a suspension and destination revocation after due selection", async () => {
+    const suspended = await candidate();
+    const revoked = await candidate();
+    const due = await queryDuePayouts(testDb.db, FRIDAY_NOON);
+    expect(due.map((row) => row.bookingId)).toEqual(expect.arrayContaining([
+      suspended.bookingId, revoked.bookingId,
+    ]));
+    await testDb.db.update(hostVerification).set({ status: "suspended" })
+      .where(eq(hostVerification.userId, suspended.b.hostId));
+    await testDb.db.update(hostPayoutDestination).set({ verificationStatus: "pending" })
+      .where(eq(hostPayoutDestination.userId, revoked.b.hostId));
+    mockPayMongo.createBatchTransfer.mockClear();
+    expect((await payOne(testDb.db, suspended.b)).status).toBe("skipped-claimed");
+    expect((await payOne(testDb.db, revoked.b)).status).toBe("skipped-claimed");
+    expect(await readLedger(suspended.bookingId)).toBeUndefined();
+    expect(await readLedger(revoked.bookingId)).toBeUndefined();
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+  });
+
+  it("blocks transfer creation after contradictory settlement evidence despite a fresh prior deposit", async () => {
+    const { bookingId, b } = await candidate();
+    await recordMoneyException(testDb.db, bookingId, "settlement_read_unavailable", FRIDAY_NOON);
+    mockPayMongo.createBatchTransfer.mockClear();
+    expect((await payOne(testDb.db, b)).status).toBe("skipped-claimed");
+    expect(await readLedger(bookingId)).toBeUndefined();
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+  });
+
+  it("commits the held claim before the provider can accept a transfer", async () => {
+    const { bookingId, b } = await candidate();
+    mockPayMongo.createBatchTransfer.mockImplementationOnce(async () => {
+      expect((await readLedger(bookingId)).state).toBe("held");
+      return { batchId: "batch_claim_first", transferId: "tr_claim_first", status: "pending" };
+    });
+    const result = await payOne(testDb.db, b);
+    expect(result).toMatchObject({ status: "processing", transferId: "tr_claim_first" });
+    expect((await readLedger(bookingId)).state).toBe("processing");
+    expect((await readLedger(bookingId)).paidAt).toBeNull();
+  });
+
+  it("serializes two bookings against one balance snapshot", async () => {
+    const first = await candidate();
+    const second = await candidate();
+    const [{ reserved }] = (await testDb.db.execute(sql`
+      SELECT (COALESCE(SUM(GREATEST(net_cents - recovered_cents, 0)), 0)
+        + COUNT(*) * 1000)::int AS "reserved"
+      FROM host_payout_ledger WHERE kind = 'payout' AND state IN ('held', 'processing')
+    `)) as unknown as Array<{ reserved: number }>;
+    mockWalletFunding.mockResolvedValue({ walletId: "wallet_fitout_test", availableCents: reserved + 181000,
+      feeCents: 1000, observedAt: FRIDAY_NOON });
+    const clients = makeRacingClients(testDb.schema, 2);
+    try {
+      const results = await Promise.all([
+        payOne(drizzle(clients[0]), first.b), payOne(drizzle(clients[1]), second.b),
+      ]);
+      expect(results.filter((result) => result.status === "processing")).toHaveLength(1);
+      expect(results.filter((result) => result.status === "skipped-no-wallet")).toHaveLength(1);
+      expect([await readLedger(first.bookingId), await readLedger(second.bookingId)]
+        .filter(Boolean)).toHaveLength(1);
+    } finally {
+      await Promise.all(clients.map((client) => client.end()));
+      mockWalletFunding.mockResolvedValue({ walletId: "wallet_fitout_test", availableCents: 10_000_000,
+        feeCents: 1000, observedAt: FRIDAY_NOON });
+    }
+  });
+});
+
+describe("Friday Manila dispatch window (HPAY-02)", () => {
+  const cases: Array<[string, string, string | null]> = [
+    ["Thursday", "2026-10-01T04:00:00.000Z", null],
+    ["Friday one second before noon", "2026-10-02T03:59:59.000Z", null],
+    ["Friday noon", "2026-10-02T04:00:00.000Z", "2026-10-02T04:00:00.000Z"],
+    ["Friday 23:00", "2026-10-02T15:00:00.000Z", "2026-10-02T04:00:00.000Z"],
+    ["Friday one second after 23:00", "2026-10-02T15:00:01.000Z", null],
+    ["Saturday", "2026-10-03T04:00:00.000Z", null],
+  ];
+  it.each(cases)("%s maps to the fixed noon cohort only inside the release window", (_label, instant, expected) => {
+    expect(fridayPayoutWindow?.(new Date(instant))?.cohortNoon.toISOString() ?? null).toBe(expected);
+  });
+
+  it("does not select an otherwise due booking without its own deposited settlement proof", async () => {
+    const host = await makeHost();
+    const listingId = await makeListing(host.hostId);
+    const bookingId = await makeBooking({ listingId, status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: new Date("2026-09-20T00:00:00.000Z").getTime(), settled: false });
+    const due = await queryDuePayouts(testDb.db, new Date("2026-10-02T04:00:00.000Z"));
+    expect(due.map((row) => row.bookingId)).not.toContain(bookingId);
+  });
+
+  it("keeps the post-session review hold at least 24 hours", () => {
+    expect(PAYOUT_HOLD_HOURS).toBeGreaterThanOrEqual(24);
+  });
+
+  it("requires the hold at Friday noon to the millisecond, including a Thursday afternoon end", async () => {
+    const host = await makeHost();
+    const exact = await makeBooking({ listingId: await makeListing(host.hostId), status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: FRIDAY_NOON.getTime() - PAYOUT_HOLD_HOURS * 3_600_000 });
+    const oneMsLate = await makeBooking({ listingId: await makeListing(host.hostId), status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: FRIDAY_NOON.getTime() - PAYOUT_HOLD_HOURS * 3_600_000 + 1 });
+    const thursdayAfternoon = await makeBooking({ listingId: await makeListing(host.hostId), status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: new Date("2026-10-01T08:00:00.000Z").getTime() });
+    const ids = (await queryDuePayouts(testDb.db, FRIDAY_NOON)).map((row) => row.bookingId);
+    expect(ids).toContain(exact);
+    expect(ids).not.toContain(oneMsLate);
+    expect(ids).not.toContain(thursdayAfternoon);
+  });
+
+  it("holds a deposit first verified after noon until a later Friday", async () => {
+    const host = await makeHost();
+    const listingId = await makeListing(host.hostId);
+    const bookingId = await makeBooking({ listingId, status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: FRIDAY_NOON.getTime() - 48 * 3_600_000, settled: false });
+    await recordSettlementObservation(bookingId, {
+      paymentId: `pay_${bookingId}`, payoutId: `po_${bookingId}`, transactionId: `txn_${bookingId}`,
+      transactionType: "payment", currency: "PHP", liveMode: true,
+      providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+      mappingVerified: true, providerStatusAt: new Date(FRIDAY_NOON.getTime() - 3_600_000),
+      verifiedAt: new Date(FRIDAY_NOON.getTime() + 60_000),
+    }, testDb.db);
+    const fridayAfternoon = new Date(FRIDAY_NOON.getTime() + 3_600_000);
+    expect((await queryDuePayouts(testDb.db, fridayAfternoon)).map((row) => row.bookingId))
+      .not.toContain(bookingId);
+  });
+
+  it("keeps a noon-qualified deposit eligible when the same provider version is refreshed after noon", async () => {
+    const host = await makeHost();
+    const listingId = await makeListing(host.hostId);
+    const bookingId = await makeBooking({ listingId, status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: FRIDAY_NOON.getTime() - 48 * 3_600_000 });
+    await recordSettlementObservation(bookingId, {
+      paymentId: `pay_${bookingId}`, payoutId: `po_${bookingId}`, transactionId: `txn_${bookingId}`,
+      transactionType: "payment", currency: "PHP", liveMode: true,
+      providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+      mappingVerified: true, providerStatusAt: new Date(FRIDAY_NOON.getTime() - 3_600_000),
+      verifiedAt: new Date(FRIDAY_NOON.getTime() + 30 * 60_000),
+    }, testDb.db);
+    const fridayAfternoon = new Date(FRIDAY_NOON.getTime() + 3_600_000);
+    expect((await queryDuePayouts(testDb.db, fridayAfternoon)).map((row) => row.bookingId))
+      .toContain(bookingId);
+  });
+
+  it("refuses off-window direct dispatch even with a due booking", async () => {
+    const host = await makeHost();
+    const listingId = await makeListing(host.hostId);
+    const bookingId = await makeBooking({ listingId, status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: FRIDAY_NOON.getTime() - 48 * 3_600_000 });
+    const b = duePayout({ bookingId, listingId, hostId: host.hostId,
+      accountId: host.accountId, payoutGrossCents: 200000 });
+    expect((await payOne(testDb.db, b, new Date("2026-10-01T04:00:00.000Z"))).status)
+      .toBe("skipped-claimed");
+    expect(await readLedger(bookingId)).toBeUndefined();
+  });
+});
+
+describe("Friday 23:00 exception handoff (HPAY-06)", () => {
+  it("keeps a missing-settlement booking in the owned queue once, but excludes a next-week joiner", async () => {
+    const host = await makeHost();
+    const due = await makeBooking({ listingId: await makeListing(host.hostId), status: "confirmed",
+      quotedTotalCents: 200000, endsAtMs: FRIDAY_NOON.getTime() - 48 * 3_600_000, settled: false });
+    const nextWeek = await makeBooking({ listingId: await makeListing(host.hostId), status: "confirmed",
+      quotedTotalCents: 200000, endsAtMs: FRIDAY_NOON.getTime() - 2 * 3_600_000, settled: false });
+    const cutoff = new Date("2026-10-02T15:00:00.000Z");
+    await recordMissedFridayPayouts(testDb.db, cutoff);
+    await recordMissedFridayPayouts(testDb.db, cutoff);
+    const rows = (await testDb.db.execute(sql`
+      SELECT meta->>'bookingRef' AS ref, meta->>'cause' AS cause FROM audit
+      WHERE action = 'host_payout_recovery' AND outcome = 'needs_attention'
+    `)) as unknown as Array<{ ref: string; cause: string }>;
+    expect(rows.filter((row) => row.ref === bookingExceptionRef(due) && row.cause === "missed_friday_cutoff")).toHaveLength(1);
+    expect(rows.filter((row) => row.ref === bookingExceptionRef(due) && row.cause === "settlement_missing")).toHaveLength(1);
+    expect(rows.some((row) => row.ref === bookingExceptionRef(nextWeek))).toBe(false);
+    expect(await readPayoutRows(due)).toHaveLength(0);
+  });
 });
 
 afterAll(async () => {
+  vi.useRealTimers();
   vi.doUnmock("@/lib/db");
   vi.doUnmock("@/lib/paymongo");
   await teardownTestDb(testDb);
@@ -258,7 +568,7 @@ describe("payout sweep — happy payout (PAY-03/PAY-02, D-51/52/56)", () => {
       testDb.db,
       duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 200000 }),
     );
-    expect(res.status).toBe("paid");
+    expect(res.status).toBe("processing");
 
     // Exactly one ledger row, released to Processing, commission FROZEN (10% of 200000), transfer id set.
     const rows = await testDb.db
@@ -309,9 +619,9 @@ describe("payout sweep — at-most-once under concurrency (T-05-23)", () => {
     const [c1, c2] = makeRacingClients(testDb.schema, 2);
     try {
       const results = await Promise.all([payOne(drizzle(c1), b), payOne(drizzle(c2), b)]);
-      const paid = results.filter((r) => r.status === "paid").length;
+      const submitted = results.filter((r) => r.status === "processing").length;
       const skipped = results.filter((r) => r.status === "skipped-claimed").length;
-      expect(paid).toBe(1); // exactly one sweep won the claim and fired the transfer
+      expect(submitted).toBe(1); // exactly one sweep won the claim and fired the transfer
       expect(skipped).toBe(1); // the ON CONFLICT loser fired nothing
     } finally {
       await c1.end();
@@ -377,7 +687,7 @@ describe("payout sweep — external destination isolation (T-05-27 / CR-01)", ()
       duePayout({ bookingId: bkC, listingId: L, hostId: C.hostId, accountId: C.accountId, payoutGrossCents: 200000 }),
     );
 
-    expect(res.status).toBe("paid");
+    expect(res.status).toBe("processing");
     expect(mockPayMongo.listWalletAccounts).not.toHaveBeenCalled();
     expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
 
@@ -387,8 +697,8 @@ describe("payout sweep — external destination isolation (T-05-27 / CR-01)", ()
   });
 });
 
-describe("payout sweep — failed payout is retryable (WR-04)", () => {
-  it("re-claims a `failed` ledger row on a later pass and releases it — exactly one row throughout", async () => {
+describe("payout sweep — uncertain create recovery (HPAY-04)", () => {
+  it("finds an accepted timeout by exact booking reference after key expiry without a second POST", async () => {
     const A = await makeHost();
     mockPayMongo.listWalletAccounts.mockResolvedValue([
       { id: A.accountId, accountNumber: "9990003333", accountName: "Host A Wallet", status: "activated" },
@@ -408,23 +718,20 @@ describe("payout sweep — failed payout is retryable (WR-04)", () => {
       payoutGrossCents: 200000,
     });
 
-    // First pass: a transient PayMongo error throws from createBatchTransfer → the claim is marked `failed`
-    // (never a silent held), and a [payout-alert] fires.
+    // An uncertain provider response leaves a durable held claim and cannot be blindly retried.
     mockPayMongo.createBatchTransfer.mockRejectedValueOnce(new Error("paymongo 503"));
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const first = await payOne(testDb.db, b);
-    expect(first.status).toBe("failed");
-    expect((await readLedger(bkId)).state).toBe("failed");
+    expect(first.status).toBe("held-uncertain");
+    expect((await readLedger(bkId)).state).toBe("held");
+    expect((await payOne(testDb.db, b)).status).toBe("held-uncertain");
 
-    // Second pass: the transfer now succeeds → the `failed` row is RE-CLAIMED (failed → held) and RELEASED to
-    // processing. The stable payout:<bookingId> Idempotency-Key makes this re-attempt double-pay-safe.
-    mockPayMongo.createBatchTransfer.mockResolvedValueOnce({
-      batchId: "batch_tr_retry",
-      transferId: "tr_retry_1",
-      status: "pending",
-    });
-    const second = await payOne(testDb.db, b);
-    expect(second.status).toBe("paid");
+    mockLookup.mockResolvedValueOnce([{
+      id: "tr_accepted", status: "pending", referenceNumber: `host-payout-${bkId}`,
+      amount: 180000, currency: "PHP",
+    }]);
+    const second = await payOne(testDb.db, b, new Date(FRIDAY_NOON.getTime() + 7 * 24 * 3_600_000));
+    expect(second.status).toBe("skipped-claimed");
     spy.mockRestore();
 
     // Exactly ONE ledger row throughout (the re-claim never mints a second), now released to processing with
@@ -435,10 +742,53 @@ describe("payout sweep — failed payout is retryable (WR-04)", () => {
       .where(eq(hostPayoutLedger.bookingId, bkId));
     expect(rows).toHaveLength(1);
     expect(rows[0].state).toBe("processing");
-    expect(rows[0].transferId).toBe("tr_retry_1");
+    expect(rows[0].transferId).toBe("tr_accepted");
+    expect(mockLookup).toHaveBeenCalledWith(bkId);
+    expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
   });
 
-  it("queryDuePayouts re-selects a backed-off `failed` row within the retry window", async () => {
+  it("keeps an ambiguous or inaccessible prior claim held and never resends", async () => {
+    const A = await makeHost();
+    const L = await makeListing(A.hostId);
+    const bkId = await makeBooking({ listingId: L, status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: dueMs() });
+    const b = duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId,
+      accountId: A.accountId, payoutGrossCents: 200000 });
+    mockPayMongo.createBatchTransfer.mockRejectedValueOnce(new Error("timeout"));
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await payOne(testDb.db, b);
+    mockLookup.mockResolvedValueOnce([
+      { id: "tr_1", status: "pending", referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" },
+      { id: "tr_2", status: "pending", referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" },
+    ]).mockRejectedValueOnce(new Error("403"));
+    expect((await payOne(testDb.db, b)).status).toBe("held-uncertain");
+    expect((await payOne(testDb.db, b)).status).toBe("held-uncertain");
+    expect((await readLedger(bkId)).state).toBe("held");
+    expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
+    spy.mockRestore();
+  });
+
+  it("treats a crash after the durable claim and a wrong-reference response as unresolved", async () => {
+    const A = await makeHost();
+    const L = await makeListing(A.hostId);
+    const bkId = await makeBooking({ listingId: L, status: "confirmed", quotedTotalCents: 200000,
+      endsAtMs: dueMs() });
+    const b = duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId,
+      accountId: A.accountId, payoutGrossCents: 200000 });
+    await testDb.db.insert(hostPayoutLedger).values({ id: uid("ledger"), bookingId: bkId,
+      hostId: A.hostId, paymentId: `pay_${bkId}`, grossCents: 200000,
+      commissionRateBps: 1000, commissionCents: 20000, netCents: 180000,
+      currency: "php", state: "held", kind: "payout" });
+    mockLookup.mockResolvedValueOnce([{ id: "tr_foreign", status: "succeeded",
+      referenceNumber: "host-payout-someone-else", amount: 180000, currency: "PHP" }]);
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect((await payOne(testDb.db, b)).status).toBe("held-uncertain");
+    expect((await readLedger(bkId)).transferId).toBeNull();
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it("does not dispatch a failed row without a durable second-attempt identity", async () => {
     const A = await makeHost();
     const L = await makeListing(A.hostId);
     const bkId = await makeBooking({
@@ -447,25 +797,40 @@ describe("payout sweep — failed payout is retryable (WR-04)", () => {
       quotedTotalCents: 200000,
       endsAtMs: dueMs(),
     });
-    // A `failed` row whose last attempt (updated_at) is well past the 1h backoff but whose original claim
-    // (created_at) is still inside the 72h max-age window → eligible for an automated retry.
+    // Even an old terminal failure cannot become a fresh send using the same booking-wide
+    // reference and single ledger transfer ID. A lost response to that second send would be
+    // indistinguishable from the first attempt.
     await testDb.db.insert(hostPayoutLedger).values({
       id: uid("ledger"),
       bookingId: bkId,
       hostId: A.hostId,
-      paymentId: null,
+      paymentId: `pay_${bkId}`,
       grossCents: 200000,
       commissionRateBps: 1000,
       commissionCents: 20000,
       netCents: 180000,
       currency: "php",
       state: "failed",
+      transferId: "tr_terminal_failed",
       createdAt: new Date(Date.now() - 3 * 3_600_000),
       updatedAt: new Date(Date.now() - 3 * 3_600_000),
     });
 
     const due = await queryDuePayouts(testDb.db);
-    expect(due.map((d) => d.bookingId)).toContain(bkId);
+    expect(due.map((d) => d.bookingId)).not.toContain(bkId);
+
+    // A direct or replayed call also cannot POST, even if the provider lists the matching
+    // terminal transfer. The failed ledger row and its transfer ID remain the authority.
+    mockPayMongo.createBatchTransfer.mockClear();
+    mockLookup.mockResolvedValueOnce([{ id: "tr_terminal_failed", status: "failed",
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" }]);
+    const result = await payOne(testDb.db, duePayout({ bookingId: bkId, listingId: L,
+      hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 200000 }));
+    expect(result.status).toBe("skipped-claimed");
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
+    const ledger = await readLedger(bkId);
+    expect(ledger.state).toBe("failed");
+    expect(ledger.transferId).toBe("tr_terminal_failed");
   });
 });
 
@@ -502,7 +867,7 @@ describe("payout sweep — retained cancellation IS swept (Finding 1, D-69)", ()
       testDb.db,
       duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 50000 }),
     );
-    expect(res.status).toBe("paid");
+    expect(res.status).toBe("processing");
 
     const rows = await readPayoutRows(bkId);
     expect(rows).toHaveLength(1); // exactly ONE ledger row
@@ -597,7 +962,7 @@ describe("payout sweep — D-71 debit netting (netting floor)", () => {
       testDb.db,
       duePayout({ bookingId: bkId, listingId: L, hostId: A.hostId, accountId: A.accountId, payoutGrossCents: 100000 }),
     );
-    expect(res).toMatchObject({ status: "paid", netCents: 60000, deductedCents: 30000 });
+    expect(res).toMatchObject({ status: "processing", netCents: 60000, deductedCents: 30000 });
 
     // The TRANSFER carries the NETTED amount, never the raw net.
     expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
@@ -730,7 +1095,7 @@ describe("payout sweep — concurrent cancel × sweep race (T-07-17)", () => {
     const [c1, c2] = makeRacingClients(testDb.schema, 2);
     try {
       const results = await Promise.all([payOne(drizzle(c1), b), payOne(drizzle(c2), b)]);
-      expect(results.filter((r) => r.status === "paid")).toHaveLength(1);
+      expect(results.filter((r) => r.status === "processing")).toHaveLength(1);
       expect(results.filter((r) => r.status === "skipped-claimed")).toHaveLength(1);
     } finally {
       await c1.end();
@@ -752,6 +1117,7 @@ describe("payout sweep — a booking with no frozen payout basis fails CLOSED", 
       status: "confirmed",
       quotedTotalCents: 105000,
       endsAtMs: dueMs(),
+      spacePriceCents: null,
     });
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 

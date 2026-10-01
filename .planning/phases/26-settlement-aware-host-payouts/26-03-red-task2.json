@@ -1,0 +1,9 @@
+{
+  "targetTest": "never marks Paid when GET returns another transfer ID",
+  "targetFile": "tests/payments/payout-reconcile.test.ts",
+  "command": "node node_modules/vitest/vitest.mjs run tests/payments/payout-reconcile.test.ts -t 'uncertain claim read-back' --reporter=tap",
+  "exitCode": 1,
+  "expected": "processing",
+  "actual": "paid",
+  "output": "TAP version 13\n1..1\nnot ok 1 - tests/payments/payout-reconcile.test.ts {\n  1..2\n  not ok 1 - uncertain claim read-back (HPAY-04) {\n    1..2\n    not ok 1 - selects a held payout with no transfer ID and pays only after exact reference discovery and GET\n    not ok 2 - never marks Paid when GET returns another transfer ID\n      ---\n      error:\n        name: AssertionError\n        message: expected 'paid' to be 'processing'\n      actual: paid\n      expected: processing\n      ...\n  }\n}\n# tests 2\n# pass 0\n# fail 2\nnot ok 1 - never marks Paid when GET returns another transfer ID"
+}

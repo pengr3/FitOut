@@ -84,6 +84,8 @@ type FetchInit = {
    * cannot be added here in silence.
    */
   signal?: AbortSignal;
+  /** Money-read preflight: reject a cached or stale HTTP response. */
+  freshAt?: Date;
 };
 
 /**
@@ -97,6 +99,7 @@ async function paymongoFetch<T>(path: string, init: FetchInit = {}): Promise<T> 
     "Content-Type": "application/json",
     Accept: "application/json",
   };
+  if (init.freshAt) headers["Cache-Control"] = "no-store";
   if (method === "POST") {
     // Every POST carries an Idempotency-Key so a retried create can't duplicate (PayMongo requirement).
     headers["Idempotency-Key"] = init.idempotencyKey ?? randomUUID();
@@ -109,6 +112,12 @@ async function paymongoFetch<T>(path: string, init: FetchInit = {}): Promise<T> 
     // The ONLY place a deadline can be threaded. `undefined` here === no signal at all (see FetchInit).
     signal: init.signal,
   });
+  if (init.freshAt) {
+    const servedAt = Date.parse(res.headers.get("date") ?? "");
+    if (!Number.isFinite(servedAt) || Math.abs(init.freshAt.getTime() - servedAt) > 120_000) {
+      throw new Error("PayMongo Wallet response is missing a fresh server Date header.");
+    }
+  }
 
   const text = await res.text();
   const json = text ? (JSON.parse(text) as unknown) : {};
@@ -589,6 +598,7 @@ export async function createExternalHostPayout(input: {
       ],
     },
   });
+
   const transfer = json.data?.attributes?.transfers?.[0];
   return { batchId: json.data?.id ?? "", transferId: transfer?.id ?? "", status: transfer?.status ?? "" };
 }
@@ -715,6 +725,46 @@ export type WalletAccount = {
   status: string;
 };
 
+export type PayoutWalletFunding = {
+  walletId: string;
+  availableCents: number;
+  feeCents: number;
+  observedAt: Date;
+};
+
+/** A read-only Wallet preflight. Missing account mapping or fee evidence keeps host payout on HOLD. */
+export async function readPayoutWalletFunding(now: Date = new Date()): Promise<PayoutWalletFunding | null> {
+  const walletId = process.env.PAYMONGO_WALLET_ID ?? "";
+  const merchantId = process.env.PAYMONGO_ORGANIZATION_ID ?? "";
+  const walletNumber = process.env.PLATFORM_WALLET_NUMBER ?? "";
+  const walletName = process.env.PLATFORM_WALLET_NAME ?? "";
+  const key = process.env.PAYMONGO_SECRET_KEY ?? "";
+  const liveMode = key.startsWith("sk_live_") ? true : key.startsWith("sk_test_") ? false : null;
+  const feeCents = Number(process.env.PAYMONGO_INSTAPAY_FEE_CENTS);
+  const feeVerifiedAt = Date.parse(process.env.PAYMONGO_INSTAPAY_FEE_VERIFIED_AT ?? "");
+  if (!walletId || !merchantId || !walletNumber || !walletName || liveMode === null ||
+      !Number.isSafeInteger(feeCents) || feeCents < 0 || !Number.isFinite(feeVerifiedAt) ||
+      feeVerifiedAt > now.getTime() || now.getTime() - feeVerifiedAt > 30 * 24 * 3_600_000) return null;
+
+  const json = await paymongoFetch<{ data?: {
+    id?: unknown; merchant_id?: unknown; livemode?: unknown; status?: unknown;
+    balance?: { available?: unknown; pending?: unknown };
+    account?: { provider?: unknown; account_number?: unknown; account_name?: unknown; currency?: unknown };
+  } }>(`/v2/wallets/${encodeURIComponent(walletId)}?fields=balance&fields=account`, {
+    method: "GET", freshAt: now, signal: AbortSignal.timeout(5000),
+  });
+  const wallet = json.data;
+  const available = wallet?.balance?.available;
+  const pending = wallet?.balance?.pending;
+  if (wallet?.id !== walletId || wallet.merchant_id !== merchantId || wallet.livemode !== liveMode ||
+      wallet.status !== "activated" || wallet.account?.provider !== "paymongo" ||
+      wallet.account.account_number !== walletNumber || wallet.account.account_name !== walletName ||
+      wallet.account.currency !== "PHP" ||
+      !Number.isSafeInteger(available) || !Number.isSafeInteger(pending) ||
+      (available as number) < 0 || (pending as number) < 0) return null;
+  return { walletId, availableCents: available as number, feeCents, observedAt: new Date() };
+}
+
 /**
  * List ALL activated PayMongo wallet accounts (/v2/wallets?status=activated).
  *
@@ -742,7 +792,54 @@ export async function listWalletAccounts(): Promise<WalletAccount[]> {
   }));
 }
 
-export type Transfer = { id: string; status: string };
+export type Transfer = {
+  id: string;
+  status: string;
+  referenceNumber?: string;
+  amount?: number;
+  currency?: string;
+};
+
+/** Read-only reference lookup. An empty result is not proof that a timed-out POST was never accepted. */
+export async function findHostPayoutTransfers(bookingId: string): Promise<Transfer[]> {
+  const reference = `host-payout-${bookingId}`;
+  const matches: Transfer[] = [];
+  let afterId: string | null = null;
+  const seen = new Set<string>();
+  for (let page = 0; page < 10; page++) {
+    const cursor: string = afterId ? `&after_id=${encodeURIComponent(afterId)}` : "";
+    const json = await paymongoFetch<unknown>(
+      `/v2/transfers?reference_number=${encodeURIComponent(reference)}&limit=100${cursor}`,
+      { method: "GET" },
+    );
+    if (!json || typeof json !== "object" || !Array.isArray((json as { data?: unknown }).data)) {
+      throw new Error("PayMongo transfer reference lookup returned an unverified shape");
+    }
+    const rows = (json as { data: unknown[] }).data;
+    const parsed = rows.map((raw) => {
+    if (!raw || typeof raw !== "object") throw new Error("Malformed PayMongo transfer lookup row");
+    const item = raw as Record<string, unknown>;
+    const attrs = item.attributes && typeof item.attributes === "object"
+      ? item.attributes as Record<string, unknown> : item;
+    if (typeof item.id !== "string" || typeof attrs.status !== "string" ||
+        typeof attrs.reference_number !== "string" || typeof attrs.amount !== "number" ||
+        typeof attrs.currency !== "string") {
+      throw new Error("Incomplete PayMongo transfer lookup row");
+    }
+    return { id: item.id, status: attrs.status, referenceNumber: attrs.reference_number,
+      amount: attrs.amount, currency: attrs.currency };
+    });
+    for (const transfer of parsed) {
+      if (seen.has(transfer.id)) throw new Error("PayMongo transfer lookup cursor repeated");
+      seen.add(transfer.id);
+      if (transfer.referenceNumber === reference) matches.push(transfer);
+    }
+    if (rows.length < 100) return matches;
+    afterId = parsed.at(-1)?.id ?? null;
+    if (!afterId) throw new Error("PayMongo transfer lookup has no next cursor");
+  }
+  throw new Error("PayMongo transfer lookup exceeded the bounded scan");
+}
 
 /**
  * Poll a single /v2 transfer's terminal status (GET /v2/transfers/{id}, PAY-03).
@@ -758,9 +855,34 @@ export type Transfer = { id: string; status: string };
  * `processing` so an unrecognized status can never spuriously flip a payout to Paid.
  */
 export async function getTransfer(transferId: string): Promise<Transfer> {
-  const json = await paymongoFetch<{ data: { id: string; attributes: { status: string } } }>(
+  const json = await paymongoFetch<{ data: { id: string; attributes?: Record<string, unknown>;
+    status?: string; reference_number?: string; amount?: number; currency?: string } }>(
     `/v2/transfers/${transferId}`,
     { method: "GET" }, // GET — no Idempotency-Key
   );
-  return { id: json.data.id, status: json.data.attributes.status };
+  const attrs = json.data.attributes ?? json.data;
+  if (typeof json.data.id !== "string" || typeof attrs.status !== "string" ||
+      typeof attrs.reference_number !== "string" || !attrs.reference_number ||
+      typeof attrs.amount !== "number" || !Number.isSafeInteger(attrs.amount) ||
+      typeof attrs.currency !== "string" || !attrs.currency) {
+    throw new Error("PayMongo transfer read returned an unverified shape");
+  }
+  return { id: json.data.id, status: attrs.status,
+    referenceNumber: attrs.reference_number, amount: attrs.amount, currency: attrs.currency };
+}
+
+// Read-only merchant-payout surfaces. Raw responses stay in process memory and are validated by
+// settlement-reconcile before any booking observation is written. Account field mapping remains HOLD.
+export async function listMerchantPayouts(after?: string): Promise<unknown> {
+  const cursor = after ? `&after=${encodeURIComponent(after)}` : "";
+  return paymongoFetch<unknown>(`/v1/payouts?limit=20${cursor}`, { method: "GET" });
+}
+
+export async function getMerchantPayout(payoutId: string): Promise<unknown> {
+  return paymongoFetch<unknown>(`/v1/payouts/${encodeURIComponent(payoutId)}`, { method: "GET" });
+}
+
+export async function listMerchantPayoutTransactions(payoutId: string, after?: string): Promise<unknown> {
+  const cursor = after ? `&after=${encodeURIComponent(after)}` : "";
+  return paymongoFetch<unknown>(`/v1/payouts/${encodeURIComponent(payoutId)}/transactions?limit=20${cursor}`, { method: "GET" });
 }

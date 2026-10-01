@@ -34,6 +34,33 @@ document.
 
 ## 2. How the alert arrives
 
+### Friday host payout cutoff
+
+The Friday 23:00 Manila payout sweep records a separate unresolved exception for each eligible unpaid
+booking, including bookings blocked before transfer claim by settlement evidence or Wallet funding.
+It emits `fitout/payout-cutoff-alert` after recording the rows. The existing Inngest digest sends the
+new cutoff rows promptly to `OPS_ALERT_EMAIL`; a Friday 23:10 cron retries rows not marked sent, and
+the 08:50 daily digest continues to show the unresolved queue. Mail contains audit ids and fixed
+action names only. It never contains booking, Wallet, destination, or provider identifiers. A
+200-row bound and truncation notice apply to each email.
+
+Use `npm run ops:alerts:payouts` for the **complete unresolved payout exception queue**. It shows a
+redacted booking reference, fixed cause, delivery attempt status, and next operator action. Resolve a
+reference locally with `npm run ops:alerts:payout-lookup -- <booking-ref>`; this command reads booking
+ids under the operator's database access and does not send them to mail. Inspect the booking's current
+settlement proof, Wallet funding, destination gate, and transfer ledger before taking the stated action.
+Never send a second transfer for an uncertain claim without provider read-back. A waiting booking must
+not be marked Paid. After recovery, discharge the audit id with
+`npm run ops:alerts:resolve -- <audit-id> --by "<your name>"`. The name is **asserted CLI
+provenance, not authenticated identity**; `resolved_at` and `resolved_by` are the acknowledgement
+record. Delivery status alone is not acknowledgement and never resolves a row.
+
+If the recipient is unset or delivery fails, the row stays unresolved. The attempt is recorded as
+`no_recipient` or `failed` on the audit row and the server logs a loud `[ops-alert]` error. Keep the
+release on **HOLD** until a named money-operations owner proves that the destination is monitored and
+demonstrates receipt, triage, and acknowledgement in a controlled run. The presence of an
+`OPS_ALERT_EMAIL` value or a test mail fixture is insufficient release evidence.
+
 **A daily email**, 08:50 Asia/Manila, to whatever address is in `OPS_ALERT_EMAIL`.
 Source: `src/inngest/functions/ops-alert-digest.ts`, registered in `src/app/api/inngest/route.ts`.
 

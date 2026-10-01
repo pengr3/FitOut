@@ -76,7 +76,7 @@ async function fetchInterceptor(input: RequestInfo | URL, init?: RequestInit): P
 
   if (url.includes("/v1/wallets/receiving_institutions")) {
     if (institutionsMode === "notfound") {
-      // The OBSERVED live behaviour (2026-07-23) until PayMongo enables Money Movement — see refund-rail.ts.
+      // Simulate an unavailable institution directory; the observed 2026-07-23 result used an older route.
       return new Response(
         JSON.stringify({
           errors: [{ code: "not_found", detail: "failed to get transfer: resource not found" }],
@@ -87,8 +87,8 @@ async function fetchInterceptor(input: RequestInfo | URL, init?: RequestInit): P
     return new Response(
       JSON.stringify({
         data: [
-          { attributes: { name: "Test Bank", bic: DEST.institutionBic } },
-          { attributes: { name: "Other Bank", bic: "OTHRPHM2XXX" } },
+          { attributes: { name: "Test Bank", provider_code: DEST.institutionBic } },
+          { attributes: { name: "Other Bank", provider_code: "OTHRPHM2XXX" } },
         ],
       }),
       { status: 200 },

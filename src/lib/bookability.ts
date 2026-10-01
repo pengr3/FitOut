@@ -3,9 +3,10 @@
 // never be bypassed: downstream phases (3 availability, 4 search/CTA, 6 instant/request) read ONLY
 // deriveBookable — never `status` alone — so "published" can never be mistaken for "sellable".
 //
-// Bookability is DERIVED, never independently settable. `payoutsEnabled` is a webhook-maintained
-// cached flag on the host's host_payout row (set from PayMongo merchant.activated — Plan 06). Because
-// this is pure derivation, D-14 auto-revert is free: when the webhook flips payoutsEnabled=false,
+// Bookability is DERIVED, never independently settable. `payoutsEnabled` is a trusted server-maintained
+// cached flag on the host's host_payout row (from a PayMongo merchant event or an approved host's
+// exact-value payout-destination attestation). Because this is pure derivation, D-14 auto-revert is
+// free: when the webhook flips payoutsEnabled=false,
 // every derive returns false with zero per-listing writes. Pure — no DB, no I/O — so the truth-table
 // unit test (tests/listing/bookability.test.ts) drives it directly.
 //

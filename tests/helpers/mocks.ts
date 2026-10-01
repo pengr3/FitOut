@@ -219,7 +219,9 @@ export const mockPayMongo = {
    * terminal `succeeded` (the Processing→Paid happy path); reconcile tests override per-case with
    * `mockPayMongo.getTransfer.mockResolvedValueOnce({ id, status: "failed" | "pending" | ... })`.
    */
-  getTransfer: vi.fn(async (transferId: string) => ({ id: transferId, status: "succeeded" })),
+  getTransfer: vi.fn(async (transferId: string): Promise<{
+    id: string; status: string; referenceNumber?: string; amount?: number; currency?: string;
+  }> => ({ id: transferId, status: "succeeded" })),
   /**
    * 13.1-02 payment-reconcile stub — the provider read UNDERNEATH `probeCheckoutSession`.
    *

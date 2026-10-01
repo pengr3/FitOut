@@ -153,6 +153,7 @@ import { mockResend } from "../helpers/mocks";
 import { renderOpsAlertDigest, type OpsDigestRow } from "@/lib/email";
 import { DEFAULT_ALERT_LIMIT, resolveAlert } from "@/lib/ops/alerts";
 import { buildAndSendDigest, agingHours, AGING_HOURS_DEFAULT } from "@/inngest/functions/ops-alert-digest";
+import { recordMoneyException } from "@/lib/payments/payout-exceptions";
 
 let testDb: TestDb;
 let prevEmail: string | undefined;
@@ -230,6 +231,37 @@ describe("agingHours", () => {
 });
 
 describe("buildAndSendDigest", () => {
+  it("records prompt Friday delivery on the unresolved exception without exporting its cause", async () => {
+    const bookingId = "unicode-🏸-booking";
+    const id = await recordMoneyException(testDb.db, bookingId, "missed_friday_cutoff",
+      new Date("2026-10-02T15:00:00Z"));
+    expect((await buildAndSendDigest(testDb.db, { mode: "friday-cutoff",
+      now: new Date("2026-10-02T15:01:00Z") })).sent).toBe(true);
+    const rows = (await testDb.db.execute(sql`
+      SELECT meta FROM audit WHERE id = ${id}
+    `)) as unknown as Array<{ meta: Record<string, unknown> }>;
+    expect(rows[0].meta.lastDeliveryStatus).toBe("sent");
+    expect(rows[0].meta.lastDeliveryAttemptAt).toEqual(expect.any(String));
+    expect(allCapturedText()).toContain(id);
+    expect(allCapturedText()).not.toContain(bookingId);
+    expect(allCapturedText()).not.toContain("missed_friday_cutoff");
+    expect(await buildAndSendDigest(testDb.db, { mode: "friday-cutoff",
+      now: new Date("2026-10-02T15:10:00Z") })).toEqual({ sent: false, reason: "no_unresolved" });
+    expect(mockResend.sent()).toHaveLength(1);
+  });
+
+  it("keeps Friday cutoff unresolved and records no-recipient delivery when the address is unset", async () => {
+    const id = await recordMoneyException(testDb.db, "unpaid-booking", "missed_friday_cutoff",
+      new Date("2026-10-02T15:00:00Z"));
+    delete process.env.OPS_ALERT_EMAIL;
+    const result = await buildAndSendDigest(testDb.db, { mode: "friday-cutoff",
+      now: new Date("2026-10-02T15:01:00Z") });
+    expect(result).toMatchObject({ sent: false, reason: "no_recipient" });
+    const rows = (await testDb.db.execute(sql`SELECT resolved_at AS "resolvedAt", meta FROM audit WHERE id = ${id}`)) as unknown as Array<{ resolvedAt: Date | null; meta: Record<string, unknown> }>;
+    expect(rows[0].resolvedAt).toBeNull();
+    expect(rows[0].meta.lastDeliveryStatus).toBe("no_recipient");
+    expect(mockResend.sent()).toHaveLength(0);
+  });
   it("case 1 — a zero-row day sends NOTHING at all", async () => {
     const result = await buildAndSendDigest(testDb.db);
 

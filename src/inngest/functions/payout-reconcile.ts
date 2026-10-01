@@ -37,7 +37,8 @@ import { sql } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import type { DbConn } from "@/lib/availability/read-model";
-import { getTransfer } from "@/lib/paymongo";
+import { findHostPayoutTransfers, getTransfer } from "@/lib/paymongo";
+import { recordMoneyException, type PayoutExceptionCause } from "@/lib/payments/payout-exceptions";
 
 /**
  * How long a payout may sit `processing` before the reconcile raises a stuck-row operator alert (config,
@@ -49,12 +50,27 @@ const RECONCILE_STUCK_HOURS = Number(process.env.PAYOUT_RECONCILE_STUCK_HOURS ??
 /** A single Processing ledger row the reconcile polls (booking_id is the ledger's unique key). */
 export type ProcessingLedgerRow = {
   bookingId: string;
-  transferId: string;
+  transferId: string | null;
   createdAt: Date | string;
 };
 
 /** The per-row reconcile outcome (JSON-serializable for the Inngest step boundary). */
-export type ReconcileResult = { bookingId: string; state: "paid" | "failed" | "processing" };
+export type ReconcileResult = { bookingId: string; state: "paid" | "failed" | "processing" | "held" };
+
+/** Durable, deduplicated handoff to the existing unresolved money-alert digest. */
+export async function recordPayoutException(
+  dbConn: DbConn, bookingId: string, reason: string,
+): Promise<void> {
+  const causes: Record<string, PayoutExceptionCause> = {
+    reference_unresolved: "transfer_outcome_uncertain",
+    reference_read_unavailable: "transfer_read_unavailable",
+    transfer_read_unavailable: "transfer_read_unavailable",
+    transfer_read_mismatch: "transfer_outcome_uncertain",
+    settlement_reversed_after_claim: "settlement_returned",
+    create_outcome_uncertain: "transfer_outcome_uncertain",
+  };
+  await recordMoneyException(dbConn, bookingId, causes[reason] ?? "transfer_outcome_uncertain");
+}
 
 /**
  * Map a PayMongo /v2 transfer status onto a ledger terminal state.
@@ -65,8 +81,8 @@ export type ReconcileResult = { bookingId: string; state: "paid" | "failed" | "p
  * flip a payout to Paid (the money-critical direction). Widen the sets only against a verified response.
  */
 export function mapTransferStatus(status: string): "paid" | "failed" | "processing" {
-  if (["succeeded", "completed", "paid"].includes(status)) return "paid";
-  if (["failed", "returned", "cancelled"].includes(status)) return "failed";
+  if (status === "succeeded") return "paid";
+  if (status === "failed") return "failed";
   return "processing"; // unknown / in-flight (pending, processing, …) — never spuriously Paid
 }
 
@@ -86,7 +102,10 @@ export async function queryProcessingLedger(dbConn: DbConn = db): Promise<Proces
   return (await dbConn.execute(sql`
     SELECT booking_id AS "bookingId", transfer_id AS "transferId", created_at AS "createdAt"
     FROM host_payout_ledger
-    WHERE kind = 'payout' AND state = 'processing' AND transfer_id IS NOT NULL
+    WHERE kind = 'payout' AND (
+      (state = 'processing' AND transfer_id IS NOT NULL)
+      OR (state = 'held' AND transfer_id IS NULL)
+    )
     ORDER BY created_at ASC
     LIMIT 200
   `)) as unknown as ProcessingLedgerRow[];
@@ -103,7 +122,74 @@ export async function reconcileOne(
   row: ProcessingLedgerRow,
   dbConn: DbConn = db,
 ): Promise<ReconcileResult> {
-  const tr = await getTransfer(row.transferId);
+  const current = (await dbConn.execute(sql`
+    SELECT state, transfer_id AS "transferId", net_cents AS "netCents",
+      recovered_cents AS "recoveredCents", currency, created_at AS "createdAt"
+    FROM host_payout_ledger
+    WHERE booking_id = ${row.bookingId} AND kind = 'payout'
+  `)) as unknown as Array<{ state: string; transferId: string | null;
+    netCents: number; recoveredCents: number; currency: string; createdAt: Date }>;
+  const claim = current[0];
+  if (!claim || (claim.state !== "held" && claim.state !== "processing")) {
+    return { bookingId: row.bookingId,
+      state: claim?.state === "paid" ? "paid" : claim?.state === "failed" ? "failed" : "held" };
+  }
+  let transferId = claim.transferId;
+  if (!transferId) {
+    try {
+      const candidates = await findHostPayoutTransfers(row.bookingId);
+      const expected = `host-payout-${row.bookingId}`;
+      if (candidates.length !== 1 || !candidates[0].id ||
+          candidates[0].referenceNumber !== expected ||
+          candidates[0].amount !== claim.netCents - claim.recoveredCents ||
+          candidates[0].currency?.toLowerCase() !== claim.currency.toLowerCase()) {
+        console.error("[payout-alert] payout reference unresolved", {
+          bookingId: row.bookingId, matchCount: candidates.length,
+        });
+        await recordPayoutException(dbConn, row.bookingId, "reference_unresolved");
+        return { bookingId: row.bookingId, state: "held" };
+      }
+      transferId = candidates[0].id;
+      const claimed = (await dbConn.execute(sql`
+        UPDATE host_payout_ledger SET state = 'processing', transfer_id = ${transferId}, updated_at = now()
+        WHERE booking_id = ${row.bookingId} AND kind = 'payout'
+          AND state = 'held' AND transfer_id IS NULL
+        RETURNING id
+      `)) as unknown as Array<{ id: string }>;
+      if (claimed.length === 0) return { bookingId: row.bookingId, state: "processing" };
+    } catch {
+      console.error("[payout-alert] payout reference read unavailable", { bookingId: row.bookingId });
+      await recordPayoutException(dbConn, row.bookingId, "reference_read_unavailable");
+      return { bookingId: row.bookingId, state: "held" };
+    }
+  }
+  if (!transferId) return { bookingId: row.bookingId, state: "processing" };
+  let tr: Awaited<ReturnType<typeof getTransfer>>;
+  try { tr = await getTransfer(transferId); } catch {
+    console.error("[payout-alert] transfer read unavailable", { bookingId: row.bookingId, transferId });
+    await recordPayoutException(dbConn, row.bookingId, "transfer_read_unavailable");
+    return { bookingId: row.bookingId, state: "processing" };
+  }
+  if (tr.id !== transferId || tr.referenceNumber !== `host-payout-${row.bookingId}` ||
+      tr.amount !== claim.netCents - claim.recoveredCents ||
+      tr.currency?.toLowerCase() !== claim.currency.toLowerCase()) {
+    console.error("[payout-alert] transfer read mismatch", { bookingId: row.bookingId, transferId });
+    await recordPayoutException(dbConn, row.bookingId, "transfer_read_mismatch");
+    return { bookingId: row.bookingId, state: "processing" };
+  }
+  const reversal = (await dbConn.execute(sql`
+    SELECT o.provider_status AS status
+    FROM booking_settlement_current c
+    JOIN booking_settlement_observation o ON o.id = c.observation_id
+    WHERE c.booking_id = ${row.bookingId} AND o.provider_status IN ('returned', 'cancelled')
+    LIMIT 1
+  `)) as unknown as Array<{ status: string }>;
+  if (reversal.length) {
+    console.error("[payout-alert] settlement reversed after transfer claim", {
+      bookingId: row.bookingId, transferId,
+    });
+    await recordPayoutException(dbConn, row.bookingId, "settlement_reversed_after_claim");
+  }
   const next = mapTransferStatus(tr.status);
 
   if (next === "paid") {
@@ -111,6 +197,7 @@ export async function reconcileOne(
     await dbConn.execute(sql`
       UPDATE host_payout_ledger SET state='paid', paid_at=now()
       WHERE booking_id=${row.bookingId} AND kind='payout' AND state='processing'
+        AND transfer_id=${transferId}
     `);
     return { bookingId: row.bookingId, state: "paid" };
   }
@@ -120,12 +207,14 @@ export async function reconcileOne(
     await dbConn.execute(sql`
       UPDATE host_payout_ledger SET state='failed'
       WHERE booking_id=${row.bookingId} AND kind='payout' AND state='processing'
+        AND transfer_id=${transferId}
     `);
     console.error("[payout-alert] transfer failed", {
       bookingId: row.bookingId,
-      transferId: row.transferId,
+      transferId,
       status: tr.status,
     });
+    await recordMoneyException(dbConn, row.bookingId, "transfer_failed");
     return { bookingId: row.bookingId, state: "failed" };
   }
 
@@ -134,9 +223,10 @@ export async function reconcileOne(
   if (ageHours > RECONCILE_STUCK_HOURS) {
     console.error("[payout-alert] transfer stuck processing", {
       bookingId: row.bookingId,
-      transferId: row.transferId,
+      transferId,
       ageHours,
     });
+    await recordMoneyException(dbConn, row.bookingId, "transfer_stuck");
   }
   return { bookingId: row.bookingId, state: "processing" };
 }
@@ -184,6 +274,7 @@ export async function alertStuckHeld(dbConn: DbConn = db): Promise<number> {
       bookingId: r.bookingId,
       createdAt: r.createdAt,
     });
+    await recordMoneyException(dbConn, r.bookingId, "transfer_stuck");
   }
   return rows.length;
 }

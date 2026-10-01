@@ -1,7 +1,6 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
@@ -13,8 +12,6 @@ import { decryptPayoutRecipientValue, encryptPayoutRecipientValue } from "@/lib/
 import { listReceivingInstitutions } from "@/lib/paymongo";
 import { rateLimit } from "@/lib/rate-limit";
 import { hostPayoutRecipientSchema, type HostPayoutRecipientInput } from "@/lib/validation/payout-recipient";
-import { requireOpsMutationOrigin, requireStaff } from "@/lib/ops/staff";
-import { z } from "zod";
 
 export type PayoutDestinationResult = { ok: true } | { ok: false; error: string };
 
@@ -100,7 +97,7 @@ export async function savePayoutDestination(
       // state from a redirect, UI value, or bank-directory membership alone.
       await tx
         .update(hostPayout)
-        .set({ payoutsEnabled: false, activationStatus: "pending", onboardingComplete: false })
+        .set({ payoutsEnabled: false, onboardingComplete: false })
         .where(eq(hostPayout.userId, host.userId));
     });
   } catch {
@@ -116,19 +113,23 @@ export async function savePayoutDestination(
 }
 
 /**
- * Records the host's explicit confirmation that the encrypted destination they entered is their own
- * and accurate. This is deliberately distinct from staff verification: it enables no bookings and
- * does not move money. A later bounded-release decision still controls `payoutsEnabled`.
+ * The host confirms the complete values they just entered. The stored ciphertext must still match
+ * those values, the institution must remain supported, and host identity must be approved. This
+ * opens the destination gate, but does not create a PayMongo transfer.
  */
-export async function attestPayoutDestination(): Promise<PayoutDestinationResult> {
+export async function attestPayoutDestination(raw: HostPayoutRecipientInput): Promise<PayoutDestinationResult> {
   const host = await currentHost();
   if (!host) return { ok: false, error: "Start hosting before confirming a payout destination." };
 
   const limit = rateLimit(`payout-destination-attest:${host.userId}`, DESTINATION_RATE_LIMIT);
   if (!limit.ok) return { ok: false, error: "Too many attempts. Please try again in a moment." };
 
+  const parsed = hostPayoutRecipientSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Review all payout details and try again." };
+
   const [destination] = await db
     .select({
+      institutionBic: hostPayoutDestination.institutionBic,
       accountNameCiphertext: hostPayoutDestination.accountNameCiphertext,
       accountNumberCiphertext: hostPayoutDestination.accountNumberCiphertext,
       verificationStatus: hostPayoutDestination.verificationStatus,
@@ -140,97 +141,59 @@ export async function attestPayoutDestination(): Promise<PayoutDestinationResult
   }
 
   try {
-    // Integrity check only. The recipient values remain server-local and never cross this boundary.
-    decryptPayoutRecipientValue(destination.accountNameCiphertext);
-    decryptPayoutRecipientValue(destination.accountNumberCiphertext);
+    if (
+      destination.institutionBic !== parsed.data.institutionBic ||
+      decryptPayoutRecipientValue(destination.accountNameCiphertext) !== parsed.data.accountName ||
+      decryptPayoutRecipientValue(destination.accountNumberCiphertext) !== parsed.data.accountNumber
+    ) {
+      return { ok: false, error: "The saved destination changed. Review and save the details again." };
+    }
   } catch {
     await recordAudit({ actorId: host.userId, action: "attestPayoutDestination", outcome: "error", meta: { reason: "invalid_ciphertext" } });
     return { ok: false, error: "The stored destination could not be confirmed. Please save it again." };
   }
 
-  const updated = await db
-    .update(hostPayoutDestination)
-    .set({ verificationStatus: "host_attested", verificationReference: "host_attestation", updatedAt: new Date() })
-    .where(and(eq(hostPayoutDestination.userId, host.userId), eq(hostPayoutDestination.verificationStatus, "pending")))
-    .returning({ userId: hostPayoutDestination.userId });
-  if (!updated[0]) return { ok: false, error: "That payout destination is no longer awaiting confirmation." };
+  try {
+    const institutions = await listReceivingInstitutions();
+    if (!institutions.some((institution) => institution.bic === destination.institutionBic)) {
+      return { ok: false, error: "That bank or e-wallet is no longer available. Choose another destination." };
+    }
+  } catch {
+    return { ok: false, error: "We can't check payout institutions right now. Please try again later." };
+  }
+
+  const enabled = await db.transaction(async (tx) => {
+    const updated = (await tx.execute(sql`
+      UPDATE host_payout_destination destination
+      SET verification_status = 'host_attested',
+          verification_reference = 'host_attestation',
+          updated_at = now()
+      WHERE destination.user_id = ${host.userId}
+        AND destination.verification_status = 'pending'
+        AND destination.institution_bic = ${destination.institutionBic}
+        AND destination.account_name_ciphertext = ${destination.accountNameCiphertext}
+        AND destination.account_number_ciphertext = ${destination.accountNumberCiphertext}
+        AND EXISTS (
+          SELECT 1 FROM host_verification verification
+          WHERE verification.user_id = destination.user_id
+            AND verification.status IN ('approved', 'grandfathered')
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM host_payout payout
+          WHERE payout.user_id = destination.user_id AND payout.activation_status = 'declined'
+        )
+      RETURNING destination.user_id AS "userId"
+    `)) as unknown as { userId: string }[];
+    if (!updated[0]) return false;
+    await tx.insert(hostPayout).values({ userId: host.userId, payoutsEnabled: true, onboardingComplete: true })
+      .onConflictDoUpdate({ target: hostPayout.userId, set: { payoutsEnabled: true, onboardingComplete: true } });
+    return true;
+  });
+  if (!enabled) return { ok: false, error: "Your host approval or saved destination changed. Review your payout details and try again." };
 
   await recordAudit({ actorId: host.userId, action: "attestPayoutDestination", outcome: "ok", meta: { status: "host_attested" } });
   revalidatePath("/host");
   revalidatePath("/host/earnings");
   revalidatePath("/host/payouts");
-  return { ok: true };
-}
-
-/**
- * Staff-only release gate for a destination that FitOut has independently confirmed with its host.
- * The action reads the encrypted fields only to prove the ciphertext is intact; it never returns,
- * logs, audits, or renders either value.  The status flip and bookability gate update share one
- * transaction, so an enabled host always has a verified recipient at the same commit boundary.
- */
-const payoutDestinationVerificationSchema = z.object({
-  hostUserId: z.string().min(1).max(128),
-  // A staff member must record the independently checked procedure/ticket/receipt reference. This is
-  // deliberately not an account number or holder name and is never supplied by the host.
-  verificationReference: z.string().trim().min(8).max(128).regex(/^[A-Za-z0-9._:/-]+$/),
-});
-
-export async function verifyPayoutDestination(
-  raw: z.infer<typeof payoutDestinationVerificationSchema>,
-): Promise<PayoutDestinationResult> {
-  await requireOpsMutationOrigin();
-  const staff = await requireStaff();
-  const parsed = payoutDestinationVerificationSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, error: "That payout destination is no longer available." };
-  const { hostUserId, verificationReference } = parsed.data;
-
-  const [destination] = await db
-    .select({
-      accountNameCiphertext: hostPayoutDestination.accountNameCiphertext,
-      accountNumberCiphertext: hostPayoutDestination.accountNumberCiphertext,
-      verificationStatus: hostPayoutDestination.verificationStatus,
-    })
-    .from(hostPayoutDestination)
-    .where(eq(hostPayoutDestination.userId, hostUserId));
-  if (!destination || destination.verificationStatus !== "pending") {
-    return { ok: false, error: "That payout destination is no longer available." };
-  }
-
-  try {
-    // Authentication check only.  Both strings remain lexical locals and intentionally do not cross a
-    // log, audit, response, component prop, or provider call on this review path.
-    decryptPayoutRecipientValue(destination.accountNameCiphertext);
-    decryptPayoutRecipientValue(destination.accountNumberCiphertext);
-  } catch {
-    await recordAudit({ actorId: staff.id, action: "verifyPayoutDestination", outcome: "error", meta: { reason: "invalid_ciphertext" } });
-    return { ok: false, error: "The stored destination could not be verified." };
-  }
-
-  const changed = await db.transaction(async (tx) => {
-    const updated = await tx
-      .update(hostPayoutDestination)
-      .set({
-        verificationStatus: "verified",
-        verificationReference,
-        verifiedAt: new Date(),
-        verifiedBy: staff.id,
-      })
-      .where(and(eq(hostPayoutDestination.userId, hostUserId), eq(hostPayoutDestination.verificationStatus, "pending")))
-      .returning({ userId: hostPayoutDestination.userId });
-    if (!updated[0]) return false;
-    await tx
-      .insert(hostPayout)
-      .values({ userId: hostUserId, payoutsEnabled: true, activationStatus: "activated", onboardingComplete: true })
-      .onConflictDoUpdate({
-        target: hostPayout.userId,
-        set: { payoutsEnabled: true, activationStatus: "activated", onboardingComplete: true },
-      });
-    return true;
-  });
-  if (!changed) return { ok: false, error: "That payout destination is no longer available." };
-
-  await recordAudit({ actorId: staff.id, action: "verifyPayoutDestination", outcome: "ok", meta: { targetId: hostUserId, verificationReference } });
-  revalidatePath("/host");
-  revalidatePath("/host/earnings");
   return { ok: true };
 }

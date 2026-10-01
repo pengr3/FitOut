@@ -36,8 +36,9 @@ import { createPendingHold } from "@/lib/availability/units";
 import { quoteWindow } from "@/lib/booking/pricing";
 import { computeServiceFee } from "@/lib/payments/service-fee";
 import { computeCommission } from "@/lib/payments/commission";
-import { PAYOUT_DELAY_HOURS } from "@/lib/payments/config";
+import { PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import { SERVICE_FEE_BPS } from "@/lib/payments/fees";
+import { recordSettlementObservation } from "@/lib/payments/settlement";
 
 let testDb: TestDb;
 type SweepModule = typeof import("@/inngest/functions/payout-sweep");
@@ -47,6 +48,7 @@ let payOne: SweepModule["payOne"];
 const HOST = "sf_host";
 const BOOKER = "sf_booker";
 const HOUR = 3_600_000;
+const FRIDAY_NOON = new Date("2026-10-02T04:00:00.000Z");
 
 /** Every hold is placed comfortably past MIN_LEAD_INSTANT_MINUTES so the D-96 guard never interferes. */
 const LEAD_MS = 3 * HOUR;
@@ -127,8 +129,13 @@ beforeAll(async () => {
 
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
-    createBatchTransfer: mockPayMongo.createBatchTransfer,
     createExternalHostPayout: mockPayMongo.createBatchTransfer,
+    createBatchTransfer: mockPayMongo.createBatchTransfer,
+    findHostPayoutTransfers: vi.fn(async () => []),
+    readPayoutWalletFunding: vi.fn(async () => ({
+      walletId: "wallet_fitout_test", availableCents: 10_000_000, feeCents: 1000,
+      observedAt: FRIDAY_NOON,
+    })),
     listWalletAccounts: mockPayMongo.listWalletAccounts,
     getTransfer: mockPayMongo.getTransfer,
     createRefund: mockPayMongo.createRefund,
@@ -286,23 +293,31 @@ describe("the payout sweep pays on the SPACE price, with the service fee exclude
     const res = await hold(listingId, { hours: 2 });
     const frozen = await readFrozen(res.id);
 
-    // Move the session into the past and confirm it, so the sweep's due predicate selects it. The frozen
-    // money columns are untouched by this — which is the whole point of freezing them at creation.
-    const endsAt = new Date(Date.now() - (PAYOUT_DELAY_HOURS + 1) * HOUR);
+    // Move the session before the Friday review cutoff and attach this booking's deposited
+    // settlement proof. The frozen money columns remain untouched by these eligibility changes.
+    const endsAt = new Date(FRIDAY_NOON.getTime() - (PAYOUT_HOLD_HOURS + 1) * HOUR);
     const startsAt = new Date(endsAt.getTime() - 2 * HOUR);
+    const paymentId = `pay_${res.id}`;
     await testDb.db
       .update(booking)
-      .set({ status: "confirmed", startsAt, endsAt, expiresAt: null })
+      .set({ status: "confirmed", startsAt, endsAt, expiresAt: null, paymentId })
       .where(eq(booking.id, res.id));
+    expect(await recordSettlementObservation(res.id, {
+      paymentId, payoutId: `po_${res.id}`, transactionId: `txn_${res.id}`,
+      transactionType: "payment", currency: "PHP", liveMode: true,
+      providerStatus: "deposited", destinationMatched: true, paginationComplete: true,
+      mappingVerified: true, providerStatusAt: new Date(FRIDAY_NOON.getTime() - HOUR),
+      verifiedAt: new Date(FRIDAY_NOON.getTime() - 60_000),
+    }, testDb.db)).toBe(true);
 
-    const due = (await queryDuePayouts(testDb.db)).filter((d) => d.bookingId === res.id);
+    const due = (await queryDuePayouts(testDb.db, FRIDAY_NOON)).filter((d) => d.bookingId === res.id);
     expect(due).toHaveLength(1);
     // The 07-04 fail-closed guard is satisfied: the basis is a real integer, and it is the SPACE price.
     expect(due[0].payoutGrossCents).toBe(frozen.spacePriceCents);
     expect(due[0].payoutGrossCents).not.toBe(frozen.quotedTotalCents);
 
-    const result = await payOne(testDb.db, due[0]);
-    expect(result.status).toBe("paid");
+    const result = await payOne(testDb.db, due[0], FRIDAY_NOON);
+    expect(result.status).toBe("processing");
 
     const [ledger] = await testDb.db
       .select()

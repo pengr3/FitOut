@@ -1,0 +1,9 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run tests/payments/earnings-view.test.ts -t 'Friday settlement vocabulary|booking projection'",
+  "exitCode": 1,
+  "targetFile": "tests/payments/earnings-view.test.ts",
+  "targetTest": "uses the Friday settlement vocabulary rather than the old 24-hour promise",
+  "expected": "Payment clearing",
+  "actual": "Held",
+  "output": "TAP version 13\n1..2\nnot ok 1 - tests/payments/earnings-view.test.ts {\n  1..2\n  not ok 1 - uses the Friday settlement vocabulary rather than the old 24-hour promise\n    ---\n    error:\n      name: AssertionError\n      message: expected 'Held' to be 'Payment clearing'\n    actual: Held\n    expected: Payment clearing\n  not ok 2 - exposes a booking projection that can represent confirmed preclaim earnings\n}\n# tests 2\n# pass 0\n# fail 2\nnot ok 1 - uses the Friday settlement vocabulary rather than the old 24-hour promise"
+}
