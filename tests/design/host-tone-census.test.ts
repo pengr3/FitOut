@@ -164,6 +164,13 @@ const EXPECTED_ALARM_OCCURRENCES: Readonly<Record<string, { count: number; why: 
       "genuine failure needing a human, which is exactly what DS-10 reserves this role for. Frozen by " +
       "D-156: HFLOW-05 is a token pass, and plan 14-01's string-literal gate is what proves it.",
   },
+  "src/components/host/payout-destination-form.tsx": {
+    count: 2,
+    why:
+      "the save and confirm refusals after the host presses those controls. Each appears only when " +
+      "the corresponding server action fails, beside the control or inside its review dialog. A " +
+      "saved destination awaiting host approval is a normal pending state and uses the neutral alert.",
+  },
   "src/app/(host)/host/payouts/page.tsx": {
     count: 1,
     why:

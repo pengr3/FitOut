@@ -52,13 +52,13 @@ describe("savePayoutDestination", () => {
     const hostId = await signInHost("payout.destination@example.com");
     const result = await savePayoutDestination({
       institutionBic: "TESTPHM2XXX",
-      accountName: "Francis Silva",
+      accountName: "Sample Host",
       accountNumber: "09171234567",
     });
     expect(result).toEqual({ ok: true });
 
     const [destination] = await testDb.db.select().from(hostPayoutDestination).where(eq(hostPayoutDestination.userId, hostId));
-    expect(destination?.accountNameCiphertext).not.toContain("Francis Silva");
+    expect(destination?.accountNameCiphertext).not.toContain("Sample Host");
     expect(destination?.accountNumberCiphertext).not.toContain("09171234567");
     expect(destination?.accountLast4).toBe("4567");
     expect(destination?.verificationStatus).toBe("pending");
@@ -89,7 +89,10 @@ describe("savePayoutDestination", () => {
 
     const details = { institutionBic: "TESTPHM2XXX", accountName: "Host", accountNumber: "09171234567" };
     expect((await attestPayoutDestination({ ...details, accountNumber: "09171234568" })).ok).toBe(false);
-    expect((await attestPayoutDestination(details)).ok).toBe(false);
+    await expect(attestPayoutDestination(details)).resolves.toEqual({
+      ok: false,
+      error: "Your payout details were saved, but your hosting account must be approved before you can confirm them. Check your hosting verification status.",
+    });
     const [destination] = await testDb.db.select().from(hostPayoutDestination).where(eq(hostPayoutDestination.userId, hostId));
     const [payout] = await testDb.db.select().from(hostPayout).where(eq(hostPayout.userId, hostId));
     expect(destination?.verificationStatus).toBe("pending");
@@ -119,7 +122,10 @@ describe("savePayoutDestination", () => {
     await savePayoutDestination(details);
     await testDb.db.update(hostPayout).set({ activationStatus: "declined" }).where(eq(hostPayout.userId, hostId));
     await savePayoutDestination(details);
-    expect((await attestPayoutDestination(details)).ok).toBe(false);
+    await expect(attestPayoutDestination(details)).resolves.toEqual({
+      ok: false,
+      error: "Your payout details were saved, but payouts are unavailable for this account. Contact support for help.",
+    });
     const [payout] = await testDb.db.select().from(hostPayout).where(eq(hostPayout.userId, hostId));
     expect(payout?.activationStatus).toBe("declined");
     expect(payout?.payoutsEnabled).toBe(false);
