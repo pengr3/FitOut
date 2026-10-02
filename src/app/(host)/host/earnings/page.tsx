@@ -136,7 +136,7 @@ export default async function HostEarningsPage() {
           <TableHead scope="col" className="text-right">Payout</TableHead>
           <TableHead scope="col">Status</TableHead><TableHead scope="col">Payout timing</TableHead>
         </TableRow></TableHeader><TableBody>{displayRows.map((row) => <TableRow key={row.bookingId}>
-          <TableCell className="max-w-48 break-words font-medium">{row.spaceTitle}</TableCell>
+          <TableCell className="max-w-48 whitespace-normal break-words font-medium">{row.spaceTitle}</TableCell>
           <TableCell className="tabular-nums text-muted-foreground">{row.whenLabel}</TableCell>
           <TableCell className="text-right tabular-nums">{row.grossCents === null ? "—" : formatMoney(row.grossCents, row.currency)}</TableCell>
           <TableCell className="text-right tabular-nums text-muted-foreground">{row.commissionCents === null ? "—" : `−${formatMoney(row.commissionCents, row.currency)}`}</TableCell>
