@@ -48,7 +48,7 @@ describe("payout destination review", () => {
     const attest = vi.fn()
       .mockResolvedValueOnce({ ok: false, error: "Please review your account." })
       .mockResolvedValueOnce({ ok: true });
-    render(<PayoutDestinationForm institutions={[{ bic: "TESTPHM2XXX", name: "Test Bank" }]} hostApproved onAttest={attest} />);
+    const { rerender } = render(<PayoutDestinationForm institutions={[{ bic: "TESTPHM2XXX", name: "Test Bank" }]} hostApproved onAttest={attest} />);
 
     submitForm();
     const dialog = await screen.findByRole("dialog", { name: "Review payout destination" });
@@ -64,5 +64,7 @@ describe("payout destination review", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByRole("status").textContent).toContain("Payout destination confirmed");
     expect(attest).toHaveBeenCalledTimes(2);
+    rerender(<PayoutDestinationForm institutions={[{ bic: "TESTPHM2XXX", name: "Test Bank" }]} confirmedDestination={{ institutionName: "Test Bank", accountLast4: "4567" }} hostApproved onAttest={attest} />);
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });

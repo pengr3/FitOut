@@ -108,7 +108,7 @@ export function PayoutDestinationForm({
 
   return (
     <div className="space-y-5">
-      {notice ? (
+      {notice && (notice.kind === "error" || !confirmedDestination) ? (
         <Alert variant={notice.kind === "error" ? "destructive" : "default"} role={notice.kind === "error" ? "alert" : "status"}>
           <AlertTitle>{notice.kind === "error" ? "Destination not saved" : "Destination confirmed"}</AlertTitle>
           <AlertDescription>{notice.message}</AlertDescription>
