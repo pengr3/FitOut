@@ -900,7 +900,7 @@ export async function readManualPayoutWalletFunding(): Promise<{ walletId: strin
     balance?: { available?: unknown };
     account?: { provider?: unknown; account_number?: unknown; account_name?: unknown; currency?: unknown };
   } }>(`/v2/wallets/${encodeURIComponent(walletId)}?fields=balance&fields=account`, {
-    method: "GET", signal: AbortSignal.timeout(5000),
+    method: "GET", freshAt: new Date(), signal: AbortSignal.timeout(5000),
   });
   const wallet = json.data;
   const available = wallet?.balance?.available;
@@ -922,7 +922,7 @@ export type ManualTransferDetails = {
 export async function getManualTransferDetails(transferId: string): Promise<ManualTransferDetails> {
   if (!/^tr_[A-Za-z0-9]{8,64}$/.test(transferId)) throw new Error("Invalid transfer identifier");
   const json = await paymongoFetch<{ data?: Record<string, unknown> }>(
-    `/v2/transfers/${encodeURIComponent(transferId)}`, { method: "GET" },
+    `/v2/transfers/${encodeURIComponent(transferId)}`, { method: "GET", freshAt: new Date() },
   );
   const data = json.data;
   const attrs = data?.attributes && typeof data.attributes === "object"
