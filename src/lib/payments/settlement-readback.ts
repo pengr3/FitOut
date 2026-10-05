@@ -33,6 +33,15 @@ export type AccountReadback = {
     accountName: string | null; status: string | null; liveMode: boolean | null;
     currency: string | null; provider: string | null; availableCents: number | null;
   } | null;
+  walletInventory: {
+    count: number; matchingAccountCount: number; sameOrganizationCount: number;
+    candidates: Array<{
+      id: string | null; merchantMatches: boolean; accountNumberMatches: boolean;
+      accountNumberLast4: string | null; accountNamePresent: boolean;
+      status: string | null; liveMode: boolean | null; currency: string | null;
+      provider: string | null; availableCents: number | null;
+    }>;
+  };
   transactionPagesComplete: boolean;
 };
 
@@ -66,9 +75,30 @@ export function summarizeSettlementReadback(input: {
 
   const walletRows = obj(input.wallets)?.data;
   if (!Array.isArray(walletRows)) return null;
-  const walletMatches = walletRows.map(obj).filter((row) =>
+  const parsedWalletRows = walletRows.map(obj);
+  if (parsedWalletRows.some((row) => !row)) return null;
+  const walletMatches = parsedWalletRows.filter((row) =>
     row && obj(row.account)?.account_number === walletAccountNumber,
   ) as Dict[];
+  const sameOrganizationCount = parsedWalletRows.filter((row) => row?.merchant_id === organizationId).length;
+  const walletInventory = {
+    count: parsedWalletRows.length,
+    matchingAccountCount: walletMatches.length,
+    sameOrganizationCount,
+    candidates: parsedWalletRows.slice(0, 10).map((row) => {
+      const walletAccount = obj(row?.account);
+      const accountNumber = str(walletAccount?.account_number);
+      return {
+        id: str(row?.id), merchantMatches: row?.merchant_id === organizationId,
+        accountNumberMatches: accountNumber !== null && accountNumber === walletAccountNumber,
+        accountNumberLast4: accountNumber?.slice(-4) ?? null,
+        accountNamePresent: str(walletAccount?.account_name) !== null,
+        status: str(row?.status), liveMode: typeof row?.livemode === "boolean" ? row.livemode : null,
+        currency: str(walletAccount?.currency), provider: str(walletAccount?.provider),
+        availableCents: cents(obj(row?.balance)?.available),
+      };
+    }),
+  };
   const walletRow = walletMatches.length === 1 ? walletMatches[0] : null;
   const account = obj(walletRow?.account);
   const balance = obj(walletRow?.balance);
@@ -102,6 +132,6 @@ export function summarizeSettlementReadback(input: {
       currency: str(pa.currency), organizationId, bankId, walletAccountNumber,
       netAmountCents: cents(pa.net_amount),
     },
-    transaction, wallet, transactionPagesComplete: input.transactionPagesComplete,
+    transaction, wallet, walletInventory, transactionPagesComplete: input.transactionPagesComplete,
   };
 }
