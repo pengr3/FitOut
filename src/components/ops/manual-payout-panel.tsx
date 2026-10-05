@@ -11,9 +11,9 @@ async function prepareAction() {
   await requireOpsMutationOrigin();
   const actor = await requireStaff();
   if (!rateLimit(`manual-payout-prepare:${actor.id}`, { window: 60, max: 3 }).ok)
-    redirect("/ops/payout-test?result=rate_limited");
+    redirect("/ops?manualResult=rate_limited#manual-payout-test");
   const result = await prepareManualTestPayout(actor.id);
-  redirect(`/ops/payout-test?result=${encodeURIComponent(result)}`);
+  redirect(`/ops?manualResult=${encodeURIComponent(result)}#manual-payout-test`);
 }
 
 async function attachAction(formData: FormData) {
@@ -21,26 +21,21 @@ async function attachAction(formData: FormData) {
   await requireOpsMutationOrigin();
   const actor = await requireStaff();
   if (!rateLimit(`manual-payout-attach:${actor.id}`, { window: 60, max: 5 }).ok)
-    redirect("/ops/payout-test?result=rate_limited");
+    redirect("/ops?manualResult=rate_limited#manual-payout-test");
   if (formData.get("feeConfirmed") !== "yes")
-    redirect("/ops/payout-test?result=fee_confirmation_required");
+    redirect("/ops?manualResult=fee_confirmation_required#manual-payout-test");
   const transferId = formData.get("transferId");
   const result = typeof transferId === "string"
     ? await attachManualTestTransfer(transferId.trim()) : "invalid_transfer_id";
-  redirect(`/ops/payout-test?result=${encodeURIComponent(result)}`);
+  redirect(`/ops?manualResult=${encodeURIComponent(result)}#manual-payout-test`);
 }
 
-export default async function ManualPayoutTestPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ result?: string }>;
-}) {
+export async function ManualPayoutPanel({ result = "" }: { result?: string }) {
   await requireStaff();
-  const [snapshot, params] = await Promise.all([readManualPayoutSnapshot(), searchParams]);
-  const result = params.result?.replace(/[^a-z_]/g, "") ?? "";
+  const snapshot = await readManualPayoutSnapshot();
+  result = result.replace(/[^a-z_]/g, "");
   return (
-    <main className="mx-auto max-w-2xl space-y-6 px-5 py-10">
-      <a href="/ops" className="underline">Back to review queue</a>
+    <section id="manual-payout-test" className="mt-12 max-w-2xl space-y-6" aria-label="First host payout test">
       <h1 className="text-2xl font-semibold">First host payout test</h1>
       <p>Booking {MANUAL_TEST_BOOKING_ID}. This is a single, staff-controlled Dashboard transfer.
         The Friday sweep remains paused.</p>
@@ -98,6 +93,6 @@ export default async function ManualPayoutTestPage({
         </section>
       )}
       {snapshot.transferId && <p>Provider transfer ID: {snapshot.transferId}</p>}
-    </main>
+    </section>
   );
 }
