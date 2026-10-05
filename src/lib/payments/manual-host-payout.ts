@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { computeCommission } from "@/lib/payments/commission";
 import { PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import { currentSettlementProof } from "@/lib/payments/settlement";
-import { recordMoneyException } from "@/lib/payments/payout-exceptions";
+import { recordMoneyException, unresolvedPayoutAttention } from "@/lib/payments/payout-exceptions";
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import { getManualTransferDetails, readManualPayoutWalletFunding, type ManualTransferDetails } from "@/lib/paymongo";
 
@@ -19,6 +19,27 @@ type Candidate = {
   verificationStatus: string; hostStatus: string | null; bic: string;
   nameCiphertext: string; numberCiphertext: string;
 };
+
+/** Final read-only release gate; also used by tests for changes after claim creation. */
+export function manualPayoutReleaseReady(input: {
+  candidate: Candidate | null; proofPaymentId: string | null;
+  wallet: { walletId: string; availableCents: number } | null;
+  frozen: { sourceWalletId: string; amountCents: number; transferId: string | null;
+    numberCiphertext: string; nameCiphertext: string; bic: string };
+  dbNow: Date; otherClaims: number; outstanding: number; hasAttention: boolean;
+}): boolean {
+  const { candidate, proofPaymentId, wallet, frozen } = input;
+  return Boolean(!frozen.transferId && !input.hasAttention && candidate &&
+    candidate.status === "confirmed" && candidate.currency.toLowerCase() === "php" &&
+    candidate.grossCents === 1900 &&
+    new Date(candidate.endsAt).getTime() + PAYOUT_HOLD_HOURS * 3_600_000 <= input.dbNow.getTime() &&
+    candidate.payoutsEnabled && ["verified", "host_attested"].includes(candidate.verificationStatus) &&
+    candidate.hostStatus !== "suspended" && input.otherClaims === 0 && input.outstanding === 0 &&
+    candidate.numberCiphertext === frozen.numberCiphertext &&
+    candidate.nameCiphertext === frozen.nameCiphertext && candidate.bic === frozen.bic &&
+    proofPaymentId !== null && proofPaymentId === candidate.paymentId &&
+    wallet?.walletId === frozen.sourceWalletId && wallet.availableCents >= frozen.amountCents);
+}
 
 export type ManualPayoutSnapshot = {
   state: "unprepared" | "prepared" | "submitted" | "failed" | "paid";
@@ -74,8 +95,9 @@ export async function readManualPayoutSnapshot(): Promise<ManualPayoutSnapshot> 
   if (row.state === "prepared" && row.ledgerState === "held" && testEnabled()) {
     try {
       const candidate = await candidateQuery(db, MANUAL_TEST_BOOKING_ID);
-      const [proof, wallet] = await Promise.all([
+      const [proof, wallet, attention] = await Promise.all([
         currentSettlementProof(MANUAL_TEST_BOOKING_ID, db), readManualPayoutWalletFunding(),
+        unresolvedPayoutAttention(db, [MANUAL_TEST_BOOKING_ID]),
       ]);
       const [{ otherClaims, outstanding, dbNow }] = (await db.execute(sql`
         SELECT
@@ -86,15 +108,14 @@ export async function readManualPayoutSnapshot(): Promise<ManualPayoutSnapshot> 
               AND recovered_cents < -net_cents) AS outstanding,
           now() AS "dbNow"
       `)) as unknown as Array<{ otherClaims: number; outstanding: number; dbNow: Date }>;
-      readyToSend = Boolean(candidate && candidate.status === "confirmed" &&
-        candidate.currency.toLowerCase() === "php" && candidate.grossCents === 1900 &&
-        new Date(candidate.endsAt).getTime() + PAYOUT_HOLD_HOURS * 3_600_000 <= new Date(dbNow).getTime() &&
-        candidate.payoutsEnabled && ["verified", "host_attested"].includes(candidate.verificationStatus) &&
-        candidate.hostStatus !== "suspended" && otherClaims === 0 && outstanding === 0 &&
-        candidate.numberCiphertext === row.numberCiphertext &&
-        candidate.nameCiphertext === row.nameCiphertext && candidate.bic === row.bic &&
-        proof?.paymentId === candidate.paymentId &&
-        wallet?.walletId === row.sourceWalletId && wallet.availableCents >= row.amountCents);
+      readyToSend = manualPayoutReleaseReady({
+        candidate, proofPaymentId: proof?.paymentId ?? null, wallet,
+        frozen: { sourceWalletId: row.sourceWalletId, amountCents: row.amountCents,
+          transferId: row.transferId, numberCiphertext: row.numberCiphertext,
+          nameCiphertext: row.nameCiphertext, bic: row.bic },
+        dbNow: new Date(dbNow), otherClaims, outstanding,
+        hasAttention: attention.has(MANUAL_TEST_BOOKING_ID),
+      });
     } catch { readyToSend = false; }
   }
   return {
@@ -193,13 +214,25 @@ export function matchesManualTransfer(transfer: ManualTransferDetails, expected:
 
 /** Attach only an exact, provider-verified Dashboard transfer; ambiguity leaves the claim held. */
 export async function attachManualTestTransfer(transferId: string): Promise<string> {
-  if (!testEnabled() || !/^tr_[A-Za-z0-9]{8,64}$/.test(transferId)) return "invalid_transfer_id";
-  const [openClaim] = (await db.execute(sql`
-    SELECT 1 FROM manual_host_payout_attempt a JOIN host_payout_ledger l ON l.id = a.claim_id
-    WHERE a.booking_id = ${MANUAL_TEST_BOOKING_ID} AND a.state = 'prepared'
-      AND a.transfer_id IS NULL AND l.state = 'held'
-  `)) as unknown as Array<{ "?column?": number }>;
-  if (!openClaim) return "claim_not_prepared";
+  if (!testEnabled() || !/^(?:tr|wallet_tr)_[A-Za-z0-9]{8,64}$/.test(transferId)) return "invalid_transfer_id";
+  // Reserve the reported ID before the network read. If the GET times out, this durable
+  // reference keeps the claim on HOLD and prevents a second Dashboard send.
+  const reserved = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(2602, 1)`);
+    const [row] = (await tx.execute(sql`
+      SELECT a.transfer_id AS "transferId", a.state, l.state AS "ledgerState"
+      FROM manual_host_payout_attempt a JOIN host_payout_ledger l ON l.id = a.claim_id
+      WHERE a.booking_id = ${MANUAL_TEST_BOOKING_ID} FOR UPDATE OF a, l
+    `)) as unknown as Array<{ transferId: string | null; state: string; ledgerState: string }>;
+    if (!row || row.state !== "prepared" || row.ledgerState !== "held") return "claim_not_prepared";
+    if (row.transferId && row.transferId !== transferId) return "different_transfer_under_investigation";
+    if (!row.transferId) await tx.execute(sql`
+      UPDATE manual_host_payout_attempt SET transfer_id = ${transferId}, updated_at = now()
+      WHERE booking_id = ${MANUAL_TEST_BOOKING_ID} AND state = 'prepared' AND transfer_id IS NULL
+    `);
+    return "reserved";
+  });
+  if (reserved !== "reserved") return reserved;
   const transfer = await getManualTransferDetails(transferId).catch(() => null);
   if (!transfer) {
     await recordMoneyException(db, MANUAL_TEST_BOOKING_ID, "transfer_read_unavailable");
@@ -221,7 +254,7 @@ export async function attachManualTestTransfer(transferId: string): Promise<stri
       state: string; ledgerState: string; claimId: string;
     }>;
     const row = rows[0];
-    if (!row || row.state !== "prepared" || row.ledgerState !== "held" || row.transferId)
+    if (!row || row.state !== "prepared" || row.ledgerState !== "held" || row.transferId !== transferId)
       return "claim_not_prepared";
     const [used] = (await tx.execute(sql`
       SELECT id FROM host_payout_ledger WHERE transfer_id = ${transferId}
@@ -242,16 +275,55 @@ export async function attachManualTestTransfer(transferId: string): Promise<stri
       await recordMoneyException(tx, MANUAL_TEST_BOOKING_ID, "transfer_outcome_uncertain");
       return "transfer_identity_or_fee_mismatch";
     }
-    if (transfer.status !== "pending" && transfer.status !== "succeeded")
+    if (transfer.status === "failed") {
+      await tx.execute(sql`
+        UPDATE manual_host_payout_attempt SET state = 'failed', updated_at = now()
+        WHERE booking_id = ${MANUAL_TEST_BOOKING_ID} AND state = 'prepared' AND transfer_id = ${transferId}
+      `);
+      await tx.execute(sql`
+        UPDATE host_payout_ledger SET transfer_id = ${transferId}, state = 'failed', updated_at = now()
+        WHERE id = ${row.claimId} AND state = 'held' AND transfer_id IS NULL
+      `);
+      await recordMoneyException(tx, MANUAL_TEST_BOOKING_ID, "transfer_failed");
+      return "failed";
+    }
+    if (transfer.status !== "pending" && transfer.status !== "succeeded") {
+      await recordMoneyException(tx, MANUAL_TEST_BOOKING_ID, "transfer_outcome_uncertain");
       return "transfer_not_accepted";
+    }
     await tx.execute(sql`
-      UPDATE manual_host_payout_attempt SET transfer_id = ${transferId}, state = 'submitted', updated_at = now()
-      WHERE booking_id = ${MANUAL_TEST_BOOKING_ID} AND state = 'prepared' AND transfer_id IS NULL
+      UPDATE manual_host_payout_attempt SET state = 'submitted', updated_at = now()
+      WHERE booking_id = ${MANUAL_TEST_BOOKING_ID} AND state = 'prepared' AND transfer_id = ${transferId}
     `);
     await tx.execute(sql`
       UPDATE host_payout_ledger SET transfer_id = ${transferId}, state = 'processing', updated_at = now()
       WHERE id = ${row.claimId} AND state = 'held' AND transfer_id IS NULL
     `);
     return "submitted";
+  });
+}
+
+/** Staff records an already-sent Dashboard transfer with no available receipt as an owned HOLD. */
+export async function holdManualTestUncertain(reportedTransferId?: string): Promise<string> {
+  if (!testEnabled()) return "manual_test_not_enabled";
+  if (reportedTransferId && !/^(?:tr|wallet_tr)_[A-Za-z0-9]{8,64}$/.test(reportedTransferId))
+    return "invalid_transfer_id";
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(2602, 1)`);
+    const [row] = (await tx.execute(sql`
+      SELECT a.transfer_id AS "transferId" FROM manual_host_payout_attempt a
+      JOIN host_payout_ledger l ON l.id = a.claim_id
+      WHERE a.booking_id = ${MANUAL_TEST_BOOKING_ID} AND a.state = 'prepared' AND l.state = 'held'
+      FOR UPDATE OF a, l
+    `)) as unknown as Array<{ transferId: string | null }>;
+    if (!row) return "claim_not_prepared";
+    if (reportedTransferId && row.transferId && row.transferId !== reportedTransferId)
+      return "different_transfer_under_investigation";
+    if (reportedTransferId && !row.transferId) await tx.execute(sql`
+      UPDATE manual_host_payout_attempt SET transfer_id = ${reportedTransferId}, updated_at = now()
+      WHERE booking_id = ${MANUAL_TEST_BOOKING_ID} AND state = 'prepared' AND transfer_id IS NULL
+    `);
+    await recordMoneyException(tx, MANUAL_TEST_BOOKING_ID, "transfer_outcome_uncertain");
+    return "held_for_investigation";
   });
 }

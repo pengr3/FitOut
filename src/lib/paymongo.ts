@@ -920,7 +920,7 @@ export type ManualTransferDetails = {
 
 /** Strict read of a Dashboard transfer; callers must compare every identity field to the frozen claim. */
 export async function getManualTransferDetails(transferId: string): Promise<ManualTransferDetails> {
-  if (!/^tr_[A-Za-z0-9]{8,64}$/.test(transferId)) throw new Error("Invalid transfer identifier");
+  if (!/^(?:tr|wallet_tr)_[A-Za-z0-9]{8,64}$/.test(transferId)) throw new Error("Invalid transfer identifier");
   const json = await paymongoFetch<{ data?: Record<string, unknown> }>(
     `/v2/transfers/${encodeURIComponent(transferId)}`, { method: "GET", freshAt: new Date() },
   );

@@ -170,3 +170,7 @@ The staff-only first payout panel on `/ops` is guarded by exact booking and PHP 
 | Recovery | Held without a receipt, pending, failed and uncertain-provider outcomes have an operator path that never fires a second transfer merely to discover the first one's status. |
 
 A single manual test transfer closes only its own proof. Phase 26 is not complete while any row above remains open.
+
+### First-send recovery drill
+
+The staff console holds one claim for the sample booking and never creates a PayMongo transfer. If the operator may have sent from the Dashboard but the receipt, fee or identity cannot be verified, they use **Hold for transfer investigation**; an available provider ID is stored with the unresolved money exception, and the send link disappears. The normal readback action retains a separate explicit zero-fee confirmation. When an ID is entered there, FitOut reserves it durably **before** attempting the provider GET. A timeout, malformed response, wrong source or recipient, amount or fee discrepancy keeps the claim held with the ID visible for investigation. The same ID can be read again; a different ID cannot replace it. A provider-confirmed pending transfer becomes Processing and is polled; a matching terminal success becomes Paid. A matching terminal failure becomes Failed and an operator exception. Neither Held nor Failed authorizes a second Dashboard send or an automatic retry. Recovery of a failed transfer requires the separately planned attempt model and a new authorized payout decision.
