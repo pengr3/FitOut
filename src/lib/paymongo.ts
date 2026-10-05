@@ -886,3 +886,10 @@ export async function listMerchantPayoutTransactions(payoutId: string, after?: s
   const cursor = after ? `&after=${encodeURIComponent(after)}` : "";
   return paymongoFetch<unknown>(`/v1/payouts/${encodeURIComponent(payoutId)}/transactions?limit=20${cursor}`, { method: "GET" });
 }
+
+/** Account-scoped Wallet inventory for the staff-only settlement readback. No transfer call. */
+export async function listMerchantWallets(): Promise<unknown> {
+  return paymongoFetch<unknown>("/v2/wallets?status=activated&fields=account&fields=balance", {
+    method: "GET", freshAt: new Date(), signal: AbortSignal.timeout(5000),
+  });
+}

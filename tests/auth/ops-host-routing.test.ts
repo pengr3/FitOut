@@ -29,12 +29,12 @@ afterAll(() => {
 function request(
   pathname: string,
   host: string | null,
-  options: { cookie?: string; origin?: string } = {},
+  options: { cookie?: string; origin?: string; method?: string } = {},
 ): NextRequest {
   const headers = new Headers();
   if (host !== null) headers.set("host", host);
   if (options.cookie !== undefined) headers.set("cookie", options.cookie);
-  return new NextRequest(new URL(pathname, options.origin ?? PUBLIC_ORIGIN), { headers });
+  return new NextRequest(new URL(pathname, options.origin ?? PUBLIC_ORIGIN), { headers, method: options.method });
 }
 
 function outcome(response: NextResponse): { kind: "next" | "redirect" | "rewrite"; path: string | null } {
@@ -99,6 +99,7 @@ describe("OPS-07 explicit host/path route matrix", () => {
     ["ops console", "/ops", "ops.example.test", "rewrite", "/ops-gateway"],
     ["ops console child", "/ops/review", "ops.example.test", "rewrite", "/ops-gateway"],
     ["ops auth API", "/api/auth/get-session", "ops.example.test", "next", null],
+    ["ops settlement readback", "/api/ops/settlement-readback", "ops.example.test", "next", null],
     ["ops Next asset", "/_next/static/chunk.js", "ops.example.test", "next", null],
     ["ops public asset", "/icon-court.svg", "ops.example.test", "next", null],
     ["ops marketplace page", "/spaces", "ops.example.test", "rewrite", "/ops-gateway"],
@@ -106,6 +107,7 @@ describe("OPS-07 explicit host/path route matrix", () => {
     ["ops direct legacy cloak", "/_ops-cloak", "ops.example.test", "rewrite", "/ops-gateway"],
     ["public ops root", "/ops", "app.example.test", "rewrite", "/ops-gateway"],
     ["public ops child", "/ops/review", "app.example.test", "rewrite", "/ops-gateway"],
+    ["public settlement readback", "/api/ops/settlement-readback", "app.example.test", "rewrite", "/ops-gateway"],
     ["public adjacent path", "/opsfoo", "app.example.test", "next", null],
     ["public direct internal auth", "/_ops-auth/login", "app.example.test", "rewrite", "/ops-gateway"],
     ["public direct legacy cloak", "/_ops-cloak", "app.example.test", "rewrite", "/ops-gateway"],
@@ -113,6 +115,7 @@ describe("OPS-07 explicit host/path route matrix", () => {
     ["public marketplace invite", "/invite/ABC123", "app.example.test", "next", null],
     ["preview marketplace login", "/login", PREVIEW_HOST, "next", null],
     ["preview ops root", "/ops", PREVIEW_HOST, "rewrite", "/ops-gateway"],
+    ["preview settlement readback", "/api/ops/settlement-readback", PREVIEW_HOST, "rewrite", "/ops-gateway"],
     ["unknown marketplace login", "/login", "random.example.test", "next", null],
     ["unknown ops root", "/ops", "random.example.test", "rewrite", "/ops-gateway"],
     ["missing Host ops root", "/ops", null, "rewrite", "/ops-gateway"],
@@ -124,6 +127,11 @@ describe("OPS-07 explicit host/path route matrix", () => {
 
   it.each(cases)("routes %s", (_label, pathname, host, kind, path) => {
     expect(outcome(proxy(request(pathname, host)))).toEqual({ kind, path });
+  });
+
+  it("cloaks mutations to the readback path even on the ops host", () => {
+    expect(outcome(proxy(request("/api/ops/settlement-readback", "ops.example.test", { method: "POST" }))))
+      .toEqual({ kind: "rewrite", path: "/ops-gateway" });
   });
 
   it("preserves marketplace _sc deferral only on logged-out marketplace auth routes", () => {
