@@ -65,6 +65,7 @@ export async function GET(request: Request): Promise<Response> {
     });
     if (!report) return error("provider_response_invalid", 502);
     return Response.json({
+      schemaVersion: 2,
       booking: { id: bookingId, paymentId: row.paymentId, status: row.status,
         currency: row.currency, quotedTotalCents: row.quotedTotalCents },
       ...report,
