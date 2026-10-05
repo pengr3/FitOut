@@ -33,6 +33,7 @@ import { remindersSweep } from "@/inngest/functions/reminders";
 import { opsAlertDigest } from "@/inngest/functions/ops-alert-digest";
 import { diditReconcile } from "@/inngest/functions/didit-reconcile";
 import { settlementReconcile } from "@/inngest/functions/settlement-reconcile";
+import { settlementAccountProbe } from "@/inngest/functions/settlement-account-probe";
 
 // serve() verifies the Paymongo-style signed Inngest request with node crypto — Node runtime, not edge.
 export const runtime = "nodejs";
@@ -112,5 +113,6 @@ export const { GET, POST, PUT } = serve({
     opsAlertDigest,
     diditReconcile,
     settlementReconcile,
+    settlementAccountProbe,
   ],
 });

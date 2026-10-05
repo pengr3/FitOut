@@ -135,6 +135,7 @@ export function proxy(request: NextRequest) {
         ? nextWithoutGatewayHeaders(request)
         : gatewayRewrite(request);
     }
+    if (pathname === "/ops/payout-test") return nextWithoutGatewayHeaders(request);
     if (isPathSegment(pathname, OPS_PATH)) return gatewayRewrite(request);
     if (isOpsPassPath(pathname)) return NextResponse.next();
 

@@ -173,6 +173,7 @@ export default async function OpsQueuePage() {
         // checked. The same expression is carried character for character by `loading.tsx`.
         lede="Hosts and listings waiting on a decision, oldest first. Nothing new sells on FitOut until someone here has checked it."
       />
+      <a href="/ops/payout-test" className="mt-4 inline-block underline">First host payout test</a>
 
       <div className="mt-8">
         {rows.length === 0 ? (

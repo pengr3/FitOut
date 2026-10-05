@@ -887,6 +887,72 @@ export async function listMerchantPayoutTransactions(payoutId: string, after?: s
   return paymongoFetch<unknown>(`/v1/payouts/${encodeURIComponent(payoutId)}/transactions?limit=20${cursor}`, { method: "GET" });
 }
 
+/** Dashboard-assisted payouts do not trust an estimated API fee. The operator verifies the fee at authorization. */
+export async function readManualPayoutWalletFunding(): Promise<{ walletId: string; availableCents: number } | null> {
+  const walletId = process.env.PAYMONGO_WALLET_ID ?? "";
+  const merchantId = process.env.PAYMONGO_ORGANIZATION_ID ?? "";
+  const walletNumber = process.env.PLATFORM_WALLET_NUMBER ?? "";
+  const walletName = process.env.PLATFORM_WALLET_NAME ?? "";
+  if (!walletId || !merchantId || !walletNumber || !walletName ||
+      !process.env.PAYMONGO_SECRET_KEY?.startsWith("sk_live_")) return null;
+  const json = await paymongoFetch<{ data?: {
+    id?: unknown; merchant_id?: unknown; livemode?: unknown; status?: unknown;
+    balance?: { available?: unknown };
+    account?: { provider?: unknown; account_number?: unknown; account_name?: unknown; currency?: unknown };
+  } }>(`/v2/wallets/${encodeURIComponent(walletId)}?fields=balance&fields=account`, {
+    method: "GET", signal: AbortSignal.timeout(5000),
+  });
+  const wallet = json.data;
+  const available = wallet?.balance?.available;
+  if (wallet?.id !== walletId || wallet.merchant_id !== merchantId || wallet.livemode !== true ||
+      wallet.status !== "activated" || wallet.account?.provider !== "paymongo" ||
+      wallet.account.account_number !== walletNumber || wallet.account.account_name !== walletName ||
+      wallet.account.currency !== "PHP" || !Number.isSafeInteger(available) || (available as number) < 0) return null;
+  return { walletId, availableCents: available as number };
+}
+
+export type ManualTransferDetails = {
+  id: string; status: string; amountCents: number; feeCents: number; currency: string;
+  provider: string; merchantId: string; liveMode: boolean; createdAt: Date;
+  source: { number: string; name: string; bic: string };
+  destination: { number: string; name: string; bic: string };
+};
+
+/** Strict read of a Dashboard transfer; callers must compare every identity field to the frozen claim. */
+export async function getManualTransferDetails(transferId: string): Promise<ManualTransferDetails> {
+  if (!/^tr_[A-Za-z0-9]{8,64}$/.test(transferId)) throw new Error("Invalid transfer identifier");
+  const json = await paymongoFetch<{ data?: Record<string, unknown> }>(
+    `/v2/transfers/${encodeURIComponent(transferId)}`, { method: "GET" },
+  );
+  const data = json.data;
+  const attrs = data?.attributes && typeof data.attributes === "object"
+    ? data.attributes as Record<string, unknown> : data;
+  const source = attrs?.source_account as Record<string, unknown> | undefined;
+  const destination = attrs?.destination_account as Record<string, unknown> | undefined;
+  const fee = typeof attrs?.fee === "number" ? attrs.fee :
+    typeof attrs?.fee === "string" && /^\d+$/.test(attrs.fee) ? Number(attrs.fee) : NaN;
+  const rawCreated = attrs?.created_at;
+  const createdAt = typeof rawCreated === "number"
+    ? new Date(rawCreated < 10_000_000_000 ? rawCreated * 1000 : rawCreated)
+    : typeof rawCreated === "string" ? new Date(rawCreated) : new Date(NaN);
+  if (data?.id !== transferId || !attrs || typeof attrs.status !== "string" ||
+      !Number.isSafeInteger(attrs.amount) || !Number.isSafeInteger(fee) || fee < 0 ||
+      typeof attrs.currency !== "string" || typeof attrs.provider !== "string" ||
+      typeof attrs.merchant_id !== "string" || typeof attrs.livemode !== "boolean" ||
+      !Number.isFinite(createdAt.getTime()) ||
+      typeof source?.number !== "string" || typeof source?.name !== "string" || typeof source?.bic !== "string" ||
+      typeof destination?.number !== "string" || typeof destination?.name !== "string" || typeof destination?.bic !== "string") {
+    throw new Error("Incomplete transfer readback");
+  }
+  return {
+    id: transferId, status: attrs.status, amountCents: attrs.amount as number,
+    feeCents: fee, currency: attrs.currency, provider: attrs.provider,
+    merchantId: attrs.merchant_id, liveMode: attrs.livemode, createdAt,
+    source: { number: source.number, name: source.name, bic: source.bic },
+    destination: { number: destination.number, name: destination.name, bic: destination.bic },
+  };
+}
+
 /** Account-scoped Wallet inventory for the staff-only settlement readback. No transfer call. */
 export async function listMerchantWallets(): Promise<unknown> {
   return paymongoFetch<unknown>("/v2/wallets?status=activated&fields=account&fields=balance", {
