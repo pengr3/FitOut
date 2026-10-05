@@ -887,28 +887,51 @@ export async function listMerchantPayoutTransactions(payoutId: string, after?: s
   return paymongoFetch<unknown>(`/v1/payouts/${encodeURIComponent(payoutId)}/transactions?limit=20${cursor}`, { method: "GET" });
 }
 
-/** Dashboard-assisted payouts do not trust an estimated API fee. The operator verifies the fee at authorization. */
-export async function readManualPayoutWalletFunding(): Promise<{ walletId: string; availableCents: number } | null> {
+type ManualWalletFunding = { walletId: string; availableCents: number };
+type ManualWalletFundingCheck = { funding: ManualWalletFunding | null; reason: string };
+
+/** A redacted diagnosis of the exact source Wallet. No key, account value or provider body escapes. */
+export async function inspectManualPayoutWalletFunding(): Promise<ManualWalletFundingCheck> {
   const walletId = process.env.PAYMONGO_WALLET_ID ?? "";
   const merchantId = process.env.PAYMONGO_ORGANIZATION_ID ?? "";
   const walletNumber = process.env.PLATFORM_WALLET_NUMBER ?? "";
   const walletName = process.env.PLATFORM_WALLET_NAME ?? "";
-  if (!walletId || !merchantId || !walletNumber || !walletName ||
-      !process.env.PAYMONGO_SECRET_KEY?.startsWith("sk_live_")) return null;
-  const json = await paymongoFetch<{ data?: {
+  if (!walletId || !merchantId || !walletNumber || !walletName)
+    return { funding: null, reason: "wallet_settings_missing" };
+  if (!process.env.PAYMONGO_SECRET_KEY?.startsWith("sk_live_"))
+    return { funding: null, reason: "wallet_key_not_live" };
+  let json: { data?: {
     id?: unknown; merchant_id?: unknown; livemode?: unknown; status?: unknown;
     balance?: { available?: unknown };
     account?: { provider?: unknown; account_number?: unknown; account_name?: unknown; currency?: unknown };
-  } }>(`/v2/wallets/${encodeURIComponent(walletId)}?fields=balance&fields=account`, {
-    method: "GET", freshAt: new Date(), signal: AbortSignal.timeout(5000),
-  });
+  } };
+  try {
+    json = await paymongoFetch<typeof json>(`/v2/wallets/${encodeURIComponent(walletId)}?fields=balance&fields=account`, {
+      method: "GET", freshAt: new Date(), signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    return { funding: null, reason: "wallet_api_unavailable" };
+  }
   const wallet = json.data;
   const available = wallet?.balance?.available;
-  if (wallet?.id !== walletId || wallet.merchant_id !== merchantId || wallet.livemode !== true ||
-      wallet.status !== "activated" || wallet.account?.provider !== "paymongo" ||
-      wallet.account.account_number !== walletNumber || wallet.account.account_name !== walletName ||
-      wallet.account.currency !== "PHP" || !Number.isSafeInteger(available) || (available as number) < 0) return null;
-  return { walletId, availableCents: available as number };
+  if (wallet?.id !== walletId) return { funding: null, reason: "wallet_id_mismatch" };
+  if (wallet.merchant_id !== merchantId) return { funding: null, reason: "wallet_merchant_mismatch" };
+  if (wallet.livemode !== true) return { funding: null, reason: "wallet_not_live" };
+  if (wallet.status !== "activated") return { funding: null, reason: "wallet_not_activated" };
+  if (wallet.account?.provider !== "paymongo") return { funding: null, reason: "wallet_provider_mismatch" };
+  if (wallet.account.account_number !== walletNumber)
+    return { funding: null, reason: "wallet_account_number_mismatch" };
+  if (wallet.account.account_name !== walletName)
+    return { funding: null, reason: "wallet_account_name_mismatch" };
+  if (wallet.account.currency !== "PHP") return { funding: null, reason: "wallet_currency_mismatch" };
+  if (!Number.isSafeInteger(available) || (available as number) < 0)
+    return { funding: null, reason: "wallet_balance_invalid" };
+  return { funding: { walletId, availableCents: available as number }, reason: "wallet_verified" };
+}
+
+/** Dashboard-assisted payouts do not trust an estimated API fee. The operator verifies the fee at authorization. */
+export async function readManualPayoutWalletFunding(): Promise<ManualWalletFunding | null> {
+  return (await inspectManualPayoutWalletFunding()).funding;
 }
 
 export type ManualTransferDetails = {

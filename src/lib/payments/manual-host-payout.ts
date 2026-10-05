@@ -8,7 +8,7 @@ import { PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import { currentSettlementProof } from "@/lib/payments/settlement";
 import { recordMoneyException, unresolvedPayoutAttention } from "@/lib/payments/payout-exceptions";
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
-import { getManualTransferDetails, readManualPayoutWalletFunding, type ManualTransferDetails } from "@/lib/paymongo";
+import { getManualTransferDetails, inspectManualPayoutWalletFunding, readManualPayoutWalletFunding, type ManualTransferDetails } from "@/lib/paymongo";
 
 export const MANUAL_TEST_BOOKING_ID = "911c28f2-328c-42cc-8f79-98181b0c399e";
 const TEST_MAX_DEBIT_CENTS = 1710;
@@ -161,9 +161,9 @@ export async function prepareManualTestPayout(staffId: string): Promise<string> 
             AND recovered_cents < -net_cents) AS outstanding
     `)) as unknown as Array<{ otherClaims: number; outstanding: number }>;
     if (otherClaims > 0 || outstanding > 0) return "other_claim_or_host_debit";
-    let wallet;
-    try { wallet = await readManualPayoutWalletFunding(); } catch { wallet = null; }
-    if (!wallet) return "wallet_mapping_unverified";
+    const walletCheck = await inspectManualPayoutWalletFunding();
+    const wallet = walletCheck.funding;
+    if (!wallet) return walletCheck.reason;
     if (wallet.availableCents < TEST_MAX_DEBIT_CENTS) return "wallet_insufficient";
     const claimId = randomUUID();
     const inserted = (await tx.execute(sql`
