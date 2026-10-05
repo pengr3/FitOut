@@ -688,6 +688,23 @@ export const hostPayoutLedger = pgTable(
   ],
 );
 
+/** Operator-assisted first transfer. The payout ledger's booking/kind unique key remains the claim lock. */
+export const manualHostPayoutAttempt = pgTable("manual_host_payout_attempt", {
+  bookingId: text("booking_id").primaryKey().references(() => booking.id, { onDelete: "restrict" }),
+  claimId: text("claim_id").notNull().unique().references(() => hostPayoutLedger.id, { onDelete: "restrict" }),
+  staffId: text("staff_id").notNull().references(() => user.id, { onDelete: "restrict" }),
+  walletId: text("wallet_id").notNull(),
+  institutionBic: text("institution_bic").notNull(),
+  accountNameCiphertext: text("account_name_ciphertext").notNull(),
+  accountNumberCiphertext: text("account_number_ciphertext").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  maxDebitCents: integer("max_debit_cents").notNull(),
+  transferId: text("transfer_id").unique(),
+  state: text("state").default("prepared").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 // ---------------------------------------------------------------------------
 // Phase-7 notification model (D-86/D-91/D-92). One `notification` row per in-app notification, written
 // by the same Inngest function that sends the email so the two channels cannot drift (D-91).

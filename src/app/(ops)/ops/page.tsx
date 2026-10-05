@@ -40,6 +40,8 @@ import { PageHeader } from "@/components/patterns/page-header";
 import { OPS_QUEUE_SHELL } from "@/lib/design/measurements";
 import { readStaffManagementSnapshot } from "@/lib/ops/staff-management";
 import { StaffManagementPanel } from "@/components/ops/staff-management-panel";
+import { ManualPayoutPanel } from "@/components/ops/manual-payout-panel";
+import { MANUAL_TEST_BOOKING_ID } from "@/lib/payments/manual-host-payout";
 
 /**
  * The clock every date on this surface is rendered in.
@@ -127,7 +129,9 @@ function formatPrice(item: Extract<OpsQueueItem, { kind: "listing" }>): string {
   return parts.length > 0 ? parts.join(" · ") : "Price on request";
 }
 
-export default async function OpsQueuePage() {
+export default async function OpsQueuePage({ searchParams }: {
+  searchParams: Promise<{ manualResult?: string }>;
+}) {
   // LAYER 2 — the security boundary (D-216). The layout is not it; see the header.
   await requireStaff();
 
@@ -138,6 +142,9 @@ export default async function OpsQueuePage() {
     readStaffManagementSnapshot(db),
     loadOpsCancelImpacts(db, listingIds),
   ]);
+  const manualTestEnabled = process.env.PAYOUT_MANUAL_TEST_BOOKING_ID === MANUAL_TEST_BOOKING_ID &&
+    process.env.PAYOUT_MANUAL_TEST_MAX_DEBIT_CENTS === "1710";
+  const params = manualTestEnabled ? await searchParams : null;
   const rows: OpsQueueRowItem[] = items.map((item): OpsQueueRowItem => {
       const shared = {
         waitLabel: formatWait(item.submittedAt, now),
@@ -173,6 +180,7 @@ export default async function OpsQueuePage() {
         // checked. The same expression is carried character for character by `loading.tsx`.
         lede="Hosts and listings waiting on a decision, oldest first. Nothing new sells on FitOut until someone here has checked it."
       />
+      {manualTestEnabled && <a href="#manual-payout-test" className="mt-4 inline-block underline">First host payout test</a>}
 
       <div className="mt-8">
         {rows.length === 0 ? (
@@ -211,6 +219,7 @@ export default async function OpsQueuePage() {
       <div className="mt-12">
         <StaffManagementPanel snapshot={staffSnapshot} />
       </div>
+      {manualTestEnabled && <ManualPayoutPanel result={params?.manualResult} />}
     </div>
   );
 }
