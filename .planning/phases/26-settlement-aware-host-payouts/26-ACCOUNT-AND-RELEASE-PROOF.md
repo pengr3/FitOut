@@ -156,6 +156,8 @@ The staff-only first payout panel on `/ops` is guarded by exact booking and PHP 
 
 **Current live disposition remains HOLD.** No production probe output, verified `fitout-web` Wallet match, settlement proof, manual test settings, ledger claim, final Dashboard authorization, outgoing transfer or terminal receipt has been observed at this checkpoint. Local TypeScript, focused lint and payout tests are implementation evidence only. Do not mark the first payout complete from a draft or from a created claim.
 
+**Schema checkpoint, 2026-10-05:** Migration 0034 was rehearsed on a fresh branch of the intended live Neon database and then applied transactionally to its production branch before application rollout. Production readback confirms the table exists, has zero attempt rows, and the latest Drizzle journal entry has the 0034 timestamp and matching SQL hash. This schema result alone does not verify that Vercel uses this branch or authorize a transfer.
+
 ### Phase 26 exit gaps
 
 | Gap | Closure evidence required |

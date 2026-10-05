@@ -77,15 +77,20 @@ export async function readManualPayoutSnapshot(): Promise<ManualPayoutSnapshot> 
       const [proof, wallet] = await Promise.all([
         currentSettlementProof(MANUAL_TEST_BOOKING_ID, db), readManualPayoutWalletFunding(),
       ]);
-      const [{ otherClaims }] = (await db.execute(sql`
-        SELECT COUNT(*)::int AS "otherClaims" FROM host_payout_ledger
-        WHERE kind = 'payout' AND state IN ('held', 'processing')
-          AND booking_id <> ${MANUAL_TEST_BOOKING_ID}
-      `)) as unknown as Array<{ otherClaims: number }>;
+      const [{ otherClaims, outstanding, dbNow }] = (await db.execute(sql`
+        SELECT
+          (SELECT COUNT(*)::int FROM host_payout_ledger WHERE kind = 'payout'
+            AND state IN ('held', 'processing') AND booking_id <> ${MANUAL_TEST_BOOKING_ID}) AS "otherClaims",
+          (SELECT COALESCE(SUM(-net_cents - recovered_cents), 0)::int FROM host_payout_ledger
+            WHERE host_id = ${candidate?.hostId ?? ""} AND kind = 'host_cancel_fee'
+              AND recovered_cents < -net_cents) AS outstanding,
+          now() AS "dbNow"
+      `)) as unknown as Array<{ otherClaims: number; outstanding: number; dbNow: Date }>;
       readyToSend = Boolean(candidate && candidate.status === "confirmed" &&
         candidate.currency.toLowerCase() === "php" && candidate.grossCents === 1900 &&
-        new Date(candidate.endsAt).getTime() + PAYOUT_HOLD_HOURS * 3_600_000 <= Date.now() &&
-        candidate.payoutsEnabled && candidate.hostStatus !== "suspended" && otherClaims === 0 &&
+        new Date(candidate.endsAt).getTime() + PAYOUT_HOLD_HOURS * 3_600_000 <= new Date(dbNow).getTime() &&
+        candidate.payoutsEnabled && ["verified", "host_attested"].includes(candidate.verificationStatus) &&
+        candidate.hostStatus !== "suspended" && otherClaims === 0 && outstanding === 0 &&
         candidate.numberCiphertext === row.numberCiphertext &&
         candidate.nameCiphertext === row.nameCiphertext && candidate.bic === row.bic &&
         proof?.paymentId === candidate.paymentId &&
