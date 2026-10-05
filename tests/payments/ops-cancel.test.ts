@@ -181,8 +181,9 @@ async function seedBooking(
   id: string,
   listingId: string,
   msToStart: number,
+  referenceTime?: Date,
 ): Promise<{ startsAt: Date; endsAt: Date }> {
-  const base = await readDbNow(testDb.db);
+  const base = referenceTime ?? await readDbNow(testDb.db);
   const startsAt = new Date(base.getTime() + msToStart);
   const endsAt = new Date(startsAt.getTime() + HOUR);
   await testDb.db.insert(booking).values({
@@ -609,8 +610,10 @@ describe("D-244 / ENF-03 — the durable record of who decided, and what the hos
   it("case 7 — retained_space_cents = 0, and the payout sweep therefore EXCLUDES the booking (before/after)", async () => {
     // The old before/after control now needs a Friday cohort and exact deposited proof.
     const l = await seedListing("oc_l_sweep");
-    await seedBooking("oc_b_sweep", l, -26 * HOUR);
     const fridayNoon = new Date("2026-10-02T04:00:00.000Z");
+    // Anchor the booking to the same payout cohort as the provider proof. A booking
+    // relative to the wall clock eventually falls after this fixed Friday cutoff.
+    await seedBooking("oc_b_sweep", l, -26 * HOUR, fridayNoon);
     expect(await recordSettlementObservation("oc_b_sweep", {
       paymentId: "pay_oc_b_sweep", payoutId: "po_oc_b_sweep", transactionId: "txn_oc_b_sweep",
       transactionType: "payment", currency: "PHP", liveMode: true,
