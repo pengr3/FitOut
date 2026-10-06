@@ -110,6 +110,8 @@ export async function queryProcessingLedger(dbConn: DbConn = db): Promise<Proces
         SELECT 1 FROM manual_host_payout_attempt m WHERE m.claim_id = l.id
       ))
     )
+      AND NOT EXISTS (SELECT 1 FROM manual_host_payout_attempt m
+        WHERE m.claim_id = l.id AND m.state LIKE 'api_%')
     ORDER BY created_at ASC
     LIMIT 200
   `)) as unknown as ProcessingLedgerRow[];

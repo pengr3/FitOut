@@ -701,6 +701,9 @@ export const manualHostPayoutAttempt = pgTable("manual_host_payout_attempt", {
   maxDebitCents: integer("max_debit_cents").notNull(),
   transferId: text("transfer_id").unique(),
   state: text("state").default("prepared").notNull(),
+  actualFeeCents: integer("actual_fee_cents"),
+  apiReservedAt: timestamp("api_reserved_at", { withTimezone: true }),
+  apiAuthorizedStaffId: text("api_authorized_staff_id").references(() => user.id, { onDelete: "restrict" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
