@@ -8,6 +8,7 @@ import { PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import { currentSettlementProof } from "@/lib/payments/settlement";
 import { recordMoneyException, unresolvedPayoutAttention } from "@/lib/payments/payout-exceptions";
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
+import { readFrozenManualRecipientFromWeb } from "@/lib/payments/manual-payout-recipient-readback";
 import { getManualTransferDetails, inspectManualPayoutWalletFunding, readManualPayoutWalletFunding, type ManualTransferDetails } from "@/lib/paymongo";
 
 export const MANUAL_TEST_BOOKING_ID = "911c28f2-328c-42cc-8f79-98181b0c399e";
@@ -128,6 +129,7 @@ export async function readManualPayoutSnapshot(): Promise<ManualPayoutSnapshot> 
     // Keep the claim held if this deployment cannot read the frozen recipient.
     // Never leak the ciphertext or key material into an error page or log.
   }
+  if (!destination) destination = await readFrozenManualRecipientFromWeb(row);
   return {
     state: row.ledgerState === "paid" ? "paid" : row.ledgerState === "failed" ? "failed" : row.state,
     amountCents: row.amountCents, maxDebitCents: row.maxDebitCents,
@@ -272,11 +274,14 @@ export async function attachManualTestTransfer(transferId: string): Promise<stri
     if (used || row.walletId !== process.env.PAYMONGO_WALLET_ID) return "transfer_already_used_or_wallet_changed";
     // The Dashboard may already have sent the money. Later host or settlement changes
     // cannot erase the need to link and track that exact provider transfer.
-    let destination: { number: string; name: string; bic: string };
+    let destination: { number: string; name: string; bic: string } | null = null;
     try {
       destination = { number: decryptPayoutRecipientValue(row.numberCiphertext),
         name: decryptPayoutRecipientValue(row.nameCiphertext), bic: row.bic };
     } catch {
+      destination = await readFrozenManualRecipientFromWeb(row);
+    }
+    if (!destination) {
       await recordMoneyException(tx, MANUAL_TEST_BOOKING_ID, "transfer_outcome_uncertain");
       return "recipient_unavailable";
     }
