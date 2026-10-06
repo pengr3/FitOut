@@ -8,6 +8,7 @@ import { PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import { currentSettlementProof } from "@/lib/payments/settlement";
 import { recordMoneyException, unresolvedPayoutAttention } from "@/lib/payments/payout-exceptions";
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
+import { readFrozenManualRecipientFromWeb } from "@/lib/payments/manual-payout-recipient-readback";
 import { getManualTransferDetails, inspectManualPayoutWalletFunding, readManualPayoutWalletFunding, type ManualTransferDetails } from "@/lib/paymongo";
 
 export const MANUAL_TEST_BOOKING_ID = "911c28f2-328c-42cc-8f79-98181b0c399e";
@@ -46,6 +47,7 @@ export type ManualPayoutSnapshot = {
   amountCents: number; maxDebitCents: number; sourceWalletId: string | null;
   sourceAccountLast4: string | null;
   destination: { bic: string; name: string; number: string } | null;
+  destinationUnavailable: boolean;
   transferId: string | null; readyToSend: boolean; checkedAt: string | null;
 };
 
@@ -89,7 +91,8 @@ export async function readManualPayoutSnapshot(): Promise<ManualPayoutSnapshot> 
   const row = rows[0];
   if (!row) return { state: "unprepared", amountCents: TEST_MAX_DEBIT_CENTS,
     maxDebitCents: TEST_MAX_DEBIT_CENTS, sourceWalletId: null, destination: null,
-    sourceAccountLast4: null, transferId: null, readyToSend: false, checkedAt: null };
+    destinationUnavailable: false, sourceAccountLast4: null, transferId: null,
+    readyToSend: false, checkedAt: null };
   let readyToSend = false;
   const checkedAt = new Date().toISOString();
   if (row.state === "prepared" && row.ledgerState === "held" && testEnabled()) {
@@ -118,14 +121,22 @@ export async function readManualPayoutSnapshot(): Promise<ManualPayoutSnapshot> 
       });
     } catch { readyToSend = false; }
   }
+  let destination: ManualPayoutSnapshot["destination"] = null;
+  try {
+    destination = { bic: row.bic, name: decryptPayoutRecipientValue(row.nameCiphertext),
+      number: decryptPayoutRecipientValue(row.numberCiphertext) };
+  } catch {
+    // Keep the claim held if this deployment cannot read the frozen recipient.
+    // Never leak the ciphertext or key material into an error page or log.
+  }
+  if (!destination) destination = await readFrozenManualRecipientFromWeb(row);
   return {
     state: row.ledgerState === "paid" ? "paid" : row.ledgerState === "failed" ? "failed" : row.state,
     amountCents: row.amountCents, maxDebitCents: row.maxDebitCents,
     sourceWalletId: row.sourceWalletId,
     sourceAccountLast4: process.env.PLATFORM_WALLET_NUMBER?.slice(-4) ?? null,
-    destination: { bic: row.bic, name: decryptPayoutRecipientValue(row.nameCiphertext),
-      number: decryptPayoutRecipientValue(row.numberCiphertext) },
-    transferId: row.transferId, readyToSend, checkedAt,
+    destination, destinationUnavailable: destination === null,
+    transferId: row.transferId, readyToSend: readyToSend && destination !== null, checkedAt,
   };
 }
 
@@ -263,13 +274,23 @@ export async function attachManualTestTransfer(transferId: string): Promise<stri
     if (used || row.walletId !== process.env.PAYMONGO_WALLET_ID) return "transfer_already_used_or_wallet_changed";
     // The Dashboard may already have sent the money. Later host or settlement changes
     // cannot erase the need to link and track that exact provider transfer.
+    let destination: { number: string; name: string; bic: string } | null = null;
+    try {
+      destination = { number: decryptPayoutRecipientValue(row.numberCiphertext),
+        name: decryptPayoutRecipientValue(row.nameCiphertext), bic: row.bic };
+    } catch {
+      destination = await readFrozenManualRecipientFromWeb(row);
+    }
+    if (!destination) {
+      await recordMoneyException(tx, MANUAL_TEST_BOOKING_ID, "transfer_outcome_uncertain");
+      return "recipient_unavailable";
+    }
     const expected = {
       amountCents: row.amountCents, maxDebitCents: row.maxDebitCents,
       merchantId: process.env.PAYMONGO_ORGANIZATION_ID ?? "", createdAt: new Date(row.createdAt),
       source: { number: process.env.PLATFORM_WALLET_NUMBER ?? "",
         name: process.env.PLATFORM_WALLET_NAME ?? "", bic: "PAEYPHM2XXX" },
-      destination: { number: decryptPayoutRecipientValue(row.numberCiphertext),
-        name: decryptPayoutRecipientValue(row.nameCiphertext), bic: row.bic },
+      destination,
     };
     if (!expected.merchantId || !matchesManualTransfer(transfer, expected)) {
       await recordMoneyException(tx, MANUAL_TEST_BOOKING_ID, "transfer_outcome_uncertain");

@@ -51,6 +51,10 @@ export async function ManualPayoutPanel({ result = "" }: { result?: string }) {
       <p>Booking {MANUAL_TEST_BOOKING_ID}. This is a single, staff-controlled Dashboard transfer.
         The Friday sweep remains paused.</p>
       {result && <p role="status" className="rounded border p-3">Result: {result.replaceAll("_", " ")}</p>}
+      {snapshot.destinationUnavailable && <p role="alert" className="rounded border p-4">
+        The frozen payout destination cannot be read in this deployment. Check the recipient encryption
+        configuration and stored destination before proceeding. Do not send in PayMongo.
+      </p>}
       <section className="space-y-3 rounded border p-5" aria-label="Payout claim">
         <p><strong>Claim:</strong> {snapshot.state}</p>
         <p><strong>Host amount:</strong> ₱{(snapshot.amountCents / 100).toFixed(2)}</p>
