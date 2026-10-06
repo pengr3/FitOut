@@ -452,14 +452,17 @@ export async function dispatchControlledApiTestPayout(staffId: string): Promise<
       SELECT a.state, a.transfer_id AS "transferId", a.claim_id AS "claimId",
         a.wallet_id AS "walletId", a.amount_cents AS "amountCents", a.max_debit_cents AS "maxDebitCents",
         a.institution_bic AS bic, a.account_name_ciphertext AS "nameCiphertext",
-        a.account_number_ciphertext AS "numberCiphertext", l.state AS "ledgerState"
+        a.account_number_ciphertext AS "numberCiphertext", l.state AS "ledgerState",
+        l.host_id AS "claimHostId", l.payment_id AS "claimPaymentId", l.net_cents AS "claimNetCents"
       FROM manual_host_payout_attempt a JOIN host_payout_ledger l ON l.id = a.claim_id
-      WHERE a.booking_id = ${MANUAL_TEST_BOOKING_ID} FOR UPDATE OF a, l
+      WHERE a.booking_id = ${MANUAL_TEST_BOOKING_ID} AND l.kind = 'payout' FOR UPDATE OF a, l
     `)) as unknown as Array<{ state: string; transferId: string | null; claimId: string;
       walletId: string; amountCents: number; maxDebitCents: number; bic: string;
-      nameCiphertext: string; numberCiphertext: string; ledgerState: string }>;
+      nameCiphertext: string; numberCiphertext: string; ledgerState: string;
+      claimHostId: string; claimPaymentId: string; claimNetCents: number }>;
     if (!row || row.state !== "prepared" || row.ledgerState !== "held" || row.transferId ||
-        row.amountCents !== 1710 || row.maxDebitCents !== 1710) return "claim_not_prepared";
+        row.amountCents !== 1710 || row.maxDebitCents !== 1710 || row.claimNetCents !== 1710)
+      return "claim_not_prepared";
     const [{ now }] = (await tx.execute(sql`SELECT now() AS now`)) as unknown as Array<{ now: Date }>;
     const candidate = await candidateQuery(tx as unknown as typeof db, MANUAL_TEST_BOOKING_ID, true);
     const proof = await currentSettlementProof(MANUAL_TEST_BOOKING_ID, tx, new Date(now));
@@ -481,7 +484,8 @@ export async function dispatchControlledApiTestPayout(staffId: string): Promise<
       otherClaims, outstanding, hasAttention: attention.has(MANUAL_TEST_BOOKING_ID) },
       funding.funding?.availableCents ?? -1, row.state) ||
       row.bic !== recipient.bic || row.numberCiphertext !== initial.numberCiphertext ||
-      row.nameCiphertext !== initial.nameCiphertext || row.walletId !== process.env.PAYMONGO_WALLET_ID)
+      row.nameCiphertext !== initial.nameCiphertext || row.walletId !== process.env.PAYMONGO_WALLET_ID ||
+      row.claimHostId !== candidate?.hostId || row.claimPaymentId !== candidate?.paymentId)
       return "api_preflight_on_hold";
     await tx.execute(sql`
       UPDATE manual_host_payout_attempt SET state = 'api_reserved', max_debit_cents = ${API_EXPECTED_MAX_DEBIT_CENTS},
