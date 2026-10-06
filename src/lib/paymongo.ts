@@ -574,7 +574,8 @@ export async function createExternalHostPayout(input: {
   }
   const sourceAccount = platformWallet();
   const json = await paymongoFetch<{
-    data?: { id?: string; attributes?: { transfers?: Array<{ id?: string; status?: string }> } };
+    data?: { id?: string; transfers?: Array<{ id?: string; status?: string }>;
+      attributes?: { transfers?: Array<{ id?: string; status?: string }> } };
   }>("/v2/batch_transfers", {
     method: "POST",
     idempotencyKey: `host-external-payout:${input.bookingId}`,
@@ -599,8 +600,14 @@ export async function createExternalHostPayout(input: {
     },
   });
 
-  const transfer = json.data?.attributes?.transfers?.[0];
-  return { batchId: json.data?.id ?? "", transferId: transfer?.id ?? "", status: transfer?.status ?? "" };
+  // Current PayMongo /v2 response is flat `data.transfers`; retain the older
+  // attributes envelope for accounts still returning it. A malformed response
+  // is uncertain after a POST: the durable caller must read by reference, never repost.
+  const transfers = json.data?.transfers ?? json.data?.attributes?.transfers;
+  if (transfers?.length !== 1 || !/^(?:tr|wallet_tr)_[A-Za-z0-9]{8,64}$/.test(transfers[0]?.id ?? ""))
+    throw new Error("PayMongo transfer create response has no single verified transfer ID");
+  return { batchId: json.data?.id ?? "", transferId: transfers[0].id!,
+    status: transfers[0].status ?? "" };
 }
 
 /**
@@ -937,6 +944,7 @@ export async function readManualPayoutWalletFunding(): Promise<ManualWalletFundi
 export type ManualTransferDetails = {
   id: string; status: string; amountCents: number; feeCents: number; currency: string;
   provider: string; merchantId: string; liveMode: boolean; createdAt: Date;
+  referenceNumber: string | null;
   source: { number: string; name: string; bic: string };
   destination: { number: string; name: string; bic: string };
 };
@@ -971,9 +979,45 @@ export async function getManualTransferDetails(transferId: string): Promise<Manu
     id: transferId, status: attrs.status, amountCents: attrs.amount as number,
     feeCents: fee, currency: attrs.currency, provider: attrs.provider,
     merchantId: attrs.merchant_id, liveMode: attrs.livemode, createdAt,
+    referenceNumber: typeof attrs.reference_number === "string" ? attrs.reference_number : null,
     source: { number: source.number, name: source.name, bic: source.bic },
     destination: { number: destination.number, name: destination.name, bic: destination.bic },
   };
+}
+
+/** Scan the bounded merchant transfer history before the one-off API send. An incomplete scan is HOLD. */
+export async function listPossibleHostTransfers(amountCents: number, since: Date): Promise<ManualTransferDetails[]> {
+  const matches: ManualTransferDetails[] = [];
+  let afterId: string | null = null;
+  const seen = new Set<string>();
+  for (let page = 0; page < 10; page++) {
+    const cursor = afterId ? `&after_id=${encodeURIComponent(afterId)}` : "";
+    const json = await paymongoFetch<unknown>(`/v2/transfers?limit=100${cursor}`, {
+      method: "GET", freshAt: new Date(), signal: AbortSignal.timeout(5000),
+    });
+    if (!json || typeof json !== "object" || !Array.isArray((json as { data?: unknown }).data))
+      throw new Error("Transfer inventory unavailable");
+    const rows = (json as { data: unknown[] }).data;
+    for (const raw of rows) {
+      if (!raw || typeof raw !== "object") throw new Error("Incomplete transfer inventory");
+      const item = raw as Record<string, unknown>;
+      const attrs = item.attributes && typeof item.attributes === "object"
+        ? item.attributes as Record<string, unknown> : item;
+      if (typeof item.id !== "string" || !/^(?:tr|wallet_tr)_[A-Za-z0-9]{8,64}$/.test(item.id) ||
+          seen.has(item.id) || !Number.isSafeInteger(attrs.amount))
+        throw new Error("Incomplete transfer inventory");
+      seen.add(item.id);
+      if (attrs.amount === amountCents) {
+        const detail = await getManualTransferDetails(item.id);
+        if (detail.createdAt >= since) matches.push(detail);
+      }
+    }
+    if (rows.length < 100) return matches;
+    const tail = rows.at(-1) as { id?: unknown } | undefined;
+    afterId = typeof tail?.id === "string" ? tail.id : null;
+    if (!afterId) throw new Error("Transfer inventory cursor unavailable");
+  }
+  throw new Error("Transfer inventory exceeded bounded scan");
 }
 
 /** Account-scoped Wallet inventory for the staff-only settlement readback. No transfer call. */

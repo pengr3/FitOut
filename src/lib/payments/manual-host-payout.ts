@@ -6,13 +6,16 @@ import { db } from "@/lib/db";
 import { computeCommission } from "@/lib/payments/commission";
 import { PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import { currentSettlementProof } from "@/lib/payments/settlement";
-import { recordMoneyException, unresolvedPayoutAttention } from "@/lib/payments/payout-exceptions";
+import { bookingExceptionRef, recordMoneyException, unresolvedPayoutAttention } from "@/lib/payments/payout-exceptions";
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import { readFrozenManualRecipientFromWeb } from "@/lib/payments/manual-payout-recipient-readback";
-import { getManualTransferDetails, inspectManualPayoutWalletFunding, readManualPayoutWalletFunding, type ManualTransferDetails } from "@/lib/paymongo";
+import { createExternalHostPayout, findHostPayoutTransfers, getManualTransferDetails,
+  inspectManualPayoutWalletFunding, listPossibleHostTransfers, readManualPayoutWalletFunding,
+  type ManualTransferDetails } from "@/lib/paymongo";
 
 export const MANUAL_TEST_BOOKING_ID = "911c28f2-328c-42cc-8f79-98181b0c399e";
 const TEST_MAX_DEBIT_CENTS = 1710;
+const API_EXPECTED_MAX_DEBIT_CENTS = 2710;
 
 type Candidate = {
   bookingId: string; paymentId: string | null; currency: string; status: string;
@@ -42,18 +45,36 @@ export function manualPayoutReleaseReady(input: {
     wallet?.walletId === frozen.sourceWalletId && wallet.availableCents >= frozen.amountCents);
 }
 
+/** A separate funded gate for the live API experiment; the provider fee remains post-create evidence. */
+export function controlledApiPreflightReady(
+  input: Parameters<typeof manualPayoutReleaseReady>[0], availableCents: number, attemptState: string,
+): boolean {
+  return attemptState === "prepared" && Number.isSafeInteger(availableCents) &&
+    availableCents >= API_EXPECTED_MAX_DEBIT_CENTS && manualPayoutReleaseReady(input);
+}
+
 export type ManualPayoutSnapshot = {
-  state: "unprepared" | "prepared" | "submitted" | "failed" | "paid";
+  state: "unprepared" | "prepared" | "submitted" | "failed" | "paid" |
+    "api_reserved" | "api_submitted" | "api_failed";
   amountCents: number; maxDebitCents: number; sourceWalletId: string | null;
   sourceAccountLast4: string | null;
   destination: { bic: string; name: string; number: string } | null;
   destinationUnavailable: boolean;
-  transferId: string | null; readyToSend: boolean; checkedAt: string | null;
+  transferId: string | null; readyToSend: boolean; apiWalletReady: boolean; checkedAt: string | null;
+  walletAvailableCents: number | null;
+  actualFeeCents: number | null;
 };
 
 function testEnabled(): boolean {
   return process.env.PAYOUT_MANUAL_TEST_BOOKING_ID === MANUAL_TEST_BOOKING_ID &&
     process.env.PAYOUT_MANUAL_TEST_MAX_DEBIT_CENTS === String(TEST_MAX_DEBIT_CENTS);
+}
+
+function apiTestEnabled(): boolean {
+  return testEnabled() && process.env.PAYOUT_API_TEST_BOOKING_ID === MANUAL_TEST_BOOKING_ID &&
+    process.env.PAYOUT_API_TEST_EXPECTED_MAX_DEBIT_CENTS === String(API_EXPECTED_MAX_DEBIT_CENTS) &&
+    (process.env.PAYOUT_DISPATCH_MODE ?? "hold") === "hold" &&
+    process.env.PAYMONGO_SECRET_KEY?.startsWith("sk_live_") === true;
 }
 
 async function candidateQuery(conn: typeof db, bookingId: string, lock = false): Promise<Candidate | null> {
@@ -78,13 +99,15 @@ async function candidateQuery(conn: typeof db, bookingId: string, lock = false):
 export async function readManualPayoutSnapshot(): Promise<ManualPayoutSnapshot> {
   const rows = (await db.execute(sql`
     SELECT a.state, a.amount_cents AS "amountCents", a.max_debit_cents AS "maxDebitCents",
+      a.actual_fee_cents AS "actualFeeCents",
       a.wallet_id AS "sourceWalletId", a.institution_bic AS bic,
       a.account_name_ciphertext AS "nameCiphertext", a.account_number_ciphertext AS "numberCiphertext",
       a.transfer_id AS "transferId", l.state AS "ledgerState"
     FROM manual_host_payout_attempt a JOIN host_payout_ledger l ON l.id = a.claim_id
     WHERE a.booking_id = ${MANUAL_TEST_BOOKING_ID}
   `)) as unknown as Array<{
-    state: "prepared" | "submitted" | "failed"; amountCents: number; maxDebitCents: number;
+    state: ManualPayoutSnapshot["state"]; amountCents: number; maxDebitCents: number;
+    actualFeeCents: number | null;
     sourceWalletId: string; bic: string; nameCiphertext: string; numberCiphertext: string;
     transferId: string | null; ledgerState: string;
   }>;
@@ -92,8 +115,11 @@ export async function readManualPayoutSnapshot(): Promise<ManualPayoutSnapshot> 
   if (!row) return { state: "unprepared", amountCents: TEST_MAX_DEBIT_CENTS,
     maxDebitCents: TEST_MAX_DEBIT_CENTS, sourceWalletId: null, destination: null,
     destinationUnavailable: false, sourceAccountLast4: null, transferId: null,
-    readyToSend: false, checkedAt: null };
+    readyToSend: false, apiWalletReady: false, checkedAt: null, walletAvailableCents: null,
+    actualFeeCents: null };
   let readyToSend = false;
+  let apiWalletReady = false;
+  let walletAvailableCents: number | null = null;
   const checkedAt = new Date().toISOString();
   if (row.state === "prepared" && row.ledgerState === "held" && testEnabled()) {
     try {
@@ -102,6 +128,7 @@ export async function readManualPayoutSnapshot(): Promise<ManualPayoutSnapshot> 
         currentSettlementProof(MANUAL_TEST_BOOKING_ID, db), readManualPayoutWalletFunding(),
         unresolvedPayoutAttention(db, [MANUAL_TEST_BOOKING_ID]),
       ]);
+      walletAvailableCents = wallet?.availableCents ?? null;
       const [{ otherClaims, outstanding, dbNow }] = (await db.execute(sql`
         SELECT
           (SELECT COUNT(*)::int FROM host_payout_ledger WHERE kind = 'payout'
@@ -119,6 +146,8 @@ export async function readManualPayoutSnapshot(): Promise<ManualPayoutSnapshot> 
         dbNow: new Date(dbNow), otherClaims, outstanding,
         hasAttention: attention.has(MANUAL_TEST_BOOKING_ID),
       });
+      apiWalletReady = apiTestEnabled() && readyToSend &&
+        (wallet?.availableCents ?? 0) >= API_EXPECTED_MAX_DEBIT_CENTS;
     } catch { readyToSend = false; }
   }
   let destination: ManualPayoutSnapshot["destination"] = null;
@@ -136,7 +165,9 @@ export async function readManualPayoutSnapshot(): Promise<ManualPayoutSnapshot> 
     sourceWalletId: row.sourceWalletId,
     sourceAccountLast4: process.env.PLATFORM_WALLET_NUMBER?.slice(-4) ?? null,
     destination, destinationUnavailable: destination === null,
-    transferId: row.transferId, readyToSend: readyToSend && destination !== null, checkedAt,
+    transferId: row.transferId, readyToSend: readyToSend && destination !== null,
+    apiWalletReady: apiWalletReady && destination !== null, checkedAt,
+    walletAvailableCents, actualFeeCents: row.actualFeeCents,
   };
 }
 
@@ -346,5 +377,215 @@ export async function holdManualTestUncertain(reportedTransferId?: string): Prom
     `);
     await recordMoneyException(tx, MANUAL_TEST_BOOKING_ID, "transfer_outcome_uncertain");
     return "held_for_investigation";
+  });
+}
+
+/** Identity is immutable across the Dashboard and API routes; only the API fee policy differs. */
+export function matchesApiTestTransfer(transfer: ManualTransferDetails, expected: {
+  amountCents: number; merchantId: string; reservedAt: Date;
+  source: { number: string; name: string; bic: string };
+  destination: { number: string; name: string; bic: string };
+}): boolean {
+  return Boolean(expected.merchantId && expected.source.number && expected.source.name &&
+    expected.destination.number && expected.destination.name && expected.destination.bic) &&
+    transfer.liveMode && transfer.merchantId === expected.merchantId &&
+    transfer.provider === "instapay" && transfer.currency.toUpperCase() === "PHP" &&
+    transfer.referenceNumber === `host-payout-${MANUAL_TEST_BOOKING_ID}` &&
+    transfer.amountCents === expected.amountCents && Number.isSafeInteger(transfer.feeCents) &&
+    transfer.feeCents >= 0 && transfer.createdAt.getTime() >= expected.reservedAt.getTime() - 1_000 &&
+    transfer.source.number === expected.source.number && transfer.source.bic === expected.source.bic &&
+    sameName(transfer.source.name, expected.source.name) &&
+    transfer.destination.number === expected.destination.number &&
+    transfer.destination.bic === expected.destination.bic &&
+    sameName(transfer.destination.name, expected.destination.name);
+}
+
+export function controlledApiTransferOutcome(status: string, feeCents: number): {
+  ledgerState: "paid" | "failed" | "processing" | null; overBudget: boolean;
+} {
+  const ledgerState = status === "succeeded" ? "paid" : status === "failed" ? "failed" :
+    status === "pending" ? "processing" : null;
+  return { ledgerState, overBudget: Number.isSafeInteger(feeCents) &&
+    feeCents > API_EXPECTED_MAX_DEBIT_CENTS - TEST_MAX_DEBIT_CENTS };
+}
+
+export function controlledApiClaimAction(state: string, transferId: string | null):
+  "reserve" | "readback" | "hold" {
+  if (state === "api_reserved" || state === "api_submitted") return "readback";
+  return state === "prepared" && !transferId ? "reserve" : "hold";
+}
+
+/** A one-booking, one-POST exception to the Friday clock. Reservation happens before the POST. */
+export async function dispatchControlledApiTestPayout(staffId: string): Promise<string> {
+  if (!apiTestEnabled()) return "api_test_not_enabled";
+  const [initial] = (await db.execute(sql`
+    SELECT a.state, a.transfer_id AS "transferId", a.created_at AS "createdAt",
+      a.amount_cents AS "amountCents", a.institution_bic AS bic,
+      a.account_name_ciphertext AS "nameCiphertext", a.account_number_ciphertext AS "numberCiphertext"
+    FROM manual_host_payout_attempt a WHERE a.booking_id = ${MANUAL_TEST_BOOKING_ID}
+  `)) as unknown as Array<{ state: string; transferId: string | null; createdAt: Date;
+    amountCents: number; bic: string; nameCiphertext: string; numberCiphertext: string }>;
+  const action = initial ? controlledApiClaimAction(initial.state, initial.transferId) : "hold";
+  if (action === "readback")
+    return recoverControlledApiTestPayout();
+  if (!initial || action !== "reserve" || initial.amountCents !== 1710)
+    return "claim_not_prepared";
+  let recipient: { number: string; name: string; bic: string } | null = null;
+  try {
+    recipient = { bic: initial.bic, number: decryptPayoutRecipientValue(initial.numberCiphertext),
+      name: decryptPayoutRecipientValue(initial.nameCiphertext) };
+  } catch { recipient = await readFrozenManualRecipientFromWeb(initial); }
+  if (!recipient || recipient.bic !== "GXCHPHM2XXX" || !recipient.number.endsWith("9701"))
+    return "recipient_unavailable";
+  try {
+    const [referenceMatches, possible] = await Promise.all([
+      findHostPayoutTransfers(MANUAL_TEST_BOOKING_ID),
+      listPossibleHostTransfers(initial.amountCents, new Date(initial.createdAt)),
+    ]);
+    // Even an apparently failed transfer is an existing money attempt, not permission for another.
+    if (referenceMatches.length || possible.length) return "prior_transfer_requires_investigation";
+  } catch { return "transfer_inventory_unavailable"; }
+
+  const reserved = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(2602, 1)`);
+    const [row] = (await tx.execute(sql`
+      SELECT a.state, a.transfer_id AS "transferId", a.claim_id AS "claimId",
+        a.wallet_id AS "walletId", a.amount_cents AS "amountCents", a.max_debit_cents AS "maxDebitCents",
+        a.institution_bic AS bic, a.account_name_ciphertext AS "nameCiphertext",
+        a.account_number_ciphertext AS "numberCiphertext", l.state AS "ledgerState",
+        l.host_id AS "claimHostId", l.payment_id AS "claimPaymentId", l.net_cents AS "claimNetCents"
+      FROM manual_host_payout_attempt a JOIN host_payout_ledger l ON l.id = a.claim_id
+      WHERE a.booking_id = ${MANUAL_TEST_BOOKING_ID} AND l.kind = 'payout' FOR UPDATE OF a, l
+    `)) as unknown as Array<{ state: string; transferId: string | null; claimId: string;
+      walletId: string; amountCents: number; maxDebitCents: number; bic: string;
+      nameCiphertext: string; numberCiphertext: string; ledgerState: string;
+      claimHostId: string; claimPaymentId: string; claimNetCents: number }>;
+    if (!row || row.state !== "prepared" || row.ledgerState !== "held" || row.transferId ||
+        row.amountCents !== 1710 || row.maxDebitCents !== 1710 || row.claimNetCents !== 1710)
+      return "claim_not_prepared";
+    const [{ now }] = (await tx.execute(sql`SELECT now() AS now`)) as unknown as Array<{ now: Date }>;
+    const candidate = await candidateQuery(tx as unknown as typeof db, MANUAL_TEST_BOOKING_ID, true);
+    const proof = await currentSettlementProof(MANUAL_TEST_BOOKING_ID, tx, new Date(now));
+    const [funding, attention, counts] = await Promise.all([
+      inspectManualPayoutWalletFunding(), unresolvedPayoutAttention(tx, [MANUAL_TEST_BOOKING_ID]),
+      tx.execute(sql`
+        SELECT (SELECT COUNT(*)::int FROM host_payout_ledger WHERE kind = 'payout'
+          AND state IN ('held', 'processing') AND booking_id <> ${MANUAL_TEST_BOOKING_ID}) AS "otherClaims",
+          (SELECT COALESCE(SUM(-net_cents - recovered_cents), 0)::int FROM host_payout_ledger
+            WHERE host_id = ${candidate?.hostId ?? ""} AND kind = 'host_cancel_fee'
+              AND recovered_cents < -net_cents) AS outstanding
+      `),
+    ]);
+    const [{ otherClaims, outstanding }] = counts as unknown as Array<{ otherClaims: number; outstanding: number }>;
+    if (!controlledApiPreflightReady({ candidate, proofPaymentId: proof?.paymentId ?? null,
+      wallet: funding.funding, frozen: { sourceWalletId: row.walletId, amountCents: row.amountCents,
+        transferId: row.transferId, numberCiphertext: row.numberCiphertext,
+        nameCiphertext: row.nameCiphertext, bic: row.bic }, dbNow: new Date(now),
+      otherClaims, outstanding, hasAttention: attention.has(MANUAL_TEST_BOOKING_ID) },
+      funding.funding?.availableCents ?? -1, row.state) ||
+      row.bic !== recipient.bic || row.numberCiphertext !== initial.numberCiphertext ||
+      row.nameCiphertext !== initial.nameCiphertext || row.walletId !== process.env.PAYMONGO_WALLET_ID ||
+      row.claimHostId !== candidate?.hostId || row.claimPaymentId !== candidate?.paymentId)
+      return "api_preflight_on_hold";
+    await tx.execute(sql`
+      UPDATE manual_host_payout_attempt SET state = 'api_reserved', max_debit_cents = ${API_EXPECTED_MAX_DEBIT_CENTS},
+        api_reserved_at = now(), api_authorized_staff_id = ${staffId}, updated_at = now()
+      WHERE booking_id = ${MANUAL_TEST_BOOKING_ID} AND state = 'prepared' AND transfer_id IS NULL
+    `);
+    await tx.execute(sql`
+      INSERT INTO audit (id, actor_id, action, outcome, meta)
+      VALUES (${randomUUID()}, ${staffId}, 'host_payout_api_attempt', 'reserved',
+        ${JSON.stringify({ bookingRef: bookingExceptionRef(MANUAL_TEST_BOOKING_ID),
+          principalCents: TEST_MAX_DEBIT_CENTS, expectedMaxDebitCents: API_EXPECTED_MAX_DEBIT_CENTS,
+          previousRoute: "dashboard_prepared" })}::jsonb)
+    `);
+    return "reserved";
+  }).catch(() => "api_preflight_on_hold");
+  if (reserved !== "reserved") return reserved;
+
+  try {
+    const created = await createExternalHostPayout({ netCents: 1710, bookingId: MANUAL_TEST_BOOKING_ID,
+      description: `FitOut test host payout ${MANUAL_TEST_BOOKING_ID}`, destination: recipient });
+    if (created.transferId && /^(?:tr|wallet_tr)_[A-Za-z0-9]{8,64}$/.test(created.transferId)) {
+      await db.execute(sql`
+        UPDATE manual_host_payout_attempt SET transfer_id = ${created.transferId}, updated_at = now()
+        WHERE booking_id = ${MANUAL_TEST_BOOKING_ID} AND state = 'api_reserved' AND transfer_id IS NULL
+      `);
+    }
+  } catch {
+    await recordMoneyException(db, MANUAL_TEST_BOOKING_ID, "transfer_outcome_uncertain");
+  }
+  return recoverControlledApiTestPayout();
+}
+
+/** Read-only provider recovery after reservation; never sends a second transfer. */
+export async function recoverControlledApiTestPayout(): Promise<string> {
+  if (!apiTestEnabled()) return "api_test_not_enabled";
+  const [row] = (await db.execute(sql`
+    SELECT a.state, a.transfer_id AS "transferId", a.api_reserved_at AS "reservedAt",
+      a.claim_id AS "claimId", a.wallet_id AS "walletId", a.amount_cents AS "amountCents",
+      a.institution_bic AS bic, a.account_name_ciphertext AS "nameCiphertext",
+      a.account_number_ciphertext AS "numberCiphertext", l.state AS "ledgerState"
+    FROM manual_host_payout_attempt a JOIN host_payout_ledger l ON l.id = a.claim_id
+    WHERE a.booking_id = ${MANUAL_TEST_BOOKING_ID}
+  `)) as unknown as Array<{ state: string; transferId: string | null; reservedAt: Date | null;
+    claimId: string; walletId: string; amountCents: number; bic: string;
+    nameCiphertext: string; numberCiphertext: string; ledgerState: string }>;
+  if (!row || !["api_reserved", "api_submitted"].includes(row.state) || !row.reservedAt)
+    return "api_claim_not_reserved";
+  let transferId = row.transferId;
+  if (!transferId) {
+    try {
+      const found = await findHostPayoutTransfers(MANUAL_TEST_BOOKING_ID);
+      if (found.length !== 1 || found[0].amount !== row.amountCents ||
+          found[0].currency?.toUpperCase() !== "PHP") {
+        await recordMoneyException(db, MANUAL_TEST_BOOKING_ID, "transfer_outcome_uncertain");
+        return "provider_result_unresolved";
+      }
+      transferId = found[0].id;
+    } catch { return "transfer_read_unavailable"; }
+  }
+  let transfer: ManualTransferDetails;
+  try { transfer = await getManualTransferDetails(transferId); }
+  catch { return "transfer_read_unavailable"; }
+  let recipient: { number: string; name: string; bic: string } | null = null;
+  try { recipient = { number: decryptPayoutRecipientValue(row.numberCiphertext),
+    name: decryptPayoutRecipientValue(row.nameCiphertext), bic: row.bic }; }
+  catch { recipient = await readFrozenManualRecipientFromWeb(row); }
+  if (!recipient || !matchesApiTestTransfer(transfer, { amountCents: row.amountCents,
+    merchantId: process.env.PAYMONGO_ORGANIZATION_ID ?? "", reservedAt: new Date(row.reservedAt),
+    source: { number: process.env.PLATFORM_WALLET_NUMBER ?? "",
+      name: process.env.PLATFORM_WALLET_NAME ?? "", bic: "PAEYPHM2XXX" }, destination: recipient })) {
+    await recordMoneyException(db, MANUAL_TEST_BOOKING_ID, "transfer_outcome_uncertain");
+    return "transfer_identity_mismatch";
+  }
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(2602, 1)`);
+    const [current] = (await tx.execute(sql`
+      SELECT a.state, a.transfer_id AS "transferId", l.state AS "ledgerState"
+      FROM manual_host_payout_attempt a JOIN host_payout_ledger l ON l.id = a.claim_id
+      WHERE a.booking_id = ${MANUAL_TEST_BOOKING_ID} FOR UPDATE OF a, l
+    `)) as unknown as Array<{ state: string; transferId: string | null; ledgerState: string }>;
+    if (!current || !["api_reserved", "api_submitted"].includes(current.state) ||
+        (current.transferId && current.transferId !== transferId)) return "different_transfer_under_investigation";
+    const outcome = controlledApiTransferOutcome(transfer.status, transfer.feeCents);
+    if (outcome.overBudget)
+      await recordMoneyException(tx, MANUAL_TEST_BOOKING_ID, "api_fee_over_budget");
+    const nextState = outcome.ledgerState;
+    if (!nextState) return "provider_status_unresolved";
+    await tx.execute(sql`
+      UPDATE manual_host_payout_attempt SET state = ${nextState === "failed" ? "api_failed" : "api_submitted"},
+        transfer_id = ${transferId}, actual_fee_cents = ${transfer.feeCents}, updated_at = now()
+      WHERE booking_id = ${MANUAL_TEST_BOOKING_ID} AND state IN ('api_reserved', 'api_submitted')
+        AND (transfer_id IS NULL OR transfer_id = ${transferId})
+    `);
+    await tx.execute(sql`
+      UPDATE host_payout_ledger SET state = ${nextState}::payout_ledger_state,
+        transfer_id = ${transferId}, paid_at = ${nextState === "paid" ? new Date() : null}, updated_at = now()
+      WHERE id = ${row.claimId} AND state IN ('held', 'processing')
+        AND (transfer_id IS NULL OR transfer_id = ${transferId})
+    `);
+    if (nextState === "failed") await recordMoneyException(tx, MANUAL_TEST_BOOKING_ID, "transfer_failed");
+    return nextState;
   });
 }
