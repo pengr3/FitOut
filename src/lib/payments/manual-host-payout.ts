@@ -501,7 +501,10 @@ export async function dispatchControlledApiTestPayout(staffId: string): Promise<
     `);
     return "reserved";
   }).catch(() => "api_preflight_on_hold");
-  if (reserved !== "reserved") return reserved;
+  // A competing staff request may reserve the prepared row first. Read its attempt back;
+  // the losing request must never reach the provider POST.
+  if (reserved !== "reserved")
+    return reserved === "claim_not_prepared" ? recoverControlledApiTestPayout() : reserved;
 
   try {
     const created = await createExternalHostPayout({ netCents: 1710, bookingId: MANUAL_TEST_BOOKING_ID,
@@ -581,7 +584,9 @@ export async function recoverControlledApiTestPayout(): Promise<string> {
     `);
     await tx.execute(sql`
       UPDATE host_payout_ledger SET state = ${nextState}::payout_ledger_state,
-        transfer_id = ${transferId}, paid_at = ${nextState === "paid" ? new Date() : null}, updated_at = now()
+        transfer_id = ${transferId},
+        paid_at = CASE WHEN ${nextState === "paid"} THEN now() ELSE NULL END,
+        updated_at = now()
       WHERE id = ${row.claimId} AND state IN ('held', 'processing')
         AND (transfer_id IS NULL OR transfer_id = ${transferId})
     `);
