@@ -18,15 +18,17 @@ function gatewayRequest({
   source = "/ops",
   method = "GET",
   body,
+  search = "",
 }: {
   host?: string;
   source?: string;
   method?: string;
   body?: string;
+  search?: string;
 } = {}): Request {
   // Next preserves the original Host header across a Proxy rewrite while the Route Handler URL can
   // carry the listening/public authority. The gateway must rebuild the inward URL from Host.
-  return new Request("http://localhost:3100/ops-gateway", {
+  return new Request(`http://localhost:3100/ops-gateway${search}`, {
     method,
     body,
     headers: {
@@ -126,5 +128,17 @@ describe("authenticated ops response gateway", () => {
 
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("action-result");
+  });
+
+  it("preserves a staff action result query when forwarding the guarded page", async () => {
+    vi.mocked(readStaff).mockResolvedValue({ id: "staff-1" });
+    const upstreamFetch = vi.fn<(target: URL | RequestInfo, init?: RequestInit) => Promise<Response>>(
+      async () => new Response("<html>result</html>", { status: 200 }),
+    );
+    vi.stubGlobal("fetch", upstreamFetch);
+    const { GET } = await import("@/app/(ops-gateway)/ops-gateway/route");
+    await GET(gatewayRequest({ search: "?manualResult=transfer_identity_mismatch_source_name" }));
+    expect(String(upstreamFetch.mock.calls[0][0]))
+      .toBe("http://ops.localhost:3100/ops?manualResult=transfer_identity_mismatch_source_name");
   });
 });

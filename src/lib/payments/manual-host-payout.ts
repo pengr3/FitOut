@@ -381,23 +381,34 @@ export async function holdManualTestUncertain(reportedTransferId?: string): Prom
 }
 
 /** Identity is immutable across the Dashboard and API routes; only the API fee policy differs. */
-export function matchesApiTestTransfer(transfer: ManualTransferDetails, expected: {
+export function apiTestTransferMismatches(transfer: ManualTransferDetails, expected: {
   amountCents: number; merchantId: string; reservedAt: Date;
   source: { number: string; name: string; bic: string };
   destination: { number: string; name: string; bic: string };
-}): boolean {
-  return Boolean(expected.merchantId && expected.source.number && expected.source.name &&
-    expected.destination.number && expected.destination.name && expected.destination.bic) &&
-    transfer.liveMode && transfer.merchantId === expected.merchantId &&
-    transfer.provider === "instapay" && transfer.currency.toUpperCase() === "PHP" &&
-    transfer.referenceNumber === `host-payout-${MANUAL_TEST_BOOKING_ID}` &&
-    transfer.amountCents === expected.amountCents && Number.isSafeInteger(transfer.feeCents) &&
-    transfer.feeCents >= 0 && transfer.createdAt.getTime() >= expected.reservedAt.getTime() - 1_000 &&
-    transfer.source.number === expected.source.number && transfer.source.bic === expected.source.bic &&
-    sameName(transfer.source.name, expected.source.name) &&
-    transfer.destination.number === expected.destination.number &&
-    transfer.destination.bic === expected.destination.bic &&
-    sameName(transfer.destination.name, expected.destination.name);
+}): string[] {
+  const mismatches: string[] = [];
+  if (!expected.merchantId || !expected.source.number || !expected.source.name ||
+      !expected.destination.number || !expected.destination.name || !expected.destination.bic)
+    mismatches.push("configuration");
+  if (!transfer.liveMode) mismatches.push("live_mode");
+  if (transfer.merchantId !== expected.merchantId) mismatches.push("merchant");
+  if (transfer.provider !== "instapay") mismatches.push("rail");
+  if (transfer.currency.toUpperCase() !== "PHP") mismatches.push("currency");
+  if (transfer.referenceNumber !== `host-payout-${MANUAL_TEST_BOOKING_ID}`) mismatches.push("reference");
+  if (transfer.amountCents !== expected.amountCents) mismatches.push("amount");
+  if (!Number.isSafeInteger(transfer.feeCents) || transfer.feeCents < 0) mismatches.push("fee");
+  if (transfer.createdAt.getTime() < expected.reservedAt.getTime() - 1_000) mismatches.push("created_at");
+  if (transfer.source.number !== expected.source.number) mismatches.push("source_number");
+  if (transfer.source.bic !== expected.source.bic) mismatches.push("source_bic");
+  if (!sameName(transfer.source.name, expected.source.name)) mismatches.push("source_name");
+  if (transfer.destination.number !== expected.destination.number) mismatches.push("destination_number");
+  if (transfer.destination.bic !== expected.destination.bic) mismatches.push("destination_bic");
+  if (!sameName(transfer.destination.name, expected.destination.name)) mismatches.push("destination_name");
+  return mismatches;
+}
+
+export function matchesApiTestTransfer(transfer: ManualTransferDetails, expected: Parameters<typeof apiTestTransferMismatches>[1]): boolean {
+  return apiTestTransferMismatches(transfer, expected).length === 0;
 }
 
 export function controlledApiTransferOutcome(status: string, feeCents: number): {
@@ -555,12 +566,18 @@ export async function recoverControlledApiTestPayout(): Promise<string> {
   try { recipient = { number: decryptPayoutRecipientValue(row.numberCiphertext),
     name: decryptPayoutRecipientValue(row.nameCiphertext), bic: row.bic }; }
   catch { recipient = await readFrozenManualRecipientFromWeb(row); }
-  if (!recipient || !matchesApiTestTransfer(transfer, { amountCents: row.amountCents,
+  if (!recipient) {
+    await recordMoneyException(db, MANUAL_TEST_BOOKING_ID, "transfer_outcome_uncertain");
+    return "transfer_identity_mismatch_recipient_unavailable";
+  }
+  const mismatches = apiTestTransferMismatches(transfer, { amountCents: row.amountCents,
     merchantId: process.env.PAYMONGO_ORGANIZATION_ID ?? "", reservedAt: new Date(row.reservedAt),
     source: { number: process.env.PLATFORM_WALLET_NUMBER ?? "",
-      name: process.env.PLATFORM_WALLET_NAME ?? "", bic: "PAEYPHM2XXX" }, destination: recipient })) {
+      name: process.env.PLATFORM_WALLET_NAME ?? "", bic: "PAEYPHM2XXX" }, destination: recipient });
+  if (mismatches.length) {
     await recordMoneyException(db, MANUAL_TEST_BOOKING_ID, "transfer_outcome_uncertain");
-    return "transfer_identity_mismatch";
+    // Staff see field names only. Never put provider values, full account numbers or secrets in the URL.
+    return `transfer_identity_mismatch_${mismatches.join("_")}`;
   }
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(2602, 1)`);
