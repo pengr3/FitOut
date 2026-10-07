@@ -166,6 +166,33 @@ beforeEach(async () => {
 });
 
 describe("controlled API payout orchestration", () => {
+  it("keeps the frozen recipient readable after an API attempt is reserved", async () => {
+    const previousEnv = process.env.VERCEL_ENV;
+    const previousToken = process.env.PAYOUT_RECIPIENT_READBACK_TOKEN;
+    process.env.VERCEL_ENV = "production";
+    process.env.PAYOUT_RECIPIENT_READBACK_TOKEN = "test-readback-token-with-at-least-32-chars";
+    try {
+      await testDb.db.execute(sql`
+        UPDATE manual_host_payout_attempt SET state = 'api_reserved'
+        WHERE booking_id = ${BOOKING_ID}
+      `);
+      const { POST } = await import("@/app/api/internal/manual-payout-recipient/route");
+      const response = await POST(new Request("https://fitout.live/api/internal/manual-payout-recipient", {
+        method: "POST",
+        headers: { authorization: `Bearer ${process.env.PAYOUT_RECIPIENT_READBACK_TOKEN}` },
+      }));
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ bic: DESTINATION.bic, name: DESTINATION.name,
+        number: DESTINATION.number });
+      expect(postCount).toBe(0);
+    } finally {
+      if (previousEnv === undefined) delete process.env.VERCEL_ENV;
+      else process.env.VERCEL_ENV = previousEnv;
+      if (previousToken === undefined) delete process.env.PAYOUT_RECIPIENT_READBACK_TOKEN;
+      else process.env.PAYOUT_RECIPIENT_READBACK_TOKEN = previousToken;
+    }
+  });
+
   it("reserves one durable attempt, records pending, and never POSTs twice", async () => {
     expect(await dispatch(STAFF_ID)).toBe("processing");
     expect(await claim()).toMatchObject({ attemptState: "api_submitted", ledgerState: "processing",
