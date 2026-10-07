@@ -20,7 +20,8 @@ export async function POST(request: Request) {
     FROM manual_host_payout_attempt a
     JOIN host_payout_ledger l ON l.id = a.claim_id
     WHERE a.booking_id = ${MANUAL_TEST_BOOKING_ID} AND l.booking_id = ${MANUAL_TEST_BOOKING_ID}
-      AND l.kind = 'payout' AND a.state IN ('prepared', 'submitted')
+      AND l.kind = 'payout'
+      AND a.state IN ('prepared', 'submitted', 'api_reserved', 'api_submitted')
       AND l.state IN ('held', 'processing', 'paid')
     LIMIT 1
   `)) as unknown as Array<{
