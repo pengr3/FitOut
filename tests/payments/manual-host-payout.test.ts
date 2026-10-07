@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { controlledApiClaimAction, controlledApiPreflightReady, controlledApiTransferOutcome,
+import { apiTestTransferMismatches, controlledApiClaimAction, controlledApiPreflightReady, controlledApiTransferOutcome,
   manualPayoutReleaseReady, matchesApiTestTransfer,
   matchesManualTransfer } from "@/lib/payments/manual-host-payout";
 import type { ManualTransferDetails } from "@/lib/paymongo";
@@ -44,6 +44,12 @@ describe("controlled API payout provider readback", () => {
     expect(matchesApiTestTransfer({ ...transfer, source: { ...transfer.source, number: "other" } }, apiExpected)).toBe(false);
     expect(matchesApiTestTransfer({ ...transfer, destination: { ...transfer.destination, number: "other" } }, apiExpected)).toBe(false);
     expect(matchesApiTestTransfer({ ...transfer, createdAt: new Date("2026-10-05T05:00:00Z") }, apiExpected)).toBe(false);
+  });
+  it("identifies mismatched fields without returning provider or account values", () => {
+    expect(apiTestTransferMismatches({ ...transfer, merchantId: "other",
+      source: { ...transfer.source, number: "different" },
+      destination: { ...transfer.destination, name: "Different Host" } }, apiExpected))
+      .toEqual(["merchant", "source_number", "destination_name"]);
   });
   it("keeps a successful payout paid even when the actual fee exceeds the expected budget", () => {
     expect(controlledApiTransferOutcome("pending", 0)).toEqual({ ledgerState: "processing", overBudget: false });

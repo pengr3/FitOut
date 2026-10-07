@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ManualPayoutSubmit } from "@/components/ops/manual-payout-submit";
 import { requireOpsMutationOrigin, requireStaff } from "@/lib/ops/staff";
 import { rateLimit } from "@/lib/rate-limit";
 import {
@@ -110,9 +111,8 @@ export async function ManualPayoutPanel({ result = "" }: { result?: string }) {
             the actual fee after creation. An over-budget fee becomes an incident, not a second send.</p>
           {snapshot.apiWalletReady ? (
             <form action={apiDispatchAction}>
-              <button type="submit" className="rounded bg-primary px-4 py-2 text-primary-foreground">
-                Dispatch one payout through FitOut API
-              </button>
+              <ManualPayoutSubmit label="Dispatch one payout through FitOut API"
+                pendingLabel="Checking and dispatching…" className="rounded bg-primary px-4 py-2 text-primary-foreground" />
             </form>
           ) : <p role="alert">API dispatch is on hold. Fresh Wallet funds of at least ₱27.10 and all
             payout checks are required.</p>}
@@ -149,7 +149,8 @@ export async function ManualPayoutPanel({ result = "" }: { result?: string }) {
         <h2 className="text-lg font-semibold">API attempt recorded</h2>
         <p>FitOut will not send again. Read the existing PayMongo transfer by its saved ID or reference.</p>
         <form action={apiRecoverAction}>
-          <button type="submit" className="rounded border px-4 py-2">Read back API transfer</button>
+          <ManualPayoutSubmit label="Read back API transfer" pendingLabel="Checking existing transfer…"
+            className="rounded border px-4 py-2" />
         </form>
       </section>}
       {snapshot.transferId && <p>Provider transfer ID: {snapshot.transferId}</p>}

@@ -273,7 +273,7 @@ describe("controlled API payout orchestration", () => {
     createdTransfer = { ...createdTransfer!, status: "succeeded", destination: {
       ...DESTINATION, number: "09999999702",
     } };
-    expect(await recover()).toBe("transfer_identity_mismatch");
+    expect(await recover()).toBe("transfer_identity_mismatch_destination_number");
     expect((await claim()).ledgerState).toBe("processing");
     expect(postCount).toBe(1);
   });
