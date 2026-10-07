@@ -235,6 +235,13 @@ function sameName(left: string, right: string): boolean {
     right.trim().replace(/\s+/g, " ").toLocaleLowerCase("en-PH");
 }
 
+function sameProviderSourceName(left: string, right: string): boolean {
+  // The observed PayMongo readback omitted "." and "&" from the registered
+  // merchant Wallet name. Preserve every word; only these separators may differ.
+  const withoutProviderPunctuation = (name: string) => name.replace(/[.&]/g, " ");
+  return sameName(withoutProviderPunctuation(left), withoutProviderPunctuation(right));
+}
+
 export function matchesManualTransfer(transfer: ManualTransferDetails, expected: {
   amountCents: number; maxDebitCents: number; merchantId: string; createdAt: Date;
   source: { number: string; name: string; bic: string };
@@ -400,7 +407,7 @@ export function apiTestTransferMismatches(transfer: ManualTransferDetails, expec
   if (transfer.createdAt.getTime() < expected.reservedAt.getTime() - 1_000) mismatches.push("created_at");
   if (transfer.source.number !== expected.source.number) mismatches.push("source_number");
   if (transfer.source.bic !== expected.source.bic) mismatches.push("source_bic");
-  if (!sameName(transfer.source.name, expected.source.name)) mismatches.push("source_name");
+  if (!sameProviderSourceName(transfer.source.name, expected.source.name)) mismatches.push("source_name");
   if (transfer.destination.number !== expected.destination.number) mismatches.push("destination_number");
   if (transfer.destination.bic !== expected.destination.bic) mismatches.push("destination_bic");
   if (!sameName(transfer.destination.name, expected.destination.name)) mismatches.push("destination_name");

@@ -38,6 +38,20 @@ describe("controlled API payout provider readback", () => {
     for (const feeCents of [0, 1000, 1200])
       expect(matchesApiTestTransfer({ ...transfer, feeCents }, apiExpected)).toBe(true);
   });
+  it("accepts only PayMongo's observed source-name punctuation omission", () => {
+    const walletName = "Sample Co. Management & Construction Corporation";
+    const readbackName = "Sample Co Management Construction Corporation";
+    const configured = { ...apiExpected, source: { ...apiExpected.source, name: walletName } };
+    const returned = { ...transfer, source: { ...transfer.source, name: readbackName } };
+    expect(apiTestTransferMismatches(returned, configured)).toEqual([]);
+    expect(matchesApiTestTransfer(returned, configured)).toBe(true);
+    expect(apiTestTransferMismatches({ ...returned,
+      source: { ...returned.source, name: "Sample Co Management Different Corporation" } }, configured))
+      .toEqual(["source_name"]);
+    expect(apiTestTransferMismatches({ ...returned,
+      source: { ...returned.source, number: "different" } }, configured))
+      .toEqual(["source_number"]);
+  });
   it("rejects a changed recipient, source, amount, reference or pre-reservation transfer", () => {
     expect(matchesApiTestTransfer({ ...transfer, amountCents: 1711 }, apiExpected)).toBe(false);
     expect(matchesApiTestTransfer({ ...transfer, referenceNumber: "other" }, apiExpected)).toBe(false);
