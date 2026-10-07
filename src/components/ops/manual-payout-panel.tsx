@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { ManualPayoutSubmit } from "@/components/ops/manual-payout-submit";
 import { requireOpsMutationOrigin, requireStaff } from "@/lib/ops/staff";
 import { rateLimit } from "@/lib/rate-limit";
+import { getManualTransferDetails } from "@/lib/paymongo";
 import {
   attachManualTestTransfer, holdManualTestUncertain, MANUAL_TEST_BOOKING_ID,
   prepareManualTestPayout, readManualPayoutSnapshot,
@@ -67,12 +68,31 @@ export async function ManualPayoutPanel({ result = "" }: { result?: string }) {
   await requireStaff();
   const snapshot = await readManualPayoutSnapshot();
   result = result.replace(/[^a-z_]/g, "");
+  let sourceNameDiagnostic: { configured: string; returned: string } | null = null;
+  if (result === "transfer_identity_mismatch_source_name" &&
+      snapshot.state === "api_reserved" && snapshot.transferId) {
+    try {
+      const transfer = await getManualTransferDetails(snapshot.transferId);
+      sourceNameDiagnostic = {
+        configured: process.env.PLATFORM_WALLET_NAME ?? "",
+        returned: transfer.source.name,
+      };
+    } catch {
+      // The claim stays held. This read-only diagnostic must never change payout state.
+    }
+  }
   return (
     <section id="manual-payout-test" className="mt-12 max-w-2xl space-y-6" aria-label="First host payout test">
       <h1 className="text-2xl font-semibold">First host payout test</h1>
       <p>Booking {MANUAL_TEST_BOOKING_ID}. This is one staff-controlled FitOut API test.
         The Friday sweep remains paused. Do not send the PayMongo Dashboard draft.</p>
       {result && <p role="status" className="rounded border p-3">Result: {result.replaceAll("_", " ")}</p>}
+      {sourceNameDiagnostic && <div className="space-y-1 rounded border p-3" role="note">
+        <p><strong>Source name investigation:</strong> the transfer remains held.</p>
+        <p>Configured Wallet name: {sourceNameDiagnostic.configured || "(empty)"}</p>
+        <p>PayMongo transfer source name: {sourceNameDiagnostic.returned || "(empty)"}</p>
+        <p>Compare these with the registered name on the merchant Wallet. No new send is needed.</p>
+      </div>}
       {snapshot.destinationUnavailable && <p role="alert" className="rounded border p-4">
         The frozen payout destination cannot be read in this deployment. Check the recipient encryption
         configuration and stored destination before proceeding. Do not send in PayMongo.
