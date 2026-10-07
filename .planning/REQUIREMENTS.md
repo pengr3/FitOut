@@ -373,13 +373,13 @@ The PM approved one narrowly scoped settlement-record migration for this phase.
 | STATE-05 | Phase 23 | Pending — **blocked on a business fact**, not on code (a monitored support address; D-64 forbids a placeholder) |
 | TRUST-01 | Phase 23 | Pending — same one-line unblock as `STATE-05` |
 | **— Phase 26 payment-release addendum (2026-09-29) —** | | |
-| HPAY-01 | Phase 26 | Pending |
+| HPAY-01 | Phase 26 | Sample booking proved in live FitOut on 2026-10-07; recurring settlement and reversal monitoring still pending. |
 | HPAY-02 | Phase 26 | Complete |
 | HPAY-03 | Phase 26 | Complete |
 | HPAY-04 | Phase 26 | Complete |
 | HPAY-05 | Phase 26 implementation; later public release | Pending — earnings and booking parity complete; product copy review and browser backstop remain. Full agreement and terms publication were deferred by user direction and do not block account proof. |
 | HPAY-06 | Phase 26 | Implementation complete in 26-06; monitored owner, controlled receipt, and acknowledgement evidence remain HOLD |
-| HPAY-07 | Phase 26 | Pending — account proof and bounded money-path authority are HOLD; broad-release authorization remains separate. Terms publication is deferred outside this account-proof gate. |
+| HPAY-07 | Phase 26 | One bounded live API payout reconciled on 2026-10-07; automated fee, Friday scheduling, alert ownership and broad-release authorization remain HOLD. Terms publication is deferred separately. |
 
 **47 original v1.2 requirements across seven phases — 22 complete, 25 outstanding.** Phase 26 adds
 seven pending `HPAY` requirements and is not included in that historic milestone-cycle count.

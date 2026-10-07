@@ -1,6 +1,6 @@
 # Phase 26 — Account capability and controlled-proof gate
 
-**Packet status: HOLD.** Prepared 2026-09-29 UTC for Plan 26-09 Task 1, updated after PayMongo and live FitOut observations on 2026-09-30, and updated after the user-directed migration rollout on 2026-10-01. This packet is not transfer authorization or a broad-release decision. One test payment is confirmed deposited into the platform Wallet. The live settlement schema is installed, but the application deployment, host destination gate, and account-specific transfer proof are not ready. Do not invoke a provider, scheduler, checkout, transfer, refund, or alert merely to fill a blank. The user deferred terms publication for later; it is outside this account-proof gate.
+**Current status: one-booking live API canary reconciled; recurring release HOLD.** The historical HOLD checkpoints below record what was known on their stated dates. The [2026-10-07 canary and fee-policy addendum](26-FIRST-LIVE-API-PAYOUT-AND-FEE-POLICY.md) records the later completed transfer and forward fee policy. This packet is not authority to resume the Friday sweep or send another transfer. Terms publication remains deferred separately.
 
 ## Evidence and decision rules
 

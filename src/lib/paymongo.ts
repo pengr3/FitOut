@@ -735,9 +735,13 @@ export type WalletAccount = {
 export type PayoutWalletFunding = {
   walletId: string;
   availableCents: number;
+  /** Conservative fee reserve, not the provider's final charged fee. */
   feeCents: number;
   observedAt: Date;
 };
+
+/** The weekly free transfer is a possible discount, never a funding assumption. */
+export const STANDARD_PAYOUT_TRANSFER_FEE_CENTS = 1_000;
 
 /** A read-only Wallet preflight. Missing account mapping or fee evidence keeps host payout on HOLD. */
 export async function readPayoutWalletFunding(now: Date = new Date()): Promise<PayoutWalletFunding | null> {
@@ -769,7 +773,8 @@ export async function readPayoutWalletFunding(now: Date = new Date()): Promise<P
       wallet.account.currency !== "PHP" ||
       !Number.isSafeInteger(available) || !Number.isSafeInteger(pending) ||
       (available as number) < 0 || (pending as number) < 0) return null;
-  return { walletId, availableCents: available as number, feeCents, observedAt: new Date() };
+  return { walletId, availableCents: available as number,
+    feeCents: Math.max(feeCents, STANDARD_PAYOUT_TRANSFER_FEE_CENTS), observedAt: new Date() };
 }
 
 /**

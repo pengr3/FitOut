@@ -20,16 +20,29 @@ describe("scheduled payout release scope", () => {
     const scope = {
       PAYOUT_DISPATCH_MODE: "controlled",
       PAYOUT_CONTROLLED_BOOKING_ID: "booking_first",
-      PAYOUT_CONTROLLED_MAX_DEBIT_CENTS: "2000",
+      PAYOUT_CONTROLLED_MAX_DEBIT_CENTS: "2900",
       PAYMONGO_INSTAPAY_FEE_CENTS: "100",
     };
     expect(selectDispatchCandidates(due, scope)).toEqual([first]);
     expect(selectDispatchCandidates(due, {
-      ...scope, PAYOUT_CONTROLLED_MAX_DEBIT_CENTS: "1999",
+      ...scope, PAYOUT_CONTROLLED_MAX_DEBIT_CENTS: "2899",
     })).toEqual([]);
     expect(selectDispatchCandidates(due, {
       ...scope, PAYOUT_CONTROLLED_BOOKING_ID: "booking_missing",
     })).toEqual([]);
+  });
+
+  it("does not spend a weekly free-transfer assumption in a controlled debit budget", () => {
+    const scope = {
+      PAYOUT_DISPATCH_MODE: "controlled",
+      PAYOUT_CONTROLLED_BOOKING_ID: "booking_first",
+      PAYOUT_CONTROLLED_MAX_DEBIT_CENTS: "1900",
+      PAYMONGO_INSTAPAY_FEE_CENTS: "0",
+    };
+    expect(selectDispatchCandidates(due, scope)).toEqual([]);
+    expect(selectDispatchCandidates(due, {
+      ...scope, PAYOUT_CONTROLLED_MAX_DEBIT_CENTS: "2900",
+    })).toEqual([first]);
   });
 
   it("rejects incomplete or malformed controlled scope", () => {

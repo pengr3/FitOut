@@ -13,7 +13,8 @@ import type { DbConn } from "@/lib/availability/read-model";
 import { computeCommission } from "@/lib/payments/commission";
 import { PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
-import { createExternalHostPayout, findHostPayoutTransfers, readPayoutWalletFunding } from "@/lib/paymongo";
+import { createExternalHostPayout, findHostPayoutTransfers, readPayoutWalletFunding,
+  STANDARD_PAYOUT_TRANSFER_FEE_CENTS } from "@/lib/paymongo";
 import { currentSettlementProof } from "@/lib/payments/settlement";
 import { recordMoneyException } from "@/lib/payments/payout-exceptions";
 import { recordPayoutException } from "@/inngest/functions/payout-reconcile";
@@ -76,7 +77,7 @@ export function payoutDispatchMode(env: Record<string, string | undefined> = pro
   return "hold";
 }
 
-/** A controlled proof can dispatch only one named booking within its fee-inclusive debit cap. */
+/** A controlled proof can dispatch only one named booking within its fee-inclusive debit budget. */
 export function selectDispatchCandidates(
   due: DuePayout[], env: Record<string, string | undefined> = process.env,
 ): DuePayout[] {
@@ -97,7 +98,8 @@ export function selectDispatchCandidates(
   const candidate = due.find((row) => row.bookingId === bookingId);
   if (!candidate || !Number.isSafeInteger(candidate.payoutGrossCents) ||
       (candidate.payoutGrossCents as number) < 0 ||
-      (candidate.payoutGrossCents as number) + feeCents > maxDebitCents) return [];
+      (candidate.payoutGrossCents as number) +
+        Math.max(feeCents, STANDARD_PAYOUT_TRANSFER_FEE_CENTS) > maxDebitCents) return [];
   return [candidate];
 }
 
