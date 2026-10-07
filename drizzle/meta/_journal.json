@@ -253,6 +253,13 @@
       "when": 1791290000000,
       "tag": "0035_controlled_api_payout",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791388800000,
+      "tag": "0036_host_payout_transfer_fee",
+      "breakpoints": true
     }
   ]
 }

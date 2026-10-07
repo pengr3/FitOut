@@ -92,6 +92,7 @@ async function seedLedger(opts: {
   transferId?: string | null;
   createdAtMs?: number;
   paidAtMs?: number | null;
+  feeBudgetCents?: number;
   /** D-71 row kind. A 'host_cancel_fee' row is a SIGNED DEBIT that never transfers — it only nets. */
   kind?: "payout" | "host_cancel_fee";
 }): Promise<string> {
@@ -113,6 +114,7 @@ async function seedLedger(opts: {
     state: opts.state,
     kind: opts.kind ?? "payout",
     transferId: opts.transferId ?? null,
+    feeBudgetCents: opts.feeBudgetCents ?? null,
     paidAt: opts.paidAtMs != null ? new Date(opts.paidAtMs) : null,
     ...(opts.createdAtMs != null ? { createdAt: new Date(opts.createdAtMs) } : {}),
   });
@@ -146,7 +148,8 @@ beforeAll(async () => {
     firstName: "Booker",
   });
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
-  vi.doMock("@/lib/paymongo", () => ({ getTransfer: mockPayMongo.getTransfer,
+  vi.doMock("@/lib/paymongo", () => ({ STANDARD_PAYOUT_TRANSFER_FEE_CENTS: 1000,
+    getTransfer: mockPayMongo.getTransfer,
     findHostPayoutTransfers: mockLookup }));
   vi.resetModules();
   ({ queryProcessingLedger, reconcileOne, mapTransferStatus, alertStuckHeld } = await import(
@@ -184,7 +187,7 @@ describe("uncertain claim read-back (HPAY-04)", () => {
     mockLookup.mockResolvedValueOnce([{ id: "tr_discovered", status: "succeeded",
       referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" }]);
     mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_discovered", status: "succeeded",
-      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" } as never);
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, feeCents: 0, currency: "PHP" } as never);
     const result = await reconcileOne({ bookingId: bkId, transferId: null, createdAt: new Date() }, testDb.db);
     expect(result.state).toBe("paid");
     expect((await readLedger(bkId)).transferId).toBe("tr_discovered");
@@ -209,7 +212,7 @@ describe("uncertain claim read-back (HPAY-04)", () => {
     async (missing) => {
       const bkId = await seedLedger({ state: "processing", transferId: "tr_incomplete" });
       const transfer: Record<string, unknown> = { id: "tr_incomplete", status: "succeeded",
-        referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" };
+        referenceNumber: `host-payout-${bkId}`, amount: 180000, feeCents: 1000, currency: "PHP" };
       delete transfer[missing];
       mockPayMongo.getTransfer.mockResolvedValueOnce(transfer as never);
       const spy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -256,7 +259,7 @@ describe("uncertain claim read-back (HPAY-04)", () => {
     mockLookup.mockResolvedValueOnce([{ id: "tr_failed_discovered", status: "failed",
       referenceNumber: `host-payout-${failedId}`, amount: 180000, currency: "PHP" }]);
     mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_failed_discovered", status: "failed",
-      referenceNumber: `host-payout-${failedId}`, amount: 180000, currency: "PHP" } as never);
+      referenceNumber: `host-payout-${failedId}`, amount: 180000, feeCents: 0, currency: "PHP" } as never);
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     expect((await reconcileOne({ bookingId: failedId, transferId: null,
       createdAt: new Date() }, testDb.db)).state).toBe("failed");
@@ -283,7 +286,7 @@ describe("uncertain claim read-back (HPAY-04)", () => {
       paginationComplete: true, mappingVerified: true, providerStatusAt: at,
       verifiedAt: new Date(at.getTime() + 1000) }, testDb.db);
     mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_returned_settlement", status: "succeeded",
-      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" } as never);
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, feeCents: 1000, currency: "PHP" } as never);
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     expect((await reconcileOne({ bookingId: bkId, transferId: "tr_returned_settlement",
       createdAt: new Date() }, testDb.db)).state).toBe("paid");
@@ -298,7 +301,7 @@ describe("reconcileOne — Processing → Paid (D-59)", () => {
   it("flips a processing row to paid with paid_at set when the transfer succeeded", async () => {
     const bkId = await seedLedger({ state: "processing", transferId: "tr_paid" });
     mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_paid", status: "succeeded",
-      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" } as never);
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, feeCents: 1000, currency: "PHP" } as never);
 
     const res = await reconcileOne(
       { bookingId: bkId, transferId: "tr_paid", createdAt: new Date() },
@@ -312,11 +315,66 @@ describe("reconcileOne — Processing → Paid (D-59)", () => {
   });
 });
 
+describe("reconcileOne — actual transfer fee accounting", () => {
+  it.each([0, 1000, 1200])("stores %i centavos and only alerts above the frozen budget", async (fee) => {
+    const bkId = await seedLedger({ state: "processing", transferId: `tr_fee_${fee}`,
+      feeBudgetCents: 1000 });
+    mockPayMongo.getTransfer.mockResolvedValueOnce({ id: `tr_fee_${fee}`, status: "succeeded",
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, feeCents: fee,
+      currency: "PHP" } as never);
+
+    expect((await reconcileOne({ bookingId: bkId, transferId: `tr_fee_${fee}`,
+      createdAt: new Date() }, testDb.db)).state).toBe("paid");
+    const row = await readLedger(bkId);
+    expect(row.feeBudgetCents).toBe(1000);
+    expect(row.actualFeeCents).toBe(fee);
+    expect(row.state).toBe("paid");
+    const alerts = (await testDb.db.select().from(audit)).filter((item) =>
+      item.action === "host_payout_recovery" &&
+      (item.meta as { bookingRef?: string; cause?: string })?.bookingRef === bookingExceptionRef(bkId) &&
+      (item.meta as { cause?: string })?.cause === "transfer_fee_over_budget");
+    expect(alerts).toHaveLength(fee > 1000 ? 1 : 0);
+  });
+
+  it("keeps a terminal transfer processing when its actual fee is missing", async () => {
+    const bkId = await seedLedger({ state: "processing", transferId: "tr_fee_missing",
+      feeBudgetCents: 1000 });
+    mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_fee_missing", status: "succeeded",
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" } as never);
+    expect((await reconcileOne({ bookingId: bkId, transferId: "tr_fee_missing",
+      createdAt: new Date() }, testDb.db)).state).toBe("processing");
+    const row = await readLedger(bkId);
+    expect(row.paidAt).toBeNull();
+    expect(row.actualFeeCents).toBeNull();
+  });
+
+  it("keeps a pending over-budget transfer processing and records one durable exception", async () => {
+    const bkId = await seedLedger({ state: "processing", transferId: "tr_fee_pending",
+      feeBudgetCents: 1000 });
+    mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_fee_pending", status: "pending",
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, feeCents: 1200,
+      currency: "PHP" } as never);
+    mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_fee_pending", status: "pending",
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, feeCents: 1200,
+      currency: "PHP" } as never);
+    for (let i = 0; i < 2; i++) {
+      expect((await reconcileOne({ bookingId: bkId, transferId: "tr_fee_pending",
+        createdAt: new Date() }, testDb.db)).state).toBe("processing");
+    }
+    expect((await readLedger(bkId)).actualFeeCents).toBe(1200);
+    const alerts = (await testDb.db.select().from(audit)).filter((item) =>
+      item.action === "host_payout_recovery" &&
+      (item.meta as { bookingRef?: string; cause?: string })?.bookingRef === bookingExceptionRef(bkId) &&
+      (item.meta as { cause?: string })?.cause === "transfer_fee_over_budget");
+    expect(alerts).toHaveLength(1);
+  });
+});
+
 describe("reconcileOne — Processing → Failed + operator alert (T-05-28)", () => {
   it("flips a processing row to failed and fires [payout-alert] transfer failed", async () => {
     const bkId = await seedLedger({ state: "processing", transferId: "tr_fail" });
     mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_fail", status: "failed",
-      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" } as never);
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, feeCents: 0, currency: "PHP" } as never);
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const res = await reconcileOne(
@@ -356,7 +414,7 @@ describe("reconcileOne — unknown/in-flight stays processing (never spurious Pa
   it("keeps a pending transfer's row at processing and never sets paid_at", async () => {
     const bkId = await seedLedger({ state: "processing", transferId: "tr_pending" });
     mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_pending", status: "pending",
-      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" } as never);
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, feeCents: 1000, currency: "PHP" } as never);
 
     const res = await reconcileOne(
       { bookingId: bkId, transferId: "tr_pending", createdAt: new Date() },
@@ -407,7 +465,7 @@ describe("reconcileOne — stuck-processing alert (T-05-28)", () => {
       createdAtMs: stuckCreatedMs,
     });
     mockPayMongo.getTransfer.mockResolvedValueOnce({ id: "tr_stuck", status: "pending",
-      referenceNumber: `host-payout-${bkId}`, amount: 180000, currency: "PHP" } as never);
+      referenceNumber: `host-payout-${bkId}`, amount: 180000, feeCents: 1000, currency: "PHP" } as never);
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const res = await reconcileOne(

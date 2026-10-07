@@ -866,21 +866,26 @@ export async function findHostPayoutTransfers(bookingId: string): Promise<Transf
  * response before UAT); the caller's mapTransferStatus treats any unknown/in-flight value as still
  * `processing` so an unrecognized status can never spuriously flip a payout to Paid.
  */
-export async function getTransfer(transferId: string): Promise<Transfer> {
+export async function getTransfer(transferId: string): Promise<Transfer & { feeCents: number }> {
   const json = await paymongoFetch<{ data: { id: string; attributes?: Record<string, unknown>;
-    status?: string; reference_number?: string; amount?: number; currency?: string } }>(
+    status?: string; reference_number?: string; amount?: number; fee?: number | string;
+    currency?: string } }>(
     `/v2/transfers/${transferId}`,
     { method: "GET" }, // GET — no Idempotency-Key
   );
   const attrs = json.data.attributes ?? json.data;
+  const fee = typeof attrs.fee === "number" ? attrs.fee :
+    typeof attrs.fee === "string" && /^\d+$/.test(attrs.fee) ? Number(attrs.fee) : NaN;
   if (typeof json.data.id !== "string" || typeof attrs.status !== "string" ||
       typeof attrs.reference_number !== "string" || !attrs.reference_number ||
       typeof attrs.amount !== "number" || !Number.isSafeInteger(attrs.amount) ||
+      !Number.isSafeInteger(fee) || fee < 0 ||
       typeof attrs.currency !== "string" || !attrs.currency) {
     throw new Error("PayMongo transfer read returned an unverified shape");
   }
   return { id: json.data.id, status: attrs.status,
-    referenceNumber: attrs.reference_number, amount: attrs.amount, currency: attrs.currency };
+    referenceNumber: attrs.reference_number, amount: attrs.amount,
+    feeCents: fee, currency: attrs.currency };
 }
 
 // Read-only merchant-payout surfaces. Raw responses stay in process memory and are validated by

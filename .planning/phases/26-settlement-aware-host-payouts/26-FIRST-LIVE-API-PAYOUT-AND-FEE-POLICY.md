@@ -14,6 +14,10 @@ PayMongo's [Send money](https://docs.paymongo.com/docs/money-movement-send-money
 
 The funding adapter and controlled Friday selection now use the greater of the configured verified estimate and 1,000 centavos. This is a **funding and approval budget, not a PayMongo-enforced fee cap**: the provider discloses actual API fee after transfer creation. Reconcile the actual fee for every transfer. If it exceeds the approved budget, record a money exception and stop further scope; if that identity-matched transfer succeeded, keep the host Paid to prevent a second send. Refresh provider pricing and `PAYMONGO_INSTAPAY_FEE_VERIFIED_AT` evidence when terms change or the existing freshness window expires. Do not set the configured estimate to zero merely because this canary was free.
 
+### Friday fee readback implementation
+
+Migration `0036_host_payout_transfer_fee.sql` adds the frozen `fee_budget_cents` and provider `actual_fee_cents` to each payout claim. The Friday selector reserves the principal plus the greater of the verified fee estimate and PHP 10.00; a reported free transfer never lowers this reserve. Its normal transfer readback requires a nonnegative integer fee. Reconciliation writes the actual fee and the pending, failed, or Paid outcome together. A fee above the claim budget creates a durable `transfer_fee_over_budget` operator exception; verified success still marks the host Paid. A missing or malformed fee leaves the claim Processing for investigation. Historical claims with no frozen budget use the PHP 10.00 floor during reconciliation. These changes are local until migration and code are released together; the Production sweep remains paused. The exception queue needs monitored acknowledgement and broader dispatch-stop verification before recurring release.
+
 ## Remaining Phase 26 gates
 
 - Prove Friday cohort selection, bounded dispatch, duplicate protection, settlement freshness, Wallet funding and transfer reconciliation with controlled runs.

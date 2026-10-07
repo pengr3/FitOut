@@ -331,6 +331,7 @@ export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date(
     }
     const deduction = alreadyDeducted || Math.min(outstandingCents, netCents);
     const transferAmt = netCents - deduction;
+    let feeBudgetCents: number | null = null;
 
     if (transferAmt > 0) {
       let funding: Awaited<ReturnType<typeof readPayoutWalletFunding>>;
@@ -342,16 +343,16 @@ export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date(
         await recordMoneyException(tx as unknown as DbConn, b.bookingId, "wallet_unavailable", now);
         return { status: "skipped-no-wallet" } as PayOneResult;
       }
-      const [{ amount, count }] = (await tx.execute(sql`
-        SELECT COALESCE(SUM(GREATEST(net_cents - recovered_cents, 0)), 0)::bigint AS "amount",
-          COUNT(*)::bigint AS "count"
+      feeBudgetCents = Math.max(funding.feeCents, STANDARD_PAYOUT_TRANSFER_FEE_CENTS);
+      const [{ reserved }] = (await tx.execute(sql`
+        SELECT COALESCE(SUM(GREATEST(net_cents - recovered_cents, 0)::bigint
+          + COALESCE(fee_budget_cents, ${feeBudgetCents})::bigint), 0)::bigint AS "reserved"
         FROM host_payout_ledger
         WHERE kind = 'payout' AND state IN ('held', 'processing')
           AND booking_id <> ${b.bookingId}
-      `)) as unknown as Array<{ amount: string; count: string }>;
-      const reservation = BigInt(amount) + BigInt(count) * BigInt(funding.feeCents);
-      const required = BigInt(transferAmt) + BigInt(funding.feeCents);
-      if (BigInt(funding.availableCents) - reservation < required) {
+      `)) as unknown as Array<{ reserved: string }>;
+      const required = BigInt(transferAmt) + BigInt(feeBudgetCents);
+      if (BigInt(funding.availableCents) - BigInt(reserved) < required) {
         await recordMoneyException(tx as unknown as DbConn, b.bookingId, "wallet_insufficient", now);
         return { status: "skipped-no-wallet" } as PayOneResult;
       }
@@ -360,9 +361,9 @@ export async function payOne(dbConn: DbConn, b: DuePayout, now: Date = new Date(
     const claimId = randomUUID();
     const claimed = (await tx.execute(sql`
       INSERT INTO host_payout_ledger (id, booking_id, host_id, payment_id, gross_cents,
-        commission_rate_bps, commission_cents, net_cents, currency, state)
+        commission_rate_bps, commission_cents, net_cents, currency, state, fee_budget_cents)
       VALUES (${claimId}, ${b.bookingId}, ${live.hostId}, ${live.paymentId}, ${grossCents},
-        ${frozen.rateBps}, ${frozen.commissionCents}, ${netCents}, ${live.currency}, 'held')
+        ${frozen.rateBps}, ${frozen.commissionCents}, ${netCents}, ${live.currency}, 'held', ${feeBudgetCents})
       ON CONFLICT (booking_id, kind) DO UPDATE
         SET state = 'held', updated_at = now()
         WHERE host_payout_ledger.state = 'failed'
