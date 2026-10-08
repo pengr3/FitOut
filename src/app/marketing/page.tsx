@@ -30,7 +30,7 @@ export default function MarketingHome() {
         <div className="grid items-stretch gap-6 md:grid-cols-2">
           <figure className="min-w-0 overflow-hidden rounded-xl border border-border bg-muted">
             <div className="flex aspect-video items-center bg-background p-3 sm:p-5">
-              <Image src="/marketing/screenshots/search.png" alt="FitOut demo search with activity, location and party choices alongside a matching space." width={1120} height={578} sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1152px) 50vw, 552px" loading="eager" className="h-full w-full object-contain" />
+              <Image unoptimized src="/marketing/screenshots/search.png" alt="FitOut demo search with activity, location and party choices alongside a matching space." width={1120} height={578} sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1152px) 50vw, 552px" loading="eager" className="h-full w-full object-contain" />
             </div>
             <figcaption className="space-y-3 border-t border-border p-6 sm:p-8">
               <h2 className="font-heading text-heading">Make room for your next session.</h2>
@@ -39,7 +39,7 @@ export default function MarketingHome() {
           </figure>
           <figure className="min-w-0 overflow-hidden rounded-xl border border-border bg-muted">
             <div className="flex aspect-video items-center bg-background p-3 sm:p-5">
-              <Image src="/marketing/screenshots/verification.png" alt="FitOut demo host roadmap showing account checks, payout setup, listing preparation and booking readiness." width={736} height={530} sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1152px) 50vw, 552px" loading="lazy" className="h-full w-full object-contain" />
+              <Image unoptimized src="/marketing/screenshots/verification.png" alt="FitOut demo host roadmap showing account checks, payout setup, listing preparation and booking readiness." width={736} height={530} sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1152px) 50vw, 552px" loading="lazy" className="h-full w-full object-contain" />
             </div>
             <figcaption className="space-y-3 border-t border-border p-6 sm:p-8">
               <h2 className="font-heading text-heading">Give your space a place in their plans.</h2>

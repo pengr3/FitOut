@@ -54,10 +54,8 @@
 // MUTATION 2 — the `loadFromEnvLocal([...])` call moved back inside `if (live) {`:
 //   → FAIL  "the loader must run on BOTH paths, not only under --send"
 //
-// MUTATION 3 — `src/lib/email.ts:120` changed to read a different env var:
-//   → FAIL  "email.ts must still read BETTER_AUTH_URL, or this whole guard is aimed at nothing"
-//   This is the coupling check. Without it the test would keep passing while guarding a key the
-//   email module no longer consumes — green, and meaningless.
+// Phase 27 routes email URLs through APP_ORIGIN. The coupling check now follows
+// that import and checks every required origin key at the actual harness loader.
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -66,9 +64,11 @@ import { describe, expect, it } from "vitest";
 
 const HARNESS = resolve(process.cwd(), "scripts/send-email-previews.ts");
 const EMAIL_MODULE = resolve(process.cwd(), "src/lib/email.ts");
+const ORIGIN_MODULE = resolve(process.cwd(), "src/lib/app-origins.ts");
 
 const harnessSource = readFileSync(HARNESS, "utf8");
 const emailSource = readFileSync(EMAIL_MODULE, "utf8");
+const originSource = readFileSync(ORIGIN_MODULE, "utf8");
 
 /** The single `loadFromEnvLocal([...])` call site, parsed to the keys it actually allow-lists. */
 function allowListedKeys(): string[] {
@@ -80,6 +80,10 @@ function allowListedKeys(): string[] {
 describe("the email-preview harness hydrates the environment @/lib/email reads", () => {
   it("allow-lists BETTER_AUTH_URL, so the APP_URL-composed CTA is not a dead link (WR-05)", () => {
     expect(allowListedKeys()).toContain("BETTER_AUTH_URL");
+    for (const key of ["NEXT_PUBLIC_APP_URL", "OPS_APP_URL", "MARKETING_APP_URL", "MARKETING_PREVIEW_URL"]) {
+      expect(allowListedKeys()).toContain(key);
+      expect(originSource).toContain(`process.env.${key}`);
+    }
   });
 
   it("still allow-lists the transport keys the harness needs to deliver", () => {
@@ -104,13 +108,12 @@ describe("the email-preview harness hydrates the environment @/lib/email reads",
 });
 
 describe("the coupling this guard depends on", () => {
-  it("email.ts still reads BETTER_AUTH_URL at module scope", () => {
+  it("email.ts resolves its CTA origin through the configured shared APP_ORIGIN", () => {
     // If this ever stops being true, the allow-list assertion above is guarding a key nothing
     // consumes, and would stay green while protecting nothing.
-    expect(
-      /process\.env\.BETTER_AUTH_URL/.test(emailSource),
-      "src/lib/email.ts no longer reads BETTER_AUTH_URL — re-aim this guard at whatever replaced it",
-    ).toBe(true);
+    expect(emailSource).toContain('import { APP_ORIGIN } from "@/lib/app-origins"');
+    expect(emailSource).toContain("const APP_URL = APP_ORIGIN;");
+    expect(originSource).toContain("process.env.BETTER_AUTH_URL");
   });
 
   it("still has exactly one CTA composing its href from APP_URL", () => {

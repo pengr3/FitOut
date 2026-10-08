@@ -19,7 +19,7 @@ export function AudienceSteps({ label, steps }: { label: string; steps: readonly
           </div>
           <figure className="min-w-0 space-y-3">
             <div className="rounded-xl border border-border bg-muted p-4 sm:p-6">
-              <Image src={step.image.src} alt={step.image.alt} width={step.image.width} height={step.image.height} sizes="(max-width: 767px) calc(100vw - 64px), (max-width: 1152px) 45vw, 504px" loading="lazy" className="mx-auto h-auto max-h-96 w-full object-contain" />
+              <Image unoptimized src={step.image.src} alt={step.image.alt} width={step.image.width} height={step.image.height} sizes="(max-width: 767px) calc(100vw - 64px), (max-width: 1152px) 45vw, 504px" loading="lazy" className="mx-auto h-auto max-h-96 w-full object-contain" />
             </div>
             <figcaption className="text-label text-muted-foreground">{step.caption}</figcaption>
           </figure>

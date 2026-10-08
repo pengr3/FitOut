@@ -169,7 +169,9 @@ export default defineConfig({
       : []),
   ],
   webServer: {
-    command: "node node_modules/next/dist/bin/next dev",
+    // Keep the listener distinct from every trusted Host so Next's local redirect
+    // relativization cannot turn a cross-authority app handoff into a marketing loop.
+    command: "node node_modules/next/dist/bin/next dev --hostname 0.0.0.0",
     url: "http://localhost:3000",
 
     // ─────────────────────────────────────────────────────────────────────────────────────────────

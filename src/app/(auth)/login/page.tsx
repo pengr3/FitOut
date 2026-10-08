@@ -37,7 +37,7 @@
 // page renders neither, and must not: a second wordmark on an auth screen recreates byte-for-byte
 // the SHELL-01 duplication the composition exists to end.
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -57,6 +57,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
+const subscribeHydration = () => () => {};
+const clientHydrated = () => true;
+const serverHydrated = () => false;
 
 // Shows the "password updated" confirmation after a successful reset (?reset=1).
 // In its own Suspense-wrapped component because useSearchParams() needs a boundary.
@@ -116,6 +120,9 @@ function SignupLink() {
 
 export default function LoginPage() {
   const router = useRouter();
+  // Server and first hydration render stay disabled. The client snapshot enables
+  // submission only after React has attached the validated submit handler.
+  const hydrated = useSyncExternalStore(subscribeHydration, clientHydrated, serverHydrated);
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<LoginInput>({
@@ -160,7 +167,7 @@ export default function LoginPage() {
         <ResetNotice />
       </Suspense>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
             name="email"
@@ -172,6 +179,7 @@ export default function LoginPage() {
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
+                    disabled={!hydrated}
                     {...field}
                   />
                 </FormControl>
@@ -204,6 +212,7 @@ export default function LoginPage() {
                     type="password"
                     autoComplete="current-password"
                     placeholder="Your password"
+                    disabled={!hydrated}
                     {...field}
                   />
                 </FormControl>
@@ -228,7 +237,7 @@ export default function LoginPage() {
             variant="brand"
             size="touch"
             className="w-full"
-            disabled={form.formState.isSubmitting}
+            disabled={!hydrated || form.formState.isSubmitting}
           >
             {form.formState.isSubmitting ? "Logging in…" : "Log in"}
           </Button>

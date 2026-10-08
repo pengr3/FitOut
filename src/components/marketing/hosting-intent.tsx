@@ -1,12 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { activateHosting } from "@/app/actions/capability";
 import { Button } from "@/components/ui/button";
 import { safeCallbackPath } from "@/lib/safe-callback-url";
 
+const subscribeHydration = () => () => {};
+const clientHydrated = () => true;
+const serverHydrated = () => false;
+
 export function HostingIntent() {
+  const hydrated = useSyncExternalStore(subscribeHydration, clientHydrated, serverHydrated);
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +39,7 @@ export function HostingIntent() {
     <div className="space-y-3">
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <Button type="button" variant="brand" size="touch" className="w-full"
-        disabled={pending} onClick={startHosting}>
+        disabled={!hydrated || pending} onClick={startHosting}>
         {pending ? "Starting hosting…" : "Start hosting"}
       </Button>
     </div>

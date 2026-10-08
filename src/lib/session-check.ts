@@ -46,6 +46,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { safeAppCallbackPath } from "@/lib/safe-callback-url";
+import { APP_ORIGIN, absoluteAppUrl } from "@/lib/app-origins";
 
 /** The delegation endpoint. Deliberately NOT under /api/auth/* — that is Better Auth's catch-all. */
 export const SESSION_CHECK_PATH = "/auth/session-check";
@@ -161,7 +162,7 @@ export async function sessionCheckResponse(
     const authHeaders = new Headers(request.headers);
     if (!authHeaders.has("host")) authHeaders.set("host", request.nextUrl.host);
     const res = await auth.handler(
-      new Request(new URL("/api/auth/get-session", request.url), { headers: authHeaders }),
+      new Request(absoluteAppUrl("/api/auth/get-session"), { headers: authHeaders }),
     );
 
     // NOT AUTHORITATIVE unless it is a clean 200. Better Auth answers 200 + body `null` for "no
@@ -179,9 +180,9 @@ export async function sessionCheckResponse(
   }
 
   const signedIn = Boolean(session?.user);
-  const callback = new URL(target, request.url).searchParams.get("callbackURL");
-  const destination = signedIn ? safeAppCallbackPath(callback, request.nextUrl.origin) : target;
-  const out = NextResponse.redirect(new URL(destination, request.url));
+  const callback = new URL(target, APP_ORIGIN).searchParams.get("callbackURL");
+  const destination = signedIn ? safeAppCallbackPath(callback, APP_ORIGIN) : target;
+  const out = NextResponse.redirect(new URL(destination, APP_ORIGIN));
 
   // Forward whatever the framework emitted: the clearing headers for a dead session, or the
   // sliding-session refresh for a live one. Never reconstructed by hand.
@@ -212,7 +213,7 @@ export async function sessionCheckResponse(
  * lockout and never a cleared cookie we were not sure about.
  */
 function degradedRedirect(target: string, request: NextRequest): Response {
-  const res = NextResponse.redirect(new URL(target, request.url));
+  const res = NextResponse.redirect(new URL(target, APP_ORIGIN));
   res.headers.set("cache-control", "no-store");
   return res;
 }

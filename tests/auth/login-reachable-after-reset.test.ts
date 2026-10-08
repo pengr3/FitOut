@@ -99,7 +99,7 @@ afterAll(async () => {
 function req(path: string, cookie?: string): NextRequest {
   return new NextRequest(
     new URL(path, ORIGIN),
-    cookie === undefined ? undefined : { headers: { cookie } },
+    { headers: { host: new URL(ORIGIN).host, ...(cookie === undefined ? {} : { cookie }) } },
   );
 }
 
@@ -144,6 +144,15 @@ function jarHeader(jar: Map<string, string>): string {
 }
 
 describe("LAYER 1 — proxy delegates instead of terminating the journey", () => {
+  it("uses the configured app authority when the framework URL names an internal listener", () => {
+    const internal = new NextRequest("http://0.0.0.0:3000/login?callbackURL=%2Fstart-hosting", {
+      headers: { host: new URL(ORIGIN).host, cookie: STALE },
+    });
+    const location = redirectOf(proxy(internal))!;
+    expect(location.origin).toBe(ORIGIN);
+    expect(location.pathname).toBe(SESSION_CHECK_PATH);
+    expect(location.searchParams.get(RETURN_PARAM)).toBe("/login?callbackURL=%2Fstart-hosting");
+  });
   it("case 1: a cookie-bearing /login request is sent to the verifier, NOT to /", () => {
     const location = redirectOf(proxy(req("/login", STALE)));
 

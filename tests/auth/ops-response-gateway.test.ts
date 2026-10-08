@@ -14,7 +14,7 @@ const PROXY_PATH = "src/proxy.ts";
 const SECRET = "test-only-ops-gateway-secret-at-least-32-chars";
 
 function gatewayRequest({
-  host = "ops.localhost:3100",
+  host = "ops.localhost:3000",
   source = "/ops",
   method = "GET",
   body,
@@ -26,7 +26,7 @@ function gatewayRequest({
 } = {}): Request {
   // Next preserves the original Host header across a Proxy rewrite while the Route Handler URL can
   // carry the listening/public authority. The gateway must rebuild the inward URL from Host.
-  return new Request("http://localhost:3100/ops-gateway", {
+  return new Request("http://localhost:3000/ops-gateway", {
     method,
     body,
     headers: {
@@ -66,7 +66,8 @@ describe("authenticated ops response gateway", () => {
     const { GET } = await import("@/app/(ops-gateway)/ops-gateway/route");
     const responses = await Promise.all([
       GET(gatewayRequest()),
-      GET(gatewayRequest({ host: "localhost:3100" })),
+      GET(gatewayRequest({ host: "localhost:3000" })),
+      GET(gatewayRequest({ host: "ops.localhost:3100" })),
       GET(gatewayRequest({ source: "/ops/definitely-missing" })),
       GET(gatewayRequest({ source: "/_ops-auth/login" })),
       GET(gatewayRequest({ source: "/_ops-cloak" })),
@@ -74,7 +75,7 @@ describe("authenticated ops response gateway", () => {
     ]);
     const bodies = await Promise.all(responses.map((response) => response.text()));
 
-    expect(responses.map((response) => response.status)).toEqual([404, 404, 404, 404, 404, 404]);
+    expect(responses.map((response) => response.status)).toEqual([404, 404, 404, 404, 404, 404, 404]);
     expect(new Set(bodies).size).toBe(1);
     expect(bodies[0].length).toBeGreaterThan(0);
     expect(responses.every((response) => response.headers.get("cache-control") === "private, no-store")).toBe(true);
@@ -88,7 +89,7 @@ describe("authenticated ops response gateway", () => {
         headers: {
           "content-type": "text/html; charset=utf-8",
           "x-middleware-next": "1",
-          "x-middleware-rewrite": "http://ops.localhost:3100/ops",
+          "x-middleware-rewrite": "http://ops.localhost:3000/ops",
         },
       }),
     );
@@ -103,7 +104,7 @@ describe("authenticated ops response gateway", () => {
     expect(readStaff).toHaveBeenCalledOnce();
     expect(upstreamFetch).toHaveBeenCalledOnce();
     const [target, init] = upstreamFetch.mock.calls[0];
-    expect(String(target)).toBe("http://ops.localhost:3100/ops");
+    expect(String(target)).toBe("http://ops.localhost:3000/ops");
     const headers = new Headers(init?.headers);
     expect(await verifyOpsGatewayHandoff(headers.get("x-fitout-ops-gateway-handoff"), "GET", "/ops")).toBe(true);
     expect(response.status).toBe(200);

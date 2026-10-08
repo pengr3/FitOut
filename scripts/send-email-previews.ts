@@ -235,7 +235,7 @@ function loadFromEnvLocal(keys: readonly string[]): void {
 // that ran only on the live path left preview output composing a DIFFERENT link than the one a real
 // send would carry — which defeats the point of a preview. The allow-list stays deliberately narrow:
 // these three keys are the only environment this harness's one imported module can observe.
-loadFromEnvLocal(["RESEND_API_KEY", "EMAIL_FROM", "BETTER_AUTH_URL"]);
+loadFromEnvLocal(["RESEND_API_KEY", "EMAIL_FROM", "BETTER_AUTH_URL", "NEXT_PUBLIC_APP_URL", "OPS_APP_URL", "MARKETING_APP_URL", "MARKETING_PREVIEW_URL"]);
 
 if (live) {
   if (!process.env.RESEND_API_KEY) {

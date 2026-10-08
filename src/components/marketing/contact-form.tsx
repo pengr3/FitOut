@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,9 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "
 import { CONTACT_FIELDS, contactSchema, type ContactInput } from "@/lib/validation/contact";
 
 const initialValues: ContactInput = { name: "", email: "", confirmEmail: "", mobile: "", message: "", website: "" };
+const subscribeHydration = () => () => {};
+const clientHydrated = () => true;
+const serverHydrated = () => false;
 const fields = [
   { name: "name", label: "Name", autoComplete: "name", type: "text", maxLength: 100, required: true },
   { name: "email", label: "Email", autoComplete: "email", type: "email", maxLength: 254, required: true },
@@ -20,6 +23,7 @@ const fields = [
 const failed = "Your message could not be sent. Please try again later.";
 
 export function ContactForm() {
+  const hydrated = useSyncExternalStore(subscribeHydration, clientHydrated, serverHydrated);
   const form = useForm<ContactInput>({ resolver: zodResolver(contactSchema), defaultValues: initialValues });
   const [feedback, setFeedback] = useState("");
   const [sent, setSent] = useState(false);
@@ -63,16 +67,16 @@ export function ContactForm() {
         <Button type="button" variant="outline" onClick={() => { form.reset(initialValues); setSent(false); setFeedback(""); }}>Write another message</Button>
       ) : (
         <Form {...form}>
-          <form noValidate onSubmit={(event) => { void form.handleSubmit(submit)(event); }} aria-busy={pending} className="space-y-5">
+          <form method="post" noValidate onSubmit={(event) => { void form.handleSubmit(submit)(event); }} aria-busy={pending} className="space-y-5">
             {fields.map(({ name, label, autoComplete, type, maxLength, required }) => (
               <FormField key={name} control={form.control} name={name} render={({ field }) => (
                 <FormItem>
                   <FormLabel>{label}</FormLabel>
                   <FormControl>
                     {name === "message" ? (
-                      <Textarea {...field} required maxLength={maxLength} rows={6} autoComplete={autoComplete} className="min-h-40" />
+                      <Textarea {...field} disabled={!hydrated} required maxLength={maxLength} rows={6} autoComplete={autoComplete} className="min-h-40" />
                     ) : (
-                      <Input {...field} value={field.value ?? ""} type={type} inputMode={type === "email" ? "email" : type === "tel" ? "tel" : "text"} autoComplete={autoComplete} required={required} maxLength={maxLength} />
+                      <Input {...field} disabled={!hydrated} value={field.value ?? ""} type={type} inputMode={type === "email" ? "email" : type === "tel" ? "tel" : "text"} autoComplete={autoComplete} required={required} maxLength={maxLength} />
                     )}
                   </FormControl>
                   <FormMessage />
@@ -80,7 +84,7 @@ export function ContactForm() {
               )} />
             ))}
             <div hidden aria-hidden="true"><input {...form.register("website")} aria-hidden="true" tabIndex={-1} autoComplete="off" /></div>
-            <Button type="submit" disabled={pending}>{pending ? "Sending…" : "Send message"}</Button>
+            <Button type="submit" disabled={!hydrated || pending}>{pending ? "Sending…" : "Send message"}</Button>
           </form>
         </Form>
       )}

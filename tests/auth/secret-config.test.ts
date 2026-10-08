@@ -21,6 +21,8 @@ const COLD_IMPORT_TIMEOUT_MS = 30_000;
 
 beforeEach(() => {
   vi.resetModules();
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
+  vi.stubEnv("MARKETING_APP_URL", "https://marketing.example.com");
 });
 
 afterEach(() => {
@@ -69,7 +71,7 @@ describe("Better Auth secret/baseURL config (WR-03)", () => {
     vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-value-at-least-32-chars-long-xx");
     vi.stubEnv("BETTER_AUTH_URL", "");
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
-    vi.stubEnv("OPS_APP_URL", "");
+    vi.stubEnv("OPS_APP_URL", "https://ops-feature-123.vercel.app");
     vi.stubEnv("VERCEL", "1");
     vi.stubEnv("VERCEL_ENV", "preview");
     vi.stubEnv("VERCEL_URL", "fitout-feature-123.vercel.app");
@@ -83,13 +85,13 @@ describe("Better Auth secret/baseURL config (WR-03)", () => {
       "https://fitout-feature-123.vercel.app/bookings/booking-123",
     );
     expect(options.baseURL).toEqual({
-      allowedHosts: ["ops.localhost:3000", "fitout-feature-123.vercel.app"].sort(),
+      allowedHosts: ["fitout-feature-123.vercel.app", "ops-feature-123.vercel.app"],
       fallback: "https://fitout-feature-123.vercel.app",
       protocol: "auto",
     });
     expect(options.trustedOrigins).toEqual([
       "https://fitout-feature-123.vercel.app",
-      "http://ops.localhost:3000",
+      "https://ops-feature-123.vercel.app",
     ]);
   }, COLD_IMPORT_TIMEOUT_MS);
 
@@ -103,6 +105,6 @@ describe("Better Auth secret/baseURL config (WR-03)", () => {
     vi.stubEnv("VERCEL_URL", "not a valid authority");
     vi.stubEnv("NODE_ENV", "test");
 
-    await expect(import("@/lib/auth")).rejects.toThrow(/BETTER_AUTH_URL or NEXT_PUBLIC_APP_URL/);
+    await expect(import("@/lib/auth")).rejects.toThrow("VERCEL_URL must be one exact deployment authority");
   }, COLD_IMPORT_TIMEOUT_MS);
 });

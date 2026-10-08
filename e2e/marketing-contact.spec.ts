@@ -11,10 +11,27 @@ async function fill(page: Page, confirm = "person@example.com") {
 }
 test.beforeEach(async ({ page }) => { await page.goto("/contact"); });
 
+test("without JavaScript inquiry fields cannot enter the URL", async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    const url = "http://marketing.localhost:3000/contact";
+    await page.goto(url);
+    await expect(page.getByLabel("Name", { exact: true })).toBeDisabled();
+    await expect(page.getByLabel("Email", { exact: true })).toBeDisabled();
+    await expect(page.getByLabel("Message", { exact: true })).toBeDisabled();
+    await expect(page.locator("main form")).toHaveAttribute("method", "post");
+    await expect(page.getByRole("button", { name: "Send message" })).toBeDisabled();
+    await page.keyboard.press("Enter");
+    expect(page.url()).toBe(url);
+  } finally { await context.close(); }
+});
+
 test("exact fields, keyboard order, mismatch and optional phone", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
   const labels = ["Name", "Email", "Confirm Email", "Mobile Number (optional)", "Message"];
   await expect(page.locator("main form label")).toHaveText(labels);
+  await expect(page.getByLabel("Name", { exact: true })).toBeEnabled();
   await page.getByLabel("Name", { exact: true }).focus();
   for (const label of labels.slice(1)) { await page.keyboard.press("Tab"); await expect(page.getByLabel(label, { exact: true })).toBeFocused(); }
   await fill(page, "another@example.com");

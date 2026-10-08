@@ -39,7 +39,7 @@
 // The wordmark and the `<main>` landmark are the layout's (plan 15-06, D-162); this page renders
 // neither.
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -61,12 +61,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+const subscribeHydration = () => () => {};
+const clientHydrated = () => true;
+const serverHydrated = () => false;
+
 export default function SignupPage() {
   return <Suspense fallback={null}><SignupForm /></Suspense>;
 }
 
 function SignupForm() {
   const router = useRouter();
+  const hydrated = useSyncExternalStore(subscribeHydration, clientHydrated, serverHydrated);
   const params = useSearchParams();
   const callbackURL = safeAppCallbackPath(params.get("callbackURL"), "http://internal.invalid");
   const hostingResume = callbackURL === "/start-hosting";
@@ -113,7 +118,7 @@ function SignupForm() {
       description="Book a space or list one of your own."
     >
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           {/* Intent (D-02) — maps to canBook/canHost server-side. */}
           {hostingResume ? <p className="text-sm text-muted-foreground">Create your account, then continue host setup.</p> : <FormField
             control={form.control}
@@ -171,6 +176,7 @@ function SignupForm() {
                   <Input
                     autoComplete="given-name"
                     placeholder="Alex"
+                    disabled={!hydrated}
                     {...field}
                   />
                 </FormControl>
@@ -190,6 +196,7 @@ function SignupForm() {
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
+                    disabled={!hydrated}
                     {...field}
                   />
                 </FormControl>
@@ -209,6 +216,7 @@ function SignupForm() {
                     type="password"
                     autoComplete="new-password"
                     placeholder="At least 10 characters"
+                    disabled={!hydrated}
                     {...field}
                   />
                 </FormControl>
@@ -228,6 +236,7 @@ function SignupForm() {
                     type="password"
                     autoComplete="new-password"
                     placeholder="Enter your password again"
+                    disabled={!hydrated}
                     {...field}
                   />
                 </FormControl>
@@ -252,7 +261,7 @@ function SignupForm() {
             variant="brand"
             size="touch"
             className="w-full"
-            disabled={form.formState.isSubmitting}
+            disabled={!hydrated || form.formState.isSubmitting}
           >
             {form.formState.isSubmitting
               ? "Creating account…"

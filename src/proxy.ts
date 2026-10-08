@@ -173,7 +173,7 @@ export function proxy(request: NextRequest) {
   }
 
   // A cookie is present, but only the verifier can tell whether it is alive.
-  const check = new URL(SESSION_CHECK_PATH, request.url);
+  const check = new URL(absoluteAppUrl(SESSION_CHECK_PATH));
   check.searchParams.set(RETURN_PARAM, `${pathname}${request.nextUrl.search}`);
   return NextResponse.redirect(check);
 }
