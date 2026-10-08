@@ -1125,6 +1125,9 @@ test.describe("Phase 24 progressive search accessibility states", () => {
       await activity.fill(seed.spaceTypeLabel);
       await page.getByRole("option", { name: seed.spaceTypeLabel, exact: true }).click();
       await page.getByRole("button", { name: "Search location" }).click();
+      // The client transition can update <title> after the location step opens.
+      // Audit the settled document; a title that stays empty still fails here.
+      await expect(page).toHaveTitle(/\S/);
       await expectAxeClean(page, `progressive location · ${width}px`);
 
       await page.getByRole("button", { name: "Use my location" }).click();
