@@ -17,6 +17,7 @@ beforeAll(async () => {
   vi.stubEnv("BETTER_AUTH_URL", PUBLIC_ORIGIN);
   vi.stubEnv("NEXT_PUBLIC_APP_URL", PUBLIC_ORIGIN);
   vi.stubEnv("OPS_APP_URL", OPS_ORIGIN);
+  vi.stubEnv("MARKETING_APP_URL", "https://marketing.example.test");
   vi.stubEnv("VERCEL_URL", PREVIEW_HOST);
   vi.resetModules();
   ({ proxy } = await import("@/proxy"));
@@ -37,7 +38,8 @@ function request(
   return new NextRequest(new URL(pathname, options.origin ?? PUBLIC_ORIGIN), { headers });
 }
 
-function outcome(response: NextResponse): { kind: "next" | "redirect" | "rewrite"; path: string | null } {
+function outcome(response: NextResponse): { kind: "next" | "redirect" | "rewrite" | "deny"; path: string | null } {
+  if (response.status === 404) return { kind: "deny", path: null };
   if (isRewrite(response)) {
     const rewritten = getRewrittenUrl(response);
     return {
@@ -72,10 +74,10 @@ describe("OPS-07 exact host authority", () => {
     ["ops.example.test", "ops"],
     ["OPS.EXAMPLE.TEST", "ops"],
     ["ops.example.test:443", "ops"],
-    ["app.example.test", "public"],
-    ["APP.EXAMPLE.TEST:443", "public"],
-    [PREVIEW_HOST, "public"],
-    [`${PREVIEW_HOST}:443`, "public"],
+    ["app.example.test", "app"],
+    ["APP.EXAMPLE.TEST:443", "app"],
+    [PREVIEW_HOST, "app"],
+    [`${PREVIEW_HOST}:443`, "app"],
     ["branch--fitout.example.vercel.app", "unknown"],
     ["ops.example.test.attacker.invalid", "unknown"],
     ["evilops.example.test", "unknown"],
@@ -113,7 +115,7 @@ describe("OPS-07 explicit host/path route matrix", () => {
     ["public marketplace invite", "/invite/ABC123", "app.example.test", "next", null],
     ["preview marketplace login", "/login", PREVIEW_HOST, "next", null],
     ["preview ops root", "/ops", PREVIEW_HOST, "rewrite", "/ops-gateway"],
-    ["unknown marketplace login", "/login", "random.example.test", "next", null],
+    ["unknown marketplace login", "/login", "random.example.test", "deny", null],
     ["unknown ops root", "/ops", "random.example.test", "rewrite", "/ops-gateway"],
     ["missing Host ops root", "/ops", null, "rewrite", "/ops-gateway"],
   ] as const;

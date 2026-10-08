@@ -19,7 +19,6 @@ const bookingAndGroupCallers = [
 const providerAndHostCallers = [
   "src/app/actions/group.ts",
   "src/app/actions/host-requests.ts",
-  "src/app/actions/paymongo-connect.ts",
   "src/lib/verification/providers/didit.ts",
 ] as const;
 
@@ -36,11 +35,30 @@ afterEach(() => {
 });
 
 describe("runtime public-origin callers", () => {
+  it("keeps compatibility aliases app-directed and marketing helpers separate", async () => {
+    vi.stubEnv("BETTER_AUTH_URL", "https://app.fitout.live");
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://app.fitout.live");
+    vi.stubEnv("MARKETING_APP_URL", "https://fitout.live");
+    vi.stubEnv("OPS_APP_URL", "https://ops.fitout.live");
+    vi.stubEnv("VERCEL_URL", "");
+    vi.resetModules();
+    const origins = await import("@/lib/app-origins");
+    expect(origins.PUBLIC_APP_ORIGIN).toBe(origins.APP_ORIGIN);
+    expect(origins.absolutePublicUrl).toBe(origins.absoluteAppUrl);
+    expect(origins.absoluteMarketingUrl("/contact")).toBe("https://fitout.live/contact");
+  });
+
+  it("keeps retired payout onboarding inert rather than reviving origin URLs", () => {
+    const source = readFileSync(join(process.cwd(), "src/app/actions/paymongo-connect.ts"), "utf8");
+    expect(source).toContain("return RETIRED_RESULT");
+    expect(source).not.toMatch(/absolutePublicUrl|createLinkedAccount|createOnboardingLink/);
+  });
   it("uses the canonical production authority", async () => {
     await expect(
       publicUrlFor(
         {
-          BETTER_AUTH_URL: "https://fitout.live",
+          BETTER_AUTH_URL: "https://app.fitout.live",
+          MARKETING_APP_URL: "https://fitout.live",
           NEXT_PUBLIC_APP_URL: "",
           OPS_APP_URL: "https://ops.fitout.live",
           VERCEL: "",
@@ -49,7 +67,7 @@ describe("runtime public-origin callers", () => {
         },
         "/bookings/booking-123?source=notification",
       ),
-    ).resolves.toBe("https://fitout.live/bookings/booking-123?source=notification");
+    ).resolves.toBe("https://app.fitout.live/bookings/booking-123?source=notification");
   });
 
   it("uses the exact Preview authority", async () => {
@@ -62,6 +80,7 @@ describe("runtime public-origin callers", () => {
           VERCEL: "1",
           VERCEL_ENV: "preview",
           VERCEL_URL: "fitout-origin-preview.vercel.app",
+          MARKETING_APP_URL: "https://marketing-preview.example.test",
         },
         "/bookings/booking-123?source=notification",
       ),
