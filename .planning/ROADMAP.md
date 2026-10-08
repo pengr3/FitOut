@@ -1124,7 +1124,7 @@ Plans:
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Complete    | 2026-09-10 |
 | 23. The Support Path Becomes Reachable | v1.2 | 0/3 | Planned — fitout.live domain, monitored support replies, and constrained provider callbacks | - |
 | 24. Search Bar Rework | v1.2 | 0/8 | Planned — progressive activity, location, and party-size journey ready to execute | - |
-| 27. App Subdomain & Marketing Website | v1.2 | 6/9 | Executing — marketing content and metadata complete; Contact, full engineering and live evidence pending | - |
+| 27. App Subdomain & Marketing Website | v1.2 | 7/9 | Executing — marketing and Contact engineering implemented; full gates and live evidence pending | - |
 
 ### Phase 24: Search Bar Rework
 
@@ -1339,7 +1339,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6 completion)*
 
-- [ ] 27-07-PLAN.md — Deliver exact Contact form through existing Resend with recovery and abuse controls.
+- [x] 27-07-PLAN.md — Deliver exact Contact form through existing Resend with recovery and abuse controls.
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
