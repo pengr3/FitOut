@@ -31,7 +31,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
-import { absolutePublicUrl } from "@/lib/app-origins";
+import { absoluteAppUrl, absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import {
   booking,
@@ -1080,8 +1080,8 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
       name: `Booking ${ref}`,
       referenceNumber: holdId,
       metadata: { booking_id: holdId },
-      successUrl: absolutePublicUrl(`/bookings/${holdId}?paid=1`),
-      cancelUrl: absolutePublicUrl(`/listings/${bk.listingId}/book?hold=${holdId}`),
+      successUrl: absoluteAppUrl(`/bookings/${holdId}?paid=1`),
+      cancelUrl: absoluteAppUrl(`/listings/${bk.listingId}/book?hold=${holdId}`),
       idempotencyKey:
         bk.declaredPax == null
           ? `checkout:${holdId}`

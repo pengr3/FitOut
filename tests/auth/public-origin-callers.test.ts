@@ -93,7 +93,7 @@ describe("runtime public-origin callers", () => {
     for (const caller of publicOriginCallers) {
       const source = readFileSync(join(process.cwd(), caller), "utf8");
       expect(source.includes('from "@/lib/app-origins"'), caller).toBe(true);
-      expect(source.includes("absolutePublicUrl("), caller).toBe(true);
+      expect(/absolute(?:App|Public)Url\(/.test(source), caller).toBe(true);
       expect(source.match(/process\.env\.(?:BETTER_AUTH_URL|NEXT_PUBLIC_APP_URL)/), caller).toBeNull();
       expect(source.includes("http://localhost:3000"), caller).toBe(false);
     }
@@ -103,7 +103,7 @@ describe("runtime public-origin callers", () => {
     for (const caller of bookingAndGroupCallers) {
       const source = readFileSync(join(process.cwd(), caller), "utf8");
       expect(source.includes('from "@/lib/app-origins"'), caller).toBe(true);
-      expect(source.includes("absolutePublicUrl("), caller).toBe(true);
+      expect(/absolute(?:App|Public)Url\(/.test(source), caller).toBe(true);
       expect(source.match(/process\.env\.(?:BETTER_AUTH_URL|NEXT_PUBLIC_APP_URL)/), caller).toBeNull();
       expect(source.includes("http://localhost:3000"), caller).toBe(false);
     }
@@ -113,7 +113,7 @@ describe("runtime public-origin callers", () => {
     for (const caller of providerAndHostCallers) {
       const source = readFileSync(join(process.cwd(), caller), "utf8");
       expect(source.includes('from "@/lib/app-origins"'), caller).toBe(true);
-      expect(source.includes("absolutePublicUrl("), caller).toBe(true);
+      expect(/absolute(?:App|Public)Url\(/.test(source), caller).toBe(true);
       expect(source.match(/process\.env\.(?:BETTER_AUTH_URL|NEXT_PUBLIC_APP_URL)/), caller).toBeNull();
       expect(source.includes("http://localhost:3000"), caller).toBe(false);
     }
