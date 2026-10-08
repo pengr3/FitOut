@@ -41,6 +41,7 @@ import {
 } from "@/lib/session-check";
 import { absoluteAppUrl, classifyRequestHost } from "@/lib/app-origins";
 import { hostRoutePolicy, isMarketingScreenshot, isPathSegment } from "@/lib/host-route-policy";
+import { legacyAuthLinkDecision } from "@/lib/legacy-auth-links";
 import { verifyOpsGatewayHandoff } from "@/lib/ops/gateway-handoff";
 
 const OPS_AUTH_PREFIX = "/_ops-auth";
@@ -144,6 +145,11 @@ export function proxy(request: NextRequest) {
     return gatewayRewrite(request);
   }
 
+  if (hostClass === "marketing") {
+    const legacy = legacyAuthLinkDecision(pathname, request.method, request.nextUrl.searchParams);
+    if (legacy?.kind === "deny") return new NextResponse(null, { status: legacy.status });
+    if (legacy?.kind === "redirect") return NextResponse.redirect(legacy.url, 307);
+  }
   const decision = hostRoutePolicy(hostClass, pathname, request.method, request.nextUrl.searchParams);
   if (decision.kind === "deny") return new NextResponse(null, { status: decision.status, headers: decision.allow ? { Allow: decision.allow } : undefined });
   if (decision.kind === "rewrite") return rewrite(request, decision.pathname);

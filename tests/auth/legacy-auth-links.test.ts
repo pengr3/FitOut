@@ -67,8 +67,10 @@ describe("issued apex authentication links", () => {
     const response = bridge(issued.pathname + issued.search);
     expect(response.status).toBe(307);
     const appResponse = await auth.handler(new Request(response.headers.get("location")!, { headers: { host: "app.example.test" } }));
-    expect(appResponse.status).toBe(302);
-    expect(appResponse.headers.get("location")).not.toContain("error=");
+    expect(appResponse.status).toBe(200);
+    expect(await appResponse.json()).toMatchObject({ status: true });
+    const verified = await testDb.client.unsafe('SELECT email_verified FROM "user" WHERE email = $1', ["legacy-verify@example.test"]);
+    expect(verified[0].email_verified).toBe(true);
     const { createEmailVerificationToken } = await import("better-auth/api");
     const context = await auth.$context;
     const expired = await createEmailVerificationToken(context.secret, "legacy-verify@example.test", undefined, -1);
