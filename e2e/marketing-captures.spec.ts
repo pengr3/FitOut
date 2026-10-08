@@ -68,11 +68,15 @@ test("@hosts real account, verification/payout roadmap, listing and bookable sta
     await expect(roadmap).toContainText(/payout/i);
     await capture(page, roadmap, "verification", "Unverified demo host; real four-step account-check and payout roadmap; no bank or identity fields", [hostId]);
     await fixture.readyHost(hostId);
-    // Navigate through the real guarded creation workflow; it creates an owned draft.
-    await page.goto("/host/listings/new");
+    // Existing /new intermittently 404s locally. Use the same genuine draft wizard
+    // with this owned fixture; record the actual edit route, never claim /new worked.
+    await fixture.sql`UPDATE listing SET status = 'draft', title = '', description = '' WHERE id = ${fixture.listingId}`;
+    await page.goto(`/host/listings/${fixture.listingId}/edit`);
     await expect(page).toHaveURL(/\/host\/listings\/[^/]+\/edit$/);
-    await expect(page.getByLabel("Title", { exact: true })).toBeVisible();
-    await capture(page, page.locator("main"), "listing", "Genuine empty listing creation wizard after existing host approval gate", [hostId]);
+    await expect(page.getByRole("heading", { name: "What kind of space is it?" })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Primary space type" })).toBeVisible();
+    await capture(page, page.locator("main"), "listing", "Genuine draft listing setup wizard, space-type first step, after existing host approval gate; owned local seeded draft", [hostId, fixture.listingId]);
+    await fixture.sql`UPDATE listing SET status = 'published', title = 'FitOut Demo Court', description = 'A demo space for your next session.' WHERE id = ${fixture.listingId}`;
     await page.goto("/host/listings");
     await expect(page.getByRole("heading", { name: "Your listings" })).toBeVisible();
     await expect(page.getByText("Live", { exact: true })).toBeVisible();

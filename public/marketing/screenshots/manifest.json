@@ -29,6 +29,126 @@
         "reviewer": "Codex image viewer, 2026-10-09 Asia/Manila",
         "notes": "Inspected exact PNG: genuine search answers and synthetic FitOut Demo Court; no photos, personal contact, banking, identity data or URL tokens. Local demo approval is not a production claim."
       }
+    },
+    "account": {
+      "path": "/marketing/screenshots/account.png",
+      "sha256": "ce387daa00dde398e1350484b7804dd1905d2fb88142385decd76a800ff50932",
+      "width": 384,
+      "height": 682,
+      "route": "/signup",
+      "assertedState": "Genuine host account signup; empty personal fields",
+      "capturedAt": "2026-10-08T18:15:13.160Z",
+      "captureDate": "2026-10-09",
+      "timezone": "Asia/Manila",
+      "sessionDate": null,
+      "fixtureIds": [],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-fixtures.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "No photographs: app's empty photo state; no external, generated or sketch assets",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-09 Asia/Manila",
+        "reviewedSha256": "ce387daa00dde398e1350484b7804dd1905d2fb88142385decd76a800ff50932",
+        "notes": "Inspected exact retained PNG: actual safe host signup/roadmap/draft setup/Live demo states; no personal contact, ID, banking details, URL tokens or photographs. Local seeded approvals are demo context only."
+      }
+    },
+    "verification": {
+      "path": "/marketing/screenshots/verification.png",
+      "sha256": "608739840486edd34d07af2c8f547a76bfb8dbdd25995aa5b7aafa2f9d54b7f0",
+      "width": 736,
+      "height": 530,
+      "route": "/host",
+      "assertedState": "Unverified demo host; real four-step account-check and payout roadmap; no bank or identity fields",
+      "capturedAt": "2026-10-08T18:15:17.127Z",
+      "captureDate": "2026-10-09",
+      "timezone": "Asia/Manila",
+      "sessionDate": null,
+      "fixtureIds": [
+        "FhtFU1WcOBassAKFj7vei3hmGzEeMxBg"
+      ],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-fixtures.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "No photographs: app's empty photo state; no external, generated or sketch assets",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-09 Asia/Manila",
+        "reviewedSha256": "608739840486edd34d07af2c8f547a76bfb8dbdd25995aa5b7aafa2f9d54b7f0",
+        "notes": "Inspected exact retained PNG: actual safe host signup/roadmap/draft setup/Live demo states; no personal contact, ID, banking details, URL tokens or photographs. Local seeded approvals are demo context only."
+      }
+    },
+    "listing": {
+      "path": "/marketing/screenshots/listing.png",
+      "sha256": "87b9f7f71e6ce872d71af75f8ceaf495c88e8280ff9b351b01ff2cc32c386cb6",
+      "width": 1280,
+      "height": 610,
+      "route": "/host/listings/marketing_listing_5af2cae9-9165-4ed9-86f8-a787ae4e9dfc/edit",
+      "assertedState": "Genuine draft listing setup wizard, space-type first step, after existing host approval gate; owned local seeded draft",
+      "capturedAt": "2026-10-08T18:15:21.104Z",
+      "captureDate": "2026-10-09",
+      "timezone": "Asia/Manila",
+      "sessionDate": null,
+      "fixtureIds": [
+        "FhtFU1WcOBassAKFj7vei3hmGzEeMxBg",
+        "marketing_listing_5af2cae9-9165-4ed9-86f8-a787ae4e9dfc"
+      ],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-fixtures.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "No photographs: app's empty photo state; no external, generated or sketch assets",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-09 Asia/Manila",
+        "reviewedSha256": "87b9f7f71e6ce872d71af75f8ceaf495c88e8280ff9b351b01ff2cc32c386cb6",
+        "notes": "Inspected exact retained PNG: actual safe host signup/roadmap/draft setup/Live demo states; no personal contact, ID, banking details, URL tokens or photographs. Local seeded approvals are demo context only."
+      }
+    },
+    "bookable": {
+      "path": "/marketing/screenshots/bookable.png",
+      "sha256": "de97dd85b2b3ed514814a8d976473c3f44a737ec4e35f5a02a437b50bbb256f1",
+      "width": 1280,
+      "height": 541,
+      "route": "/host/listings",
+      "assertedState": "Real Live listing after email, payouts, host approval, listing approval, publication and operating-hours gates pass in local demo fixture",
+      "capturedAt": "2026-10-08T18:15:22.733Z",
+      "captureDate": "2026-10-09",
+      "timezone": "Asia/Manila",
+      "sessionDate": null,
+      "fixtureIds": [
+        "FhtFU1WcOBassAKFj7vei3hmGzEeMxBg",
+        "marketing_listing_5af2cae9-9165-4ed9-86f8-a787ae4e9dfc"
+      ],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-fixtures.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "No photographs: app's empty photo state; no external, generated or sketch assets",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-09 Asia/Manila",
+        "reviewedSha256": "de97dd85b2b3ed514814a8d976473c3f44a737ec4e35f5a02a437b50bbb256f1",
+        "notes": "Inspected exact retained PNG: actual safe host signup/roadmap/draft setup/Live demo states; no personal contact, ID, banking details, URL tokens or photographs. Local seeded approvals are demo context only."
+      }
     }
   }
 }
