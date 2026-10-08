@@ -27,7 +27,8 @@
       "pixelReview": {
         "disposition": "approved-safe",
         "reviewer": "Codex image viewer, 2026-10-09 Asia/Manila",
-        "notes": "Inspected exact PNG: genuine search answers and synthetic FitOut Demo Court; no photos, personal contact, banking, identity data or URL tokens. Local demo approval is not a production claim."
+        "notes": "Inspected exact PNG: genuine search answers and synthetic FitOut Demo Court; no photos, personal contact, banking, identity data or URL tokens. Local demo approval is not a production claim.",
+        "reviewedSha256": "7bd802fb4bc6eb4e948238d483bb151b641841302f93cb0c5b9bd0658dcf3414"
       }
     },
     "account": {
@@ -148,6 +149,68 @@
         "reviewer": "Codex image viewer, 2026-10-09 Asia/Manila",
         "reviewedSha256": "de97dd85b2b3ed514814a8d976473c3f44a737ec4e35f5a02a437b50bbb256f1",
         "notes": "Inspected exact retained PNG: actual safe host signup/roadmap/draft setup/Live demo states; no personal contact, ID, banking details, URL tokens or photographs. Local seeded approvals are demo context only."
+      }
+    },
+    "session": {
+      "path": "/marketing/screenshots/session.png",
+      "sha256": "0e4b8363f88f382c9852412b4dab64f6213f516e8ea18dfa61740bc533e92e04",
+      "width": 584,
+      "height": 521,
+      "route": "/listings/marketing_listing_ec23fe5f-427d-4884-b548-b30852a46fa9",
+      "assertedState": "Real available future 14:00–15:00 Manila session selected in genuine calendar/hour picker; book CTA enabled",
+      "capturedAt": "2026-10-08T18:19:44.704Z",
+      "captureDate": "2026-10-09",
+      "timezone": "Asia/Manila",
+      "sessionDate": "2026-10-12",
+      "fixtureIds": [
+        "marketing_listing_ec23fe5f-427d-4884-b548-b30852a46fa9",
+        "WAsPfGCbGJQywhRi71LAv6e9iLzpd9Pn"
+      ],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-fixtures.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "No photographs: app's empty photo state; no external, generated or sketch assets",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-09 Asia/Manila",
+        "reviewedSha256": "0e4b8363f88f382c9852412b4dab64f6213f516e8ea18dfa61740bc533e92e04",
+        "notes": "Inspected exact retained PNG: genuine future October 12 Manila availability and pending unpaid booking review. No photographs, real personal contact, bank details, ID documents or hold/query credentials. Confirm and pay was never clicked."
+      }
+    },
+    "booking": {
+      "path": "/marketing/screenshots/booking.png",
+      "sha256": "552cf8d03039e2528452b62a279ba59538194fcdeb08cd6ba1a8b071c91d6582",
+      "width": 896,
+      "height": 508,
+      "route": "/listings/marketing_listing_ec23fe5f-427d-4884-b548-b30852a46fa9/book",
+      "assertedState": "Actual unpaid hold review with frozen price and Confirm & pay; payment never submitted",
+      "capturedAt": "2026-10-08T18:19:48.031Z",
+      "captureDate": "2026-10-09",
+      "timezone": "Asia/Manila",
+      "sessionDate": "2026-10-12",
+      "fixtureIds": [
+        "marketing_listing_ec23fe5f-427d-4884-b548-b30852a46fa9",
+        "WAsPfGCbGJQywhRi71LAv6e9iLzpd9Pn"
+      ],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-fixtures.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "No photographs: app's empty photo state; no external, generated or sketch assets",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-09 Asia/Manila",
+        "reviewedSha256": "552cf8d03039e2528452b62a279ba59538194fcdeb08cd6ba1a8b071c91d6582",
+        "notes": "Inspected exact retained PNG: genuine future October 12 Manila availability and pending unpaid booking review. No photographs, real personal contact, bank details, ID documents or hold/query credentials. Confirm and pay was never clicked."
       }
     }
   }

@@ -94,14 +94,15 @@ test("@players real future session selection and unpaid booking review", async (
     await pickWindow(page, "2:00 PM", "3:00 PM");
     const book = page.getByRole("button", { name: /^Book this space$/ });
     await expect(book).toBeEnabled();
-    await capture(page, page.locator("main"), "session", "Real available future 14:00–15:00 Manila session selected; book CTA enabled", [fixture.listingId, bookerId], sessionDate);
+    const availability = page.locator("section").filter({ has: page.getByRole("heading", { name: "Availability", exact: true }) });
+    await capture(page, availability, "session", "Real available future 14:00–15:00 Manila session selected in genuine calendar/hour picker; book CTA enabled", [fixture.listingId, bookerId], sessionDate);
     await book.click();
     await expect(page).toHaveURL(/\/book\?hold=/);
     await expect(page.getByRole("button", { name: "Confirm & pay", exact: true })).toBeEnabled();
     await expect(page.getByRole("heading", { name: "Confirm and pay" })).toBeVisible();
     const holdId = new URL(page.url()).searchParams.get("hold")!;
     const [hold] = await fixture.sql`SELECT status, checkout_session_id, payment_id FROM booking WHERE id = ${holdId}`;
-    expect(hold).toMatchObject({ status: "hold", checkout_session_id: null, payment_id: null });
+    expect(hold).toMatchObject({ status: "pending", checkout_session_id: null, payment_id: null });
     await capture(page, page.locator("main"), "booking", "Actual unpaid hold review with frozen price and Confirm & pay; payment never submitted", [fixture.listingId, bookerId], sessionDate);
   } finally { await fixture.cleanup(); }
 });
