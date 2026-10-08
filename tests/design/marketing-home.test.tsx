@@ -9,7 +9,8 @@ vi.mock("@/lib/app-origins", () => ({
   absoluteAppUrl: (path: string) => `https://app.example.test${path}`,
   absoluteMarketingUrl: (path: string) => `https://marketing.example.test${path}`,
 }));
-vi.mock("next/image", () => ({ default: ({ preload: _preload, ...props }: React.ImgHTMLAttributes<HTMLImageElement> & { preload?: boolean }) => <img {...props} /> }));
+// Preserve image attributes in jsdom without Next's optimizer rewriting sources.
+vi.mock("next/image", () => ({ default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => React.createElement("img", props) }));
 afterEach(cleanup);
 const manifest = JSON.parse(readFileSync("public/marketing/screenshots/manifest.json", "utf8"));
 

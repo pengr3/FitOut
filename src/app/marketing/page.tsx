@@ -1,20 +1,52 @@
-import { absoluteAppUrl } from "@/lib/app-origins";
+import type { Metadata } from "next";
+import Image from "next/image";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
+import { absoluteMarketingUrl } from "@/lib/app-origins";
+import { cn } from "@/lib/utils";
+
+export const metadata: Metadata = {
+  title: { absolute: "FitOut — Good plans need a place." },
+  description: "Find a court, gym or studio for your next session. Make your space discoverable and bookable through FitOut.",
+  alternates: { canonical: absoluteMarketingUrl("/") },
+};
+
+const audienceLink = cn(buttonVariants({ variant: "brand", size: "touch" }), "w-full px-8 motion-reduce:transition-none");
 
 export default function MarketingHome() {
   return (
-    <main className="flex min-h-dvh flex-col bg-background text-foreground">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-        <span className="text-2xl font-bold tracking-tight text-brand">FitOut</span>
-        <a href={absoluteAppUrl("/")} className="inline-flex min-h-11 items-center rounded-full bg-brand px-6 font-semibold text-brand-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">Open App</a>
-      </header>
-      <section className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center gap-6 px-6 py-16 text-center">
-        <p className="font-semibold uppercase tracking-widest text-brand">For players. For hosts.</p>
-        <h1 className="text-5xl font-bold tracking-tight sm:text-7xl">Good plans need a place.</h1>
-        <p className="max-w-2xl text-lg text-muted-foreground">Find a court, gym or studio for your next session. Have a space? Help people find it, book it and make it part of their plans.</p>
-        <div className="flex flex-wrap justify-center gap-4">
-          <a href="/players" className="inline-flex min-h-11 items-center rounded-full bg-brand px-6 font-semibold text-brand-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">I want to play</a>
-          <a href="/hosts" className="inline-flex min-h-11 items-center rounded-full border border-border bg-card px-6 font-semibold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">I have a space</a>
+    <main id="main-content" className="flex-1">
+      <section aria-labelledby="home-heading" className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-4 pb-12 pt-16 text-center sm:px-6 sm:pt-24">
+        <h1 id="home-heading" className="font-heading text-display text-balance">Good plans need a place.</h1>
+        <p className="max-w-2xl text-body text-muted-foreground">Find a court, gym or studio for your next session. Have a space? Help people find it, book it and make it part of their plans.</p>
+        <div className="grid w-full max-w-lg gap-3 sm:grid-cols-2">
+          <Link href="/players" className={audienceLink}>I want to play</Link>
+          <Link href="/hosts" className={audienceLink}>I have a space</Link>
         </div>
+      </section>
+
+      <section aria-label="FitOut for players and hosts" className="mx-auto max-w-6xl px-4 pb-16 sm:px-6 sm:pb-24">
+        <div className="grid items-stretch gap-6 md:grid-cols-2">
+          <figure className="min-w-0 overflow-hidden rounded-xl border border-border bg-muted">
+            <div className="flex aspect-video items-center bg-background p-3 sm:p-5">
+              <Image src="/marketing/screenshots/search.png" alt="FitOut demo search with activity, location and party choices alongside a matching space." width={1120} height={578} sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1152px) 50vw, 552px" loading="eager" className="h-full w-full object-contain" />
+            </div>
+            <figcaption className="space-y-3 border-t border-border p-6 sm:p-8">
+              <h2 className="font-heading text-heading">Make room for your next session.</h2>
+              <p className="text-body text-muted-foreground">Choose your activity, location and group size. Explore the details, then check the sessions available at a space.</p>
+            </figcaption>
+          </figure>
+          <figure className="min-w-0 overflow-hidden rounded-xl border border-border bg-muted">
+            <div className="flex aspect-video items-center bg-background p-3 sm:p-5">
+              <Image src="/marketing/screenshots/verification.png" alt="FitOut demo host roadmap showing account checks, payout setup, listing preparation and booking readiness." width={736} height={530} sizes="(max-width: 767px) calc(100vw - 32px), (max-width: 1152px) 50vw, 552px" loading="lazy" className="h-full w-full object-contain" />
+            </div>
+            <figcaption className="space-y-3 border-t border-border p-6 sm:p-8">
+              <h2 className="font-heading text-heading">Give your space a place in their plans.</h2>
+              <p className="text-body text-muted-foreground">Prepare your host account, share your space and set its availability. The app shows the checks needed before it can take bookings.</p>
+            </figcaption>
+          </figure>
+        </div>
+        <p className="mt-6 text-center text-label text-muted-foreground">Demo app screens. Availability and host readiness depend on each space and its completed checks.</p>
       </section>
     </main>
   );
