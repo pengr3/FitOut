@@ -4,8 +4,9 @@ vi.mock("@/lib/email", () => ({ sendContactInquiry: transport.send }));
 const local = "http://marketing.localhost:3000";
 const valid = { name: " Visitor ", email: " Person@example.com ", confirmEmail: "person@EXAMPLE.com", mobile: "", message: "Hello\nFitOut", website: "" };
 let POST: (request: Request) => Promise<Response>;
-function request(body: unknown = valid, headers: Record<string, string> = {}, origin = local) {
-  return new Request(`${origin}/api/contact`, { method: "POST", headers: { host: new URL(origin).host, origin, "content-type": "application/json", ...headers }, body: typeof body === "string" ? body : JSON.stringify(body) });
+function request(body: unknown = valid, headers: Record<string, string | undefined> = {}, origin = local) {
+  const presentHeaders = Object.fromEntries(Object.entries(headers).filter((entry): entry is [string, string] => entry[1] !== undefined));
+  return new Request(`${origin}/api/contact`, { method: "POST", headers: { host: new URL(origin).host, origin, "content-type": "application/json", ...presentHeaders }, body: typeof body === "string" ? body : JSON.stringify(body) });
 }
 beforeEach(async () => {
   vi.resetModules();

@@ -54,7 +54,7 @@ async function send(
   subject: string,
   html: string,
   text: string,
-  options: { allowDevelopmentBodyLog?: boolean; replyTo?: string } = {},
+  options: { allowDevelopmentBodyLog?: boolean; replyTo?: string; requireProviderAcceptance?: boolean } = {},
 ): Promise<EmailDeliveryResult> {
   if (!resend) {
     // WR-02 — the dev fallback logs the FULL email body, which includes the single-use
@@ -78,7 +78,7 @@ async function send(
     console.log(`[email:dev] to=${to} ${subject}\n${html}`);
     return { delivered: true, transport: "development" };
   }
-  const { error } = await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from: FROM,
     to,
     subject,
@@ -90,6 +90,9 @@ async function send(
     // Provider errors can echo recipient addresses or message payloads. Keep the
     // durable invitation pending, but never write those details to application logs.
     console.error("resend delivery failed");
+    return { delivered: false };
+  }
+  if (options.requireProviderAcceptance && (typeof data?.id !== "string" || !data.id.trim())) {
     return { delivered: false };
   }
   return { delivered: true, transport: "resend" };
@@ -107,7 +110,7 @@ export async function sendContactInquiry(input: ContactInput): Promise<EmailDeli
       paragraphs: [`Name: ${name}`, `Email: ${email}`, ...(mobile ? [`Mobile: ${mobile}`] : []), ...message.split(/\r?\n/) ],
     });
     const result = await send(SUPPORT_EMAIL, "FitOut contact inquiry", html, text, {
-      allowDevelopmentBodyLog: false, replyTo: email,
+      allowDevelopmentBodyLog: false, replyTo: email, requireProviderAcceptance: true,
     });
     return result.delivered && result.transport === "resend" ? result : { delivered: false };
   } catch {
