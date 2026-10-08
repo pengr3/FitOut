@@ -56,7 +56,7 @@ export function ContactForm() {
         const retryAfter = Number.isFinite(seconds) && seconds > 0 ? Math.min(3600, Math.max(1, Math.ceil(seconds))) : 60;
         setFeedback(`Too many attempts. Please try again in ${retryAfter} seconds.`);
       } else { setFeedback(failed); }
-    } catch { setFeedback("Check your connection and try again. Your message has not been sent."); }
+    } catch { setFeedback("We could not confirm whether your message was sent. Check your connection before trying again."); }
     finally { inFlight.current = false; setPending(false); }
   }
 

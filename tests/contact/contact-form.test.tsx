@@ -76,11 +76,25 @@ describe("recoverable marketing Contact form", () => {
   });
   it("recovers from network and malformed response errors without success", async () => {
     fetchMock.mockRejectedValue(new Error("network")); render(<ContactForm />); fill(); submit();
-    await waitFor(() => expect(screen.getByRole("status").textContent).toContain("connection")); valuesRetained();
+    await waitFor(() => expect(screen.getByRole("status").textContent).toContain("could not confirm whether your message was sent")); valuesRetained();
     fetchMock.mockResolvedValue(new Response("invalid", { status: 200 })); submit();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.getByRole("button", { name: "Send message" }).getAttribute("disabled")).toBeNull()); valuesRetained();
-    expect(screen.getByRole("status").textContent).not.toContain("was sent");
+    expect(screen.getByRole("status").textContent).toContain("could not confirm whether your message was sent");
+    expect(screen.getByRole("status").textContent).not.toBe("Your message was sent to FitOut.");
+  });
+  it("retains recovery and reports uncertainty when simulated acceptance has an unreadable response", async () => {
+    const serverAccepted = vi.fn();
+    fetchMock.mockImplementation(async () => {
+      serverAccepted();
+      return { status: 200, json: async () => { throw new Error("accepted response connection lost"); } };
+    });
+    render(<ContactForm />); fill(); submit();
+    await waitFor(() => expect(screen.getByRole("status").textContent).toContain("could not confirm whether your message was sent"));
+    expect(serverAccepted).toHaveBeenCalledOnce(); valuesRetained();
+    expect(screen.getByRole("button", { name: "Send message" }).getAttribute("disabled")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Write another message" })).toBeNull();
+    expect(screen.getByRole("status").textContent).not.toContain("has not been sent");
   });
   it.each([[200, { ok: false }], [202, { ok: true }], [503, { ok: true }], [200, { ok: "true" }]])("rejects nonaccepted contract %i %j", async (status, body) => {
     fetchMock.mockResolvedValue(Response.json(body, { status })); render(<ContactForm />); fill(); submit();

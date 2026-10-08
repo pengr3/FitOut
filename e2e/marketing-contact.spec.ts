@@ -80,10 +80,25 @@ test("simulated test transport: network failure preserves values without success
   await page.route("**/api/contact", (route) => route.abort("failed"));
   await fill(page);
   await page.getByRole("button", { name: "Send message" }).click();
-  await expect(page.getByRole("status")).toContainText("Check your connection");
+  await expect(page.getByRole("status")).toContainText("could not confirm whether your message was sent");
   await expect(page.getByLabel("Name", { exact: true })).toHaveValue("Demo visitor");
   await expect(page.getByLabel("Message", { exact: true })).toHaveValue("A local demo question\nabout FitOut");
   await expect(page.getByRole("button", { name: "Send message" })).toBeEnabled();
+});
+
+test("simulated accepted server outcome with unreadable response reports uncertainty", async ({ page }) => {
+  let accepted = 0;
+  await page.route("**/api/contact", (route) => {
+    accepted++;
+    return route.fulfill({ status: 200, contentType: "application/json", body: "truncated accepted response" });
+  });
+  await fill(page);
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByRole("status")).toContainText("could not confirm whether your message was sent");
+  expect(accepted).toBe(1);
+  await expect(page.getByLabel("Message", { exact: true })).toHaveValue("A local demo question\nabout FitOut");
+  await expect(page.getByRole("button", { name: "Send message" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Write another message" })).toHaveCount(0);
 });
 
 test("actual unconfigured route never announces delivery", async ({ page }) => {
