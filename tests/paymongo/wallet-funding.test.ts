@@ -61,6 +61,18 @@ describe("PayMongo Wallet funding adapter", () => {
     expect((await readPayoutWalletFunding(now))?.availableCents).toBe(0);
   });
 
+  it("reserves the standard ₱10 even when the configured estimate reflects a free transfer", async () => {
+    process.env.PAYMONGO_INSTAPAY_FEE_CENTS = "0";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response());
+    expect((await readPayoutWalletFunding(now))?.feeCents).toBe(1000);
+  });
+
+  it("keeps a higher account-specific fee estimate", async () => {
+    process.env.PAYMONGO_INSTAPAY_FEE_CENTS = "1200";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response());
+    expect((await readPayoutWalletFunding(now))?.feeCents).toBe(1200);
+  });
+
   it.each([
     ["wrong wallet", { ...wallet, id: "wallet_other" }],
     ["wrong merchant", { ...wallet, merchant_id: "org_other" }],

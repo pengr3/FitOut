@@ -37,7 +37,10 @@ import { sql } from "drizzle-orm";
 import { inngest } from "@/inngest/client";
 import { db } from "@/lib/db";
 import type { DbConn } from "@/lib/availability/read-model";
-import { findHostPayoutTransfers, getTransfer, getManualTransferDetails } from "@/lib/paymongo";
+import {
+  findHostPayoutTransfers, getTransfer, getManualTransferDetails,
+} from "@/lib/paymongo";
+import { STANDARD_PAYOUT_TRANSFER_FEE_CENTS } from "@/lib/payments/payout-fee-policy";
 import { matchesManualTransfer } from "@/lib/payments/manual-host-payout";
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import { recordMoneyException, type PayoutExceptionCause } from "@/lib/payments/payout-exceptions";
@@ -130,11 +133,13 @@ export async function reconcileOne(
 ): Promise<ReconcileResult> {
   const current = (await dbConn.execute(sql`
     SELECT state, transfer_id AS "transferId", net_cents AS "netCents",
-      recovered_cents AS "recoveredCents", currency, created_at AS "createdAt"
+      recovered_cents AS "recoveredCents", fee_budget_cents AS "feeBudgetCents",
+      currency, created_at AS "createdAt"
     FROM host_payout_ledger
     WHERE booking_id = ${row.bookingId} AND kind = 'payout'
   `)) as unknown as Array<{ state: string; transferId: string | null;
-    netCents: number; recoveredCents: number; currency: string; createdAt: Date }>;
+    netCents: number; recoveredCents: number; feeBudgetCents: number | null;
+    currency: string; createdAt: Date }>;
   const claim = current[0];
   if (!claim || (claim.state !== "held" && claim.state !== "processing")) {
     return { bookingId: row.bookingId,
@@ -195,7 +200,7 @@ export async function reconcileOne(
         return { bookingId: row.bookingId, state: "processing" };
       }
       tr = { id: detail.id, status: detail.status, amount: detail.amountCents,
-        currency: detail.currency };
+        feeCents: detail.feeCents, currency: detail.currency };
     } else {
       tr = await getTransfer(transferId);
     }
@@ -211,6 +216,13 @@ export async function reconcileOne(
     await recordPayoutException(dbConn, row.bookingId, "transfer_read_mismatch");
     return { bookingId: row.bookingId, state: "processing" };
   }
+  if (!Number.isSafeInteger(tr.feeCents) || tr.feeCents < 0) {
+    await recordMoneyException(dbConn, row.bookingId, "transfer_fee_unavailable");
+    return { bookingId: row.bookingId, state: "processing" };
+  }
+  const feeBudgetCents = manual ? manual.maxDebitCents - manual.amountCents :
+    claim.feeBudgetCents ?? STANDARD_PAYOUT_TRANSFER_FEE_CENTS;
+  const overBudget = tr.feeCents > feeBudgetCents;
   const reversal = (await dbConn.execute(sql`
     SELECT o.provider_status AS status
     FROM booking_settlement_current c
@@ -227,30 +239,53 @@ export async function reconcileOne(
   const next = mapTransferStatus(tr.status);
 
   if (next === "paid") {
-    // Terminal success → release the ledger to Paid. `AND state='processing'` ⇒ 0 rows if already terminal.
-    await dbConn.execute(sql`
-      UPDATE host_payout_ledger SET state='paid', paid_at=now()
-      WHERE booking_id=${row.bookingId} AND kind='payout' AND state='processing'
-        AND transfer_id=${transferId}
-    `);
+    // Persist the verified fee and terminal status together; an alert failure rolls both back.
+    await dbConn.transaction(async (tx) => {
+      const updated = await tx.execute(sql`
+        UPDATE host_payout_ledger SET state='paid', paid_at=now(),
+          actual_fee_cents=${tr.feeCents}, updated_at=now()
+        WHERE booking_id=${row.bookingId} AND kind='payout' AND state='processing'
+          AND transfer_id=${transferId}
+        RETURNING id
+      `);
+      if (updated.length && overBudget)
+        await recordMoneyException(tx as unknown as DbConn, row.bookingId, "transfer_fee_over_budget");
+    });
     return { bookingId: row.bookingId, state: "paid" };
   }
 
   if (next === "failed") {
-    // Terminal failure → mark Failed (idempotent) + operator alert (a payout needs human review).
-    await dbConn.execute(sql`
-      UPDATE host_payout_ledger SET state='failed'
-      WHERE booking_id=${row.bookingId} AND kind='payout' AND state='processing'
-        AND transfer_id=${transferId}
-    `);
+    await dbConn.transaction(async (tx) => {
+      const updated = await tx.execute(sql`
+        UPDATE host_payout_ledger SET state='failed', actual_fee_cents=${tr.feeCents}, updated_at=now()
+        WHERE booking_id=${row.bookingId} AND kind='payout' AND state='processing'
+          AND transfer_id=${transferId}
+        RETURNING id
+      `);
+      if (updated.length) {
+        if (overBudget)
+          await recordMoneyException(tx as unknown as DbConn, row.bookingId, "transfer_fee_over_budget");
+        await recordMoneyException(tx as unknown as DbConn, row.bookingId, "transfer_failed");
+      }
+    });
     console.error("[payout-alert] transfer failed", {
       bookingId: row.bookingId,
       transferId,
       status: tr.status,
     });
-    await recordMoneyException(dbConn, row.bookingId, "transfer_failed");
     return { bookingId: row.bookingId, state: "failed" };
   }
+
+  await dbConn.transaction(async (tx) => {
+    const updated = await tx.execute(sql`
+      UPDATE host_payout_ledger SET actual_fee_cents=${tr.feeCents}, updated_at=now()
+      WHERE booking_id=${row.bookingId} AND kind='payout' AND state='processing'
+        AND transfer_id=${transferId}
+      RETURNING id
+    `);
+    if (updated.length && overBudget)
+      await recordMoneyException(tx as unknown as DbConn, row.bookingId, "transfer_fee_over_budget");
+  });
 
   // Unknown / in-flight: stay processing (never spuriously Paid). If it has been stuck too long, alert.
   const ageHours = (Date.now() - new Date(row.createdAt).getTime()) / 3_600_000;

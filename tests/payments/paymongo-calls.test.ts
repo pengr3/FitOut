@@ -19,6 +19,7 @@ import {
   getCheckoutSession,
   createBatchTransfer,
   createExternalHostPayout,
+  getTransfer,
   getManualTransferDetails,
   createRefund,
   listReceivingInstitutions,
@@ -595,6 +596,31 @@ describe("controlled external host payout", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(lastCall(fetchMock).headers["Idempotency-Key"]).toBe("host-external-payout:one-booking");
   });
+});
+
+describe("getTransfer — provider fee readback", () => {
+  it.each([0, 1000, 1200])("reads a verified %i-cent fee from the existing transfer", async (fee) => {
+    fetchMock.mockResolvedValue(jsonResponse({ data: {
+      id: "tr_fee_test", status: "succeeded", reference_number: "host-payout-booking",
+      amount: 1710, fee, currency: "PHP",
+    } }));
+    expect(await getTransfer("tr_fee_test")).toMatchObject({
+      id: "tr_fee_test", amount: 1710, feeCents: fee, status: "succeeded",
+    });
+    expect(lastCall(fetchMock).url).toBe("https://api.paymongo.com/v2/transfers/tr_fee_test");
+    expect(lastCall(fetchMock).method).toBe("GET");
+  });
+
+  it.each([undefined, -1, 1.5, "unavailable"]) (
+    "rejects an unverified fee %s instead of marking a transfer Paid",
+    async (fee) => {
+      fetchMock.mockResolvedValue(jsonResponse({ data: {
+        id: "tr_fee_test", status: "succeeded", reference_number: "host-payout-booking",
+        amount: 1710, fee, currency: "PHP",
+      } }));
+      await expect(getTransfer("tr_fee_test")).rejects.toThrow("unverified shape");
+    },
+  );
 });
 
 describe("createRefund — refund mechanism (/v1, D-60)", () => {

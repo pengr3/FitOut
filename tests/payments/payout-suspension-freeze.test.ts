@@ -408,7 +408,8 @@ describe("ENF-02 — the mirror does NOT reach `processing`: a stranded transfer
 
     mockPayMongo.getTransfer.mockResolvedValueOnce({
       id: "tr_stranded_1", status: "pending",
-      referenceNumber: `host-payout-${s.bookingId}`, amount: 180000, currency: "PHP",
+      referenceNumber: `host-payout-${s.bookingId}`, amount: 180000,
+      feeCents: 1000, currency: "PHP",
     });
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await reconcileOne(

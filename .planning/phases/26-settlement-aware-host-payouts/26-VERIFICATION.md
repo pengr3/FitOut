@@ -12,6 +12,8 @@ behavior_unverified: 0
 
 **Result: human evidence needed.** Eight active plans have summaries. Plan 26-08, which would publish the full agreement and terms, was deferred by user direction and preserved as `26-08-DEFERRED.md`. No operative terms or live-money proof is claimed. The Phase 25.1 broad-release decision remains HOLD.
 
+**Later evidence:** The historical result above was recorded on 2026-10-01. The [2026-10-07 first live API payout and fee-policy addendum](26-FIRST-LIVE-API-PAYOUT-AND-FEE-POLICY.md) records one reconciled PHP 17.10 canary with PHP 0.00 actual fee, plus the PHP 10.00 per-transfer funding policy. It does not verify Friday automation or lift the broad-release HOLD.
+
 ## Observable truths
 
 | Truth | Result | Evidence |

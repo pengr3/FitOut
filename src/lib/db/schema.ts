@@ -673,6 +673,8 @@ export const hostPayoutLedger = pgTable(
     // D-71: how much of a DEBIT has been netted so far. A debit is only `paid` when recovered_cents == -net_cents.
     recoveredCents: integer("recovered_cents").default(0).notNull(),
     transferId: text("transfer_id"), // PayMongo batch/transfer id (set when the transfer fires)
+    feeBudgetCents: integer("fee_budget_cents"), // frozen pre-dispatch Wallet reserve; null on legacy/netted claims
+    actualFeeCents: integer("actual_fee_cents"), // provider GET; null until verified
     paidAt: timestamp("paid_at", { withTimezone: true }), // when processing → paid
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
