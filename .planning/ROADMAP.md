@@ -1124,6 +1124,7 @@ Plans:
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Complete    | 2026-09-10 |
 | 23. The Support Path Becomes Reachable | v1.2 | 0/3 | Planned — fitout.live domain, monitored support replies, and constrained provider callbacks | - |
 | 24. Search Bar Rework | v1.2 | 0/8 | Planned — progressive activity, location, and party-size journey ready to execute | - |
+| 27. App Subdomain & Marketing Website | v1.2 | 0/TBD | Not planned — move the app to app.fitout.live and introduce marketing at fitout.live | - |
 
 ### Phase 24: Search Bar Rework
 
@@ -1261,6 +1262,59 @@ Plans:
 
 - [ ] 26-08-DEFERRED.md — Full agreement and operative terms publication moved to later work by user direction; preserved outside active execution.
 - [x] 26-09-PLAN.md — Account capability and controlled-proof packet records an owned HOLD without live money movement.
+
+### Phase 27: App Subdomain & Marketing Website
+
+**Goal:** Move the existing fitout-web application from `fitout.live` to `app.fitout.live`, and make
+`fitout.live` FitOut's public marketing website so visitors understand the product and hosts and
+players can see how to get started.
+**Requirements**: TBD
+**Depends on:** Phase 26
+**Plans:** 0 plans
+
+**Scope captured from the user (2026-10-08):**
+
+- **App domain:** `app.fitout.live` becomes the existing application's production entry point.
+  Account, search, booking, and host workflows continue there.
+- **Marketing domain:** `fitout.live` becomes the public marketing website, with these six
+  navigation items in this order: **Home, For Hosts, For Players, About, FAQ, Contact**.
+- **Home:** Help first-time visitors understand what FitOut does, who it serves, and how to get started.
+- **For Hosts** (working label): Explain the host value proposition and onboarding journey,
+  including the steps to become a host and list a space, with a clear handoff into the app.
+- **For Players** (working label): Explain the player value proposition and getting-started journey,
+  including finding and booking a space, with a clear handoff into the app.
+- **About:** Explain FitOut and its purpose using confirmed product and company information.
+- **FAQ:** Provide separate, clearly identified host and player FAQs under the FAQ navigation item.
+- **Contact:** Provide a usable contact route using confirmed FitOut contact details.
+
+**Success Criteria** (what must be TRUE):
+
+1. `app.fitout.live` serves the existing application, and its sign-in, host, search, and booking
+   journeys work on the new origin. Domain-dependent configuration, authentication/session behavior,
+   email links, payment return URLs, and service callbacks are inventoried and updated as needed;
+   the existing ops host remains correctly isolated.
+2. `fitout.live` serves the marketing website, with all six navigation destinations usable on desktop
+   and mobile and accessible with a keyboard.
+3. Home explains FitOut clearly, and the host and player destinations explain their respective
+   onboarding journeys and lead visitors to the appropriate app entry points.
+4. About, separate host/player FAQ content, and Contact are present with accurate content; marketing
+   makes no unsupported promises about product capabilities, verification, payments, or payouts.
+5. Existing app URLs on the apex domain have a documented compatibility/redirect policy, so known
+   app deep links reach the corresponding app destination while marketing destinations remain on
+   `fitout.live`. Deployment verification covers both origins and the existing ops routing.
+
+**Design reference:** The user supplied a Sports360 homepage screenshot, preserved at
+`.planning/phases/27-app-subdomain-marketing-website/27-marketing-reference.png`. It is a visual
+reference for a prominent navigation bar, clear hero message, product imagery, and an obvious call
+to action. FitOut's branding and actual capabilities determine the content; screenshot text and
+Sports360-specific navigation are reference material, not additional requirements.
+
+**To resolve during discussion/planning:** Final host/player labels, content and visual direction,
+contact behavior, deployment/routing architecture, and the apex deep-link compatibility policy.
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 27 to break down)
 
 ## Carried Forward (not v1.2 scope until promoted)
 
