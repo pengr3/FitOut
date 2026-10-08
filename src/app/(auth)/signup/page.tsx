@@ -39,8 +39,8 @@
 // The wordmark and the `<main>` landmark are the layout's (plan 15-06, D-162); this page renders
 // neither.
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,6 +48,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { authClient } from "@/lib/auth-client";
 import { signup } from "@/app/actions/auth";
 import { signupSchema, type SignupInput } from "@/lib/validation/auth";
+import { safeAppCallbackPath } from "@/lib/safe-callback-url";
 import { PanelCard } from "@/components/patterns/panel-card";
 import {
   Form,
@@ -61,7 +62,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export default function SignupPage() {
+  return <Suspense fallback={null}><SignupForm /></Suspense>;
+}
+
+function SignupForm() {
   const router = useRouter();
+  const params = useSearchParams();
+  const callbackURL = safeAppCallbackPath(params.get("callbackURL"), "http://internal.invalid");
+  const hostingResume = callbackURL === "/start-hosting";
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<SignupInput>({
@@ -79,19 +87,23 @@ export default function SignupPage() {
 
   async function onSubmit(values: SignupInput) {
     setFormError(null);
-    const result = await signup(values);
+    const result = await signup(hostingResume ? { ...values, intent: "book" } : values, callbackURL);
     if (!result.ok) {
       setFormError(result.error);
       return;
     }
     // Session cookie was set by the server action (autoSignIn + nextCookies); navigate.
-    router.push(result.redirectTo);
+    router.push(callbackURL !== "/" ? callbackURL : result.redirectTo);
     router.refresh();
   }
 
   async function onGoogle() {
     setFormError(null);
-    await authClient.signIn.social({ provider: "google", callbackURL: "/" });
+    try {
+      const { error } = await authClient.signIn.social({ provider: "google", callbackURL,
+        errorCallbackURL: callbackURL === "/" ? "/signup" : `/signup?callbackURL=${encodeURIComponent(callbackURL)}` });
+      if (error) setFormError("We couldn't sign in with Google. Please try again.");
+    } catch { setFormError("We couldn't sign in with Google. Please try again."); }
   }
 
   return (
@@ -103,7 +115,7 @@ export default function SignupPage() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           {/* Intent (D-02) — maps to canBook/canHost server-side. */}
-          <FormField
+          {hostingResume ? <p className="text-sm text-muted-foreground">Create your account, then continue host setup.</p> : <FormField
             control={form.control}
             name="intent"
             render={({ field }) => (
@@ -147,7 +159,7 @@ export default function SignupPage() {
                 <FormMessage />
               </FormItem>
             )}
-          />
+          />}
 
           <FormField
             control={form.control}
@@ -244,7 +256,7 @@ export default function SignupPage() {
           >
             {form.formState.isSubmitting
               ? "Creating account…"
-              : intent === "host"
+              : hostingResume ? "Create account" : intent === "host"
                 ? "Sign up to host"
                 : "Sign up to book"}
           </Button>
@@ -267,7 +279,7 @@ export default function SignupPage() {
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium underline">
+        <Link href={callbackURL === "/" ? "/login" : `/login?callbackURL=${encodeURIComponent(callbackURL)}`} className="font-medium underline">
           Log in
         </Link>
       </p>

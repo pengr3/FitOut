@@ -44,7 +44,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { authClient } from "@/lib/auth-client";
-import { safeCallbackPath } from "@/lib/safe-callback-url";
+import { safeAppCallbackPath } from "@/lib/safe-callback-url";
 import { loginSchema, type LoginInput } from "@/lib/validation/auth";
 import { PanelCard } from "@/components/patterns/panel-card";
 import {
@@ -104,7 +104,14 @@ function ResetNotice() {
 function safeCallbackUrl(): string {
   if (typeof window === "undefined") return "/";
   const raw = new URLSearchParams(window.location.search).get("callbackURL");
-  return safeCallbackPath(raw, window.location.origin);
+  return safeAppCallbackPath(raw, window.location.origin);
+}
+
+function SignupLink() {
+  const params = useSearchParams();
+  const callback = safeAppCallbackPath(params.get("callbackURL"), "http://internal.invalid");
+  return <Link href={callback === "/" ? "/signup" : `/signup?callbackURL=${encodeURIComponent(callback)}`}
+    className="font-medium underline">Create an account</Link>;
 }
 
 export default function LoginPage() {
@@ -121,6 +128,7 @@ export default function LoginPage() {
     const { error } = await authClient.signIn.email({
       email: values.email,
       password: values.password,
+      callbackURL: safeCallbackUrl(),
     });
     if (error) {
       // Generic, non-enumerating message regardless of the underlying cause (T-03-06).
@@ -134,7 +142,12 @@ export default function LoginPage() {
 
   async function onGoogle() {
     setFormError(null);
-    await authClient.signIn.social({ provider: "google", callbackURL: safeCallbackUrl() });
+    const callbackURL = safeCallbackUrl();
+    try {
+      const { error } = await authClient.signIn.social({ provider: "google", callbackURL,
+        errorCallbackURL: callbackURL === "/" ? "/login" : `/login?callbackURL=${encodeURIComponent(callbackURL)}` });
+      if (error) setFormError("We couldn't sign in with Google. Please try again.");
+    } catch { setFormError("We couldn't sign in with Google. Please try again."); }
   }
 
   return (
@@ -238,9 +251,7 @@ export default function LoginPage() {
 
       <p className="text-center text-sm text-muted-foreground">
         New to FitOut?{" "}
-        <Link href="/signup" className="font-medium underline">
-          Create an account
-        </Link>
+        <Suspense fallback={null}><SignupLink /></Suspense>
       </p>
     </PanelCard>
   );

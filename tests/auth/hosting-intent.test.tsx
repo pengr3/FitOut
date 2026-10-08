@@ -36,7 +36,7 @@ describe("checked hosting entry", () => {
 });
 
 describe("explicit hosting activation", () => {
-  it("calls the protected action once only on click, then navigates and refreshes", async () => {
+  it("calls the protected action once only on click, then navigates to fresh host setup", async () => {
     let resolve!: (value: { ok: true; redirectTo: string }) => void;
     mocks.activate.mockReturnValue(new Promise((done) => { resolve = done; }));
     render(<HostingIntent />);
@@ -46,7 +46,6 @@ describe("explicit hosting activation", () => {
     resolve({ ok: true, redirectTo: "/host" });
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/host"));
     expect(mocks.activate).toHaveBeenCalledTimes(1);
-    expect(mocks.refresh).toHaveBeenCalledTimes(1);
   });
   it("retains intent and allows retry after an action denial", async () => {
     mocks.activate.mockResolvedValueOnce({ ok: false, error: "Too many attempts. Please try again in a moment." })

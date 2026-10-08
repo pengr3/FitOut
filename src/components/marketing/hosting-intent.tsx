@@ -24,7 +24,6 @@ export function HostingIntent() {
           return;
         }
         router.push(destination);
-        router.refresh();
       } catch {
         setError("We couldn't start hosting. Please try again.");
       }

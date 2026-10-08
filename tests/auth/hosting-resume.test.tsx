@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), email: vi.fn(), social: vi.fn(), signup: vi.fn(), signUpEmail: vi.fn() }));
@@ -14,6 +14,11 @@ vi.mock("@/lib/auth", async (original) => {
 import LoginPage from "@/app/(auth)/login/page";
 import SignupPage from "@/app/(auth)/signup/page";
 import { sessionCheckResponse, type SessionCheckAuth } from "@/lib/session-check";
+import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
+import { makeTestAuth, type TestAuth } from "../helpers/auth";
+import { mockResend } from "../helpers/mocks";
+import { APP_ORIGIN } from "@/lib/app-origins";
+import { Buffer } from "node:buffer";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -30,7 +35,7 @@ async function fillSignup() {
   fireEvent.change(screen.getByLabelText("Email"), { target: { value: "journey@example.com" } });
   fireEvent.change(screen.getByLabelText("Password", { exact: true }), { target: { value: "averylongpassword" } });
   fireEvent.change(screen.getByLabelText("Confirm password"), { target: { value: "averylongpassword" } });
-  fireEvent.click(screen.getByRole("button", { name: "Sign up to book" }));
+  fireEvent.click(screen.getByRole("button", { name: /Sign up to book|Create account/ }));
   await waitFor(() => expect(mocks.signup).toHaveBeenCalled());
 }
 
@@ -112,8 +117,66 @@ describe("signup server callback boundary", () => {
     const { signup } = await vi.importActual<typeof import("@/app/actions/auth")>("@/app/actions/auth");
     const input = { firstName: "Journey", email: "journey@example.com", password: "averylongpassword", confirmPassword: "averylongpassword", intent: "book" as const };
     // Optional callback argument is added by this task; RED uses runtime JS invocation.
-    const call = signup as (input: typeof input, callback?: string) => ReturnType<typeof signup>;
+    const call = signup as (values: typeof input, callback?: string) => ReturnType<typeof signup>;
     expect(await call(input, "/start-hosting")).toMatchObject({ ok: true });
     expect(mocks.signUpEmail).toHaveBeenCalledWith({ body: expect.objectContaining({ intent: "book", callbackURL: "/start-hosting" }) });
+  });
+  it("a hosting callback cannot turn modified signup intent into an automatic capability grant", async () => {
+    const { signup } = await vi.importActual<typeof import("@/app/actions/auth")>("@/app/actions/auth");
+    await signup({ firstName: "Journey", email: "journey@example.com", password: "averylongpassword", confirmPassword: "averylongpassword", intent: "host" }, "/start-hosting");
+    expect(mocks.signUpEmail).toHaveBeenCalledWith({ body: expect.objectContaining({ intent: "book", callbackURL: "/start-hosting" }) });
+  });
+  it.each(["https://evil.test/", "/ops", "/%6f%70%73"])("does not forward unsafe server callback %s", async (callback) => {
+    const { signup } = await vi.importActual<typeof import("@/app/actions/auth")>("@/app/actions/auth");
+    await signup({ firstName: "Journey", email: "journey@example.com", password: "averylongpassword", confirmPassword: "averylongpassword", intent: "book" }, callback);
+    expect(mocks.signUpEmail.mock.calls[0][0].body).not.toHaveProperty("callbackURL");
+  });
+});
+
+describe("installed auth hosting returns", () => {
+  let database: TestDb;
+  let auth: TestAuth;
+  beforeAll(async () => {
+    // jose receives Node TextEncoder bytes; use the matching typed-array realm in this jsdom file.
+    vi.stubGlobal("Uint8Array", Object.getPrototypeOf(Buffer));
+    database = await setupTestDb(); auth = makeTestAuth(database);
+  });
+  afterAll(async () => { await teardownTestDb(database); vi.unstubAllGlobals(); });
+  it("issued signup verification resumes hosting without granting the host capability", async () => {
+    let authError: unknown;
+    mocks.signUpEmail.mockImplementation(async (args) => {
+      try { return await auth.api.signUpEmail(args); }
+      catch (error) { authError = error; throw error; }
+    });
+    const { signup } = await vi.importActual<typeof import("@/app/actions/auth")>("@/app/actions/auth");
+    const result = await signup({ firstName: "Journey", email: "real-resume@example.com", password: "averylongpassword", confirmPassword: "averylongpassword", intent: "book" }, "/start-hosting");
+    expect(authError).toBeUndefined();
+    expect(result).toMatchObject({ ok: true });
+    await waitFor(() => expect(mockResend.lastLink()).toBeTruthy());
+    const verification = mockResend.sent().find((email) => email.to === "real-resume@example.com")!;
+    const issued = new URL(verification.text!.match(/https?:\/\/[^\s]+\/api\/auth\/verify-email\?[^\s]+/)![0]);
+    expect(issued.searchParams.get("callbackURL")).toBe("/start-hosting");
+    const response = await auth.handler(new Request(issued, { headers: { host: issued.host } }));
+    expect(response.status).toBe(302);
+    expect(new URL(response.headers.get("location")!, APP_ORIGIN).pathname).toBe("/start-hosting");
+    const [row] = await database.client`SELECT can_book, can_host, email_verified FROM "user" WHERE email = 'real-resume@example.com'`;
+    expect(row).toMatchObject({ can_book: true, can_host: false, email_verified: true });
+  });
+  it("installed Google state returns a controlled consent error to checked login intent", async () => {
+    const errorCallbackURL = "/login?callbackURL=%2Fstart-hosting";
+    const initiated = await auth.api.signInSocial({ body: { provider: "google", callbackURL: "/start-hosting", errorCallbackURL, disableRedirect: true }, asResponse: true });
+    expect(initiated.status).toBe(200);
+    const body = await initiated.json();
+    const provider = new URL(body.url);
+    expect(provider.hostname).toBe("accounts.google.com");
+    const cookie = initiated.headers.getSetCookie().map((item) => item.split(";")[0]).join("; ");
+    const callback = new URL("/api/auth/callback/google", APP_ORIGIN);
+    callback.searchParams.set("state", provider.searchParams.get("state")!);
+    callback.searchParams.set("error", "access_denied");
+    const response = await auth.handler(new Request(callback, { headers: { host: callback.host, cookie } }));
+    expect(response.status).toBe(302);
+    const returned = new URL(response.headers.get("location")!, APP_ORIGIN);
+    expect(returned.pathname).toBe("/login");
+    expect(returned.searchParams.get("callbackURL")).toBe("/start-hosting");
   });
 });
