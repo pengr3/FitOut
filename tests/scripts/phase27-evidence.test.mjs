@@ -118,3 +118,34 @@ test("claimed elapsed duration contradicting start/finish fails", () => {
   const fixture = completeFixture(); fixture.engineering.gates[0].durationSeconds = 0;
   assert(validateEvidence(fixture).some((error) => error.includes("elapsed timing contradicts")));
 });
+function snapshotFixture() {
+  const fixture = completeFixture();
+  const gate = fixture.engineering.gates[0]; const source = gate.testedSource;
+  const path = "playwright/.cache/phase27-08/fixture-source.json";
+  const bytes = JSON.stringify(source); fixture.logs.set(path, bytes);
+  gate.testedSource = { provenance: "snapshot", path, sha256: createHash("sha256").update(bytes).digest("hex"), revision: source.revision, dirty: source.dirty, claim: source.claim, capturedAt: source.capturedAt, manifestSha256: source.manifest.sha256 };
+  return fixture;
+}
+test("workspace-contained source snapshot is loaded, hashed and validated", () => {
+  assert.deepEqual(validateEvidence(snapshotFixture()), []);
+});
+for (const [field, value] of [["path", "../outside.json"], ["sha256", "0".repeat(64)], ["dirty", true], ["revision", "b".repeat(40)], ["manifestSha256", true], ["capturedAt", "2026-10-08T19:01:00Z"]]) {
+  test(`source snapshot reference wrong ${field} fails`, () => {
+    const fixture = snapshotFixture(); fixture.engineering.gates[0].testedSource[field] = value;
+    assert(validateEvidence(fixture).length > 0);
+  });
+}
+test("changed snapshot bytes cannot retain old byte digest", () => {
+  const fixture = snapshotFixture(); const source = fixture.engineering.gates[0].testedSource;
+  fixture.logs.set(source.path, fixture.logs.get(source.path) + " ");
+  assert(validateEvidence(fixture).some((error) => error.includes("source snapshot byte digest mismatch")));
+});
+test("persisted supplemental gates undergo same summary and source checks", () => {
+  const fixture = snapshotFixture();
+  fixture.engineering.reviewFixVerification = { gates: [structuredClone(fixture.engineering.gates[5])] };
+  const gate = fixture.engineering.reviewFixVerification.gates[0];
+  gate.startedAt = fixture.engineering.gates[5].finishedAt; gate.finishedAt = gate.startedAt; gate.durationSeconds = 0;
+  assert.deepEqual(validateEvidence(fixture), []);
+  gate.resultData.tests.failed = 1;
+  assert(validateEvidence(fixture).some((error) => error.includes("typed runner totals/terminal summary contradict evidence")));
+});

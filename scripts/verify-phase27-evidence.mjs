@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { isAbsolute, relative, resolve } from "node:path";
 import { createHash } from "node:crypto";
@@ -47,7 +47,10 @@ export const manifestDigest = (files) => sha256(JSON.stringify(files));
 // credential files are in scope. Hashes establish byte consistency, not execution attestation.
 export function captureSourceContext() {
   const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-  const paths = [...new Set(git("ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", ...SOURCE_SCOPE).split("\0").filter(Boolean))].sort();
+  const indexed = git("ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", ...SOURCE_SCOPE).split("\0").filter(Boolean);
+  // Generated nonsecret config such as next-env.d.ts can be ignored yet affect type/build gates.
+  const configs = SOURCE_SCOPE.filter((path) => !path.endsWith("/") && existsSync(resolve(root, path)));
+  const paths = [...new Set([...indexed, ...configs])].sort();
   const files = paths.map((path) => { try { return { path, sha256: sha256(readFileSync(resolve(root, path))) }; } catch { return { path, sha256: null }; } });
   const dirty = git("status", "--porcelain=v1", "--untracked-files=all").trim().length > 0;
   return { provenance: "captured", revision: git("rev-parse", "HEAD").trim(), dirty, claim: dirty ? "working-tree" : "clean-revision", capturedAt: new Date().toISOString(), manifest: { scope: SOURCE_SCOPE, files, sha256: manifestDigest(files) } };
@@ -129,6 +132,22 @@ const commands = [
 check(Array.isArray(engineering.gates) && engineering.gates.length === commands.length, "All six full gate results are required");
 const runners = ["vitest", "vitest", "typescript", "eslint", "next-build", "playwright"];
 function validateSource(source, gate, label) {
+  if (source?.provenance === "snapshot") {
+    const path = typeof source.path === "string" ? resolve(root, source.path) : null;
+    const fromRoot = path ? relative(root, path) : "..";
+    const contained = fromRoot !== ".." && !fromRoot.startsWith("../") && !fromRoot.startsWith("..\\") && !isAbsolute(fromRoot);
+    check(contained && nonempty(source.path) && typeof source.sha256 === "string" && /^[a-f0-9]{64}$/.test(source.sha256), `${label} source snapshot path/digest invalid`);
+    if (!contained || !path) return;
+    try {
+      const bytes = readLog(path);
+      check(sha256(bytes) === source.sha256, `${label} source snapshot byte digest mismatch`);
+      const captured = JSON.parse(String(bytes));
+      check(captured?.provenance === "captured" && captured.revision === source.revision && captured.dirty === source.dirty && captured.claim === source.claim && captured.capturedAt === source.capturedAt && captured.manifest?.sha256 === source.manifestSha256, `${label} source snapshot contradicts reference context`);
+      // A snapshot must contain an original capture, never another reference (no recursion chain).
+      if (captured?.provenance === "captured") validateSource(captured, gate, label);
+    } catch { check(false, `${label} source snapshot unavailable or malformed`); }
+    return;
+  }
   check(typeof source?.dirty === "boolean" && ["captured", "unavailable"].includes(source?.provenance), `${label} tested source provenance/dirty state missing`);
   if (source?.provenance === "unavailable") {
     check(source.revision === null && source.manifest === null && source.capturedAt === null && source.claim === "working-tree" && source.dirty === true && nonempty(source.reason), `${label} unavailable historical source must not claim clean/captured revision`);
