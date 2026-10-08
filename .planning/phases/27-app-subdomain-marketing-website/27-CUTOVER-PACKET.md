@@ -50,6 +50,17 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
 
 ## Deployed evidence contract
 
+Engineering schemaVersion 2 requires typed runner totals and the bounded terminal summary to
+match the retained log bytes, valid start/finish ordering, and explicit tested source context.
+The historical six full gates retain their real results, including eight unit and nine design
+failures. Their source provenance is unavailable: no scoped source manifest/revision was captured
+at execution time. They tested a preserved dirty working tree and establish neither a clean
+candidate SHA nor a deployed SHA. Prepared validation accepts that honest limitation; deployed/live
+validation rejects it. New captures include revision, dirty state, capture time, scoped file hashes
+and manifest digest. Dirty captures cannot be relabeled as clean or deployed source, and all
+deployed gate captures must match the deployed source revision and manifest digest. Byte hashes
+and summary checks establish structural consistency only, not proof of execution or authenticity.
+
 `scripts/verify-phase27-evidence.mjs` now requires matrixVersion 1 and all 35 distinct
 scenario IDs in REQUIRED_MATRIX. Each observation records the exact host/HTTPS URL/method,
 scenario, expected and observed detail, explicit outcome="pass", proof reference, valid UTC timestamp, deployment ID

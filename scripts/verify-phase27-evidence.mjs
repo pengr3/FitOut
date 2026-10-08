@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { isAbsolute, relative, resolve } from "node:path";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 
 // Offline evidence validation only. This never deploys, enables mail, sends an
 // inquiry, reads credentials, or treats a local/mocked test as external proof.
@@ -39,6 +40,79 @@ export const REQUIRED_MATRIX = [
 ];
 const nonempty = (value) => typeof value === "string" && value.trim().length > 0;
 const validTimestamp = (value) => typeof value === "string" && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 19) === value.slice(0, 19);
+export const SOURCE_SCOPE = ["src/", "public/", "tests/", "e2e/", "scripts/", "package.json", "package-lock.json", "pnpm-lock.yaml", "next.config.ts", "next-env.d.ts", "tsconfig.json", "vitest.config.ts", "vitest.design.config.ts", "playwright.config.ts", "eslint.config.mjs", "postcss.config.mjs", "components.json", "instrumentation.ts", "vercel.json"];
+const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+export const manifestDigest = (files) => sha256(JSON.stringify(files));
+// Capture before a gate; never reconstruct a historical capture from today's files. No env or
+// credential files are in scope. Hashes establish byte consistency, not execution attestation.
+export function captureSourceContext() {
+  const git = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  const paths = [...new Set(git("ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", ...SOURCE_SCOPE).split("\0").filter(Boolean))].sort();
+  const files = paths.map((path) => { try { return { path, sha256: sha256(readFileSync(resolve(root, path))) }; } catch { return { path, sha256: null }; } });
+  const dirty = git("status", "--porcelain=v1", "--untracked-files=all").trim().length > 0;
+  return { provenance: "captured", revision: git("rev-parse", "HEAD").trim(), dirty, claim: dirty ? "working-tree" : "clean-revision", capturedAt: new Date().toISOString(), manifest: { scope: SOURCE_SCOPE, files, sha256: manifestDigest(files) } };
+}
+const withoutAnsi = (text) => text.replace(/\x1b\[[0-9;]*m/g, "");
+function counts(line) {
+  const values = { passed: 0, failed: 0, skipped: 0 };
+  for (const match of line.matchAll(/(\d+)\s+(passed|failed|skipped)/g)) values[match[2]] = Number(match[1]);
+  return values;
+}
+// Extract bounded summaries from the known runners' retained bytes. A relabeled status/exit
+// cannot erase a failed terminal summary. Empty successful tsc/ESLint output is handled explicitly.
+export function runnerSummary(runner, bytes) {
+  const log = withoutAnsi(String(bytes));
+  if (runner === "node-test") {
+    const lines = log.split(/\r?\n/).filter((line) => /^(?:ℹ |# )(?:pass|fail|skipped|cancelled) \d+$/.test(line));
+    if (lines.length !== 4) return null;
+    const value = (key) => Number(lines.find((line) => new RegExp(`(?:ℹ |# )${key} \\d+$`).test(line))?.match(/\d+$/)?.[0]);
+    const tests = { passed: value("pass"), failed: value("fail") + value("cancelled"), skipped: value("skipped") };
+    return { terminalSummary: lines.join("\n"), resultData: { runner, tests }, failed: tests.failed };
+  }
+  if (runner === "vitest") {
+    const files = [...log.matchAll(/^\s*Test Files\s+(.+)$/gm)].at(-1)?.[0].trim();
+    const tests = [...log.matchAll(/^\s*Tests\s+(.+)$/gm)].at(-1)?.[0].trim();
+    if (!files || !tests) return null;
+    return { terminalSummary: `${files}\n${tests}`, resultData: { runner, files: counts(files), tests: counts(tests) }, failed: counts(files).failed + counts(tests).failed };
+  }
+  if (runner === "playwright") {
+    const lines = log.split(/\r?\n/).filter((line) => /^\s*\d+\s+(passed|failed|skipped|did not run|interrupted)(?:\s|$)/.test(line));
+    if (!lines.length) return null;
+    const tests = counts(lines.join("\n"));
+    tests.skipped += lines.reduce((total, line) => total + Number(line.match(/(\d+)\s+(?:did not run|interrupted)/)?.[1] ?? 0), 0);
+    return { terminalSummary: lines.map((line) => line.trim()).join("\n"), resultData: { runner, tests }, failed: tests.failed + tests.skipped };
+  }
+  if (runner === "typescript") {
+    const diagnostics = log.split(/\r?\n/).filter((line) => /error TS\d+:/.test(line));
+    if (log.trim() && !diagnostics.length) return null;
+    return { terminalSummary: diagnostics.length ? diagnostics.join("\n") : "No TypeScript diagnostics.", resultData: { runner, errors: diagnostics.length }, failed: diagnostics.length };
+  }
+  if (runner === "eslint") {
+    const matches = [...log.matchAll(/(\d+) problems? \((\d+) errors?(?:, (\d+) warnings?)?\)/g)];
+    const last = matches.at(-1);
+    if (!last && log.trim()) return null;
+    const errors = Number(last?.[2] ?? 0); const warnings = Number(last?.[3] ?? 0);
+    return { terminalSummary: last?.[0] ?? "No ESLint diagnostics.", resultData: { runner, errors, warnings }, failed: errors };
+  }
+  if (runner === "next-build") {
+    const compiled = /Compiled successfully/.test(log);
+    const generated = /(?:[✓✔]\s*)?Generating static pages[^\r\n]*\((\d+)\/\1\)/.test(log);
+    const failures = log.split(/\r?\n/).filter((line) => /^(?:Error:|Failed to compile|.*Build error occurred)|error TS\d+:/.test(line));
+    const lines = log.split(/\r?\n/).filter((line) => /Compiled successfully|Generating static pages.*\((\d+)\/\1\)|Finalizing page optimization/.test(line));
+    if (!lines.length && !failures.length) return null;
+    return { terminalSummary: [...lines, ...failures].map((line) => line.trim()).join("\n"), resultData: { runner, compiled, generated, errors: failures.length }, failed: failures.length || (!compiled || !generated ? 1 : 0) };
+  }
+  return null;
+}
+const canonical = (value) => JSON.stringify(value, Object.keys(value ?? {}).sort());
+const sameResult = (a, b) => {
+  // Explicit nested totals, avoiding object-key-order dependence and accepting no omitted totals.
+  if (!a || !b || canonical(a) !== canonical(b)) return false;
+  for (const key of ["files", "tests"]) if (a[key] || b[key]) {
+    if (canonical(a[key]) !== canonical(b[key])) return false;
+  }
+  return true;
+};
 
 export function validateEvidence({ engineering, inventory, packet, live = {}, stage = "prepared", readLog = (path) => readFileSync(path) }) {
 const errors = [];
@@ -52,17 +126,41 @@ const commands = [
   "node node_modules/next/dist/bin/next build",
   "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts --project=chromium",
 ];
-check(engineering.gates?.length === commands.length, "All six full gate results are required");
-for (let index = 0; index < commands.length; index++) {
-  const gate = engineering.gates?.[index] ?? {};
-  check(gate.command === commands[index], `Gate ${index + 1} command/order missing`);
+check(Array.isArray(engineering.gates) && engineering.gates.length === commands.length, "All six full gate results are required");
+const runners = ["vitest", "vitest", "typescript", "eslint", "next-build", "playwright"];
+function validateSource(source, gate, label) {
+  check(typeof source?.dirty === "boolean" && ["captured", "unavailable"].includes(source?.provenance), `${label} tested source provenance/dirty state missing`);
+  if (source?.provenance === "unavailable") {
+    check(source.revision === null && source.manifest === null && source.capturedAt === null && source.claim === "working-tree" && source.dirty === true && nonempty(source.reason), `${label} unavailable historical source must not claim clean/captured revision`);
+    check(stage === "prepared", `${label} uncaptured historical source blocks deployed/live acceptance`);
+    return;
+  }
+  check(typeof source?.revision === "string" && /^[a-f0-9]{40}$/.test(source.revision) && validTimestamp(source?.capturedAt) && Date.parse(source.capturedAt) <= Date.parse(gate.startedAt), `${label} tested revision/capture time missing`);
+  check(source?.claim === (source?.dirty ? "working-tree" : "clean-revision"), `${label} dirty source contradicts clean/deployed claim`);
+  const manifest = source?.manifest;
+  check(Array.isArray(manifest?.scope) && SOURCE_SCOPE.every((path) => manifest.scope.includes(path)), `${label} tested source scope incomplete`);
+  const files = Array.isArray(manifest?.files) ? manifest.files : [];
+  check(files.length > 0 && files.every((file) => nonempty(file?.path) && !isAbsolute(file.path) && !file.path.split(/[\\/]/).includes("..") && !file.path.includes("\\") && SOURCE_SCOPE.some((path) => path.endsWith("/") ? file.path.startsWith(path) : file.path === path) && (file.sha256 === null || typeof file.sha256 === "string" && /^[a-f0-9]{64}$/.test(file.sha256))), `${label} typed scoped source files missing`);
+  check(new Set(files.map((file) => file?.path)).size === files.length && files.every((file, index) => index === 0 || files[index - 1]?.path < file?.path), `${label} source manifest duplicates/order invalid`);
+  check(typeof manifest?.sha256 === "string" && manifest.sha256 === manifestDigest(files), `${label} source manifest digest mismatch`);
+  if (stage !== "prepared") check(source?.dirty === false && source?.revision === live.deployedRevision && manifest?.sha256 === live.sourceManifestSha256, `${label} clean deployed source does not match tested context`);
+}
+const verification = engineering.reviewFixVerification?.gates ?? [];
+check(Array.isArray(verification), "Review-fix verification gates must be an array");
+const gates = [...commands.map((_, index) => engineering.gates?.[index] ?? {}), ...(Array.isArray(verification) ? verification : [])];
+for (let index = 0; index < gates.length; index++) {
+  const gate = gates[index] ?? {};
+  const runner = index < commands.length ? runners[index] : gate.resultData?.runner;
+  check(index < commands.length ? gate.command === commands[index] : nonempty(gate.command) && [...runners, "node-test"].includes(runner), `Gate ${index + 1} command/order/runner missing`);
   check(Number.isInteger(gate.exitCode) && Number.isFinite(gate.durationSeconds) && gate.durationSeconds >= 0, `Gate ${index + 1} actual exit/timing missing`);
   check(["pass", "fail"].includes(gate.status) && (gate.exitCode === 0) === (gate.status === "pass"), `Gate ${index + 1} status contradicts exit`);
-  check(Boolean(gate.result && gate.logSha256 && /^[a-f0-9]{64}$/.test(gate.logSha256)), `Gate ${index + 1} bounded result/evidence digest missing`);
+  check(nonempty(gate.result) && typeof gate.logSha256 === "string" && /^[a-f0-9]{64}$/.test(gate.logSha256), `Gate ${index + 1} bounded result/evidence digest missing`);
+  let capturedBytes;
   check(["raw-log", "terminal-transcript"].includes(gate.evidenceKind), `Gate ${index + 1} evidence provenance missing`);
   if (gate.evidenceKind === "terminal-transcript") {
     check(gate.rawLogAvailable === false && Boolean(gate.rawLogLoss), `Gate ${index + 1} lost raw log must be explicit`);
-    check(gate.logSha256 === createHash("sha256").update(gate.result).digest("hex"), `Gate ${index + 1} transcript digest contradicts saved result`);
+    capturedBytes = typeof gate.result === "string" ? gate.result : "";
+    check(gate.logSha256 === sha256(capturedBytes), `Gate ${index + 1} transcript digest contradicts saved result`);
   } else if (gate.evidenceKind === "raw-log") {
     check(gate.rawLogAvailable === true && typeof gate.rawLogPath === "string", `Gate ${index + 1} raw log path/presence missing`);
     if (typeof gate.rawLogPath === "string") {
@@ -71,14 +169,19 @@ for (let index = 0; index < commands.length; index++) {
       const contained = fromRoot !== ".." && !fromRoot.startsWith("../") && !fromRoot.startsWith("..\\") && !isAbsolute(fromRoot);
       check(contained, `Gate ${index + 1} raw log path leaves workspace`);
       if (contained) {
-        try { check(createHash("sha256").update(readLog(logPath)).digest("hex") === gate.logSha256, `Gate ${index + 1} raw log digest mismatch`); }
+        try { capturedBytes = readLog(logPath); check(sha256(capturedBytes) === gate.logSha256, `Gate ${index + 1} raw log digest mismatch`); }
         catch { check(false, `Gate ${index + 1} raw log unavailable`); }
       }
     }
   }
+  const summary = capturedBytes === undefined ? null : runnerSummary(runner, capturedBytes);
+  check(Boolean(summary) && gate.resultData?.runner === runner && sameResult(gate.resultData, summary?.resultData) && gate.terminalSummary === summary?.terminalSummary, `Gate ${index + 1} typed runner totals/terminal summary contradict evidence`);
+  check(gate.status !== "pass" || summary?.failed === 0 && ![...String(gate.result).matchAll(/(\d+)\s+(?:failed|errors?)\b/g)].some((match) => Number(match[1]) > 0), `Gate ${index + 1} pass label contradicts failed runner outcome`);
   if (gate.status === "fail") check(Boolean(gate.disposition), `Gate ${index + 1} failure disposition missing`);
-  check(Number.isFinite(Date.parse(gate.startedAt)) && Number.isFinite(Date.parse(gate.finishedAt)), `Gate ${index + 1} timestamps missing`);
-  if (index > 0) check(Date.parse(gate.startedAt) >= Date.parse(engineering.gates?.[index - 1]?.finishedAt), `Gate ${index + 1} overlapped preceding gate`);
+  check(validTimestamp(gate.startedAt) && validTimestamp(gate.finishedAt) && Date.parse(gate.finishedAt) >= Date.parse(gate.startedAt), `Gate ${index + 1} timestamps invalid or finish precedes start`);
+  check(Math.abs((Date.parse(gate.finishedAt) - Date.parse(gate.startedAt)) / 1000 - gate.durationSeconds) <= 1, `Gate ${index + 1} elapsed timing contradicts start/finish`);
+  validateSource(gate.testedSource, gate, `Gate ${index + 1}`);
+  if (index > 0) check(Date.parse(gate.startedAt) >= Date.parse(gates[index - 1]?.finishedAt), `Gate ${index + 1} overlapped preceding gate`);
 }
 check(engineering.liveInboxProven === false, "Engineering evidence must not claim live inbox proof");
 check(packet.targets?.app === "https://app.fitout.live" && packet.targets?.marketing === "https://fitout.live" && packet.targets?.ops === "https://ops.fitout.live", "Exact approved topology missing");
@@ -99,7 +202,7 @@ for (const id of ids) {
   if (row?.status === "unknown") check(row.current.toLowerCase().includes("unknown"), `${id}: unknown asserted as fact`);
 }
 if (stage === "deployed" || stage === "live") {
-  check(engineering.gates?.every((gate) => gate.status === "pass"), "Failed engineering gates block deployment acceptance");
+  check(Array.isArray(engineering.gates) && engineering.gates.every((gate) => gate.status === "pass"), "Failed engineering gates block deployment acceptance");
   check(inventory.rows?.every((row) => row.status === "observed"), "Unknown/partial external inventory blocks deployed proof");
   check(live.deployedRevision === packet.approvedRevision && /^[a-f0-9]{40}$/.test(live.deployedRevision ?? ""), "Exact approved deployed revision read-back missing");
   check(packet.authority?.status === "approved" && packet.authority?.scope && packet.authority?.approvedAt, "Scoped cutover authority missing");
@@ -144,6 +247,9 @@ return errors;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (process.argv.includes("--capture-source")) {
+  console.log(JSON.stringify(captureSourceContext(), null, 2));
+} else {
 const loadErrors = [];
 function document(name) {
   try {
@@ -163,5 +269,6 @@ if (errors.length) {
   process.exitCode = 1;
 } else {
   console.log(`Phase 27 ${stage}: evidence structure validated; engineering=${engineering.gates.every((gate) => gate.status === "pass") ? "pass" : "failed gates retained"}; external approval=${packet.authority?.status ?? "pending"}.`);
+}
 }
 }

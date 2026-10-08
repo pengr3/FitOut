@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { manifestDigest, runnerSummary, SOURCE_SCOPE } from "../../../scripts/verify-phase27-evidence.mjs";
 const dir = new URL("../../../.planning/phases/27-app-subdomain-marketing-website/", import.meta.url);
 const load = (name) => JSON.parse(readFileSync(new URL(name, dir), "utf8").match(/```json\s*([\s\S]*?)```/)[1]);
 const revision = "a".repeat(40);
@@ -32,16 +33,20 @@ export function completeFixture() {
   const inventory = load("27-DEPLOYMENT-INVENTORY.md");
   const packet = load("27-CUTOVER-PACKET.md");
   const logs = new Map();
+  const files = [{ path: "src/fixture.ts", sha256: "0".repeat(64) }];
+  const testedSource = { provenance: "captured", revision, dirty: false, claim: "clean-revision", capturedAt: "2026-10-08T19:00:00.000Z", manifest: { scope: SOURCE_SCOPE, files, sha256: manifestDigest(files) } };
+  const runners = ["vitest", "vitest", "typescript", "eslint", "next-build", "playwright"];
   engineering.gates.forEach((gate, index) => {
     const log = index < 2 ? "Test Files 1 passed (1)\nTests 1 passed (1)\n" : index === 5 ? "1 passed (1s)\n" : index === 4 ? "Compiled successfully\nGenerating static pages (1/1)\n" : "";
     logs.set(gate.rawLogPath, log);
-    Object.assign(gate, { exitCode: 0, status: "pass", result: "Synthetic runner fixture passed", logSha256: createHash("sha256").update(log).digest("hex") });
+    const summary = runnerSummary(runners[index], log);
+    Object.assign(gate, { exitCode: 0, status: "pass", result: "Synthetic runner fixture passed", logSha256: createHash("sha256").update(log).digest("hex"), terminalSummary: summary.terminalSummary, resultData: summary.resultData, testedSource: structuredClone(testedSource) });
   });
   inventory.rows.forEach((row) => Object.assign(row, { status: "observed", source: "synthetic fixture", observedAt }));
   packet.approvedRevision = revision;
   packet.authority = { status: "approved", scope: "synthetic fixture only", approvedAt: observedAt };
   const live = {
-    matrixVersion: 1, deployedRevision: revision, deploymentId, highThreats: [], rollbackVerified: true, contactControlsVerified: true,
+    matrixVersion: 1, deployedRevision: revision, deploymentId, sourceManifestSha256: testedSource.manifest.sha256, highThreats: [], rollbackVerified: true, contactControlsVerified: true,
     deployments: {
       customer: { id: deploymentId, revision, origin: "https://app.fitout.live" },
       ops: { id: "dpl_opsFixtureOnly", revision, origin: "https://ops.fitout.live" },

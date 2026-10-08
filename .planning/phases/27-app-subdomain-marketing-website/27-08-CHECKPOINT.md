@@ -106,6 +106,19 @@ Central code/security review remains pending. No exact approved deployed SHA, hi
 
 No new product placeholder or unwired implementation stub was introduced. External facts are deliberately unknown, not stubs or live proof. No endpoint/schema/migration/provider registration or new financial event was added. Existing auth and form trust surfaces were repaired within explicitly authorized scope. Central threat review and the deployed matrix remain pending.
 
+## Review-fix provenance boundary
+
+The review identified CR-01 and WR-01/02/03. Customer capability activation now checks the
+database's eligible role inside the same serialized role-policy authority as staff conversion;
+Contact transport/body-read errors report uncertainty with values retained. Evidence now requires
+a versioned distinct deployed matrix and typed runner/log consistency. Historical full unit/design
+failures remain failed. The historical six gates have explicitly unavailable source provenance:
+no manifest/revision was captured at execution time, so they cannot prove clean or deployed source.
+New review-fix checks capture the preserved dirty working-tree manifest before execution. Their
+results and exact source context will be appended separately, preserving the historical record.
+Central independent re-review and all external readback/authority/control/inbox facts remain pending.
+Plans 08/09 are incomplete; no requirement or release HOLD advances through this report.
+
 ## Self-Check: PASSED
 
 All seven created artifacts and both recorded task commits exist. Prepared validation passes. This confirms checkpoint artifact integrity, not plan completion or live acceptance.

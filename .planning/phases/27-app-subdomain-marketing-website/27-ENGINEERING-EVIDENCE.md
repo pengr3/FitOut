@@ -4,7 +4,7 @@ Engineering preparation and live account facts remain separate. Full unit/design
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "recordedAt": "2026-10-08T21:09:30.1930675Z",
   "phaseExecutionBase": "edec99b89bffa62df9ba47b4cf85c12f96acfa3f",
   "planBase": "1afc5fc3b48d27bd292bbe96ecc11abe2944862a",
@@ -24,7 +24,30 @@ Engineering preparation and live account facts remain separate. Full unit/design
       "rawLogAvailable": true,
       "rawLogPath": "playwright/.cache/phase27-08/final-unit.log",
       "logSha256": "d5488568cca638e393a7715b3ef09347c42771f2822c239d2bb98e07b9feabd8",
-      "disposition": "Eight existing validation/date/availability/sweep fixture failures retained with execution-base and dirty-source attribution below; no policy changes. This full run predates last HostingIntent readiness safeguard; final focused activation unit 10/10 passes."
+      "disposition": "Eight existing validation/date/availability/sweep fixture failures retained with execution-base and dirty-source attribution below; no policy changes. This full run predates last HostingIntent readiness safeguard; final focused activation unit 10/10 passes.",
+      "resultData": {
+        "runner": "vitest",
+        "files": {
+          "passed": 254,
+          "failed": 4,
+          "skipped": 2
+        },
+        "tests": {
+          "passed": 3304,
+          "failed": 8,
+          "skipped": 5
+        }
+      },
+      "terminalSummary": "Test Files  4 failed | 254 passed | 2 skipped (260)\nTests  8 failed | 3304 passed | 5 skipped (3317)",
+      "testedSource": {
+        "provenance": "unavailable",
+        "revision": null,
+        "dirty": true,
+        "claim": "working-tree",
+        "capturedAt": null,
+        "manifest": null,
+        "reason": "No source manifest/revision was captured before this historical gate; preserve the dirty-tree run and known source timing boundaries without inventing provenance."
+      }
     },
     {
       "command": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts",
@@ -38,7 +61,30 @@ Engineering preparation and live account facts remain separate. Full unit/design
       "rawLogAvailable": true,
       "rawLogPath": "playwright/.cache/phase27-08/final-design.log",
       "logSha256": "b8d77dc1ac80f107bc188e5d62099359dc22def8937212887f92773acb4cefdc",
-      "disposition": "Nine remaining execution-base/source-fixture and preexisting host-map closure failures retained, exact attribution below. Repaired marketing census/origin/loading contracts pass. Full run predates final UI-only HostingIntent safeguard."
+      "disposition": "Nine remaining execution-base/source-fixture and preexisting host-map closure failures retained, exact attribution below. Repaired marketing census/origin/loading contracts pass. Full run predates final UI-only HostingIntent safeguard.",
+      "resultData": {
+        "runner": "vitest",
+        "files": {
+          "passed": 83,
+          "failed": 7,
+          "skipped": 0
+        },
+        "tests": {
+          "passed": 1497,
+          "failed": 9,
+          "skipped": 6
+        }
+      },
+      "terminalSummary": "Test Files  7 failed | 83 passed (90)\nTests  9 failed | 1497 passed | 6 skipped (1512)",
+      "testedSource": {
+        "provenance": "unavailable",
+        "revision": null,
+        "dirty": true,
+        "claim": "working-tree",
+        "capturedAt": null,
+        "manifest": null,
+        "reason": "No source manifest/revision was captured before this historical gate; preserve the dirty-tree run and known source timing boundaries without inventing provenance."
+      }
     },
     {
       "command": "node node_modules/typescript/bin/tsc --noEmit",
@@ -51,7 +97,21 @@ Engineering preparation and live account facts remain separate. Full unit/design
       "evidenceKind": "raw-log",
       "rawLogAvailable": true,
       "rawLogPath": "playwright/.cache/phase27-08/release-types.log",
-      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "resultData": {
+        "runner": "typescript",
+        "errors": 0
+      },
+      "terminalSummary": "No TypeScript diagnostics.",
+      "testedSource": {
+        "provenance": "unavailable",
+        "revision": null,
+        "dirty": true,
+        "claim": "working-tree",
+        "capturedAt": null,
+        "manifest": null,
+        "reason": "No source manifest/revision was captured before this historical gate; preserve the dirty-tree run and known source timing boundaries without inventing provenance."
+      }
     },
     {
       "command": "node node_modules/eslint/bin/eslint.js .",
@@ -64,7 +124,22 @@ Engineering preparation and live account facts remain separate. Full unit/design
       "evidenceKind": "raw-log",
       "rawLogAvailable": true,
       "rawLogPath": "playwright/.cache/phase27-08/release-lint.log",
-      "logSha256": "31404de6c292ac5f6d8d27e85ab6c1839ca57ddb1bdd31ca6bc181c821736d8e"
+      "logSha256": "31404de6c292ac5f6d8d27e85ab6c1839ca57ddb1bdd31ca6bc181c821736d8e",
+      "resultData": {
+        "runner": "eslint",
+        "errors": 0,
+        "warnings": 34
+      },
+      "terminalSummary": "34 problems (0 errors, 34 warnings)",
+      "testedSource": {
+        "provenance": "unavailable",
+        "revision": null,
+        "dirty": true,
+        "claim": "working-tree",
+        "capturedAt": null,
+        "manifest": null,
+        "reason": "No source manifest/revision was captured before this historical gate; preserve the dirty-tree run and known source timing boundaries without inventing provenance."
+      }
     },
     {
       "command": "node node_modules/next/dist/bin/next build",
@@ -77,7 +152,23 @@ Engineering preparation and live account facts remain separate. Full unit/design
       "evidenceKind": "raw-log",
       "rawLogAvailable": true,
       "rawLogPath": "playwright/.cache/phase27-08/release-build.log",
-      "logSha256": "173824f56f60b17c34eb2c00a4a8f8026b25d62ebb6b7fe87e0f4826bcbadd38"
+      "logSha256": "173824f56f60b17c34eb2c00a4a8f8026b25d62ebb6b7fe87e0f4826bcbadd38",
+      "resultData": {
+        "runner": "next-build",
+        "compiled": true,
+        "generated": true,
+        "errors": 0
+      },
+      "terminalSummary": "✓ Compiled successfully in 21.9s\n✓ Generating static pages using 7 workers (46/46) in 2.5s\nFinalizing page optimization ...",
+      "testedSource": {
+        "provenance": "unavailable",
+        "revision": null,
+        "dirty": true,
+        "claim": "working-tree",
+        "capturedAt": null,
+        "manifest": null,
+        "reason": "No source manifest/revision was captured before this historical gate; preserve the dirty-tree run and known source timing boundaries without inventing provenance."
+      }
     },
     {
       "command": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts --project=chromium",
@@ -91,7 +182,25 @@ Engineering preparation and live account facts remain separate. Full unit/design
       "evidenceKind": "raw-log",
       "rawLogAvailable": true,
       "rawLogPath": "playwright/.cache/phase27-08/release-browser.log",
-      "logSha256": "6c317126d534d95a5e444935738edd021dd7dc47d4c1b9c545b2ea420008886b"
+      "logSha256": "6c317126d534d95a5e444935738edd021dd7dc47d4c1b9c545b2ea420008886b",
+      "resultData": {
+        "runner": "playwright",
+        "tests": {
+          "passed": 51,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      "terminalSummary": "51 passed (2.1m)",
+      "testedSource": {
+        "provenance": "unavailable",
+        "revision": null,
+        "dirty": true,
+        "claim": "working-tree",
+        "capturedAt": null,
+        "manifest": null,
+        "reason": "No source manifest/revision was captured before this historical gate; preserve the dirty-tree run and known source timing boundaries without inventing provenance."
+      }
     }
   ],
   "initialFullGates": [
@@ -177,7 +286,8 @@ Engineering preparation and live account facts remain separate. Full unit/design
       "logSha256": "52e8b5a534523a854105321148a9734ad70ca443c84dd8389e9de70f0f6ca9e6",
       "disposition": "Meaningful parsed URL comparison corrected; real image decode RED added. Narrow screenshot/listener/auth repairs and real draft assertion prepared; latest complete browser verification pending. Native GET failures are not called application success."
     }
-  ]
+  ],
+  "sourceProvenanceNotice": "These retained historical six gates ran on the preserved dirty shared working tree. No source manifest/revision capture was made at execution time; source identity is explicitly unavailable, not reconstructed from today's tree. They do not establish a clean candidate or deployed SHA. Review-fix verification captures scoped file hashes before execution separately; historic full-suite failures remain."
 }
 ```
 

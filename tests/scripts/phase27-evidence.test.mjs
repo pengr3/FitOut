@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { validateEvidence, REQUIRED_MATRIX } from "../../scripts/verify-phase27-evidence.mjs";
 import { completeFixture } from "./fixtures/phase27-evidence.mjs";
 test("synthetic complete distinct deployed matrix passes structural validation only", () => {
@@ -54,4 +55,66 @@ test("observed failed outcome cannot establish deployed acceptance", () => {
 test("wrong type candidate origin returns validation errors", () => {
   const fixture = completeFixture(); fixture.live.deployments.preview.origin = true;
   assert(validateEvidence(fixture).some((error) => error.includes("preview: exact isolated candidate origin missing")));
+});
+test("relabeled pass with failed Vitest raw summary and accurate digest fails", () => {
+  const fixture = completeFixture(); const gate = fixture.engineering.gates[0];
+  const log = "Test Files 1 failed (1)\nTests 8 failed (8)\n";
+  fixture.logs.set(gate.rawLogPath, log); gate.logSha256 = createHash("sha256").update(log).digest("hex");
+  assert(validateEvidence(fixture).some((error) => error.includes("pass label contradicts failed runner outcome")));
+});
+test("reported pass totals cannot contradict retained runner totals", () => {
+  const fixture = completeFixture(); fixture.engineering.gates[0].resultData.tests.failed = 8;
+  assert(validateEvidence(fixture).some((error) => error.includes("typed runner totals/terminal summary contradict evidence")));
+});
+test("pass human result cannot retain a known failed result", () => {
+  const fixture = completeFixture(); fixture.engineering.gates[0].result = "3304 passed / 8 failed tests. Exit 1.";
+  assert(validateEvidence(fixture).some((error) => error.includes("pass label contradicts failed runner outcome")));
+});
+for (const [field, value] of [["finishedAt", "2026-10-08T19:00:00Z"], ["startedAt", true], ["finishedAt", "2026-02-30T00:00:00Z"], ["terminalSummary", "invented summary"], ["result", true], ["resultData", {}], ["testedSource", undefined]]) {
+  test(`invalid gate ${field} fails without throwing`, () => {
+    const fixture = completeFixture(); fixture.engineering.gates[0][field] = value;
+    assert(validateEvidence(fixture).length > 0);
+  });
+}
+test("dirty working tree cannot be bound to clean/deployed SHA by relabeling revision", () => {
+  const fixture = completeFixture(); fixture.engineering.gates[0].testedSource.dirty = true;
+  const errors = validateEvidence(fixture);
+  assert(errors.some((error) => error.includes("dirty source contradicts clean/deployed claim")));
+  assert(errors.some((error) => error.includes("clean deployed source does not match tested context")));
+});
+test("honest dirty working tree is allowed prepared but blocks deployed", () => {
+  const fixture = completeFixture();
+  fixture.engineering.gates.forEach((gate) => Object.assign(gate.testedSource, { dirty: true, claim: "working-tree" }));
+  assert.deepEqual(validateEvidence({ ...fixture, stage: "prepared" }), []);
+  assert(validateEvidence(fixture).some((error) => error.includes("clean deployed source does not match tested context")));
+});
+test("historical unavailable source is retained prepared and rejected deployed", () => {
+  const fixture = completeFixture(); fixture.engineering.gates.forEach((gate) => { gate.testedSource = { provenance: "unavailable", revision: null, manifest: null, capturedAt: null, dirty: true, claim: "working-tree", reason: "No capture at execution; fixture historical record" }; });
+  assert.deepEqual(validateEvidence({ ...fixture, stage: "prepared" }), []);
+  assert(validateEvidence(fixture).some((error) => error.includes("uncaptured historical source blocks deployed/live acceptance")));
+});
+for (const [field, value] of [["dirty", "false"], ["revision", true], ["capturedAt", "2027-01-01T00:00:00Z"], ["manifest", {}], ["claim", "deployed-revision"]]) {
+  test(`invalid source ${field} fails`, () => {
+    const fixture = completeFixture(); fixture.engineering.gates[0].testedSource[field] = value;
+    assert(validateEvidence(fixture).length > 0);
+  });
+}
+test("missing scope and mismatched manifest digest fail", () => {
+  const fixture = completeFixture(); fixture.engineering.gates[0].testedSource.manifest.scope = ["src/"];
+  fixture.engineering.gates[0].testedSource.manifest.sha256 = "f".repeat(64);
+  const errors = validateEvidence(fixture);
+  assert(errors.some((error) => error.includes("tested source scope incomplete")));
+  assert(errors.some((error) => error.includes("source manifest digest mismatch")));
+});
+test("deployed manifest must match all captured clean gate contexts", () => {
+  const fixture = completeFixture(); fixture.live.sourceManifestSha256 = "f".repeat(64);
+  assert(validateEvidence(fixture).some((error) => error.includes("clean deployed source does not match tested context")));
+});
+test("malformed source manifest entry returns errors and cannot throw", () => {
+  const fixture = completeFixture(); fixture.engineering.gates[0].testedSource.manifest.files = [null];
+  assert(validateEvidence(fixture).length > 0);
+});
+test("claimed elapsed duration contradicting start/finish fails", () => {
+  const fixture = completeFixture(); fixture.engineering.gates[0].durationSeconds = 0;
+  assert(validateEvidence(fixture).some((error) => error.includes("elapsed timing contradicts")));
 });
