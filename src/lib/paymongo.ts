@@ -18,6 +18,7 @@
 // test depends on a live PayMongo call.
 
 import { randomUUID } from "node:crypto";
+import { STANDARD_PAYOUT_TRANSFER_FEE_CENTS } from "@/lib/payments/payout-fee-policy";
 
 // Version-less base (Pitfall 3): PayMongo mixes /v1 (Checkout Sessions, Refunds, Linked Accounts) and
 // /v2 (Batch Transfers, Wallets) endpoints. Every caller passes a FULLY versioned path (`/v1/...` or
@@ -739,9 +740,6 @@ export type PayoutWalletFunding = {
   feeCents: number;
   observedAt: Date;
 };
-
-/** The weekly free transfer is a possible discount, never a funding assumption. */
-export const STANDARD_PAYOUT_TRANSFER_FEE_CENTS = 1_000;
 
 /** A read-only Wallet preflight. Missing account mapping or fee evidence keeps host payout on HOLD. */
 export async function readPayoutWalletFunding(now: Date = new Date()): Promise<PayoutWalletFunding | null> {

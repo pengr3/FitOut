@@ -39,8 +39,8 @@ import { db } from "@/lib/db";
 import type { DbConn } from "@/lib/availability/read-model";
 import {
   findHostPayoutTransfers, getTransfer, getManualTransferDetails,
-  STANDARD_PAYOUT_TRANSFER_FEE_CENTS,
 } from "@/lib/paymongo";
+import { STANDARD_PAYOUT_TRANSFER_FEE_CENTS } from "@/lib/payments/payout-fee-policy";
 import { matchesManualTransfer } from "@/lib/payments/manual-host-payout";
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
 import { recordMoneyException, type PayoutExceptionCause } from "@/lib/payments/payout-exceptions";

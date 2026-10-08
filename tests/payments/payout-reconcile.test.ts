@@ -148,8 +148,7 @@ beforeAll(async () => {
     firstName: "Booker",
   });
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
-  vi.doMock("@/lib/paymongo", () => ({ STANDARD_PAYOUT_TRANSFER_FEE_CENTS: 1000,
-    getTransfer: mockPayMongo.getTransfer,
+  vi.doMock("@/lib/paymongo", () => ({ getTransfer: mockPayMongo.getTransfer,
     findHostPayoutTransfers: mockLookup }));
   vi.resetModules();
   ({ queryProcessingLedger, reconcileOne, mapTransferStatus, alertStuckHeld } = await import(

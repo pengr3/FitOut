@@ -211,7 +211,6 @@ beforeAll(async () => {
   });
   vi.doMock("@/lib/db", () => ({ db: testDb.db }));
   vi.doMock("@/lib/paymongo", () => ({
-    STANDARD_PAYOUT_TRANSFER_FEE_CENTS: 1000,
     readPayoutWalletFunding: mockWalletFunding,
     findHostPayoutTransfers: mockLookup,
     createExternalHostPayout: mockPayMongo.createBatchTransfer,

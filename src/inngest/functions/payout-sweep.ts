@@ -13,8 +13,8 @@ import type { DbConn } from "@/lib/availability/read-model";
 import { computeCommission } from "@/lib/payments/commission";
 import { PAYOUT_HOLD_HOURS } from "@/lib/payments/config";
 import { decryptPayoutRecipientValue } from "@/lib/payout-recipient-crypto";
-import { createExternalHostPayout, findHostPayoutTransfers, readPayoutWalletFunding,
-  STANDARD_PAYOUT_TRANSFER_FEE_CENTS } from "@/lib/paymongo";
+import { createExternalHostPayout, findHostPayoutTransfers, readPayoutWalletFunding } from "@/lib/paymongo";
+import { STANDARD_PAYOUT_TRANSFER_FEE_CENTS } from "@/lib/payments/payout-fee-policy";
 import { currentSettlementProof } from "@/lib/payments/settlement";
 import { recordMoneyException } from "@/lib/payments/payout-exceptions";
 import { recordPayoutException } from "@/inngest/functions/payout-reconcile";
