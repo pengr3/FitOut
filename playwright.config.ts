@@ -169,7 +169,7 @@ export default defineConfig({
       : []),
   ],
   webServer: {
-    command: "npm run dev",
+    command: "node node_modules/next/dist/bin/next dev",
     url: "http://localhost:3000",
 
     // ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -228,6 +228,15 @@ export default defineConfig({
     env: {
       ...(REAL_EMAIL ? {} : { RESEND_API_KEY: "" }),
       NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: CLOUDINARY_PUBLIC_CLOUD_NAME,
+      DATABASE_URL: "postgresql://fitout:fitout@localhost:5432/fitout_test",
+      BETTER_AUTH_URL: "http://localhost:3000",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      OPS_APP_URL: "http://ops.localhost:3000",
+      MARKETING_APP_URL: "http://marketing.localhost:3000",
+      MARKETING_PREVIEW_URL: "",
+      VERCEL_URL: "",
+      VERCEL_ENV: "",
+      VERCEL: "",
     },
 
     timeout: 120_000,

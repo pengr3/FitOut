@@ -105,6 +105,8 @@ function isOpsPassPath(pathname: string): boolean {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (isPathSegment(pathname, "/marketing")) return new NextResponse(null, { status: 404 });
+
   // The historical cloak path is itself internal. Terminate direct requests in the response
   // gateway so every denied route class receives the same constant bytes.
   if (isPathSegment(pathname, OPS_CLOAK_PATH)) return gatewayRewrite(request);
@@ -113,6 +115,13 @@ export function proxy(request: NextRequest) {
   if (isPathSegment(pathname, OPS_GATEWAY_PATH)) return nextWithoutGatewayHeaders(request);
 
   const hostClass = classifyRequestHost(request.headers.get("host"));
+
+  if (hostClass === "unknown") return new NextResponse(null, { status: 404 });
+  if (hostClass === "marketing") {
+    if (pathname === "/") return rewrite(request, "/marketing");
+    if (isPathSegment(pathname, "/_next") || OPS_PUBLIC_ASSETS.has(pathname)) return nextWithoutGatewayHeaders(request);
+    return new NextResponse(null, { status: 404 });
+  }
 
   if (hostClass === "ops") {
     // Internal route names are never a public API, even on the correct host.
