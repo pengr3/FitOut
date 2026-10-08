@@ -39,7 +39,8 @@ import {
   CHECKED_PARAM,
   LOGGED_OUT_ONLY,
 } from "@/lib/session-check";
-import { classifyRequestHost } from "@/lib/app-origins";
+import { absoluteAppUrl, classifyRequestHost } from "@/lib/app-origins";
+import { hostRoutePolicy, isMarketingScreenshot, isPathSegment } from "@/lib/host-route-policy";
 import { verifyOpsGatewayHandoff } from "@/lib/ops/gateway-handoff";
 
 const OPS_AUTH_PREFIX = "/_ops-auth";
@@ -60,30 +61,32 @@ const OPS_PUBLIC_ASSETS = new Set([
   "/sitemap.xml",
 ]);
 
-function isPathSegment(pathname: string, segment: string): boolean {
-  return pathname === segment || pathname.startsWith(`${segment}/`);
-}
-
 function rewrite(request: NextRequest, pathname: string): NextResponse {
   const target = request.nextUrl.clone();
   target.pathname = pathname;
-  return NextResponse.rewrite(target);
+  return NextResponse.rewrite(target, { request: { headers: sanitizedHeaders(request) } });
 }
 
 function gatewayRewrite(request: NextRequest): NextResponse {
   const target = request.nextUrl.clone();
   target.pathname = OPS_GATEWAY_PATH;
-  const headers = new Headers(request.headers);
+  const headers = sanitizedHeaders(request);
   headers.set(OPS_GATEWAY_SOURCE_HEADER, request.nextUrl.pathname);
   headers.delete(OPS_GATEWAY_HANDOFF_HEADER);
   return NextResponse.rewrite(target, { request: { headers } });
 }
 
-function nextWithoutGatewayHeaders(request: NextRequest): NextResponse {
+function sanitizedHeaders(request: NextRequest): Headers {
   const headers = new Headers(request.headers);
   headers.delete(OPS_GATEWAY_SOURCE_HEADER);
   headers.delete(OPS_GATEWAY_HANDOFF_HEADER);
-  return NextResponse.next({ request: { headers } });
+  headers.delete("x-fitout-marketing-source");
+  headers.delete("x-fitout-host-class");
+  return headers;
+}
+
+function nextWithoutGatewayHeaders(request: NextRequest): NextResponse {
+  return NextResponse.next({ request: { headers: sanitizedHeaders(request) } });
 }
 
 function opsAuthTarget(pathname: string): string | null {
@@ -105,7 +108,7 @@ function isOpsPassPath(pathname: string): boolean {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (isPathSegment(pathname, "/marketing")) return new NextResponse(null, { status: 404 });
+  if (isPathSegment(pathname, "/marketing") && !isMarketingScreenshot(pathname)) return new NextResponse(null, { status: 404 });
 
   // The historical cloak path is itself internal. Terminate direct requests in the response
   // gateway so every denied route class receives the same constant bytes.
@@ -115,13 +118,6 @@ export function proxy(request: NextRequest) {
   if (isPathSegment(pathname, OPS_GATEWAY_PATH)) return nextWithoutGatewayHeaders(request);
 
   const hostClass = classifyRequestHost(request.headers.get("host"));
-
-  if (hostClass === "unknown") return new NextResponse(null, { status: 404 });
-  if (hostClass === "marketing") {
-    if (pathname === "/") return rewrite(request, "/marketing");
-    if (isPathSegment(pathname, "/_next") || OPS_PUBLIC_ASSETS.has(pathname)) return nextWithoutGatewayHeaders(request);
-    return new NextResponse(null, { status: 404 });
-  }
 
   if (hostClass === "ops") {
     // Internal route names are never a public API, even on the correct host.
@@ -136,7 +132,7 @@ export function proxy(request: NextRequest) {
         : gatewayRewrite(request);
     }
     if (isPathSegment(pathname, OPS_PATH)) return gatewayRewrite(request);
-    if (isOpsPassPath(pathname)) return NextResponse.next();
+    if (isOpsPassPath(pathname)) return nextWithoutGatewayHeaders(request);
 
     // The dedicated host exposes only the ops console, its auth surface and required assets.
     return gatewayRewrite(request);
@@ -148,19 +144,26 @@ export function proxy(request: NextRequest) {
     return gatewayRewrite(request);
   }
 
+  const decision = hostRoutePolicy(hostClass, pathname, request.method, request.nextUrl.searchParams);
+  if (decision.kind === "deny") return new NextResponse(null, { status: decision.status, headers: decision.allow ? { Allow: decision.allow } : undefined });
+  if (decision.kind === "rewrite") return rewrite(request, decision.pathname);
+  if (decision.kind === "redirect-app") {
+    return NextResponse.redirect(absoluteAppUrl(`${pathname}${request.nextUrl.search}` as `/${string}`), 307);
+  }
+
   // Not a logged-out-only route: nothing to do.
   if (!LOGGED_OUT_ONLY.includes(pathname as (typeof LOGGED_OUT_ONLY)[number])) {
-    return NextResponse.next();
+    return nextWithoutGatewayHeaders(request);
   }
 
   // THE LOOP GUARD — before the cookie check, on purpose (see header).
   if (request.nextUrl.searchParams.has(CHECKED_PARAM)) {
-    return NextResponse.next();
+    return nextWithoutGatewayHeaders(request);
   }
 
   // Presence-only, exactly as before. No cookie -> no hop, no cost.
   if (!getSessionCookie(request)) {
-    return NextResponse.next();
+    return nextWithoutGatewayHeaders(request);
   }
 
   // A cookie is present, but only the verifier can tell whether it is alive.

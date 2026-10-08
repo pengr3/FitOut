@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { NextRequest, type NextResponse } from "next/server";
 
 const APP = "https://app.example.test";
@@ -100,5 +100,55 @@ describe("exact origin authorities", () => {
   ])("classifies authority %s as %s", async (host, expected) => {
     const { classifyRequestHost } = await import("@/lib/app-origins");
     expect(classifyRequestHost(host)).toBe(expected);
+  });
+});
+
+describe("checked origin configuration", () => {
+  afterEach(() => { vi.unstubAllEnvs(); vi.resetModules(); });
+  async function configuredOrigins(overrides: Record<string, string | undefined> = {}) {
+    const environment = {
+      NODE_ENV: "test", BETTER_AUTH_URL: "", NEXT_PUBLIC_APP_URL: "", OPS_APP_URL: "", MARKETING_APP_URL: "",
+      MARKETING_PREVIEW_URL: "", VERCEL_URL: "", VERCEL_ENV: "", VERCEL: "", ...overrides,
+    };
+    for (const [key, value] of Object.entries(environment)) vi.stubEnv(key, value);
+    vi.resetModules();
+    return import("@/lib/app-origins");
+  }
+  it("uses distinct exact local authorities including their ports", async () => {
+    const origins = await configuredOrigins();
+    expect(origins.APP_ORIGIN).toBe("http://localhost:3000");
+    expect(origins.MARKETING_ORIGIN).toBe("http://marketing.localhost:3000");
+    expect(origins.OPS_APP_ORIGIN).toBe("http://ops.localhost:3000");
+    expect(origins.classifyRequestHost("localhost:3000")).toBe("app");
+    expect(origins.classifyRequestHost("localhost")).toBe("unknown");
+    expect(origins.classifyRequestHost("localhost:3001")).toBe("unknown");
+    expect(origins.AUTH_ALLOWED_HOSTS).not.toContain("marketing.localhost:3000");
+    expect(origins.AUTH_TRUSTED_ORIGINS).not.toContain(origins.MARKETING_ORIGIN);
+    expect(() => origins.absoluteAppUrl("//evil.test/path")).toThrow();
+  });
+  it("rejects conflicting app auth and browser origins", async () => {
+    await expect(configuredOrigins({ BETTER_AUTH_URL: APP, NEXT_PUBLIC_APP_URL: "https://evil.test" })).rejects.toThrow("same app origin");
+  });
+  it.each(["https://app.test/path", "https://app.test/../", "https://user:pass@app.test", "https://app.test?x=1", "https://app.test#fragment", "ftp://app.test", "https://app.test\\path", "https://%61pp.test"])("rejects unsafe origin input %s", async (value) => {
+    await expect(configuredOrigins({ BETTER_AUTH_URL: value })).rejects.toThrow();
+  });
+  it.each(["app", "marketing", "ops"])("requires explicit production %s configuration", async (missing) => {
+    await expect(configuredOrigins({ NODE_ENV: "production", BETTER_AUTH_URL: missing === "app" ? "" : APP, MARKETING_APP_URL: missing === "marketing" ? "" : MARKETING, OPS_APP_URL: missing === "ops" ? "" : "https://ops.example.test" })).rejects.toThrow();
+  });
+  it("requires an explicit marketing preview origin and never infers production", async () => {
+    await expect(configuredOrigins({ VERCEL_ENV: "preview", VERCEL_URL: "branch.vercel.app", OPS_APP_URL: "https://ops-preview.test" })).rejects.toThrow("MARKETING_APP_URL");
+    const origins = await configuredOrigins({ VERCEL_ENV: "preview", VERCEL_URL: "branch.vercel.app", OPS_APP_URL: "https://ops-preview.test", MARKETING_APP_URL: "https://marketing-preview.test" });
+    expect(origins.APP_ORIGIN).toBe("https://branch.vercel.app");
+    expect(origins.classifyRequestHost("another.vercel.app")).toBe("unknown");
+    expect(origins.classifyRequestHost("fitout.live")).toBe("unknown");
+  });
+  it.each([
+    { BETTER_AUTH_URL: APP, MARKETING_APP_URL: APP },
+    { BETTER_AUTH_URL: APP, OPS_APP_URL: APP },
+    { MARKETING_APP_URL: MARKETING, OPS_APP_URL: MARKETING },
+    { BETTER_AUTH_URL: APP, MARKETING_PREVIEW_URL: APP },
+    { BETTER_AUTH_URL: APP, MARKETING_APP_URL: MARKETING, OPS_APP_URL: "https://ops.example.test", VERCEL_URL: "example.test" },
+  ])("rejects cross-purpose authority collisions %j", async (environment) => {
+    await expect(configuredOrigins(environment)).rejects.toThrow("distinct authorities");
   });
 });

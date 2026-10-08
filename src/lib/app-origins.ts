@@ -8,7 +8,7 @@ function configured(value: string | undefined): string | undefined {
 
 function parseOrigin(value: string | undefined, key: string, fallback?: string): URL {
   const candidate = configured(value) ?? fallback;
-  if (!candidate || /[\\\s]/.test(candidate)) throw new Error(`${key} must be configured as an absolute http(s) origin`);
+  if (!candidate || /[\\\s%]/.test(candidate) || !/^https?:\/\/[^/?#]+\/?$/i.test(candidate)) throw new Error(`${key} must be configured as an absolute http(s) origin`);
   let parsed: URL;
   try { parsed = new URL(candidate); }
   catch { throw new Error(`${key} must be configured as an absolute http(s) origin`); }
@@ -52,24 +52,28 @@ const ops = parseOrigin(process.env.OPS_APP_URL, "OPS_APP_URL",
 const marketingPreview = configured(process.env.MARKETING_PREVIEW_URL)
   ? parseOrigin(process.env.MARKETING_PREVIEW_URL, "MARKETING_PREVIEW_URL") : null;
 
-const appAuthorities = new Set([app.host.toLowerCase(), appPreview?.host.toLowerCase()].filter((host): host is string => host !== undefined));
-const marketingAuthorities = new Set([marketing.host.toLowerCase(), marketingPreview?.host.toLowerCase()].filter((host): host is string => host !== undefined));
-const opsAuthority = ops.host.toLowerCase();
-if ([...appAuthorities].some((host) => marketingAuthorities.has(host) || host === opsAuthority) ||
-    marketingAuthorities.has(opsAuthority)) throw new Error("App, marketing and OPS_APP_URL must use distinct authorities");
+function authorities(urls: Array<URL | null>): Set<string> {
+  return new Set(urls.flatMap((url) => !url ? [] : [url.host.toLowerCase(),
+    ...(!url.port ? [`${url.hostname.toLowerCase()}:${url.protocol === "https:" ? 443 : 80}`] : [])]));
+}
+const appAuthorities = authorities([app, appPreview]);
+const marketingAuthorities = authorities([marketing, marketingPreview]);
+const opsAuthorities = authorities([ops]);
+if ([...appAuthorities].some((host) => marketingAuthorities.has(host) || opsAuthorities.has(host)) ||
+    [...marketingAuthorities].some((host) => opsAuthorities.has(host))) throw new Error("App, marketing and OPS_APP_URL must use distinct authorities");
 
 export const APP_ORIGIN = app.origin;
 export const MARKETING_ORIGIN = marketing.origin;
 export const OPS_APP_ORIGIN = ops.origin;
 /** Compatibility names always refer to the application. */
 export const PUBLIC_APP_ORIGIN = APP_ORIGIN;
-export const AUTH_ALLOWED_HOSTS = [...new Set([...appAuthorities, opsAuthority])];
+export const AUTH_ALLOWED_HOSTS = [...new Set([app.host.toLowerCase(), ops.host.toLowerCase(), appPreview?.host.toLowerCase()].filter((host): host is string => host !== undefined))];
 export const AUTH_TRUSTED_ORIGINS = [...new Set([APP_ORIGIN, OPS_APP_ORIGIN, appPreview?.origin].filter((origin): origin is string => origin !== undefined))];
 
 export function classifyRequestHost(rawHost: string | null | undefined): RequestHostClass {
   const host = authority(rawHost);
   if (!host) return "unknown";
-  if (host === opsAuthority) return "ops";
+  if (opsAuthorities.has(host)) return "ops";
   if (appAuthorities.has(host)) return "app";
   if (marketingAuthorities.has(host)) return "marketing";
   return "unknown";
