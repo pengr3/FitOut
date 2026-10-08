@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   title: "About",
   description: "FitOut bridges the gap between plans to get active and spaces ready to welcome them.",
   alternates: { canonical: absoluteMarketingUrl("/about") },
+  openGraph: { type: "website", title: "About | FitOut", url: absoluteMarketingUrl("/about"), images: [{ url: absoluteMarketingUrl("/marketing/screenshots/search.png"), width: 1120, height: 578, alt: "FitOut demo search by activity, location and group size." }] },
 };
 const linkClass = "inline-flex min-h-11 items-center rounded-lg font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 

@@ -1,4 +1,4 @@
-import type { RequestHostClass } from "@/lib/app-origins";
+import { classifyRequestHost, type RequestHostClass } from "@/lib/app-origins";
 
 export const MARKETING_PAGES = new Set(["/", "/hosts", "/players", "/about", "/faq", "/contact"]);
 const LEGACY_PAGES = new Set(["/login", "/signup", "/forgot-password", "/reset-password", "/auth/session-check", "/profile", "/start-hosting", "/terms", "/privacy"]);
@@ -18,6 +18,15 @@ export function isPathSegment(pathname: string, segment: string): boolean {
 }
 
 export function isMarketingScreenshot(pathname: string): boolean { return SCREENSHOTS.has(pathname); }
+
+/** Exact checked preview authority; forwarded host hints never participate. */
+export function isMarketingPreviewRequest(host: string | null): boolean {
+  if (process.env.VERCEL_ENV === "preview") return true;
+  const preview = process.env.MARKETING_PREVIEW_URL?.trim();
+  if (!preview || !host || classifyRequestHost(host) !== "marketing") return false;
+  const origin = new URL(preview);
+  return new URL(`${origin.protocol}//${host}`).host.toLowerCase() === origin.host.toLowerCase();
+}
 
 export type HostRouteDecision =
   | { kind: "next" }

@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: "Players",
   description: "Explore courts, gyms and studios. Browse spaces first, choose an available session and sign in when needed to book on FitOut.",
   alternates: { canonical: absoluteMarketingUrl("/players") },
+  openGraph: { type: "website", title: "Players | FitOut", url: absoluteMarketingUrl("/players"), images: [{ url: absoluteMarketingUrl("/marketing/screenshots/search.png"), width: 1120, height: 578, alt: "FitOut demo search by activity, location and group size." }] },
 };
 
 const steps: readonly AudienceStep[] = [

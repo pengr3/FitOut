@@ -11,6 +11,7 @@ import { SITE_TAGLINE } from "@/lib/site";
 vi.mock("@/lib/app-origins", () => ({
   MARKETING_ORIGIN: "https://marketing.example.test",
   absoluteAppUrl: (path: string) => `https://app.example.test${path}`,
+  absoluteMarketingUrl: (path: string) => `https://marketing.example.test${path}`,
 }));
 afterEach(cleanup);
 const destinations = [["Home", "/"], ["Hosts", "/hosts"], ["Players", "/players"], ["About", "/about"], ["FAQ", "/faq"], ["Contact", "/contact"]];

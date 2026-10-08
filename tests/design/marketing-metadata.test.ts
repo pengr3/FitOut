@@ -28,8 +28,13 @@ describe("marketing metadata partition", () => {
   });
   it("disallows the exact configured preview and all explicit preview deployments", async () => {
     const { default: robots } = await import("@/app/marketing/robots");
+    const { isMarketingPreviewRequest } = await import("@/lib/host-route-policy");
+    expect(isMarketingPreviewRequest("MARKETING-PREVIEW.EXAMPLE.TEST:443")).toBe(true);
+    for (const host of ["marketing-preview.example.test.attacker.test", "unconfigured.example.test", "app.fitout.live", "marketing-preview.example.test:444", null]) expect(isMarketingPreviewRequest(host)).toBe(false);
     request.host = "marketing-preview.example.test";
     expect(await robots()).toEqual({ rules: { userAgent: "*", disallow: "/" } });
+    const { GET } = await import("@/app/marketing/robots.txt/route");
+    expect(await (await GET()).text()).toBe("User-Agent: *\nDisallow: /\n");
     request.host = "fitout.live";
     vi.stubEnv("VERCEL_ENV", "preview");
     expect(await robots()).toEqual({ rules: { userAgent: "*", disallow: "/" } });
@@ -41,12 +46,12 @@ describe("marketing metadata partition", () => {
       expect(modules[i].metadata.openGraph).toEqual(expect.objectContaining({ url: `https://fitout.live${paths[i]}`, images: [expect.objectContaining({ url: "https://fitout.live/marketing/screenshots/search.png" })] }));
     }
     const { metadata } = await import("@/app/marketing/layout");
-    expect(metadata.metadataBase?.origin).toBe("https://fitout.live");
+    expect(new URL(String(metadata.metadataBase)).origin).toBe("https://fitout.live");
     expect(metadata.twitter).toEqual(expect.objectContaining({ card: "summary_large_image", images: ["https://fitout.live/marketing/screenshots/search.png"] }));
   });
   it("keeps root app metadata and configured previews separated", async () => {
     const { metadata } = await import("@/app/layout");
-    expect(metadata.metadataBase?.origin).toBe("https://app.fitout.live");
+    expect(new URL(String(metadata.metadataBase)).origin).toBe("https://app.fitout.live");
     vi.stubEnv("VERCEL_ENV", "preview");
     const { metadata: marketing } = await import("@/app/marketing/layout");
     expect(marketing.robots).toEqual({ index: false, follow: false });

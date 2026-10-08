@@ -9,6 +9,7 @@ export const metadata: Metadata = {
   title: { absolute: "FitOut — Good plans need a place." },
   description: "Find a court, gym or studio for your next session. Make your space discoverable and bookable through FitOut.",
   alternates: { canonical: absoluteMarketingUrl("/") },
+  openGraph: { type: "website", title: "FitOut — Good plans need a place.", url: absoluteMarketingUrl("/"), images: [{ url: absoluteMarketingUrl("/marketing/screenshots/search.png"), width: 1120, height: 578, alt: "FitOut demo search by activity, location and group size." }] },
 };
 
 const audienceLink = cn(buttonVariants({ variant: "brand", size: "touch" }), "w-full px-8 motion-reduce:transition-none");
