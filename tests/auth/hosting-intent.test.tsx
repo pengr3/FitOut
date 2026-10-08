@@ -29,7 +29,7 @@ describe("checked hosting entry", () => {
   it("repeated booker renders offer an explicit action and never activate on GET", async () => {
     mocks.session.mockResolvedValue({ user: { id: "booker", canHost: false, canBook: true } });
     render(await StartHostingPage());
-    expect(screen.getByRole("button", { name: "Start hosting", exact: true })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Start hosting" })).toBeTruthy();
     await StartHostingPage();
     expect(mocks.activate).not.toHaveBeenCalled();
   });
@@ -41,7 +41,7 @@ describe("explicit hosting activation", () => {
     mocks.activate.mockReturnValue(new Promise((done) => { resolve = done; }));
     render(<HostingIntent />);
     expect(mocks.activate).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Start hosting", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Starting hosting…" }).hasAttribute("disabled")).toBe(true));
     resolve({ ok: true, redirectTo: "/host" });
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/host"));
@@ -52,23 +52,23 @@ describe("explicit hosting activation", () => {
     mocks.activate.mockResolvedValueOnce({ ok: false, error: "Too many attempts. Please try again in a moment." })
       .mockResolvedValueOnce({ ok: true, redirectTo: "/host" });
     render(<HostingIntent />);
-    fireEvent.click(screen.getByRole("button", { name: "Start hosting", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
     expect((await screen.findByRole("alert")).textContent).toContain("Too many attempts");
     expect(mocks.push).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Start hosting", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/host"));
   });
   it("catches network errors without losing the retry control", async () => {
     mocks.activate.mockRejectedValue(new Error("network"));
     render(<HostingIntent />);
-    fireEvent.click(screen.getByRole("button", { name: "Start hosting", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
     expect((await screen.findByRole("alert")).textContent).toContain("Please try again");
-    expect(screen.getByRole("button", { name: "Start hosting", exact: true }).hasAttribute("disabled")).toBe(false);
+    expect(screen.getByRole("button", { name: "Start hosting" }).hasAttribute("disabled")).toBe(false);
   });
   it("refuses an unexpected destination returned by activation", async () => {
     mocks.activate.mockResolvedValue({ ok: true, redirectTo: "https://evil.test/host" });
     render(<HostingIntent />);
-    fireEvent.click(screen.getByRole("button", { name: "Start hosting", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
     await screen.findByRole("alert");
     expect(mocks.push).not.toHaveBeenCalled();
   });
