@@ -128,7 +128,7 @@ headers/tokens and message body from evidence. Provider acceptance alone is not 
 ## Unresolved checkpoint prerequisites
 
 - Failed engineering gates and any real integration defects need disposition;
-  final exact SHA and central review/high-threat outcome are pending.
+  final exact approved deployable SHA and deployed high-threat proof are pending; independent code re-review is clean.
 - Compatibility-first intermediate deployment/origin proof described above.
 - DNS RRsets/TLS and actual www behavior; preview account isolation read-back.
 - Current Google/PayMongo/Didit/Inngest/Resend account settings and owners.
@@ -142,8 +142,8 @@ payment/payout release and binding legal approval stay on **HOLD**.
 
 ## Review-fix source and verification update
 
-All four reviewed engineering findings are implemented; independent re-review is
-pending. Customer capability writes and all staff role writes now share the existing
+All four reviewed engineering findings are implemented and independently closed.
+Customer capability writes and all staff role writes now share the existing
 role-policy lock, reread positive customer eligibility and deny zero-row updates.
 Contact transport/body-read failures report uncertainty with values retained. The
 version 1 deployed matrix requires 35 distinct successful typed observations with exact

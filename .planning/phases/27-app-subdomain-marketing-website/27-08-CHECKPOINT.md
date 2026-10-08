@@ -40,7 +40,7 @@ actuals:
 
 # Phase 27 Plan 08: Partial integration and cutover checkpoint
 
-**All 51 final local browser cases pass with hydration and app-authority repairs; eight unit and nine design baseline assertions remain failed, and the concrete cutover packet awaits human/account prerequisites.**
+**All 52 latest local browser cases pass after integration and review fixes; eight unit and nine design baseline assertions remain failed, and the concrete cutover packet awaits human/account prerequisites.**
 
 This is an incomplete checkpoint artifact. The plan SUMMARY must remain absent because the execution initializer treats its existence as completion. Task 1 engineering preparation is committed, but its full-suite acceptance criterion is unmet. Task 2 preparation is complete. Task 3 is blocking-human and has not been approved. No phase requirement, deployment, live inquiry or inbox receipt is marked complete. STATE, ROADMAP and REQUIREMENTS were not edited by this executor.
 
@@ -100,11 +100,11 @@ The exact compatibility-first app.fitout.live / fitout.live / retained ops.fitou
 
 Task 3 awaits named account owners and scoped authority for the concrete reviewed SHA/actions, compatibility bridge proof, current Google/PayMongo/Didit/Inngest/Resend settings, direct old/new receiver continuity, DNS/TLS/www readback, preview isolation, rollback/monitoring operators, global Contact control and mailbox budget, available inbox owner and separately authorized one safe inquiry. Vercel per-region rate limits with documented plan window limits do not establish the required global 15-minute original-client policy or mailbox budget. Contact stays disabled. An existing ops share-link bypass appeared in an initial raw read-only response; the packet assigns its invalidation to the account owner. No credential value is retained here or used/revoked by the executor.
 
-Central code/security review remains pending. No exact approved deployed SHA, high-threat-clear evidence, cutover approval, inquiry authority, inbox receipt, Reply-To or reply observation exists. Checkout, payout and legal HOLD are unchanged. Resume only after the actual blocking-human prerequisites are resolved; this checkpoint must not advance plan/phase completion.
+Central independent code/security re-review is clean, with all four original findings closed. No exact approved deployed SHA, deployed high-threat-clear evidence, cutover approval, inquiry authority, inbox receipt, Reply-To or reply observation exists. Checkout, payout and legal HOLD are unchanged. Resume only after the actual blocking-human prerequisites are resolved; this checkpoint must not advance plan/phase completion.
 
 ## Known stubs and threat surface
 
-No new product placeholder or unwired implementation stub was introduced. External facts are deliberately unknown, not stubs or live proof. No endpoint/schema/migration/provider registration or new financial event was added. Existing auth and form trust surfaces were repaired within explicitly authorized scope. Central threat review and the deployed matrix remain pending.
+No new product placeholder or unwired implementation stub was introduced. External facts are deliberately unknown, not stubs or live proof. No endpoint/schema/migration/provider registration or new financial event was added. Existing auth and form trust surfaces were repaired within explicitly authorized scope. Central re-review closes the four code findings; deployed threat evidence and the deployed matrix remain pending.
 
 ## Review-fix provenance boundary
 
@@ -116,7 +116,7 @@ failures remain failed. The historical six gates have explicitly unavailable sou
 no manifest/revision was captured at execution time, so they cannot prove clean or deployed source.
 New review-fix checks capture the preserved dirty working-tree manifest before execution. Their
 results and exact source context are appended separately, preserving the historical record.
-Central independent re-review and all external readback/authority/control/inbox facts remain pending.
+Central independent re-review closes the four code findings; all external readback/authority/control/inbox facts remain pending.
 Plans 08/09 are incomplete; no requirement or release HOLD advances through this report.
 
 The review-fix verification is recorded separately in 27-ENGINEERING-EVIDENCE.md:
@@ -130,14 +130,14 @@ two confirmed ignored stale development type files were removed, with canonical 
 Final Chromium exited0 after 243.3270778s with assisted Windows teardown: root verified
 and stopped only the owned Next descendants after all 52 cases passed. An unattributed
 Next dev streaming TypeError (digest2206780199) occurred between successful cases 47/48;
-no route/action/source frame is available in the log. Independent review must assess
-this bounded observation; the report does not claim an error-free runtime.
+no route/action/source frame is available in the log. Independent review assessed
+this bounded observation without establishing an actionable defect; the report does not claim an error-free runtime.
 
 Pre-gate source snapshots bind each new retained log to the preserved dirty shared
 checkout, including public assets/configuration and preexisting changes. Final build
 and browser useHEAD 9859a5c plus dirty manifests; these do not establish a clean/deployed
 candidate SHA. Historical full unit 8/design 9 failures and absent historical captures
-remain unchanged. All four code findings await independent re-review; the blocking
+remain unchanged. Independent re-review closes all four code findings; the blocking
 external account/control/inbox/approval prerequisites above still apply. Contact/mail
 were off; no live release, financial-policy change, requirement check or 08 SUMMARY exists.
 

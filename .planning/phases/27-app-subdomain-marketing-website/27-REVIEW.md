@@ -1,9 +1,9 @@
 ---
 phase: 27-app-subdomain-marketing-website
-reviewed: 2026-10-08T21:26:47Z
+reviewed: 2026-10-08T22:21:39Z
 depth: standard
 depth_source: active-config-no-overrides
-files_reviewed: 76
+files_reviewed: 81
 files_reviewed_list:
   - ".env.example"
   - "e2e/helpers/marketing-fixtures.ts"
@@ -81,25 +81,43 @@ files_reviewed_list:
   - "tests/design/ops-host-invariants.test.ts"
   - "tests/design/scaffold-residue.test.ts"
   - "tests/helpers/email-fixtures.ts"
+  - "src/app/actions/capability.ts"
+  - "src/lib/ops/grant.ts"
+  - "tests/auth/capability-role-policy.test.ts"
+  - "tests/scripts/phase27-evidence.test.mjs"
+  - "tests/scripts/fixtures/phase27-evidence.mjs"
 diff_base: edec99b89bffa62df9ba47b4cf85c12f96acfa3f
-candidate_revision: e9b5dfc8ee14c4e604021fed87bbeda8195412db
+candidate_revision: c66db10fecb07b9db296f255c02cddb424e5e939
+original_review_revision: 78d44adfe1f8db83a47177482f54a13926a2481b
+original_candidate_revision: e9b5dfc8ee14c4e604021fed87bbeda8195412db
+review_iteration: 2
 findings:
+  critical: 0
+  warning: 0
+  info: 0
+  total: 0
+closed_findings:
   critical: 1
   warning: 3
-  info: 0
   total: 4
-status: issues_found
+status: clean
+status_scope: code-review-only
 structural_prepass: disabled
 source_modified: false
 gates_rerun: false
+saved_evidence_validation: prepared-pass
 validation_provenance:
   gate_source: preserved-dirty-shared-working-tree
   clean_candidate_validation: false
   deployed_candidate_validation: false
-  owned_chromium: "51 passed"
+  focused_security_contact_staff: "147 passed in 9 files"
+  evidence_fixtures: "87 passed; previous captured run 86 passed"
+  owned_chromium: "52 passed; assisted Windows teardown"
+  browser_runtime_error: "Unattributed Next streaming TypeError; digest 2206780199"
   types_lint_build: passed
-  full_unit: "8 failed; baseline dispositions retained"
-  full_design: "9 failed; baseline dispositions retained"
+  lint_warnings: 34
+  full_unit: "8 failed; historical baseline dispositions retained"
+  full_design: "9 failed; historical baseline dispositions retained"
 external_status:
   cutover_authority: pending
   candidate_deployment_proven: false
@@ -108,82 +126,100 @@ external_status:
   checkout: HOLD
   payout: HOLD
   legal: HOLD
+phase_completion: not-established
+requirements_completion: not-established
 ---
 
 # Phase 27: Code Review Report
 
-**Depth:** standard  
-**Status:** issues_found — one BLOCKER, three WARNING findings.
+**Reviewed:** 2026-10-08T22:21:39Z
+**Depth:** standard
+**Status:** clean — zero active code-review findings after independent re-review.
 
 ## Narrative Findings (AI reviewer)
 
-### Scope and evidence limits
+### Final assessment and scope
 
-Reviewed the 76 explicit text files against the phase diff and committed candidate, with called authentication, capability and staff-policy code inspected where needed. Unrelated dirty hunks, including booking-action edits, are excluded from attribution. The baseline capability authorization gap is identified below because the new phase-owned hosting page exposes it through its advertised customer journey. The review did not modify source, run build/test gates, create a deployment, send mail, mutate an account or change readiness policy.
+All four original findings are closed. No new actionable correctness, security or test-reliability defect was established in the reviewed fixes and their call chains. This conclusion is limited to source review and the saved evidence; it does not approve deployment, complete Phase 27 or satisfy its pending external requirements.
 
-The existing recorded gates ran on a shared working tree with preserved prior edits. Their passing results establish that tested working-tree state; they do **not** establish a clean candidate SHA or a deployed SHA. The full unit and design failures remain recorded with baseline evidence; this report does not recast those failures as passes. Engineering evidence, deployment inventory and the cutover packet currently retain pending external conditions. Production Contact is disabled; simulated browser responses establish client behavior only. Real mailbox receipt, Reply-To/reply, deployment-wide rate controls and candidate production cache isolation remain unproved. Checkout, payout and legal HOLD remain immutable.
+The original 76-file review scope remains intact. Re-review adds the authoritative capability action, staff role authority and three new evidence/policy test files, for 81 explicit files. The unchanged portions inherit the original standard-depth review; updated code was checked against fix commits `4a95c5a`, `ee6fa72`, `d8d77c2`, `c22f3d6`, `821af3f` and `9859a5c`, with final reviewed HEAD `c66db10fecb07b9db296f255c02cddb424e5e939`. The original report is preserved at `78d44adfe1f8db83a47177482f54a13926a2481b`. Unrelated dirty edits, including booking-action hunks, remain excluded from attribution. No source, state, requirement, readiness predicate or external account was modified by this reviewer.
 
-Installed Next.js Proxy and metadata-route guides were consulted before evaluating routing/API behavior. Review covered exact host/port partitioning; app/marketing/ops paths; direct signed receivers; callback and legacy-token continuity; session bridging; hydration; metadata, RSC/cache and namespace isolation; Contact validation, trusted-IP selection, default-off behavior, provider acceptance and PII handling; fixtures and cutover evidence. Missing external observations already declared pending are limitations, not additional code defects.
+The reviewed areas include exact host/port partitioning and app/marketing/ops isolation; callbacks, legacy tokens and host-only session bridging; direct signed receivers; client hydration; metadata/RSC/cache boundaries; Contact validation, trusted-IP selection, rate controls, default-off behavior, provider acceptance and PII handling; fixture integrity and cutover evidence. Installed Next.js Proxy and metadata guides were consulted during the original review. Re-review did not introduce a new interpretation of those APIs.
 
-Two isolated read-only probes supplement source analysis: a mocked staff session through the actual hosting page/action, and an in-memory invocation of the actual evidence validator. Neither probe contacted a database/provider or wrote evidence/approval records.
+### Validation and unresolved external limits
 
-### Critical Issues
+The reviewer inspected the fix report, engineering supplements, source, tests, retained browser log and evidence validator. A narrow read-only `--stage prepared` invocation loaded the actual saved logs and source snapshots and passed consistency validation: “engineering=failed gates retained; external approval=pending.” No unit, design, build, lint or browser gate was rerun by this reviewer.
 
-#### CR-01: New hosting entry permits staff to regain a customer capability
+Recorded fix validation establishes the tested shared working-tree state:
 
-**Classification:** BLOCKER  
-**File:** `src/app/start-hosting/page.tsx:9-21`  
-**Called evidence:** `src/components/marketing/hosting-intent.tsx:19-31`; `src/app/actions/capability.ts:43-45,58-79`; `src/lib/ops/grant.ts:232,300-310`; `src/app/(host)/host/layout.tsx`.
+- 147 focused security/contact/staff tests passed, including guarded local PostgreSQL lock races in both acquisition orders.
+- The final evidence fixture run passed 87 cases; the preceding captured run passed 86.
+- TypeScript passed; its empty-output terminal metadata and source snapshot remain explicit rather than inventing a raw log.
+- ESLint passed with zero errors and 34 retained warnings; the final canonical production build compiled, typechecked and generated 46/46 routes plus Proxy.
+- All 52 owned Chromium cases passed. The Windows runner required verified teardown of its owned Next descendants. This was assisted teardown.
+- A Next development streaming `TypeError: controller[kState].transformAlgorithm is not a function`, digest `2206780199`, appears between successful browser cases 47 and 48. The retained log supplies only ignored frames, without route/action/source attribution. It is disclosed and does not support a new concrete source finding. Passing tests do not establish an error-free runtime.
 
-**Issue:** The new entry checks only whether a session exists and whether `canHost` is already true. A staff identity with `canHost=false` receives the activation component. Its server action resolves any authenticated user ID and unconditionally writes `canHost=true` on that ID. Staff credentials can establish an app-host session; host-only cookies do not restrict the identity's role. The host layout subsequently accepts the newly true capability.
+All recorded gates ran in the preserved dirty shared checkout. Captured source manifests bind later supplements to that dirty state; they do **not** establish clean candidate or deployed SHA validation. Final build/browser used HEAD `9859a5c` plus captured preexisting edits. Later documentation commits do not convert those results into clean-SHA proof. Historical six-gate execution-time source captures remain honestly unavailable; the eight full-unit and nine full-design failures remain failed with their existing dispositions. Earlier failed build attempts remain retained, rather than being replaced with the final successful build.
 
-This violates the existing OPS-11 separation between staff identities and customer booking/hosting capabilities: staff granting rejects customer capabilities or clears them through explicit conversion. A page-only check would leave the privileged action callable directly. It would also leave a race where staff promotion clears capabilities and an already authorized activation restores one afterward.
+Actual account readback, approved candidate deployment, signed-provider continuity, production cache/preview isolation, distributed Contact controls and live mailbox receipt/Reply-To/reply remain pending. Production Contact remains disabled. Simulated response acceptance tests do not establish provider or inbox acceptance. Checkout, payout and legal HOLD remain unchanged. Plans 08/09 and the seven requirements are not marked complete by this report.
 
-**Verification:** An isolated source probe supplied `{ role: "staff", canHost: false, canBook: false }`. The page rendered hosting activation, and the real action returned `{ ok: true, redirectTo: "/host" }` while its mocked database captured `{ canHost: true }`. No production account was used.
+### Original finding history and final closure
 
-**Fix:** Reject staff on the page and enforce eligible customer roles at the authoritative capability write. Read/recheck the database role inside the transaction, serialize activation with the existing staff-role-policy advisory lock used by staff grant/conversion, and condition the update on an eligible role. A denied or zero-row update must not return success. Apply the same authoritative separation to the shared booking activation path if that helper is refactored. Preserve dual booking/hosting for eligible customers. Add focused coverage for staff page access, direct action denial and activation versus staff conversion; do not change `deriveBookable`.
+These are **closed historical findings**, not active issues. Their original classifications, failure evidence and minimum remediation are retained here so the final clean status does not erase the review history.
 
-### Warnings
+#### CR-01 — BLOCKER — New hosting entry permits staff to regain a customer capability — CLOSED
 
-#### WR-01: Contact reports definite non-delivery after an ambiguous response failure
+**Original location:** `src/app/start-hosting/page.tsx:9-21`, calling `src/app/actions/capability.ts`. The page offered activation to a staff identity, and the action authorized any session user ID before unconditionally setting `canHost=true`. An isolated source probe rendered the offer for a synthetic staff session and captured a successful capability write. This violated OPS-11 staff/customer separation and exposed a conversion race.
 
-**Classification:** WARNING  
-**File:** `src/components/marketing/contact-form.tsx:38-39,59`.
+**Fix commit:** `4a95c5acad27159047c5d0cef61903c7791c131b`.
+**Re-reviewed authority:** `src/app/start-hosting/page.tsx:10-12`; `src/app/actions/capability.ts:55-66`; `src/lib/ops/grant.ts:227-239`.
 
-**Issue:** Both a rejected fetch and a rejected `response.json()` reach “Your message has not been sent.” The server may already have received provider acceptance before the response connection fails, or an accepted response body may fail to decode. The client cannot infer non-delivery from either event. The definite failure claim invites another submission and can duplicate an inquiry. This is a client correctness defect; it does not claim that the currently disabled production Contact has sent mail.
+The page rejects ineligible roles before its existing-host redirect. Both hosting and booking activation acquire the existing `fitout:staff-role-policy` transaction advisory lock, reread the authoritative database role, require positive `DEFAULT_ROLE` eligibility and condition the update on that role. Exactly one returned row is required for success. A stale customer session over a staff database identity, missing/unknown role or zero-row update cannot succeed. Existing capability coexistence, rate limits and allow/deny audits remain intact.
 
-**Fix:** Report uncertainty for transport/body-read failures, for example “We could not confirm whether your message was sent. Check your connection before trying again.” Keep the entered values and offer recovery. Keep definite success dependent on the accepted API response. Update the existing malformed-body and connection-failure cases to assert uncertainty, including a simulated accepted server outcome whose response cannot be read. Idempotent retry is optional additional protection, not required for the wording fix.
+Every staff grant/conversion/revoke transaction takes the same lock before resolving role/capability state. Invitation acceptance holds its invitation lock before calling the role authority for a private new identity; the reviewed call chain contains no reverse policy-to-invitation acquisition. Conversion cannot finish with staff capabilities restored by a waiting activation, and ordinary granting refuses an already activated customer. Semantic tests assert actual backend lock waiting and final persisted roles/capabilities in both race orders, rather than relying only on timing. No `deriveBookable` change or production account mutation is involved.
 
-#### WR-02: Deployed evidence accepts repeated rows in place of the required matrix
+**Closure:** The original bypass and identified race are closed.
 
-**Classification:** WARNING  
-**File:** `scripts/verify-phase27-evidence.mjs:86-88`.
+#### WR-01 — WARNING — Contact reports definite non-delivery after an ambiguous response failure — CLOSED
 
-**Issue:** Matrix acceptance checks only a row's status, truthy proof/date and total length of at least twelve. It checks no row identity or coverage. Twelve copies of one app-home observation satisfy “Complete deployed host/provider/control matrix” while omitting callback/session isolation, old-token continuity, direct provider receivers, RSC/cache isolation and Contact controls. Truthy booleans for rollback/Contact and an empty high-threat array do not fill those missing observations.
+**Original location:** `src/components/marketing/contact-form.tsx:38-39,59`. A rejected transport or JSON-body read asserted “Your message has not been sent,” although provider acceptance could precede a lost response. The minimum fix was uncertainty wording with values/recovery retained.
 
-**Verification:** The actual validator was invoked with otherwise populated deployed-stage records entirely in memory. Twelve copies of the same `app-home-only` row yielded exit code 0 and “evidence structure validated”; the unique matrix ID count was one. Saved phase evidence was unchanged.
+**Fix commit:** `ee6fa72a386b1506cb9aea301db60b41faea68b9`.
+**Re-reviewed location:** `src/components/marketing/contact-form.tsx:59`.
 
-**Fix:** Define the required matrix rows as an explicit versioned contract derived from the phase cutover checks. Require an array of objects with unique, allowlisted scenario IDs and complete coverage; each observation must include its exact host/URL and method or scenario, expected/observed outcome, evidence reference, valid observation timestamp and candidate deployment/revision identity. Validate receiver IDs distinctly, as well as host/session/RSC/cache cases and required Contact-control observations. Reject duplicates, missing required IDs, unknown substitute IDs, wrong field types and invalid dates. Add fixture-driven checks showing duplicate app-home rows and omissions fail, while a complete distinct matrix passes. This is structural consistency checking, not a guarantee that a supplied observation is authentic.
+Transport/body exceptions now say delivery could not be confirmed. The component keeps the entered values and allows recovery; definite success still requires HTTP 200 plus boolean `ok:true`. Unit coverage and the added browser case simulate server acceptance followed by an unreadable response and assert uncertainty, retained values and no success state. Those cases deliberately do not claim a real sent inquiry.
 
-#### WR-03: Gate pass labels can contradict retained failing evidence
+**Closure:** The incorrect certainty claim is closed.
 
-**Classification:** WARNING  
-**File:** `scripts/verify-phase27-evidence.mjs:35-60,82-84`.
+#### WR-02 — WARNING — Deployed evidence accepts repeated rows in place of the required matrix — CLOSED
 
-**Issue:** The validator verifies `status` against the manually supplied `exitCode`, hashes the referenced bytes, and only requires `result` to be truthy. It never checks whether the reported outcome contradicts the bounded result or known raw gate summary. Consequently a gate can be relabeled `pass/0` while its retained summary and verified log still report failures, and the deployed-stage all-pass check accepts it. The separate deployed/approved SHA equality also says nothing about which source state the gates tested.
+**Original location:** `scripts/verify-phase27-evidence.mjs:86-88` in the original revision. Twelve duplicated `app-home-only` rows passed deployed acceptance while omitting required host/session/provider/control coverage. The original in-memory probe returned exit 0 with only one unique matrix ID.
 
-**Verification:** In the same in-memory probe, the engineering gate labels were set to `pass/0` while the original unit result (“8 failed”) and original raw logs/digests were retained. The actual deployed validator returned exit code 0. This is a demonstrated contradiction accepted by the checker; it is not an assertion that the current saved documents have been falsified. Current documents correctly retain failed gates.
+**Fix commit:** `d8d77c29bdf37028a4dc054ca1c55c6f2ef99e6f`.
+**Re-reviewed contract/checks:** `scripts/verify-phase27-evidence.mjs:16-40,228-258`.
 
-**Fix:** Use a typed gate result with explicit passed/failed/skipped totals where applicable, and reject any failed outcome labeled `pass`. Cross-check the captured bounded terminal summary or machine-readable runner report against that result for each known runner; retain honest failure dispositions in prepared evidence and continue blocking them for deployed/live acceptance. Require valid timestamps with finish at or after start. Record the tested source context explicitly: revision, whether the tree was dirty, and a scoped manifest/digest of tested changes or equivalent captured provenance. Do not bind a dirty-tree gate to a clean/deployed SHA solely by editing a revision string. Keep the packet's warning about the preserved dirty-tree run explicit until a matching final source state has been validated. Add negative fixtures for a pass label with failed runner totals/log summary and for missing or contradictory source-context fields. Hashes establish byte integrity; this fix should not claim cryptographic proof of execution or external deployment.
+Version 1 enumerates 35 required scenario IDs. Validation rejects duplicate, unknown and missing IDs; requires successful typed scenario/outcome/proof fields and valid UTC observation timestamps; checks exact scenario host, URL path and method; and binds rows to distinct customer, ops and isolated-preview deployment identities and candidate revisions. Preview cannot substitute a production origin. Direct receivers on both old and target hosts, callback/token/session continuity, staff denial, RSC/cache, metadata, Contact controls and rollback all have required coverage.
 
-### Minimum remediation and disposition
+Focused fixtures retain the original duplicate exploit as a negative case and test every missing ID, unknown substitutions, field/date errors, candidate mismatches and preview substitution. Their positive complete matrix is explicitly synthetic. Expected/observed descriptions and proof references remain supplied observations; structural validation does not certify their authenticity.
 
-The smallest production remediation is the hosting page plus the called capability authorization transaction, and the Contact uncertainty wording. Evidence remediation belongs in `scripts/verify-phase27-evidence.mjs`, its focused fixtures, and truthful engineering/cutover provenance fields. The blocker must close before shipping the hosting entry. The three warnings should close before relying on Contact feedback or deployed/live evidence acceptance.
+**Closure:** The duplicate/incomplete matrix acceptance defect is closed.
 
-No external approval, rollout, real inquiry or payment/payout/legal release follows from this report. The review artifact is uncommitted for the orchestrator to handle.
+#### WR-03 — WARNING — Gate pass labels can contradict retained failing evidence — CLOSED
+
+**Original location:** `scripts/verify-phase27-evidence.mjs:35-60,82-84` in the original revision. Labels could be changed to `pass/0` while the verified raw log and saved bounded result still reported eight unit failures. Deployed/approved SHA equality also omitted the source context actually tested.
+
+**Fix commits:** `c22f3d61c9b63ea4838c7cfa88e5c165085841d8`, `821af3f74340f4c785985797299b41bf02eecbdb`, `9859a5ceb35267e8a5236694a9f06ad17354417d`.
+**Re-reviewed parsers/provenance:** `scripts/verify-phase27-evidence.mjs:66-118,134-203`.
+
+Known runner summaries and typed totals are derived from retained bytes and compared with the supplied gate fields. Failure totals or failed bounded results cannot coexist with a pass label. Next build parsing retains failures after compilation, including typecheck failure. UTC start/end ordering, elapsed durations and sequential gate ordering are checked. Original and supplemental gates undergo the same summary/source consistency checks.
+
+Captured source records include revision, dirty state and sorted scoped file/digest manifests. Persisted snapshot references are workspace-contained; their actual byte hashes and recorded contexts are checked before validating the full manifest. Deployed/live validation rejects unavailable historical capture or dirty/contradictory source claims. No historical manifest has been retroactively reconstructed. The packet explicitly retains the dirty-tree warning; snapshot hashes establish byte consistency, not execution attestation or external authenticity.
+
+Negative fixtures reject failed-log relabeling, typed-total/summary contradictions, invalid timing/source fields, manifest mismatch and persisted snapshot tampering. The saved prepared evidence validates its actual logs/snapshots while preserving historical failures and pending authority. Complete synthetic fixtures isolate themselves from real supplemental records.
+
+**Closure:** The original contradictory pass acceptance and missing truthful source-context treatment are closed. Pending external evidence and matching deployment validation remain release gates, not reopened code-review findings.
 
 ---
 
-_Reviewed: 2026-10-08T21:26:47Z_  
-_Reviewer: Codex (gsd-code-reviewer)_  
-_Depth: standard; fallow disabled_
+_Independent final reviewer: Codex (gsd-code-reviewer)_
+_Standard depth; fallow disabled; original four findings closed; zero active findings._

@@ -175,7 +175,7 @@ beside `playwright/.cache/phase27-08`, never under Playwright's destructive outp
 
 Prepared CLI validates actual saved supplements. Deployed/live acceptance still rejects
 failed historical gates, missing clean/deployed provenance and genuine pending external
-proof. Independent code re-review remains pending. External inventory, signed receivers,
+proof. Independent code re-review now closes all four findings; the per-finding workflow labels above record the fixer's earlier handoff. External inventory, signed receivers,
 production cache/preview isolation, Contact distributed control and inbox receipt need
 actual readback/authority. No provider, DNS, deployment, account, schema, package or mail
 mutation occurred. Contact remains disabled; checkout/payout/legal HOLD is unchanged.

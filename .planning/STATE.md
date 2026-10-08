@@ -4,12 +4,12 @@ milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
-status: executing
-stopped_at: Phase 27 plans 27-01 through 27-07 complete; plan 27-08 next; 7/9 plans executed
-last_updated: "2026-10-08T19:29:17Z"
+status: awaiting-human
+stopped_at: Phase 27 plans 27-01 through 27-07 complete; plan 27-08 incomplete at account/cutover checkpoint; 7/9 plans executed
+last_updated: "2026-10-08T22:22:16Z"
 last_activity: 2026-10-09
-last_activity_desc: Phase 27 Contact engineering committed; 244 focused unit tests and seven browser checks plus scoped lint/typecheck passed; production sending remains disabled; full engineering matrix and external packet next
-state_head: ad13b818
+last_activity_desc: Phase 27 integration and four review fixes committed; 52 browser cases and focused security/evidence checks pass; full unit/design acceptance retains eight/nine failures; account/cutover evidence pending; Contact disabled
+state_head: c66db10f
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -69,7 +69,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 27 — App Subdomain & Marketing Website — EXECUTING. Plans 27-01 through 27-07 complete (7/9); all marketing pages and Contact engineering are implemented and locally checked. Plan 27-08 full engineering matrix and read-only cutover preparation is next; production Contact stays disabled pending deployment-wide controls and inbox/reply proof. Plan08 must retain the observed intermittent `/host/listings/new` 404; listing setup capture honestly uses a draft edit wizard. All seven phase requirements remain pending until their dependent engineering and live evidence is established; Phase 25.1/26 payment, payout and binding-terms HOLD remain unchanged.
+**Current focus:** Phase 27 — App Subdomain & Marketing Website — AWAITING ACCOUNT/CUTOVER CHECKPOINT. Plans 27-01 through 27-07 complete (7/9). Plan 27-08 integration, current read-only inventory and reversible packet are prepared; four central review findings have committed fixes and independent re-review is clean, with all four findings closed. Final local checks: 52 Chromium cases, 147 focused security/Contact/invitation tests, 87 evidence fixtures, types, lint and production build pass. Browser teardown required scoped Windows Next process cleanup; an unattributed streaming error remains disclosed. Full unit/design acceptance retains eight/nine baseline or prior-dirty-source failures; captured review-fix gates identify the preserved dirty working tree and do not prove a clean deployable SHA. The initial intermittent `/host/listings/new` 404 remains in evidence; final owned-draft browser flow passed. Plan 27-08 remains incomplete, its SUMMARY absent, and Plan 27-09 has not started. Current provider/DNS/TLS/preview facts, exact revision/action authority, deployment-wide Contact controls, mailbox owner and controlled inquiry/receipt/reply proof are pending. An existing ops share-link bypass exposed by read-only inventory needs owner invalidation. Contact stays disabled; all seven requirements remain pending and payment/payout/legal HOLD remains unchanged. Resume from the phase `.continue-here.md` and `27-08-CHECKPOINT.md`.
 
 The following milestone sequencing note is retained as historical context:
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues
@@ -115,10 +115,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 27 (App Subdomain & Marketing Website) — READY TO EXECUTE
-Plan: 0 of 9
-Status: Ready to execute
-Last activity: 2026-10-09 — Phase 27 research and nine execution plans complete; independent plan review passed; implementation and deployed/inbox proofs remain pending.
+Phase: 27 (App Subdomain & Marketing Website) — ACCOUNT/CUTOVER CHECKPOINT
+Plan: 08 of 09 current, incomplete; 7 of 9 complete
+Status: Awaiting actual account evidence and cutover authority; local full-suite acceptance remains unmet
+Last activity: 2026-10-09 — Marketing/integration and four review fixes committed; final local browser/types/lint/build and focused checks pass. Eight unit/nine design failures and external prerequisites remain pending. Plan 09 has not started.
 
 ## Performance Metrics
 
@@ -1844,10 +1844,13 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 ## Session Continuity
 
 Last session: 2026-10-09 (Asia/Manila)
-Stopped at: Phase 27 research and nine sequential plans complete; independent plan verification passed.
-Phase 27 covers seven requirements, twenty locked decisions and 24 tasks. No application implementation,
-live cutover or Contact inbox proof has run. Existing payment/payout/legal HOLD remains in force.
-Next step is `$gsd-execute-phase 27`.
+Stopped at: Phase 27 plans 01–07 complete; Plan 08 incomplete at blocking-human account/cutover checkpoint; Plan 09 not started.
+Marketing and integration are implemented; four code-review findings have committed fixes. Final 52
+browser cases, focused tests, types, lint and build pass with captured dirty-tree provenance. Full unit
+and design acceptance retains eight and nine failures. Independent re-review is clean, with all four findings closed. No live cutover,
+Contact inquiry, inbox receipt or reply proof has run. Contact is disabled and payment/payout/legal HOLD
+remains in force. Resume from `.planning/phases/27-app-subdomain-marketing-website/.continue-here.md`.
+Do not create Plan 08 SUMMARY, count it complete, start Plan 09 or infer approval from sleeping-user autonomy.
 
 ⚠ The prior `Stopped at` (18.1-10, wave 4) was stale — 18.1 finished at 18.1-16 and verified 9/9 on
 2026-09-03. It is corrected here rather than carried forward.
