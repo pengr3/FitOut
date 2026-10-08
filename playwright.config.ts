@@ -139,9 +139,12 @@ export default defineConfig({
   updateSnapshots: "none",
 
   fullyParallel: true,
+  // CI shares one dev server and one database. Two browser workers produced
+  // unrelated login, title, and money-state timing failures across reruns.
+  workers: process.env.CI ? 1 : undefined,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // Diagnostic guard: print the first CI failure instead of exhausting the 90-minute job cap.
+  // Print the first persistent CI failure instead of exhausting the 90-minute job cap.
   maxFailures: process.env.CI ? 1 : 0,
   reporter: "list",
   use: {
