@@ -27,13 +27,14 @@
 // entry on every allow/deny (src/lib/audit.ts). This satisfies the security carry-forward gate
 // BEFORE Plan 06 wires payouts to canHost.
 
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { user } from "@/lib/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
 import { recordAudit } from "@/lib/audit";
+import { DEFAULT_ROLE } from "@/lib/ops/grant";
 
 export type CapabilityResult =
   | { ok: true; redirectTo: string }
@@ -49,6 +50,20 @@ async function requireUserId(): Promise<string | null> {
 // (mirrors the Better-Auth credential-endpoint budget in src/lib/auth.ts). Keyed on the user id —
 // never IP — because these are session-gated escalations. Hosting + booking share the budget.
 const ACTIVATE_RATE_LIMIT = { window: 60, max: 5 } as const;
+
+// Share the role authority's lock before reading or writing the account. Session role is not
+// authoritative: a conversion can commit after the session was resolved. Positive role equality
+// also denies missing/unknown roles, and RETURNING prevents a zero-row update claiming success.
+async function activateCustomerCapability(userId: string, capability: "canHost" | "canBook") {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended('fitout:staff-role-policy', 0))`);
+    const [current] = await tx.select({ role: user.role }).from(user).where(eq(user.id, userId));
+    if (current?.role !== DEFAULT_ROLE) return false;
+    const updated = await tx.update(user).set({ [capability]: true })
+      .where(and(eq(user.id, userId), eq(user.role, DEFAULT_ROLE))).returning({ id: user.id });
+    return updated.length === 1;
+  });
+}
 
 /**
  * Add the HOST capability to the signed-in user (D-03). Sets canHost=true server-side WITHOUT
@@ -72,7 +87,10 @@ export async function activateHosting(): Promise<CapabilityResult> {
     return { ok: false, error: "Too many attempts. Please try again in a moment." };
   }
   // Privileged flip (input:false guard means this can never come from the client). canBook untouched.
-  await db.update(user).set({ canHost: true }).where(eq(user.id, userId));
+  if (!await activateCustomerCapability(userId, "canHost")) {
+    await recordAudit({ actorId: userId, action: "activateHosting", outcome: "denied", meta: { reason: "ineligible_role" } });
+    return { ok: false, error: "This account cannot activate hosting." };
+  }
   // WR-06: record the successful escalation (actorId + action + outcome).
   await recordAudit({ actorId: userId, action: "activateHosting", outcome: "ok" });
   // Route toward the host surface / listing creation (Phase 2). No PayMongo onboarding here (D-05).
@@ -100,7 +118,10 @@ export async function activateBooking(): Promise<CapabilityResult> {
     return { ok: false, error: "Too many attempts. Please try again in a moment." };
   }
   // Privileged flip; canHost untouched (coexistence, D-03).
-  await db.update(user).set({ canBook: true }).where(eq(user.id, userId));
+  if (!await activateCustomerCapability(userId, "canBook")) {
+    await recordAudit({ actorId: userId, action: "activateBooking", outcome: "denied", meta: { reason: "ineligible_role" } });
+    return { ok: false, error: "This account cannot activate booking." };
+  }
   // WR-06: record the successful escalation (actorId + action + outcome).
   await recordAudit({ actorId: userId, action: "activateBooking", outcome: "ok" });
   return { ok: true, redirectTo: "/" };

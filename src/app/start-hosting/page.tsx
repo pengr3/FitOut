@@ -8,6 +8,7 @@ import { PanelCard } from "@/components/patterns/panel-card";
 export default async function StartHostingPage() {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) redirect("/login?callbackURL=%2Fstart-hosting");
+  if (session.user.role !== "user") redirect("/");
   if (session.user.canHost) redirect("/host");
 
   return (

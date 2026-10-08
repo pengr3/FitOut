@@ -22,15 +22,20 @@ describe("checked hosting entry", () => {
     expect(mocks.activate).not.toHaveBeenCalled();
   });
   it("sends an existing host directly to the host surface", async () => {
-    mocks.session.mockResolvedValue({ user: { id: "host", canHost: true, canBook: true } });
+    mocks.session.mockResolvedValue({ user: { id: "host", role: "user", canHost: true, canBook: true } });
     await expect(StartHostingPage()).rejects.toThrow("REDIRECT:/host");
     expect(mocks.activate).not.toHaveBeenCalled();
   });
   it("repeated booker renders offer an explicit action and never activate on GET", async () => {
-    mocks.session.mockResolvedValue({ user: { id: "booker", canHost: false, canBook: true } });
+    mocks.session.mockResolvedValue({ user: { id: "booker", role: "user", canHost: false, canBook: true } });
     render(await StartHostingPage());
     expect(screen.getByRole("button", { name: "Start hosting" })).toBeTruthy();
     await StartHostingPage();
+    expect(mocks.activate).not.toHaveBeenCalled();
+  });
+  it.each([false, true])("rejects a staff session before hosting capability routing (canHost=%s)", async (canHost) => {
+    mocks.session.mockResolvedValue({ user: { id: "staff", role: "staff", canHost, canBook: false } });
+    await expect(StartHostingPage()).rejects.toThrow("REDIRECT:/");
     expect(mocks.activate).not.toHaveBeenCalled();
   });
 });
