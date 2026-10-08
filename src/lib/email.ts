@@ -32,6 +32,7 @@ import { ALL_RAILS_REFUND_WINDOW } from "@/lib/booking/refund-window";
 import { renderEmail, escapeHtml } from "@/lib/email-shell";
 import { APP_ORIGIN } from "@/lib/app-origins";
 import { SUPPORT_EMAIL } from "@/lib/site";
+import { contactSchema, type ContactInput } from "@/lib/validation/contact";
 
 // D-245 — the SHARED body join for the Phase-18 ops-decision kinds. Imported and CALLED so this
 // channel and the in-app panel cannot render the parts differently; see its module header.
@@ -53,7 +54,7 @@ async function send(
   subject: string,
   html: string,
   text: string,
-  options: { allowDevelopmentBodyLog?: boolean } = {},
+  options: { allowDevelopmentBodyLog?: boolean; replyTo?: string } = {},
 ): Promise<EmailDeliveryResult> {
   if (!resend) {
     // WR-02 — the dev fallback logs the FULL email body, which includes the single-use
@@ -70,7 +71,7 @@ async function send(
       // Staff invitations cross an elevation-of-privilege boundary. Unlike the
       // legacy verification/reset fallback, their bearer credential may not be
       // copied to a terminal even during local development.
-      console.error("staff invitation email transport is not configured");
+      console.error("email transport is not configured");
       return { delivered: false };
     }
     // Dev/test only: log legacy public-auth links so those flows remain followable locally.
@@ -83,7 +84,7 @@ async function send(
     subject,
     html,
     text,
-    replyTo: SUPPORT_EMAIL ?? undefined,
+    replyTo: options.replyTo ?? SUPPORT_EMAIL ?? undefined,
   });
   if (error) {
     // Provider errors can echo recipient addresses or message payloads. Keep the
@@ -92,6 +93,27 @@ async function send(
     return { delivered: false };
   }
   return { delivered: true, transport: "resend" };
+}
+
+/** Public Contact is truthful about delivery, uses only server-owned envelope fields,
+ * and never emits the inquiry through the development body logger. */
+export async function sendContactInquiry(input: ContactInput): Promise<EmailDeliveryResult> {
+  const parsed = contactSchema.safeParse(input);
+  if (!parsed.success || !SUPPORT_EMAIL) return { delivered: false };
+  try {
+    const { name, email, mobile, message } = parsed.data;
+    const { html, text } = renderEmail({
+      heading: "FitOut contact inquiry",
+      paragraphs: [`Name: ${name}`, `Email: ${email}`, ...(mobile ? [`Mobile: ${mobile}`] : []), ...message.split(/\r?\n/) ],
+    });
+    const result = await send(SUPPORT_EMAIL, "FitOut contact inquiry", html, text, {
+      allowDevelopmentBodyLog: false, replyTo: email,
+    });
+    return result.delivered && result.transport === "resend" ? result : { delivered: false };
+  } catch {
+    // A thrown transport error may contain the recipient or body; omit its details.
+    return { delivered: false };
+  }
 }
 
 /**

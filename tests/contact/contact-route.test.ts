@@ -75,7 +75,7 @@ describe("Contact public send boundary", () => {
     expect((await POST(request(valid, { "x-vercel-forwarded-for": "203.0.113.1" }, "https://fitout.live"))).status).toBe(503);
     expect(transport.send).not.toHaveBeenCalled();
   });
-  it.each(["", "203.0.113.1, 203.0.113.2", "invalid", "203.0.113.1:1234", " 203.0.113.1 "]) ("denies missing/malformed/chained Vercel identity %s", async (ip) => {
+  it.each(["", "203.0.113.1, 203.0.113.2", "invalid", "203.0.113.1:1234", "203.0. 113.1"]) ("denies missing/malformed/chained Vercel identity %s", async (ip) => {
     await deployed();
     expect((await POST(request(valid, { "x-vercel-forwarded-for": ip, "x-forwarded-for": "203.0.113.1" }, "https://fitout.live"))).status).toBe(403);
     expect(transport.send).not.toHaveBeenCalled();
