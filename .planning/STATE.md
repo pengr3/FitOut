@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: Phase 27 plans 27-01 through 27-04 complete; plan 27-05 next; 4/9 plans executed
-last_updated: "2026-10-08T18:30:32Z"
+stopped_at: Phase 27 plans 27-01 through 27-05 complete; plan 27-06 next; 5/9 plans executed
+last_updated: "2026-10-08T18:49:42Z"
 last_activity: 2026-10-09
-last_activity_desc: Phase 27 seven authentic app captures inspected and committed with hashes/provenance; capture groups and asset/lint/type checks passed; marketing and live evidence pending; intermittent listing-creation 404 retained for Plan08
-state_head: 5ac3bb02
+last_activity_desc: Phase 27 Court shell/Home/host/player pages committed; 20 focused design tests and scoped lint/typechecks passed; supporting pages, Contact and live evidence pending
+state_head: a9b93084
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -58,7 +58,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 128
+  completed_plans: 129
   percent: 15
 ---
 
@@ -69,7 +69,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 27 — App Subdomain & Marketing Website — EXECUTING. Plans 27-01 through 27-04 complete (4/9); routing, auth/service continuity, hosting intent and seven inspected genuine captures are verified locally. Plan 27-05 Court marketing shell/Home/audience pages is next. Plan08 must retain the observed intermittent `/host/listings/new` 404; listing setup capture honestly uses a draft edit wizard. All seven phase requirements remain pending until their dependent engineering and live evidence is established; Phase 25.1/26 payment, payout and binding-terms HOLD remain unchanged.
+**Current focus:** Phase 27 — App Subdomain & Marketing Website — EXECUTING. Plans 27-01 through 27-05 complete (5/9); Court shell/Home/audience pages now use genuine reviewed captures and checked app handoffs. Plan 27-06 About/FAQ/metadata is next. Plan08 must retain the observed intermittent `/host/listings/new` 404; listing setup capture honestly uses a draft edit wizard. All seven phase requirements remain pending until their dependent engineering and live evidence is established; Phase 25.1/26 payment, payout and binding-terms HOLD remain unchanged.
 
 The following milestone sequencing note is retained as historical context:
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues
