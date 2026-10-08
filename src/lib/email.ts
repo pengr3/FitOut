@@ -30,7 +30,7 @@ import { ALL_RAILS_REFUND_WINDOW } from "@/lib/booking/refund-window";
 // is now STRUCTURAL rather than remembered nineteen times. Do not reintroduce a local escape before
 // handing a value to `renderEmail` — it would double-encode.
 import { renderEmail, escapeHtml } from "@/lib/email-shell";
-import { PUBLIC_APP_ORIGIN } from "@/lib/app-origins";
+import { APP_ORIGIN } from "@/lib/app-origins";
 import { SUPPORT_EMAIL } from "@/lib/site";
 
 // D-245 — the SHARED body join for the Phase-18 ops-decision kinds. Imported and CALLED so this
@@ -184,7 +184,7 @@ export const sendStaffInviteEmail = async (
 /** App base URL for the one CTA without a caller-supplied link (declined → "Find another space").
  *  Uses the same BETTER_AUTH_URL app-URL convention as auth.ts / paymongo-connect.ts; falls back to a
  *  root-relative href so a missing env never yields a broken link. */
-const APP_URL = PUBLIC_APP_ORIGIN;
+const APP_URL = APP_ORIGIN;
 
 /**
  * Booking confirmed (booker) — fires after a successful confirm (webhook payment.paid), covering both
