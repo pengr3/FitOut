@@ -34,7 +34,7 @@ describe("honest marketing audience journeys", () => {
     expect(steps.map((step) => within(step).getByRole("heading", { level: 3 }).textContent)).toEqual(["Find a space", "Choose an available session", "Book your session"]);
     expect(steps.map((step) => within(step).getByRole("img").getAttribute("src"))).toEqual(["search", "session", "booking"].map((name) => manifest.captures[name].path));
     expect(screen.getByText(/Browse before signing in/)).toBeTruthy();
-    expect(screen.getByText(/activity, location and group size/)).toBeTruthy();
+    expect(screen.getByText(/^Choose your activity, location and group size/)).toBeTruthy();
     expect(screen.getByText(/Sign in or create an account when needed to book/)).toBeTruthy();
     expect(screen.getByText(/before payment; this is not a confirmed booking/)).toBeTruthy();
   });
