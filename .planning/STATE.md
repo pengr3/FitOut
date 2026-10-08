@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 26
 current_phase_name: settlement-aware-host-payouts
 status: executing
-stopped_at: Phase 26 active plans summarized; verification human_needed
-last_updated: "2026-09-29T12:01:58Z"
+stopped_at: Phase 27 context gathered; ready for planning
+last_updated: "2026-10-08T14:23:55.634Z"
 last_activity: 2026-09-29
 last_activity_desc: Phase 26 engineering and account HOLD packet summarized; terms publication deferred; live account, ops ownership, and controlled transfer proof still require evidence
-state_head: e0889e9f7c513f733451b079408b84e67ec6fc3e
+state_head: e3d73197eda3652a61463228d7b8fc0c45e518f0
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -891,6 +891,8 @@ deferred walk is inconsistent rather than honest.*
   above is a TEST helper and is not a precedent for it.
 
 ### Roadmap Evolution
+
+- Phase 27 added (2026-10-08): **App Subdomain & Marketing Website** — move fitout-web from `fitout.live` to `app.fitout.live`; use `fitout.live` for marketing with Home, For Hosts, For Players, About, FAQ, and Contact. Include host/player onboarding explanations, separate host/player FAQs, app handoffs, and domain-migration continuity. Sports360 screenshot retained as a visual reference. Status: not planned; current execution focus remains unchanged.
 
 - Phase 24 added (2026-09-14): **Search Bar Rework** — replace the always-visible search options with an intentionally simple progressive flow: a plain search bar that expands on interaction and asks activity, location, then number of pax one at a time.
 
@@ -1837,8 +1839,8 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-29T10:06:08.944Z
-Stopped at: Completed 26-07-PLAN.md
+Last session: 2026-10-08T14:23:53.650Z
+Stopped at: Phase 27 context gathered; ready for planning
 complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
 outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
 Next step is `/gsd-plan-phase 19`.
@@ -1991,7 +1993,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: None
+Resume file: .planning/phases/27-app-subdomain-marketing-website/27-CONTEXT.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
