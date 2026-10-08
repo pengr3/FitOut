@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "captures": {
+    "search": {
+      "path": "/marketing/screenshots/search.png",
+      "sha256": "7bd802fb4bc6eb4e948238d483bb151b641841302f93cb0c5b9bd0658dcf3414",
+      "width": 1120,
+      "height": 578,
+      "route": "/?category=martial_arts_boxing&lat=14.5547&lng=121.0244&locationLabel=Current+location&partySize=1",
+      "assertedState": "Activity, location and party answers in genuine progressive search",
+      "capturedAt": "2026-10-08T18:05:35.320Z",
+      "captureDate": "2026-10-09",
+      "timezone": "Asia/Manila",
+      "sessionDate": null,
+      "fixtureIds": [
+        "e2e_bk_listing_ff5074e9-b935-49dd-a513-dc52574663e6"
+      ],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-fixtures.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "No photographs: app's empty photo state; no external, generated or sketch assets",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-09 Asia/Manila",
+        "notes": "Inspected exact PNG: genuine search answers and synthetic FitOut Demo Court; no photos, personal contact, banking, identity data or URL tokens. Local demo approval is not a production claim."
+      }
+    }
+  }
+}
