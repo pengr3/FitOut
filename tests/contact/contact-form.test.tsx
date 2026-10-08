@@ -9,10 +9,11 @@ function fill(confirmEmail = "person@example.com", mobile = "") {
   for (const [label, value] of [["Name", "Visitor"], ["Email", "person@example.com"], ["Confirm Email", confirmEmail], ["Mobile Number (optional)", mobile], ["Message", "A question\nabout FitOut"]]) fireEvent.change(screen.getByLabelText(label), { target: { value } });
 }
 function submit() { fireEvent.click(screen.getByRole("button", { name: "Send message" })); }
-function valuesRetained() {
+function valuesRetained(mobile = "") {
   expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe("Visitor");
   expect((screen.getByLabelText("Email") as HTMLInputElement).value).toBe("person@example.com");
   expect((screen.getByLabelText("Confirm Email") as HTMLInputElement).value).toBe("person@example.com");
+  expect((screen.getByLabelText("Mobile Number (optional)") as HTMLInputElement).value).toBe(mobile);
   expect((screen.getByLabelText("Message") as HTMLTextAreaElement).value).toBe("A question\nabout FitOut");
 }
 describe("recoverable marketing Contact form", () => {
@@ -55,8 +56,8 @@ describe("recoverable marketing Contact form", () => {
     await act(async () => resolve(Response.json({ ok: true })));
   });
   it.each([503, 403, 413, 500])("retains every value and allows retry on status %i", async (status) => {
-    fetchMock.mockResolvedValue(Response.json({ ok: false }, { status })); render(<ContactForm />); fill(); submit();
-    await waitFor(() => expect(screen.getByRole("status").textContent).toContain("could not be sent")); valuesRetained();
+    fetchMock.mockResolvedValue(Response.json({ ok: false }, { status })); render(<ContactForm />); fill("person@example.com", "+63 917 123 4567"); submit();
+    await waitFor(() => expect(screen.getByRole("status").textContent).toContain("could not be sent")); valuesRetained("+63 917 123 4567");
     expect(screen.getByRole("button", { name: "Send message" }).getAttribute("disabled")).toBeNull();
     fetchMock.mockResolvedValue(Response.json({ ok: true })); submit();
     await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Your message was sent to FitOut."));

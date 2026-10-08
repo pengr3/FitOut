@@ -40,7 +40,7 @@ describe("marketing metadata partition", () => {
     expect(await robots()).toEqual({ rules: { userAgent: "*", disallow: "/" } });
   });
   it("exports each existing page canonical and OG URL with the approved screenshot", async () => {
-    const modules = [await import("@/app/marketing/page"), await import("@/app/marketing/hosts/page"), await import("@/app/marketing/players/page"), await import("@/app/marketing/about/page"), await import("@/app/marketing/faq/page")];
+    const modules = [await import("@/app/marketing/page"), await import("@/app/marketing/hosts/page"), await import("@/app/marketing/players/page"), await import("@/app/marketing/about/page"), await import("@/app/marketing/faq/page"), await import("@/app/marketing/contact/page")];
     for (let i = 0; i < modules.length; i++) {
       expect(modules[i].metadata.alternates?.canonical).toBe(`https://fitout.live${paths[i]}`);
       expect(modules[i].metadata.openGraph).toEqual(expect.objectContaining({ url: `https://fitout.live${paths[i]}`, images: [expect.objectContaining({ url: "https://fitout.live/marketing/screenshots/search.png" })] }));
