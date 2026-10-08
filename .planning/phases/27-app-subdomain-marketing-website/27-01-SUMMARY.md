@@ -34,7 +34,8 @@ key-decisions:
   - Only nonempty current application search discriminators redirect an apex root; all query entries survive.
   - Seven exact planned screenshot PNG paths are marketing GET/HEAD asset exceptions; internal namespace pages remain denied.
   - Browser server always uses the existing local fitout_test database and explicit local origins, preserving real-email opt-out.
-requirements-completed: [DOMAIN-01, DOMAIN-02, MKT-03]
+requirements-completed: []
+requirements-addressed: [DOMAIN-01, DOMAIN-02, MKT-03]
 coverage:
   - id: D1
     description: Checked app/marketing/ops authority partition and fail-closed host policy

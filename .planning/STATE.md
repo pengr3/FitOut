@@ -4,12 +4,12 @@ milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
-status: ready_to_execute
-stopped_at: Phase 27 planned and independently verified; nine sequential plans ready to execute
-last_updated: "2026-10-08T16:32:19.227Z"
+status: executing
+stopped_at: Phase 27 plan 27-01 complete; plan 27-02 next; 1/9 plans executed
+last_updated: "2026-10-08T17:09:50Z"
 last_activity: 2026-10-09
-last_activity_desc: Phase 27 research and nine plans complete; seven requirements and twenty decisions covered; independent plan verification passed; implementation and live cutover/inbox evidence pending
-state_head: 17a8fa6faad53179adc37e463c222c824a3d9d90
+last_activity_desc: Phase 27 routing tracer and compatibility policy committed; 126 unit and 2 browser tests plus scoped lint/typecheck passed; remaining engineering and live cutover/inbox evidence pending
+state_head: d9b68d1b
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -58,7 +58,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 124
+  completed_plans: 125
   percent: 15
 ---
 
@@ -69,7 +69,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 27 — App Subdomain & Marketing Website — READY TO EXECUTE. Nine sequential plans cover 24 tasks, seven requirements and D-01–D-20; independent plan verification passed on 2026-10-09. Engineering execution, deployed host evidence and real Contact inbox/reply proof remain pending; Phase 25.1/26 payment, payout and binding-terms HOLD remain unchanged.
+**Current focus:** Phase 27 — App Subdomain & Marketing Website — EXECUTING. Plan 27-01 complete (1/9); exact app/marketing/ops routing and real same-tab anonymous search tracer passed 126 unit tests, 2 browser tests, scoped lint and typechecking. Plan 27-02 auth/email/provider continuity is next. All seven phase requirements remain pending until their dependent engineering and live evidence is established; Phase 25.1/26 payment, payout and binding-terms HOLD remain unchanged.
 
 The following milestone sequencing note is retained as historical context:
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues

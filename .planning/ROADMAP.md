@@ -1124,7 +1124,7 @@ Plans:
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Complete    | 2026-09-10 |
 | 23. The Support Path Becomes Reachable | v1.2 | 0/3 | Planned — fitout.live domain, monitored support replies, and constrained provider callbacks | - |
 | 24. Search Bar Rework | v1.2 | 0/8 | Planned — progressive activity, location, and party-size journey ready to execute | - |
-| 27. App Subdomain & Marketing Website | v1.2 | 0/TBD | Not planned — move the app to app.fitout.live and introduce marketing at fitout.live | - |
+| 27. App Subdomain & Marketing Website | v1.2 | 1/9 | Executing — host routing and anonymous tracer complete; auth, marketing and live evidence pending | - |
 
 ### Phase 24: Search Bar Rework
 
@@ -1315,7 +1315,7 @@ contact behavior, deployment/routing architecture, and the apex deep-link compat
 Plans:
 **Wave 1**
 
-- [ ] 27-01-PLAN.md — Prove apex-to-app tracer, exact origins and reversible legacy host policy.
+- [x] 27-01-PLAN.md — Prove apex-to-app tracer, exact origins and reversible legacy host policy.
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
