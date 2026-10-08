@@ -1268,9 +1268,9 @@ Plans:
 **Goal:** Move the existing fitout-web application from `fitout.live` to `app.fitout.live`, and make
 `fitout.live` FitOut's public marketing website so visitors understand the product and hosts and
 players can see how to get started.
-**Requirements**: TBD
+**Requirements**: [MKT-01, MKT-02, MKT-03, CONTACT-01, DOMAIN-01, DOMAIN-02, DOMAIN-03]
 **Depends on:** Phase 26
-**Plans:** 0 plans
+**Plans:** 9 plans
 
 **Scope captured from the user (2026-10-08):**
 
@@ -1313,8 +1313,41 @@ Sports360-specific navigation are reference material, not additional requirement
 contact behavior, deployment/routing architecture, and the apex deep-link compatibility policy.
 
 Plans:
+**Wave 1**
 
-- [ ] TBD (run /gsd-plan-phase 27 to break down)
+- [ ] 27-01-PLAN.md — Prove apex-to-app tracer, exact origins and reversible legacy host policy.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 27-02-PLAN.md — Preserve issued auth links, app email/metadata and provider return continuity.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 27-03-PLAN.md — Carry checked hosting intent through authentication and explicit activation.
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 27-04-PLAN.md — Capture seven genuine safe app screenshots with dated provenance.
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 27-05-PLAN.md — Build Court Variant B shell, Home and illustrated Hosts/Players journeys.
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 27-06-PLAN.md — Complete truthful About, stacked FAQ and marketing crawl metadata.
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 27-07-PLAN.md — Deliver exact Contact form through existing Resend with recovery and abuse controls.
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
+- [ ] 27-08-PLAN.md — Run complete local host/browser gates and prepare reviewable cutover packet.
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
+- [ ] 27-09-PLAN.md — Perform authorized reversible cutover and prove live hosts/Contact receipt.
 
 ## Carried Forward (not v1.2 scope until promoted)
 

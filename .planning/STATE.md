@@ -2,14 +2,14 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
-current_phase: 26
-current_phase_name: settlement-aware-host-payouts
-status: executing
-stopped_at: Phase 27 context gathered; ready for planning
-last_updated: "2026-10-08T14:23:55.634Z"
-last_activity: 2026-09-29
-last_activity_desc: Phase 26 engineering and account HOLD packet summarized; terms publication deferred; live account, ops ownership, and controlled transfer proof still require evidence
-state_head: e3d73197eda3652a61463228d7b8fc0c45e518f0
+current_phase: 27
+current_phase_name: App Subdomain & Marketing Website
+status: ready_to_execute
+stopped_at: Phase 27 planned and independently verified; nine sequential plans ready to execute
+last_updated: "2026-10-08T16:32:19.227Z"
+last_activity: 2026-10-09
+last_activity_desc: Phase 27 research and nine plans complete; seven requirements and twenty decisions covered; independent plan verification passed; implementation and live cutover/inbox evidence pending
+state_head: 17a8fa6faad53179adc37e463c222c824a3d9d90
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -17,7 +17,9 @@ progress:
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 13
   completed_phases: 2
-  total_plans: 130
+  total_plans: 139
+  # 2026-10-09: Phase 27 adds nine queued plans to the prior 130; no plan or phase
+  # was executed/completed by planning. Preserve curated phase/completion totals.
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
   # A halted plan counted as a completed one is the same fabricated counter this file
@@ -67,7 +69,9 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 25.1 — PayMongo Production Release Readiness & Controlled Proofs (INSERTED)
+**Current focus:** Phase 27 — App Subdomain & Marketing Website — READY TO EXECUTE. Nine sequential plans cover 24 tasks, seven requirements and D-01–D-20; independent plan verification passed on 2026-10-09. Engineering execution, deployed host evidence and real Contact inbox/reply proof remain pending; Phase 25.1/26 payment, payout and binding-terms HOLD remain unchanged.
+
+The following milestone sequencing note is retained as historical context:
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues
 from 19; coverage is 25/25 with no orphans and no duplicates. The order is dependency-derived, not
 brief-derived: **19** (cheap independents — the `/host/listings` card fix, the reproduction-gated
@@ -111,10 +115,10 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 26 (settlement-aware-host-payouts) — EXECUTING
-Plan: 7 of 9
+Phase: 27 (App Subdomain & Marketing Website) — READY TO EXECUTE
+Plan: 0 of 9
 Status: Ready to execute
-Last activity: 2026-09-29 — Phase 26 Plan 07 legal publication packet complete; product/legal approval, terms publication, and money-movement proofs remain HOLD
+Last activity: 2026-10-09 — Phase 27 research and nine execution plans complete; independent plan review passed; implementation and deployed/inbox proofs remain pending.
 
 ## Performance Metrics
 
@@ -1839,11 +1843,11 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-10-08T14:23:53.650Z
-Stopped at: Phase 27 context gathered; ready for planning
-complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
-outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
-Next step is `/gsd-plan-phase 19`.
+Last session: 2026-10-09 (Asia/Manila)
+Stopped at: Phase 27 research and nine sequential plans complete; independent plan verification passed.
+Phase 27 covers seven requirements, twenty locked decisions and 24 tasks. No application implementation,
+live cutover or Contact inbox proof has run. Existing payment/payout/legal HOLD remains in force.
+Next step is `$gsd-execute-phase 27`.
 
 ⚠ The prior `Stopped at` (18.1-10, wave 4) was stale — 18.1 finished at 18.1-16 and verified 9/9 on
 2026-09-03. It is corrected here rather than carried forward.

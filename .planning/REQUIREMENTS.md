@@ -320,6 +320,40 @@ The PM approved one narrowly scoped settlement-record migration for this phase.
 
 ---
 
+## Phase 27 — App Subdomain & Marketing Website (2026-10-09 addendum)
+
+These seven requirements are additive to earlier milestone requirements. Existing completion states
+and historic counts remain unchanged. Planning is not implementation or live deployment evidence.
+
+- [ ] **MKT-01 — Marketing pages.** Deliver six separate responsive, keyboard-accessible marketing
+      pages in the order Home, Hosts, Players, About, FAQ, Contact, using accurate confirmed product
+      copy. About explains FitOut bridging plans and spaces; FAQ stacks expandable Players then Hosts.
+- [ ] **MKT-02 — Genuine Court presentation.** Deliver selected Sketch 007 Variant B's centered,
+      balanced player/host composition in Court identity using actual safe app screenshots, including
+      four host onboarding steps and three player steps, with reproducible provenance and PII review.
+- [ ] **MKT-03 — Working app handoffs.** Open App, Start hosting and Find a space use the same tab.
+      Home audience buttons enter their marketing pages; player handoff supports anonymous browsing;
+      host intent survives login/signup/Google and uses the existing explicit activateHosting action.
+- [ ] **CONTACT-01 — Real Contact delivery.** Form fields are Name, Email, Confirm Email, optional
+      Mobile Number, Message in that order. Server enforces email equality, bounds, safe rendering and
+      abuse controls. Existing Resend sends to SUPPORT_EMAIL; errors retain values and success requires
+      accepted real transport, with actual monitored inbox receipt and Reply-To/reply proof.
+- [ ] **DOMAIN-01 — Explicit host partition.** Separate app, marketing and ops origins with exact
+      fail-closed host classification. app.fitout.live serves the existing app, fitout.live marketing;
+      preserve ops cloak/server guards and host-only sessions, deny direct internal marketing paths,
+      and prove HTML/Next Link/RSC/cache/metadata separation and isolated preview behavior.
+- [ ] **DOMAIN-02 — Transition continuity.** Known old app GET/HEAD URLs redirect nonpermanently to
+      checked matching app destinations with complete queries; marketing queries remain marketing.
+      Preserve safe issued auth/email links, old OAuth restart, app-derived payment/Didit browser
+      returns and direct signed old/new PayMongo/Didit/Inngest receiver methods without replaying
+      unsafe legacy mutations or claiming cookie migration/payment state from redirects.
+- [ ] **DOMAIN-03 — Observed cutover proof.** Inventory actual deployment/provider/mail/control
+      settings; prepare exact reversible cutover/rollback packet before external changes; prove the
+      deployed host, auth/session, legacy URL, callback and Contact matrix with current evidence.
+      Payment/payout and binding-terms HOLD remain independent and unchanged.
+
+---
+
 ## Traceability
 
 | Requirement | Phase | Status |
@@ -373,6 +407,13 @@ The PM approved one narrowly scoped settlement-record migration for this phase.
 | STATE-05 | Phase 23 | Pending — **blocked on a business fact**, not on code (a monitored support address; D-64 forbids a placeholder) |
 | TRUST-01 | Phase 23 | Pending — same one-line unblock as `STATE-05` |
 | **— Phase 26 payment-release addendum (2026-09-29) —** | | |
+| MKT-01 | Phase 27 · 27-05 · 27-06 · 27-07 · 27-08 · 27-09 | Planned — local and live evidence pending |
+| MKT-02 | Phase 27 · 27-04 · 27-05 · 27-08 · 27-09 | Planned — safe real captures and review pending |
+| MKT-03 | Phase 27 · 27-01 · 27-03 · 27-05 · 27-08 · 27-09 | Planned — checked auth-resume and live handoff evidence pending |
+| CONTACT-01 | Phase 27 · 27-07 · 27-08 · 27-09 | Planned — engineering, global control and actual receipt/reply proof pending |
+| DOMAIN-01 | Phase 27 · 27-01 · 27-02 · 27-06 · 27-07 · 27-08 · 27-09 | Planned — exact host/RSC/session partition evidence pending |
+| DOMAIN-02 | Phase 27 · 27-01 · 27-02 · 27-03 · 27-08 · 27-09 | Planned — legacy auth/service and live continuity evidence pending |
+| DOMAIN-03 | Phase 27 · 27-08 · 27-09 | Planned — prepared packet and observed reversible cutover pending |
 | HPAY-01 | Phase 26 | Pending |
 | HPAY-02 | Phase 26 | Complete |
 | HPAY-03 | Phase 26 | Complete |
