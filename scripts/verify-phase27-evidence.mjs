@@ -100,7 +100,7 @@ export function runnerSummary(runner, bytes) {
   if (runner === "next-build") {
     const compiled = /Compiled successfully/.test(log);
     const generated = /(?:[✓✔]\s*)?Generating static pages[^\r\n]*\((\d+)\/\1\)/.test(log);
-    const failures = log.split(/\r?\n/).filter((line) => /^(?:Error:|Failed to compile|.*Build error occurred)|error TS\d+:/.test(line));
+    const failures = log.split(/\r?\n/).filter((line) => /^(?:Error:|Type error:|Failed to compile|Failed to type check|.*Build error occurred)|error TS\d+:/.test(line));
     const lines = log.split(/\r?\n/).filter((line) => /Compiled successfully|Generating static pages.*\((\d+)\/\1\)|Finalizing page optimization/.test(line));
     if (!lines.length && !failures.length) return null;
     return { terminalSummary: [...lines, ...failures].map((line) => line.trim()).join("\n"), resultData: { runner, compiled, generated, errors: failures.length }, failed: failures.length || (!compiled || !generated ? 1 : 0) };

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { validateEvidence, REQUIRED_MATRIX } from "../../scripts/verify-phase27-evidence.mjs";
+import { validateEvidence, REQUIRED_MATRIX, runnerSummary } from "../../scripts/verify-phase27-evidence.mjs";
 import { completeFixture } from "./fixtures/phase27-evidence.mjs";
 test("synthetic complete distinct deployed matrix passes structural validation only", () => {
   const fixture = completeFixture();
@@ -148,4 +148,12 @@ test("persisted supplemental gates undergo same summary and source checks", () =
   assert.deepEqual(validateEvidence(fixture), []);
   gate.resultData.tests.failed = 1;
   assert(validateEvidence(fixture).some((error) => error.includes("typed runner totals/terminal summary contradict evidence")));
+});
+test("compiled Next build with a type-check failure retains explicit failed terminal summary", () => {
+  const summary = runnerSummary("next-build", "Compiled successfully\nFailed to type check.\nType error: fixture generated routes conflict\n");
+  assert.equal(summary.resultData.compiled, true);
+  assert.equal(summary.resultData.generated, false);
+  assert.equal(summary.resultData.errors, 2);
+  assert.equal(summary.failed, 2);
+  assert.match(summary.terminalSummary, /Failed to type check/);
 });

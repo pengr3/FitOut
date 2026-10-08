@@ -30,6 +30,7 @@ const cases = [
 ];
 export function completeFixture() {
   const engineering = load("27-ENGINEERING-EVIDENCE.md");
+  delete engineering.reviewFixVerification;
   const inventory = load("27-DEPLOYMENT-INVENTORY.md");
   const packet = load("27-CUTOVER-PACKET.md");
   const logs = new Map();
