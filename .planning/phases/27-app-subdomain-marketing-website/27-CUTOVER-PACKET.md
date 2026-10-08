@@ -48,6 +48,20 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
 }
 ```
 
+## Deployed evidence contract
+
+`scripts/verify-phase27-evidence.mjs` now requires matrixVersion 1 and all 35 distinct
+scenario IDs in REQUIRED_MATRIX. Each observation records the exact host/HTTPS URL/method,
+scenario, expected and observed detail, explicit outcome="pass", proof reference, valid UTC timestamp, deployment ID
+and matching deployed revision. Typed distinct customer/ops/preview deployment identities bind
+each observation to its owning project; preview binds an explicit isolated HTTPS origin and
+rejects a production-origin substitute. These readbacks remain pending. Coverage includes all six marketing pages, app/ops/www,
+unknown/internal authorities, session/auth/token continuity, staff/customer separation,
+Next Link/RSC/prefetch/cache/metadata, distinct old and target PayMongo/Didit/Inngest receivers,
+preview account isolation, four Contact-control observations and rollback. No deployed matrix
+has been observed. These checks establish structural consistency of supplied records only;
+they do not authenticate observations or authorize deployment or Contact enablement.
+
 ## Exact environment proposal
 
 | Project/scope | Key | Current read-back | Proposed value | Restore |
