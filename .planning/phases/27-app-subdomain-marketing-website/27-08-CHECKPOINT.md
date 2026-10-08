@@ -115,9 +115,31 @@ a versioned distinct deployed matrix and typed runner/log consistency. Historica
 failures remain failed. The historical six gates have explicitly unavailable source provenance:
 no manifest/revision was captured at execution time, so they cannot prove clean or deployed source.
 New review-fix checks capture the preserved dirty working-tree manifest before execution. Their
-results and exact source context will be appended separately, preserving the historical record.
+results and exact source context are appended separately, preserving the historical record.
 Central independent re-review and all external readback/authority/control/inbox facts remain pending.
 Plans 08/09 are incomplete; no requirement or release HOLD advances through this report.
+
+The review-fix verification is recorded separately in 27-ENGINEERING-EVIDENCE.md:
+147 focused security/contact/staff tests and 87 final structural fixtures pass; types
+exit0, full lint zero errors/34 existing warnings, canonical production build 46/46
+routes and 52 owned Chromium cases pass. Actual tsc emitted no stdout/raw file and its
+captured source03/terminal metadata are disclosed. Four failed build attempts retain
+their specific wrapper/font/stale-generated-types/inert-marker dispositions. Only the
+two confirmed ignored stale development type files were removed, with canonical typegen.
+
+Final Chromium exited0 after 243.3270778s with assisted Windows teardown: root verified
+and stopped only the owned Next descendants after all 52 cases passed. An unattributed
+Next dev streaming TypeError (digest2206780199) occurred between successful cases 47/48;
+no route/action/source frame is available in the log. Independent review must assess
+this bounded observation; the report does not claim an error-free runtime.
+
+Pre-gate source snapshots bind each new retained log to the preserved dirty shared
+checkout, including public assets/configuration and preexisting changes. Final build
+and browser useHEAD 9859a5c plus dirty manifests; these do not establish a clean/deployed
+candidate SHA. Historical full unit 8/design 9 failures and absent historical captures
+remain unchanged. All four code findings await independent re-review; the blocking
+external account/control/inbox/approval prerequisites above still apply. Contact/mail
+were off; no live release, financial-policy change, requirement check or 08 SUMMARY exists.
 
 ## Self-Check: PASSED
 

@@ -139,3 +139,31 @@ headers/tokens and message body from evidence. Provider acceptance alone is not 
 
 Existing user architecture authorization remains valid. All fund movement, broader
 payment/payout release and binding legal approval stay on **HOLD**.
+
+## Review-fix source and verification update
+
+All four reviewed engineering findings are implemented; independent re-review is
+pending. Customer capability writes and all staff role writes now share the existing
+role-policy lock, reread positive customer eligibility and deny zero-row updates.
+Contact transport/body-read failures report uncertainty with values retained. The
+version 1 deployed matrix requires 35 distinct successful typed observations with exact
+customer/ops/isolated-preview deployment identities, plus runner/source consistency.
+The validator checks supplied structure/bytes, not authenticity or execution attestation.
+
+Separate review-fix records in 27-ENGINEERING-EVIDENCE.md show 147 focused tests, 87 final
+evidence fixtures, types exit0, lint zero errors/34 existing warnings, canonical build
+46/46 routes and 52 owned Chromium checks passing. Browser Windows teardown required
+verified scoped Next process termination after all 52 cases; an unattributed dev
+streaming TypeError between passing cases 47/48 is retained for independent assessment.
+Successful tsc emitted no stdout and no raw file; its real terminal metadata/source03
+are explicit. Four failed build attempts and their harness/generated/font dispositions
+remain alongside the final pass.
+
+These checks ran sequentially in the preserved dirty main checkout. Pre-gate bounded
+snapshots include source/assets/configuration plus unrelated existing changes. Final
+build/browser useHEAD 9859a5c with dirty manifests; this does not prove a clean candidate
+or deployed revision. Historical full unit 8/design 9 failures and uncaptured historical
+source context remain failed/unavailable. Final external candidate readback, central
+review and all matrix/control/inbox observations still block acceptance. No account,
+provider, deployment, DNS or mail mutation occurred; Contact remains disabled, plans 08/09
+incomplete, all seven requirements unchecked and checkout/payout/legal HOLD immutable.

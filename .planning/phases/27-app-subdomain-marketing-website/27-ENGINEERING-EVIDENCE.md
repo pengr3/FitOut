@@ -287,7 +287,360 @@ Engineering preparation and live account facts remain separate. Full unit/design
       "disposition": "Meaningful parsed URL comparison corrected; real image decode RED added. Narrow screenshot/listener/auth repairs and real draft assertion prepared; latest complete browser verification pending. Native GET failures are not called application success."
     }
   ],
-  "sourceProvenanceNotice": "These retained historical six gates ran on the preserved dirty shared working tree. No source manifest/revision capture was made at execution time; source identity is explicitly unavailable, not reconstructed from today's tree. They do not establish a clean candidate or deployed SHA. Review-fix verification captures scoped file hashes before execution separately; historic full-suite failures remain."
+  "sourceProvenanceNotice": "These retained historical six gates ran on the preserved dirty shared working tree. No source manifest/revision capture was made at execution time; source identity is explicitly unavailable, not reconstructed from today's tree. They do not establish a clean candidate or deployed SHA. Review-fix verification captures scoped file hashes before execution separately; historic full-suite failures remain.",
+  "reviewFixVerification": {
+    "recordedAt": "2026-10-08T22:15:22Z",
+    "checkout": "main-shared-checkout",
+    "worktrees": false,
+    "claim": "preserved-dirty-working-tree-only",
+    "sourceContext": "Snapshots were captured before each gate. Unit security/product source is unchanged since CR-01/WR-01. Validator snapshot parsing and synthetic-isolation refinements followed the 147-test run and initial types/lint. Final production build and 52-case browser use HEAD 9859a5c with preserved unrelated dirty changes. Generated next-env.d.ts changes are included in later contexts. No clean candidate/deployed SHA validation or execution attestation.",
+    "gates": [
+      {
+        "startedAt": "2026-10-08T21:49:47.9296780Z",
+        "finishedAt": "2026-10-08T21:49:59.7329913Z",
+        "durationSeconds": 11.8033133,
+        "exitCode": 0,
+        "command": "node node_modules/vitest/vitest.mjs run tests/auth/capability-role-policy.test.ts tests/auth/capability-activate.test.ts tests/auth/hosting-intent.test.tsx tests/auth/hosting-resume.test.tsx tests/contact/contact-form.test.tsx tests/contact/contact-route.test.ts tests/ops/grant-cli.test.ts tests/ops/staff-policy.test.ts tests/ops/staff-invitation.test.ts",
+        "status": "pass",
+        "result": "Test Files  9 passed (9)\nTests  147 passed (147)\nExit 0.",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 9,
+            "failed": 0,
+            "skipped": 0
+          },
+          "tests": {
+            "passed": 147,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        "terminalSummary": "Test Files  9 passed (9)\nTests  147 passed (147)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/review-final-unit.log",
+        "logSha256": "ed382c22db5d6631f07fbf9d7cbfb6d782c3166204e1c6fa80c09361912913bf",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-01.json",
+          "sha256": "5ab763d6e7101405fc83dd332e18799e9a3431484f5104b8932cd0ae3ec889d9",
+          "revision": "c22f3d61c9b63ea4838c7cfa88e5c165085841d8",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T21:49:42.927Z",
+          "manifestSha256": "3462392416784c71074f47a31f2acee9c3eb3aa94ad9ed8c9e4a709fbd91f9ca"
+        }
+      },
+      {
+        "startedAt": "2026-10-08T21:52:51.6143037Z",
+        "finishedAt": "2026-10-08T21:52:51.9725719Z",
+        "durationSeconds": 0.3582682,
+        "exitCode": 0,
+        "command": "node --test tests/scripts/phase27-evidence.test.mjs",
+        "status": "pass",
+        "result": "ℹ pass 86\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nExit 0.",
+        "resultData": {
+          "runner": "node-test",
+          "tests": {
+            "passed": 86,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        "terminalSummary": "ℹ pass 86\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/review-final-fixtures.log",
+        "logSha256": "759cca06c430a8ff1b96c3da3dd4a099b8ab29f6e4553b6e932fe41f48419cb2",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-02.json",
+          "sha256": "951d882885350dd84a29831a5f88078d46c41d8e83a51dcb157d09ea2bee4884",
+          "revision": "821af3f74340f4c785985797299b41bf02eecbdb",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T21:52:46.833Z",
+          "manifestSha256": "f4a5b06dcda9a20f36f941bbfede0250a1131503fa7c6be6d7a40cd5b182681e"
+        }
+      },
+      {
+        "startedAt": "2026-10-08T21:53:43.7961326Z",
+        "finishedAt": "2026-10-08T21:54:18.6860072Z",
+        "durationSeconds": 34.8898746,
+        "exitCode": 0,
+        "command": "node node_modules/eslint/bin/eslint.js .",
+        "status": "pass",
+        "result": "34 problems (0 errors, 34 warnings)\nExit 0.",
+        "resultData": {
+          "runner": "eslint",
+          "errors": 0,
+          "warnings": 34
+        },
+        "terminalSummary": "34 problems (0 errors, 34 warnings)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/review-final-lint.log",
+        "logSha256": "31404de6c292ac5f6d8d27e85ab6c1839ca57ddb1bdd31ca6bc181c821736d8e",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-04.json",
+          "sha256": "29c6aab099316b2a74aef001fd7ccc416cde9c5825aaa574321e6e84fef1db18",
+          "revision": "821af3f74340f4c785985797299b41bf02eecbdb",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T21:53:39.023Z",
+          "manifestSha256": "a702247e5af107209ee6accbcd39a09c3033ce22ba4fff356ab8ecdefe8651ab"
+        }
+      },
+      {
+        "startedAt": "2026-10-08T21:55:00.1727892Z",
+        "finishedAt": "2026-10-08T21:55:01.4661530Z",
+        "durationSeconds": 1.2933638,
+        "exitCode": 1,
+        "command": "node --env-file=.env.local node_modules/next/dist/bin/next build",
+        "status": "fail",
+        "result": "> Build error occurred\nError: Initiated Worker with invalid NODE_OPTIONS env variable: --env-file= is not allowed in NODE_OPTIONS\nExit 1.",
+        "resultData": {
+          "runner": "next-build",
+          "compiled": false,
+          "generated": false,
+          "errors": 2
+        },
+        "terminalSummary": "> Build error occurred\nError: Initiated Worker with invalid NODE_OPTIONS env variable: --env-file= is not allowed in NODE_OPTIONS",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/review-final-build.log",
+        "logSha256": "3c23c2c6cda679af77ef06bfc98445200535d6232a5d733b8c239bcbe8f68de3",
+        "disposition": "The wrapper passed node --env-file=.env.local; Next workers reject that inherited NODE_OPTIONS flag. Corrected to canonical Next CLI, which loads .env.local itself. No product source changed.",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-05.json",
+          "sha256": "06498f37ddb5a28bdedfc83311056ed711b7f5c019ad429b3e9869ff1a68e11c",
+          "revision": "821af3f74340f4c785985797299b41bf02eecbdb",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T21:54:55.376Z",
+          "manifestSha256": "a702247e5af107209ee6accbcd39a09c3033ce22ba4fff356ab8ecdefe8651ab"
+        }
+      },
+      {
+        "startedAt": "2026-10-08T21:55:41.7071526Z",
+        "finishedAt": "2026-10-08T21:56:08.8929972Z",
+        "durationSeconds": 27.1858446,
+        "exitCode": 1,
+        "command": "node node_modules/next/dist/bin/next build",
+        "status": "fail",
+        "result": "> Build error occurred\nError: Turbopack build failed with 2 errors:\nExit 1.",
+        "resultData": {
+          "runner": "next-build",
+          "compiled": false,
+          "generated": false,
+          "errors": 2
+        },
+        "terminalSummary": "> Build error occurred\nError: Turbopack build failed with 2 errors:",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/review-final-build-retry.log",
+        "logSha256": "1db0232f3d7cebd692cffb8f8cb0e03b70f8ef1e60bc887825b683fe619cba76",
+        "disposition": "Canonical build failed only fetching Geist and Geist Mono from official Google Fonts in the sandbox. A separately recorded authorized font-fetch retry follows; no source or font substitution.",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-05b.json",
+          "sha256": "d96bd240c9747b8e2b2b641f71ad0ecaabf7e99b5d16c5ba68ebdf77d2e15499",
+          "revision": "821af3f74340f4c785985797299b41bf02eecbdb",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T21:55:36.728Z",
+          "manifestSha256": "a702247e5af107209ee6accbcd39a09c3033ce22ba4fff356ab8ecdefe8651ab"
+        }
+      },
+      {
+        "startedAt": "2026-10-08T21:57:27.7257416Z",
+        "finishedAt": "2026-10-08T21:58:30.9692668Z",
+        "durationSeconds": 63.2435252,
+        "exitCode": 1,
+        "command": "node node_modules/next/dist/bin/next build",
+        "status": "fail",
+        "result": "✓ Compiled successfully in 21.0s\nFailed to type check.\nType error: Type 'Route' does not satisfy the constraint 'LayoutRoutes'.\nExit 1.",
+        "resultData": {
+          "runner": "next-build",
+          "compiled": true,
+          "generated": false,
+          "errors": 2
+        },
+        "terminalSummary": "✓ Compiled successfully in 21.0s\nFailed to type check.\nType error: Type 'Route' does not satisfy the constraint 'LayoutRoutes'.",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/review-final-build-font-retry.log",
+        "logSha256": "beca5ff8ec87cbc7852ae5a0852ca38071427e282f205608a62d964b181f15a3",
+        "disposition": "Official-font network retry compiled successfully but failed on stale ignored .next/dev/types '/%5Fops-auth' definitions conflicting with canonical production types. Only the two confirmed ignored stale type files were removed, followed by canonical typegen; no product source or type suppression.",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-05d.json",
+          "sha256": "4a6297ee771903dfa8b23cbca921f6a0951f8335908ed920fd102de5311970f7",
+          "revision": "821af3f74340f4c785985797299b41bf02eecbdb",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T21:57:27.638Z",
+          "manifestSha256": "a702247e5af107209ee6accbcd39a09c3033ce22ba4fff356ab8ecdefe8651ab"
+        }
+      },
+      {
+        "startedAt": "2026-10-08T22:01:47.1094888Z",
+        "finishedAt": "2026-10-08T22:02:56.6334281Z",
+        "durationSeconds": 69.5239393,
+        "exitCode": 1,
+        "command": "node node_modules/next/dist/bin/next build",
+        "status": "fail",
+        "result": "✓ Compiled successfully in 24.6s\nError: PAYMONGO_WEBHOOK_SECRET is required in production — the webhook is the sole booking-confirm authority (D-57).\n> Build error occurred\nError: Failed to collect page data for /api/paymongo/webhook\nExit 1.",
+        "resultData": {
+          "runner": "next-build",
+          "compiled": true,
+          "generated": false,
+          "errors": 3
+        },
+        "terminalSummary": "✓ Compiled successfully in 24.6s\nError: PAYMONGO_WEBHOOK_SECRET is required in production — the webhook is the sole booking-confirm authority (D-57).\n> Build error occurred\nError: Failed to collect page data for /api/paymongo/webhook",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/review-final-build-generated-retry.log",
+        "logSha256": "114f0a8b1aceec137d183a1160a829d814899ac8b32d219d14ef40eb72967bce",
+        "disposition": "Build compiled and typechecked but page collection correctly refused missing PAYMONGO_WEBHOOK_SECRET after the harness set it empty. Subsequent retry uses inert noncredential signing markers; no guard/source change or provider call.",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-05e.json",
+          "sha256": "a308969de90a1d280ee23ab94f8f67b144b3af57c5a91f057ec984acd1f9347a",
+          "revision": "9859a5ceb35267e8a5236694a9f06ad17354417d",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T22:01:47.021Z",
+          "manifestSha256": "4007db526661e3935294b05b3378ba811ca19fa05e961cbe9d6e881f5ec0c3ae"
+        }
+      },
+      {
+        "startedAt": "2026-10-08T22:04:19.0626811Z",
+        "finishedAt": "2026-10-08T22:05:30.4300397Z",
+        "durationSeconds": 71.3673586,
+        "exitCode": 0,
+        "command": "node node_modules/next/dist/bin/next build",
+        "status": "pass",
+        "result": "✓ Compiled successfully in 23.0s\n✓ Generating static pages using 7 workers (46/46) in 1935ms\nFinalizing page optimization ...\nExit 0.",
+        "resultData": {
+          "runner": "next-build",
+          "compiled": true,
+          "generated": true,
+          "errors": 0
+        },
+        "terminalSummary": "✓ Compiled successfully in 23.0s\n✓ Generating static pages using 7 workers (46/46) in 1935ms\nFinalizing page optimization ...",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/review-final-build-guards-retry.log",
+        "logSha256": "2d75976cd0aab705f419e90181bcdea1479821e646df8265dc7b1f8765fb0eb3",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-05f.json",
+          "sha256": "b192350f5be3ef77f3e5d42f6b4a0e55ffcfa5854fbef8e37850619583735f9c",
+          "revision": "9859a5ceb35267e8a5236694a9f06ad17354417d",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T22:04:18.977Z",
+          "manifestSha256": "4007db526661e3935294b05b3378ba811ca19fa05e961cbe9d6e881f5ec0c3ae"
+        }
+      },
+      {
+        "startedAt": "2026-10-08T22:08:56.9779268Z",
+        "finishedAt": "2026-10-08T22:13:00.3050046Z",
+        "durationSeconds": 243.3270778,
+        "exitCode": 0,
+        "command": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts --project=chromium --workers=1",
+        "status": "pass",
+        "result": "52 passed (4.0m)\nExit 0.",
+        "resultData": {
+          "runner": "playwright",
+          "tests": {
+            "passed": 52,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        "terminalSummary": "52 passed (4.0m)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/review-final-browser.log",
+        "logSha256": "9aa3f6e47206bea814c752fbe9dfa1624078c60107c33f212821ca33846806f6",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-06.json",
+          "sha256": "f0aaacab940878275eb3c5bb06dda17a0e5a0c55740a1609e606a62edcfc791b",
+          "revision": "9859a5ceb35267e8a5236694a9f06ad17354417d",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T22:08:41.857Z",
+          "manifestSha256": "4007db526661e3935294b05b3378ba811ca19fa05e961cbe9d6e881f5ec0c3ae"
+        }
+      },
+      {
+        "startedAt": "2026-10-08T22:13:32.9008217Z",
+        "finishedAt": "2026-10-08T22:13:33.3246680Z",
+        "durationSeconds": 0.4238463,
+        "exitCode": 0,
+        "command": "node --test tests/scripts/phase27-evidence.test.mjs",
+        "status": "pass",
+        "result": "ℹ pass 87\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nExit 0.",
+        "resultData": {
+          "runner": "node-test",
+          "tests": {
+            "passed": 87,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        "terminalSummary": "ℹ pass 87\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/review-final-fixtures-refined.log",
+        "logSha256": "7e3525ffbebcb8b8669308c52d2b43b2294ba783145456f1e4e256e454e9812f",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-07.json",
+          "sha256": "0f775db69fccdd43871404e366daef28ed6403afe055158f1fa73d9ea384db67",
+          "revision": "9859a5ceb35267e8a5236694a9f06ad17354417d",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T22:13:16.285Z",
+          "manifestSha256": "915b5b766a233d11dcf055f12f6c53bf47f12188e9463e55ddab3b93e52f5212"
+        }
+      }
+    ],
+    "terminalOnlyChecks": [
+      {
+        "startedAt": "2026-10-08T21:53:16.8572376Z",
+        "finishedAt": "2026-10-08T21:53:25.7517511Z",
+        "durationSeconds": 8.8945135,
+        "exitCode": 0,
+        "command": "node node_modules/typescript/bin/tsc --noEmit",
+        "status": "pass",
+        "resultData": {
+          "runner": "typescript",
+          "errors": 0
+        },
+        "terminalOutput": "",
+        "rawLogAvailable": false,
+        "reason": "Successful tsc emitted no stdout; Tee-Object did not create review-final-types.log. Actual tool terminal exit/timing and pre-gate source03 are retained; no contemporaneous raw file is invented. Later canonical production build explicitly typechecked successfully.",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-03.json",
+          "sha256": "1b5a2650d103b1400831bc80d2b5fbed9ec9b789c999d8c1fa02940391cca3f9",
+          "revision": "821af3f74340f4c785985797299b41bf02eecbdb",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T21:53:12.232Z",
+          "manifestSha256": "a702247e5af107209ee6accbcd39a09c3033ce22ba4fff356ab8ecdefe8651ab"
+        }
+      }
+    ],
+    "browserDisposition": "All 52 test cases passed, terminal exit0. Windows server teardown stalled; root verified exact runner20004/pwsh12544/cmd1736 and owned Next20988/start-server9188/build children17140/20916, stopped only the owned Next descendants and left runner/unrelated Node untouched. This was assisted teardown, not normal teardown. One unattributed Next dev streaming TypeError controller[kState].transformAlgorithm is not a function (digest2206780199, ignored frames) occurred between successful cases47 and48; log does not identify route/action/source frame. Retained for independent review; no error-free runtime claim."
+  }
 }
 ```
 
@@ -369,3 +722,63 @@ Final Chromium: **51 passed**, exit0,127.061s, normal teardown. Final UI source 
 JavaScript-disabled hosting remains at the accessible loading boundary. Its regression inspects only the hidden resolved streamed SSR action markup for disabled state and verifies unchanged URL, no capability grant and no activation audit. It does not claim a usable or accessible no-JavaScript hosting journey. Hydrated real activation retains exact POST200, both capabilities and one audit.
 
 All final provider transports/mail remain disabled; final checks use the actual CONTACT_PRODUCTION_ENABLED=false flag. Earlier mistaken unused flag is disclosed above. Contact default no-key503 and production-disabled503 unit cases pass, but actual deployed flag, global budget/control and inbox delivery remain unproved. Payment, payout and legal HOLD remain immutable.
+
+## Review-fix verification (separate from historical gates)
+
+CR-01 and WR-01/02/03 are implemented in commits `4a95c5a`, `ee6fa72`, `d8d77c2`,
+`c22f3d6`, with persisted-snapshot refinement `821af3f` and parser/fixture refinement
+`9859a5c`. The preceding six gates, 51-case browser result and source-boundary prose
+are historical pre-review records. Their full unit eight failures and full design
+nine failures remain failed; no broad repeat or waiver occurred.
+
+All review-fix checks ran sequentially in the main shared checkout with worktrees
+disabled. The 147 focused security/contact/staff tests in nine files passed in
+11.8033133s. Coverage includes actual guarded local PostgreSQL advisory-lock races
+in both orders for hosting/booking versus staff conversion, stale-session direct
+staff denial, positive role eligibility, zero-row denial, dual-capability preservation,
+rate/audit behavior and staff page rejection. No production staff identity was mutated.
+Evidence fixtures passed 86/86 before the final Next parser refinement and 87/87
+afterward (0.4238463s). The complete matrix fixture is synthetic structural evidence.
+
+TypeScript exited0 with no diagnostics, 21:53:16.8572376–21:53:25.7517511Z,
+8.8945135s, source03 captured at 21:53:12.232Z. Its empty stdout meant Tee-Object did
+not create a raw file. The actual terminal metadata and bounded source03 reference
+are retained separately; no contemporaneous file is invented. Full ESLint exited0
+with zero errors and 34 existing warnings in 34.8898746s. Validator source refinements
+after these checks passed syntax, focused lint and the final87 fixture run. The later
+canonical production build also explicitly compiled and typechecked successfully.
+
+The canonical production build exited0 in 71.3673586s, 22:04:19.0626811–22:05:30.4300397Z,
+with 46/46 static routes and Proxy generated. Four earlier build attempts remain
+typed failed supplements: unsupported inherited Node env-file flag; sandbox Google
+Fonts fetch; stale ignored development route types; missing inert webhook marker in
+the harness. Only confirmed ignored workspace-contained `.next/dev/types/routes.d.ts`
+and `validator.ts` were removed for the stale-type case, followed by canonical Next
+typegen. Official font access used the narrowly authorized retry. Final guard markers
+were invented noncredentials; no provider transport or policy guard was changed.
+
+Final owned Chromium exited0: **52 passed**, 22:08:56.9779268–22:13:00.3050046Z,
+243.3270778s, with the explicit single worker command recorded above. The added case
+simulates server acceptance with an unreadable response and proves uncertainty/value
+retention only. Windows teardown stalled after all cases passed; root verified the
+exact owned Next process tree and stopped only its four Next descendants. This was
+assisted teardown. One Next dev streaming TypeError, digest2206780199, occurred between
+successful cases 47 and48. Its ignored frames identify no route/action or source frame;
+it remains unattributed in the raw log for independent review. Colour/image warnings
+also remain. Passing tests do not assert an error-free runtime.
+
+Each typed supplement references an ignored source snapshot beside its retained raw
+log. The persisted validator loads and checks actual snapshot bytes, context, scoped
+manifest digest and runner summaries. Source scope includes public assets and relevant
+package/lock/Next/TypeScript/test/tool configuration, excluding actual env/credentials.
+Snapshots include preexisting dirty source. Unit source01 predates evidence-only
+refinements; final build05f and browser06 bind HEAD 9859a5c plus the captured dirty tree.
+Browser-generated Next env changes are captured by the final fixture source07. Historical
+six gates have explicitly unavailable captures. These are byte/structural consistency
+records, not clean candidate/deployed SHA proof, external authenticity or attestation.
+
+Contact/mail stay off with guarded local fitout_test and inert provider markers. No
+live inbox, distributed-control, production cache, signed-provider or external account
+proof was acquired. Independent re-review, account prerequisites and final approved
+deployment remain pending. Plans08/09, all seven requirements and release HOLDs remain
+unchanged. No 08 SUMMARY was created.
