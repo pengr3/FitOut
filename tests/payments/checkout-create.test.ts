@@ -9,8 +9,8 @@
 //   - owner-gate (T-05-13) and the already-confirmed idempotent short-circuit (D-42 / T-05-14) create no
 //     checkout.
 
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { mockPayMongo } from "../helpers/mocks";
 import { user, listing, booking } from "@/lib/db/schema";
@@ -46,14 +46,20 @@ const HOST = "cc_host";
 const BOOKER = "cc_booker";
 const OTHER = "cc_other";
 const LISTING = "L_cc";
+let fixtureNow: Date;
+
+// confirmBooking uses PostgreSQL now(), so its fixture must use that same authority.
+// Refresh after isolated setup for every case; no fake timer or fixed calendar date.
+beforeEach(async () => {
+  const rows = await testDb.db.execute(sql`SELECT now() AS "now"`);
+  fixtureNow = new Date(rows[0].now as string | Date);
+});
 
 /** A distinct 1-hour UTC window per booking so seeded rows never collide on the booking_no_overlap EXCLUDE. */
 function windowAt(hourUtc: number): { startsAt: Date; endsAt: Date } {
-  const h = String(hourUtc).padStart(2, "0");
-  const h1 = String(hourUtc + 1).padStart(2, "0");
   return {
-    startsAt: new Date(`2026-10-01T${h}:00:00.000Z`),
-    endsAt: new Date(`2026-10-01T${h1}:00:00.000Z`),
+    startsAt: new Date(fixtureNow.getTime() + hourUtc * 60 * 60 * 1000),
+    endsAt: new Date(fixtureNow.getTime() + (hourUtc + 1) * 60 * 60 * 1000),
   };
 }
 
@@ -151,6 +157,16 @@ afterAll(async () => {
 });
 
 describe("confirmBooking — Confirm & pay checkout (D-49/D-57/D-58)", () => {
+  it("refuses a session that already started before calling the provider", async () => {
+    session.userId = BOOKER;
+    await seedBooking({
+      id: "bk_expired_checkout", bookerId: BOOKER, status: "pending",
+      quotedTotalCents: 150000, expiresAtMs: fixtureNow.getTime() + 60_000, hourUtc: -2,
+    });
+    expect(await confirmBooking("bk_expired_checkout")).toMatchObject({ ok: false, reason: "expired" });
+    expect(mockPayMongo.createCheckoutSession).not.toHaveBeenCalled();
+    expect((await readBooking("bk_expired_checkout")).status).toBe("pending");
+  });
   it("creates ONE checkout for the frozen quote, extends the hold, and redirects off-site WITHOUT flipping to confirmed", async () => {
     session.userId = BOOKER;
     const id = "bk_happy";
