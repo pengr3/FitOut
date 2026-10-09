@@ -1366,7 +1366,7 @@ Supplementary engineering repairs, approved for planning and continuous local wo
 - [x] 27-17-PLAN.md — Six clean-source gates pass at 596b4746; return to original external checkpoint
 - [x] 27-18-PLAN.md — Atomic shared Contact quotas and additive migration; focused and actual Neon race proof (D-23)
 - [x] 27-19-PLAN.md — Schema-only Preview branch and saved isolated bindings; deployment proof belongs to Plan20 (D-23)
-- [ ] 27-20-PLAN.md — Reverify the extended repair candidate and return to cutover checkpoint (D-23 scope extension)
+- [x] 27-20-PLAN.md — Six guarded full gates/cold proof and actual isolated Preview write/session/Contact checks; original production checkpoint remains (D-23)
 
 ## Carried Forward (not v1.2 scope until promoted)
 
@@ -1560,3 +1560,6 @@ to review.
 **Plans:**
 
 - [ ] TBD (promote with /gsd:review-backlog when ready)
+
+
+Phase27 latest bounded preparation status (October10):18/20 plans,142/150 curated total. Original08/09 remain pending. Exact b8358b11 full gates and bounded Preview checks pass; the full production matrix and compatibility/authority checkpoint are separate. Contact off, all HOLDs persist.

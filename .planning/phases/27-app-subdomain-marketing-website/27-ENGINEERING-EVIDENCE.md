@@ -1174,7 +1174,7 @@ raw recovery nor deployment acceptance is fabricated.
   },
   "releaseCandidateVerification": {
     "schemaVersion": 1,
-    "disposition": "All six complete gates and fresh cold/warm built-server proof pass on the new quota/migration-bound committed archive. Prior accepted candidate and all failed attempt bytes are retained. Preview deployment proof and production cutover remain separate.",
+    "disposition": "All six complete guarded gates and fresh cold/warm pass on the quota/migration-bound committed archive. Bounded paired Preview write/session/Contact proof is complete separately; prior candidates and failed attempts retained. Original production cutover and full live matrix remain pending.",
     "supersedesSha256": "5ad127bb911458a2477099d25292aa0c2928a7a22c1d0ccb4dba72ed5e3d7ff1",
     "revision": "b8358b11a63aadef2c84c9eb64b78be0a07ddcd4",
     "sourceManifestSha256": "e51bbc5b9df9c302bf354eb1e48a9c2ac0080e2d3c2cbba321f35ec992ec9467",
@@ -2009,3 +2009,6 @@ does not provide missing clean-revision, compatibility, control or external proo
 
 
 D-23 paired Preview deployment/browser evidence and its remaining protected API access approval checkpoint are recorded in 27-PREVIEW-ISOLATION-EVIDENCE.md and 27-20-PREVIEW-ACCESS-CHECKPOINT.md. These partial Preview results do not replace the production deployed matrix, approve cutover, or complete Plan 20.
+
+
+Plan20 bounded Preview runtime checks pass; see 27-20-SUMMARY.md and the final 27-PREVIEW-ISOLATION-EVIDENCE.md section. Production acceptance is not inferred.

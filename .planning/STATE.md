@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "D-23 17/20; six full gates and cold pass; paired Preview ready; protected API access approval pending"
-last_updated: "2026-10-09T18:29:20.053Z"
+stopped_at: "D-23 plans18-20 complete; 18/20; original08 exact production rollout/prerequisite checkpoint and09 live proof remain"
+last_updated: "2026-10-09T19:34:21.242Z"
 last_activity: 2026-10-10
-last_activity_desc: Six guarded gates pass at b8358b11; isolated Preview builds and browser negatives verified; temporary access-link approval checkpoint
+last_activity_desc: Plan20 complete; exact-SHA full gates and isolated Preview API/browser proofs pass; original production checkpoint pending
 state_head: b8358b11
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -58,13 +58,13 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 141
+  completed_plans: 142
   percent: 15
 ---
 
 # Project State
 
-**Latest focus (2026-10-10):** Plans 18/19 complete; 17/20 phase plans and 141/150 total. Plan 20 task 1 passes all six guarded gates and fresh cold/warm proof at b8358b11. Both exact Preview deployments are READY and dedicated aliases assigned. Browser Contact failure/retention, anonymous customer Preview and staff login are observed; explicit Neon branch still has zero app rows. Positive deployed write binding and signed-cookie replay remain pending. Automatic review rejected temporary protected-access links without explicit owner approval; no link was created. Contact off, production unchanged, original 08/09 and all requirements pending; all HOLDs persist.
+**Latest focus (2026-10-10):** Bounded plans18–20 complete; 18/20 phase plans and142/150 total. All six guarded gates and fresh cold/warm pass at b8358b11. Exact paired Preview deployments are READY; disposable writes reach the explicit schema-only branch, owned session works, ops rejects the actual app Preview cookie, Contact returns503 and browser retains fields. One disposable account/session remains and zero bookings. Normal owner-browser production/Preview host-cookie isolation is observed; no production token was exported/replayed and the full production matrix remains unproved. Production aliases/env metadata unchanged, Contact off; original08/09 and all seven requirements pending; all HOLDs persist.
 
 ## Project Reference
 

@@ -17,7 +17,7 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
     "www": "https://www.fitout.live -> https://fitout.live"
   },
   "proposedRevision": "b8358b11a63aadef2c84c9eb64b78be0a07ddcd4",
-  "candidateAcceptance": "Six full guarded gates and fresh cold/warm pass at b8358b11. Both exact paired Preview builds READY with dedicated aliases. Browser negatives verified; positive write binding, actual signed-cookie replay and exact Contact HTTP status await protected API access approval. Original production checkpoint remains pending.",
+  "candidateAcceptance": "Six full guarded gates plus fresh cold/warm pass at b8358b11. Paired exact-SHA isolated Preview builds READY; actual disposable branch write, app session, ops rejection of app Preview cookie, and Contact503 pass. Full production token/live matrix, rollout prerequisites and original cutover authority remain pending.",
   "approvedRevision": null,
   "authority": {
     "status": "pending",
@@ -171,7 +171,7 @@ they do not authenticate observations or authorize deployment or Contact enablem
 | same / Production | OPS_APP_URL | https://ops.fitout.live | retained | retained |
 | same / Production | MARKETING_APP_URL | absent | https://fitout.live | restore absence |
 | same / Production | CONTACT_PRODUCTION_ENABLED | absent | false until controls, then separately authorized true | false |
-| same / Preview | app/marketing/ops origins | incomplete; preview ops currently production ops | exact isolated preview aliases and generated app authority, no production DB/credentials | saved scope/branch record |
+| same / Preview | app/marketing/ops origins | Dedicated isolated aliases deployed and verified; see final Preview evidence | already saved, no production DB/provider credentials | saved scope/branch record |
 
 Do not deploy the final split source directly over apex as a supposed
 compatibility-only stage. Its marketing classification would switch apex at once.
@@ -346,3 +346,6 @@ Inbox ownership is confirmed and one standalone mail transport test is provider-
 
 
 Preview-only deployment and remaining access checkpoint: see 27-20-PREVIEW-ACCESS-CHECKPOINT.md. Production cutover remains unapproved; no Preview result supplies production requirement acceptance.
+
+
+Plan20 bounded preparation is complete; see its SUMMARY. This does not resolve the compatibility-first rollout, production migration/Contact authorization, full deployed matrix or inquiry/reply checkpoint.
