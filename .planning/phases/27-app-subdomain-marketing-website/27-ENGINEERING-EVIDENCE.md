@@ -880,58 +880,7 @@ raw recovery nor deployment acceptance is fabricated.
         "skipGuardPassed": true,
         "acceptancePassed": false,
         "disposition": "October9 first revised built-server full attempt retained. Unit17/design3/browser3 failures are genuine; types/lint/build pass and source guards pass. Fixture and stale-contract remedies require a new complete same-SHA run; no candidate acceptance inferred."
-      }
-    ],
-    "terminalOnlyChecks": [
-      {
-        "startedAt": "2026-10-08T21:53:16.8572376Z",
-        "finishedAt": "2026-10-08T21:53:25.7517511Z",
-        "durationSeconds": 8.8945135,
-        "exitCode": 0,
-        "command": "node node_modules/typescript/bin/tsc --noEmit",
-        "status": "pass",
-        "resultData": {
-          "runner": "typescript",
-          "errors": 0
-        },
-        "terminalOutput": "",
-        "rawLogAvailable": false,
-        "reason": "Successful tsc emitted no stdout; Tee-Object did not create review-final-types.log. Actual tool terminal exit/timing and pre-gate source03 are retained; no contemporaneous raw file is invented. Later canonical production build explicitly typechecked successfully.",
-        "testedSource": {
-          "provenance": "snapshot",
-          "path": "playwright/.cache/phase27-08/review-source-03.json",
-          "sha256": "1b5a2650d103b1400831bc80d2b5fbed9ec9b789c999d8c1fa02940391cca3f9",
-          "revision": "821af3f74340f4c785985797299b41bf02eecbdb",
-          "dirty": true,
-          "claim": "working-tree",
-          "capturedAt": "2026-10-08T21:53:12.232Z",
-          "manifestSha256": "a702247e5af107209ee6accbcd39a09c3033ce22ba4fff356ab8ecdefe8651ab"
-        }
-      }
-    ],
-    "browserDisposition": "All 52 test cases passed, terminal exit0. Windows server teardown stalled; root verified exact runner20004/pwsh12544/cmd1736 and owned Next20988/start-server9188/build children17140/20916, stopped only the owned Next descendants and left runner/unrelated Node untouched. This was assisted teardown, not normal teardown. One unattributed Next dev streaming TypeError controller[kState].transformAlgorithm is not a function (digest2206780199, ignored frames) occurred between successful cases47 and48; log does not identify route/action/source frame. Retained for independent review; no error-free runtime claim."
-  },
-  "logRetentionIncident": {
-    "recordedAt": "2026-10-09T07:58:16.429Z",
-    "cause": "Clean preparation reused four historical filenames",
-    "recovered": [
-      "types from byte-identical final-types.log",
-      "lint from byte-identical final-lint.log"
-    ],
-    "unrecoverable": [
-      "historical release-build raw bytes",
-      "historical release-browser raw bytes"
-    ],
-    "preserved": "Original raw digests and existing committed terminal transcripts; current clean log bytes moved to unique names",
-    "newEvidence": "27-CLEAN-SOURCE-PREPARATION.md"
-  },
-  "releaseCandidateVerification": {
-    "schemaVersion": 1,
-    "disposition": "Six full clean committed-source gates passed under the verified local runtime. Historical failed attempts retained. Additional fresh cold-server proof passes on the same build/revision/manifest. External prerequisites and live acceptance remain pending.",
-    "supersedesSha256": "16bda288f9e279680a34c961a3dba8a9cc0c3e2e0ebd78c30d6f855214635b37",
-    "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
-    "sourceManifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4",
-    "gates": [
+      },
       {
         "command": "node node_modules/vitest/vitest.mjs run",
         "startedAt": "2026-10-09T15:32:58.213Z",
@@ -1179,8 +1128,706 @@ raw recovery nor deployment acceptance is fabricated.
         "executedCommand": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --project=chromium --workers=1",
         "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
       }
+    ],
+    "terminalOnlyChecks": [
+      {
+        "startedAt": "2026-10-08T21:53:16.8572376Z",
+        "finishedAt": "2026-10-08T21:53:25.7517511Z",
+        "durationSeconds": 8.8945135,
+        "exitCode": 0,
+        "command": "node node_modules/typescript/bin/tsc --noEmit",
+        "status": "pass",
+        "resultData": {
+          "runner": "typescript",
+          "errors": 0
+        },
+        "terminalOutput": "",
+        "rawLogAvailable": false,
+        "reason": "Successful tsc emitted no stdout; Tee-Object did not create review-final-types.log. Actual tool terminal exit/timing and pre-gate source03 are retained; no contemporaneous raw file is invented. Later canonical production build explicitly typechecked successfully.",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-03.json",
+          "sha256": "1b5a2650d103b1400831bc80d2b5fbed9ec9b789c999d8c1fa02940391cca3f9",
+          "revision": "821af3f74340f4c785985797299b41bf02eecbdb",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T21:53:12.232Z",
+          "manifestSha256": "a702247e5af107209ee6accbcd39a09c3033ce22ba4fff356ab8ecdefe8651ab"
+        }
+      }
+    ],
+    "browserDisposition": "All 52 test cases passed, terminal exit0. Windows server teardown stalled; root verified exact runner20004/pwsh12544/cmd1736 and owned Next20988/start-server9188/build children17140/20916, stopped only the owned Next descendants and left runner/unrelated Node untouched. This was assisted teardown, not normal teardown. One unattributed Next dev streaming TypeError controller[kState].transformAlgorithm is not a function (digest2206780199, ignored frames) occurred between successful cases47 and48; log does not identify route/action/source frame. Retained for independent review; no error-free runtime claim."
+  },
+  "logRetentionIncident": {
+    "recordedAt": "2026-10-09T07:58:16.429Z",
+    "cause": "Clean preparation reused four historical filenames",
+    "recovered": [
+      "types from byte-identical final-types.log",
+      "lint from byte-identical final-lint.log"
+    ],
+    "unrecoverable": [
+      "historical release-build raw bytes",
+      "historical release-browser raw bytes"
+    ],
+    "preserved": "Original raw digests and existing committed terminal transcripts; current clean log bytes moved to unique names",
+    "newEvidence": "27-CLEAN-SOURCE-PREPARATION.md"
+  },
+  "releaseCandidateVerification": {
+    "schemaVersion": 1,
+    "disposition": "All six complete gates and fresh cold/warm built-server proof pass on the new quota/migration-bound committed archive. Prior accepted candidate and all failed attempt bytes are retained. Preview deployment proof and production cutover remain separate.",
+    "supersedesSha256": "5ad127bb911458a2477099d25292aa0c2928a7a22c1d0ccb4dba72ed5e3d7ff1",
+    "revision": "b8358b11a63aadef2c84c9eb64b78be0a07ddcd4",
+    "sourceManifestSha256": "e51bbc5b9df9c302bf354eb1e48a9c2ac0080e2d3c2cbba321f35ec992ec9467",
+    "gates": [
+      {
+        "command": "node node_modules/vitest/vitest.mjs run",
+        "startedAt": "2026-10-09T17:53:45.143Z",
+        "finishedAt": "2026-10-09T18:01:13.675Z",
+        "durationSeconds": 448.532,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "Test Files  260 passed | 2 skipped (262)\nTests  3359 passed | 5 skipped (3364)",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 260,
+            "failed": 0,
+            "skipped": 2
+          },
+          "tests": {
+            "passed": 3359,
+            "failed": 0,
+            "skipped": 5
+          }
+        },
+        "terminalSummary": "Test Files  260 passed | 2 skipped (262)\nTests  3359 passed | 5 skipped (3364)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-b8358b11-e6a236dc-6265-43d2-badc-2b5d97eaeda3/gates/unit.log",
+        "logSha256": "4d26f4ca7ad26f275e269ab37eecf89984b669ac88af18c60ef53020c5debd8f",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-b8358b11-e6a236dc-6265-43d2-badc-2b5d97eaeda3/gates/unit-source.json",
+          "sha256": "57df5949f9c12d38f91aef60fa8147696669c0600b69b41b375b824aa8cbd330",
+          "revision": "b8358b11a63aadef2c84c9eb64b78be0a07ddcd4",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T17:53:45.127Z",
+          "manifestSha256": "e51bbc5b9df9c302bf354eb1e48a9c2ac0080e2d3c2cbba321f35ec992ec9467"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "additionalArguments": "--maxWorkers=4",
+        "executedCommand": "node node_modules/vitest/vitest.mjs run --maxWorkers=4",
+        "commandRepresentation": "Canonical command plus additionalArguments; immutable raw record/report retains actual complete argv and ordering."
+      },
+      {
+        "command": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts",
+        "startedAt": "2026-10-09T18:01:16.889Z",
+        "finishedAt": "2026-10-09T18:03:06.038Z",
+        "durationSeconds": 109.149,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 91,
+            "failed": 0,
+            "skipped": 0
+          },
+          "tests": {
+            "passed": 1510,
+            "failed": 0,
+            "skipped": 6
+          }
+        },
+        "terminalSummary": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-b8358b11-e6a236dc-6265-43d2-badc-2b5d97eaeda3/gates/design.log",
+        "logSha256": "28282f36a847dd5d3d0efa448d3c2cb4510ef3e0cde4824602f517c8f8d98001",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-b8358b11-e6a236dc-6265-43d2-badc-2b5d97eaeda3/gates/design-source.json",
+          "sha256": "e9104eb7ac4c1fd837c01140ff233527f3c37642b42021c08fe302fab517b1f6",
+          "revision": "b8358b11a63aadef2c84c9eb64b78be0a07ddcd4",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T18:01:16.869Z",
+          "manifestSha256": "e51bbc5b9df9c302bf354eb1e48a9c2ac0080e2d3c2cbba321f35ec992ec9467"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "additionalArguments": "--maxWorkers=2",
+        "executedCommand": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts --maxWorkers=2",
+        "commandRepresentation": "Canonical command plus additionalArguments; immutable raw record/report retains actual complete argv and ordering."
+      },
+      {
+        "command": "node node_modules/typescript/bin/tsc --noEmit",
+        "startedAt": "2026-10-09T18:03:09.530Z",
+        "finishedAt": "2026-10-09T18:04:11.567Z",
+        "durationSeconds": 62.037,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "No TypeScript diagnostics.",
+        "resultData": {
+          "runner": "typescript",
+          "errors": 0
+        },
+        "terminalSummary": "No TypeScript diagnostics.",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-b8358b11-e6a236dc-6265-43d2-badc-2b5d97eaeda3/gates/types.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-b8358b11-e6a236dc-6265-43d2-badc-2b5d97eaeda3/gates/types-source.json",
+          "sha256": "0846b79df93caed07b81fdae6e4d2ee77f597cc7b4664e9d4a83ec2bbb89d624",
+          "revision": "b8358b11a63aadef2c84c9eb64b78be0a07ddcd4",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T18:03:09.511Z",
+          "manifestSha256": "e51bbc5b9df9c302bf354eb1e48a9c2ac0080e2d3c2cbba321f35ec992ec9467"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "additionalArguments": "",
+        "executedCommand": "node node_modules/typescript/bin/tsc --noEmit",
+        "commandRepresentation": "Canonical command plus additionalArguments; immutable raw record/report retains actual complete argv and ordering."
+      },
+      {
+        "command": "node node_modules/eslint/bin/eslint.js .",
+        "startedAt": "2026-10-09T18:04:15.006Z",
+        "finishedAt": "2026-10-09T18:06:10.738Z",
+        "durationSeconds": 115.732,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "33 problems (0 errors, 33 warnings)",
+        "resultData": {
+          "runner": "eslint",
+          "errors": 0,
+          "warnings": 33
+        },
+        "terminalSummary": "33 problems (0 errors, 33 warnings)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-b8358b11-e6a236dc-6265-43d2-badc-2b5d97eaeda3/gates/lint.log",
+        "logSha256": "978e50f65040d1d7a0b1826e8d82186f252a05df31dc92cbbac3ed1f5dff9007",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-b8358b11-e6a236dc-6265-43d2-badc-2b5d97eaeda3/gates/lint-source.json",
+          "sha256": "80eb23505db8ecf0710e623b58bec2945bec7d9f5903b4085c588179b31b1083",
+          "revision": "b8358b11a63aadef2c84c9eb64b78be0a07ddcd4",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T18:04:14.987Z",
+          "manifestSha256": "e51bbc5b9df9c302bf354eb1e48a9c2ac0080e2d3c2cbba321f35ec992ec9467"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "additionalArguments": "",
+        "executedCommand": "node node_modules/eslint/bin/eslint.js .",
+        "commandRepresentation": "Canonical command plus additionalArguments; immutable raw record/report retains actual complete argv and ordering."
+      },
+      {
+        "command": "node node_modules/next/dist/bin/next build",
+        "startedAt": "2026-10-09T18:06:15.688Z",
+        "finishedAt": "2026-10-09T18:07:51.897Z",
+        "durationSeconds": 96.209,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "✓ Compiled successfully in 45s\n✓ Generating static pages using 7 workers (46/46) in 5.4s\nFinalizing page optimization ...",
+        "resultData": {
+          "runner": "next-build",
+          "compiled": true,
+          "generated": true,
+          "errors": 0
+        },
+        "terminalSummary": "✓ Compiled successfully in 45s\n✓ Generating static pages using 7 workers (46/46) in 5.4s\nFinalizing page optimization ...",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-b8358b11-e6a236dc-6265-43d2-badc-2b5d97eaeda3/gates/build.log",
+        "logSha256": "7c232f311502c3cb5fda5a8b6489793e52414fb91b7a7976dfa3638e9daeff21",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-b8358b11-e6a236dc-6265-43d2-badc-2b5d97eaeda3/gates/build-source.json",
+          "sha256": "c223ef29f6d6444f73d97312510a9cfe5292c47c3ee66aee40517f2cbb001c33",
+          "revision": "b8358b11a63aadef2c84c9eb64b78be0a07ddcd4",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T18:06:15.665Z",
+          "manifestSha256": "e51bbc5b9df9c302bf354eb1e48a9c2ac0080e2d3c2cbba321f35ec992ec9467"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "additionalArguments": "",
+        "executedCommand": "node node_modules/next/dist/bin/next build",
+        "commandRepresentation": "Canonical command plus additionalArguments; immutable raw record/report retains actual complete argv and ordering."
+      },
+      {
+        "command": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts --project=chromium",
+        "startedAt": "2026-10-09T18:07:55.823Z",
+        "finishedAt": "2026-10-09T18:09:30.456Z",
+        "durationSeconds": 94.633,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "59 passed (1.5m)",
+        "resultData": {
+          "runner": "playwright",
+          "tests": {
+            "passed": 59,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        "terminalSummary": "59 passed (1.5m)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-b8358b11-e6a236dc-6265-43d2-badc-2b5d97eaeda3/gates/browser.log",
+        "logSha256": "571a81142d4c23a26165044430f97eaaeb407a267512a788f706476301a78861",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-b8358b11-e6a236dc-6265-43d2-badc-2b5d97eaeda3/gates/browser-source.json",
+          "sha256": "67c05abdc1b9eb85e45f00717427d50900919f78d76e6510c48406c7f44d3090",
+          "revision": "b8358b11a63aadef2c84c9eb64b78be0a07ddcd4",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T18:07:55.792Z",
+          "manifestSha256": "e51bbc5b9df9c302bf354eb1e48a9c2ac0080e2d3c2cbba321f35ec992ec9467"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "additionalArguments": "e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --workers=1",
+        "executedCommand": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --project=chromium --workers=1",
+        "commandRepresentation": "Canonical command plus additionalArguments; immutable raw record/report retains actual complete argv and ordering."
+      }
     ]
-  }
+  },
+  "archivedReleaseCandidateVerifications": [
+    {
+      "schemaVersion": 1,
+      "disposition": "Six full clean committed-source gates passed under the verified local runtime. Historical failed attempts retained. Additional fresh cold-server proof passes on the same build/revision/manifest. External prerequisites and live acceptance remain pending.",
+      "supersedesSha256": "16bda288f9e279680a34c961a3dba8a9cc0c3e2e0ebd78c30d6f855214635b37",
+      "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+      "sourceManifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4",
+      "gates": [
+        {
+          "command": "node node_modules/vitest/vitest.mjs run",
+          "startedAt": "2026-10-09T15:32:58.213Z",
+          "finishedAt": "2026-10-09T15:39:55.689Z",
+          "durationSeconds": 417.476,
+          "exitCode": 0,
+          "status": "pass",
+          "result": "Test Files  259 passed | 2 skipped (261)\nTests  3343 passed | 5 skipped (3348)",
+          "resultData": {
+            "runner": "vitest",
+            "files": {
+              "passed": 259,
+              "failed": 0,
+              "skipped": 2
+            },
+            "tests": {
+              "passed": 3343,
+              "failed": 0,
+              "skipped": 5
+            }
+          },
+          "terminalSummary": "Test Files  259 passed | 2 skipped (261)\nTests  3343 passed | 5 skipped (3348)",
+          "evidenceKind": "raw-log",
+          "rawLogAvailable": true,
+          "rawLogPath": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/unit.log",
+          "logSha256": "b8977d3b02b08bfadf937d7b518df913d2ee9213493b3a24fb8aa93e5d39e2b6",
+          "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+          "testedSource": {
+            "provenance": "snapshot",
+            "path": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/unit-source.json",
+            "sha256": "9e0da75dfa8bbfc1e82de4d783d0630543694f3fbb4bc5a4db81eaebb71ed542",
+            "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+            "dirty": false,
+            "claim": "clean-revision",
+            "capturedAt": "2026-10-09T15:32:58.194Z",
+            "manifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4"
+          },
+          "timedOut": false,
+          "signal": null,
+          "sourceGuardPassed": true,
+          "skipGuardPassed": true,
+          "acceptancePassed": true,
+          "additionalArguments": "--maxWorkers=4",
+          "executedCommand": "node node_modules/vitest/vitest.mjs run --maxWorkers=4",
+          "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
+        },
+        {
+          "command": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts",
+          "startedAt": "2026-10-09T15:39:59.588Z",
+          "finishedAt": "2026-10-09T15:41:45.361Z",
+          "durationSeconds": 105.773,
+          "exitCode": 0,
+          "status": "pass",
+          "result": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+          "resultData": {
+            "runner": "vitest",
+            "files": {
+              "passed": 91,
+              "failed": 0,
+              "skipped": 0
+            },
+            "tests": {
+              "passed": 1510,
+              "failed": 0,
+              "skipped": 6
+            }
+          },
+          "terminalSummary": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+          "evidenceKind": "raw-log",
+          "rawLogAvailable": true,
+          "rawLogPath": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/design.log",
+          "logSha256": "ca95fcda8227964e9088912e8f2dd1c4fc7012081690d0573bcb6b4694d1ee84",
+          "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+          "testedSource": {
+            "provenance": "snapshot",
+            "path": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/design-source.json",
+            "sha256": "e1f4d7cbae2cc24042cd5cdf7d3d59b942d0df9374f635cfb0cb295934018d73",
+            "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+            "dirty": false,
+            "claim": "clean-revision",
+            "capturedAt": "2026-10-09T15:39:59.567Z",
+            "manifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4"
+          },
+          "timedOut": false,
+          "signal": null,
+          "sourceGuardPassed": true,
+          "skipGuardPassed": true,
+          "acceptancePassed": true,
+          "additionalArguments": "--maxWorkers=2",
+          "executedCommand": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts --maxWorkers=2",
+          "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
+        },
+        {
+          "command": "node node_modules/typescript/bin/tsc --noEmit",
+          "startedAt": "2026-10-09T15:41:48.632Z",
+          "finishedAt": "2026-10-09T15:42:54.730Z",
+          "durationSeconds": 66.098,
+          "exitCode": 0,
+          "status": "pass",
+          "result": "No TypeScript diagnostics.",
+          "resultData": {
+            "runner": "typescript",
+            "errors": 0
+          },
+          "terminalSummary": "No TypeScript diagnostics.",
+          "evidenceKind": "raw-log",
+          "rawLogAvailable": true,
+          "rawLogPath": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/types.log",
+          "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+          "testedSource": {
+            "provenance": "snapshot",
+            "path": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/types-source.json",
+            "sha256": "22321da267a9c7499a0e33053488d00f0b0652df4e981814580b39929bcc432d",
+            "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+            "dirty": false,
+            "claim": "clean-revision",
+            "capturedAt": "2026-10-09T15:41:48.613Z",
+            "manifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4"
+          },
+          "timedOut": false,
+          "signal": null,
+          "sourceGuardPassed": true,
+          "skipGuardPassed": true,
+          "acceptancePassed": true,
+          "additionalArguments": "",
+          "executedCommand": "node node_modules/typescript/bin/tsc --noEmit",
+          "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
+        },
+        {
+          "command": "node node_modules/eslint/bin/eslint.js .",
+          "startedAt": "2026-10-09T15:42:57.872Z",
+          "finishedAt": "2026-10-09T15:44:24.274Z",
+          "durationSeconds": 86.402,
+          "exitCode": 0,
+          "status": "pass",
+          "result": "33 problems (0 errors, 33 warnings)",
+          "resultData": {
+            "runner": "eslint",
+            "errors": 0,
+            "warnings": 33
+          },
+          "terminalSummary": "33 problems (0 errors, 33 warnings)",
+          "evidenceKind": "raw-log",
+          "rawLogAvailable": true,
+          "rawLogPath": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/lint.log",
+          "logSha256": "c85b6c62a50847bebe2e99cb093ae4fc9d9d938ca7eeef2b6454d289de63d76d",
+          "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+          "testedSource": {
+            "provenance": "snapshot",
+            "path": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/lint-source.json",
+            "sha256": "a70d67f36d7e91cb4e2d1969758b4aa14020e893ede8bc08407e477f9f2202d2",
+            "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+            "dirty": false,
+            "claim": "clean-revision",
+            "capturedAt": "2026-10-09T15:42:57.854Z",
+            "manifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4"
+          },
+          "timedOut": false,
+          "signal": null,
+          "sourceGuardPassed": true,
+          "skipGuardPassed": true,
+          "acceptancePassed": true,
+          "additionalArguments": "",
+          "executedCommand": "node node_modules/eslint/bin/eslint.js .",
+          "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
+        },
+        {
+          "command": "node node_modules/next/dist/bin/next build",
+          "startedAt": "2026-10-09T15:44:28.104Z",
+          "finishedAt": "2026-10-09T15:45:52.887Z",
+          "durationSeconds": 84.783,
+          "exitCode": 0,
+          "status": "pass",
+          "result": "✓ Compiled successfully in 39.7s\n✓ Generating static pages using 7 workers (46/46) in 4.3s\nFinalizing page optimization ...",
+          "resultData": {
+            "runner": "next-build",
+            "compiled": true,
+            "generated": true,
+            "errors": 0
+          },
+          "terminalSummary": "✓ Compiled successfully in 39.7s\n✓ Generating static pages using 7 workers (46/46) in 4.3s\nFinalizing page optimization ...",
+          "evidenceKind": "raw-log",
+          "rawLogAvailable": true,
+          "rawLogPath": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/build.log",
+          "logSha256": "9e6bd428d76a610f8d59eb8fc1abea452c5b5b361abdfe4622b080b65789663e",
+          "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+          "testedSource": {
+            "provenance": "snapshot",
+            "path": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/build-source.json",
+            "sha256": "5362d329a1910e1d2df4fdaaeee6fc432007557752c0c49f48ee7cbaec6f711f",
+            "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+            "dirty": false,
+            "claim": "clean-revision",
+            "capturedAt": "2026-10-09T15:44:28.082Z",
+            "manifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4"
+          },
+          "timedOut": false,
+          "signal": null,
+          "sourceGuardPassed": true,
+          "skipGuardPassed": true,
+          "acceptancePassed": true,
+          "additionalArguments": "",
+          "executedCommand": "node node_modules/next/dist/bin/next build",
+          "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
+        },
+        {
+          "command": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts --project=chromium",
+          "startedAt": "2026-10-09T15:45:56.113Z",
+          "finishedAt": "2026-10-09T15:47:25.729Z",
+          "durationSeconds": 89.616,
+          "exitCode": 0,
+          "status": "pass",
+          "result": "59 passed (1.5m)",
+          "resultData": {
+            "runner": "playwright",
+            "tests": {
+              "passed": 59,
+              "failed": 0,
+              "skipped": 0
+            }
+          },
+          "terminalSummary": "59 passed (1.5m)",
+          "evidenceKind": "raw-log",
+          "rawLogAvailable": true,
+          "rawLogPath": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/browser.log",
+          "logSha256": "46b5c7a01956f69b86337c04e414452ca8e63ba443a5d5aad5cde8281d2ddf4d",
+          "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+          "testedSource": {
+            "provenance": "snapshot",
+            "path": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/browser-source.json",
+            "sha256": "b82d5d60eaaf70bef6bde7cd96b1c9b305d6b0a45d2065997b783c7347c9cfd2",
+            "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+            "dirty": false,
+            "claim": "clean-revision",
+            "capturedAt": "2026-10-09T15:45:56.090Z",
+            "manifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4"
+          },
+          "timedOut": false,
+          "signal": null,
+          "sourceGuardPassed": true,
+          "skipGuardPassed": true,
+          "acceptancePassed": true,
+          "additionalArguments": "e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --workers=1",
+          "executedCommand": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --project=chromium --workers=1",
+          "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
+        }
+      ]
+    }
+  ],
+  "retainedAttemptArtifacts": [
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/browser-post-source.json",
+      "sha256": "b569011795e2d013851a4169c7f967421624e75032d5cce6d8147653f0c070c8",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/browser-record.json",
+      "sha256": "c5eec432820dded48f8ee97af5cf499229e091a8ea828a828a5afdf279af48b7",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/browser-source.json",
+      "sha256": "848b260fa49fe4a5ecdf7d7fb64444c05bde91429909a0b3f7a527f0e88712e6",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/browser.log",
+      "sha256": "57657f7786fee5ec5bd468dad0c4ad9f16faa927f37382a35dc50ce62f70ed99",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/build-post-source.json",
+      "sha256": "25046b40caddca508ecc2ac52a1094d98fcab653784d42372d5825c4cf0b0bfe",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/build-record.json",
+      "sha256": "d705a35b7b342b11ae21c50e1c3f88e7be889a742be741995c46a8c59c23c606",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/build-source.json",
+      "sha256": "fbf1eb34592fba2cbbac7d4accb7cfc2ce456c94a89ac55f8b0c384cc889b619",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/build.log",
+      "sha256": "d93059e7fc104723c739bfaa5aef9e9086ba4ee81669374be3d80ec9d5bbc98d",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/design-post-source.json",
+      "sha256": "35c7fe584ebafb849210ce3072354f3359811bed1d165eaf1b9fe8ac6dbc546f",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/design-record.json",
+      "sha256": "969281c37236c8d5e86fc08e8c5a184c766fc8ef1675718a0b897521df48dc4b",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/design-source.json",
+      "sha256": "8c7b703c718a366280f13b14cb2274797580a802889fa6669524830ea62407d9",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/design.log",
+      "sha256": "c52df37edbf01fa6287d40c917f591bdc4ae5b794ff24e76e99b33c94ba4d6ee",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/lint-post-source.json",
+      "sha256": "eb75eb8465bc7af3270114b2edc87a5facb33b97b4d4891192ecefc87ee89583",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/lint-record.json",
+      "sha256": "cb0efbae809b4caae486f084e8f199d49eea85bc9df5380013ae5f765938978c",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/lint-source.json",
+      "sha256": "c775fc258452be05c44eb8a600f84d0092f1f93780ca3bc8d16fa990f053c36c",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/lint.log",
+      "sha256": "e0e620620b35f847500f5b1f96177bad2a810a039d47902fb8d4422d4f22ae83",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/report.json",
+      "sha256": "8b0e74fc33e31b992d98f9398f5983b078c9456986cb3f6805070749f6a059db",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/types-post-source.json",
+      "sha256": "0962b6b1f76d37ac978dca4501dba16a2b09f2eaf8f95e2b1bd0c949a9ae6617",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/types-record.json",
+      "sha256": "ed2f6f6dd6b6fd533f1d7e539facb0282ba8c0382050e351892831f2609b4ab1",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/types-source.json",
+      "sha256": "ce28eea04dba27189529750bad0a058cfbb23b35f89fa1e9eda2198e9dd71b13",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/unit-post-source.json",
+      "sha256": "af1e529f387186e7a3cb7e1085be10e30220dad8b745698a16f4d0d5c869e4eb",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/unit-record.json",
+      "sha256": "2dff800db8ecf9e8ee6013c0a09fe36d3c8f6834fccaff7852ef712b54c7d468",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/unit-source.json",
+      "sha256": "287c1929130e86df1630f0c80df6dea009dc6228a6558c9edea01461b653bc75",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/gates/unit.log",
+      "sha256": "3d281fbee5ba279b5b636e829847eada32a0f93de18e90d9db278c0af23766ba",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/initial-source.json",
+      "sha256": "1afb74ed11dcf5db5e517bebb48bd6c431df7661904da483c117deeed0aca3e6",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/runtime-preflight.json",
+      "sha256": "7729315a43bd67a4a3dc9362c64ec51130a2d6a39684d80575c40c32127e568b",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-4d31a45e-d72a7808-3a97-4da7-b37c-dbc0e1bb06a3/source.zip",
+      "sha256": "9b20a243f245079b619500bc0563313ede57efc360a8b39cbb309f26bb6701e9",
+      "disposition": "D-23 first full attempt retained: two hosting fixture failures, restricted Google Fonts build failure, browser precondition not run. No complete browser totals were fabricated."
+    }
+  ]
 }
 ```
 
@@ -1359,3 +2006,6 @@ plus the separate unattributed runtime observation. Continue authorized preparat
 without expanding repairs. Existing results remain failed; no assertions, source
 policy, HOLD or deployed/live validation condition is weakened. This disposition
 does not provide missing clean-revision, compatibility, control or external proof.
+
+
+D-23 paired Preview deployment/browser evidence and its remaining protected API access approval checkpoint are recorded in 27-PREVIEW-ISOLATION-EVIDENCE.md and 27-20-PREVIEW-ACCESS-CHECKPOINT.md. These partial Preview results do not replace the production deployed matrix, approve cutover, or complete Plan 20.

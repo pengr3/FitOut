@@ -16,8 +16,8 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
     "ops": "https://ops.fitout.live",
     "www": "https://www.fitout.live -> https://fitout.live"
   },
-  "proposedRevision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
-  "candidateAcceptance": "All six clean-source full gates plus fresh cold/warm production probe pass locally. Exact account/preview/provider/Contact/compatibility-first prerequisites and scoped cutover acceptance remain pending. No deployment approval inferred.",
+  "proposedRevision": "b8358b11a63aadef2c84c9eb64b78be0a07ddcd4",
+  "candidateAcceptance": "Six full guarded gates and fresh cold/warm pass at b8358b11. Both exact paired Preview builds READY with dedicated aliases. Browser negatives verified; positive write binding, actual signed-cookie replay and exact Contact HTTP status await protected API access approval. Original production checkpoint remains pending.",
   "approvedRevision": null,
   "authority": {
     "status": "pending",
@@ -36,8 +36,17 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
     "controlsVerified": false,
     "processLocalIsGlobal": false,
     "perIpPolicy": "Enforcing trusted-ingress deployment-wide <=5 attempts per 15 minutes per original client; account-wide proof pending",
-    "globalBudget": "Distributed mailbox/global <=100 accepted inquiries per hour across all instances/regions, with owner alert and disable switch; concrete approved control pending",
-    "disabledRecovery": "Keep CONTACT_PRODUCTION_ENABLED=false; verify real 503, retained fields, no delivery announcement; no development-mail fallback"
+    "globalBudget": "Atomic database-wide <=100 delivery attempts/hour and <=5/original trusted IP/15 minutes implemented and tested locally and on isolated Preview. Production migration, alert/disable proof and Contact enablement remain pending.",
+    "disabledRecovery": "Keep CONTACT_PRODUCTION_ENABLED=false; verify real 503, retained fields, no delivery announcement; no development-mail fallback",
+    "quotaMigration": {
+      "path": "drizzle/0034_contact_quota.sql",
+      "sha256": "99516450850c7ea1f400aff1197145d79179ea58e742b3c5ca1a9fc5bc93f4d6",
+      "previewBranch": "br-silent-glade-b31mruln",
+      "previewApplied": true,
+      "productionApplied": false,
+      "productionApproval": "pending original08 release packet",
+      "rollback": "Disable Contact first and restore pinned deployments; leave the additive table intact. No DROP or deletion is authorized."
+    }
   },
   "receivers": [
     {
@@ -334,3 +343,6 @@ full-gate verification of a later commit. The tested candidate remains 596b4746.
 ## October 10 inbox/Preview continuation
 
 Inbox ownership is confirmed and one standalone mail transport test is provider-delivered. Owner receipt and deployed Contact inquiry/reply remain pending. Preview is still not proved isolated; quota-table and dedicated-Preview-branch decisions are pending. Read 27-INBOX-AND-PREVIEW-READBACK-20261010.md. No account setting, Contact switch or production deployment changed.
+
+
+Preview-only deployment and remaining access checkpoint: see 27-20-PREVIEW-ACCESS-CHECKPOINT.md. Production cutover remains unapproved; no Preview result supplies production requirement acceptance.

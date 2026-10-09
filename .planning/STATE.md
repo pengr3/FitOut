@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "D-23 plans18/19 complete; 17/20; Plan20 full gates/retry and paired Preview deployment proof pending"
-last_updated: "2026-10-09T17:44:16.603Z"
+stopped_at: "D-23 17/20; six full gates and cold pass; paired Preview ready; protected API access approval pending"
+last_updated: "2026-10-09T18:29:20.053Z"
 last_activity: 2026-10-10
-last_activity_desc: Quota repair and isolated Preview settings verified; full candidate has two hosting-fixture failures being repaired; no deployment
-state_head: 596b4746
+last_activity_desc: Six guarded gates pass at b8358b11; isolated Preview builds and browser negatives verified; temporary access-link approval checkpoint
+state_head: b8358b11
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -64,7 +64,7 @@ progress:
 
 # Project State
 
-**Latest focus (2026-10-10):** Plans18/19 complete with focused local and real isolated Neon proof plus Preview-only settings; 17/20 phase plans and141/150 total. Plan20 retains a full run with two hosting-test transition/mock failures; repair and six fresh gates precede paired Preview deployment/session proof. No new release candidate acceptance or production changes. Contact off, original08/09 and all requirements pending, all HOLDs preserved.
+**Latest focus (2026-10-10):** Plans 18/19 complete; 17/20 phase plans and 141/150 total. Plan 20 task 1 passes all six guarded gates and fresh cold/warm proof at b8358b11. Both exact Preview deployments are READY and dedicated aliases assigned. Browser Contact failure/retention, anonymous customer Preview and staff login are observed; explicit Neon branch still has zero app rows. Positive deployed write binding and signed-cookie replay remain pending. Automatic review rejected temporary protected-access links without explicit owner approval; no link was created. Contact off, production unchanged, original 08/09 and all requirements pending; all HOLDs persist.
 
 ## Project Reference
 

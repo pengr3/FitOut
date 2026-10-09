@@ -60,3 +60,8 @@ the concrete exception in 27-REMAINING-RELEASE-REPAIRS.md.
 Counts remain 15/17 plans and 139/147 curated plans; original 08 task 3, plan 09
 and all seven requirements remain pending. Contact is disabled; payment/payout/
 legal HOLD remains. The six-gate tested candidate remains 596b4746.
+
+
+## Superseding owner and Preview observations — October 10
+
+The owner confirms receipt of the one transport-test email and says they replied. Reply arrival remains unproved; no additional email was sent. The earlier isolation/scope readback above is historical: D-23 subsequently authorized plans 18–20, a dedicated schema-only branch and Preview-only bindings now exist, and paired exact-SHA Preview builds are READY. Read 27-PREVIEW-ISOLATION-EVIDENCE.md for actual outcomes and the remaining protected API access checkpoint. Counts remain 17/20 and 141/150; original 08/09 and all requirements remain pending.

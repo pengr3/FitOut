@@ -81,3 +81,16 @@ all seven requirements and checkout/payout/legal HOLD are unchanged.
 The owner confirms the one transport-test email arrived and says they replied.
 Reply arrival and a deployed Contact inquiry/reply round trip remain unproved;
 no additional message was sent.
+
+
+## Deployed Preview readback and access checkpoint — October 10
+
+All six guarded gates and fresh cold/warm proof pass on committed revision `b8358b11a63aadef2c84c9eb64b78be0a07ddcd4`. A dedicated Git branch `codex/phase27-preview-20261010` was pushed at that exact SHA. Both projects track `dev` for Production, so this new branch generated Preview builds only. Vercel reports READY, target null, matching commit metadata for web `dpl_xNdTdc1zHGHVehoLQNSwuQbSM3yj` and ops `dpl_c8f7NmZndNfFrLbUszGLxZqAGCQt`. The three dedicated origins listed above are now assigned: app/marketing to the web deployment, ops to its own deployment.
+
+Existing authenticated browser observations: the owner remains signed in on `fitout.live`; customer Preview shows Log in/Sign up with no bookable spaces; ops root is cloaked and `/login` shows staff sign-in. Marketing Open App and legal links point to the dedicated Preview app. A synthetic example.invalid Contact submission shows failure, retains entered fields and reenables Send message without a success announcement. The browser did not capture HTTP status, so this is UI failure proof rather than a claimed 503 readback. Separate explicit Neon readback still shows user/session/account/booking counts all zero and the original two synthetic quota rows. No positive deployment write-binding proof is claimed.
+
+Production alias readbacks remain web `dpl_8PpCPij5v1zQiD8gDP14Ju54QAAv` and ops `dpl_Ho1raNTZDcnQ4zwpDu2P19NX6QBS`. No production alias, deployment, migration or Contact switch was changed.
+
+Direct automated requests receive Vercel Authentication protection. Automatic approval review rejected temporary protected-access share links because that particular access-control bypass lacks explicit owner approval. No link was created and protection was not disabled. Positive disposable-account write binding, actual signed-cookie cross-origin rejection beyond ordinary browser host-cookie separation, and exact deployed Contact HTTP status remain pending. Plan 20 is incomplete; original 08/09 and requirements remain pending.
+
+Retained secret-free proof: `playwright/.cache/phase27-08/preview-browser-checkpoint-20261010.json`. Screenshot: `playwright/.cache/phase27-08/preview-contact-disabled-20261010.png`. Read the concrete approval scope in 27-20-PREVIEW-ACCESS-CHECKPOINT.md.

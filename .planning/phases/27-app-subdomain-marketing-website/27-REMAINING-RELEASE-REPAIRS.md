@@ -78,3 +78,8 @@ The project owner confirms the monitored launch support inbox. One authorized st
 ## D-23 execution readback — October10 (supersedes prior settings above)
 
 The owner confirms receipt and reply-sent. Plans18/19 implement the shared quota and additive migration, create the schema-only Preview branch, and save isolated Preview database/auth/origin/Contact-off settings. Real Preview quota contention passes; production settings are unchanged. The first new full candidate run has two hosting-fixture failures, retained and being repaired. Six new complete passes and fresh cold proof remain required before paired Preview deployment/session/Contact-off checks. Those deployed observations, production migration/enablement/alert-and-disable proof and compatibility-first cutover remain pending. No further transport test was sent. See27-PREVIEW-ISOLATION-EVIDENCE.md.
+
+
+## Superseding Plan 20 checkpoint — October 10
+
+Quota repair and Preview settings plans 18/19 are complete. All six full guarded gates plus fresh cold/warm proof pass on b8358b11. Paired Preview builds and dedicated aliases are ready; browser negatives pass. Protected automated API access requires explicit approval for temporary links after automatic review rejection. Positive deployment write binding and actual signed-cookie replay remain unproved. No production changes or new mail. See 27-20-PREVIEW-ACCESS-CHECKPOINT.md; counts remain 17/20 and 141/150.
