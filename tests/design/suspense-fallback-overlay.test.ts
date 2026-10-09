@@ -611,8 +611,8 @@ describe("CI-01 — an element handed to Radix's `asChild` is created on the cli
     // The pre-repair layout also imported `SiteNav` rather than `NavSlotSkeleton`; without the
     // binding the tag resolves to nothing and the mutation would be defanged by an import line.
     const mutated = after.replace(
-      'import { ProfileLink, SiteChrome } from "@/components/patterns/site-chrome";',
-      'import { ProfileLink, SiteChrome, SiteNav } from "@/components/patterns/site-chrome";',
+      'import { SiteChrome } from "@/components/patterns/site-chrome";',
+      'import { SiteChrome, SiteNav } from "@/components/patterns/site-chrome";',
     );
     expect(mutated, "APPLIED=false — the import anchor drifted").not.toBe(after);
 
