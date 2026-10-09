@@ -251,9 +251,11 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
     dispatch({ type: "EDIT", step });
   }
 
+  const progressAnnouncement = <p role="status" aria-live="polite" aria-label="Search progress" className="sr-only">{state.progress}</p>;
+
   return (
     <section aria-label="Space search" className="space-y-4">
-      <p role="status" aria-live="polite" aria-label="Search progress" className="sr-only">{state.progress}</p>
+      {!hasOpenQuestion ? progressAnnouncement : null}
 
       <div role="group" aria-label="Search spaces" className="min-w-0">
       <ProgressiveSearchOverlay
@@ -272,6 +274,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
         }}
         onDismiss={cancel}
       >
+        {hasOpenQuestion ? progressAnnouncement : null}
         {hasOpenQuestion ? (
           <div className="flex min-h-[calc(100dvh-2rem)] flex-col motion-reduce:transition-none transition duration-(--motion-base) ease-(--motion-ease-standard) sm:min-h-0">
             <div className="order-1 sm:order-2">
