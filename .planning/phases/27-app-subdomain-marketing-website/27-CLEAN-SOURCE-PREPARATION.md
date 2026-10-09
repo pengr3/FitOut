@@ -363,3 +363,8 @@ The rejected dirty preflight is disclosed above and has no completed gate record
   ]
 }
 ```
+
+
+## Later attribution correction — plan 27-12
+
+The historical Partition reading was already committed. The archive has CRLF Markdown fences, and its LF-only reader reported missing JSON. A computed file-URL import also fails under Vitest in the nested export. Plan 27-12 fixes both boundaries: all 13 focused probe cases pass in shared and formerly failing layouts. The old eleven failures and logs remain historical. No live proof or unrelated Phase20 follow-up was promoted. See 27-12-SUMMARY.md.

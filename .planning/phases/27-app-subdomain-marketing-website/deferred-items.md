@@ -120,7 +120,7 @@ User authorizes planning and continuous local work; D-21 resolves G01. Planning 
 |---|---|---|
 | 27-10 | P27-G14 | Repaired: b91eeb31 clean parity 3/3, types and build exit 0; see 27-10-SUMMARY |
 | 27-11 | P27-G02, P27-G04, P27-G12 | Repaired with targeted proof: audit/role 29, checkout/cutoff 9, cancellation 20; full clean gates pending |
-| 27-12 | P27-G13 | Planned; no repair proof yet |
+| 27-12 | P27-G13 | Repaired: probe 13/13 in both layouts; runner 12/12. Transcript was committed; LF-only reader misdiagnosed CRLF as missing. |
 | 27-13 | P27-G05, P27-G06, P27-G08, P27-G10 | Planned; no repair proof yet |
 | 27-14 | P27-G09, P27-G15 | Planned; no repair proof yet |
 | 27-15 | P27-G01, P27-G03, P27-G07 | Planned; no repair proof yet |
