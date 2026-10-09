@@ -13,7 +13,7 @@ vi.mock("@/app/actions/capability", () => ({ activateHosting: mocks.activate }))
 import StartHostingPage from "@/app/start-hosting/page";
 import { HostingIntent } from "@/components/marketing/hosting-intent";
 
-beforeEach(() => { vi.clearAllMocks(); mocks.session.mockResolvedValue(null); });
+beforeEach(() => { vi.clearAllMocks(); mocks.activate.mockReset(); mocks.session.mockResolvedValue(null); });
 afterEach(cleanup);
 
 describe("checked hosting entry", () => {
@@ -57,7 +57,10 @@ describe("explicit hosting activation", () => {
       .mockResolvedValueOnce({ ok: true, redirectTo: "/host" });
     render(<HostingIntent />);
     fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
-    expect((await screen.findByRole("alert")).textContent).toContain("Too many attempts");
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toContain("Too many attempts");
+      expect(screen.getByRole("button", { name: "Start hosting" }).hasAttribute("disabled")).toBe(false);
+    });
     expect(mocks.push).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
     await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/host"));
@@ -66,8 +69,10 @@ describe("explicit hosting activation", () => {
     mocks.activate.mockRejectedValue(new Error("network"));
     render(<HostingIntent />);
     fireEvent.click(screen.getByRole("button", { name: "Start hosting" }));
-    expect((await screen.findByRole("alert")).textContent).toContain("Please try again");
-    expect(screen.getByRole("button", { name: "Start hosting" }).hasAttribute("disabled")).toBe(false);
+    await waitFor(() => {
+      expect(screen.getByRole("alert").textContent).toContain("Please try again");
+      expect(screen.getByRole("button", { name: "Start hosting" }).hasAttribute("disabled")).toBe(false);
+    });
   });
   it("refuses an unexpected destination returned by activation", async () => {
     mocks.activate.mockResolvedValue({ ok: true, redirectTo: "https://evil.test/host" });

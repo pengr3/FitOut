@@ -48,7 +48,7 @@ const CAPTURE_SCOPE = [...SOURCE_SCOPE, ...SOURCE_EXTENSIONS];
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 export const manifestDigest = (files) => sha256(JSON.stringify(files));
 // Bind an explicit replacement run to the complete retained history, including failed attempts.
-export const gateHistoryDigest = (engineering) => sha256(JSON.stringify({ gates: engineering.gates, reviewFixGates: engineering.reviewFixVerification?.gates ?? [] }));
+export const gateHistoryDigest = (engineering) => sha256(JSON.stringify({ gates: engineering.gates, reviewFixGates: engineering.reviewFixVerification?.gates ?? [], ...(engineering.retainedAttemptArtifacts !== undefined ? { retainedAttemptArtifacts: engineering.retainedAttemptArtifacts } : {}) }));
 // Capture before a gate; never reconstruct a historical capture from today's files. No env or
 // credential files are in scope. Hashes establish byte consistency, not execution attestation.
 export function captureSourceContext() {
@@ -139,6 +139,22 @@ check(Array.isArray(engineering.gates) && engineering.gates.length === commands.
 const runners = ["vitest", "vitest", "typescript", "eslint", "next-build", "playwright"];
 const candidate = engineering.releaseCandidateVerification;
 const hasCandidate = candidate !== undefined;
+// Failed preconditions may produce no terminal test totals. Preserve those attempts as
+// immutable artifacts, never as substitutes for the six complete candidate gates.
+if (engineering.retainedAttemptArtifacts !== undefined) {
+  const artifacts = engineering.retainedAttemptArtifacts;
+  check(Array.isArray(artifacts) && artifacts.length > 0, "Retained attempt artifacts must be a nonempty array");
+  for (const artifact of Array.isArray(artifacts) ? artifacts : []) {
+    const path = typeof artifact?.path === "string" ? resolve(root, artifact.path) : null;
+    const fromRoot = path ? relative(root, path) : "..";
+    const contained = fromRoot !== ".." && !fromRoot.startsWith("../") && !fromRoot.startsWith("..\\") && !isAbsolute(fromRoot);
+    check(contained && nonempty(artifact?.disposition) && /^[a-f0-9]{64}$/.test(artifact?.sha256 ?? ""), "Retained attempt artifact path/digest/disposition invalid");
+    if (contained && path) {
+      try { check(sha256(readLog(path)) === artifact.sha256, "Retained attempt artifact byte digest mismatch"); }
+      catch { check(false, "Retained attempt artifact unavailable"); }
+    }
+  }
+}
 const deployedBinding = stage === "prepared" ? undefined : { revision: live.deployedRevision, manifestSha256: live.sourceManifestSha256 };
 function validateSource(source, gate, label, binding) {
   if (source?.provenance === "snapshot") {

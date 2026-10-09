@@ -211,6 +211,37 @@ test("complete clean replacement can supersede honestly failed uncaptured histor
   assert(validateEvidence(fixture).some((error) => error.includes("Failed engineering gates")));
 });
 
+function archivedAttemptFixture() {
+  const fixture = replacementFixture();
+  const path = "playwright/.cache/phase27-08/synthetic-failed-browser-precondition.log";
+  const bytes = "Build precondition failed; browser server did not start. No test totals.\n";
+  fixture.logs.set(path, bytes);
+  fixture.engineering.retainedAttemptArtifacts = [{ path, sha256: createHash("sha256").update(bytes).digest("hex"), disposition: "Synthetic failed precondition retained; complete candidate gates are independently required" }];
+  fixture.engineering.releaseCandidateVerification.supersedesSha256 = gateHistoryDigest(fixture.engineering);
+  return fixture;
+}
+test("failed precondition artifacts remain byte-bound without substituting candidate gates", () => {
+  assert.deepEqual(validateEvidence(archivedAttemptFixture()), []);
+  const fixture = archivedAttemptFixture();
+  fixture.engineering.releaseCandidateVerification.gates.pop();
+  assert(validateEvidence(fixture).some((error) => error.includes("all six full gates")));
+});
+test("tampered retained failure bytes cannot be hidden by a complete replacement", () => {
+  const fixture = archivedAttemptFixture();
+  fixture.logs.set(fixture.engineering.retainedAttemptArtifacts[0].path, "changed bytes");
+  assert(validateEvidence(fixture).some((error) => error.includes("artifact byte digest mismatch")));
+});
+test("removing retained failure references changes the candidate history binding", () => {
+  const fixture = archivedAttemptFixture();
+  delete fixture.engineering.retainedAttemptArtifacts;
+  assert(validateEvidence(fixture).some((error) => error.includes("bind retained gate history")));
+});
+test("retained failure artifact cannot leave the workspace", () => {
+  const fixture = archivedAttemptFixture();
+  fixture.engineering.retainedAttemptArtifacts[0].path = "../outside.log";
+  assert(validateEvidence(fixture).some((error) => error.includes("artifact path/digest/disposition invalid")));
+});
+
 test("replacement retains validation of historical log bytes", () => {
   const fixture = replacementFixture();
   const old = fixture.engineering.gates[0];
