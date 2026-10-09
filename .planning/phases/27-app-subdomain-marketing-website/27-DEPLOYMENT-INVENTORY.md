@@ -39,3 +39,33 @@ prerequisite, with no credential mutation authorized by this packet.
 
 Current provider facts remain unknown. Historic Phase23 claims and installed local
 signature tests must not be promoted to current account observations.
+
+## Browser readback — 2026-10-09 Manila
+
+The user authorized read-only provider inspection through the Codex browser and will
+enter login credentials directly when required. No account setting was changed.
+
+- Google Cloud project `fitout-505104` (FitOut), project number `146998383967`, is
+  accessible in the signed-in browser. Its credentials list shows one Web application
+  OAuth client, `FitOut Client 1`, created August 10, 2026. The public client identifier
+  is `146998383967-h27qqn2rp51k9m3favsm391hlrt6nv0l.apps.googleusercontent.com`.
+- That client's authorized JavaScript origins list is empty. Its sole authorized
+  redirect URI is `http://localhost:3000/api/auth/callback/google`. Neither production
+  apex nor the proposed app callback appears in this inspected client.
+- Audience is External, publishing status Testing, with zero test users. Publish is
+  disabled and the page directs the owner to complete Branding. App name is FitOut;
+  homepage, privacy-policy URL, terms URL and authorized domains are empty. Support
+  and developer contact fields are populated; their personal values are not retained.
+- Correspondence to the deployed production OAuth client remains **unknown**. The
+  scoped Vercel metadata read confirms a Production `GOOGLE_CLIENT_ID` entry marked
+  sensitive. Its read-only GET returned metadata without a public identifier value;
+  no `GOOGLE_CLIENT_SECRET` was requested. Do not label this browser client production
+  or infer that production Google sign-in is broken from this unrelated-client possibility.
+- PayMongo opens at `https://dashboard.paymongo.com/login`. Its settings and mode
+  remain unknown until the user signs in. Didit, Inngest and Resend remain uninspected
+  in this browser session. The pending login is not evidence of missing account ownership.
+
+Readback saved: 2026-10-09 10:56:07 AM Manila (02:56:07 UTC). Sources:
+visible Google Credentials/client/Audience/Branding pages, PayMongo login page, and
+allowlisted Vercel Production client-ID metadata. No secrets, changes, provider tests,
+live inquiry or deployment occurred. Domain/cutover/Contact authority remains pending.
