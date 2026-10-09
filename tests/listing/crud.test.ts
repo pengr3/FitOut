@@ -21,6 +21,7 @@ import {
   listingActivityTag,
   listingPhoto,
   availabilityBlock,
+  controlledCheckoutGrant,
   hostVerification,
   type HostVerificationStatus,
 } from "@/lib/db/schema";
@@ -471,6 +472,24 @@ describe("LVER-05 — createDraftListing is gated on the host's verification (D-
 //   • TOO TIGHT — mint when a reuse was possible. One extra empty draft in the grid: today's
 //     behaviour, visible, deletable. Tolerable. Case 1 is the only case that can catch it.
 describe("D-02 — createDraftListing reuses the host's own UNTOUCHED empty draft, and only that", () => {
+  it("never reuses an otherwise empty draft bound to an operator checkout grant", async () => {
+    const userId = await signInHost("d02.grant@example.com");
+    const first = await createDraftListing();
+    if (!first.ok) throw new Error("setup failed");
+    await testDb.db.insert(controlledCheckoutGrant).values({
+      id: "grant_d02", listingId: first.id, bookerId: userId,
+      authorizationReference: "fixture-review-only", maxAmountCents: 2000,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    const untouched = await readListing(first.id);
+    expect(untouched.updatedAt.getTime()).toBe(untouched.createdAt.getTime());
+    const second = await createDraftListing();
+    if (!second.ok) throw new Error("second creation failed");
+    expect(second.id, "an existing grant must not be silently adopted into a new space").not.toBe(first.id);
+    expect(await ownedCount(userId)).toBe(2);
+    const [grant] = await testDb.db.select().from(controlledCheckoutGrant).where(eq(controlledCheckoutGrant.id, "grant_d02"));
+    expect(grant.listingId).toBe(first.id);
+  });
   /** How many listings this host owns right now — the number a reuse must not move. */
   async function ownedCount(userId: string): Promise<number> {
     return (await testDb.db.select({ id: listing.id }).from(listing).where(eq(listing.hostId, userId)))
