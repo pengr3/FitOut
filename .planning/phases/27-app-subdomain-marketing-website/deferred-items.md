@@ -123,7 +123,7 @@ User authorizes planning and continuous local work; D-21 resolves G01. Planning 
 | 27-12 | P27-G13 | Repaired: probe 13/13 in both layouts; runner 12/12. Transcript was committed; LF-only reader misdiagnosed CRLF as missing. |
 | 27-13 | P27-G05, P27-G06, P27-G08, P27-G10 | Repaired: design 64 and shared CRUD 25; grant cannot be exempted, so its draft-reuse predicate is now covered. |
 | 27-14 | P27-G09, P27-G15 | Repaired within search scope: clean focused design96, owned browser17+6; full broad Menu failure retained as G17. |
-| 27-15 | P27-G01, P27-G03, P27-G07 | Planned; no repair proof yet |
+| 27-15 | P27-G01, P27-G03, P27-G07 | Pricing36 clean pass; preserved untracked boundary fixture5 pass; G07 dirty map closure remains separately owned. See fixture disposition. |
 | 27-16 | P27-G11, P27-G16 | Planned; no repair proof yet |
 | 27-17 | P27-G01, P27-G02, P27-G03, P27-G04, P27-G05, P27-G06, P27-G07, P27-G08, P27-G09, P27-G10, P27-G11, P27-G12, P27-G13, P27-G14, P27-G15, P27-G16 | Planned; no repair proof yet |
 

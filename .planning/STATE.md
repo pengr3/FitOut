@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: Plans 27-10 through 27-14 complete; next 27-15 reconciliation; original 08/09 pending; 12/17 complete
-last_updated: "2026-10-09T12:49:54.848Z"
+stopped_at: Plans 27-10 through 27-15 complete; next 27-16 causal streaming investigation; original 08/09 pending; 13/17 complete
+last_updated: "2026-10-09T12:51:32.941Z"
 last_activity: 2026-10-09
-last_activity_desc: Anchored single-tree search and hydration guard verified; owned browser17+6 pass; broad Menu gap retained; pricing committed and reconciliation next
+last_activity_desc: Hourly-required day-optional pricing36 clean cases; preserved boundary fixture5 shared cases; dirty map census retained with explicit ownership; next streaming causality
 state_head: 73991abb
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -58,7 +58,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 136
+  completed_plans: 137
   percent: 15
 ---
 
@@ -69,7 +69,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Latest focus (2026-10-09):** Plans 27-10 through 27-14 are complete. Search/handoff owned browser17+6 and clean focused source checks pass. Next 27-15.  Eight supplementary plans 27-10–17 are planned; 10–14 complete, 15–17 pending. Original plans 01–07 complete; 08/09 pending. D-21 requires hourly price with optional day price. Preserve Contact off, external checkpoint and all release HOLDs.
+**Latest focus (2026-10-09):** Plans 27-10 through 27-15 are complete. Owned search/handoff23, clean schema36 and shared boundary5 pass; unowned dirty map/slot feature and broad Menu gap retained. Next 27-16.  Eight supplementary plans 27-10–17 are planned; 10–15 complete, 16–17 pending. Original plans 01–07 complete; 08/09 pending. D-21 requires hourly price with optional day price. Preserve Contact off, external checkpoint and all release HOLDs.
 
 **Earlier preparation focus:** Phase 27 — App Subdomain & Marketing Website — AWAITING RELEASE/ACCOUNT CHECKPOINT. Plans 27-01 through 27-07 complete (7/17); 27-08 remains incomplete with SUMMARY absent and 27-09 has not started. Four original review findings are independently closed. Earlier dirty-source local checks passed 52 Chromium cases, 147 focused tests, types/lint/build; assisted Windows teardown and an unattributed streaming error remain disclosed. Full unit/design still retain eight/nine failures and no clean deployable SHA is proved. October 9 continuation repaired evidence replacement validation (104 offline tests and focused lint pass), retaining historical failures and requiring six fresh clean full gates before deployment acceptance. All requested provider/browser access and bounded readbacks are now available; approved Google origin/callback additions are saved and current-apex sign-in passed for an existing account. DNS/TLS and wildcard zone records are observed, but app returns DEPLOYMENT_NOT_FOUND and www lacks its planned redirect. Preview isolation, production provider bindings/signatures, compatibility revision, exact remaining mutation authority, global Contact controls and inbox receipt/reply remain pending. The separate ops share-link and Inngest serve bypasses need owner-coordinated invalidation/replacement; values are excluded and were never used. Contact is disabled, all seven requirements remain pending, and payment/payout/legal HOLD is unchanged. Resume from the phase `.continue-here.md`, checkpoint, dated inventory and packet.
 
