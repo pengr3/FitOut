@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { validateEvidence, REQUIRED_MATRIX, runnerSummary } from "../../scripts/verify-phase27-evidence.mjs";
+import { validateEvidence, REQUIRED_MATRIX, runnerSummary, gateHistoryDigest } from "../../scripts/verify-phase27-evidence.mjs";
 import { completeFixture } from "./fixtures/phase27-evidence.mjs";
 test("synthetic complete distinct deployed matrix passes structural validation only", () => {
   const fixture = completeFixture();
@@ -156,4 +156,113 @@ test("compiled Next build with a type-check failure retains explicit failed term
   assert.equal(summary.resultData.errors, 2);
   assert.equal(summary.failed, 2);
   assert.match(summary.terminalSummary, /Failed to type check/);
+});
+
+// These are synthetic byte-consistency fixtures, never release, account or execution proof.
+function replacementFixture() {
+  const fixture = completeFixture();
+  const gates = structuredClone(fixture.engineering.gates);
+  gates.forEach((gate, index) => {
+    const log = fixture.logs.get(gate.rawLogPath);
+    gate.rawLogPath = `playwright/.cache/phase27-08/synthetic-candidate-${index}.log`;
+    fixture.logs.set(gate.rawLogPath, log);
+    gate.startedAt = new Date(Date.UTC(2026, 9, 8, 22, index)).toISOString();
+    gate.finishedAt = new Date(Date.UTC(2026, 9, 8, 22, index, 1)).toISOString();
+    gate.durationSeconds = 1;
+  });
+  fixture.engineering.gates.forEach((gate) => { gate.testedSource = { provenance: "unavailable", revision: null, manifest: null, capturedAt: null, dirty: true, claim: "working-tree", reason: "Synthetic historical unavailable capture" }; });
+  const old = fixture.engineering.gates[0];
+  const log = "Test Files 1 failed (1)\nTests 8 failed (8)\n";
+  const summary = runnerSummary("vitest", log);
+  fixture.logs.set(old.rawLogPath, log);
+  Object.assign(old, { status: "fail", exitCode: 1, result: "8 failed; historical fixture", disposition: "Superseded by complete synthetic clean candidate run; historical failure retained", logSha256: createHash("sha256").update(log).digest("hex"), resultData: summary.resultData, terminalSummary: summary.terminalSummary });
+  fixture.engineering.releaseCandidateVerification = { schemaVersion: 1, disposition: "Complete clean candidate rerun; preserve historical failures", supersedesSha256: gateHistoryDigest(fixture.engineering), revision: fixture.live.deployedRevision, sourceManifestSha256: fixture.live.sourceManifestSha256, gates };
+  return fixture;
+}
+
+test("complete clean replacement can supersede honestly failed uncaptured history", () => {
+  const fixture = replacementFixture();
+  assert.deepEqual(validateEvidence(fixture), []);
+  assert.equal(fixture.engineering.gates[0].status, "fail");
+  delete fixture.engineering.releaseCandidateVerification;
+  assert(validateEvidence(fixture).some((error) => error.includes("Failed engineering gates")));
+});
+
+test("replacement retains validation of historical log bytes", () => {
+  const fixture = replacementFixture();
+  const old = fixture.engineering.gates[0];
+  fixture.logs.set(old.rawLogPath, fixture.logs.get(old.rawLogPath) + "tampered");
+  assert(validateEvidence(fixture).some((error) => error.includes("raw log digest mismatch")));
+});
+
+test("replacement binds the complete historical record rather than just its status", () => {
+  const fixture = replacementFixture();
+  fixture.engineering.gates[0].disposition = "Altered history";
+  assert(validateEvidence(fixture).some((error) => error.includes("bind retained gate history")));
+});
+
+test("replacement binds supplemental failed attempts as well as the first six gates", () => {
+  const fixture = replacementFixture();
+  const gate = structuredClone(fixture.engineering.gates[0]);
+  gate.startedAt = fixture.engineering.gates.at(-1).finishedAt;
+  gate.finishedAt = gate.startedAt; gate.durationSeconds = 0;
+  fixture.engineering.reviewFixVerification = { gates: [gate] };
+  fixture.engineering.releaseCandidateVerification.supersedesSha256 = gateHistoryDigest(fixture.engineering);
+  assert.deepEqual(validateEvidence(fixture), []);
+  gate.resultData.tests.failed = 7;
+  fixture.engineering.releaseCandidateVerification.supersedesSha256 = gateHistoryDigest(fixture.engineering);
+  assert(validateEvidence(fixture).some((error) => error.includes("typed runner totals")));
+});
+
+for (const [field, value] of [["schemaVersion", 2], ["disposition", ""], ["supersedesSha256", "0".repeat(64)], ["revision", "b".repeat(40)], ["sourceManifestSha256", "f".repeat(64)], ["gates", []], ["gates", null]]) {
+  test(`replacement malformed ${field} blocks acceptance`, () => {
+    const fixture = replacementFixture(); fixture.engineering.releaseCandidateVerification[field] = value;
+    assert(validateEvidence(fixture).length > 0);
+  });
+}
+
+test("null replacement cannot fall back to historic acceptance", () => {
+  const fixture = completeFixture(); fixture.engineering.releaseCandidateVerification = null;
+  assert(validateEvidence(fixture).length > 0);
+});
+
+test("dirty replacement fails even at prepared stage", () => {
+  const fixture = replacementFixture();
+  Object.assign(fixture.engineering.releaseCandidateVerification.gates[0].testedSource, { dirty: true, claim: "working-tree" });
+  assert(validateEvidence({ ...fixture, stage: "prepared" }).some((error) => error.includes("clean deployed source")));
+});
+
+test("replacement requires canonical full gate order and cannot substitute focused tests", () => {
+  const fixture = replacementFixture();
+  fixture.engineering.releaseCandidateVerification.gates[0].command += " tests/contact/contact-route.test.ts";
+  assert(validateEvidence(fixture).some((error) => error.includes("command/order/runner")));
+});
+
+test("failed or relabeled replacement cannot establish acceptance", () => {
+  const fixture = replacementFixture();
+  const gate = fixture.engineering.releaseCandidateVerification.gates[0];
+  const log = "Test Files 1 failed (1)\nTests 1 failed (1)\n";
+  fixture.logs.set(gate.rawLogPath, log); gate.logSha256 = createHash("sha256").update(log).digest("hex");
+  assert(validateEvidence(fixture).some((error) => error.includes("pass label contradicts")));
+  const summary = runnerSummary("vitest", log);
+  Object.assign(gate, { status: "fail", exitCode: 1, disposition: "Still failing", result: "1 failed", resultData: summary.resultData, terminalSummary: summary.terminalSummary });
+  assert(validateEvidence(fixture).some((error) => error.includes("Failed engineering gates")));
+});
+
+test("replacement cannot overlap or precede historical gates", () => {
+  const fixture = replacementFixture(); const gate = fixture.engineering.releaseCandidateVerification.gates[0];
+  gate.startedAt = fixture.engineering.gates[0].startedAt;
+  gate.finishedAt = new Date(Date.parse(gate.startedAt) + 1000).toISOString();
+  assert(validateEvidence(fixture).some((error) => error.includes("overlapped preceding gate")));
+});
+
+test("replacement cannot bypass unknown accounts, authority or Contact controls", () => {
+  const fixture = replacementFixture();
+  fixture.inventory.rows[0].status = "unknown";
+  fixture.packet.authority.status = "pending";
+  fixture.live.contactControlsVerified = false;
+  const errors = validateEvidence(fixture);
+  assert(errors.some((error) => error.includes("external inventory")));
+  assert(errors.some((error) => error.includes("authority")));
+  assert(errors.some((error) => error.includes("Contact controls")));
 });

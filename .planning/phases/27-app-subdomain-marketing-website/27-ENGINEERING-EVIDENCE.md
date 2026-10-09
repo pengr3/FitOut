@@ -782,3 +782,26 @@ live inbox, distributed-control, production cache, signed-provider or external a
 proof was acquired. Independent re-review closes all four original findings; account prerequisites and final approved
 deployment remain pending. Plans08/09, all seven requirements and release HOLDs remain
 unchanged. No 08 SUMMARY was created.
+
+## October 9 continuation: candidate replacement validation repair
+
+The validator formerly required historical unavailable/dirty captures and failed
+attempts to match a future deployed revision. Fresh acceptance could therefore
+never succeed while retaining the honest history. The offline validator now
+supports an explicit versioned releaseCandidateVerification with a digest binding
+all original/review-fix records, a disposition, exact clean revision/manifest and
+all six canonical full gates. Historical bytes/provenance remain validated; the
+fresh run must occur later, pass all six gates and match the approved deployed
+source. Existing strict behavior is preserved when no replacement exists.
+This change does not waive tests, relabel history, authenticate evidence or
+authorize deployment/Contact. No actual candidate run has been added to this file.
+
+Actual terminal verification: `node --test tests/scripts/phase27-evidence.test.mjs`
+exited0 with **104 passed, zero failed/skipped/cancelled**, runner duration350.5263ms.
+Seventeen new tests exercise retained failures, tampered history/logs, supplemental
+attempts, malformed/partial replacements, dirty source, canonical full commands,
+failed/relabelled outcomes, chronological order and unchanged external/control gates.
+These are synthetic offline records only. Prepared validation exits0 while
+retaining actual failed engineering gates and pending authority; deployed validation
+still exits1 for absent real evidence, failed gates and unresolved prerequisites.
+No full application suite/build/browser rerun or clean-SHA proof is claimed here.

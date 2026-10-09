@@ -3,7 +3,9 @@
 **Prepared engineering and read-only inventory only. Cutover is blocked.** The
 architecture is already authorized by D-16/D-17. The remaining checkpoint concerns
 actual account prerequisites and exact external changes, not routine implementation
-choices. No deployment, DNS/provider change, live inquiry or fund movement occurred.
+choices. The separately approved Google client-registration additions are saved,
+and current-apex Google sign-in passed for the existing browser account. No
+deployment, DNS change, live inquiry or fund movement occurred.
 Task 27-08-03 is blocking-human and is reserved for the owner when available.
 
 ```json
@@ -58,8 +60,21 @@ at execution time. They tested a preserved dirty working tree and establish neit
 candidate SHA nor a deployed SHA. Prepared validation accepts that honest limitation; deployed/live
 validation rejects it. New captures include revision, dirty state, capture time, scoped file hashes
 and manifest digest. Dirty captures cannot be relabeled as clean or deployed source, and all
-deployed gate captures must match the deployed source revision and manifest digest. Byte hashes
+active acceptance gate captures must match the deployed source revision and manifest digest. Byte hashes
 and summary checks establish structural consistency only, not proof of execution or authenticity.
+
+An optional `engineering.releaseCandidateVerification` now records an explicit
+complete replacement run without rewriting old results. Its schemaVersion1,
+nonempty disposition and `supersedesSha256=gateHistoryDigest(engineering)` bind
+all retained original/review-fix gates. Its exact revision/sourceManifestSha256
+bind six fresh full gates in the canonical order, run after the historical gates.
+Each fresh source must be clean, captured before its gate and match that candidate
+manifest; deployed/live additionally bind it to the actual approved deployment.
+All old log/snapshot bytes, summaries, failure dispositions and provenance are
+still validated. A partial, failed, dirty, focused-only or mismatched replacement
+cannot pass deployment acceptance. Without an explicit replacement, the original
+strict rules remain. No real replacement run is recorded yet; current full-suite
+failures and missing external proof still block deployed/live validation.
 
 `scripts/verify-phase27-evidence.mjs` now requires matrixVersion 1 and all 35 distinct
 scenario IDs in REQUIRED_MATRIX. Each observation records the exact host/HTTPS URL/method,
@@ -190,8 +205,12 @@ headers/tokens and message body from evidence. Provider acceptance alone is not 
 - Failed engineering gates and any real integration defects need disposition;
   final exact approved deployable SHA and deployed high-threat proof are pending; independent code re-review is clean.
 - Compatibility-first intermediate deployment/origin proof described above.
-- DNS RRsets/TLS and actual www behavior; preview account isolation read-back.
-- Current Google/PayMongo/Didit/Inngest/Resend account settings and owners.
+- App attachment, www redirect and preview account isolation. October 9 readbacks
+  establish zone records and valid TLS; app still returns DEPLOYMENT_NOT_FOUND,
+  and the www HEAD path/query probe returns 404 without a redirect.
+- Provider access/readbacks are available and the approved Google additions are
+  saved; production modes/bindings, audience readiness, signatures, receiver
+  continuity and named operating owners remain partially unverified.
 - Published global Contact control, mailbox budget and available inbox owner.
 - Scoped exact external mutation/inquiry authority, rollback and monitoring operator.
 - Account owner invalidation of the existing ops share-link bypass exposed by a raw
@@ -225,5 +244,6 @@ build/browser useHEAD 9859a5c with dirty manifests; this does not prove a clean 
 or deployed revision. Historical full unit 8/design 9 failures and uncaptured historical
 source context remain failed/unavailable. Final external candidate readback, central
 review and all matrix/control/inbox observations still block acceptance. No account,
-provider, deployment, DNS or mail mutation occurred; Contact remains disabled, plans 08/09
+provider, deployment, DNS or mail mutation occurred during those local checks.
+The later approved Google change is recorded separately. Contact remains disabled, plans 08/09
 incomplete, all seven requirements unchecked and checkout/payout/legal HOLD immutable.

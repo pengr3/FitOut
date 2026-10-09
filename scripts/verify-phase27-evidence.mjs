@@ -43,6 +43,8 @@ const validTimestamp = (value) => typeof value === "string" && /^\d{4}-\d\d-\d\d
 export const SOURCE_SCOPE = ["src/", "public/", "tests/", "e2e/", "scripts/", "package.json", "package-lock.json", "pnpm-lock.yaml", "next.config.ts", "next-env.d.ts", "tsconfig.json", "vitest.config.ts", "vitest.design.config.ts", "playwright.config.ts", "eslint.config.mjs", "postcss.config.mjs", "components.json", "instrumentation.ts", "vercel.json"];
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 export const manifestDigest = (files) => sha256(JSON.stringify(files));
+// Bind an explicit replacement run to the complete retained history, including failed attempts.
+export const gateHistoryDigest = (engineering) => sha256(JSON.stringify({ gates: engineering.gates, reviewFixGates: engineering.reviewFixVerification?.gates ?? [] }));
 // Capture before a gate; never reconstruct a historical capture from today's files. No env or
 // credential files are in scope. Hashes establish byte consistency, not execution attestation.
 export function captureSourceContext() {
@@ -131,7 +133,10 @@ const commands = [
 ];
 check(Array.isArray(engineering.gates) && engineering.gates.length === commands.length, "All six full gate results are required");
 const runners = ["vitest", "vitest", "typescript", "eslint", "next-build", "playwright"];
-function validateSource(source, gate, label) {
+const candidate = engineering.releaseCandidateVerification;
+const hasCandidate = candidate !== undefined;
+const deployedBinding = stage === "prepared" ? undefined : { revision: live.deployedRevision, manifestSha256: live.sourceManifestSha256 };
+function validateSource(source, gate, label, binding) {
   if (source?.provenance === "snapshot") {
     const path = typeof source.path === "string" ? resolve(root, source.path) : null;
     const fromRoot = path ? relative(root, path) : "..";
@@ -144,14 +149,14 @@ function validateSource(source, gate, label) {
       const captured = JSON.parse(String(bytes));
       check(captured?.provenance === "captured" && captured.revision === source.revision && captured.dirty === source.dirty && captured.claim === source.claim && captured.capturedAt === source.capturedAt && captured.manifest?.sha256 === source.manifestSha256, `${label} source snapshot contradicts reference context`);
       // A snapshot must contain an original capture, never another reference (no recursion chain).
-      if (captured?.provenance === "captured") validateSource(captured, gate, label);
+      if (captured?.provenance === "captured") validateSource(captured, gate, label, binding);
     } catch { check(false, `${label} source snapshot unavailable or malformed`); }
     return;
   }
   check(typeof source?.dirty === "boolean" && ["captured", "unavailable"].includes(source?.provenance), `${label} tested source provenance/dirty state missing`);
   if (source?.provenance === "unavailable") {
     check(source.revision === null && source.manifest === null && source.capturedAt === null && source.claim === "working-tree" && source.dirty === true && nonempty(source.reason), `${label} unavailable historical source must not claim clean/captured revision`);
-    check(stage === "prepared", `${label} uncaptured historical source blocks deployed/live acceptance`);
+    check(!binding, `${label} uncaptured historical source blocks deployed/live acceptance`);
     return;
   }
   check(typeof source?.revision === "string" && /^[a-f0-9]{40}$/.test(source.revision) && validTimestamp(source?.capturedAt) && Date.parse(source.capturedAt) <= Date.parse(gate.startedAt), `${label} tested revision/capture time missing`);
@@ -162,15 +167,28 @@ function validateSource(source, gate, label) {
   check(files.length > 0 && files.every((file) => nonempty(file?.path) && !isAbsolute(file.path) && !file.path.split(/[\\/]/).includes("..") && !file.path.includes("\\") && SOURCE_SCOPE.some((path) => path.endsWith("/") ? file.path.startsWith(path) : file.path === path) && (file.sha256 === null || typeof file.sha256 === "string" && /^[a-f0-9]{64}$/.test(file.sha256))), `${label} typed scoped source files missing`);
   check(new Set(files.map((file) => file?.path)).size === files.length && files.every((file, index) => index === 0 || files[index - 1]?.path < file?.path), `${label} source manifest duplicates/order invalid`);
   check(typeof manifest?.sha256 === "string" && manifest.sha256 === manifestDigest(files), `${label} source manifest digest mismatch`);
-  if (stage !== "prepared") check(source?.dirty === false && source?.revision === live.deployedRevision && manifest?.sha256 === live.sourceManifestSha256, `${label} clean deployed source does not match tested context`);
+  if (binding) check(source?.dirty === false && source?.revision === binding.revision && manifest?.sha256 === binding.manifestSha256, `${label} clean deployed source does not match tested context`);
 }
 const verification = engineering.reviewFixVerification?.gates ?? [];
 check(Array.isArray(verification), "Review-fix verification gates must be an array");
-const gates = [...commands.map((_, index) => engineering.gates?.[index] ?? {}), ...(Array.isArray(verification) ? verification : [])];
+if (hasCandidate) {
+  check(candidate?.schemaVersion === 1 && nonempty(candidate?.disposition), "Candidate replacement version/disposition missing");
+  check(candidate?.supersedesSha256 === gateHistoryDigest(engineering), "Candidate replacement does not bind retained gate history");
+  check(typeof candidate?.revision === "string" && /^[a-f0-9]{40}$/.test(candidate.revision) && typeof candidate?.sourceManifestSha256 === "string" && /^[a-f0-9]{64}$/.test(candidate.sourceManifestSha256), "Candidate clean revision/manifest missing");
+  check(Array.isArray(candidate?.gates) && candidate.gates.length === commands.length, "Candidate replacement requires all six full gates");
+  if (stage !== "prepared") check(candidate?.revision === live.deployedRevision && candidate?.sourceManifestSha256 === live.sourceManifestSha256, "Candidate replacement does not match deployed source");
+}
+const historicalBinding = hasCandidate ? undefined : deployedBinding;
+const specs = [
+  ...commands.map((command, index) => ({ gate: engineering.gates?.[index] ?? {}, command, runner: runners[index], binding: historicalBinding })),
+  ...(Array.isArray(verification) ? verification : []).map((gate) => ({ gate, runner: gate?.resultData?.runner, binding: historicalBinding })),
+  ...(hasCandidate ? commands.map((command, index) => ({ gate: candidate?.gates?.[index] ?? {}, command, runner: runners[index], binding: { revision: candidate?.revision, manifestSha256: candidate?.sourceManifestSha256 } })) : []),
+];
+const gates = specs.map((spec) => spec.gate);
 for (let index = 0; index < gates.length; index++) {
   const gate = gates[index] ?? {};
-  const runner = index < commands.length ? runners[index] : gate.resultData?.runner;
-  check(index < commands.length ? gate.command === commands[index] : nonempty(gate.command) && [...runners, "node-test"].includes(runner), `Gate ${index + 1} command/order/runner missing`);
+  const { runner, command, binding } = specs[index];
+  check(command ? gate.command === command : nonempty(gate.command) && [...runners, "node-test"].includes(runner), `Gate ${index + 1} command/order/runner missing`);
   check(Number.isInteger(gate.exitCode) && Number.isFinite(gate.durationSeconds) && gate.durationSeconds >= 0, `Gate ${index + 1} actual exit/timing missing`);
   check(["pass", "fail"].includes(gate.status) && (gate.exitCode === 0) === (gate.status === "pass"), `Gate ${index + 1} status contradicts exit`);
   check(nonempty(gate.result) && typeof gate.logSha256 === "string" && /^[a-f0-9]{64}$/.test(gate.logSha256), `Gate ${index + 1} bounded result/evidence digest missing`);
@@ -199,7 +217,7 @@ for (let index = 0; index < gates.length; index++) {
   if (gate.status === "fail") check(Boolean(gate.disposition), `Gate ${index + 1} failure disposition missing`);
   check(validTimestamp(gate.startedAt) && validTimestamp(gate.finishedAt) && Date.parse(gate.finishedAt) >= Date.parse(gate.startedAt), `Gate ${index + 1} timestamps invalid or finish precedes start`);
   check(Math.abs((Date.parse(gate.finishedAt) - Date.parse(gate.startedAt)) / 1000 - gate.durationSeconds) <= 1, `Gate ${index + 1} elapsed timing contradicts start/finish`);
-  validateSource(gate.testedSource, gate, `Gate ${index + 1}`);
+  validateSource(gate.testedSource, gate, `Gate ${index + 1}`, binding);
   if (index > 0) check(Date.parse(gate.startedAt) >= Date.parse(gates[index - 1]?.finishedAt), `Gate ${index + 1} overlapped preceding gate`);
 }
 check(engineering.liveInboxProven === false, "Engineering evidence must not claim live inbox proof");
@@ -221,7 +239,8 @@ for (const id of ids) {
   if (row?.status === "unknown") check(row.current.toLowerCase().includes("unknown"), `${id}: unknown asserted as fact`);
 }
 if (stage === "deployed" || stage === "live") {
-  check(Array.isArray(engineering.gates) && engineering.gates.every((gate) => gate.status === "pass"), "Failed engineering gates block deployment acceptance");
+  const acceptanceGates = hasCandidate ? candidate?.gates : engineering.gates;
+  check(Array.isArray(acceptanceGates) && acceptanceGates.length === commands.length && acceptanceGates.every((gate) => gate?.status === "pass"), "Failed engineering gates block deployment acceptance");
   check(inventory.rows?.every((row) => row.status === "observed"), "Unknown/partial external inventory blocks deployed proof");
   check(live.deployedRevision === packet.approvedRevision && /^[a-f0-9]{40}$/.test(live.deployedRevision ?? ""), "Exact approved deployed revision read-back missing");
   check(packet.authority?.status === "approved" && packet.authority?.scope && packet.authority?.approvedAt, "Scoped cutover authority missing");
@@ -287,7 +306,8 @@ if (errors.length) {
   console.error(`Phase 27 ${stage}: FAIL\n${errors.map((error) => `- ${error}`).join("\n")}`);
   process.exitCode = 1;
 } else {
-  console.log(`Phase 27 ${stage}: evidence structure validated; engineering=${engineering.gates.every((gate) => gate.status === "pass") ? "pass" : "failed gates retained"}; external approval=${packet.authority?.status ?? "pending"}.`);
+  const acceptance = engineering.releaseCandidateVerification ? `candidate gates ${engineering.releaseCandidateVerification.gates.every((gate) => gate.status === "pass") ? "pass" : "fail"}; historical gates retained` : engineering.gates.every((gate) => gate.status === "pass") ? "pass" : "failed gates retained";
+  console.log(`Phase 27 ${stage}: evidence structure validated; engineering=${acceptance}; external approval=${packet.authority?.status ?? "pending"}.`);
 }
 }
 }
