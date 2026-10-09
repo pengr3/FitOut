@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "D-23 scope expanded; plans18–20 ready; 15/20 complete; quota migration and isolated Preview execution"
-last_updated: "2026-10-09T17:08:49.948Z"
+stopped_at: "D-23 plans18/19 complete; 17/20; Plan20 full gates/retry and paired Preview deployment proof pending"
+last_updated: "2026-10-09T17:44:16.603Z"
 last_activity: 2026-10-10
-last_activity_desc: User approves bounded quota-schema and isolated Preview repairs; inbox receipt confirmed, reply sent; release proof still pending
+last_activity_desc: Quota repair and isolated Preview settings verified; full candidate has two hosting-fixture failures being repaired; no deployment
 state_head: 596b4746
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -58,13 +58,13 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 139
+  completed_plans: 141
   percent: 15
 ---
 
 # Project State
 
-**Latest focus (2026-10-10):** D-23 permits one Contact quota table/migration and an isolated schema-only Preview branch, with checked follow-up plans18–20. Counts are15/20 and139/150; no new completion is inferred. User confirms inbox receipt and reply sent. Contact remains disabled, production cutover and all seven requirements pending.
+**Latest focus (2026-10-10):** Plans18/19 complete with focused local and real isolated Neon proof plus Preview-only settings; 17/20 phase plans and141/150 total. Plan20 retains a full run with two hosting-test transition/mock failures; repair and six fresh gates precede paired Preview deployment/session proof. No new release candidate acceptance or production changes. Contact off, original08/09 and all requirements pending, all HOLDs preserved.
 
 ## Project Reference
 

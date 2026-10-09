@@ -73,3 +73,8 @@ an available monitored mailbox owner after the quota controls are verified.
 ## October 10 continuation
 
 The project owner confirms the monitored launch support inbox. One authorized standalone Resend transport test is Delivered with the expected Reply-To; owner receipt and a deployed Contact endpoint/reply are still pending. Preview has a hidden web database binding, no returned ops database binding and production ops origins in both projects. No dedicated schema-only Preview branch exists; isolation is unproved. Quota-table and dedicated Preview branch decisions remain pending. See 27-INBOX-AND-PREVIEW-READBACK-20261010.md; no settings or deployment changed.
+
+
+## D-23 execution readback — October10 (supersedes prior settings above)
+
+The owner confirms receipt and reply-sent. Plans18/19 implement the shared quota and additive migration, create the schema-only Preview branch, and save isolated Preview database/auth/origin/Contact-off settings. Real Preview quota contention passes; production settings are unchanged. The first new full candidate run has two hosting-fixture failures, retained and being repaired. Six new complete passes and fresh cold proof remain required before paired Preview deployment/session/Contact-off checks. Those deployed observations, production migration/enablement/alert-and-disable proof and compatibility-first cutover remain pending. No further transport test was sent. See27-PREVIEW-ISOLATION-EVIDENCE.md.
