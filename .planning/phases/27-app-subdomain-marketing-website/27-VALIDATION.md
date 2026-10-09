@@ -197,7 +197,13 @@ relevant deployed/live stage; real receipt is required even when Resend acceptan
 ### 27-16: Identify the streaming lifecycle fault and stabilize approved-host entry
 
 - 27-16-1: Build a bounded cold/warm reproduction with route correlation: `FITOUT_STREAMING_SERVER=dev then production (set via PowerShell $env:FITOUT_STREAMING_SERVER); node node_modules/@playwright/test/cli.js test --config playwright.streaming.config.ts e2e/marketing-streaming.spec.ts --project=chromium --workers=1`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
-- 27-16-2: Fix only an established owning cause and prove the original journey: `node node_modules/@playwright/test/cli.js test e2e/marketing-streaming.spec.ts e2e/marketing-journeys.spec.ts --project=chromium --workers=1`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+- 27-16-2: Fix only an established owning cause and prove the original journey: `node node_modules/@playwright/test/cli.js test --config playwright.streaming.config.ts e2e/marketing-streaming.spec.ts e2e/marketing-journeys.spec.ts --project=chromium --workers=1`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+
+Observed27-16 checkpoint: native preflight distinguishes32/32 faults on24.13 from0/32
+on already-installed24.19. Canonical build and production standalone cold/warm pass;
+original9 journeys pass. Combined fixture budget fails, and both default and explicit-
+root cold-dev variants fail the five-second assertion. See diagnosis/checkpoint for
+exact revisions, hashes and logs. Neither16 nor17 is accepted; Nyquist remainsfalse.
 
 ### 27-17: Verify a clean committed repair candidate and return to the existing cutover checkpoint
 

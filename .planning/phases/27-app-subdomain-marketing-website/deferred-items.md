@@ -124,10 +124,31 @@ User authorizes planning and continuous local work; D-21 resolves G01. Planning 
 | 27-13 | P27-G05, P27-G06, P27-G08, P27-G10 | Repaired: design 64 and shared CRUD 25; grant cannot be exempted, so its draft-reuse predicate is now covered. |
 | 27-14 | P27-G09, P27-G15 | Repaired within search scope: clean focused design96, owned browser17+6; full broad Menu failure retained as G17. |
 | 27-15 | P27-G01, P27-G03, P27-G07 | Pricing36 clean pass; preserved untracked boundary fixture5 pass; G07 dirty map closure remains separately owned. See fixture disposition. |
-| 27-16 | P27-G11, P27-G16 | Planned; no repair proof yet |
+| 27-16 | P27-G11, P27-G16 | Checkpoint: native cancellation race reproduced32/32 on24.13,0/32 on existing24.19; owned preflight refuses bad runtime. Built cold/warm probe and original9 journeys pass; cold-dev deadline still fails. No SUMMARY or dependent acceptance. |
 | 27-17 | P27-G01, P27-G02, P27-G03, P27-G04, P27-G05, P27-G06, P27-G07, P27-G08, P27-G09, P27-G10, P27-G11, P27-G12, P27-G13, P27-G14, P27-G15, P27-G16 | Planned; no repair proof yet |
 
-G07 may remain a separately owned dirty-source observation after committed-source acceptance; that disposition requires an explicit reason. G11/G16 need causal evidence, and an inconclusive investigation blocks dependent acceptance.
+G07 remains a separately owned dirty-source observation with explicit disposition. G11's native runtime cause is established within the bounded local reproduction; G16's complete cold-development acceptance remains unmet. This checkpoint blocks dependent acceptance, and does not attribute every historical stream error.
+
+## P27-G18 / G19 — bounded streaming investigation findings
+
+G18: Cold development compilation remains outside the unchanged five-second edit
+URL deadline. On existing24.19 with no inspector, Next reports7.1s compilation;
+warm navigation succeeds. An explicit-root export variant also fails. Built
+production cold/warm and original journeys pass. Keep dev failure and runtime
+attribution separate; no wider deadline, route patch, config promotion or warmed-only
+acceptance. See27-STREAMING-DIAGNOSIS and27-16-CHECKPOINT. Plan17 stays dependent.
+
+G19: Combining the original9 journeys and the new streaming probe exhausts the
+local signup endpoint fixture budget. The combined attempt is1 failed/9 passed;
+the standalone fresh-server probe passes. Preserve production auth/rate controls
+and plan isolated, deterministic fixture ownership before combining full suites.
+This is an actual retained failure, not a waiver or an instruction to bypass limits.
+
+Resource/provenance prerequisite: C: reachedENOSPC during a diagnostic. Only old
+duplicated node_modules copies were reclaimed; source/log/archive/cache evidence
+is preserved. The current fixed runtime is already installed, not system/deployment
+configuration. Future full gates require enough space, an explicit runtime and a
+built-server config with byte-bound provenance. No candidate/full-gate record added.
 
 ## Additional bounded verification finding — P27-G17
 
