@@ -81,3 +81,15 @@ test("URL-backed long answers retain identity, edit focus and browser Back", asy
   await expect(page.getByRole("button", { name: /^Location:/ })).toHaveCount(1);
   expect(context.pages()).toEqual([page]);
 });
+
+test("search controls are disabled while the page has no client handlers", async ({ browser }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    await page.goto(base);
+    const trigger = page.getByRole("group", { name: "Search spaces", exact: true }).getByRole("button", { name: "Start your search", exact: true });
+    await expect(trigger).toBeDisabled();
+    await expect(page.getByRole("dialog", { name: "Search spaces", exact: true })).toHaveCount(0);
+    expect(page.url()).toBe(`${base}/`);
+  } finally { await context.close(); }
+});
