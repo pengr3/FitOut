@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { ActivityStep, CATALOGUE, type CatalogueOption } from "@/components/search/activity-step";
@@ -10,6 +10,11 @@ import { ProgressiveSearchOverlay } from "@/components/search/progressive-search
 import type { ResolvedAddress } from "@/components/listing/address-autocomplete";
 import { Button } from "@/components/ui/button";
 import { searchParamsSchema } from "@/lib/validation/booking";
+
+// Match the existing login/marketing guard: streamed HTML must not offer inert controls.
+const subscribeHydration = () => () => {};
+const clientHydrated = () => true;
+const serverHydrated = () => false;
 
 export type SearchAnswerKey = "activity" | "location" | "party";
 export type ProgressiveSearchScreen = "idle" | SearchAnswerKey;
@@ -147,6 +152,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
   hasCompletedSearch: boolean;
   children: ReactNode;
 }) {
+  const hydrated = useSyncExternalStore(subscribeHydration, clientHydrated, serverHydrated);
   const router = useRouter();
   const [state, setState] = useState(() => initialState(initialAnswers, hasCompletedSearch));
   const [filter, setFilter] = useState("");
@@ -253,7 +259,7 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
       <ProgressiveSearchOverlay
         open={hasOpenQuestion}
         trigger={!state.resultsVisible ? (
-          <Button type="button" variant="outline" size="touch" aria-label="Start your search" className="h-14 w-full justify-between sm:mx-auto sm:flex sm:max-w-3xl" onClick={() => { if (!hasOpenQuestion) dispatch({ type: "ENGAGE" }); }}>
+          <Button disabled={!hydrated} type="button" variant="outline" size="touch" aria-label="Start your search" className="h-14 w-full justify-between sm:mx-auto sm:flex sm:max-w-3xl" onClick={() => { if (!hasOpenQuestion) dispatch({ type: "ENGAGE" }); }}>
             <span className="shrink-0">Start your search</span><span className="truncate text-sm text-muted-foreground">Activity, location, and party</span>
           </Button>
         ) : undefined}
@@ -272,17 +278,17 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
               {questionContent}
             </div>
             <div role="group" aria-label="Search journey actions" className="order-2 flex justify-between gap-2 max-sm:-mx-4 max-sm:-mb-4 max-sm:mt-auto max-sm:border-t max-sm:border-border max-sm:bg-card max-sm:p-4 sm:order-1 sm:mb-2">
-              <Button type="button" variant="ghost" onClick={() => dispatch({ type: "BACK" })}>Back</Button>
-              <Button type="button" variant="ghost" onClick={cancel}>Cancel</Button>
+              <Button disabled={!hydrated} type="button" variant="ghost" onClick={() => dispatch({ type: "BACK" })}>Back</Button>
+              <Button disabled={!hydrated} type="button" variant="ghost" onClick={cancel}>Cancel</Button>
             </div>
           </div>
         ) : null}
       </ProgressiveSearchOverlay>
       {state.resultsVisible ? (
         <div className="flex min-w-0 flex-wrap gap-2 [&>button]:max-w-full [&>button]:whitespace-normal [&>button]:break-words" aria-label="Search answers">
-          <Button type="button" variant="outline" onClick={(event) => editAnswer("activity", event.currentTarget)}>Activity: {categoryLabel(answers.category)}</Button>
-          <Button type="button" variant="outline" onClick={(event) => editAnswer("location", event.currentTarget)}>Location: {locationChipLabel}</Button>
-          <Button type="button" variant="outline" onClick={(event) => editAnswer("party", event.currentTarget)}>{answers.partySize === 1 ? "1 person" : `${answers.partySize ?? 1} people`}</Button>
+          <Button disabled={!hydrated} type="button" variant="outline" onClick={(event) => editAnswer("activity", event.currentTarget)}>Activity: {categoryLabel(answers.category)}</Button>
+          <Button disabled={!hydrated} type="button" variant="outline" onClick={(event) => editAnswer("location", event.currentTarget)}>Location: {locationChipLabel}</Button>
+          <Button disabled={!hydrated} type="button" variant="outline" onClick={(event) => editAnswer("party", event.currentTarget)}>{answers.partySize === 1 ? "1 person" : `${answers.partySize ?? 1} people`}</Button>
         </div>
       ) : null}
       </div>
