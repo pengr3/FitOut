@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "27-08 external checkpoint: local plans 16/17 complete; six gates and fresh cold proof pass; 15/17 complete; original 08/09 pending"
-last_updated: "2026-10-09T15:54:53.051Z"
-last_activity: 2026-10-09
-last_activity_desc: Local blockers repaired; all six clean-source gates and fresh cold server pass; account-control checkpoint remains
+stopped_at: "D-23 scope expanded; plans18–20 ready; 15/20 complete; quota migration and isolated Preview execution"
+last_updated: "2026-10-09T17:08:49.948Z"
+last_activity: 2026-10-10
+last_activity_desc: User approves bounded quota-schema and isolated Preview repairs; inbox receipt confirmed, reply sent; release proof still pending
 state_head: 596b4746
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -17,7 +17,7 @@ progress:
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 13
   completed_phases: 2
-  total_plans: 147
+  total_plans: 150
   # 2026-10-09: Phase 27 has seventeen plans (nine original plus eight gaps); no new plan or phase
   # was executed/completed by planning. Preserve curated phase/completion totals.
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
@@ -63,6 +63,8 @@ progress:
 ---
 
 # Project State
+
+**Latest focus (2026-10-10):** D-23 permits one Contact quota table/migration and an isolated schema-only Preview branch, with checked follow-up plans18–20. Counts are15/20 and139/150; no new completion is inferred. User confirms inbox receipt and reply sent. Contact remains disabled, production cutover and all seven requirements pending.
 
 ## Project Reference
 

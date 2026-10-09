@@ -91,9 +91,17 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
     "providerAcceptance": true,
     "providerDelivery": "delivered",
     "replyToMatchesConfiguredInbox": true,
-    "ownerReceipt": "pending",
-    "ownerReply": "pending",
+    "ownerReceipt": "confirmed by user",
+    "ownerReply": "sent by user; arrival unproved",
     "deployedContactEndpointProved": false
+  },
+  "repairScopeExtension": {
+    "decision": "D-23",
+    "approvedAt": "2026-10-09T17:08:49.948Z",
+    "quotaTableAndMigration": true,
+    "schemaOnlyPreviewBranchAndPreviewBindings": true,
+    "productionCutover": false,
+    "publicContactEnablement": false
   }
 }
 ```

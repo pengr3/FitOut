@@ -58,3 +58,8 @@ specs, the search contract and streaming case with zero skips. The full run may
 collect the final Plan16 proof before accepting Plan17; neither is complete until
 its actual results exist. External readbacks/preparation may proceed; pending
 Contact inbox/control and provider/account evidence still cannot be fabricated.
+
+
+## D-23 — October 10 scope extension
+
+User explicitly expands scope for the Contact quota table/migration and dedicated schema-only Preview branch. Read27-RELEASE-CONTROL-SCOPE.md and checked plans18–20. This bounded exception supersedes only the earlier quota-related no-schema rule. No new runtime package, production cutover, public Contact enablement, money/legal release or unrelated dirty source promotion. Owner receipt is confirmed and reply sent; no reply arrival or deployed endpoint proof is inferred.

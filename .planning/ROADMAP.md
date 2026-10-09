@@ -1364,6 +1364,9 @@ Supplementary engineering repairs, approved for planning and continuous local wo
 - [x] 27-15-PLAN.md — Apply approved hourly-only publishing and reconcile boundary/census fixtures (wave 15; P27-G01, P27-G03, P27-G07)
 - [x] 27-16-PLAN.md — Fixed native runtime and built cold/warm hosting proof; development G18 retained under D-22
 - [x] 27-17-PLAN.md — Six clean-source gates pass at 596b4746; return to original external checkpoint
+- [ ] 27-18-PLAN.md — Implement one atomic shared Contact quota table (D-23 scope extension)
+- [ ] 27-19-PLAN.md — Create and prove a schema-only isolated Preview database (D-23 scope extension)
+- [ ] 27-20-PLAN.md — Reverify the extended repair candidate and return to cutover checkpoint (D-23 scope extension)
 
 ## Carried Forward (not v1.2 scope until promoted)
 
