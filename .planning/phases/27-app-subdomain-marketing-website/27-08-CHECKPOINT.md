@@ -182,4 +182,24 @@ No deployed credential match or Contact inbox proof is inferred. All exact facts
 and remaining owner/control/authority prerequisites are retained in the inventory
 and packet. This checkpoint remains incomplete and no 08 SUMMARY is created.
 
+### October 9 execution continuation
+
+The initializer still reports plans 08/09 incomplete (7/9); no SUMMARY was created.
+Read-only DNS/TLS/HEAD checks show valid certificates on all four public hosts,
+app DEPLOYMENT_NOT_FOUND and www404 without its planned path/query redirect.
+Vercel confirms the existing wildcard/apex TTL60 ALIAS records, absent app project
+attachment, unchanged customer Production app/ops URLs and absent marketing/Contact
+flags. Active firewall-config lookup returns config-not-found; no global Contact
+control is established. Exact findings and limits are in the dated inventory section.
+
+Next release preparation needs a clean candidate, full-suite failure disposition
+and verified compatibility revision. Preserved unrelated dirty source and excluded
+financial/bookability/search/wizard policy remain outside this execution scope.
+Continuation repaired the validator's historical-SHA deadlock with a versioned
+candidate replacement contract; 104 offline tests pass. Fresh clean full gates
+are still required and historical bytes/failures remain validated. The inbox-owner
+availability question is pending, without inquiry or Contact-enablement authority.
+No external mutation occurred during this continuation. The completed Google-only
+approval must not be re-requested; remaining packet authority is still pending.
+
 All seven created artifacts and both recorded task commits exist. Prepared validation passes. This confirms checkpoint artifact integrity, not plan completion or live acceptance.

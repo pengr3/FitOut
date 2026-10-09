@@ -1,5 +1,11 @@
 # Phase 27 — Current external inventory
 
+The opening snapshot/JSON is historical (October 8 UTC). Later dated sections
+supersede its unknown provider and DNS/TLS facts. As of October 9 continuation,
+all provider/browser access is observed, the explicitly approved Google registration
+additions are saved, and current-apex Google sign-in passed for one existing account.
+Remaining cutover authority and production/control evidence are still incomplete.
+
 Read-only snapshot: 2026-10-08 19:36–19:44 UTC (2026-10-09 Manila). No settings,
 deployment, provider event or email was changed. Phase23 is historical only.
 Authenticated Vercel connector calls used explicit team/project scope. Environment
@@ -249,3 +255,50 @@ branding edits, secrets, deployments, DNS and other provider destinations were n
 changed. The previously observed External/Testing audience remains outside this
 approval; full production audience readiness and app-domain proof remain pending.
 Contact remains disabled; checkout/payout/legal HOLD and phase completion are unchanged.
+
+### Continuation: current host, DNS and customer environment readbacks — October 9
+
+At 06:04:10–06:04:13 UTC (14:04 Manila), anonymous requests without cookies or
+protection bypass independently resolved and authenticated TLS for apex, www, app
+and ops. Normal hostname/certificate validation succeeded with TLS1.3; the
+certificate subject is CN=*.fitout.live, issuer Let's Encrypt YR2, expiry
+2026-12-10T03:13:43Z. No certificate-validation override was used.
+
+| Anonymous HEAD request | Result | Meaning |
+|---|---|---|
+| https://fitout.live/ | 200 | Current apex responds; does not identify its source revision. |
+| https://www.fitout.live/phase27-readback?probe=path-query | 404; no Location | Planned www path/query redirect is absent on this probe; GET remains unmeasured. |
+| https://app.fitout.live/ | 404; x-vercel-error=DEPLOYMENT_NOT_FOUND | DNS/TLS exist but app has no functioning Vercel destination. |
+| https://ops.fitout.live/ | 404; no-store/private | Root cloak is consistent with its intended policy; staff login is not tested by this request. |
+
+The retained read-only probe and filtered response/certificate observations are
+ignored `playwright/.cache/phase27-08/read-current-hosts.ps1` and
+`current-host-readback.json`. Resolver A answers and cached TTLs vary by host;
+they are not relabeled as authoritative zone records.
+
+Authenticated Vercel connector readbacks, explicit team scope, subsequently show:
+
+- Customer project domains remain fitout.live, www.fitout.live and its Vercel
+  project hostname. app.fitout.live is absent; www redirect/status fields are null.
+- Zone apex ALIAS -> 5e81041e11df6426.vercel-dns-017.com and wildcard ALIAS ->
+  cname.vercel-dns-017.com., both TTL60. No separate app/www/ops zone record is listed.
+  The existing wildcard explains app resolution; an app DNS write is not currently
+  required to explain or fix its missing project attachment.
+- Nameservers are ns1.vercel-dns.com/ns2.vercel-dns.com. Domain configuration reports
+  misconfigured=false and no conflicts. Sender DKIM/SPF/MX and DMARC records remain
+  present; their contents are omitted and were not changed.
+- fitout-web Production BETTER_AUTH_URL and NEXT_PUBLIC_APP_URL both remain
+  https://fitout.live; OPS_APP_URL remains https://ops.fitout.live. Individually
+  read allowlisted nonsecret values confirm these fields. Metadata listing with
+  decrypt=false shows MARKETING_APP_URL, MARKETING_PREVIEW_URL and
+  CONTACT_PRODUCTION_ENABLED absent. Other secret values were not read.
+- Preview lists production ops-origin metadata alongside auth/database/Inngest
+  keys. Isolation is not established by key presence. Ops project's configuration
+  and deployment identities above retain their October 8 timestamps.
+- An explicitly scoped fitout-web active firewall-config GET again returns 404
+  config-not-found. This is not proof of account incapability or absence of all
+  platform protection; no published configuration proves the required shared limits.
+
+No DNS, alias, environment, firewall, provider setting or deployment was mutated
+during this continuation. The only approved external change remains the separately
+recorded Google registration save. Plans 08/09 and all requirement counts are unchanged.

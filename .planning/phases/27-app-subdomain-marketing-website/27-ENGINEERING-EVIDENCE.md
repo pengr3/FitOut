@@ -805,3 +805,6 @@ These are synthetic offline records only. Prepared validation exits0 while
 retaining actual failed engineering gates and pending authority; deployed validation
 still exits1 for absent real evidence, failed gates and unresolved prerequisites.
 No full application suite/build/browser rerun or clean-SHA proof is claimed here.
+Focused ESLint for the validator and its Node-test file exited0 with no diagnostics;
+scoped diff whitespace check exited0. The last small CLI status-message refinement
+received a second focused lint pass. No product/runtime source was changed.
