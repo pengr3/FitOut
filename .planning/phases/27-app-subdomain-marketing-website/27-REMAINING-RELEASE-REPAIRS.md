@@ -68,3 +68,8 @@ place. Publishing the Google audience and provider destination migration are
 separate account actions. No fund movement or checkout/payout/legal release is
 part of these repairs. One controlled Contact inquiry and inbox reply still need
 an available monitored mailbox owner after the quota controls are verified.
+
+
+## October 10 continuation
+
+The project owner confirms the monitored launch support inbox. One authorized standalone Resend transport test is Delivered with the expected Reply-To; owner receipt and a deployed Contact endpoint/reply are still pending. Preview has a hidden web database binding, no returned ops database binding and production ops origins in both projects. No dedicated schema-only Preview branch exists; isolation is unproved. Quota-table and dedicated Preview branch decisions remain pending. See 27-INBOX-AND-PREVIEW-READBACK-20261010.md; no settings or deployment changed.

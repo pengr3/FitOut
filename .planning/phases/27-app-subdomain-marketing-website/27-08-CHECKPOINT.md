@@ -43,7 +43,7 @@ actuals:
 15/17 plans complete; original 08 task 3 and plan 09 remain pending. All six full
 gates and a fresh cold/warm production-server probe pass at 596b4746, with matching
 source and manifest guards. See 27-GAP-VERIFICATION.md.
-The Contact quota-table decision, Preview database isolation, support inbox owner
+The Contact quota-table decision, Preview database isolation, owner-observed inbox receipt
 and exact account/cutover prerequisites remain pending. Contact is disabled and
 checkout/payout/legal HOLD remains. No external mutation or requirement completion
 is claimed. Retained source archives and logs remain available.
@@ -268,3 +268,8 @@ mail, deployment, requirement completion or 08SUMMARY was authorized/performed.
 ## Supplementary local prerequisite route — 2026-10-09
 
 User requested planning and continuous local repairs. Checked plans 27-10–17 address recorded gaps; D-21 resolves hourly-required/day-optional publishing. Complete the local repair proof and six clean-source gates before resuming this original external checkpoint. This does not authorize deployment, provider/env/DNS mutations, real email, Contact enablement or money/legal release. No 27-08-SUMMARY exists.
+
+
+## October 10 continuation
+
+The project owner confirms the monitored launch support inbox. One authorized standalone Resend transport test is Delivered with the expected Reply-To; owner receipt and a deployed Contact endpoint/reply are still pending. Preview has a hidden web database binding, no returned ops database binding and production ops origins in both projects. No dedicated schema-only Preview branch exists; isolation is unproved. Quota-table and dedicated Preview branch decisions remain pending. See 27-INBOX-AND-PREVIEW-READBACK-20261010.md; no settings or deployment changed.

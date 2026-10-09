@@ -341,3 +341,8 @@ readback. Distinct Preview Inngest keys are present on web, but presence is not
 provider/account isolation. The firewall config API returned404, which is not
 proof of a global control. Runtime setting24.x is observed; the deployed patch
 version is not. No settings, deployment or credentials were changed.
+
+
+## October 10 continuation
+
+The project owner confirms the monitored launch support inbox. One authorized standalone Resend transport test is Delivered with the expected Reply-To; owner receipt and a deployed Contact endpoint/reply are still pending. Preview has a hidden web database binding, no returned ops database binding and production ops origins in both projects. No dedicated schema-only Preview branch exists; isolation is unproved. Quota-table and dedicated Preview branch decisions remain pending. See 27-INBOX-AND-PREVIEW-READBACK-20261010.md; no settings or deployment changed.

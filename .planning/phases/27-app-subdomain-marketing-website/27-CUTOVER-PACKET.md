@@ -30,7 +30,7 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
     "legal": "HOLD"
   },
   "rollbackOwner": "Vercel release account owner; named operator confirmation pending",
-  "monitoringOwner": "Release operator plus existing monitored SUPPORT_EMAIL owner; availability pending",
+  "monitoringOwner": "Project owner (user) confirms monitored launch support inbox and authorizes one transport test, October 10 Manila; release monitoring and deployed Contact receipt/reply still pending.",
   "contact": {
     "enabled": false,
     "controlsVerified": false,
@@ -82,7 +82,19 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
     "Two consecutive health/search/auth checks fail or customer 5xx exceeds 1% over five minutes: rollback; operator checks every minute for first 15 minutes and every five minutes for next hour",
     "Contact accepts before verified global control, mailbox traffic exceeds100/hour, or controlled inquiry is absent after10minutes: disable immediately; never announce delivery proof",
     "Google state/TLS/cookie error, failed issued reset/verify link, or staff isolation failure: halt provider migration and revert scoped origin/registration changes"
-  ]
+  ],
+  "supportInboxConfirmation": {
+    "owner": "project owner (user)",
+    "addressSource": "src/lib/site.ts SUPPORT_EMAIL",
+    "confirmedAt": "2026-10-09T16:32:52.887Z",
+    "oneTransportTestAuthorized": true,
+    "providerAcceptance": true,
+    "providerDelivery": "delivered",
+    "replyToMatchesConfiguredInbox": true,
+    "ownerReceipt": "pending",
+    "ownerReply": "pending",
+    "deployedContactEndpointProved": false
+  }
 }
 ```
 
@@ -309,3 +321,8 @@ is claimed. Retained source archives and logs remain available.
 
 Later evidence bookkeeping and the offline synthetic-fixture update do not imply
 full-gate verification of a later commit. The tested candidate remains 596b4746.
+
+
+## October 10 inbox/Preview continuation
+
+Inbox ownership is confirmed and one standalone mail transport test is provider-delivered. Owner receipt and deployed Contact inquiry/reply remain pending. Preview is still not proved isolated; quota-table and dedicated-Preview-branch decisions are pending. Read 27-INBOX-AND-PREVIEW-READBACK-20261010.md. No account setting, Contact switch or production deployment changed.
