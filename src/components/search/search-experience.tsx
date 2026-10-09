@@ -249,11 +249,12 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
     <section aria-label="Space search" className="space-y-4">
       <p role="status" aria-live="polite" aria-label="Search progress" className="sr-only">{state.progress}</p>
 
+      <div role="group" aria-label="Search spaces" className="min-w-0">
       <ProgressiveSearchOverlay
         open={hasOpenQuestion}
         trigger={!state.resultsVisible ? (
           <Button type="button" variant="outline" size="touch" aria-label="Start your search" className="h-14 w-full justify-between sm:mx-auto sm:flex sm:max-w-3xl" onClick={() => { if (!hasOpenQuestion) dispatch({ type: "ENGAGE" }); }}>
-            <span>Start your search</span><span className="text-muted-foreground">Activity, location, and party</span>
+            <span className="shrink-0">Start your search</span><span className="truncate text-sm text-muted-foreground">Activity, location, and party</span>
           </Button>
         ) : undefined}
         desktopAnchor={desktopAnchor}
@@ -278,12 +279,13 @@ function SearchExperienceCoordinator({ initialAnswers, hasCompletedSearch, child
         ) : null}
       </ProgressiveSearchOverlay>
       {state.resultsVisible ? (
-        <div className="flex flex-wrap gap-2" aria-label="Search answers">
+        <div className="flex min-w-0 flex-wrap gap-2 [&>button]:max-w-full [&>button]:whitespace-normal [&>button]:break-words" aria-label="Search answers">
           <Button type="button" variant="outline" onClick={(event) => editAnswer("activity", event.currentTarget)}>Activity: {categoryLabel(answers.category)}</Button>
           <Button type="button" variant="outline" onClick={(event) => editAnswer("location", event.currentTarget)}>Location: {locationChipLabel}</Button>
           <Button type="button" variant="outline" onClick={(event) => editAnswer("party", event.currentTarget)}>{answers.partySize === 1 ? "1 person" : `${answers.partySize ?? 1} people`}</Button>
         </div>
       ) : null}
+      </div>
       {children}
     </section>
   );
