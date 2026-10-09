@@ -22,18 +22,21 @@ for (const width of [320, 375, 768, 1440]) {
     await expect(panel).toHaveCount(1);
     const heading = panel.getByRole("heading", { name: "What are you looking for?", exact: true });
     await expect(heading).toBeFocused();
-    const box = await panel.boundingBox();
-    expect(box).not.toBeNull();
-    if (width < 640) {
-      expect(box!.x).toBe(0);
-      expect(box!.y).toBe(0);
-      expect(box!.width).toBe(width);
-      expect(box!.height).toBe(900);
-    } else {
-      expect(Math.abs(box!.y - (anchor!.y + anchor!.height + 8))).toBeLessThan(2);
-      expect(box!.x).toBeGreaterThanOrEqual(16);
-      expect(box!.x + box!.width).toBeLessThanOrEqual(width - 15);
-    }
+    // Assert the actual resting geometry after the shared 100ms entrance animation, without a sleep.
+    await expect(async () => {
+      const box = await panel.boundingBox();
+      expect(box).not.toBeNull();
+      if (width < 640) {
+        expect(box!.x).toBe(0);
+        expect(box!.y).toBe(0);
+        expect(box!.width).toBe(width);
+        expect(box!.height).toBe(900);
+      } else {
+        expect(Math.abs(box!.y - (anchor!.y + anchor!.height + 8))).toBeLessThan(2);
+        expect(box!.x).toBeGreaterThanOrEqual(16);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(width - 15);
+      }
+    }).toPass({ timeout: 5000 });
     const input = panel.getByRole("combobox", { name: "Search for activity or type" });
     await input.fill("basket");
     await input.evaluate((element) => { (window as Window & { retainedSearchInput?: Element }).retainedSearchInput = element; });
@@ -87,7 +90,10 @@ test("search controls are disabled while the page has no client handlers", async
   try {
     const page = await context.newPage();
     await page.goto(base);
-    const trigger = page.getByRole("group", { name: "Search spaces", exact: true }).getByRole("button", { name: "Start your search", exact: true });
+    // React streams this real control inside a hidden Suspense segment; JS normally reveals it.
+    // Count its SSR DOM even when the loading fallback remains visible with JavaScript disabled.
+    const trigger = page.locator('button[aria-label="Start your search"]');
+    await expect(trigger).toHaveCount(1);
     await expect(trigger).toBeDisabled();
     await expect(page.getByRole("dialog", { name: "Search spaces", exact: true })).toHaveCount(0);
     expect(page.url()).toBe(`${base}/`);
