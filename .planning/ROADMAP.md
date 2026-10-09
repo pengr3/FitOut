@@ -1360,7 +1360,7 @@ Supplementary engineering repairs, approved for planning and continuous local wo
 - [x] 27-11-PLAN.md — Repair audit and payment test preconditions without changing money behavior (wave 11; P27-G02, P27-G04, P27-G12)
 - [x] 27-12-PLAN.md — Repair ops evidence loading and retain unique source-bound gate records (wave 12; P27-G13)
 - [x] 27-13-PLAN.md — Repair design fixture drift and the public loading contract (wave 13; P27-G05, P27-G06, P27-G08, P27-G10)
-- [ ] 27-14-PLAN.md — Restore one search tree and the real anonymous app handoff (wave 14; P27-G09, P27-G15)
+- [x] 27-14-PLAN.md — Restore one search tree and the real anonymous app handoff (wave 14; P27-G09, P27-G15)
 - [ ] 27-15-PLAN.md — Apply approved hourly-only publishing and reconcile boundary/census fixtures (wave 15; P27-G01, P27-G03, P27-G07)
 - [ ] 27-16-PLAN.md — Identify the streaming lifecycle fault and stabilize approved-host entry (wave 16; P27-G11, P27-G16)
 - [ ] 27-17-PLAN.md — Verify a clean committed repair candidate and return to the existing cutover checkpoint (wave 17; P27-G01, P27-G02, P27-G03, P27-G04, P27-G05, P27-G06, P27-G07, P27-G08, P27-G09, P27-G10, P27-G11, P27-G12, P27-G13, P27-G14, P27-G15, P27-G16)

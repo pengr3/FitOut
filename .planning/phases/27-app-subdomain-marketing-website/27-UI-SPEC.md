@@ -34,7 +34,7 @@ referenced by loading-coverage.test.ts. No remote component fetch is planned.
 
 | Surface | Required behavior | Verification |
 |---|---|---|
-| Search | One mounted control/panel tree at every viewport; shared existing responsive authority; CSS/presentation changes preserve state, URL history, focus/Escape and long labels. No second matchMedia or duplicate portals. | one-tree, selector census and real 320/375/768/1440px browser checks |
+| Search | One mounted control/panel tree at every viewport; shared existing responsive authority; Preserve Phase24 D-09 desktop trigger anchoring and mobile full-screen presentation. CSS/presentation changes preserve state, URL history, focus/Escape and long labels. No second matchMedia or duplicate portals. Streamed search controls stay disabled until handlers are attached, using the existing hydration guard. | one-tree, selector census and real 320/375/768/1440px browser checks |
 | App handoff | D-12/D-18 anonymous search opens in the same tab, with the actual Search spaces group and meaningful controls; no manufactured hidden test-only group. | marketing tracer and journeys |
 | Slot checkout boundary | Existing brand border/ring with bg-muted and disabled:opacity-100; aria-pressed=true; accessible checkout/end label. Disabled boundary is not a purchasable unavailable start slot. | end-boundary positive/negative cases |
 | Loading | Existing semantic skeleton dimensions, single nav tree, no duplicate announcements, no raw fixed widths or selector escape. | loading coverage and applied suspense mutation |
