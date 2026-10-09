@@ -1,4 +1,6 @@
 import { CardGridSkeleton } from "@/components/patterns/card-grid-skeleton";
+import { AUTH_SLOT_BOX, TEXT_BAR_HEIGHT } from "@/lib/design/measurements";
+import { cn } from "@/lib/utils";
 
 // Next.js streams this parameterless Server Component until the public page resolves.
 export default function PublicLoading() {
@@ -15,10 +17,10 @@ export default function PublicLoading() {
         <div
           aria-hidden="true"
           data-testid="search-idle-pill-shell"
-          className="flex h-11 w-full items-center justify-between rounded-lg border border-border bg-background px-4"
+          className={cn(AUTH_SLOT_BOX, "flex w-full items-center justify-between gap-4 rounded-lg border border-border bg-background px-4")}
         >
-          <span className="h-3 w-28 rounded bg-muted" />
-          <span className="h-3 w-40 rounded bg-muted" />
+          <span className={cn(TEXT_BAR_HEIGHT, "flex-1 rounded bg-muted")} />
+          <span className={cn(TEXT_BAR_HEIGHT, "flex-1 rounded bg-muted")} />
         </div>
 
         <CardGridSkeleton label="Loading spaces" />
