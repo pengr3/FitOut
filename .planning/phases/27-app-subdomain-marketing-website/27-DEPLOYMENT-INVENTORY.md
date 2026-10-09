@@ -214,3 +214,38 @@ Browser account access is now observed for Google Cloud, PayMongo, Didit, Innges
 Resend and Vercel. This completes the requested login/access pass; it does not prove
 every account permission, production binding, signature, control or cutover check.
 No provider settings, DNS, deployment, inquiry or release HOLD changed.
+
+### Approved Google registration saved and apex sign-in verified — October 9
+
+At approximately 13:51 Manila (05:51 UTC), following the user's explicit
+“okay approved” reply to the exact unsaved proposal, Save was applied to
+`FitOut Client 1` in project `fitout-505104`. Reopening the exact client from Google
+confirmed persistence of authorized JavaScript origin `https://app.fitout.live`
+and all three redirect URIs:
+
+- `http://localhost:3000/api/auth/callback/google` (retained).
+- `https://fitout.live/api/auth/callback/google` (added).
+- `https://app.fitout.live/api/auth/callback/google` (added).
+
+The initial save navigation went to a blank page rather than displaying a success
+toast; persistence is proved by the subsequent fresh client-page readback, not
+the click alone. Cropped readback screenshots excluding account identity and
+client-secret fields are retained only in ignored Playwright cache as
+`oauth-origin-saved.jpg` and `oauth-callbacks-saved.jpg`.
+
+A fresh `https://fitout.live/login` → Continue with Google request then returned
+to the FitOut app root. The Navigation menu displayed Profile, Switch to hosting
+and Sign out, confirming an authenticated application session. The existing
+Google browser account completed authorization automatically; no credentials,
+account selection or consent button were entered/clicked. This establishes a
+successful current-apex roundtrip for that browser account, resolving the observed
+`redirect_uri_mismatch` on this fresh attempt. It does not prove first-time consent,
+all users or the future app-domain roundtrip. A cropped successful-session screenshot
+is retained as ignored `oauth-apex-signin-success.jpg`. No OAuth state, code, raw
+authorization/callback URL, account identity or credential is retained.
+
+The user approved only these client-registration additions. Audience publishing,
+branding edits, secrets, deployments, DNS and other provider destinations were not
+changed. The previously observed External/Testing audience remains outside this
+approval; full production audience readiness and app-domain proof remain pending.
+Contact remains disabled; checkout/payout/legal HOLD and phase completion are unchanged.

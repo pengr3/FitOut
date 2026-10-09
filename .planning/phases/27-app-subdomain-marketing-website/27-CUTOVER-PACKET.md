@@ -111,9 +111,10 @@ contracts, not current account proof.
 ### Concrete Google registration proposal following production readback
 
 On October 9, the user-authorized bounded production login probe confirmed
-`FitOut Client 1` in project `fitout-505104` is the deployed client. Google currently
-rejects its apex callback with `redirect_uri_mismatch`; the client permits only
-localhost. Proposed registration changes for this exact client are:
+`FitOut Client 1` in project `fitout-505104` is the deployed client. Before the
+approved registration change, Google rejected its apex callback with
+`redirect_uri_mismatch`; the client permitted only localhost. The exact changes
+proposed and subsequently approved for this client are:
 
 - Retain `http://localhost:3000/api/auth/callback/google`.
 - Add `https://fitout.live/api/auth/callback/google` to restore the current receiver
@@ -121,24 +122,30 @@ localhost. Proposed registration changes for this exact client are:
 - Add `https://app.fitout.live/api/auth/callback/google` before the app-origin cutover.
 - Add the planned JavaScript origin `https://app.fitout.live`.
 
-These are reviewable proposed changes only. No registration was saved, audience
-published or test user added. The current External/Testing audience, zero test users
-and incomplete Branding must also be resolved within separately authorized scope;
-adding callbacks alone does not prove production readiness. Fresh apex/app sign-in
-and consent verification remain required. The inventory records the nonsecret probe
-evidence without OAuth state/code or account identity.
+These registration additions were approved by the user and saved on October 9 at
+approximately 13:51 Manila (05:51 UTC). A fresh reopening of the exact Google client
+confirmed the app origin and all three callback entries persisted. The subsequent
+fresh apex sign-in completed automatically through the existing Google browser
+account and returned an authenticated FitOut session, resolving the observed apex
+callback mismatch for this attempt. No credential or consent action was entered.
+First-time consent, full audience readiness and app-domain sign-in remain unverified.
+The previously observed External/Testing audience, zero test users and incomplete
+Branding remain outside this registration approval. No audience was published or
+test user added. The inventory records nonsecret evidence without OAuth state/code
+or account identity.
 
 After the Resend access pass, the exact Google client was reopened and these three
-additions were prepared in its unsaved browser form, retaining localhost. **Save
-has not been clicked**; no registration change is effective. The cropped review
+additions were prepared in its unsaved browser form, retaining localhost. The user
+then approved saving those exact additions. The earlier cropped proposal review
 screenshot is ignored `playwright/.cache/phase27-08/oauth-callback-registration-draft.jpg`.
-Approval is requested only for saving these origin/callback additions to this
-client; it does not authorize publishing the audience, changing secrets, deploying
+Saved-state screenshots are `oauth-origin-saved.jpg` and `oauth-callbacks-saved.jpg`
+in the same ignored cache; `oauth-apex-signin-success.jpg` records the bounded fresh
+authenticated session. Approval applies only to these origin/callback additions to
+this client; it does not authorize publishing the audience, changing secrets, deploying
 Phase27, changing DNS or releasing Contact/payments/payout/legal HOLD. If the form
-is lost, reconstruct it from this exact proposal and reread before applying any
-subsequent explicit approval. Rollback removes only the added entries and retains
-the recorded original localhost callback; account readback and bounded fresh
-sign-in observation follow a saved change.
+is reopened later, reread the saved configuration before proposing further changes.
+Rollback removes only the added entries and retains the recorded original localhost
+callback; this would restore the original apex mismatch and requires scoped authority.
 
 October 9 Didit readback identifies the active apex webhook (v3.0, one event) in
 an inspected Test-mode application; production workflow binding and signing proof

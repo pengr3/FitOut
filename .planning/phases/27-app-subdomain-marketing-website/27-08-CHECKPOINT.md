@@ -165,6 +165,16 @@ or delivery proof is available yet. See the inventory for precise boundaries.
 
 ## Self-Check: PASSED
 
+At approximately October 9 13:51 Manila, the user explicitly approved the exact
+three Google client-registration additions. They were saved and confirmed through
+a freshly reopened client page: app JavaScript origin, apex callback and app
+callback, with localhost retained. A fresh apex Google flow then returned an
+authenticated FitOut session automatically through the existing browser account;
+no credential or consent input occurred. This resolves the observed apex mismatch
+for that account/attempt. Audience publication, first-time consent, app-domain
+proof, deployment, Contact and the remaining checkpoint prerequisites stay pending.
+The inventory and packet record exact authority, saved-state proof and rollback.
+
 The subsequent October 9 13:43 Manila Resend readback completes the requested
 provider-login/access pass. `send.fitout.live` is Verified with verified DKIM/SPF
 and enabled sending; `fitout-production-mail` has domain-restricted Sending access.
