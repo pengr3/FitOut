@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: Plan 27-10 complete with clean parity/types/build proof; next 27-11; original 08/09 pending; 8/17 complete
-last_updated: "2026-10-09T08:42:51.824Z"
+stopped_at: Plans 27-10 and 27-11 complete; next 27-12; original 08/09 pending; 9/17 complete
+last_updated: "2026-10-09T08:50:58.806Z"
 last_activity: 2026-10-09
-last_activity_desc: Repaired enum/vocabulary gap G14; three regression cases, clean typecheck and canonical build pass on b91eeb31; continuous local gap execution proceeds to 27-11
-state_head: b91eeb31
+last_activity_desc: Audit/role 29, checkout/cutoff 9 and cancellation 20 targeted cases pass; G02/G04/G12 fixture repairs committed with dirty-source limits; next ops proof loading and evidence runner
+state_head: 8637eea9
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -58,7 +58,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 132
+  completed_plans: 133
   percent: 15
 ---
 
@@ -69,7 +69,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Latest focus (2026-10-09):** Plan 27-10 is complete; clean-source parity, typecheck and build pass. Next 27-11.  Eight supplementary plans 27-10–17 are planned; 10 complete, 11–17 pending. Original plans 01–07 complete; 08/09 pending. D-21 requires hourly price with optional day price. Preserve Contact off, external checkpoint and all release HOLDs.
+**Latest focus (2026-10-09):** Plans 27-10 and 27-11 are complete. Clean-source parity/types/build and focused fixture repairs pass. Next 27-12.  Eight supplementary plans 27-10–17 are planned; 10–11 complete, 12–17 pending. Original plans 01–07 complete; 08/09 pending. D-21 requires hourly price with optional day price. Preserve Contact off, external checkpoint and all release HOLDs.
 
 **Earlier preparation focus:** Phase 27 — App Subdomain & Marketing Website — AWAITING RELEASE/ACCOUNT CHECKPOINT. Plans 27-01 through 27-07 complete (7/17); 27-08 remains incomplete with SUMMARY absent and 27-09 has not started. Four original review findings are independently closed. Earlier dirty-source local checks passed 52 Chromium cases, 147 focused tests, types/lint/build; assisted Windows teardown and an unattributed streaming error remain disclosed. Full unit/design still retain eight/nine failures and no clean deployable SHA is proved. October 9 continuation repaired evidence replacement validation (104 offline tests and focused lint pass), retaining historical failures and requiring six fresh clean full gates before deployment acceptance. All requested provider/browser access and bounded readbacks are now available; approved Google origin/callback additions are saved and current-apex sign-in passed for an existing account. DNS/TLS and wildcard zone records are observed, but app returns DEPLOYMENT_NOT_FOUND and www lacks its planned redirect. Preview isolation, production provider bindings/signatures, compatibility revision, exact remaining mutation authority, global Contact controls and inbox receipt/reply remain pending. The separate ops share-link and Inngest serve bypasses need owner-coordinated invalidation/replacement; values are excluded and were never used. Contact is disabled, all seven requirements remain pending, and payment/payout/legal HOLD is unchanged. Resume from the phase `.continue-here.md`, checkpoint, dated inventory and packet.
 
