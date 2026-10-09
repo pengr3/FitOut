@@ -1,6 +1,6 @@
 // LIST-03 / D-02 / D-03: the shared draft/publish Zod contract. draftSchema autosaves a partial
-// listing (accepts {}); publishSchema is the strict gate — all core fields, BOTH rates as positive
-// INTEGER cents (Pitfall 5), coordinates present (D-10). Structure mirrors auth-schema.test.ts.
+// listing (accepts {}); publishSchema is the strict gate — all core fields, required hourly price,
+// optional valid day price (D-27-G01), INTEGER cents (Pitfall 5), coordinates present (D-10).
 //
 // Wave-0 FOUNDATION anchor — PASSES from Task 2 onward (the schemas exist).
 
@@ -116,7 +116,7 @@ describe("publishSchema (D-02/D-03 strict publish gate)", () => {
     expect(publishSchema.safeParse({ ...validPublish, hourlyRateCents: 25.5 }).success).toBe(false);
   });
 
-  it("rejects when BOTH rates are missing (D-03 both required)", () => {
+  it("rejects when both rates are missing because hourly pricing is required (D-27-G01)", () => {
     expect(
       publishSchema.safeParse({
         ...validPublish,
@@ -126,10 +126,11 @@ describe("publishSchema (D-02/D-03 strict publish gate)", () => {
     ).toBe(false);
   });
 
-  it("rejects when only one rate is present (D-03 both required)", () => {
+  it("accepts hourly-only publishing and rejects day-only publishing (D-27-G01)", () => {
     expect(
       publishSchema.safeParse({ ...validPublish, dayRateCents: undefined }).success,
-    ).toBe(false);
+    ).toBe(true);
+    expect(publishSchema.safeParse({ ...validPublish, hourlyRateCents: undefined }).success).toBe(false);
   });
 
   it("rejects missing coordinates (D-10 lat/lng required at publish)", () => {
@@ -264,7 +265,7 @@ describe("publishSchema — open-capacity mode fork (OPEN-01 / OC-08 / OC-10 / D
     expect(publishSchema.safeParse(validOpenPublish).success).toBe(true);
   });
 
-  it("keeps the exclusive gate intact — BOTH rates still required, with host-facing copy", () => {
+  it("requires an hourly rate and accepts an optional day rate, with host-facing copy", () => {
     expect(publishSchema.safeParse(validPublish).success).toBe(true);
 
     const noHourly = publishSchema.safeParse({ ...validPublish, hourlyRateCents: undefined });
@@ -272,8 +273,8 @@ describe("publishSchema — open-capacity mode fork (OPEN-01 / OC-08 / OC-10 / D
     expect(messagesFor(noHourly, "hourlyRateCents")).toContain(EXCLUSIVE_RATES_REQUIRED_MESSAGE);
 
     const noDay = publishSchema.safeParse({ ...validPublish, dayRateCents: undefined });
-    expect(noDay.success).toBe(false);
-    expect(messagesFor(noDay, "dayRateCents")).toContain(EXCLUSIVE_RATES_REQUIRED_MESSAGE);
+    expect(noDay.success).toBe(true);
+    expect(EXCLUSIVE_RATES_REQUIRED_MESSAGE).toBe("Set an hourly rate to publish.");
 
     // A listing that never set occupancyMode at all reads as exclusive (the column's NOT NULL DEFAULT).
     const legacy = publishSchema.safeParse({
@@ -284,6 +285,14 @@ describe("publishSchema — open-capacity mode fork (OPEN-01 / OC-08 / OC-10 / D
     });
     expect(legacy.success).toBe(false);
     expect(messagesFor(legacy, "hourlyRateCents")).toContain(EXCLUSIVE_RATES_REQUIRED_MESSAGE);
+  });
+
+  it("rejects an invalid supplied day price while accepting its absence", () => {
+    for (const dayRateCents of [0, -1, 25.5, "18000", null]) {
+      expect(publishSchema.safeParse({ ...validPublish, dayRateCents }).success).toBe(false);
+    }
+    expect(publishSchema.safeParse({ ...validPublish, dayRateCents: undefined }).success).toBe(true);
+    expect(publishSchema.safeParse({ ...validPublish, occupancyMode: undefined, dayRateCents: undefined }).success).toBe(true);
   });
 
   it("REJECTS a drop-in listing with no price per person", () => {
