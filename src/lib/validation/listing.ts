@@ -48,9 +48,8 @@ export const SURCHARGE_UNREACHABLE_MESSAGE =
 // 09-UI-SPEC § Copywriting O1 — never "occupancy mode", "exclusive", "open capacity", "per-head", or "cap"
 // as a bare noun; say whole space, drop-in passes, price per person, people per day.
 
-/** The unchanged Phase-2/D-03 both-rates requirement, now stated in host words because the requirement MOVED
- *  into the superRefine (see publishSchema) and a moved requirement needs its own voice. */
-export const EXCLUSIVE_RATES_REQUIRED_MESSAGE = "Set an hourly rate and a day rate to publish.";
+/** D-27-G01: whole-space publishing requires hourly pricing; day pricing is optional. */
+export const EXCLUSIVE_RATES_REQUIRED_MESSAGE = "Set an hourly rate to publish.";
 export const PER_HEAD_PRICE_REQUIRED_MESSAGE = "Set a price per person to publish drop-in passes.";
 export const DROP_IN_CAP_REQUIRED_MESSAGE =
   "Set how many people you'll let in each day to publish drop-in passes.";
@@ -170,12 +169,8 @@ export const publishSchema = z.object({
   // WR-04: bounded ABOVE as well as below. In open mode this number is the day's admissions cap and is one
   // half of the money product that must stay inside int4 (see the ceiling block near the top of this file).
   maxOccupancy: z.number().int().positive().max(MAX_OPEN_CAPACITY, DROP_IN_CAP_TOO_HIGH_MESSAGE),
-  // ── THE MODE FORK (OPEN-01). These two were `.positive()` REQUIRED here from Phase 2 until Phase 9. ──
-  // They had to become optional AT THE OBJECT LEVEL because an open-capacity listing has no hourly or day
-  // rate at all (OC-08: one flat price per person, and the wizard never renders the rate inputs), so a
-  // top-level requirement would make every drop-in listing permanently unpublishable. The requirement did
-  // NOT weaken — it MOVED: the superRefine at the foot of this schema re-imposes it for `exclusive` exactly
-  // as before, and the both-rates test cases that guarded it still go red if that branch is deleted.
+  // Mode-specific pricing: whole-space requires hourly pricing in superRefine below; day pricing
+  // is optional, but a supplied rate must still be positive integer cents. Drop-in uses per-head pricing.
   hourlyRateCents: z.number().int().positive().optional(),
   dayRateCents: z.number().int().positive().optional(),
   bookingMode: z.enum(bookingModeValues),
@@ -218,20 +213,11 @@ export const publishSchema = z.object({
   const mode = data.occupancyMode ?? "exclusive";
 
   if (mode === "exclusive") {
-    // ── UNCHANGED Phase-2/D-03 gate, re-imposed HERE now that the object-level rule had to move (see the
-    // rate fields above). BOTH rates are still required to publish a whole-space listing; the only thing
-    // that changed is where the requirement is written.
+    // D-27-G01: require hourly pricing; an absent day rate offers hourly bookings only.
     if (data.hourlyRateCents == null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["hourlyRateCents"],
-        message: EXCLUSIVE_RATES_REQUIRED_MESSAGE,
-      });
-    }
-    if (data.dayRateCents == null) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["dayRateCents"],
         message: EXCLUSIVE_RATES_REQUIRED_MESSAGE,
       });
     }
