@@ -262,16 +262,24 @@ describe("CALLER-LEVEL: a broken sink does not change what a real call site retu
     // Clones the harness from tests/security/audit.test.ts, with one change: `insert` throws. This is
     // the assertion the whole task is for — a dead audit table must not convert a handled money-path
     // failure into an unhandled 500.
-    const whereMock = vi.fn(async () => undefined);
+    const returningMock = vi.fn(async () => [{ id: "audit-durable-host" }]);
+    const whereMock = vi.fn(() => ({ returning: returningMock }));
     const setMock = vi.fn(() => ({ where: whereMock }));
     const updateMock = vi.fn(() => ({ set: setMock }));
+    const roleWhereMock = vi.fn(async () => [{ role: "user" }]);
+    const executeMock = vi.fn(async () => []);
+    const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) => callback({
+      execute: executeMock,
+      select: () => ({ from: () => ({ where: roleWhereMock }) }),
+      update: updateMock,
+    }));
     const getSessionMock = vi.fn(async () => ({ user: { id: "audit-durable-host" } }));
 
     vi.doMock("next/headers", () => ({ headers: async () => new Headers() }));
     vi.doMock("@/lib/auth", () => ({ auth: { api: { getSession: getSessionMock } } }));
     vi.doMock("@/lib/db", () => ({
       db: {
-        update: updateMock,
+        transaction: transactionMock,
         insert: () => {
           throw new Error("audit sink down");
         },
@@ -285,6 +293,10 @@ describe("CALLER-LEVEL: a broken sink does not change what a real call site retu
     expect(res).toEqual({ ok: true, redirectTo: "/host" });
     // The privileged flip still happened — the broken sink did not abort the action mid-way.
     expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(transactionMock).toHaveBeenCalledOnce();
+    expect(executeMock).toHaveBeenCalledOnce();
+    expect(roleWhereMock).toHaveBeenCalledOnce();
+    expect(returningMock).toHaveBeenCalledOnce();
     // And the observable audit record is still there.
     const entries = auditEntries(infoSpy);
     expect(entries).toHaveLength(1);
