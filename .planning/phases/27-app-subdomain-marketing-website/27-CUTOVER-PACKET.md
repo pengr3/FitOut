@@ -139,6 +139,15 @@ interrupting scheduled jobs. The credential value/full URL is excluded from this
 packet. No resync, credential mutation, provider test or mode change is authorized
 by these readbacks.
 
+October 9 Resend readback confirms `send.fitout.live` Verified in Tokyo, DKIM and
+SPF records Verified, Sending enabled and Receiving disabled. The named
+`fitout-production-mail` key has Sending access restricted to that domain. Its
+deployment-secret correspondence remains unverified; do not reveal or compare
+credential values to claim a match. Retain the existing sender DNS/key configuration.
+Account access for all five requested providers and Vercel is now observed.
+Monitored support inbox ownership and the bounded Contact receipt/Reply-To/reply
+test remain unresolved; historical application mail is not Contact acceptance.
+
 ## Contact release prerequisite and controlled inquiry
 
 The local Map is defense in depth only. Current [Vercel WAF documentation](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting)

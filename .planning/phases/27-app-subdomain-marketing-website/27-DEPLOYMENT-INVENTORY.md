@@ -187,3 +187,30 @@ Signing validation and old/new destination continuity remain unverified.
 
 Resend is open at `https://resend.com/login`, awaiting direct user login. Domain
 verification, sender/key scope and delivery evidence remain unknown.
+
+### Resend authenticated readback — 2026-10-09 13:43 Manila (05:43 UTC)
+
+The user completed Resend login directly. Domains lists `send.fitout.live` as
+**Verified**. Its detail page states the domain is ready to send, provider Vercel,
+region **Tokyo (`ap-northeast-1`)**. The Records panel shows DKIM TXT Verified and
+both SPF MX/TXT Verified; Sending is enabled and Receiving is disabled. The
+Configuration panel selects Opportunistic TLS. No DNS, tracking, TLS or sending
+setting was changed. These are provider readbacks, not independent authoritative
+DNS resolution or a bounded Contact delivery test.
+
+API keys lists `fitout-production-mail` with **Sending access**. Its detail page
+restricts that key to `send.fitout.live`. The list also contains other Full-access
+keys; no key was opened to reveal its value, created, edited, revoked or rotated.
+The named send-only key's correspondence to the deployed `RESEND_API_KEY` remains
+unverified, because no secret comparison was requested or performed.
+
+The initial authenticated Emails page displays provider Delivered statuses for
+existing application mail. No message was opened or sent; recipients, subjects,
+message IDs and bodies are excluded from evidence. These historical provider
+statuses do not establish Contact inbox receipt, Reply-To correctness, a delivered
+reply or an available monitoring owner.
+
+Browser account access is now observed for Google Cloud, PayMongo, Didit, Inngest,
+Resend and Vercel. This completes the requested login/access pass; it does not prove
+every account permission, production binding, signature, control or cutover check.
+No provider settings, DNS, deployment, inquiry or release HOLD changed.

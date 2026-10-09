@@ -165,4 +165,11 @@ or delivery proof is available yet. See the inventory for precise boundaries.
 
 ## Self-Check: PASSED
 
+The subsequent October 9 13:43 Manila Resend readback completes the requested
+provider-login/access pass. `send.fitout.live` is Verified with verified DKIM/SPF
+and enabled sending; `fitout-production-mail` has domain-restricted Sending access.
+No deployed credential match or Contact inbox proof is inferred. All exact facts
+and remaining owner/control/authority prerequisites are retained in the inventory
+and packet. This checkpoint remains incomplete and no 08 SUMMARY is created.
+
 All seven created artifacts and both recorded task commits exist. Prepared validation passes. This confirms checkpoint artifact integrity, not plan completion or live acceptance.
