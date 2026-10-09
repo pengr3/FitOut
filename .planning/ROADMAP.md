@@ -1356,7 +1356,7 @@ inbox owner are pending. Plan 08 SUMMARY remains absent; no requirement is marke
 
 Supplementary engineering repairs, approved for planning and continuous local work on 2026-10-09. Original 27-08 external checkpoint and 27-09 remain pending.
 
-- [ ] 27-10-PLAN.md — Reconcile committed listing vocabulary with the existing database enum (wave 10; P27-G14)
+- [x] 27-10-PLAN.md — Reconcile committed listing vocabulary with the existing database enum (wave 10; P27-G14)
 - [ ] 27-11-PLAN.md — Repair audit and payment test preconditions without changing money behavior (wave 11; P27-G02, P27-G04, P27-G12)
 - [ ] 27-12-PLAN.md — Repair ops evidence loading and retain unique source-bound gate records (wave 12; P27-G13)
 - [ ] 27-13-PLAN.md — Repair design fixture drift and the public loading contract (wave 13; P27-G05, P27-G06, P27-G08, P27-G10)
