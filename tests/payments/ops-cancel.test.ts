@@ -611,6 +611,12 @@ describe("D-244 / ENF-03 — the durable record of who decided, and what the hos
     const l = await seedListing("oc_l_sweep");
     await seedBooking("oc_b_sweep", l, -26 * HOUR);
     const fridayNoon = new Date("2026-10-02T04:00:00.000Z");
+    // This control is evaluated at the explicit Friday cohort, not today's DB date.
+    // Anchor only this booking to that cohort and preserve the 24-hour review hold.
+    await testDb.db.update(booking).set({
+      startsAt: new Date(fridayNoon.getTime() - 26 * HOUR),
+      endsAt: new Date(fridayNoon.getTime() - 25 * HOUR),
+    }).where(eq(booking.id, "oc_b_sweep"));
     expect(await recordSettlementObservation("oc_b_sweep", {
       paymentId: "pay_oc_b_sweep", payoutId: "po_oc_b_sweep", transactionId: "txn_oc_b_sweep",
       transactionType: "payment", currency: "PHP", liveMode: true,
