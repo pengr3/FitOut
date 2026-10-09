@@ -4,6 +4,7 @@ import { resolve, relative, isAbsolute, join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { pathToFileURL } from "node:url";
 import { safeEnvironment, sanitizeLog } from "./run-phase27-gates.mjs";
+import { probeStreamingRuntime } from "./probe-phase27-streaming-runtime.mjs";
 
 const root = process.cwd();
 const mode = process.env.FITOUT_STREAMING_SERVER;
@@ -19,6 +20,11 @@ if (mode === "production") {
   if (build.exitCode !== 0 || build.command !== "node node_modules/next/dist/bin/next build" || !existsSync(join(root, ".next/BUILD_ID"))) {
     throw new Error("Successful canonical build record and BUILD_ID required.");
   }
+}
+if (process.env.FITOUT_STREAMING_DIAGNOSTICS !== "1") {
+  const runtime = await probeStreamingRuntime();
+  writeFileSync(join(runDir, "runtime-preflight.json"), JSON.stringify(runtime, null, 2), { flag: "wx" });
+  if (runtime.internalTypeErrors) throw new Error(`Node ${process.version} fails the native cancellation-race precondition. Use an already-installed fixed runtime; no automatic installation is performed.`);
 }
 const env = safeEnvironment(mode === "production" ? "build" : "setup");
 Object.assign(env, {
