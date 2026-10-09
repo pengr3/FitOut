@@ -20,6 +20,15 @@ mail absent and production provider keys absent. Verify the resulting deployment
 can read/write only disposable branch fixtures and cannot accept production staff
 or customer sessions before treating this prerequisite as closed.
 
+Authenticated Neon readback found project misty-bar-13534461, “FitOut - Live App
+Database”. Its primary branch is production (br-divine-lake-b3in9zag); the three
+nonprimary branches are older phase26/release test branches initialized from
+parent data. None is a dedicated schema-only Preview branch. Their existence
+does not prove the write-only Vercel secret's destination. Prefer a dedicated
+schema-only branch for Preview so production users, sessions and bookings are
+not copied into the browser test environment. The Neon CLI is unavailable;
+authenticated MCP read tools were used. No branch, role or credential changed.
+
 ## Contact shared quota proposal
 
 The current Map is defense in depth in each process. A concrete implementation

@@ -10,21 +10,56 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
 
 ```json
 {
-  "targets": {"app":"https://app.fitout.live","marketing":"https://fitout.live","ops":"https://ops.fitout.live","www":"https://www.fitout.live -> https://fitout.live"},
-  "proposedRevision":"1dcfa30712376a2a7573ea93be867ef4bf44ccfe",
-  "candidateAcceptance":"Clean-source preparation only; full unit/design/type/build gates fail. This revision is not approved or eligible for deployment. See 27-CLEAN-SOURCE-PREPARATION.md and deferred-items.md.",
-  "approvedRevision":null,
-  "authority":{"status":"pending","scope":null,"approvedAt":null},
-  "holds":{"checkout":"HOLD","payout":"HOLD","legal":"HOLD"},
-  "rollbackOwner":"Vercel release account owner; named operator confirmation pending",
-  "monitoringOwner":"Release operator plus existing monitored SUPPORT_EMAIL owner; availability pending",
-  "contact":{"enabled":false,"controlsVerified":false,"processLocalIsGlobal":false,"perIpPolicy":"Enforcing trusted-ingress deployment-wide <=5 attempts per 15 minutes per original client; account-wide proof pending","globalBudget":"Distributed mailbox/global <=100 accepted inquiries per hour across all instances/regions, with owner alert and disable switch; concrete approved control pending","disabledRecovery":"Keep CONTACT_PRODUCTION_ENABLED=false; verify real 503, retained fields, no delivery announcement; no development-mail fallback"},
-  "receivers":[
-    {"old":"https://fitout.live/api/paymongo/webhook","target":"https://app.fitout.live/api/paymongo/webhook","methods":"POST","redirect":false},
-    {"old":"https://fitout.live/api/didit/webhook","target":"https://app.fitout.live/api/didit/webhook","methods":"POST","redirect":false},
-    {"old":"https://fitout.live/api/inngest","target":"https://app.fitout.live/api/inngest","methods":"GET HEAD POST PUT","redirect":false}
+  "targets": {
+    "app": "https://app.fitout.live",
+    "marketing": "https://fitout.live",
+    "ops": "https://ops.fitout.live",
+    "www": "https://www.fitout.live -> https://fitout.live"
+  },
+  "proposedRevision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+  "candidateAcceptance": "All six clean-source full gates plus fresh cold/warm production probe pass locally. Exact account/preview/provider/Contact/compatibility-first prerequisites and scoped cutover acceptance remain pending. No deployment approval inferred.",
+  "approvedRevision": null,
+  "authority": {
+    "status": "pending",
+    "scope": null,
+    "approvedAt": null
+  },
+  "holds": {
+    "checkout": "HOLD",
+    "payout": "HOLD",
+    "legal": "HOLD"
+  },
+  "rollbackOwner": "Vercel release account owner; named operator confirmation pending",
+  "monitoringOwner": "Release operator plus existing monitored SUPPORT_EMAIL owner; availability pending",
+  "contact": {
+    "enabled": false,
+    "controlsVerified": false,
+    "processLocalIsGlobal": false,
+    "perIpPolicy": "Enforcing trusted-ingress deployment-wide <=5 attempts per 15 minutes per original client; account-wide proof pending",
+    "globalBudget": "Distributed mailbox/global <=100 accepted inquiries per hour across all instances/regions, with owner alert and disable switch; concrete approved control pending",
+    "disabledRecovery": "Keep CONTACT_PRODUCTION_ENABLED=false; verify real 503, retained fields, no delivery announcement; no development-mail fallback"
+  },
+  "receivers": [
+    {
+      "old": "https://fitout.live/api/paymongo/webhook",
+      "target": "https://app.fitout.live/api/paymongo/webhook",
+      "methods": "POST",
+      "redirect": false
+    },
+    {
+      "old": "https://fitout.live/api/didit/webhook",
+      "target": "https://app.fitout.live/api/didit/webhook",
+      "methods": "POST",
+      "redirect": false
+    },
+    {
+      "old": "https://fitout.live/api/inngest",
+      "target": "https://app.fitout.live/api/inngest",
+      "methods": "GET HEAD POST PUT",
+      "redirect": false
+    }
   ],
-  "rollout":[
+  "rollout": [
     "Record exact approved final SHA, current alias deployment IDs, DNS RRsets/TTL, Production env scopes and provider registrations; resolve high threats and failed engineering gates before external mutation",
     "Prepare compatibility revision retaining current apex app behavior during app-alias proof; do not activate final apex marketing before app origin is observed. This intermediate deployment requires a separately verified origin configuration/compatibility revision; final exact-host marketing source alone cannot serve old apex app at the same time",
     "Attach app.fitout.live to existing fitout-web; verify DNS/TLS and real app search/auth/returns/session cookies on approved revision. Retain ops project and old direct signed receivers",
@@ -33,7 +68,7 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
     "Configure www 307 to apex with full path/query; preserve sending-domain DNS. Keep Contact false until published distributed controls and available inbox owner are proved",
     "Only after scoped authority and controls: enable Contact, read back exact deployment, authorize one safe inquiry, observe inbox/Reply-To/reply, then run deployed/live evidence validator"
   ],
-  "rollback":[
+  "rollback": [
     "On threshold breach disable Contact first, rebuild/redeploy both affected projects, verify real 503 and recoverable feedback",
     "Restore customer apex alias to dpl_8PpCPij5v1zQiD8gDP14Ju54QAAv and ops alias to dpl_Ho1raNTZDcnQ4zwpDu2P19NX6QBS only through scoped release authority",
     "Restore recorded Production BETTER_AUTH_URL/NEXT_PUBLIC_APP_URL=https://fitout.live; remove newly added marketing variables only if absent before; retain OPS_APP_URL=https://ops.fitout.live; rebuild because public app URL is build-time",
@@ -41,7 +76,7 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
     "Restore exact saved Google/provider destinations and one Inngest registration; keep both direct signed receivers during rollback; never rotate signing keys or replay OAuth code/state",
     "Re-prove old app sign-in/search/reset/verify/deep links and isolated staff session; retain payment/payout/legal HOLD; record incident and unknown observations"
   ],
-  "thresholds":[
+  "thresholds": [
     "Any unknown/lookalike host exposes account or staff content, cross-host session acceptance, wrong canonical/OG or internal namespace response: stop immediately and roll back",
     "Any receiver redirects, accepts absent/invalid signatures in production, loses full query/method continuity or duplicate Inngest scheduler appears: stop immediately",
     "Two consecutive health/search/auth checks fail or customer 5xx exceeds 1% over five minutes: rollback; operator checks every minute for first 15 minutes and every five minutes for next hour",
@@ -260,3 +295,17 @@ review and all matrix/control/inbox observations still block acceptance. No acco
 provider, deployment, DNS or mail mutation occurred during those local checks.
 The later approved Google change is recorded separately. Contact remains disabled, plans 08/09
 incomplete, all seven requirements unchecked and checkout/payout/legal HOLD immutable.
+
+
+## Latest verified local repair (October 9)
+
+15/17 plans complete; original 08 task 3 and plan 09 remain pending. All six full
+gates and a fresh cold/warm production-server probe pass at 596b4746, with matching
+source and manifest guards. See 27-GAP-VERIFICATION.md.
+The Contact quota-table decision, Preview database isolation, support inbox owner
+and exact account/cutover prerequisites remain pending. Contact is disabled and
+checkout/payout/legal HOLD remains. No external mutation or requirement completion
+is claimed. Retained source archives and logs remain available.
+
+Later evidence bookkeeping and the offline synthetic-fixture update do not imply
+full-gate verification of a later commit. The tested candidate remains 596b4746.

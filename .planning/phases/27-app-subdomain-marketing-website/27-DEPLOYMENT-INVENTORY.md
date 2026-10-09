@@ -328,3 +328,16 @@ earlier timestamps; this readback does not refresh source-SHA/build proof.
 These configuration findings remain in-scope cutover prerequisites. They are not
 covered by the user's deferral of unrelated test/design repairs. All changes and
 controlled sends remain subject to the existing exact packet checkpoint.
+
+
+## October9 blocker-repair readbacks (15:00–15:35 UTC)
+
+Explicit-team Vercel get_project/list_project_domains/filter_project_envs/get_project_env
+readbacks retain the existing rollback deployments. fitout-web has no app.fitout.live
+project domain; www still has no redirect. Both project Preview OPS_APP_URL values
+remain https://ops.fitout.live. fitout-web has a write-only Preview DATABASE_URL;
+its actual branch is unproved. fitout-ops has no Preview DATABASE_URL entry in this
+readback. Distinct Preview Inngest keys are present on web, but presence is not
+provider/account isolation. The firewall config API returned404, which is not
+proof of a global control. Runtime setting24.x is observed; the deployed patch
+version is not. No settings, deployment or credentials were changed.

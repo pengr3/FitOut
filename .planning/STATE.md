@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "27-16 checkpoint: native runtime preflight proved; cold-dev deadline still fails; 17 acceptance blocked; original 08/09 pending; 13/17 complete"
-last_updated: "2026-10-09T13:39:18.139Z"
+stopped_at: "27-08 external checkpoint: local plans 16/17 complete; six gates and fresh cold proof pass; 15/17 complete; original 08/09 pending"
+last_updated: "2026-10-09T15:54:53.051Z"
 last_activity: 2026-10-09
-last_activity_desc: Native stream race32/32 on24.13 versus0/32 on existing24.19; built cold/warm and original9 pass; cold-dev and fixture-budget gaps checkpointed
-state_head: 83c950ae
+last_activity_desc: Local blockers repaired; all six clean-source gates and fresh cold server pass; account-control checkpoint remains
+state_head: 596b4746
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -58,7 +58,7 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 137
+  completed_plans: 139
   percent: 15
 ---
 
@@ -69,7 +69,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Latest focus (2026-10-09):** Plans10–15 complete; 27-16 is at an acceptance checkpoint. Native runtime fault/preflight established and built production probes pass, but cold-dev deadline and combined fixture-budget failures remain. Plan17 has not started. Counts stay13/17 and137 total completed; original08/09 and all seven requirements pending. Read27-16-CHECKPOINT and27-STREAMING-DIAGNOSIS. Contact off and all release HOLDs preserved.
+**Latest focus (2026-10-09):** Plans 10–17 complete within local scope; 15/17 plans and 139 total completed. Six full gates plus fresh cold/warm production proof pass at 596b4746. Original 08 task 3, plan 09 and all seven requirements remain pending. Preview isolation, Contact controls, inbox ownership and the compatibility-first cutover remain account prerequisites. Contact is off and all HOLDs remain. Read 27-GAP-VERIFICATION.md and 27-REMAINING-RELEASE-REPAIRS.md.
 
 **Earlier preparation focus:** Phase 27 — App Subdomain & Marketing Website — AWAITING RELEASE/ACCOUNT CHECKPOINT. Plans 27-01 through 27-07 complete (7/17); 27-08 remains incomplete with SUMMARY absent and 27-09 has not started. Four original review findings are independently closed. Earlier dirty-source local checks passed 52 Chromium cases, 147 focused tests, types/lint/build; assisted Windows teardown and an unattributed streaming error remain disclosed. Full unit/design still retain eight/nine failures and no clean deployable SHA is proved. October 9 continuation repaired evidence replacement validation (104 offline tests and focused lint pass), retaining historical failures and requiring six fresh clean full gates before deployment acceptance. All requested provider/browser access and bounded readbacks are now available; approved Google origin/callback additions are saved and current-apex sign-in passed for an existing account. DNS/TLS and wildcard zone records are observed, but app returns DEPLOYMENT_NOT_FOUND and www lacks its planned redirect. Preview isolation, production provider bindings/signatures, compatibility revision, exact remaining mutation authority, global Contact controls and inbox receipt/reply remain pending. The separate ops share-link and Inngest serve bypasses need owner-coordinated invalidation/replacement; values are excluded and were never used. Contact is disabled, all seven requirements remain pending, and payment/payout/legal HOLD is unchanged. Resume from the phase `.continue-here.md`, checkpoint, dated inventory and packet.
 

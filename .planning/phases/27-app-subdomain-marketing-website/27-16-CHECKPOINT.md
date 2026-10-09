@@ -1,13 +1,28 @@
 ---
 phase: 27-app-subdomain-marketing-website
 plan: "16"
-status: checkpoint
+status: superseded
 requirements-completed: []
-completed_plans: 13
+completed_plans: 15
 total_plans: 17
 ---
 
-# Plan16 acceptance checkpoint
+## Latest verified local repair (October 9)
+
+15/17 plans complete; original 08 task 3 and plan 09 remain pending. All six full
+gates and a fresh cold/warm production-server probe pass at 596b4746, with matching
+source and manifest guards. See 27-GAP-VERIFICATION.md.
+The Contact quota-table decision, Preview database isolation, support inbox owner
+and exact account/cutover prerequisites remain pending. Contact is disabled and
+checkout/payout/legal HOLD remains. No external mutation or requirement completion
+is claimed. Retained source archives and logs remain available.
+
+Later evidence bookkeeping and the offline synthetic-fixture update do not imply
+full-gate verification of a later commit. The tested candidate remains 596b4746.
+
+
+
+# Historical Plan 16 acceptance checkpoint (resolved by D-22 and SUMMARY)
 
 Hourly-required/day-optional policy is already committed with36 clean cases.
 Plans10–15 remain complete. This checkpoint does not complete16 or advance17.

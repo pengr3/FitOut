@@ -924,6 +924,262 @@ raw recovery nor deployment acceptance is fabricated.
     ],
     "preserved": "Original raw digests and existing committed terminal transcripts; current clean log bytes moved to unique names",
     "newEvidence": "27-CLEAN-SOURCE-PREPARATION.md"
+  },
+  "releaseCandidateVerification": {
+    "schemaVersion": 1,
+    "disposition": "Six full clean committed-source gates passed under the verified local runtime. Historical failed attempts retained. Additional fresh cold-server proof passes on the same build/revision/manifest. External prerequisites and live acceptance remain pending.",
+    "supersedesSha256": "16bda288f9e279680a34c961a3dba8a9cc0c3e2e0ebd78c30d6f855214635b37",
+    "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+    "sourceManifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4",
+    "gates": [
+      {
+        "command": "node node_modules/vitest/vitest.mjs run",
+        "startedAt": "2026-10-09T15:32:58.213Z",
+        "finishedAt": "2026-10-09T15:39:55.689Z",
+        "durationSeconds": 417.476,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "Test Files  259 passed | 2 skipped (261)\nTests  3343 passed | 5 skipped (3348)",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 259,
+            "failed": 0,
+            "skipped": 2
+          },
+          "tests": {
+            "passed": 3343,
+            "failed": 0,
+            "skipped": 5
+          }
+        },
+        "terminalSummary": "Test Files  259 passed | 2 skipped (261)\nTests  3343 passed | 5 skipped (3348)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/unit.log",
+        "logSha256": "b8977d3b02b08bfadf937d7b518df913d2ee9213493b3a24fb8aa93e5d39e2b6",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/unit-source.json",
+          "sha256": "9e0da75dfa8bbfc1e82de4d783d0630543694f3fbb4bc5a4db81eaebb71ed542",
+          "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T15:32:58.194Z",
+          "manifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "additionalArguments": "--maxWorkers=4",
+        "executedCommand": "node node_modules/vitest/vitest.mjs run --maxWorkers=4",
+        "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
+      },
+      {
+        "command": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts",
+        "startedAt": "2026-10-09T15:39:59.588Z",
+        "finishedAt": "2026-10-09T15:41:45.361Z",
+        "durationSeconds": 105.773,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 91,
+            "failed": 0,
+            "skipped": 0
+          },
+          "tests": {
+            "passed": 1510,
+            "failed": 0,
+            "skipped": 6
+          }
+        },
+        "terminalSummary": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/design.log",
+        "logSha256": "ca95fcda8227964e9088912e8f2dd1c4fc7012081690d0573bcb6b4694d1ee84",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/design-source.json",
+          "sha256": "e1f4d7cbae2cc24042cd5cdf7d3d59b942d0df9374f635cfb0cb295934018d73",
+          "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T15:39:59.567Z",
+          "manifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "additionalArguments": "--maxWorkers=2",
+        "executedCommand": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts --maxWorkers=2",
+        "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
+      },
+      {
+        "command": "node node_modules/typescript/bin/tsc --noEmit",
+        "startedAt": "2026-10-09T15:41:48.632Z",
+        "finishedAt": "2026-10-09T15:42:54.730Z",
+        "durationSeconds": 66.098,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "No TypeScript diagnostics.",
+        "resultData": {
+          "runner": "typescript",
+          "errors": 0
+        },
+        "terminalSummary": "No TypeScript diagnostics.",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/types.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/types-source.json",
+          "sha256": "22321da267a9c7499a0e33053488d00f0b0652df4e981814580b39929bcc432d",
+          "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T15:41:48.613Z",
+          "manifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "additionalArguments": "",
+        "executedCommand": "node node_modules/typescript/bin/tsc --noEmit",
+        "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
+      },
+      {
+        "command": "node node_modules/eslint/bin/eslint.js .",
+        "startedAt": "2026-10-09T15:42:57.872Z",
+        "finishedAt": "2026-10-09T15:44:24.274Z",
+        "durationSeconds": 86.402,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "33 problems (0 errors, 33 warnings)",
+        "resultData": {
+          "runner": "eslint",
+          "errors": 0,
+          "warnings": 33
+        },
+        "terminalSummary": "33 problems (0 errors, 33 warnings)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/lint.log",
+        "logSha256": "c85b6c62a50847bebe2e99cb093ae4fc9d9d938ca7eeef2b6454d289de63d76d",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/lint-source.json",
+          "sha256": "a70d67f36d7e91cb4e2d1969758b4aa14020e893ede8bc08407e477f9f2202d2",
+          "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T15:42:57.854Z",
+          "manifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "additionalArguments": "",
+        "executedCommand": "node node_modules/eslint/bin/eslint.js .",
+        "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
+      },
+      {
+        "command": "node node_modules/next/dist/bin/next build",
+        "startedAt": "2026-10-09T15:44:28.104Z",
+        "finishedAt": "2026-10-09T15:45:52.887Z",
+        "durationSeconds": 84.783,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "✓ Compiled successfully in 39.7s\n✓ Generating static pages using 7 workers (46/46) in 4.3s\nFinalizing page optimization ...",
+        "resultData": {
+          "runner": "next-build",
+          "compiled": true,
+          "generated": true,
+          "errors": 0
+        },
+        "terminalSummary": "✓ Compiled successfully in 39.7s\n✓ Generating static pages using 7 workers (46/46) in 4.3s\nFinalizing page optimization ...",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/build.log",
+        "logSha256": "9e6bd428d76a610f8d59eb8fc1abea452c5b5b361abdfe4622b080b65789663e",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/build-source.json",
+          "sha256": "5362d329a1910e1d2df4fdaaeee6fc432007557752c0c49f48ee7cbaec6f711f",
+          "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T15:44:28.082Z",
+          "manifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "additionalArguments": "",
+        "executedCommand": "node node_modules/next/dist/bin/next build",
+        "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
+      },
+      {
+        "command": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts --project=chromium",
+        "startedAt": "2026-10-09T15:45:56.113Z",
+        "finishedAt": "2026-10-09T15:47:25.729Z",
+        "durationSeconds": 89.616,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "59 passed (1.5m)",
+        "resultData": {
+          "runner": "playwright",
+          "tests": {
+            "passed": 59,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        "terminalSummary": "59 passed (1.5m)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/browser.log",
+        "logSha256": "46b5c7a01956f69b86337c04e414452ca8e63ba443a5d5aad5cde8281d2ddf4d",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-596b4746-adf004b6-ad43-48dd-ae1b-9030fbcf8fac/gates/browser-source.json",
+          "sha256": "b82d5d60eaaf70bef6bde7cd96b1c9b305d6b0a45d2065997b783c7347c9cfd2",
+          "revision": "596b47460282d756a1a5882c4c2d86f18b7ff851",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T15:45:56.090Z",
+          "manifestSha256": "df0862eacdc3b9e1a57419bc03b8fee0ac3d3e539600418b81b772a5fa2137f4"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "additionalArguments": "e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --workers=1",
+        "executedCommand": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --project=chromium --workers=1",
+        "commandRepresentation": "Canonical command and additionalArguments per retained schema; executedCommand and original raw record/report retain complete actual argv and ordering."
+      }
+    ]
   }
 }
 ```

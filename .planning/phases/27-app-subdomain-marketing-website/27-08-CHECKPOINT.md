@@ -25,7 +25,7 @@ key-decisions:
   - Task 3 requires actual human/account authority; sleeping-user autonomy does not approve it.
   - Checkout, payout and legal HOLD remain immutable.
 requirements-completed: []
-completed-tasks: [2]
+completed-tasks: [1, 2]
 prepared-tasks: [1, 2]
 pending-task: 3
 checkpoint-date: 2026-10-09
@@ -38,7 +38,24 @@ actuals:
   measurement: Diff-size token estimate, not model token consumption; 121686 realized diff characters divided by four, rounded up, measured before checkpoint artifact commit
 ---
 
+## Latest verified local repair (October 9)
+
+15/17 plans complete; original 08 task 3 and plan 09 remain pending. All six full
+gates and a fresh cold/warm production-server probe pass at 596b4746, with matching
+source and manifest guards. See 27-GAP-VERIFICATION.md.
+The Contact quota-table decision, Preview database isolation, support inbox owner
+and exact account/cutover prerequisites remain pending. Contact is disabled and
+checkout/payout/legal HOLD remains. No external mutation or requirement completion
+is claimed. Retained source archives and logs remain available.
+
+Later evidence bookkeeping and the offline synthetic-fixture update do not imply
+full-gate verification of a later commit. The tested candidate remains 596b4746.
+
+
+
 # Phase 27 Plan 08: Partial integration and cutover checkpoint
+
+## Historical integration checkpoint (superseded local gate totals)
 
 **All 52 latest local browser cases pass after integration and review fixes; eight unit and nine design baseline assertions remain failed, and the concrete cutover packet awaits human/account prerequisites.**
 

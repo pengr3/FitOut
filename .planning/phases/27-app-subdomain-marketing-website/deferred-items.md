@@ -172,3 +172,10 @@ The browser fixture repair has42 focused passes on the retained build, explicitl
 dirty fixture-only proof. Fixed production cookie semantics and an inert Didit
 workflow ID preserve real auth and invalid-signature guards. Full fresh proof
 will run with unit4/design2 workers and unchanged test deadlines.
+
+
+October9 verified disposition: G19 fixture budget and G20 progress accessibility
+are repaired on the accepted local candidate. G18 cold-development compilation,
+G17 broader Menu ambiguity and G07 unrelated dirty-map ownership remain explicit.
+All historical failures are retained. See27-GAP-VERIFICATION for the six full
+passes and fresh same-build cold-server proof; this is not deployed acceptance.
