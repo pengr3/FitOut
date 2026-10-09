@@ -25,6 +25,7 @@ export const SPACE_TYPES = [
   { value: "dance_studio", label: "Dance / movement studio" },
   { value: "pilates_barre_studio", label: "Pilates / barre studio" },
   { value: "martial_arts_boxing", label: "Martial arts / boxing gym" },
+  { value: "bouldering_gym", label: "Bouldering gym" },
   { value: "home_private_gym", label: "Home / private gym" },
   { value: "multi_purpose_event", label: "Multi-purpose / event space" },
 ] as const;
