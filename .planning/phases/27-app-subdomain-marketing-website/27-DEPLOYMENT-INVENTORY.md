@@ -89,3 +89,22 @@ The connector session and browser session are separate: connector client-ID meta
 is available, but its value was not returned. The user has been asked to sign in
 directly before inspecting only the public `GOOGLE_CLIENT_ID` value and comparing it
 with the observed Google client. This is a pending login/readback, not cutover authority.
+
+### Vercel client-ID visibility confirmed; application-session checkpoint
+
+Readback saved: 2026-10-09 04:55:39 UTC. The user completed Vercel browser login.
+The `fitout-web` Environment Variables page, filtered to `GOOGLE_CLIENT_ID`, shows
+one Production entry added September 8. Its editor explicitly identifies it as
+Secret/write-only: saved values cannot be revealed and cannot be changed to Config.
+Copy to Clipboard is disabled. The Value field is empty, not a readback of an empty
+configured client ID. The editor was cancelled; no variable or setting was changed.
+This explains why the connector GET also returned metadata without the value.
+
+A read-only navigation to `https://fitout.live/login` redirected to the app root.
+The visible Navigation menu contains Profile, Switch to hosting and Sign out,
+confirming an existing signed-in FitOut session in this browser. The Google sign-in
+entry is therefore unavailable without ending that app session. The user has been
+asked whether to sign out only this session and begin Google sign-in solely to read
+the public OAuth client identifier, stopping before credentials/consent. No sign-out
+or OAuth initiation has occurred; production client correspondence remains unknown.
+The session screenshot is retained only under ignored Playwright cache for the handoff.
