@@ -102,10 +102,42 @@ raw bytes, secrets, signatures, retries/deduplication and authorization. Do not 
 financial events, real KYC sessions or re-enable retired payout onboarding.
 
 Read-back every provider's account/mode, destinations, event lists and owner before
-editing. Current settings remain unknown in the inventory. [Google OAuth docs](https://developers.google.com/identity/protocols/oauth2/web-server),
+editing. Dated browser readbacks now identify the production Google client and
+PayMongo receiver; other facts remain partial or unknown in the inventory. [Google OAuth docs](https://developers.google.com/identity/protocols/oauth2/web-server),
 [PayMongo webhook resource](https://docs.paymongo.com/reference/webhook-resource),
 and [Didit webhook docs](https://docs.didit.me/integration/webhooks) are reference
 contracts, not current account proof.
+
+### Concrete Google registration proposal following production readback
+
+On October 9, the user-authorized bounded production login probe confirmed
+`FitOut Client 1` in project `fitout-505104` is the deployed client. Google currently
+rejects its apex callback with `redirect_uri_mismatch`; the client permits only
+localhost. Proposed registration changes for this exact client are:
+
+- Retain `http://localhost:3000/api/auth/callback/google`.
+- Add `https://fitout.live/api/auth/callback/google` to restore the current receiver
+  and retain it throughout the compatibility window.
+- Add `https://app.fitout.live/api/auth/callback/google` before the app-origin cutover.
+- Add the planned JavaScript origin `https://app.fitout.live`.
+
+These are reviewable proposed changes only. No registration was saved, audience
+published or test user added. The current External/Testing audience, zero test users
+and incomplete Branding must also be resolved within separately authorized scope;
+adding callbacks alone does not prove production readiness. Fresh apex/app sign-in
+and consent verification remain required. The inventory records the nonsecret probe
+evidence without OAuth state/code or account identity.
+
+October 9 Didit readback identifies the active apex webhook (v3.0, one event) in
+an inspected Test-mode application; production workflow binding and signing proof
+remain pending. Inngest Production currently serves one listed active `fitout` app
+with 14 functions from the recorded Vercel deployment URL, not the apex or new app
+origin. Preserve that working registration until the replacement's functions,
+signatures and scheduling are verified. Its destination query displayed a Vercel
+protection-bypass credential; coordinate owner replacement/invalidation without
+interrupting scheduled jobs. The credential value/full URL is excluded from this
+packet. No resync, credential mutation, provider test or mode change is authorized
+by these readbacks.
 
 ## Contact release prerequisite and controlled inquiry
 

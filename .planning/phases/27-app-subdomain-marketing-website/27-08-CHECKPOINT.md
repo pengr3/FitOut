@@ -141,6 +141,28 @@ remain unchanged. Independent re-review closes all four code findings; the block
 external account/control/inbox/approval prerequisites above still apply. Contact/mail
 were off; no live release, financial-policy change, requirement check or 08 SUMMARY exists.
 
+## October 9 provider-account inspection update
+
+The user authorized read-only provider browser inspection and will enter any
+required login credentials directly. Google, PayMongo, Vercel, Didit and Inngest
+browser access has been observed; settings inspection remains in progress. The
+bounded current FitOut session logout/OAuth initiation was separately approved.
+It confirmed that the inspected Google client is the production client and that
+current Google sign-in fails with `redirect_uri_mismatch` for the apex callback.
+No OAuth registration, publishing status, provider destination or environment value
+has been changed. Exact nonsecret facts and proposed Google entries are recorded
+in the inventory and cutover packet. Didit's inspected scope is Test mode; no
+production correspondence or real verification result is inferred from it.
+This evidence update does not resolve cutover authority, controls, deployed proof
+or mailbox prerequisites, and does not advance plans 08/09 or any requirement.
+
+Inngest Production readback shows one active `fitout` app with 14 functions and
+successful sync, tied to the recorded current customer Vercel deployment. The
+serve URL contains a protection-bypass credential; owner-coordinated replacement
+and invalidation must preserve scheduled work. No value/full URL is retained or
+used. Resend is at its login page awaiting direct user login; no sender, key-scope
+or delivery proof is available yet. See the inventory for precise boundaries.
+
 ## Self-Check: PASSED
 
 All seven created artifacts and both recorded task commits exist. Prepared validation passes. This confirms checkpoint artifact integrity, not plan completion or live acceptance.

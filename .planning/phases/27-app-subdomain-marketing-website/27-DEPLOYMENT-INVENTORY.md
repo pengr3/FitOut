@@ -108,3 +108,82 @@ asked whether to sign out only this session and begin Google sign-in solely to r
 the public OAuth client identifier, stopping before credentials/consent. No sign-out
 or OAuth initiation has occurred; production client correspondence remains unknown.
 The session screenshot is retained only under ignored Playwright cache for the handoff.
+
+### Production Google OAuth client confirmed — 2026-10-09 05:11 UTC
+
+The user explicitly approved signing out only the current FitOut browser session
+and beginning Google sign-in to read its public client identifier, stopping before
+credentials or consent. The production `/login` flow supplied exactly
+`146998383967-h27qqn2rp51k9m3favsm391hlrt6nv0l.apps.googleusercontent.com`, matching
+the inspected `FitOut Client 1` in Google Cloud project `fitout-505104`. This
+supersedes the earlier **unknown correspondence** observations above; the original
+JSON remains the dated October 8 snapshot.
+
+Google rejected this actual production request with **Error 400:
+`redirect_uri_mismatch`**. Its visible error details identify
+`redirect_uri=https://fitout.live/api/auth/callback/google`. Combined with the
+client's localhost-only registration, this establishes a current production
+Google sign-in configuration failure before the Phase27 cutover. It does not prove
+future app-origin sign-in or successful consent. Testing/audience/branding
+prerequisites still require separate resolution and fresh verification.
+
+The session sign-out completed and the probe ended at Google's rejection without
+entering credentials, granting consent or completing a new FitOut sign-in. A
+cropped error-details screenshot, excluding account identity, is retained only at
+ignored `playwright/.cache/phase27-08/oauth-production-callback-error.jpg`. No raw
+OAuth URL, state, code, error payload or credential is retained. The browser was
+returned to `https://fitout.live/login`. No Google/Vercel setting was changed.
+
+### Didit authenticated configuration readback — 2026-10-09
+
+The existing browser session grants access to the Didit Business Console. Its
+selected application explicitly shows **Test mode**, with verifications described
+as simulated. This is the observed console scope, not proof of production key or
+workflow correspondence. No mode switch was performed.
+
+Webhooks shows one ACTIVE destination, `FitOut host verification`, at
+`https://fitout.live/api/didit/webhook`, with one subscribed event. The destination
+editor shows payload version `v3.0`; the event's selected name was not independently
+established. The editor was cancelled without changing any field. No app-subdomain
+destination appeared in the list. Signing configuration, delivery retries and actual
+signature acceptance remain unverified; no secret was revealed or test sent.
+
+The `FitOut Host Verification` graph workflow has identifier
+`63f24717-7167-4cee-867e-688284d4c2ee` and displays `V1 LIVE`, a published workflow
+version distinct from the application's Test mode. Its Settings panel displays no
+Callback URL value, maximum retry attempts 7, retry window 7 days and session validity
+7 days. These are workflow/end-user retry settings, not webhook delivery retries.
+No graph, eligibility setting, version or session was changed. The local provider
+source sends `callback: absoluteAppUrl(CALLBACK_PATH)` with each session request;
+the blank console workflow field is therefore not evidence of a missing runtime
+browser return. The deployed runtime return and production workflow binding remain
+unverified. No identity-session details or personal identifiers are retained here.
+
+### Inngest authenticated production registration — 2026-10-09
+
+The browser is signed in to the Inngest account. In its **Production** environment,
+the Active Apps list shows one app, `fitout`, with 14 functions. The app detail
+shows Last sync **Success**, displayed timestamp October 8, 2026 at 6:47:16 PM
+(dashboard timezone not established), SDK `4.13.0`, Next.js / JavaScript, and
+registration method Serve. Its Vercel project link is `fitout-web` and deployment
+link identifies `dpl_8PpCPij5v1zQiD8gDP14Ju54QAAv`, matching the earlier apex
+inventory. The serve destination's nonsecret origin/path is
+`https://fitout-mketqxgc5-pengr3s-projects.vercel.app/api/inngest`, rather than apex
+or app.fitout.live. Registered function names are checkout-retire-sweep,
+didit-reconcile, guest-email, guest-email (failure), notify, notify (failure),
+ops-alert-digest, payment-reconcile, payout-reconcile, payout-sweep,
+reminders-sweep, request-expiry-sweep, settlement-account-probe and
+settlement-reconcile. Several displayed triggers are schedules. A single listed
+app does not establish globally unique schedulers across all workspaces/environments.
+
+The destination displayed a Vercel protection-bypass credential in its query
+string. That credential was neither requested, followed nor used; its value and
+full URL are excluded from evidence. This is a separate current registration
+observation from the earlier ops share-link exposure. The account owner must
+coordinate invalidation/replacement with a verified replacement Inngest serve
+registration so scheduled jobs are not disrupted. No credential was revoked or
+rotated, app resynced, schedule changed, event triggered or function executed here.
+Signing validation and old/new destination continuity remain unverified.
+
+Resend is open at `https://resend.com/login`, awaiting direct user login. Domain
+verification, sender/key scope and delivery evidence remain unknown.
