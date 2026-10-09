@@ -69,3 +69,23 @@ Readback saved: 2026-10-09 10:56:07 AM Manila (02:56:07 UTC). Sources:
 visible Google Credentials/client/Audience/Branding pages, PayMongo login page, and
 allowlisted Vercel Production client-ID metadata. No secrets, changes, provider tests,
 live inquiry or deployment occurred. Domain/cutover/Contact authority remains pending.
+
+### PayMongo authenticated readback and production OAuth follow-up
+
+Readback saved: 2026-10-09 04:32:27 UTC. The user completed PayMongo login directly in
+the Codex browser. Settings → Webhooks shows one registered endpoint, Enabled:
+`https://fitout.live/api/paymongo/webhook`. Its five subscriptions are
+`checkout_session.payment.paid`, `merchant.activated`, `merchant.declined`,
+`payment.refunded` and `payment.refund.updated`. The endpoint Overview confirms
+the same URL, Enabled status and events. No app-subdomain receiver is listed.
+Account live/test mode is not explicitly shown in these inspected settings;
+signing-secret correctness and real signed delivery remain unverified. No secret
+was revealed, delivery replayed, endpoint edited or financial action taken. Account
+balances, transaction details and personal account identifiers are excluded here.
+
+Production OAuth correspondence is the next check. Vercel's browser was opened at
+the existing `fitout-web` environment-settings destination and redirected to login.
+The connector session and browser session are separate: connector client-ID metadata
+is available, but its value was not returned. The user has been asked to sign in
+directly before inspecting only the public `GOOGLE_CLIENT_ID` value and comparing it
+with the observed Google client. This is a pending login/readback, not cutover authority.
