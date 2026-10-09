@@ -1270,7 +1270,7 @@ Plans:
 players can see how to get started.
 **Requirements**: [MKT-01, MKT-02, MKT-03, CONTACT-01, DOMAIN-01, DOMAIN-02, DOMAIN-03]
 **Depends on:** Phase 26
-**Plans:** 9 plans
+**Plans:** 17 plans (nine original plus eight supplementary gap plans)
 
 **Scope captured from the user (2026-10-08):**
 
@@ -1353,6 +1353,17 @@ inbox owner are pending. Plan 08 SUMMARY remains absent; no requirement is marke
 **Wave 9** *(blocked on Wave 8 completion)*
 
 - [ ] 27-09-PLAN.md — Perform authorized reversible cutover and prove live hosts/Contact receipt.
+
+Supplementary engineering repairs, approved for planning and continuous local work on 2026-10-09. Original 27-08 external checkpoint and 27-09 remain pending.
+
+- [ ] 27-10-PLAN.md — Reconcile committed listing vocabulary with the existing database enum (wave 10; P27-G14)
+- [ ] 27-11-PLAN.md — Repair audit and payment test preconditions without changing money behavior (wave 11; P27-G02, P27-G04, P27-G12)
+- [ ] 27-12-PLAN.md — Repair ops evidence loading and retain unique source-bound gate records (wave 12; P27-G13)
+- [ ] 27-13-PLAN.md — Repair design fixture drift and the public loading contract (wave 13; P27-G05, P27-G06, P27-G08, P27-G10)
+- [ ] 27-14-PLAN.md — Restore one search tree and the real anonymous app handoff (wave 14; P27-G09, P27-G15)
+- [ ] 27-15-PLAN.md — Apply approved hourly-only publishing and reconcile boundary/census fixtures (wave 15; P27-G01, P27-G03, P27-G07)
+- [ ] 27-16-PLAN.md — Identify the streaming lifecycle fault and stabilize approved-host entry (wave 16; P27-G11, P27-G16)
+- [ ] 27-17-PLAN.md — Verify a clean committed repair candidate and return to the existing cutover checkpoint (wave 17; P27-G01, P27-G02, P27-G03, P27-G04, P27-G05, P27-G06, P27-G07, P27-G08, P27-G09, P27-G10, P27-G11, P27-G12, P27-G13, P27-G14, P27-G15, P27-G16)
 
 ## Carried Forward (not v1.2 scope until promoted)
 

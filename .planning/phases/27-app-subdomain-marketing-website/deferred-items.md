@@ -26,11 +26,11 @@ execution base `edec99b89bffa62df9ba47b4cf85c12f96acfa3f` and preserved dirty wo
 No assertion, date, source behavior, financial policy or baseline is changed here.
 The ten entries below account for all seventeen failed assertions; related
 assertions share a planning item. Determine each repair's scope and expected
-behavior before promoting it to a GSD gap plan. No new phase/plan is created yet.
+behavior before promoting it to a GSD gap plan. Supplementary plans 27-10–17 are now created and checked; observations remain open until actual repair proof.
 
 | ID | Failures / evidence | Finding and provenance | Decision or bounded repair to plan | Verification after repair |
 |---|---|---|---|---|
-| P27-G01 | Unit 2; tests/validation/listing-schema.test.ts | Assertions expect both rates; preserved dirty src/lib/validation/listing.ts accepts one. Phase 27 introduced neither policy nor assertions. | Decide the intended rate contract before changing either side; preserve existing unrelated work. | Focused schema tests, then full unit suite. |
+| P27-G01 | Unit 2; tests/validation/listing-schema.test.ts | Assertions expect both rates; preserved dirty src/lib/validation/listing.ts accepts one. Phase 27 introduced neither policy nor assertions. | D-21 direct user: hourly required, day optional. Plan 27-15 preserves all other constraints and unrelated work. | Focused schema tests, then full unit suite. |
 | P27-G02 | Unit 3; tests/payments/checkout-create.test.ts | Execution-base fixture uses 2026-10-01 times; the October 8 run expires the booking before provider/error expectations. Unrelated checkout edits also exist. | Plan deterministic fixture time/clock handling while retaining expiry, authorization and payment assertions. Do not enable checkout or send provider events. | Focused checkout tests in guarded local test DB, then full unit suite. |
 | P27-G03 | Unit 2; tests/availability/slot-picker-end-boundary.test.tsx | Preexisting untracked fixture expects bg-brand/15; actual selected boundary uses bg-muted/ring-brand/disabled:opacity-100. | Resolve the intended selected-boundary visual contract before editing fixture or source. Keep occupancy/bookability policy and deriveBookable untouched. | Focused boundary tests, then full unit/design suites as applicable. |
 | P27-G04 | Unit 1; tests/payments/ops-cancel.test.ts | Existing sweep fixture excludes oc_b_sweep before cancellation, invalidating its expected before/after witness. Test/action/payout implementation are unchanged at execution base. | Repair the witness/setup with an explicit precondition; retain cancellation and payout safeguards. | Focused cancellation test in guarded local test DB, then full unit suite. |
@@ -110,3 +110,21 @@ remain incomplete until their actual prerequisites and evidence are satisfied.
 When execution reaches its authorized endpoint, use this ledger alongside phase
 verification/evidence to discuss and plan follow-up gaps. Do not label this ledger
 a completed verification report or create an 08 SUMMARY to advance the initializer.
+
+
+## Supplementary repair routing — 2026-10-09
+
+User authorizes planning and continuous local work; D-21 resolves G01. Planning does not close any observation. Original 08/09 and external gates remain pending.
+
+| Plan | Gaps | Status |
+|---|---|---|
+| 27-10 | P27-G14 | Planned; no repair proof yet |
+| 27-11 | P27-G02, P27-G04, P27-G12 | Planned; no repair proof yet |
+| 27-12 | P27-G13 | Planned; no repair proof yet |
+| 27-13 | P27-G05, P27-G06, P27-G08, P27-G10 | Planned; no repair proof yet |
+| 27-14 | P27-G09, P27-G15 | Planned; no repair proof yet |
+| 27-15 | P27-G01, P27-G03, P27-G07 | Planned; no repair proof yet |
+| 27-16 | P27-G11, P27-G16 | Planned; no repair proof yet |
+| 27-17 | P27-G01, P27-G02, P27-G03, P27-G04, P27-G05, P27-G06, P27-G07, P27-G08, P27-G09, P27-G10, P27-G11, P27-G12, P27-G13, P27-G14, P27-G15, P27-G16 | Planned; no repair proof yet |
+
+G07 may remain a separately owned dirty-source observation after committed-source acceptance; that disposition requires an explicit reason. G11/G16 need causal evidence, and an inconclusive investigation blocks dependent acceptance.

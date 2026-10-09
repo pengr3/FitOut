@@ -103,6 +103,8 @@ or authorize payment/payout release. Marketing represents the actual product and
   PayMongo/Didit callbacks, Inngest endpoints, metadata and previews as part of the domain transition.
   Do not assume a cookie or callback changes safely just because the new hostname resolves.
 
+- **D-21 (2026-10-09, direct user; P27-G01):** Whole-space publishing requires an hourly rate; day pricing is optional. Supplied day pricing must still satisfy validation. Preserve open-capacity requirements, caps, quote/expiry/cancellation/payout behavior and release HOLD. User reply: "Hourly required; day optional". Implement through supplementary plan 27-15.
+
 </decisions>
 
 <canonical_refs>

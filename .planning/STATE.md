@@ -4,11 +4,11 @@ milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
-status: awaiting-human
-stopped_at: Phase 27 plans 27-01 through 27-07 complete; plan 27-08 incomplete at account/cutover checkpoint; 7/9 plans executed
+status: ready-to-execute
+stopped_at: Eight supplementary Phase 27 gap plans checked; next 27-10; original 27-08 account checkpoint and 27-09 pending; 7/17 complete
 last_updated: "2026-10-09T08:00:00Z"
 last_activity: 2026-10-09
-last_activity_desc: Clean committed-source preparation completed six sequential full gates on 1dcfa307; unit/design/types/build/browser failed and lint passed; focused metadata/auth/receiver/wizard pass; new gaps and honest log-retention loss recorded; scope unchanged, 7/9 plans, no deployment or acceptance waiver
+last_activity_desc: Planned eight sequential engineering gap repairs; direct user hourly-required/day-optional decision recorded; local repairs authorized continuously; no additional plan executed or release approved
 state_head: 1dcfa307
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -17,8 +17,8 @@ progress:
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 13
   completed_phases: 2
-  total_plans: 139
-  # 2026-10-09: Phase 27 adds nine queued plans to the prior 130; no plan or phase
+  total_plans: 147
+  # 2026-10-09: Phase 27 has seventeen plans (nine original plus eight gaps); no new plan or phase
   # was executed/completed by planning. Preserve curated phase/completion totals.
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
@@ -69,12 +69,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 27 — App Subdomain & Marketing Website — AWAITING RELEASE/ACCOUNT CHECKPOINT. Plans 27-01 through 27-07 complete (7/9); 27-08 remains incomplete with SUMMARY absent and 27-09 has not started. Four original review findings are independently closed. Earlier dirty-source local checks passed 52 Chromium cases, 147 focused tests, types/lint/build; assisted Windows teardown and an unattributed streaming error remain disclosed. Full unit/design still retain eight/nine failures and no clean deployable SHA is proved. October 9 continuation repaired evidence replacement validation (104 offline tests and focused lint pass), retaining historical failures and requiring six fresh clean full gates before deployment acceptance. All requested provider/browser access and bounded readbacks are now available; approved Google origin/callback additions are saved and current-apex sign-in passed for an existing account. DNS/TLS and wildcard zone records are observed, but app returns DEPLOYMENT_NOT_FOUND and www lacks its planned redirect. Preview isolation, production provider bindings/signatures, compatibility revision, exact remaining mutation authority, global Contact controls and inbox receipt/reply remain pending. The separate ops share-link and Inngest serve bypasses need owner-coordinated invalidation/replacement; values are excluded and were never used. Contact is disabled, all seven requirements remain pending, and payment/payout/legal HOLD is unchanged. Resume from the phase `.continue-here.md`, checkpoint, dated inventory and packet.
+**Latest focus (2026-10-09):** Eight supplementary plans 27-10–17 are ready for sequential local execution. Original plans 01–07 complete; 08/09 pending. D-21 requires hourly price with optional day price. Preserve Contact off, external checkpoint and all release HOLDs.
+
+**Earlier preparation focus:** Phase 27 — App Subdomain & Marketing Website — AWAITING RELEASE/ACCOUNT CHECKPOINT. Plans 27-01 through 27-07 complete (7/17); 27-08 remains incomplete with SUMMARY absent and 27-09 has not started. Four original review findings are independently closed. Earlier dirty-source local checks passed 52 Chromium cases, 147 focused tests, types/lint/build; assisted Windows teardown and an unattributed streaming error remain disclosed. Full unit/design still retain eight/nine failures and no clean deployable SHA is proved. October 9 continuation repaired evidence replacement validation (104 offline tests and focused lint pass), retaining historical failures and requiring six fresh clean full gates before deployment acceptance. All requested provider/browser access and bounded readbacks are now available; approved Google origin/callback additions are saved and current-apex sign-in passed for an existing account. DNS/TLS and wildcard zone records are observed, but app returns DEPLOYMENT_NOT_FOUND and www lacks its planned redirect. Preview isolation, production provider bindings/signatures, compatibility revision, exact remaining mutation authority, global Contact controls and inbox receipt/reply remain pending. The separate ops share-link and Inngest serve bypasses need owner-coordinated invalidation/replacement; values are excluded and were never used. Contact is disabled, all seven requirements remain pending, and payment/payout/legal HOLD is unchanged. Resume from the phase `.continue-here.md`, checkpoint, dated inventory and packet.
 
 October 9 user disposition: keep the existing scope, continue authorized preparation,
 and plan repairs after execution. The phase deferred-items.md records all seventeen
 failed assertions plus the separate runtime observation. Do not re-ask the repair-scope
-decision or perform those repairs now. This does not mark failed gates green, approve
+decision. The subsequent user request now authorizes planning and continuous local repairs; use supplementary plans 10–17. This does not mark failed gates green, approve
 the external packet or supply missing release/compatibility/Contact evidence.
 Continued readbacks confirm both Preview scopes point OPS_APP_URL at production ops;
 Preview isolation remains an in-scope prerequisite. No configuration was changed.

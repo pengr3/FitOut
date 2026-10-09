@@ -10,7 +10,7 @@ planned: "2026-10-09"
 
 # Phase 27 — Final Planned Validation Map
 
-Nine plans / nine sequential waves / 24 tasks. Planning coverage is complete; no implementation,
+Original: nine plans / nine sequential waves / 24 tasks. Supplementary: eight sequential plans / 19 tasks; total seventeen plans / 43 tasks. Planning coverage is complete; no implementation,
 test run, capture, production setting or inbox result is claimed. `nyquist_compliant` and
 `wave_0_complete` stay false until execution creates and proves the scaffolds. No framework,
 runtime dependency, schema change or schema push is planned.
@@ -20,7 +20,7 @@ runtime dependency, schema change or schema push is planned.
 Use installed Node CLIs: Vitest 4.1.8, Testing Library and Playwright 1.60.0. Main Vitest requires
 the existing isolated test DB even for mocked focused specs. Design checks use vitest.design.config.ts.
 Browser fixtures preserve real-mail opt-out, provider opt-out and DB safety guards. Tests run in their
-creation task before expansion; no watch mode. Full gates run sequentially and alone in 27-08-01.
+creation task before expansion; no watch mode. Full gates run sequentially and alone in 27-08-01 and supplementary 27-17.
 Measure actual runtime; targeted feedback aims under 60 seconds after DB setup, with separately
 recorded setup/full-gate times. Windows screenshot assets are permitted; visual baselines are not.
 
@@ -136,8 +136,7 @@ Status COVERED means executable scope is planned, not already shipped.
 
 Deferred helpdesk/mailbox/app backlog, broader money release and other phases' requirements are
 excluded by the phase boundary. No required item is missing. API disposition is in COVERAGE.md;
-assumption-delta promotion is recorded in 27-01; schema push is inapplicable; absent UI-SPEC does not
-block this run (existing hook: frontend:false, hasUiSpec:false, block:false). Locked Court/responsive
+assumption-delta promotion is recorded in 27-01; schema push is inapplicable; 27-UI-SPEC now records the existing Court/responsive repair contract; the UI plan gate passes. Locked Court/responsive
 contracts are explicit in 27-04/05/06/08.
 
 ## Account-only proof and sign-off
@@ -157,4 +156,52 @@ relevant deployed/live stage; real receipt is required even when Resend acceptan
 - [ ] All engineering gates passed with actual outputs.
 - [ ] Current deployed/provider/control evidence and real inbox/reply observed.
 
-**Approval:** Pending independent plan-checker. No implementation or live validation has run.
+**Original planning review:** Historical independent-checker checklist retained. Supplementary review uses the skill-mandated inline fallback and deterministic checks; see 27-GAP-PLAN-CHECK.md. No supplementary task has executed yet.
+
+
+## Supplementary validation
+
+### 27-10: Reconcile committed listing vocabulary with the existing database enum
+
+- 27-10-1: Trace enum-to-listing type parity: `node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design/listing-vocabulary-parity.test.ts`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+- 27-10-2: Repair only the missing vocabulary entry: `node node_modules/typescript/bin/tsc --noEmit`; `node node_modules/next/dist/bin/next build`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+
+### 27-11: Repair audit and payment test preconditions without changing money behavior
+
+- 27-11-1: Exercise authoritative capability transactions through audit mocks: `node node_modules/vitest/vitest.mjs run tests/security/audit.test.ts tests/security/audit-durable.test.ts tests/auth/capability-role-policy.test.ts`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+- 27-11-2: Make checkout expiry cases deterministic: `node node_modules/vitest/vitest.mjs run tests/payments/checkout-create.test.ts`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+- 27-11-3: Establish the cancellation sweep witness: `node node_modules/vitest/vitest.mjs run tests/payments/ops-cancel.test.ts`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+
+### 27-12: Repair ops evidence loading and retain unique source-bound gate records
+
+- 27-12-1: Reproduce ops probe import and recover genuine partition proof: `node node_modules/vitest/vitest.mjs run tests/auth/ops-cloak-probe.test.ts`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+- 27-12-2: Introduce a reusable safe sequential evidence runner: `node --test tests/scripts/phase27-runner.test.mjs`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+
+### 27-13: Repair design fixture drift and the public loading contract
+
+- 27-13-1: Make support and child-table fixture contracts explicit: `node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design/email-shell.test.ts tests/design/listing-reuse-predicate-census.test.ts`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+- 27-13-2: Make the suspense mutation hit the current host layout: `node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design/suspense-fallback-overlay.test.ts`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+- 27-13-3: Use approved semantic skeleton recipes for public loading: `node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design/loading-coverage.test.ts`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+
+### 27-14: Restore one search tree and the real anonymous app handoff
+
+- 27-14-1: Keep one panel/control tree across responsive presentations: `node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design/one-tree.test.ts tests/design/selector-contract.test.ts`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+- 27-14-2: Prove the actual app search group is accessible and reachable: `node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-journeys.spec.ts e2e/one-tree.spec.ts --project=chromium --workers=1`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+
+### 27-15: Apply approved hourly-only publishing and reconcile boundary/census fixtures
+
+- 27-15-1: Apply the direct-user pricing decision with negative coverage: `node node_modules/vitest/vitest.mjs run tests/validation/listing-schema.test.ts`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+- 27-15-2: Preserve selected checkout semantics with the Court visual contract: `node node_modules/vitest/vitest.mjs run tests/availability/slot-picker-end-boundary.test.tsx`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+- 27-15-3: Reconcile committed and dirty announcement ownership: `node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design/live-regions.test.tsx`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+
+### 27-16: Identify the streaming lifecycle fault and stabilize approved-host entry
+
+- 27-16-1: Build a bounded cold/warm reproduction with route correlation: `FITOUT_STREAMING_SERVER=dev then production (set via PowerShell $env:FITOUT_STREAMING_SERVER); node node_modules/@playwright/test/cli.js test --config playwright.streaming.config.ts e2e/marketing-streaming.spec.ts --project=chromium --workers=1`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+- 27-16-2: Fix only an established owning cause and prove the original journey: `node node_modules/@playwright/test/cli.js test e2e/marketing-streaming.spec.ts e2e/marketing-journeys.spec.ts --project=chromium --workers=1`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+
+### 27-17: Verify a clean committed repair candidate and return to the existing cutover checkpoint
+
+- 27-17-1: Run six complete sequential gates on exact reviewed committed source: `node scripts/run-phase27-gates.mjs --revision HEAD --stage full`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+- 27-17-2: Record remaining exact account prerequisites without performing cutover: `node scripts/verify-phase27-evidence.mjs --stage prepared`. Failure: nonzero/assertion failure, missing proof or unsafe ownership. Explicit negative cases and source constraints remain in the task.
+
+D-21 pricing is covered by 27-15; all original D-01–20 and seven requirements retain their original mappings. New scaffolds are created in their first named task. Static plan checks do not certify execution, Nyquist completion or external acceptance.

@@ -246,3 +246,8 @@ Preview/provider isolation, Contact controls/inbox, bypass replacement and exact
 external action/rollback prerequisites remain. Google registration approval is
 already satisfied and must not be requested again. No new external mutation,
 mail, deployment, requirement completion or 08SUMMARY was authorized/performed.
+
+
+## Supplementary local prerequisite route — 2026-10-09
+
+User requested planning and continuous local repairs. Checked plans 27-10–17 address recorded gaps; D-21 resolves hourly-required/day-optional publishing. Complete the local repair proof and six clean-source gates before resuming this original external checkpoint. This does not authorize deployment, provider/env/DNS mutations, real email, Contact enablement or money/legal release. No 27-08-SUMMARY exists.
