@@ -14,12 +14,22 @@ for (const path of ["login", "signup"]) {
     try {
       const page = await context.newPage();
       const url = `http://localhost:3000/${path}?callbackURL=%2Fstart-hosting`;
-      await page.goto(url);
-      const form = page.locator("main form");
-      await expect(form).toHaveAttribute("method", "post");
-      await expect(page.getByLabel("Email")).toBeDisabled();
-      await expect(page.getByLabel("Password", { exact: true })).toBeDisabled();
-      await expect(form.getByRole("button", { name: path === "login" ? "Log in" : "Create account", exact: true })).toBeDisabled();
+      const response = await page.goto(url);
+      expect(response?.status()).toBe(200);
+      const form = page.locator("form");
+      if (path === "signup" && await form.count() === 0) {
+        // The production static signup route uses useSearchParams inside Suspense: Next renders
+        // that subtree on the client. With JS disabled it must expose NO credential or submit
+        // control. Ordinary JS-enabled signup/return journeys below still require the real form.
+        await expect(page.getByRole("main").getByRole("link", { name: "FitOut", exact: true })).toBeVisible();
+        await expect(page.locator('input[name="email"], input[name="password"], button[type="submit"]')).toHaveCount(0);
+      } else {
+        await expect(form).toHaveCount(1);
+        await expect(form).toHaveAttribute("method", "post");
+        await expect(form.locator('input[name="email"]')).toBeDisabled();
+        await expect(form.locator('input[name="password"]')).toBeDisabled();
+        await expect(form.locator('button[type="submit"]')).toBeDisabled();
+      }
       await page.keyboard.press("Enter");
       expect(page.url()).toBe(url);
       expect(new URL(page.url()).searchParams.has("password")).toBe(false);
