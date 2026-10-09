@@ -38,10 +38,13 @@ export function completeFixture() {
   const testedSource = { provenance: "captured", revision, dirty: false, claim: "clean-revision", capturedAt: "2026-10-08T19:00:00.000Z", manifest: { scope: SOURCE_SCOPE, files, sha256: manifestDigest(files) } };
   const runners = ["vitest", "vitest", "typescript", "eslint", "next-build", "playwright"];
   engineering.gates.forEach((gate, index) => {
+    // Historical unavailable logs can have null paths; synthetic test logs need
+    // distinct keys or the build/browser fixtures overwrite each other.
+    gate.rawLogPath = `playwright/.cache/phase27-08/synthetic-gate-${index}.log`;
     const log = index < 2 ? "Test Files 1 passed (1)\nTests 1 passed (1)\n" : index === 5 ? "1 passed (1s)\n" : index === 4 ? "Compiled successfully\nGenerating static pages (1/1)\n" : "";
     logs.set(gate.rawLogPath, log);
     const summary = runnerSummary(runners[index], log);
-    Object.assign(gate, { exitCode: 0, status: "pass", result: "Synthetic runner fixture passed", logSha256: createHash("sha256").update(log).digest("hex"), terminalSummary: summary.terminalSummary, resultData: summary.resultData, testedSource: structuredClone(testedSource) });
+    Object.assign(gate, { evidenceKind: "raw-log", rawLogAvailable: true, exitCode: 0, status: "pass", result: "Synthetic runner fixture passed", logSha256: createHash("sha256").update(log).digest("hex"), terminalSummary: summary.terminalSummary, resultData: summary.resultData, testedSource: structuredClone(testedSource) });
   });
   inventory.rows.forEach((row) => Object.assign(row, { status: "observed", source: "synthetic fixture", observedAt }));
   packet.approvedRevision = revision;

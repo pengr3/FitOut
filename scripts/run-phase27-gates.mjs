@@ -1,9 +1,10 @@
 import { spawn, execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, openSync, closeSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { delimiter, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runnerSummary } from "./verify-phase27-evidence.mjs";
+import { probeStreamingRuntime } from "./probe-phase27-streaming-runtime.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
@@ -15,6 +16,9 @@ export function safeEnvironment(kind, inherited = process.env) {
   for (const key of ["PATH", "Path", "SystemRoot", "SYSTEMROOT", "WINDIR", "windir", "TEMP", "TMP", "USERPROFILE", "LOCALAPPDATA", "APPDATA", "COMSPEC", "ComSpec", "PATHEXT", "NUMBER_OF_PROCESSORS"]) {
     if (inherited[key] !== undefined) env[key] = inherited[key];
   }
+  // Playwright's webServer command must use this same verified runtime on Windows.
+  env.PATH = [dirname(process.execPath), inherited.PATH ?? inherited.Path ?? ""].join(delimiter);
+  if (process.platform === "win32") env.Path = env.PATH;
   Object.assign(env, {
     DATABASE_URL: "postgresql://fitout:fitout@localhost:5432/fitout_test",
     TEST_DATABASE_URL: "postgresql://fitout:fitout@localhost:5432/fitout_test",
@@ -127,7 +131,7 @@ const jobs = [
   ["types", "typescript", "node_modules/typescript/bin/tsc", "--noEmit"],
   ["lint", "eslint", "node_modules/eslint/bin/eslint.js", "."],
   ["build", "next-build", "node_modules/next/dist/bin/next", "build"],
-  ["browser", "playwright", "node_modules/@playwright/test/cli.js", "test", "e2e/marketing-tracer.spec.ts", "e2e/marketing-host-matrix.spec.ts", "e2e/marketing-journeys.spec.ts", "e2e/marketing-contact.spec.ts", "--project=chromium", "--workers=1"],
+  ["browser", "playwright", "node_modules/@playwright/test/cli.js", "test", "e2e/marketing-tracer.spec.ts", "e2e/marketing-host-matrix.spec.ts", "e2e/marketing-journeys.spec.ts", "e2e/marketing-contact.spec.ts", "e2e/marketing-search-contract.spec.ts", "e2e/marketing-streaming.spec.ts", "--config", "playwright.streaming.config.ts", "--project=chromium", "--workers=1"],
 ].map(([name, runner, ...args]) => ({ name, runner, command: process.execPath, commandLabel: "node", args, maxSkippedTests: name === "unit" ? 5 : name === "design" ? 6 : 0 }));
 
 async function main() {
@@ -138,12 +142,15 @@ async function main() {
   if (revision !== git("rev-parse", "HEAD")) throw new Error("Candidate must be current HEAD; no checkout or branch mutation is performed");
   git("cat-file", "-e", `${revision}:scripts/run-phase27-gates.mjs`);
   if (git("diff", "--name-only", revision, "--", "scripts/run-phase27-gates.mjs")) throw new Error("Runner must match its reviewed committed source");
+  const runtime = await probeStreamingRuntime();
+  if (runtime.internalTypeErrors) throw new Error(`Node ${process.version} fails the native cancellation-race precondition; select an already-installed fixed runtime.`);
   const cache = join(root, "playwright/.cache/phase27-08");
   mkdirSync(cache, { recursive: true });
   const lockPath = join(cache, "full-gates.lock");
   if (existsSync(lockPath)) throw new Error("Another full gate runner owns the lock; preserve it");
   const runDir = join(cache, `full-${revision.slice(0, 8)}-${randomUUID()}`);
   mkdirSync(runDir);
+  save(join(runDir, "runtime-preflight.json"), runtime);
   const archive = join(runDir, "source.zip");
   git("archive", "--format=zip", `--output=${archive}`, revision);
   const exported = join(runDir, "source");
@@ -156,7 +163,15 @@ async function main() {
   save(join(runDir, "dependencies.log"), copying.output);
   if (copying.exitCode === null || copying.exitCode > 7) throw new Error("Existing dependency copy failed");
   const gitEnv = { GIT_DIR: join(root, ".git"), GIT_WORK_TREE: exported, GIT_INDEX_FILE: join(runDir, "export.index"), GIT_OPTIONAL_LOCKS: "0" };
-  const environment = (kind) => ({ ...safeEnvironment(kind), ...gitEnv });
+  const browserRun = join(exported, "playwright/.cache/phase27-08/release-browser");
+  const environment = (kind) => {
+    const env = { ...safeEnvironment(kind), ...gitEnv, CHROME_LOG_FILE: join(runDir, "chromium-debug.log") };
+    if (kind === "browser") {
+      mkdirSync(browserRun, { recursive: true });
+      Object.assign(env, { FITOUT_STREAMING_SERVER: "production", FITOUT_STREAMING_PORT: "3000", FITOUT_STREAMING_RUN_DIR: browserRun, FITOUT_STREAMING_BUILD_RECORD: join(runDir, "gates/build-record.json") });
+    }
+    return env;
+  };
   execFileSync("git", ["read-tree", revision], { cwd: exported, env: environment("setup"), stdio: "pipe" });
   const generated = await child(process.execPath, ["node_modules/next/dist/bin/next", "typegen"], { cwd: exported, env: environment("setup") });
   save(join(runDir, "typegen.log"), generated.output);
@@ -164,6 +179,7 @@ async function main() {
   const captureSource = (env) => JSON.parse(execFileSync(process.execPath, ["scripts/verify-phase27-evidence.mjs", "--capture-source"], { cwd: exported, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }));
   const initial = captureSource(environment("setup"));
   assertSource(initial, revision);
+  if (!initial.manifest.files.some((file) => file.path === "playwright.streaming.config.ts" && file.sha256)) throw new Error("Built-server browser config must be bound by the source manifest");
   save(join(runDir, "initial-source.json"), initial);
   const report = await runSequential({ jobs, runDir: join(runDir, "gates"), lockPath, captureSource, expectedRevision: revision, expectedManifest: initial.manifest.sha256, cwd: exported, environment });
   console.log(JSON.stringify({ runDir: relative(root, runDir).replaceAll("\\", "/"), revision, allPassed: report.allPassed, automaticAcceptance: false }));

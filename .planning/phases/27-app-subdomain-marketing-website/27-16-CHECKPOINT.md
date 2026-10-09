@@ -78,3 +78,22 @@ Future full-gate provenance must handle that explicitly, preserving old manifest
 | application identity/tool-only refresh | playwright/.cache/phase27-08/gap16-dev-75693667-61daf783-6fab-4fcf-95c9-c73fe49b2176/tool-only-refresh.json | a925c0f77208445ac16a343d471f3f13ea9abb84985f130775bde05383188ef1 |
 | committed preflight and cold/warm production pass | playwright/.cache/phase27-08/gap16-dev-75693667-61daf783-6fab-4fcf-95c9-c73fe49b2176/production-cold-09c654b5-aa62-4a24-a147-5d1c0fc7ae7d/browser-record.json | bd5004832d52113d573500127804ad45c13a6a28d6dc574ed81ab118c64cab85 |
 | committed preflight and cold/warm production pass raw log | playwright/.cache/phase27-08/gap16-dev-75693667-61daf783-6fab-4fcf-95c9-c73fe49b2176/production-cold-09c654b5-aa62-4a24-a147-5d1c0fc7ae7d/browser.log | 224489048f7d61a7fa69883afafd212a95ec0a7395918a5ac4ede7c569e8d1df |
+
+
+### D-22 — October 9 authorized blocker repairs
+
+The user requested “okay fix them, now” after the cold-development deadline,
+combined signup-fixture budget and external release prerequisites were identified.
+Release acceptance now runs the canonical production build under an already-installed
+Node runtime that passes the native cancellation preflight. Cold-development
+compilation remains the retained G18 development finding; it is not relabeled green.
+The five-second URL deadline, real draft ownership, original auth journeys and
+negative assertions remain. Listing/stream fixtures use guarded local synthetic
+sessions, verified through the shipped session reader, so signup testing keeps
+its production limits. Full browser acceptance includes all four original owned
+specs, the search contract and streaming case with zero skips. The full run may
+collect the final Plan16 proof before accepting Plan17; neither is complete until
+its actual results exist. External readbacks/preparation may proceed; pending
+Contact inbox/control and provider/account evidence still cannot be fabricated.
+
+This supersedes the earlier both-modes acceptance gate. Counts remain unchanged until verified completion.

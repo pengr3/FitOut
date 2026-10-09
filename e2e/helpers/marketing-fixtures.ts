@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
 import { assertTestDatabase } from "../../tests/helpers/test-db-url";
 import postgres from "postgres";
 
@@ -39,6 +39,29 @@ export async function marketingFixture() {
   return {
     ...seed,
     title: "FitOut Demo Court",
+    // Listing/stream tests need a local signed session, not another signup test.
+    // Actual signup/password/return journeys still use the shipped auth endpoints.
+    async session(page: Page, intent: "book" | "host") {
+      assertMarketingSafety();
+      const secret = "phase27-inert-auth-marker-not-a-real-credential";
+      const origin = new URL(process.env.BETTER_AUTH_URL ?? "");
+      if (process.env.BETTER_AUTH_SECRET !== secret || origin.hostname !== "localhost" || origin.protocol !== "http:") {
+        throw new Error("Synthetic sessions require the explicit inert secret and local HTTP origin.");
+      }
+      const userId = `marketing_session_${randomUUID()}`;
+      const email = `${userId}@example.com`;
+      accounts.push(email);
+      await seed.sql`INSERT INTO "user" (id, name, email, email_verified, first_name, can_host, can_book, created_at, updated_at) VALUES (${userId}, 'FitOut Demo', ${email}, false, 'FitOut', ${intent === "host"}, ${intent === "book"}, now(), now())`;
+      const token = randomUUID();
+      await seed.sql`INSERT INTO session (id, token, user_id, expires_at, created_at, updated_at) VALUES (${randomUUID()}, ${token}, ${userId}, now() + interval '1 hour', now(), now())`;
+      // Installed better-call uses encoded token.HMAC-SHA256(base64).
+      const signature = createHmac("sha256", secret).update(token).digest("base64");
+      await page.context().addCookies([{ name: "better-auth.session_token", value: encodeURIComponent(`${token}.${signature}`), url: origin.origin, httpOnly: true, sameSite: "Lax", secure: false }]);
+      const response = await page.request.get(`${origin.origin}/api/auth/get-session`);
+      expect(response.ok(), "real session reader accepts the guarded local fixture").toBe(true);
+      expect((await response.json())?.user?.id).toBe(userId);
+      return userId;
+    },
     async account(page: Page, intent: "book" | "host") {
       const email = `marketing.${randomUUID()}@example.com`;
       accounts.push(email);

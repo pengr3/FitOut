@@ -41,3 +41,20 @@ checkpoint survives gap planning and successful local gates.
 Planning uses the Codex skill's inline fallback. Checks here are structured root
 review and deterministic CLI validation, not independent-agent review. Do not
 claim a separately spawned plan checker or a completed implementation.
+
+
+### D-22 — October 9 authorized blocker repairs
+
+The user requested “okay fix them, now” after the cold-development deadline,
+combined signup-fixture budget and external release prerequisites were identified.
+Release acceptance now runs the canonical production build under an already-installed
+Node runtime that passes the native cancellation preflight. Cold-development
+compilation remains the retained G18 development finding; it is not relabeled green.
+The five-second URL deadline, real draft ownership, original auth journeys and
+negative assertions remain. Listing/stream fixtures use guarded local synthetic
+sessions, verified through the shipped session reader, so signup testing keeps
+its production limits. Full browser acceptance includes all four original owned
+specs, the search contract and streaming case with zero skips. The full run may
+collect the final Plan16 proof before accepting Plan17; neither is complete until
+its actual results exist. External readbacks/preparation may proceed; pending
+Contact inbox/control and provider/account evidence still cannot be fabricated.

@@ -165,7 +165,7 @@ test("marketing host handoff reaches the actual approved-host new listing wizard
   test.setTimeout(90_000);
   const fixture = await marketingFixture();
   try {
-    const id = await fixture.account(page, "host");
+    const id = await fixture.session(page, "host");
     await fixture.readyHost(id);
     await startFromHome(page, "host");
     await expect(page).toHaveURL(/\/host$/);

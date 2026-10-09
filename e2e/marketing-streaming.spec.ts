@@ -18,7 +18,7 @@ test("cold and warm approved-host entry create a real owned draft without a stre
     page.on("request", (request) => { const url = new URL(request.url()); if (url.hostname.endsWith("localhost")) record({ event: "request", method: request.method(), path: url.pathname }); });
     page.on("response", (response) => { const url = new URL(response.url()); if (url.hostname.endsWith("localhost")) record({ event: "response", status: response.status(), path: url.pathname }); });
     try {
-      const owner = await fixture.account(page, "host");
+      const owner = await fixture.session(page, "host");
       await fixture.readyHost(owner);
       await page.goto(`http://marketing.localhost:${port}/hosts`);
       await page.getByRole("link", { name: "Start hosting", exact: true }).click();

@@ -36,6 +36,8 @@ test("safe child environment excludes inherited provider values and test NODE_EN
     assert.equal(env.CONTACT_PRODUCTION_ENABLED, "false");
     assert.equal(env.FITOUT_E2E_REAL_EMAIL, "");
     assert.equal(env.VERCEL_URL, undefined);
+    assert.ok(env.PATH.startsWith(resolve(process.execPath, "..")));
+    if (process.platform === "win32") assert.equal(env.Path, env.PATH);
     assert.equal(env.NODE_ENV, kind === "unit" || kind === "design" ? "test" : undefined);
   }
 });
