@@ -5,7 +5,7 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: 27-16 checkpoint: native runtime preflight proved; cold-dev deadline still fails; 17 acceptance blocked; original 08/09 pending; 13/17 complete
+stopped_at: "27-16 checkpoint: native runtime preflight proved; cold-dev deadline still fails; 17 acceptance blocked; original 08/09 pending; 13/17 complete"
 last_updated: "2026-10-09T13:39:18.139Z"
 last_activity: 2026-10-09
 last_activity_desc: Native stream race32/32 on24.13 versus0/32 on existing24.19; built cold/warm and original9 pass; cold-dev and fixture-budget gaps checkpointed
