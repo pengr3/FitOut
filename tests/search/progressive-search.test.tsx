@@ -90,9 +90,11 @@ it("opens the idle pill in one desktop portal anchored to its trigger", () => {
   expect(trigger.className).toContain("h-14");
   fireEvent.click(trigger);
 
-  const overlay = screen.getByTestId("progressive-search-desktop-overlay");
+  const overlay = screen.getByRole("dialog", { name: "Search spaces" });
   expect(overlay).toBeTruthy();
-  expect(overlay.className).toContain("48rem");
+  // jsdom has no native ResizeObserver delivery; exercise the registered viewport callback.
+  fireEvent(window, new Event("resize"));
+  expect(overlay.style.getPropertyValue("--search-width")).toBe("768px");
   expect(screen.getAllByRole("heading", { name: "What are you looking for?" })).toHaveLength(1);
   expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
 });
@@ -103,7 +105,7 @@ it("opens the same active question in one full-screen mobile sheet", () => {
 
   fireEvent.click(screen.getByRole("button", { name: "Start your search" }));
 
-  const mobileSheet = screen.getByTestId("progressive-search-mobile-sheet");
+  const mobileSheet = screen.getByRole("dialog", { name: "Search spaces" });
   expect(mobileSheet).toBeTruthy();
   expect(mobileSheet.className).toContain("max-sm:inset-0");
   expect(mobileSheet.className).toContain("max-sm:h-[100dvh]");
@@ -112,7 +114,7 @@ it("opens the same active question in one full-screen mobile sheet", () => {
   expect(mobileSheet.className).toContain("max-sm:data-open:zoom-in-100");
   expect(mobileSheet.className).toContain("max-sm:data-closed:zoom-out-100");
   expect(screen.getAllByRole("heading", { name: "What are you looking for?" })).toHaveLength(1);
-  expect(screen.queryByTestId("progressive-search-desktop-overlay")).toBeNull();
+  expect(screen.getAllByRole("dialog", { name: "Search spaces" })).toHaveLength(1);
   expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
   expect(screen.queryByRole("button", { name: "Close" })).toBeNull();
 
@@ -135,7 +137,7 @@ it("cancels a direct result-chip edit back to the cold pill and restores focus t
   );
 
   fireEvent.click(screen.getByRole("button", { name: "4 people" }));
-  expect(screen.getByTestId("progressive-search-desktop-overlay")).toBeTruthy();
+  expect(screen.getByRole("dialog", { name: "Search spaces" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
   const coldPill = await screen.findByRole("button", { name: "Start your search" });
@@ -167,12 +169,15 @@ it("positions a direct Activity-chip edit in one reachable desktop question host
 
   fireEvent.click(screen.getByRole("button", { name: /^Activity:/ }));
 
-  const overlay = screen.getByTestId("progressive-search-desktop-overlay");
+  const overlay = screen.getByRole("dialog", { name: "Search spaces" });
   expect(screen.getAllByRole("heading", { name: "What are you looking for?" })).toHaveLength(1);
   expect(screen.getByRole("button", { name: "Back" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
   expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
-  await waitFor(() => expect(overlay.closest("[data-radix-popper-content-wrapper]")?.getAttribute("style")).not.toContain("-200%"));
+  fireEvent(window, new Event("resize"));
+  expect(overlay.style.getPropertyValue("--search-top")).toBe("168px");
+  expect(overlay.style.getPropertyValue("--search-left")).toBe("80px");
+  expect(screen.getAllByRole("dialog", { name: "Search spaces" })).toHaveLength(1);
 
   getBoundingClientRect.mockRestore();
 });
@@ -183,10 +188,10 @@ it("keeps the desktop host open while Back walks retained answers in reverse", (
   selectActivity();
   fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
 
-  expect(screen.getByTestId("progressive-search-desktop-overlay")).toBeTruthy();
+  expect(screen.getByRole("dialog", { name: "Search spaces" })).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Who is this for?" })).toBeTruthy();
   fireEvent.click(screen.getByRole("button", { name: "Back" }));
-  expect(screen.getByTestId("progressive-search-desktop-overlay")).toBeTruthy();
+  expect(screen.getByRole("dialog", { name: "Search spaces" })).toBeTruthy();
   expect(screen.getByRole("heading", { name: "Where do you want to play?" })).toBeTruthy();
   expect(screen.getAllByRole("status", { name: "Search progress" })).toHaveLength(1);
 });
@@ -197,8 +202,8 @@ it("uses a compact desktop party presentation without narrowing the mobile party
   selectActivity();
   fireEvent.click(screen.getByRole("button", { name: "Resolve Makati address" }));
 
-  const desktopOverlay = screen.getByTestId("progressive-search-desktop-overlay");
-  expect(desktopOverlay.className).toContain("34rem");
+  const desktopOverlay = screen.getByRole("dialog", { name: "Search spaces" });
+  expect(desktopOverlay.style.getPropertyValue("--search-width")).toBe("544px");
   expect(screen.getByRole("heading", { name: "Who is this for?" }).parentElement?.className).toContain("sm:max-w-md");
 
   cleanup();
@@ -329,7 +334,8 @@ it("retains a local correction for unchanged canonical props and returns complet
     </SearchExperience>,
   );
   expect(screen.getByRole("heading", { name: "Who is this for?" })).toBeTruthy();
-  expect(screen.getByRole("button", { name: "4 people" })).toBeTruthy();
+  // The result chip is correctly inert and hidden from the accessibility tree behind the modal.
+  expect(screen.getByRole("button", { name: "4 people", hidden: true })).toBeTruthy();
 
   rerender(
     <SearchExperience initialAnswers={{}} hasCompletedSearch={false}>
