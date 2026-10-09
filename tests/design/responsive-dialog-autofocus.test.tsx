@@ -152,6 +152,9 @@ const DELIBERATE = new Set([
   // Phase 20's Revoke/Cancel trigger disappears after an authoritative success. The result line is
   // the persistent next action, so close-time focus is handed there instead of back to a stale row.
   "src/components/ops/staff-action-dialog.tsx",
+  // Phase 24/27 search focuses the current question heading and restores an answer edit button
+  // when no DialogTrigger is mounted. This preserves its existing keyboard journey on one tree.
+  "src/components/search/progressive-search-overlay.tsx",
 ]);
 
 /**
