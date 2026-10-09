@@ -6,10 +6,10 @@ current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: awaiting-human
 stopped_at: Phase 27 plans 27-01 through 27-07 complete; plan 27-08 incomplete at account/cutover checkpoint; 7/9 plans executed
-last_updated: "2026-10-09T06:44:35Z"
+last_updated: "2026-10-09T08:00:00Z"
 last_activity: 2026-10-09
-last_activity_desc: User retains Phase 27 scope and defers eight unit/nine design failures to gap planning after execution; deferred-items ledger saved; repair-scope question resolved; remaining release/compatibility/account/Contact checkpoints pending; no acceptance waiver or deployment
-state_head: b7889cde
+last_activity_desc: Clean committed-source preparation completed six sequential full gates on 1dcfa307; unit/design/types/build/browser failed and lint passed; focused metadata/auth/receiver/wizard pass; new gaps and honest log-retention loss recorded; scope unchanged, 7/9 plans, no deployment or acceptance waiver
+state_head: 1dcfa307
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass

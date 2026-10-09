@@ -2,6 +2,22 @@
 
 Engineering preparation and live account facts remain separate. Full unit/design and the first full browser gate failed. A successful build/typecheck/lint is insufficient to claim the engineering contract complete. No checkout, payout, legal, provider, deployment or live mail release occurred.
 
+October9 additional clean-source preparation is in
+27-CLEAN-SOURCE-PREPARATION.md. It binds revision
+1dcfa30712376a2a7573ea93be867ef4bf44ccfe and contemporaneous captures, preserving
+the shared checkout and the historical records below. Full unit/design and
+typecheck/build fail; lint and focused metadata/hosting-resume pass. No accepted
+releaseCandidateVerification replacement or deployed proof is claimed. New
+findings are in deferred-items.md under the user's unchanged-scope decision.
+
+The October9 wrapper reused four old log filenames. Types/lint were recovered
+from byte-identical retained copies; the original build/browser raw logs could
+not be recovered. Those two historical records now explicitly use their already
+committed bounded terminal summaries, retaining their original raw hashes and
+actual results. New logs have unique clean-1dcfa307 names. Prepared consistency
+validation passes under the existing honest terminal-transcript contract; neither
+raw recovery nor deployment acceptance is fabricated.
+
 ```json
 {
   "schemaVersion": 2,
@@ -157,11 +173,11 @@ Engineering preparation and live account facts remain separate. Full unit/design
       "durationSeconds": 72.3727786,
       "exitCode": 0,
       "status": "pass",
-      "result": "Production route generation completed on final UI source with isolated test DB, mail off and inert noncredential build markers. Exit 0.",
-      "evidenceKind": "raw-log",
-      "rawLogAvailable": true,
-      "rawLogPath": "playwright/.cache/phase27-08/release-build.log",
-      "logSha256": "173824f56f60b17c34eb2c00a4a8f8026b25d62ebb6b7fe87e0f4826bcbadd38",
+      "result": "✓ Compiled successfully in 21.9s\n✓ Generating static pages using 7 workers (46/46) in 2.5s\nFinalizing page optimization ...",
+      "evidenceKind": "terminal-transcript",
+      "rawLogAvailable": false,
+      "rawLogPath": null,
+      "logSha256": "89b47651551094f9b9e28befb9088c54a0dbe2b021237a46040b62e7cd9d1d93",
       "resultData": {
         "runner": "next-build",
         "compiled": true,
@@ -177,7 +193,12 @@ Engineering preparation and live account facts remain separate. Full unit/design
         "capturedAt": null,
         "manifest": null,
         "reason": "No source manifest/revision was captured before this historical gate; preserve the dirty-tree run and known source timing boundaries without inventing provenance."
-      }
+      },
+      "originalRawLogPath": "playwright/.cache/phase27-08/release-build.log",
+      "originalRawLogSha256": "173824f56f60b17c34eb2c00a4a8f8026b25d62ebb6b7fe87e0f4826bcbadd38",
+      "originalBoundedResult": "Production route generation completed on final UI source with isolated test DB, mail off and inert noncredential build markers. Exit 0.",
+      "rawLogLoss": "October9 clean-preparation wrapper reused the historical filename and overwrote this raw log. No byte-identical retained copy was found. Original raw path/digest, actual command/timing/exit/totals and the already-committed terminalSummary remain; result now hashes that existing bounded terminal transcript, never reconstructed raw output. The new failed log is retained under a unique clean-1dcfa307 filename.",
+      "transcriptSource": "1dcfa30712376a2a7573ea93be867ef4bf44ccfe:27-ENGINEERING-EVIDENCE.md existing terminalSummary"
     },
     {
       "command": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts --project=chromium",
@@ -187,11 +208,11 @@ Engineering preparation and live account facts remain separate. Full unit/design
       "durationSeconds": 127.0605204,
       "exitCode": 0,
       "status": "pass",
-      "result": "51 passed; no skipped/unrun owned case; normal runner/server teardown. All final UI source and actual local integration assertions pass.",
-      "evidenceKind": "raw-log",
-      "rawLogAvailable": true,
-      "rawLogPath": "playwright/.cache/phase27-08/release-browser.log",
-      "logSha256": "6c317126d534d95a5e444935738edd021dd7dc47d4c1b9c545b2ea420008886b",
+      "result": "51 passed (2.1m)",
+      "evidenceKind": "terminal-transcript",
+      "rawLogAvailable": false,
+      "rawLogPath": null,
+      "logSha256": "d50430909832c387c5da169b67c563f7e4ff3046270e49d1b925f713ae40a7c6",
       "resultData": {
         "runner": "playwright",
         "tests": {
@@ -209,7 +230,12 @@ Engineering preparation and live account facts remain separate. Full unit/design
         "capturedAt": null,
         "manifest": null,
         "reason": "No source manifest/revision was captured before this historical gate; preserve the dirty-tree run and known source timing boundaries without inventing provenance."
-      }
+      },
+      "originalRawLogPath": "playwright/.cache/phase27-08/release-browser.log",
+      "originalRawLogSha256": "6c317126d534d95a5e444935738edd021dd7dc47d4c1b9c545b2ea420008886b",
+      "originalBoundedResult": "51 passed; no skipped/unrun owned case; normal runner/server teardown. All final UI source and actual local integration assertions pass.",
+      "rawLogLoss": "October9 clean-preparation wrapper reused the historical filename and overwrote this raw log. No byte-identical retained copy was found. Original raw path/digest, actual command/timing/exit/totals and the already-committed terminalSummary remain; result now hashes that existing bounded terminal transcript, never reconstructed raw output. The new failed log is retained under a unique clean-1dcfa307 filename.",
+      "transcriptSource": "1dcfa30712376a2a7573ea93be867ef4bf44ccfe:27-ENGINEERING-EVIDENCE.md existing terminalSummary"
     }
   ],
   "initialFullGates": [
@@ -649,6 +675,20 @@ Engineering preparation and live account facts remain separate. Full unit/design
       }
     ],
     "browserDisposition": "All 52 test cases passed, terminal exit0. Windows server teardown stalled; root verified exact runner20004/pwsh12544/cmd1736 and owned Next20988/start-server9188/build children17140/20916, stopped only the owned Next descendants and left runner/unrelated Node untouched. This was assisted teardown, not normal teardown. One unattributed Next dev streaming TypeError controller[kState].transformAlgorithm is not a function (digest2206780199, ignored frames) occurred between successful cases47 and48; log does not identify route/action/source frame. Retained for independent review; no error-free runtime claim."
+  },
+  "logRetentionIncident": {
+    "recordedAt": "2026-10-09T07:58:16.429Z",
+    "cause": "Clean preparation reused four historical filenames",
+    "recovered": [
+      "types from byte-identical final-types.log",
+      "lint from byte-identical final-lint.log"
+    ],
+    "unrecoverable": [
+      "historical release-build raw bytes",
+      "historical release-browser raw bytes"
+    ],
+    "preserved": "Original raw digests and existing committed terminal transcripts; current clean log bytes moved to unique names",
+    "newEvidence": "27-CLEAN-SOURCE-PREPARATION.md"
   }
 }
 ```

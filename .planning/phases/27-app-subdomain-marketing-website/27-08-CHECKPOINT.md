@@ -216,3 +216,33 @@ settle disputed policy or prove a clean/deployed revision. Full gates remain fai
 in engineering evidence; the plan SUMMARY remains absent and counts remain7/9.
 
 All seven original created artifacts and both recorded task commits exist. Prepared validation passes. This confirms checkpoint artifact integrity, not plan completion or live acceptance.
+
+## October9 clean committed-source preparation
+
+All authorized local checks now bind exact committed revision
+1dcfa30712376a2a7573ea93be867ef4bf44ccfe, using an ignored source export and
+private index while preserving the shared checkout. Six full gates ran alone in
+canonical order; all14 completed attempt records pass log/source hash, manifest
+and timing consistency. See 27-CLEAN-SOURCE-PREPARATION.md for the actual records.
+
+Unit3317pass/18fail/5skip, design1498pass/8fail/6skip, typecheck4errors,
+lint0errors/33warnings. Build compiles but fails on the existing bouldering_gym
+enum/vocabulary mismatch. Chromium48pass/4fail with normal server teardown.
+Focused metadata6/6, installed hosting-resume24/24 and local receiver/wizard2/2
+pass unchanged; they do not replace the failed full suites. The streaming error
+recurs. New gaps P27-G12–G16 are recorded for proper later planning under the
+user's unchanged-scope decision. No product/schema/package repair occurred.
+
+An evidence-retention collision is disclosed: new filenames overwrote four old
+raw references. Types/lint were recovered by exact hashes from retained copies;
+old build/browser raw bytes could not be recovered. Their existing committed
+terminal summaries and original digests/results remain with explicit transcript
+provenance. New logs are uniquely named; the existing prepared validator passes
+without any weakened assertion. No fresh accepted candidate replacement exists.
+
+This closes additional local preparation, not Task3 or the phase. The tested
+revision cannot be deployed while its build fails. Existing compatibility,
+Preview/provider isolation, Contact controls/inbox, bypass replacement and exact
+external action/rollback prerequisites remain. Google registration approval is
+already satisfied and must not be requested again. No new external mutation,
+mail, deployment, requirement completion or 08SUMMARY was authorized/performed.

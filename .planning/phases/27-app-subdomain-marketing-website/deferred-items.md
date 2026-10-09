@@ -51,6 +51,37 @@ reproduce and identify it before assigning a fix; do not claim an error-free
 runtime or count it as an eighteenth failed assertion. Scoped assisted Windows
 teardown is separately disclosed in the original evidence.
 
+October9 update: clean-source Chromium reproduces the same streaming TypeError
+with digest1244386673, and the receiver/wizard focused retries reproduce it with
+digest3994520977. Both focused cases pass in ordinary Next development mode.
+This supplies reproducibility evidence beyond the original dirty run; no source
+stack or causal route attribution is established. Preserve all logs and inspect
+the streaming lifecycle in follow-up planning; do not claim an error-free runtime.
+
+## Additional clean-source findings on October 9
+
+The clean committed export is additional evidence, not a rerun of the same dirty
+source. Preserve the historical counts above; do not sum different-source runs
+into a single suite result. Commands, timings, logs and source captures are in
+27-CLEAN-SOURCE-PREPARATION.md. No repair has started.
+
+| ID | Finding | Follow-up to plan |
+|---|---|---|
+| P27-G12 | Three clean unit assertions in tests/security/audit.test.ts and audit-durable.test.ts fail because their db mocks omit transaction, now required by the Phase27 capability guard. | Adapt the caller-level mocks to the authoritative transaction/role check while preserving audit-success and broken-sink assertions; run those tests and real role-policy/concurrency tests, then full unit. Do not loosen the capability guard. |
+| P27-G13 | Clean unit reports ten ops-cloak-probe import SyntaxErrors plus one absent committed Phase20 partition JSON transcript. Direct Node syntax/import checks of the exported script pass; the ten import errors have no established product-source attribution. | Reproduce the export/Vitest import behavior and separately reconcile the existing partition evidence using genuine retained proof; do not invent a transcript or infer a live staff check. |
+| P27-G14 | Clean typecheck has four bouldering_gym enum/vocabulary diagnostics; the network-enabled production build compiles then stops on the first. The enum already exists at the Plan08 base. | Plan vocabulary/schema-type reconciliation without changing bookability or money policy; verify typecheck and canonical production build. This tested revision cannot be deployed with the error. |
+| P27-G15 | Two clean owned-browser cases cannot find the app Search spaces group although the app heading loads. The prior dirty-source pass does not establish this committed app contract. | Reconcile the actual committed search UI, Phase24 work and intended accessible selector; preserve real app browsing assertions instead of dropping the selector to claim a pass. |
+| P27-G16 | Approved-host /new returns200 but once misses the existing five-second edit-URL assertion; the same test passes unchanged in the focused ordinary-dev retry. | Investigate cold compilation/navigation and the repeated streaming observation; preserve the failed full run and do not widen timeouts without an established cause. |
+
+Resolved preparation observations are not pending product fixes: one metadata
+timeout passed in the unchanged focused and later full design runs; NODE_ENV
+empty was corrected in the local wrapper; the one missing inert Google fixture
+failure passed in the subsequent 24-case hosting-resume run. Failed attempts
+remain retained. Inngest local introspection received500 with cloud mode and no
+signing key; the existing local INNGEST_DEV=1 precondition passes in the focused
+receiver test and is not production signature or scheduler proof. No full
+acceptance waiver or clean release is claimed.
+
 ## Remaining Phase 27 prerequisites (not deferred by this decision)
 
 These remain in the current execution scope and must not be silently reclassified

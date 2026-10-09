@@ -11,7 +11,8 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
 ```json
 {
   "targets": {"app":"https://app.fitout.live","marketing":"https://fitout.live","ops":"https://ops.fitout.live","www":"https://www.fitout.live -> https://fitout.live"},
-  "proposedRevision":"Phase27 dev candidate; execution base 1afc5fc3b48d27bd292bbe96ecc11abe2944862a; exact reviewed final SHA required before deployment",
+  "proposedRevision":"1dcfa30712376a2a7573ea93be867ef4bf44ccfe",
+  "candidateAcceptance":"Clean-source preparation only; full unit/design/type/build gates fail. This revision is not approved or eligible for deployment. See 27-CLEAN-SOURCE-PREPARATION.md and deferred-items.md.",
   "approvedRevision":null,
   "authority":{"status":"pending","scope":null,"approvedAt":null},
   "holds":{"checkout":"HOLD","payout":"HOLD","legal":"HOLD"},
@@ -51,6 +52,15 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
 ```
 
 ## Deployed evidence contract
+
+October9 clean-source preparation now binds an exact tested revision and source
+captures without the shared checkout's unrelated changes. The typecheck and
+production build fail on an existing space-type mismatch; full unit/design also
+remain failed. This is progress in provenance, not a deployable replacement.
+The user retains scope and schedules these findings for gap planning. Do not
+request deployment approval while the build/prerequisites are unresolved, and do
+not treat later documentation commits as the tested source revision. See
+27-CLEAN-SOURCE-PREPARATION.md for the actual retained attempts and source hashes.
 
 Engineering schemaVersion 2 requires typed runner totals and the bounded terminal summary to
 match the retained log bytes, valid start/finish ordering, and explicit tested source context.
