@@ -102,6 +102,8 @@ const TRIGGER_ADOPTERS: Readonly<Record<string, string>> = {
   "src/components/patterns/nav-drawer-shell.tsx":
     "the below-`md:` nav drawer — the module 19.1-16 created, and the reason this file exists",
   "src/components/profile/avatar-field.tsx": "the avatar upload's crop entry point",
+  "src/components/search/progressive-search-overlay.tsx":
+    "Phase27's client-owned single search dialog; trigger creation stays on the client",
   "src/app/dev/theme/page.tsx":
     "the /dev/theme preview's overlay demo — SEE `SERVER_ADOPTER_EXEMPTIONS`, this one is NOT a " +
     "client module and it carries the same latent defect",
@@ -546,7 +548,7 @@ describe("CI-01 — an element handed to Radix's `asChild` is created on the cli
       ANALYSIS.triggerAdopters.length,
       "the pinned adopter count moved. The number is the record of a decision; the entry and its " +
         "reason are written first.",
-    ).toBe(8);
+    ).toBe(9);
 
     // The other half of the same claim: the three CONTROLLED overlays are really in the tree and
     // really are not adopters. Without this, "seven" could equally mean the walk stopped seeing three

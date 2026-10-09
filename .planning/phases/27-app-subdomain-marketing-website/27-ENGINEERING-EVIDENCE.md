@@ -645,6 +645,241 @@ raw recovery nor deployment acceptance is fabricated.
           "capturedAt": "2026-10-08T22:13:16.285Z",
           "manifestSha256": "915b5b766a233d11dcf055f12f6c53bf47f12188e9463e55ddab3b93e52f5212"
         }
+      },
+      {
+        "command": "node node_modules/vitest/vitest.mjs run",
+        "startedAt": "2026-10-09T15:05:15.675Z",
+        "finishedAt": "2026-10-09T15:12:37.878Z",
+        "durationSeconds": 442.203,
+        "exitCode": 1,
+        "status": "fail",
+        "result": "Test Files  2 failed | 257 passed | 2 skipped (261)\nTests  17 failed | 3326 passed | 5 skipped (3348)",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 257,
+            "failed": 2,
+            "skipped": 2
+          },
+          "tests": {
+            "passed": 3326,
+            "failed": 17,
+            "skipped": 5
+          }
+        },
+        "terminalSummary": "Test Files  2 failed | 257 passed | 2 skipped (261)\nTests  17 failed | 3326 passed | 5 skipped (3348)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/unit.log",
+        "logSha256": "4e7a420be73eebaa60b5ee880975ad1f4756d8db56caccbc586242a5660a8ad2",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/unit-source.json",
+          "sha256": "228b7d1401b2249b6ca0501a780e1e4d2191c102f251ac7c39d0527b0c5b1c17",
+          "revision": "77ba1254e52d4269d84141afb8f779519fdd4753",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T15:05:15.648Z",
+          "manifestSha256": "482f59a9e28eeb6e3ba7db5c71ceeec4b346c57fb129dd78032c93f6901ea24e"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": false,
+        "disposition": "October9 first revised built-server full attempt retained. Unit17/design3/browser3 failures are genuine; types/lint/build pass and source guards pass. Fixture and stale-contract remedies require a new complete same-SHA run; no candidate acceptance inferred."
+      },
+      {
+        "command": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts",
+        "startedAt": "2026-10-09T15:12:41.585Z",
+        "finishedAt": "2026-10-09T15:13:57.396Z",
+        "durationSeconds": 75.811,
+        "exitCode": 1,
+        "status": "fail",
+        "result": "Test Files  3 failed | 88 passed (91)\nTests  3 failed | 1507 passed | 6 skipped (1516)",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 88,
+            "failed": 3,
+            "skipped": 0
+          },
+          "tests": {
+            "passed": 1507,
+            "failed": 3,
+            "skipped": 6
+          }
+        },
+        "terminalSummary": "Test Files  3 failed | 88 passed (91)\nTests  3 failed | 1507 passed | 6 skipped (1516)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/design.log",
+        "logSha256": "ef93fe1ada8f28dba765df4f07dc209b7a70fb4e461abad5fa4dc14cd3cb58b2",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/design-source.json",
+          "sha256": "1bd0703d1084259bd245f2283b4ad070b2b51e14b40180b54afea8115f590d06",
+          "revision": "77ba1254e52d4269d84141afb8f779519fdd4753",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T15:12:41.565Z",
+          "manifestSha256": "482f59a9e28eeb6e3ba7db5c71ceeec4b346c57fb129dd78032c93f6901ea24e"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": false,
+        "disposition": "October9 first revised built-server full attempt retained. Unit17/design3/browser3 failures are genuine; types/lint/build pass and source guards pass. Fixture and stale-contract remedies require a new complete same-SHA run; no candidate acceptance inferred."
+      },
+      {
+        "command": "node node_modules/typescript/bin/tsc --noEmit",
+        "startedAt": "2026-10-09T15:14:00.687Z",
+        "finishedAt": "2026-10-09T15:15:07.834Z",
+        "durationSeconds": 67.147,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "No TypeScript diagnostics.",
+        "resultData": {
+          "runner": "typescript",
+          "errors": 0
+        },
+        "terminalSummary": "No TypeScript diagnostics.",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/types.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/types-source.json",
+          "sha256": "55900eb91050dd8f8c75eda4941753272397ce98c448616c804ce25e8cc91252",
+          "revision": "77ba1254e52d4269d84141afb8f779519fdd4753",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T15:14:00.667Z",
+          "manifestSha256": "482f59a9e28eeb6e3ba7db5c71ceeec4b346c57fb129dd78032c93f6901ea24e"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "disposition": "October9 first revised built-server full attempt retained. Unit17/design3/browser3 failures are genuine; types/lint/build pass and source guards pass. Fixture and stale-contract remedies require a new complete same-SHA run; no candidate acceptance inferred."
+      },
+      {
+        "command": "node node_modules/eslint/bin/eslint.js .",
+        "startedAt": "2026-10-09T15:15:10.915Z",
+        "finishedAt": "2026-10-09T15:16:50.680Z",
+        "durationSeconds": 99.765,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "33 problems (0 errors, 33 warnings)",
+        "resultData": {
+          "runner": "eslint",
+          "errors": 0,
+          "warnings": 33
+        },
+        "terminalSummary": "33 problems (0 errors, 33 warnings)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/lint.log",
+        "logSha256": "651b63c72e5fa670482c028ea304b00c352dcbfa2d4744eb5ffd9a9891a98c52",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/lint-source.json",
+          "sha256": "ef06dbf7e0556ac07b3a25183bfd1f51c7c5d2e0e74b5b169c9e0f6cd155d94d",
+          "revision": "77ba1254e52d4269d84141afb8f779519fdd4753",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T15:15:10.896Z",
+          "manifestSha256": "482f59a9e28eeb6e3ba7db5c71ceeec4b346c57fb129dd78032c93f6901ea24e"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "disposition": "October9 first revised built-server full attempt retained. Unit17/design3/browser3 failures are genuine; types/lint/build pass and source guards pass. Fixture and stale-contract remedies require a new complete same-SHA run; no candidate acceptance inferred."
+      },
+      {
+        "command": "node node_modules/next/dist/bin/next build",
+        "startedAt": "2026-10-09T15:16:54.404Z",
+        "finishedAt": "2026-10-09T15:18:20.639Z",
+        "durationSeconds": 86.235,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "✓ Compiled successfully in 40s\n✓ Generating static pages using 7 workers (46/46) in 4.1s\nFinalizing page optimization ...",
+        "resultData": {
+          "runner": "next-build",
+          "compiled": true,
+          "generated": true,
+          "errors": 0
+        },
+        "terminalSummary": "✓ Compiled successfully in 40s\n✓ Generating static pages using 7 workers (46/46) in 4.1s\nFinalizing page optimization ...",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/build.log",
+        "logSha256": "941d444a63cf9839bf7eda8eb0ec5b50117ab1719362c8de48ac2d291b334211",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/build-source.json",
+          "sha256": "cf1114cdef58f1a3d0dd7862acd43545deec308dd5b05dd7cd3519a974323e64",
+          "revision": "77ba1254e52d4269d84141afb8f779519fdd4753",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T15:16:54.384Z",
+          "manifestSha256": "482f59a9e28eeb6e3ba7db5c71ceeec4b346c57fb129dd78032c93f6901ea24e"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "disposition": "October9 first revised built-server full attempt retained. Unit17/design3/browser3 failures are genuine; types/lint/build pass and source guards pass. Fixture and stale-contract remedies require a new complete same-SHA run; no candidate acceptance inferred."
+      },
+      {
+        "command": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --project=chromium --workers=1",
+        "startedAt": "2026-10-09T15:18:24.274Z",
+        "finishedAt": "2026-10-09T15:19:56.872Z",
+        "durationSeconds": 92.598,
+        "exitCode": 1,
+        "status": "fail",
+        "result": "3 failed\n56 passed (1.5m)",
+        "resultData": {
+          "runner": "playwright",
+          "tests": {
+            "passed": 56,
+            "failed": 3,
+            "skipped": 0
+          }
+        },
+        "terminalSummary": "3 failed\n56 passed (1.5m)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/browser.log",
+        "logSha256": "d7bcf79faf1974891afae932052b6dea8184cbc2d745ef65dc8550f31fd062d3",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/browser-source.json",
+          "sha256": "fe343de8e7103617ff4dc4da1ad67daed063d11dcaa479a51a302ac04f903fb9",
+          "revision": "77ba1254e52d4269d84141afb8f779519fdd4753",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-09T15:18:24.252Z",
+          "manifestSha256": "482f59a9e28eeb6e3ba7db5c71ceeec4b346c57fb129dd78032c93f6901ea24e"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": false,
+        "disposition": "October9 first revised built-server full attempt retained. Unit17/design3/browser3 failures are genuine; types/lint/build pass and source guards pass. Fixture and stale-contract remedies require a new complete same-SHA run; no candidate acceptance inferred."
       }
     ],
     "terminalOnlyChecks": [

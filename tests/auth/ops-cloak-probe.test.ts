@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { createRequire } from "node:module";
 
 import { describe, expect, it } from "vitest";
 
@@ -29,9 +30,9 @@ type ProbeModule = {
 
 async function loadProbe(): Promise<ProbeModule | null> {
   if (!existsSync(PROBE_PATH)) return null;
-  // Resolve through Vitest's module loader. A computed file: URL worked in the
-  // shared checkout but failed in a nested clean export on Windows.
-  return import("../../scripts/verify-ops-cloak.mjs") as Promise<ProbeModule>;
+  // Load the actual pure ESM CLI through Node, retaining its real function objects.
+  // Vitest's transformed dynamic import fails on the nested Windows export.
+  return createRequire(import.meta.url)(resolve(PROBE_PATH)) as ProbeModule;
 }
 
 const SHA_404 = "a".repeat(64);

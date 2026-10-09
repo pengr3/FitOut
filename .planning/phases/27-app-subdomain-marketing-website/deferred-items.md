@@ -159,3 +159,16 @@ source untouched; inspect owner/name/scope in later planning rather than absorb
 unrelated nav work into search. The six existing search/host rows and all17 owned
 marketing/search cases pass. Broad failure is retained at playwright/.cache/phase27-08/gap14b-c5353509-08b8dacd-6ebb-464a-9cbd-3108b3fab153/browser-wide-inert/browser-record.json.
 This is not a whole-suite pass or full release acceptance.
+
+
+### G20 — search progress announcement hidden by modal (October9)
+
+The full clean run at77ba1254 exposes an accessible progress region outside the
+modal. Move the single shared announcement into the open dialog, retaining one
+region and input-tree continuity. Focused amended search/ops unit36 and design63
+pass, but full acceptance is still pending. Historical unit17/design3/browser3
+failures remain in playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/report.json and the engineering ledger.
+The browser fixture repair has42 focused passes on the retained build, explicitly
+dirty fixture-only proof. Fixed production cookie semantics and an inert Didit
+workflow ID preserve real auth and invalid-signature guards. Full fresh proof
+will run with unit4/design2 workers and unchanged test deadlines.

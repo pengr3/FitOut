@@ -30,10 +30,10 @@ export function safeEnvironment(kind, inherited = process.env) {
     GOOGLE_CLIENT_ID: "phase27-inert.apps.googleusercontent.com", GOOGLE_CLIENT_SECRET: "phase27-inert-not-a-real-credential",
     INNGEST_DEV: "1",
   });
-  for (const key of ["PAYMONGO_SECRET_KEY", "PAYMONGO_PUBLIC_KEY", "PAYMONGO_WEBHOOK_SECRET", "DIDIT_API_KEY", "DIDIT_WEBHOOK_SECRET", "INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"]) env[key] = "";
+  for (const key of ["PAYMONGO_SECRET_KEY", "PAYMONGO_PUBLIC_KEY", "PAYMONGO_WEBHOOK_SECRET", "DIDIT_API_KEY", "DIDIT_WORKFLOW_ID", "DIDIT_WEBHOOK_SECRET", "INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET"]) env[key] = "";
   if (kind === "unit" || kind === "design") env.NODE_ENV = "test";
   if (kind === "unit") env.NEXT_PUBLIC_APP_URL = "";
-  if (kind === "build") for (const key of ["PAYMONGO_SECRET_KEY", "PAYMONGO_WEBHOOK_SECRET", "DIDIT_API_KEY", "DIDIT_WEBHOOK_SECRET", "INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY"]) env[key] = "phase27-build-inert-marker-not-a-real-credential";
+  if (kind === "build") for (const key of ["PAYMONGO_SECRET_KEY", "PAYMONGO_WEBHOOK_SECRET", "DIDIT_API_KEY", "DIDIT_WORKFLOW_ID", "DIDIT_WEBHOOK_SECRET", "INNGEST_EVENT_KEY", "INNGEST_SIGNING_KEY"]) env[key] = "phase27-build-inert-marker-not-a-real-credential";
   return env;
 }
 
@@ -126,8 +126,8 @@ export async function runSequential({ jobs, runDir, lockPath, captureSource, exp
 }
 
 const jobs = [
-  ["unit", "vitest", "node_modules/vitest/vitest.mjs", "run"],
-  ["design", "vitest", "node_modules/vitest/vitest.mjs", "run", "--config", "vitest.design.config.ts"],
+  ["unit", "vitest", "node_modules/vitest/vitest.mjs", "run", "--maxWorkers=4"],
+  ["design", "vitest", "node_modules/vitest/vitest.mjs", "run", "--config", "vitest.design.config.ts", "--maxWorkers=2"],
   ["types", "typescript", "node_modules/typescript/bin/tsc", "--noEmit"],
   ["lint", "eslint", "node_modules/eslint/bin/eslint.js", "."],
   ["build", "next-build", "node_modules/next/dist/bin/next", "build"],
