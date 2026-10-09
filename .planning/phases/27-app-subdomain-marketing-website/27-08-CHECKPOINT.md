@@ -202,4 +202,17 @@ availability question is pending, without inquiry or Contact-enablement authorit
 No external mutation occurred during this continuation. The completed Google-only
 approval must not be re-requested; remaining packet authority is still pending.
 
-All seven created artifacts and both recorded task commits exist. Prepared validation passes. This confirms checkpoint artifact integrity, not plan completion or live acceptance.
+## User response: retain scope; defer gap repairs
+
+The user explicitly chose to keep the current scope, log findings as gaps and
+repair after execution through proper planning. The repair-scope checkpoint is
+resolved. deferred-items.md records all seventeen failed assertions and their
+concrete attribution/planning boundaries plus the separate runtime observation.
+No baseline repair, assertion weakening, release waiver or new GSD phase/plan is
+performed. Continue any available authorized in-scope preparation; remaining exact
+release/compatibility/provider/Contact prerequisites still govern tasks08-03/09-01.
+The user response does not approve the pending external packet, enable Contact,
+settle disputed policy or prove a clean/deployed revision. Full gates remain failed
+in engineering evidence; the plan SUMMARY remains absent and counts remain7/9.
+
+All seven original created artifacts and both recorded task commits exist. Prepared validation passes. This confirms checkpoint artifact integrity, not plan completion or live acceptance.

@@ -10,6 +10,15 @@ Engineering preparation and live account facts remain separate. Full unit/design
   "planBase": "1afc5fc3b48d27bd292bbe96ecc11abe2944862a",
   "liveInboxProven": false,
   "engineeringAcceptance": "failed gates retained",
+  "executionDisposition": {
+    "status": "deferred-to-gap-planning",
+    "decidedAt": "2026-10-09T06:39:40Z",
+    "decisionSource": "direct-user",
+    "scopeExpansion": false,
+    "repairTiming": "After authorized execution, through proper gap planning",
+    "gapLedger": ".planning/phases/27-app-subdomain-marketing-website/deferred-items.md",
+    "effect": "Continue authorized in-scope preparation; retain failed results and all external, security, Contact and release prerequisites"
+  },
   "finalSourceVerification": "Full unit/design precede final UI-only HostingIntent readiness repair. Subsequent focused activation unit10/10, real activation2/2, full types/lint/build and all51 owned browser cases pass. No claim that full unit/design passed.",
   "gates": [
     {
@@ -808,3 +817,14 @@ No full application suite/build/browser rerun or clean-SHA proof is claimed here
 Focused ESLint for the validator and its Node-test file exited0 with no diagnostics;
 scoped diff whitespace check exited0. The last small CLI status-message refinement
 received a second focused lint pass. No product/runtime source was changed.
+
+## User disposition: keep scope and defer baseline repairs
+
+On October 9 the user chose to keep the scope as is, log findings as gaps and
+repair after execution through proper planning. The scope-expansion question is
+resolved; it must not be re-asked. deferred-items.md records the eight unit and
+nine design failures with attribution, concrete later decisions and verification,
+plus the separate unattributed runtime observation. Continue authorized preparation
+without expanding repairs. Existing results remain failed; no assertions, source
+policy, HOLD or deployed/live validation condition is weakened. This disposition
+does not provide missing clean-revision, compatibility, control or external proof.

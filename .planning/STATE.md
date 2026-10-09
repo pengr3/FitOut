@@ -6,10 +6,10 @@ current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: awaiting-human
 stopped_at: Phase 27 plans 27-01 through 27-07 complete; plan 27-08 incomplete at account/cutover checkpoint; 7/9 plans executed
-last_updated: "2026-10-09T06:19:17Z"
+last_updated: "2026-10-09T06:44:35Z"
 last_activity: 2026-10-09
-last_activity_desc: Phase 27 resumed; Google-only approved registration and apex sign-in proved; provider access and DNS/TLS readbacks available; candidate evidence replacement repair committed with 104 offline tests; clean release, compatibility, Contact controls and remaining cutover authority pending
-state_head: 8a84d31b
+last_activity_desc: User retains Phase 27 scope and defers eight unit/nine design failures to gap planning after execution; deferred-items ledger saved; repair-scope question resolved; remaining release/compatibility/account/Contact checkpoints pending; no acceptance waiver or deployment
+state_head: b7889cde
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -70,6 +70,14 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
 **Current focus:** Phase 27 — App Subdomain & Marketing Website — AWAITING RELEASE/ACCOUNT CHECKPOINT. Plans 27-01 through 27-07 complete (7/9); 27-08 remains incomplete with SUMMARY absent and 27-09 has not started. Four original review findings are independently closed. Earlier dirty-source local checks passed 52 Chromium cases, 147 focused tests, types/lint/build; assisted Windows teardown and an unattributed streaming error remain disclosed. Full unit/design still retain eight/nine failures and no clean deployable SHA is proved. October 9 continuation repaired evidence replacement validation (104 offline tests and focused lint pass), retaining historical failures and requiring six fresh clean full gates before deployment acceptance. All requested provider/browser access and bounded readbacks are now available; approved Google origin/callback additions are saved and current-apex sign-in passed for an existing account. DNS/TLS and wildcard zone records are observed, but app returns DEPLOYMENT_NOT_FOUND and www lacks its planned redirect. Preview isolation, production provider bindings/signatures, compatibility revision, exact remaining mutation authority, global Contact controls and inbox receipt/reply remain pending. The separate ops share-link and Inngest serve bypasses need owner-coordinated invalidation/replacement; values are excluded and were never used. Contact is disabled, all seven requirements remain pending, and payment/payout/legal HOLD is unchanged. Resume from the phase `.continue-here.md`, checkpoint, dated inventory and packet.
+
+October 9 user disposition: keep the existing scope, continue authorized preparation,
+and plan repairs after execution. The phase deferred-items.md records all seventeen
+failed assertions plus the separate runtime observation. Do not re-ask the repair-scope
+decision or perform those repairs now. This does not mark failed gates green, approve
+the external packet or supply missing release/compatibility/Contact evidence.
+Continued readbacks confirm both Preview scopes point OPS_APP_URL at production ops;
+Preview isolation remains an in-scope prerequisite. No configuration was changed.
 
 The following milestone sequencing note is retained as historical context:
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues

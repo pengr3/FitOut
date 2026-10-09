@@ -302,3 +302,29 @@ Authenticated Vercel connector readbacks, explicit team scope, subsequently show
 No DNS, alias, environment, firewall, provider setting or deployment was mutated
 during this continuation. The only approved external change remains the separately
 recorded Google registration save. Plans 08/09 and all requirement counts are unchanged.
+
+### Scope decision and Preview/ops readback — October 9 06:44 UTC
+
+The user chose to keep the scope unchanged and log the existing baseline failures
+for repair through gap planning after execution. deferred-items.md records them.
+This is not authority for a provider/env/deployment change or Contact inquiry.
+
+Continued explicit-team read-only connector calls confirm the customer project's
+Preview OPS_APP_URL value is https://ops.fitout.live. The ops project also has
+Preview OPS_APP_URL=https://ops.fitout.live. These are individually read nonsecret
+values, not guesses from key presence. Both Preview scopes therefore point this
+origin at production ops; the intended isolated Preview configuration is unproved.
+No Preview sign-in, production credential read or database connection was attempted;
+no cross-environment account disclosure is inferred from the origin setting alone.
+
+Fresh fitout-ops Production nonsecret readbacks retain BETTER_AUTH_URL and
+NEXT_PUBLIC_APP_URL=https://fitout.live, OPS_APP_URL=https://ops.fitout.live.
+Metadata listing with decrypt=false shows MARKETING_APP_URL, MARKETING_PREVIEW_URL
+and CONTACT_PRODUCTION_ENABLED absent. Project domains remain verified
+ops.fitout.live and fitout-ops.vercel.app, without a configured redirect. No alias
+listing or protection-bypass URL was requested. Deployment IDs above retain their
+earlier timestamps; this readback does not refresh source-SHA/build proof.
+
+These configuration findings remain in-scope cutover prerequisites. They are not
+covered by the user's deferral of unrelated test/design repairs. All changes and
+controlled sends remain subject to the existing exact packet checkpoint.

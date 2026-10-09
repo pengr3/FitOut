@@ -202,8 +202,11 @@ headers/tokens and message body from evidence. Provider acceptance alone is not 
 
 ## Unresolved checkpoint prerequisites
 
-- Failed engineering gates and any real integration defects need disposition;
-  final exact approved deployable SHA and deployed high-threat proof are pending; independent code re-review is clean.
+- The user chose to retain scope and defer the eight unit/nine design baseline
+  failures to later gap planning; deferred-items.md is the planning ledger. This
+  resolves repair scheduling, not release acceptance. Final exact approved
+  deployable SHA, fresh source-bound gates and deployed high-threat proof remain
+  pending; independent review of the original four findings is clean.
 - Compatibility-first intermediate deployment/origin proof described above.
 - App attachment, www redirect and preview account isolation. October 9 readbacks
   establish zone records and valid TLS; app still returns DEPLOYMENT_NOT_FOUND,
