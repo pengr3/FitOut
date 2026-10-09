@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -28,7 +29,9 @@ type ProbeModule = {
 
 async function loadProbe(): Promise<ProbeModule | null> {
   if (!existsSync(PROBE_PATH)) return null;
-  return import(pathToFileURL(PROBE_PATH).href) as Promise<ProbeModule>;
+  // Resolve through Vitest's module loader. A computed file: URL worked in the
+  // shared checkout but failed in a nested clean export on Windows.
+  return import("../../scripts/verify-ops-cloak.mjs") as Promise<ProbeModule>;
 }
 
 const SHA_404 = "a".repeat(64);
@@ -171,5 +174,18 @@ describe("ops cloak production probe", () => {
         { encoding: "utf8", stdio: "pipe" },
       ),
     ).not.toThrow();
+  });
+
+  it.each(["LF", "CRLF"])("validates the genuine historical transcript with %s separators", (style) => {
+    const temporary = mkdtempSync(join(tmpdir(), "fitout-cloak-eol-"));
+    try {
+      const document = readFileSync(EVIDENCE_PATH, "utf8").replaceAll("\r\n", "\n");
+      const path = join(temporary, "evidence.md");
+      writeFileSync(path, style === "CRLF" ? document.replaceAll("\n", "\r\n") : document);
+      expect(execFileSync(process.execPath, [PROBE_PATH, "--check-evidence", path, "--stage", "partition"],
+        { encoding: "utf8", stdio: "pipe" })).toContain("PASS partition: 8");
+    } finally {
+      rmSync(temporary, { recursive: true });
+    }
   });
 });

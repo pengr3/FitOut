@@ -236,6 +236,9 @@ export function renderEvidence(rows, metadata, { stage }) {
 }
 
 function extractEvidence(document, stage) {
+  // Git ZIP exports on Windows can have CRLF. Normalize Markdown separators;
+  // the recorded response rows and byte hashes remain unchanged.
+  document = document.replaceAll("\r\n", "\n");
   if (unsafeEvidenceText(document)) {
     throw new Error("evidence contains credential or PII material");
   }
