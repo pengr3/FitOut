@@ -128,6 +128,18 @@ adding callbacks alone does not prove production readiness. Fresh apex/app sign-
 and consent verification remain required. The inventory records the nonsecret probe
 evidence without OAuth state/code or account identity.
 
+After the Resend access pass, the exact Google client was reopened and these three
+additions were prepared in its unsaved browser form, retaining localhost. **Save
+has not been clicked**; no registration change is effective. The cropped review
+screenshot is ignored `playwright/.cache/phase27-08/oauth-callback-registration-draft.jpg`.
+Approval is requested only for saving these origin/callback additions to this
+client; it does not authorize publishing the audience, changing secrets, deploying
+Phase27, changing DNS or releasing Contact/payments/payout/legal HOLD. If the form
+is lost, reconstruct it from this exact proposal and reread before applying any
+subsequent explicit approval. Rollback removes only the added entries and retains
+the recorded original localhost callback; account readback and bounded fresh
+sign-in observation follow a saved change.
+
 October 9 Didit readback identifies the active apex webhook (v3.0, one event) in
 an inspected Test-mode application; production workflow binding and signing proof
 remain pending. Inngest Production currently serves one listed active `fitout` app
