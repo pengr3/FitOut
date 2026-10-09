@@ -1,6 +1,8 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 const transport = vi.hoisted(() => ({ send: vi.fn() }));
+const sharedQuota = vi.hoisted(() => ({ reserve: vi.fn() }));
 vi.mock("@/lib/email", () => ({ sendContactInquiry: transport.send }));
+vi.mock("@/lib/contact-quota", () => ({ reserveContactQuota: sharedQuota.reserve }));
 const local = "http://marketing.localhost:3000";
 const valid = { name: " Visitor ", email: " Person@example.com ", confirmEmail: "person@EXAMPLE.com", mobile: "", message: "Hello\nFitOut", website: "" };
 let POST: (request: Request) => Promise<Response>;
@@ -12,10 +14,23 @@ beforeEach(async () => {
   vi.resetModules();
   for (const [key, value] of Object.entries({ NODE_ENV: "test", VERCEL: "", VERCEL_ENV: "", VERCEL_URL: "", BETTER_AUTH_URL: "http://localhost:3000", NEXT_PUBLIC_APP_URL: "http://localhost:3000", MARKETING_APP_URL: local, OPS_APP_URL: "http://ops.localhost:3000", MARKETING_PREVIEW_URL: "", CONTACT_PRODUCTION_ENABLED: "" })) vi.stubEnv(key, value);
   transport.send.mockReset().mockResolvedValue({ delivered: true, transport: "resend" });
+  sharedQuota.reserve.mockReset().mockResolvedValue({ ok: true });
   ({ POST } = await import("@/app/api/contact/route"));
 });
 afterEach(() => vi.unstubAllEnvs());
 describe("Contact public send boundary", () => {
+  it("returns 503 before mail when the shared store is unavailable", async () => {
+    sharedQuota.reserve.mockResolvedValue({ ok: false, reason: "unavailable" });
+    expect((await POST(request())).status).toBe(503);
+    expect(transport.send).not.toHaveBeenCalled();
+  });
+  it("returns the shared rolling-window retry without invoking mail", async () => {
+    sharedQuota.reserve.mockResolvedValue({ ok: false, reason: "limited", retryAfter: 42 });
+    const response = await POST(request());
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("42");
+    expect(transport.send).not.toHaveBeenCalled();
+  });
   it("accepts only a validated inquiry delivered by Resend", async () => {
     const response = await POST(request());
     expect(response.status, "accepted Resend inquiry must return 200").toBe(200);
@@ -75,6 +90,7 @@ describe("Contact public send boundary", () => {
     await deployed("");
     expect((await POST(request(valid, { "x-vercel-forwarded-for": "203.0.113.1" }, "https://fitout.live"))).status).toBe(503);
     expect(transport.send).not.toHaveBeenCalled();
+    expect(sharedQuota.reserve).not.toHaveBeenCalled();
   });
   it.each(["", "203.0.113.1, 203.0.113.2", "invalid", "203.0.113.1:1234", "203.0. 113.1"]) ("denies missing/malformed/chained Vercel identity %s", async (ip) => {
     await deployed();

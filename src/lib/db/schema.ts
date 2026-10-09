@@ -29,6 +29,13 @@ import {
   geometry,
 } from "drizzle-orm/pg-core";
 
+// D-23: one dedicated shared Contact budget; no auth rows or inquiry contents.
+export const contactQuota = pgTable("contact_quota", {
+  key: text("key").primaryKey(),
+  attempts: jsonb("attempts").$type<number[]>().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, (t) => [index("contact_quota_expiry_idx").on(t.expiresAt)]);
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

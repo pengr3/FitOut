@@ -42,7 +42,8 @@ const nonempty = (value) => typeof value === "string" && value.trim().length > 0
 const validTimestamp = (value) => typeof value === "string" && /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 19) === value.slice(0, 19);
 export const SOURCE_SCOPE = ["src/", "public/", "tests/", "e2e/", "scripts/", "package.json", "package-lock.json", "pnpm-lock.yaml", "next.config.ts", "next-env.d.ts", "tsconfig.json", "vitest.config.ts", "vitest.design.config.ts", "playwright.config.ts", "eslint.config.mjs", "postcss.config.mjs", "components.json", "instrumentation.ts", "vercel.json"];
 // Keep historical manifests valid; newly captured proof also binds added root configs.
-const SOURCE_EXTENSIONS = ["playwright.streaming.config.ts"];
+const SOURCE_EXTENSIONS = ["playwright.streaming.config.ts", "drizzle/"];
+export const QUOTA_MIGRATION_FILES = ["drizzle/0034_contact_quota.sql", "drizzle/meta/_journal.json", "drizzle/meta/0034_snapshot.json"];
 const CAPTURE_SCOPE = [...SOURCE_SCOPE, ...SOURCE_EXTENSIONS];
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 export const manifestDigest = (files) => sha256(JSON.stringify(files));
@@ -168,7 +169,10 @@ function validateSource(source, gate, label, binding) {
   check(Array.isArray(manifest?.scope) && SOURCE_SCOPE.every((path) => manifest.scope.includes(path)), `${label} tested source scope incomplete`);
   const files = Array.isArray(manifest?.files) ? manifest.files : [];
   check(files.length > 0 && files.every((file) => nonempty(file?.path) && !isAbsolute(file.path) && !file.path.split(/[\\/]/).includes("..") && !file.path.includes("\\") && CAPTURE_SCOPE.some((path) => path.endsWith("/") ? file.path.startsWith(path) : file.path === path) && (file.sha256 === null || typeof file.sha256 === "string" && /^[a-f0-9]{64}$/.test(file.sha256))), `${label} typed scoped source files missing`);
-  for (const path of SOURCE_EXTENSIONS) if (manifest?.scope?.includes(path)) check(files.some((file) => file.path === path && file.sha256), `${label} declared additional source config missing`);
+  for (const path of SOURCE_EXTENSIONS) if (manifest?.scope?.includes(path)) {
+    const required = path === "drizzle/" ? QUOTA_MIGRATION_FILES : [path];
+    check(required.every((requiredPath) => files.some((file) => file.path === requiredPath && file.sha256)), `${label} declared additional source config missing`);
+  }
   check(new Set(files.map((file) => file?.path)).size === files.length && files.every((file, index) => index === 0 || files[index - 1]?.path < file?.path), `${label} source manifest duplicates/order invalid`);
   check(typeof manifest?.sha256 === "string" && manifest.sha256 === manifestDigest(files), `${label} source manifest digest mismatch`);
   if (binding) check(source?.dirty === false && source?.revision === binding.revision && manifest?.sha256 === binding.manifestSha256, `${label} clean deployed source does not match tested context`);

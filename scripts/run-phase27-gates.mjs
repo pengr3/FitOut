@@ -3,7 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, openSync, closeSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { delimiter, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runnerSummary } from "./verify-phase27-evidence.mjs";
+import { runnerSummary, QUOTA_MIGRATION_FILES } from "./verify-phase27-evidence.mjs";
 import { probeStreamingRuntime } from "./probe-phase27-streaming-runtime.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -180,6 +180,7 @@ async function main() {
   const initial = captureSource(environment("setup"));
   assertSource(initial, revision);
   if (!initial.manifest.files.some((file) => file.path === "playwright.streaming.config.ts" && file.sha256)) throw new Error("Built-server browser config must be bound by the source manifest");
+  if (!initial.manifest.scope.includes("drizzle/") || !QUOTA_MIGRATION_FILES.every((path) => initial.manifest.files.some((file) => file.path === path && file.sha256))) throw new Error("Contact quota migration, journal and snapshot must be bound by the source manifest");
   save(join(runDir, "initial-source.json"), initial);
   const report = await runSequential({ jobs, runDir: join(runDir, "gates"), lockPath, captureSource, expectedRevision: revision, expectedManifest: initial.manifest.sha256, cwd: exported, environment });
   console.log(JSON.stringify({ runDir: relative(root, runDir).replaceAll("\\", "/"), revision, allPassed: report.allPassed, automaticAcceptance: false }));

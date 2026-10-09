@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { validateEvidence, REQUIRED_MATRIX, runnerSummary, gateHistoryDigest } from "../../scripts/verify-phase27-evidence.mjs";
+import { validateEvidence, REQUIRED_MATRIX, runnerSummary, gateHistoryDigest, QUOTA_MIGRATION_FILES, manifestDigest } from "../../scripts/verify-phase27-evidence.mjs";
 import { completeFixture } from "./fixtures/phase27-evidence.mjs";
 test("synthetic complete distinct deployed matrix passes structural validation only", () => {
   const fixture = completeFixture();
@@ -105,6 +105,29 @@ test("missing scope and mismatched manifest digest fail", () => {
   const errors = validateEvidence(fixture);
   assert(errors.some((error) => error.includes("tested source scope incomplete")));
   assert(errors.some((error) => error.includes("source manifest digest mismatch")));
+});
+
+function quotaManifestFixture() {
+  const fixture = completeFixture();
+  for (const gate of fixture.engineering.gates) {
+    const manifest = gate.testedSource.manifest;
+    manifest.scope = [...manifest.scope, "drizzle/"];
+    manifest.files = [...manifest.files, ...QUOTA_MIGRATION_FILES.map((path) => ({ path, sha256: "1".repeat(64) }))].sort((a, b) => a.path < b.path ? -1 : 1);
+    manifest.sha256 = manifestDigest(manifest.files);
+  }
+  fixture.live.sourceManifestSha256 = fixture.engineering.gates[0].testedSource.manifest.sha256;
+  return fixture;
+}
+test("new migration scope binds additive SQL, journal and snapshot while historical scope remains valid", () => {
+  assert.deepEqual(validateEvidence(quotaManifestFixture()), []);
+  assert.deepEqual(validateEvidence(completeFixture()), []);
+});
+for (const path of QUOTA_MIGRATION_FILES) test(`declared migration scope missing ${path} refuses acceptance`, () => {
+  const fixture = quotaManifestFixture();
+  const manifest = fixture.engineering.gates[0].testedSource.manifest;
+  manifest.files = manifest.files.filter((file) => file.path !== path);
+  manifest.sha256 = manifestDigest(manifest.files);
+  assert(validateEvidence(fixture).some((error) => error.includes("declared additional source config missing")));
 });
 test("deployed manifest must match all captured clean gate contexts", () => {
   const fixture = completeFixture(); fixture.live.sourceManifestSha256 = "f".repeat(64);

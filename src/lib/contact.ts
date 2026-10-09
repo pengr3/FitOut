@@ -4,6 +4,7 @@ import { isIP } from "node:net";
 import { MARKETING_ORIGIN } from "@/lib/app-origins";
 import { sendContactInquiry } from "@/lib/email";
 import { rateLimit } from "@/lib/rate-limit";
+import { reserveContactQuota } from "@/lib/contact-quota";
 import { CONTACT_FIELDS, contactSchema, type ContactField, type ContactResult } from "@/lib/validation/contact";
 
 const MAX_BYTES = 16 * 1024;
@@ -59,8 +60,7 @@ export async function handleContact(request: Request): Promise<Response> {
   if (process.env.NODE_ENV === "production" && process.env.CONTACT_PRODUCTION_ENABLED !== "true" || process.env.VERCEL_ENV === "production" && process.env.CONTACT_PRODUCTION_ENABLED !== "true") return response(503, { ok: false, error: unavailable });
   const ip = identity(request);
   if (!ip) return response(403, { ok: false, error: "Your message could not be accepted from this connection." });
-  // All budgets are process-local defense in depth. They are NOT deployment-wide guarantees;
-  // production enablement requires the separately verified external WAF/rate-control packet.
+  // Cheap process-local defense in depth; the shared reservation below owns the global guarantee.
   for (const [key, max, window] of [["contact:process", 100, 3600], [`contact:ip:${hashed(ip)}`, 5, 900]] as const) {
     const budget = rateLimit(key, { max, window });
     if (!budget.ok) { const retryAfter = Math.min(3600, Math.max(1, budget.retryAfter)); return response(429, { ok: false, error: "Too many attempts. Please wait before trying again.", retryAfter }, retryAfter); }
@@ -79,6 +79,11 @@ export async function handleContact(request: Request): Promise<Response> {
   }
   const budget = rateLimit(`contact:sender:${hashed(parsed.data.email)}`, { max: 3, window: 3600 });
   if (!budget.ok) { const retryAfter = Math.min(3600, Math.max(1, budget.retryAfter)); return response(429, { ok: false, error: "Too many attempts. Please wait before trying again.", retryAfter }, retryAfter); }
+  const shared = await reserveContactQuota(ip);
+  if (!shared.ok) {
+    if (shared.reason === "limited") return response(429, { ok: false, error: "Too many attempts. Please wait before trying again.", retryAfter: shared.retryAfter }, shared.retryAfter);
+    return response(503, { ok: false, error: unavailable });
+  }
   try {
     const result = await sendContactInquiry(parsed.data);
     if (result.delivered && result.transport === "resend") return response(200, { ok: true });
