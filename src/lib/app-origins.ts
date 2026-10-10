@@ -51,12 +51,28 @@ const ops = parseOrigin(process.env.OPS_APP_URL, "OPS_APP_URL",
   deployed ? undefined : "http://ops.localhost:3000");
 const marketingPreview = configured(process.env.MARKETING_PREVIEW_URL)
   ? parseOrigin(process.env.MARKETING_PREVIEW_URL, "MARKETING_PREVIEW_URL") : null;
+// Temporary second app origin for the staged move. Remove before assigning the
+// old app host to marketing; the authority collision guard below fails closed.
+const appCompatibility = configured(process.env.APP_COMPATIBILITY_ORIGIN)
+  ? parseOrigin(process.env.APP_COMPATIBILITY_ORIGIN, "APP_COMPATIBILITY_ORIGIN") : null;
+if (appCompatibility) {
+  const hostname = appCompatibility.hostname.toLowerCase();
+  if (hostname.includes("*")) throw new Error("APP_COMPATIBILITY_ORIGIN must name one exact host");
+  const local = hostname === "localhost" || hostname.endsWith(".localhost") ||
+    hostname === "127.0.0.1" || hostname === "[::1]";
+  if (appCompatibility.protocol !== "https:" && !local) {
+    throw new Error("APP_COMPATIBILITY_ORIGIN must use HTTPS outside loopback");
+  }
+  if (appCompatibility.host.toLowerCase() === app.host.toLowerCase()) {
+    throw new Error("APP_COMPATIBILITY_ORIGIN must differ from the primary app authority");
+  }
+}
 
 function authorities(urls: Array<URL | null>): Set<string> {
   return new Set(urls.flatMap((url) => !url ? [] : [url.host.toLowerCase(),
     ...(!url.port ? [`${url.hostname.toLowerCase()}:${url.protocol === "https:" ? 443 : 80}`] : [])]));
 }
-const appAuthorities = authorities([app, appPreview]);
+const appAuthorities = authorities([app, appPreview, appCompatibility]);
 const marketingAuthorities = authorities([marketing, marketingPreview]);
 const opsAuthorities = authorities([ops]);
 if ([...appAuthorities].some((host) => marketingAuthorities.has(host) || opsAuthorities.has(host)) ||
@@ -67,8 +83,8 @@ export const MARKETING_ORIGIN = marketing.origin;
 export const OPS_APP_ORIGIN = ops.origin;
 /** Compatibility names always refer to the application. */
 export const PUBLIC_APP_ORIGIN = APP_ORIGIN;
-export const AUTH_ALLOWED_HOSTS = [...new Set([app.host.toLowerCase(), ops.host.toLowerCase(), appPreview?.host.toLowerCase()].filter((host): host is string => host !== undefined))];
-export const AUTH_TRUSTED_ORIGINS = [...new Set([APP_ORIGIN, OPS_APP_ORIGIN, appPreview?.origin].filter((origin): origin is string => origin !== undefined))];
+export const AUTH_ALLOWED_HOSTS = [...new Set([app.host.toLowerCase(), ops.host.toLowerCase(), appPreview?.host.toLowerCase(), appCompatibility?.host.toLowerCase()].filter((host): host is string => host !== undefined))];
+export const AUTH_TRUSTED_ORIGINS = [...new Set([APP_ORIGIN, OPS_APP_ORIGIN, appPreview?.origin, appCompatibility?.origin].filter((origin): origin is string => origin !== undefined))];
 
 export function classifyRequestHost(rawHost: string | null | undefined): RequestHostClass {
   const host = authority(rawHost);
