@@ -714,3 +714,10 @@ Exact approved source is deployed through separate Stage A/B/C builds. This reco
 ```
 
 29/35 matrix scenarios are observed; six remain pending. All seven requirement boxes remain pending. Ops was signed out during the isolation check; the customer app session remains signed in. Existing owner Preview aliases remain on b8358b11.
+
+
+### October 11 restricted Contact guard preflight
+
+2026-10-10T21:32:10.541Z: Vercel login restored. Temporary rule rule_phase_27_restricted_contact_test_j9IM6v was scoped to exact Production POST /api/contact on fitout.live, staged/published as plain Log, and one marked empty-body probe produced one match with one original verifier IP captured privately. Rule was then edited, published and reopened with an additional original-IP Does not equal condition and plain Deny. No upgrade or system bypass occurred. Verifier POST returned503. Codex browser synthetic example.invalid submission also returned503, so it does not prove independent denial; no distinct original IP is claimed. Owner mobile-data probe requested and pending. Four completed preflight POSTs, both flags false, primary quota_rows0, no fixture or temporary enabled deployment, no email. HTTP request trace for initial probe shows no outgoing requests. Counts remain20/21,144/151,29/35, all seven requirements pending.
+
+Saved ignored evidence contact-guard-preflight-20261011.json and contact-temporary-guard-20261011.png. Individual request logs supply503 and no outgoing APIs; custom-rule traffic supplies the single Log match. Hobby custom queries are read-only and the12h runtime-log request was rejected by retention; corrected15m runtime events were empty, so request-list evidence was used. No automatic alert, actual deployed global quota execution or rollback is claimed.

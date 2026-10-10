@@ -32,3 +32,8 @@ Latest Contact control progress (2026-10-10T13:42:35.904Z): exact quota function
 
 
 Bounded Contact window approved (2026-10-10T21:16:29.368Z): owner approved the exact no-mail packet. Preflight confirms both flags false, primary quota empty, and retained Stage C pins READY. Browser Vercel login handoff is pending. No test guard, fixture, temporary enabled deployment or mail exists. This is a login prerequisite, not another approval checkpoint. Six matrix scenarios remain pending.
+
+
+Approved Contact guard preflight — October11: 2026-10-10T21:32:10.541Z: Vercel login restored. Temporary rule rule_phase_27_restricted_contact_test_j9IM6v was scoped to exact Production POST /api/contact on fitout.live, staged/published as plain Log, and one marked empty-body probe produced one match with one original verifier IP captured privately. Rule was then edited, published and reopened with an additional original-IP Does not equal condition and plain Deny. No upgrade or system bypass occurred. Verifier POST returned503. Codex browser synthetic example.invalid submission also returned503, so it does not prove independent denial; no distinct original IP is claimed. Owner mobile-data probe requested and pending. Four completed preflight POSTs, both flags false, primary quota_rows0, no fixture or temporary enabled deployment, no email. HTTP request trace for initial probe shows no outgoing requests. Counts remain20/21,144/151,29/35, all seven requirements pending.
+
+Current prerequisite is owner phone/mobile-data probe, not login or permission. Temporary Deny rule is published; keep Contact false pending independent denial. Retain existing approvals.

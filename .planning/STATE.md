@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09 Contact: bounded no-mail window approved; Vercel browser login pending"
-last_updated: "2026-10-10T21:16:29.368Z"
+stopped_at: "Plan09 Contact: temporary guard published; different-network denial probe pending"
+last_updated: "2026-10-10T21:32:10.541Z"
 last_activity: 2026-10-11
-last_activity_desc: Bounded Contact test approved; browser login pending; flags false and quota empty
+last_activity_desc: Temporary verifier-only Contact guard published; owner mobile-data denial proof pending; Contact off
 state_head: d67fbecf
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
