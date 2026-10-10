@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan08 complete;20/21; Plan09 approved staged production rollout in progress"
-last_updated: "2026-10-10T11:07:41.631Z"
+stopped_at: "Plan09 Stage C live; remaining control/issued-token/staff-capability/rollback evidence checkpoint"
+last_updated: "2026-10-10T11:57:15.492Z"
 last_activity: 2026-10-10
-last_activity_desc: Preparation checkpoint resolved; Stage A production builds underway with Contact disabled
+last_activity_desc: Approved Stage A/B/C topology live; 29/35 matrix observed; Contact disabled
 state_head: d67fbecf
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -61,6 +61,9 @@ progress:
   completed_plans: 144
   percent: 15
 ---
+
+Current live checkpoint (2026-10-10T11:57:15.492Z): Stage C topology is deployed at approved d67fbecf; 29/35 matrix scenarios are observed. Plan 09 remains incomplete: 20/21 phase plans and 144/151 curated plans. All seven requirements remain pending. Contact is disabled and all HOLDs remain. Read 27-EVIDENCE.md and 27-09-CHECKPOINT.md.
+
 
 Current execution (2026-10-10T11:07:41.631Z): Plan08 complete,20/21 Phase27 plans and144/151 curated. Owner approved exact d67fbecf cutover and confirmed both Production database targets. Plan09 staged Production rollout is in progress; auto-domain assignment is disabled, Stage A settings are saved and0037 quota is applied with readback. Contact false, no real mail or financial event, all money/legal HOLDs remain. All seven live requirements stay pending. Older paragraphs below retain dated history.
 

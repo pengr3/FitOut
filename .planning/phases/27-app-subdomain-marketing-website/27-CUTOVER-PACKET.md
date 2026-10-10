@@ -1,17 +1,15 @@
 # Phase 27 — Prepared cutover and rollback packet
 
-October10 source continuity repair: candidate d67fbecfa41e902cbf506c93dbcf53b60085e802 includes deployed production36455580 and preserves all30 payment/scheduler files and payout migrations0034–0036. Contact is0037 with unchanged reviewed SQL bytes. Fresh six-gate, cold and separately built compatibility A/B local proof passes. The stable b835 walkthrough Preview is historical UI/deployment evidence; it does not prove this integrated source. Owner has now approved this exact packet; production prerequisites remain pending.
+October10 source continuity repair: candidate d67fbecfa41e902cbf506c93dbcf53b60085e802 includes deployed production36455580 and preserves all30 payment/scheduler files and payout migrations0034–0036. Contact is0037 with unchanged reviewed SQL bytes. Fresh six-gate, cold and separately built compatibility A/B local proof passes. The stable b835 walkthrough Preview is historical UI/deployment evidence; it does not prove this integrated source. The owner approved this exact packet and the staged topology is now live. Plan 09 acceptance remains pending.
 
-**Exact packet approved; production execution awaits prerequisites.** The
+**Exact packet approved; Stage C topology is live. Plan09 live acceptance remains incomplete.** The
 architecture is already authorized by D-16/D-17. The remaining checkpoint concerns
 actual account prerequisites and exact external changes, not routine implementation
 choices. The separately approved Google client-registration additions are saved,
-and current-apex Google sign-in passed for the existing browser account. No
-production deployment, DNS change, deployed Contact inquiry or fund movement
-occurred. The separately authorized isolated Preview deployments and one
+and current-apex Google sign-in passed for the existing browser account. The earlier preparation performed no production action; the completed Stage A/B/C rollout and additive migration are recorded below. No DNS write, Contact inquiry or fund movement occurred. The separately authorized isolated Preview deployments and one
 standalone email transport test are recorded in plans18–20. The owner is reviewing
 the stable b835 Preview. Integrated d67fbecf has passed its own complete checks.
-Task 27-08-03 now has exact action authority; account/control prerequisites remain.
+Plan 08 is complete. Plan 09 retains the specific live control and observation gates.
 
 ```json
 {
@@ -22,7 +20,7 @@ Task 27-08-03 now has exact action authority; account/control prerequisites rema
     "www": "https://www.fitout.live -> https://fitout.live"
   },
   "proposedRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
-  "candidateAcceptance": "Exact source engineering proof passes and owner approved this cutover packet. Production database binding and account/control prerequisites remain; no deployed or live acceptance is claimed.",
+  "candidateAcceptance": "Exact source engineering proof passes; owner approved the cutover and attested both Production database targets. Stage A/B/C rollout is live. Plan 09 deployed/live acceptance remains incomplete with 29/35 observed matrix scenarios, partial provider correspondence, and Contact controls/inbox proof missing.",
   "approvedRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
   "authority": {
     "status": "approved",
@@ -46,8 +44,8 @@ Task 27-08-03 now has exact action authority; account/control prerequisites rema
     "controlsVerified": false,
     "processLocalIsGlobal": false,
     "perIpPolicy": "Enforcing trusted-ingress deployment-wide <=5 attempts per 15 minutes per original client; account-wide proof pending",
-    "globalBudget": "Atomic database-wide <=100 delivery attempts/hour and <=5/original trusted IP/15 minutes implemented and tested locally and on isolated Preview. Production migration, alert/disable proof and Contact enablement remain pending.",
-    "disabledRecovery": "Keep CONTACT_PRODUCTION_ENABLED=false; verify real 503, retained fields, no delivery announcement; no development-mail fallback",
+    "globalBudget": "Atomic database-wide <=100 delivery attempts/hour and <=5/original trusted IP/15 minutes implemented and tested in engineering and isolated Preview. Reviewed production 0037 migration applied with structural readback; actual production enforcement, alert/disable proof, and Contact enablement remain pending.",
+    "disabledRecovery": "Actual503, recoverable feedback, retained synthetic fields, no success message and zero primary quota rows observed.",
     "quotaMigration": {
       "path": "drizzle/0037_contact_quota.sql",
       "sha256": "8b657d22de785aaa5c2ba3ab201a255f91af9c72b4bd0a9c5c1c9ef6fd593b34",
@@ -143,13 +141,19 @@ Task 27-08-03 now has exact action authority; account/control prerequisites rema
     "stageC": {
       "app": "https://app.fitout.live",
       "compatibility": null,
-      "marketing": "https://fitout.live"
+      "marketing": "https://fitout.live",
+      "savedConfigRepresentation": "APP_COMPATIBILITY_ORIGIN empty, treated as unset by approved configured(value); history retained, no irreversible deletion"
     },
     "freshBuildEveryStage": true,
     "contactEnabled": false,
     "proof": {
       "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/compatibility-ca0ae860-03fd-4bc0-9257-4af46d4cd7da/report.json",
       "sha256": "bfe6fc5ad2af0cb10fac67a08ac12ee865d5b2f000e5da6ea1f41edf151c239c"
+    },
+    "stageARollbackTargets": {
+      "customer": "dpl_EawThnAR9vr4EEumpTHnpBh6yAYB",
+      "ops": "dpl_GjHd59ThRnH73gmFbUjhGviN1ZQV",
+      "purpose": "Verified app-compatible additional targets; preserve original pre-phase pins as ultimate rollback."
     }
   },
   "productionContinuity": {
@@ -175,12 +179,13 @@ Task 27-08-03 now has exact action authority; account/control prerequisites rema
     "evidence": "Owner answered \"yeah approb\" to the immediate BOTH-project target confirmation request. Values remain sensitive/write-only; this is owner attestation, not independent secret readback."
   },
   "rolloutStatus": {
-    "stage": "A production builds started; not promoted",
-    "observedAt": "2026-10-10T11:07:41.631Z",
-    "webDeployment": "dpl_EawThnAR9vr4EEumpTHnpBh6yAYB",
-    "opsDeployment": "dpl_GjHd59ThRnH73gmFbUjhGviN1ZQV",
+    "stage": "C promoted; topology/readbacks observed; full live proof incomplete",
+    "observedAt": "2026-10-10T11:57:15.492Z",
+    "webDeployment": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+    "opsDeployment": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
     "autoAssignCustomDomains": false,
-    "contactEnabled": false
+    "contactEnabled": false,
+    "proof": ".planning/phases/27-app-subdomain-marketing-website/27-EVIDENCE.md"
   }
 }
 ```
@@ -435,3 +440,9 @@ Production binding owner confirmation (2026-10-10T10:58:41.869Z): affirmative re
 
 
 Plan08 preparation checkpoint resolved (2026-10-10T11:07:41.631Z): exact owner cutover authority and both-project database target attestation are recorded. Named scoped release/rollback operator is Codex acting for the project owner. Saved Stage A origins and automatic-domain staging controls are read back. Reviewed0037 production quota migration applied atomically with normal ledger bookkeeping and actual structural readback. Contact stays false; no send, provider registration edit or requirement acceptance is claimed. Plan08 completes preparation, not live rollout. Plan09 now executes and proves staged topology, provider/session boundaries and remaining Contact controls/inquiry/receipt/reply. Proof: playwright/.cache/phase27-08/production-cutover-snapshot-03-20261010.json.
+
+
+Live rollout readback (2026-10-10T11:23:52.596Z): both Stage A Production builds READY at approved d67fbecf, app domain verified and assigned, apex/ops promoted. Actual HTTPS search/login200, internal namespace404, anonymous sessionnull and old/new unsigned PayMongo/Didit400 plus Inngest401 with no Location. Browser Google login from new app returns authenticated app navigation; Stage B fresh-state still pending. Ops login is separate staff UI and customer session does not expose ops console. No secret, sender DNS, provider registration, money or Contact send change. Stage B builds have captured primary app/apex compatibility public values after six exact Production-only readbacks. Original rollback pins and three owner walkthrough aliases remain retained. Current proof snapshots04/05 and actual production-stage-A HTTP/boundary logs.
+
+
+Final topology (2026-10-10T11:57:15.492Z): all three fresh Stage A/B/C cloud pairs use approved d67fbecf; final web/ops IDs are recorded in rolloutStatus. All three b835 owner aliases remain unchanged. www307 saved/read back and full repeated queries preserved. No sender DNS/provider destination/secret/Production Git branch edit, no real email or money action. Contact503/recovery is real; quota remains empty. Exact-source Preview fixture authentication writes only isolated branch.29/35 live matrix scenarios observed; remaining six and partial provider inventory are explicit in27-EVIDENCE.md. All seven requirements and Plan09 remain incomplete. Original/Stage A rollback pins remain retained, no threshold-triggered rollback invoked. Automatic Production domains remain manually controlled until candidate/Git/live acceptance reconciliation.

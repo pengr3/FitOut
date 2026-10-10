@@ -179,3 +179,11 @@ are repaired on the accepted local candidate. G18 cold-development compilation,
 G17 broader Menu ambiguity and G07 unrelated dirty-map ownership remain explicit.
 All historical failures are retained. See27-GAP-VERIFICATION for the six full
 passes and fresh same-build cold-server proof; this is not deployed acceptance.
+
+
+## Production walkthrough findings — October10
+
+- Controlled QRPh Test Court — Not Public appears in actual public app search. Existing listing visibility/data-policy gap; no listing mutation or financial action performed. Plan a separate visibility/readiness review.
+- Unused unadvertised /opengraph-image GET404 is retained. Actual declared public marketing screenshot OG image returnsPNG200; six marketing canonical/sitemap routes are correct. Do not misclassify this unused-route probe as advertised OG failure.
+- Final live completion still needs staff-only capability denial, previously issued valid auth links, actual production trusted-ingress/global quota/alert control and rollback observations. Per-owner unchanged-scope direction these remain explicit evidence gates, not fabricated test passes.
+- Automatic Production domain assignment remainsfalse while dev is unaligned to exact release source; full request-percentage metric and extended monitoring unproved. Reconcile release controls after acceptance.
