@@ -320,3 +320,29 @@ test("replacement cannot bypass unknown accounts, authority or Contact controls"
   assert(errors.some((error) => error.includes("authority")));
   assert(errors.some((error) => error.includes("Contact controls")));
 });
+
+function historicalQuotaFixture() {
+  const fixture = quotaManifestFixture();
+  for (const gate of fixture.engineering.gates) {
+    const manifest = gate.testedSource.manifest;
+    manifest.files = manifest.files.map(file => ({ ...file, path: file.path.replace("0037_contact_quota", "0034_contact_quota").replace("0037_snapshot", "0034_snapshot") }));
+    manifest.files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
+    manifest.sha256 = manifestDigest(manifest.files);
+  }
+  fixture.live.sourceManifestSha256 = fixture.engineering.gates[0].testedSource.manifest.sha256;
+  return fixture;
+}
+test("historical0034 capture stays valid as historical prepared evidence", () => {
+  const fixture = historicalQuotaFixture(); fixture.stage = "prepared";
+  assert.deepEqual(validateEvidence(fixture), []);
+});
+test("historical0034 cannot substitute the current deployed0037 migration contract", () => {
+  assert(validateEvidence(historicalQuotaFixture()).some(error => error.includes("declared additional source config missing")));
+});
+test("an incomplete historical quota snapshot still refuses preparation", () => {
+  const fixture = historicalQuotaFixture(); fixture.stage = "prepared";
+  const manifest = fixture.engineering.gates[0].testedSource.manifest;
+  manifest.files = manifest.files.filter(file => file.path !== "drizzle/meta/0034_snapshot.json");
+  manifest.sha256 = manifestDigest(manifest.files);
+  assert(validateEvidence(fixture).some(error => error.includes("declared additional source config missing")));
+});

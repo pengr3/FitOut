@@ -186,7 +186,14 @@ function validateSource(source, gate, label, binding) {
   const files = Array.isArray(manifest?.files) ? manifest.files : [];
   check(files.length > 0 && files.every((file) => nonempty(file?.path) && !isAbsolute(file.path) && !file.path.split(/[\\/]/).includes("..") && !file.path.includes("\\") && CAPTURE_SCOPE.some((path) => path.endsWith("/") ? file.path.startsWith(path) : file.path === path) && (file.sha256 === null || typeof file.sha256 === "string" && /^[a-f0-9]{64}$/.test(file.sha256))), `${label} typed scoped source files missing`);
   for (const path of SOURCE_EXTENSIONS) if (manifest?.scope?.includes(path)) {
-    const required = path === "drizzle/" ? QUOTA_MIGRATION_FILES : [path];
+    // Preserve an unbound historical capture's migration identity. A replacement/deployed
+    // candidate must always bind the current0037 contract; old0034 cannot stand in for it.
+    const historicalQuota = !binding && files.some((file) => file.path === "drizzle/0034_contact_quota.sql") &&
+      !files.some((file) => file.path === "drizzle/0037_contact_quota.sql");
+    const quotaFiles = historicalQuota
+      ? ["drizzle/0034_contact_quota.sql", "drizzle/meta/_journal.json", "drizzle/meta/0034_snapshot.json"]
+      : QUOTA_MIGRATION_FILES;
+    const required = path === "drizzle/" ? quotaFiles : [path];
     check(required.every((requiredPath) => files.some((file) => file.path === requiredPath && file.sha256)), `${label} declared additional source config missing`);
   }
   check(new Set(files.map((file) => file?.path)).size === files.length && files.every((file, index) => index === 0 || files[index - 1]?.path < file?.path), `${label} source manifest duplicates/order invalid`);
