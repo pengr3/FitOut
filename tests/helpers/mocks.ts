@@ -220,7 +220,7 @@ export const mockPayMongo = {
    * `mockPayMongo.getTransfer.mockResolvedValueOnce({ id, status: "failed" | "pending" | ... })`.
    */
   getTransfer: vi.fn(async (transferId: string): Promise<{
-    id: string; status: string; referenceNumber?: string; amount?: number; currency?: string;
+    id: string; status: string; referenceNumber?: string; amount?: number; currency?: string; feeCents?: number;
   }> => ({ id: transferId, status: "succeeded" })),
   /**
    * 13.1-02 payment-reconcile stub — the provider read UNDERNEATH `probeCheckoutSession`.

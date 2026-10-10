@@ -115,13 +115,13 @@ export const draftSchema = z.object({
   postalCode: z.string().max(20).optional(),
   country: z.string().max(120).optional(),
   neighborhood: z.string().max(120).optional(),
-  lat: z.number().optional(),
-  lng: z.number().optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
   // WR-04 upper bound. `.max` and not `.positive()`: the draft schema still never blocks progress (D-01),
   // it only refuses a number no space can mean.
   maxOccupancy: z.number().int().max(MAX_OPEN_CAPACITY, DROP_IN_CAP_TOO_HIGH_MESSAGE).optional(),
   hourlyRateCents: z.number().int().optional(),
-  dayRateCents: z.number().int().optional(),
+  dayRateCents: z.number().int().nullable().optional(),
   bookingMode: z.enum(bookingModeValues).optional(),
   // D-77: OPTIONAL at draft time, on purpose. The tier gates PUBLISHING, not creation (see publishSchema),
   // so every listing drafted before Phase 7 — which all carry NULL — stays editable and saveable.
@@ -148,7 +148,7 @@ export const draftSchema = z.object({
 });
 
 /**
- * Strict draft→publish gate (D-02/D-03/LIST-03). All core fields required; BOTH rates required and
+ * Strict draft→publish gate (D-02/D-03/LIST-03). All core fields required; hourly pricing required, day pricing optional, and
  * validated as positive INTEGER cents (never float — Pitfall 5); coordinates required (D-10).
  */
 export const publishSchema = z.object({
@@ -164,8 +164,8 @@ export const publishSchema = z.object({
   postalCode: z.string().max(20).optional(),
   country: z.string().min(1),
   neighborhood: z.string().max(120).optional(),
-  lat: z.number(),
-  lng: z.number(),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
   // WR-04: bounded ABOVE as well as below. In open mode this number is the day's admissions cap and is one
   // half of the money product that must stay inside int4 (see the ceiling block near the top of this file).
   maxOccupancy: z.number().int().positive().max(MAX_OPEN_CAPACITY, DROP_IN_CAP_TOO_HIGH_MESSAGE),

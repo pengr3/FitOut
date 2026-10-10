@@ -345,8 +345,7 @@ export async function createDraftListing(): Promise<CreateDraftListingResult> {
           // `blocks.ts`'s addBlock inserts a subtractive block and performs no update of the listing
           // row, so a draft the host has blocked dates on still reads `updated_at = created_at`.
           sql`NOT EXISTS (SELECT 1 FROM availability_block WHERE listing_id = ${listing.id})`,
-          // The operator grant CLI can bind an empty draft without touching its timestamp.
-          // Do not adopt that existing authorization into a newly requested space.
+          // An operator grant can attach to a draft without updating the parent row.
           sql`NOT EXISTS (SELECT 1 FROM controlled_checkout_grant WHERE listing_id = ${listing.id})`,
         ),
       )
@@ -559,7 +558,7 @@ export async function saveListingStep(
   // surely as moving the hourly rate does. `quoteGroup`/`paxSurcharge` read all four.
   const priceChanged =
     changed(d.hourlyRateCents, owned.hourlyRateCents) ||
-    changed(d.dayRateCents, owned.dayRateCents) ||
+    (d.dayRateCents !== undefined && d.dayRateCents !== owned.dayRateCents) ||
     changed(d.perHeadPriceCents, owned.perHeadPriceCents) ||
     changed(d.extraHeadFee, owned.extraHeadFee) ||
     changed(d.included, owned.included);
@@ -686,7 +685,7 @@ export async function saveListingStep(
 
 /**
  * The strict draft→publish gate (D-02), enforced ENTIRELY server-side. Publishing requires:
- *   1. publishSchema.parse(row) — all core fields + BOTH positive integer-cents rates + lat/lng (D-03/D-10)
+ *   1. publishSchema.parse(row) — all core fields + an hourly rate for whole-space listings + lat/lng
  *   2. ≥3 photos (D-04)
  *   3. host.emailVerified === true (the Phase-1 soft gate, 01-CONTEXT D-07)
  * On any failure it returns a structured error naming exactly what's missing (drives the wizard's

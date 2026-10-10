@@ -48,6 +48,8 @@ const devAllowedOrigins =
     : [];
 
 const nextConfig: NextConfig = {
+  // Immutable gate exports and deployments must resolve their own dependency tree.
+  turbopack: { root: process.cwd() },
   // Spread in ONLY when non-empty, so the unset case leaves the key absent entirely rather than
   // present-and-empty. Same effective behaviour, but it keeps "no one configured this" visible.
   ...(devAllowedOrigins.length > 0 ? { allowedDevOrigins: devAllowedOrigins } : {}),
