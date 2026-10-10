@@ -610,7 +610,7 @@ describe("TRUST-04 — the scan reaches what it claims to police", () => {
             line: 5,
             text:
               "Someone at FitOut checked this host's account and this listing before it could take " +
-              "bookings. We haven't visited the space.",
+              "bookings.",
           },
         ],
         FORBIDDEN_SIGNALS,

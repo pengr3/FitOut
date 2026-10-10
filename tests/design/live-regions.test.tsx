@@ -1450,7 +1450,8 @@ const PHASE_14_OWNED_TREES: readonly string[] = [
  * 20 with the imports already in place, before the number moved: *"the walk reached 21 files inside
  * the owned trees, not 20"* — 1 failed / 25 passed, inside `npm run build`'s design pass.
  */
-const PHASE_14_SURFACE_FILE_COUNT = 21;
+// The payout destination form added one reachable host component to the walk.
+const PHASE_14_SURFACE_FILE_COUNT = 22;
 
 /** `from "@/x/y"` — the only import spelling this repository uses for its own modules. */
 const ALIAS_IMPORT = /from\s+["']@\/([^"']+)["']/g;

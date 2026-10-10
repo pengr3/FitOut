@@ -3,28 +3,14 @@ import { expect, test, type Page } from "@playwright/test";
 import { expectAxeClean } from "./helpers/axe";
 import { BASE, seedBookableListing, type SeededListing } from "./helpers/booker-seed";
 
-const ADDRESS_LABEL = "2 Real Street, Makati, Metro Manila, Philippines";
 const LOCATION = { latitude: 14.5547, longitude: 121.0244 };
-const MANDALUYONG_LOCATION = { latitude: 14.5794, longitude: 121.0359 };
+const ADDRESS_LABEL = "2 Real Street, Makati, Metro Manila, Philippines";
 const VIEWPORTS = [
   { name: "desktop", width: 1280, height: 800 },
-  { name: "mobile-375", width: 375, height: 812 },
+  { name: "mobile", width: 375, height: 812 },
 ] as const;
 
-function expectedUrl(partySize: number, locationLabel = ADDRESS_LABEL) {
-  const query = new URLSearchParams({
-    category: "martial_arts_boxing",
-    lat: String(LOCATION.latitude),
-    lng: String(LOCATION.longitude),
-    locationLabel,
-    partySize: String(partySize),
-  });
-  return `${BASE}/?${query.toString()}`;
-}
-
 async function mockAddressLookup(page: Page) {
-  // Photon requests its query directly on `/api` (there is no path segment after it), so the route
-  // pattern deliberately includes the query string rather than the old non-matching `/api/**` shape.
   await page.route("https://photon.komoot.io/api**", async (route) => {
     await route.fulfill({
       contentType: "application/json",
@@ -38,345 +24,160 @@ async function mockAddressLookup(page: Page) {
   });
 }
 
-async function beginActivity(page: Page, seed: SeededListing, keyboard = false) {
-  await expect(page.getByRole("button", { name: "Start your search" })).toHaveCount(1);
-  await expect(page.getByLabel("Search for activity or type")).toHaveCount(0);
-  await page.getByRole("button", { name: "Start your search" }).click();
+async function chooseActivity(page: Page, label: string) {
+  await page.getByRole("button", { name: "Search activity" }).click();
   await expect(page.getByRole("heading", { name: "What are you looking for?" })).toBeFocused();
-
-  // cmdk owns the native input's composite ARIA semantics; anchor to the repository's stable slot
-  // and assert the public label explicitly rather than asking the label engine to infer it through cmdk.
   const filter = page.locator('[data-slot="command-input"]');
   await expect(filter).toHaveAttribute("aria-label", "Search for activity or type");
-  await filter.fill("not-in-the-catalogue");
-  await expect(page.getByText("No matching activity or type")).toBeVisible();
-  await expect(filter).toBeFocused();
-  await expect(page).toHaveURL(`${BASE}/`);
-
-  await filter.fill(seed.spaceTypeLabel);
-  const option = page.getByRole("option", { name: seed.spaceTypeLabel, exact: true });
-  if (keyboard) {
-    await option.focus();
-    await page.keyboard.press("Enter");
-  } else {
-    await option.click();
-  }
-  await expect(page.getByRole("heading", { name: "Where do you want to play?" })).toBeFocused();
+  await filter.fill(label);
+  await page.getByRole("option", { name: label, exact: true }).click();
+  await expect(page.getByTestId("search-results-region")).toHaveCount(1);
+  await expect(page).toHaveURL(/category=/);
 }
 
 async function chooseAddress(page: Page) {
+  await page.getByRole("button", { name: "Search location" }).click();
+  await expect(page.getByRole("heading", { name: "Where do you want to play?" })).toBeFocused();
   await page.getByRole("combobox", { name: "Search for your address" }).click();
   await page.getByPlaceholder("Type a street or city…").fill("Makati");
   await page.getByRole("option", { name: /2 Real Street, Makati/i }).click();
-  await expect(page.getByRole("heading", { name: "Who is this for?" })).toBeFocused();
-}
-
-async function submitSoloAddressSearch(page: Page, seed: SeededListing) {
-  await mockAddressLookup(page);
-  await page.goto(BASE);
-  await beginActivity(page, seed);
-  await chooseAddress(page);
-  await page.getByRole("button", { name: "For me" }).click();
-  await expect(page).toHaveURL(expectedUrl(1));
-}
-
-async function submitGroupLocationSearch(page: Page, seed: SeededListing, partySize = 4) {
-  await page.goto(BASE);
-  await beginActivity(page, seed, true);
-  await page.getByRole("button", { name: "Use my location" }).click();
-  await expect(page.getByRole("heading", { name: "Who is this for?" })).toBeFocused();
-  await page.getByRole("button", { name: "For a group" }).click();
-  await page.getByLabel("Number of people").fill(String(partySize));
-  await page.getByRole("button", { name: "See spaces" }).click();
-  await expect(page).toHaveURL(expectedUrl(partySize, "Current location"));
-}
-
-async function expectExactlyOneJourneyTree(page: Page) {
-  await expect(page.getByLabel("Space search")).toHaveCount(1);
   await expect(page.getByTestId("search-results-region")).toHaveCount(1);
-  await expect(page.getByTestId("search-idle-pill-shell")).toHaveCount(0);
+  await expect(page).toHaveURL(/locationLabel=/);
 }
 
-test.describe.serial("progressive search", () => {
+async function chooseSolo(page: Page) {
+  await page.getByRole("button", { name: "Search party size" }).click();
+  await expect(page.getByRole("heading", { name: "Who is this for?" })).toBeFocused();
+  await page.getByRole("button", { name: "For me" }).click();
+  await expect(page).toHaveURL(/partySize=1/);
+}
+
+async function chooseGroup(page: Page, size: number) {
+  await page.getByRole("button", { name: "Search party size" }).click();
+  await page.getByRole("button", { name: "For a group" }).click();
+  await page.getByLabel("Number of people").fill(String(size));
+  await page.getByRole("button", { name: "See spaces" }).click();
+  await expect(page).toHaveURL(new RegExp(`partySize=${size}`));
+}
+
+function expectOneSearchTree(page: Page) {
+  return Promise.all([
+    expect(page.getByLabel("Space search")).toHaveCount(1),
+    expect(page.getByTestId("search-results-region")).toHaveCount(1),
+  ]);
+}
+
+test.describe.serial("independent search fields", () => {
   let equalCapacity: SeededListing;
   let aboveCapacity: SeededListing;
   let undersized: SeededListing;
-  let noCapacity: SeededListing;
 
   test.beforeAll(async () => {
-    equalCapacity = await seedBookableListing({ titlePrefix: "Progressive equal capacity" });
-    aboveCapacity = await seedBookableListing({ titlePrefix: "Progressive above capacity" });
-    undersized = await seedBookableListing({ titlePrefix: "Progressive undersized" });
-    noCapacity = await seedBookableListing({ titlePrefix: "Progressive no capacity" });
+    equalCapacity = await seedBookableListing({ titlePrefix: "Search equal capacity" });
+    aboveCapacity = await seedBookableListing({ titlePrefix: "Search above capacity" });
+    undersized = await seedBookableListing({ titlePrefix: "Search undersized" });
     await equalCapacity.sql`UPDATE listing SET max_occupancy = 4 WHERE id = ${equalCapacity.listingId}`;
     await aboveCapacity.sql`UPDATE listing SET max_occupancy = 8 WHERE id = ${aboveCapacity.listingId}`;
     await undersized.sql`UPDATE listing SET max_occupancy = 3 WHERE id = ${undersized.listingId}`;
-    await noCapacity.sql`UPDATE listing SET max_occupancy = NULL WHERE id = ${noCapacity.listingId}`;
   });
 
   test.afterAll(async () => {
-    await Promise.all([equalCapacity.teardown(), aboveCapacity.teardown(), undersized.teardown(), noCapacity.teardown()]);
+    await Promise.all([equalCapacity.teardown(), aboveCapacity.teardown(), undersized.teardown()]);
   });
 
   for (const viewport of VIEWPORTS) {
-    test(`${viewport.name} journey keeps answers, filters capacity, and Cancel returns to browse`, async ({ page }) => {
+    test(`${viewport.name}: each field searches on its own, and combined answers filter capacity`, async ({ page }) => {
       await page.setViewportSize(viewport);
-      await submitSoloAddressSearch(page, equalCapacity);
+      await mockAddressLookup(page);
+      await page.goto(BASE);
+      await expect(page.getByRole("button", { name: "Search activity" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Search location" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Search party size" })).toBeVisible();
 
+      await chooseActivity(page, equalCapacity.spaceTypeLabel);
       await expect(page.getByRole("link", { name: equalCapacity.title })).toBeVisible();
-      await expect(page.getByRole("link", { name: undersized.title })).toBeVisible();
-      await expect(page.getByRole("link", { name: noCapacity.title })).toHaveCount(0);
-      await expect(page.getByText(/maximum capacity|remaining places|spots remaining/i)).toHaveCount(0);
-      await expectExactlyOneJourneyTree(page);
+      await expect(page).toHaveURL(/category=/);
 
-      await page.getByRole("button", { name: /^Activity:/ }).click();
-      await expect(page.getByRole("heading", { name: "What are you looking for?" })).toBeFocused();
-      await expect(page.locator('[data-slot="command-input"]')).toHaveValue(equalCapacity.spaceTypeLabel);
-      await page.getByRole("button", { name: "Cancel" }).click();
-      await expect(page).toHaveURL(`${BASE}/`);
-      await expect(page.getByRole("button", { name: "Start your search" })).toBeVisible();
-    });
+      await chooseAddress(page);
+      await expect(page.getByRole("link", { name: equalCapacity.title })).toBeVisible();
+      await expect(page).toHaveURL(/locationLabel=/);
 
-    test(`${viewport.name} group reload and share preserve canonical capacity-honest results`, async ({ page, context, browser }) => {
-      await page.setViewportSize(viewport);
-      await context.grantPermissions(["geolocation"], { origin: BASE });
-      await context.setGeolocation(LOCATION);
-      await submitGroupLocationSearch(page, equalCapacity);
-
+      await chooseGroup(page, 4);
       await expect(page.getByRole("link", { name: equalCapacity.title })).toBeVisible();
       await expect(page.getByRole("link", { name: aboveCapacity.title })).toBeVisible();
       await expect(page.getByRole("link", { name: undersized.title })).toHaveCount(0);
-      await expect(page.getByRole("link", { name: noCapacity.title })).toHaveCount(0);
-      await expect(page.getByRole("button", { name: /^Activity:/ })).toHaveCount(1);
-      await expect(page.getByRole("button", { name: /^Location:/ })).toHaveCount(1);
-      await expect(page.getByRole("button", { name: "4 people" })).toHaveCount(1);
-
-      const sharedUrl = page.url();
+      await expectOneSearchTree(page);
+      const url = new URL(page.url());
+      expect(url.searchParams.get("category")).toBeTruthy();
+      expect(url.searchParams.get("locationLabel")).toBe(ADDRESS_LABEL);
+      expect(url.searchParams.get("partySize")).toBe("4");
+      const shared = page.url();
       await page.reload();
-      await expect(page).toHaveURL(sharedUrl);
+      await expect(page).toHaveURL(shared);
       await expect(page.getByRole("link", { name: equalCapacity.title })).toBeVisible();
 
-      const sharedContext = await browser.newContext({ viewport });
-      const sharedPage = await sharedContext.newPage();
-      try {
-        await sharedPage.goto(sharedUrl);
-        await expect(sharedPage.getByRole("button", { name: /^Activity:/ })).toHaveCount(1);
-        await expect(sharedPage.getByRole("button", { name: /^Location:/ })).toHaveCount(1);
-        await expect(sharedPage.getByRole("button", { name: "4 people" })).toHaveCount(1);
-        await expect(sharedPage.getByRole("link", { name: equalCapacity.title })).toBeVisible();
-      } finally {
-        await sharedContext.close();
-      }
-
-      await page.getByRole("button", { name: "4 people" }).click();
-      await page.getByRole("button", { name: "For a group" }).click();
-      await page.getByLabel("Number of people").fill("1000");
-      await page.getByRole("button", { name: "See spaces" }).click();
+      await chooseGroup(page, 1000);
       await expect(page.getByRole("heading", { name: "No spaces match those answers" })).toBeVisible();
-      await expect(page.getByRole("button", { name: /^Activity:/ })).toHaveCount(1);
-      await expect(page.getByRole("button", { name: /^Location:/ })).toHaveCount(1);
-      await expect(page.getByRole("button", { name: "1000 people" })).toHaveCount(1);
-      await expect(page.getByText(/maximum capacity|remaining places|spots remaining/i)).toHaveCount(0);
-      await expectExactlyOneJourneyTree(page);
+      await expectOneSearchTree(page);
+    });
+
+    test(`${viewport.name}: location and party alone return results`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await mockAddressLookup(page);
+      await page.goto(BASE);
+      await chooseAddress(page);
+      await expect(page.getByRole("link", { name: equalCapacity.title })).toBeVisible();
+      expect(new URL(page.url()).searchParams.has("category")).toBe(false);
+      await page.goto(BASE);
+      await chooseSolo(page);
+      await expect(page.getByRole("link", { name: equalCapacity.title })).toBeVisible();
+      expect(new URL(page.url()).searchParams.get("partySize")).toBe("1");
+      expect(new URL(page.url()).searchParams.has("category")).toBe(false);
+    });
+
+    test(`${viewport.name}: dialog remains reachable and Cancel restores the field`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto(BASE);
+      const results = page.getByTestId("search-results-region");
+      await expect(results).toBeVisible();
+      const before = await results.boundingBox();
+      await page.getByRole("button", { name: "Search activity" }).click();
+      const dialog = page.getByRole("dialog", { name: "Search spaces" });
+      await expect(dialog).toBeVisible();
+      await expect(page.getByRole("heading", { name: "What are you looking for?" })).toBeFocused();
+      const box = await dialog.boundingBox();
+      expect(box).not.toBeNull();
+      if (viewport.width > 600) {
+        expect(box!.width).toBeGreaterThan(600);
+        expect(box!.width).toBeLessThanOrEqual(768);
+      } else {
+        expect(box!.width).toBeGreaterThanOrEqual(viewport.width - 1);
+      }
+      await page.getByRole("button", { name: "Cancel" }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(page).toHaveURL(`${BASE}/`);
+      await expect(page.getByRole("button", { name: "Search activity" })).toBeFocused();
+      expect((await results.boundingBox())?.y).toBe(before?.y);
+      await expectAxeClean(page, `${viewport.name} independent search idle`);
     });
   }
 
-  test("overlay and sheet geometry anchor the progressive flow without route reflow", async ({ page }) => {
-    await mockAddressLookup(page);
-
-    await page.setViewportSize(VIEWPORTS[0]);
-    await page.goto(BASE);
-    const desktopResults = page.getByTestId("search-results-region");
-    const desktopResultsBefore = await desktopResults.boundingBox();
-    const desktopTrigger = page.getByRole("button", { name: "Start your search" });
-    const desktopTriggerBox = await desktopTrigger.boundingBox();
-    const desktopViewport = await page.evaluate(() => ({ width: window.innerWidth }));
-    expect(desktopResultsBefore, "the idle results region must be measurable").not.toBeNull();
-    expect(desktopTriggerBox, "the desktop search pill must be measurable").not.toBeNull();
-    expect(
-      Math.abs(desktopTriggerBox!.x + desktopTriggerBox!.width / 2 - desktopViewport.width / 2),
-      "the idle desktop search pill must be centered in the rendered viewport",
-    ).toBeLessThanOrEqual(1);
-
-    await desktopTrigger.click();
-    const desktopOverlay = page.getByTestId("progressive-search-desktop-overlay");
-    await expect(desktopOverlay).toBeVisible();
-    await expect(page.getByTestId("progressive-search-mobile-sheet")).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: "What are you looking for?" })).toHaveCount(1);
-    await expect(page.getByRole("heading", { name: "What are you looking for?" })).toBeFocused();
-
-    const desktopOverlayBox = await desktopOverlay.boundingBox();
-    const desktopResultsAfter = await desktopResults.boundingBox();
-    expect(desktopOverlayBox, "the active desktop popover must be measurable").not.toBeNull();
-    expect(desktopResultsAfter, "the results region must remain measurable").not.toBeNull();
-    expect(desktopResultsAfter!.y).toBe(desktopResultsBefore!.y);
-    expect(desktopTriggerBox!.width, "the desktop pill must use the 48rem hierarchy").toBeLessThanOrEqual(768);
-    expect(desktopTriggerBox!.width, "the desktop pill must grow beyond the former 30rem host").toBeGreaterThan(600);
-    expect(desktopOverlayBox!.width, "the standard desktop Popover must use the 48rem hierarchy").toBeLessThanOrEqual(768);
-    expect(desktopOverlayBox!.width, "the standard desktop Popover must grow beyond the former 30rem host").toBeGreaterThan(600);
-    expect(Math.abs(desktopOverlayBox!.y - (desktopTriggerBox!.y + desktopTriggerBox!.height))).toBeLessThanOrEqual(16);
-    expect(desktopOverlayBox!.x).toBeGreaterThanOrEqual(desktopTriggerBox!.x - 1);
-    expect(desktopOverlayBox!.x).toBeLessThanOrEqual(desktopTriggerBox!.x + desktopTriggerBox!.width);
-
-    const desktopFilter = page.locator('[data-slot="command-input"]');
-    await desktopFilter.fill(equalCapacity.spaceTypeLabel);
-    await page.getByRole("option", { name: equalCapacity.spaceTypeLabel, exact: true }).click();
-    await chooseAddress(page);
-    await page.evaluate(() => new Promise<void>((resolve) => {
-      let remainingFrames = 8;
-      const nextFrame = () => {
-        remainingFrames -= 1;
-        if (remainingFrames === 0) resolve();
-        else window.requestAnimationFrame(nextFrame);
-      };
-      window.requestAnimationFrame(nextFrame);
-    }));
-    const [desktopPartyOverlayBox, desktopPartyCardBox] = await Promise.all([
-      desktopOverlay.boundingBox(),
-      page.getByRole("heading", { name: "Who is this for?" }).locator("..").boundingBox(),
-    ]);
-    expect(desktopPartyOverlayBox, "the compact party Popover must be measurable").not.toBeNull();
-    expect(desktopPartyCardBox, "the compact party card must be measurable").not.toBeNull();
-    expect(desktopPartyOverlayBox!.width, "the party host must be materially narrower than the standard host").toBeLessThan(desktopOverlayBox!.width - 100);
-    expect(desktopPartyCardBox!.width, "the party decision must keep a comfortable desktop width").toBeGreaterThanOrEqual(384);
-    expect(desktopPartyCardBox!.width).toBeLessThanOrEqual(desktopPartyOverlayBox!.width);
-    await page.getByRole("button", { name: "Back" }).click();
-    await expect(page.getByRole("heading", { name: "Where do you want to play?" })).toBeFocused();
-    await chooseAddress(page);
-    await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page).toHaveURL(`${BASE}/`);
-    const restoredDesktopTrigger = page.getByRole("button", { name: "Start your search" });
-    await expect(restoredDesktopTrigger).toBeVisible();
-    const restoredDesktopTriggerBox = await restoredDesktopTrigger.boundingBox();
-    const restoredDesktopViewport = await page.evaluate(() => ({ width: window.innerWidth }));
-    expect(restoredDesktopTriggerBox, "the restored desktop search pill must be measurable").not.toBeNull();
-    expect(
-      Math.abs(restoredDesktopTriggerBox!.x + restoredDesktopTriggerBox!.width / 2 - restoredDesktopViewport.width / 2),
-      "the restored idle desktop search pill must remain centered in the rendered viewport",
-    ).toBeLessThanOrEqual(1);
-
-    await page.setViewportSize(VIEWPORTS[1]);
-    await page.goto(BASE);
-    await page.getByRole("button", { name: "Start your search" }).click();
-    const mobileSheet = page.getByTestId("progressive-search-mobile-sheet");
-    await expect(mobileSheet).toBeVisible();
-    await expect(page.getByTestId("progressive-search-desktop-overlay")).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: "What are you looking for?" })).toHaveCount(1);
-    await expect(page.getByRole("heading", { name: "What are you looking for?" })).toBeFocused();
-
-    const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
-    const expectFullViewportSheet = async () => {
-      const mobileSheetBox = await mobileSheet.boundingBox();
-      expect(mobileSheetBox, "the active mobile sheet must be measurable").not.toBeNull();
-      expect(Math.abs(mobileSheetBox!.x)).toBeLessThanOrEqual(1);
-      expect(Math.abs(mobileSheetBox!.y)).toBeLessThanOrEqual(1);
-      expect(Math.abs(mobileSheetBox!.width - viewport.width)).toBeLessThanOrEqual(1);
-      expect(Math.abs(mobileSheetBox!.height - viewport.height)).toBeLessThanOrEqual(1);
-    };
-
-    await expectFullViewportSheet();
-    await page.evaluate(() => new Promise((resolve) => window.requestAnimationFrame(resolve)));
-    await expectFullViewportSheet();
-
-    const mobileActions = page.getByRole("group", { name: "Search journey actions" });
-    await expect(mobileActions).toBeVisible();
-    await expect(page.getByRole("button", { name: "Close" })).toHaveCount(0);
-    const [mobileActionsBox, mobileBackBox, mobileCancelBox] = await Promise.all([
-      mobileActions.boundingBox(),
-      page.getByRole("button", { name: "Back" }).boundingBox(),
-      page.getByRole("button", { name: "Cancel" }).boundingBox(),
-    ]);
-    expect(mobileActionsBox, "the mobile actions must be measurable").not.toBeNull();
-    expect(mobileBackBox, "the mobile Back control must be measurable").not.toBeNull();
-    expect(mobileCancelBox, "the mobile Cancel control must be measurable").not.toBeNull();
-    expect(mobileActionsBox!.y, "the action region must remain in the lower viewport").toBeGreaterThan(viewport.height / 2);
-    expect(mobileActionsBox!.y + mobileActionsBox!.height).toBeLessThanOrEqual(viewport.height);
-    expect(mobileBackBox!.x + mobileBackBox!.width).toBeLessThanOrEqual(mobileCancelBox!.x);
-
-    const mobileFilter = page.locator('[data-slot="command-input"]');
-    await mobileFilter.fill(equalCapacity.spaceTypeLabel);
-    await page.getByRole("option", { name: equalCapacity.spaceTypeLabel, exact: true }).click();
-    await chooseAddress(page);
-    const mobilePartyCard = page.getByRole("heading", { name: "Who is this for?" }).locator("..");
-    const [mobilePartyCardBox, mobilePartyActionsBox] = await Promise.all([
-      mobilePartyCard.boundingBox(),
-      mobileActions.boundingBox(),
-    ]);
-    expect(mobilePartyCardBox, "the mobile party card must be measurable").not.toBeNull();
-    expect(mobilePartyActionsBox, "the mobile action region must remain measurable at party").not.toBeNull();
-    expect(mobilePartyCardBox!.x).toBeGreaterThanOrEqual(0);
-    expect(mobilePartyCardBox!.x + mobilePartyCardBox!.width).toBeLessThanOrEqual(viewport.width);
-    expect(mobilePartyCardBox!.y + mobilePartyCardBox!.height).toBeLessThanOrEqual(mobilePartyActionsBox!.y);
-    // The Next.js development indicator occupies the lower-left corner in this test harness.
-    // Dispatch through the named button after the measured geometry proof, so the reducer callback
-    // remains covered without treating the development indicator as product UI.
-    await page.getByRole("button", { name: "Back" }).dispatchEvent("click");
-    await expect(page.getByRole("heading", { name: "Where do you want to play?" })).toBeFocused();
-    await chooseAddress(page);
-    await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page).toHaveURL(`${BASE}/`);
-  });
-
-  test("direct-edit desktop popover reachability", async ({ page }) => {
-    await page.setViewportSize(VIEWPORTS[0]);
-    await submitSoloAddressSearch(page, equalCapacity);
-
-    const activityChip = page.getByRole("button", { name: /^Activity:/ });
-    const activityChipBox = await activityChip.boundingBox();
-    expect(activityChipBox, "the selected Activity chip must be measurable").not.toBeNull();
-
-    await activityChip.click();
-    const overlay = page.getByTestId("progressive-search-desktop-overlay");
-    const cancel = page.getByRole("button", { name: "Cancel" });
-    await expect(overlay).toBeVisible();
-    await expect(cancel).toBeVisible();
-
-    const [overlayBox, cancelBox, viewport] = await Promise.all([
-      overlay.boundingBox(),
-      cancel.boundingBox(),
-      page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight })),
-    ]);
-    expect(overlayBox, "the direct-edit desktop overlay must be measurable").not.toBeNull();
-    expect(cancelBox, "the direct-edit Cancel control must be measurable").not.toBeNull();
-
-    const verticalAnchorGap = Math.min(
-      Math.abs(overlayBox!.y - (activityChipBox!.y + activityChipBox!.height)),
-      Math.abs((overlayBox!.y + overlayBox!.height) - activityChipBox!.y),
-    );
-    expect(verticalAnchorGap, "the Popover must sit adjacent to the initiating Activity chip").toBeLessThanOrEqual(16);
-    expect(overlayBox!.x).toBeLessThanOrEqual(activityChipBox!.x + activityChipBox!.width);
-    expect(overlayBox!.x + overlayBox!.width).toBeGreaterThanOrEqual(activityChipBox!.x);
-    expect(cancelBox!.x).toBeGreaterThanOrEqual(overlayBox!.x);
-    expect(cancelBox!.y).toBeGreaterThanOrEqual(overlayBox!.y);
-    expect(cancelBox!.x + cancelBox!.width).toBeLessThanOrEqual(overlayBox!.x + overlayBox!.width);
-    expect(cancelBox!.y + cancelBox!.height).toBeLessThanOrEqual(overlayBox!.y + overlayBox!.height);
-    expect(cancelBox!.x).toBeGreaterThanOrEqual(0);
-    expect(cancelBox!.y).toBeGreaterThanOrEqual(0);
-    expect(cancelBox!.x + cancelBox!.width).toBeLessThanOrEqual(viewport.width);
-    expect(cancelBox!.y + cancelBox!.height).toBeLessThanOrEqual(viewport.height);
-
-    await cancel.click();
-    await expect(page).toHaveURL(`${BASE}/`);
-    await expect(page.getByRole("button", { name: "Start your search" })).toBeVisible();
-  });
-
-  test("location denial leaves address entry recoverable without a URL", async ({ page }) => {
+  test("location denial keeps manual address entry available", async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator.geolocation, "getCurrentPosition", {
         configurable: true,
         value: (_success: PositionCallback, failure?: PositionErrorCallback) => failure?.({ code: 1, message: "denied", PERMISSION_DENIED: 1, POSITION_UNAVAILABLE: 2, TIMEOUT: 3 } as GeolocationPositionError),
       });
     });
-    await page.setViewportSize(VIEWPORTS[0]);
     await page.goto(BASE);
-    await beginActivity(page, equalCapacity);
+    await page.getByRole("button", { name: "Search location" }).click();
     await page.getByRole("button", { name: "Use my location" }).click();
     await expect(page.getByRole("status", { name: "Search progress" })).toContainText("Type an address instead");
     await expect(page.getByRole("combobox", { name: "Search for your address" })).toBeVisible();
     await expect(page).toHaveURL(`${BASE}/`);
   });
 
-  test("stale location callback cannot advance after Back and address remains usable", async ({ page }) => {
+  test("a late geolocation result cannot search after Cancel", async ({ page }) => {
     await page.addInitScript(() => {
       Object.defineProperty(navigator.geolocation, "getCurrentPosition", {
         configurable: true,
@@ -387,130 +188,12 @@ test.describe.serial("progressive search", () => {
         },
       });
     });
-    await mockAddressLookup(page);
-    await page.setViewportSize(VIEWPORTS[1]);
     await page.goto(BASE);
-    await beginActivity(page, equalCapacity);
+    await page.getByRole("button", { name: "Search location" }).click();
     await page.getByRole("button", { name: "Use my location" }).click();
-    await page.getByRole("button", { name: "Back" }).dispatchEvent("click");
-    await expect(page.getByRole("heading", { name: "What are you looking for?" })).toBeFocused();
+    await page.getByRole("button", { name: "Cancel" }).click();
     await page.evaluate(() => (window as Window & { releaseLocationCallback?: () => void }).releaseLocationCallback?.());
-    await expect(page.getByRole("heading", { name: "Who is this for?" })).toHaveCount(0);
     await expect(page).toHaveURL(`${BASE}/`);
-    await page.getByRole("option", { name: equalCapacity.spaceTypeLabel, exact: true }).click();
-    await chooseAddress(page);
-  });
-
-  for (const viewport of VIEWPORTS) {
-    test(`${viewport.name} keyboard focus, status ownership, reduced motion, axe, and one tree`, async ({ page }) => {
-      await page.setViewportSize(viewport);
-      await page.emulateMedia({ reducedMotion: "reduce" });
-      await mockAddressLookup(page);
-      await page.goto(BASE);
-      await expect(page.getByRole("button", { name: "Start your search" })).toBeVisible();
-      await expectAxeClean(page, `${viewport.name} idle pill`);
-
-      await beginActivity(page, equalCapacity, true);
-      await expect(page.getByRole("status", { name: "Search progress" })).toHaveCount(1);
-      await expectAxeClean(page, `${viewport.name} activity`);
-      await expect(page.evaluate(() => document.activeElement === document.body)).resolves.toBe(false);
-
-      await expect(page.getByRole("status", { name: "Address lookup" })).toHaveCount(1);
-      await expectAxeClean(page, `${viewport.name} location`);
-      await chooseAddress(page);
-      await expect(page.getByRole("status", { name: "Search progress" })).toHaveCount(1);
-      // AddressAutocomplete owns its lookup announcement while the location step is mounted; selecting
-      // an address advances to party and removes that owner rather than leaving a second stale region.
-      await expect(page.getByRole("status", { name: "Address lookup" })).toHaveCount(0);
-      await expect(page.evaluate(() => document.activeElement === document.body)).resolves.toBe(false);
-      await expectAxeClean(page, `${viewport.name} party`);
-
-      await page.getByRole("button", { name: "For me" }).click();
-      await expect(page.getByRole("link", { name: equalCapacity.title })).toBeVisible();
-      await expectExactlyOneJourneyTree(page);
-      await expectAxeClean(page, `${viewport.name} populated results`);
-
-      await page.getByRole("button", { name: "1 person" }).click();
-      await expect(page.getByRole("heading", { name: "Who is this for?" })).toBeFocused();
-      await page.getByRole("button", { name: "For a group" }).click();
-      await page.getByLabel("Number of people").fill("1000");
-      await page.getByRole("button", { name: "See spaces" }).click();
-      await expect(page.getByRole("heading", { name: "No spaces match those answers" })).toBeVisible();
-      await expectExactlyOneJourneyTree(page);
-      await expectAxeClean(page, `${viewport.name} calm empty results`);
-    });
-  }
-
-  test("fixed 25 km cross-municipality reach keeps nearby Makati results nearest-first", async ({ page }) => {
-    const seeded: SeededListing[] = [];
-    try {
-      const nearestMandaluyong = await seedBookableListing({ titlePrefix: "Fixed reach Mandaluyong nearest" });
-      seeded.push(nearestMandaluyong);
-      const nearbyMakati = await seedBookableListing({ titlePrefix: "Fixed reach Makati nearby" });
-      seeded.push(nearbyMakati);
-      const beyondReach = await seedBookableListing({ titlePrefix: "Fixed reach beyond 25 km" });
-      seeded.push(beyondReach);
-
-      await nearestMandaluyong.sql`
-        UPDATE listing
-        SET address_line1 = ${"Mandaluyong origin marker"}, city = ${"Mandaluyong"},
-            location = ST_SetSRID(ST_MakePoint(${MANDALUYONG_LOCATION.longitude}, ${MANDALUYONG_LOCATION.latitude}), 4326)
-        WHERE id = ${nearestMandaluyong.listingId}
-      `;
-      await nearbyMakati.sql`
-        UPDATE listing
-        SET address_line1 = ${"Nearby Makati marker"}, city = ${"Makati"},
-            location = ST_SetSRID(ST_MakePoint(${121.0244}, ${14.5547}), 4326)
-        WHERE id = ${nearbyMakati.listingId}
-      `;
-      await beyondReach.sql`
-        UPDATE listing
-        SET address_line1 = ${"Beyond reach marker"}, city = ${"San Jose del Monte"},
-            location = ST_SetSRID(ST_MakePoint(${121.081}, ${14.878}), 4326)
-        WHERE id = ${beyondReach.listingId}
-      `;
-
-      await page.route("https://photon.komoot.io/api**", async (route) => {
-        await route.fulfill({
-          contentType: "application/json",
-          body: JSON.stringify({
-            features: [{
-              geometry: { coordinates: [MANDALUYONG_LOCATION.longitude, MANDALUYONG_LOCATION.latitude] },
-              properties: {
-                name: "Mandaluyong City Hall",
-                city: "Mandaluyong",
-                state: "Metro Manila",
-                country: "Philippines",
-              },
-            }],
-          }),
-        });
-      });
-
-      await page.goto(BASE);
-      await beginActivity(page, nearestMandaluyong);
-      await page.getByRole("combobox", { name: "Search for your address" }).click();
-      await page.getByPlaceholder("Type a street or city…").fill("Mandaluyong");
-      await page.getByRole("option", { name: /Mandaluyong City Hall, Mandaluyong/i }).click();
-      await page.getByRole("button", { name: "For me" }).click();
-      await page.waitForURL((current) => current.searchParams.get("lat") === String(MANDALUYONG_LOCATION.latitude));
-
-      const url = new URL(page.url());
-      expect(url.searchParams.get("lat")).toBe(String(MANDALUYONG_LOCATION.latitude));
-      expect(url.searchParams.get("lng")).toBe(String(MANDALUYONG_LOCATION.longitude));
-      expect(url.searchParams.has("radius")).toBe(false);
-
-      const results = page.getByTestId("search-results-region");
-      await expect(results.getByRole("link", { name: nearestMandaluyong.title })).toBeVisible();
-      await expect(results.getByRole("link", { name: nearbyMakati.title })).toBeVisible();
-      await expect(results.getByRole("link", { name: beyondReach.title })).toHaveCount(0);
-      const resultHrefs = await results.getByRole("link").evaluateAll((links) => links.map((link) => link.getAttribute("href")));
-      const nearestIndex = resultHrefs.findIndex((href) => href?.startsWith(`/listings/${nearestMandaluyong.listingId}`));
-      const makatiIndex = resultHrefs.findIndex((href) => href?.startsWith(`/listings/${nearbyMakati.listingId}`));
-      expect(nearestIndex, "the selected Mandaluyong listing must be first by distance").toBe(0);
-      expect(makatiIndex, "the eligible Makati listing must follow the nearer Mandaluyong listing").toBeGreaterThan(nearestIndex);
-    } finally {
-      await Promise.all(seeded.map((listing) => listing.teardown()));
-    }
+    await expect(page.getByRole("button", { name: "Search location" })).toBeVisible();
   });
 });

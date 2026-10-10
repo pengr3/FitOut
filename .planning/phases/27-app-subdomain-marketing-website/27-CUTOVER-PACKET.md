@@ -1,11 +1,17 @@
 # Phase 27 — Prepared cutover and rollback packet
 
-**Prepared engineering and read-only inventory only. Cutover is blocked.** The
+October10 source continuity blocker: existing proposed b8358b11 and local compatibility c0f9a6c5 omit code already deployed in production36455580. They are ineligible for production cutover. Plan21 integrates that baseline and renumbers Contact to0037 after production0034–0036; an exact replacement candidate must pass fresh gates before this packet is actionable. Historical acceptance and the unchanged walkthrough Preview remain evidence for their stated sources. Read27-PRODUCTION-CONTINUITY.md. No production action is authorized by this note.
+
+**Production cutover remains pending.** The
 architecture is already authorized by D-16/D-17. The remaining checkpoint concerns
 actual account prerequisites and exact external changes, not routine implementation
 choices. The separately approved Google client-registration additions are saved,
 and current-apex Google sign-in passed for the existing browser account. No
-deployment, DNS change, live inquiry or fund movement occurred.
+production deployment, DNS change, deployed Contact inquiry or fund movement
+occurred. The separately authorized isolated Preview deployments and one
+standalone email transport test are recorded in plans18–20. The owner is reviewing
+the stable b835 Preview while local compatibility preparation continues; a newer
+candidate must pass its own complete checks before replacing the proposed SHA.
 Task 27-08-03 is blocking-human and is reserved for the owner when available.
 
 ```json

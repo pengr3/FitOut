@@ -1367,6 +1367,7 @@ Supplementary engineering repairs, approved for planning and continuous local wo
 - [x] 27-18-PLAN.md — Atomic shared Contact quotas and additive migration; focused and actual Neon race proof (D-23)
 - [x] 27-19-PLAN.md — Schema-only Preview branch and saved isolated bindings; deployment proof belongs to Plan20 (D-23)
 - [x] 27-20-PLAN.md — Six guarded full gates/cold proof and actual isolated Preview write/session/Contact checks; original production checkpoint remains (D-23)
+- [ ] 27-21-PLAN.md — Preserve deployed source, resolve migration numbering, reverify exact integrated release source
 
 ## Carried Forward (not v1.2 scope until promoted)
 

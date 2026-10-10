@@ -129,12 +129,11 @@
 // runs. It measured 45, 46 and 50px on three runs a few hours apart. That is exactly why the gate in
 // `e2e/skeleton-geometry.spec.ts` asserts the overflow is ZERO rather than any measured delta.
 //
-// ⚠⚠ WHAT THE WRAP COSTS, MEASURED AND NOT ROUNDED. The desktop row is now two-valued: 36.52px when a
-// title fits the residual Space column on one line and 57px when it does not. `HOST_BOOKING_ROW_HEIGHT`
-// still declares the floor and its docblock carries the argument for that choice, the ladder it was
-// checked against, and the band between 768 and 928px where the column falls to its min-content. Both
-// heights are seeded and pinned in the geometry spec's `(title)` case; neither is left to be
-// discovered as an unexplained 20px.
+// ⚠⚠ PHASE 26 RE-MEASUREMENT. The desktop row has an explicit 80px floor matching
+// `HOST_BOOKING_ROW_HEIGHT`. The compact payout cell shows the full explanation to screen readers,
+// while its visible amount stays on one line so Linux and Windows font metrics do not squeeze the
+// Space title into an extra line. The Space cell still wraps, and the When cell does not. The geometry
+// spec pins both seeded title shapes and zero table overflow. Full timing is visible on mobile/detail.
 
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -362,7 +361,7 @@ export default async function HostBookingsPage({
                 </TableHeader>
                 <TableBody>
                   {rows.map((row) => (
-                    <TableRow key={row.bookingId}>
+                    <TableRow key={row.bookingId} className="h-20">
                       {/* THE LABEL ROLE, NAMED. The table's own inherited small-text step already
                           computes 14px here; saying `text-label` changes no pixel and makes the cell's
                           role legible, so a later type edit moves a declared role rather than a bare
@@ -427,7 +426,7 @@ export default async function HostBookingsPage({
                         </div>
                       </TableCell>
                       <TableCell className="max-w-56 whitespace-normal">
-                        <HostPayoutCell view={row.payout} />
+                        <HostPayoutCell view={row.payout} compact />
                       </TableCell>
                       <TableCell>
                         {row.status === "requested" ? (

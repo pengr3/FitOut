@@ -77,12 +77,10 @@ export function PriceDisclosure({
         <Button
           variant="ghost"
           size="touch"
-          // `w-full justify-between` overrides `buttonVariants`' centred layout: the trigger spans the
-          // breakdown's width so the whole row is the target, not just the words. `-mx-4` cancels the
-          // touch size's own horizontal padding so the LABEL still lines up with the money rows beneath
-          // it while the BORDER BOX a pointer hit-tests keeps its full width — the same border-box vs
-          // margin-box separation `ServiceFeePopover`'s `-my-3` makes on the fee row.
-          className="-mx-4 w-full justify-between font-normal"
+          // Let the soft disclosure background extend equally beyond both money columns. The earlier
+          // negative margin shifted a 100%-wide trigger left without widening it, leaving a visibly
+          // larger gap on the right. Padding keeps its text aligned with the itemised rows.
+          className="-mx-2 w-[calc(100%+1rem)] justify-between px-2 font-normal sm:-mx-3 sm:w-[calc(100%+1.5rem)] sm:px-3"
         >
           <span className="text-sm font-semibold">Price details</span>
           <span className="inline-flex items-center gap-1 text-sm text-muted-foreground">

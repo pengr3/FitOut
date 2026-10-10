@@ -267,6 +267,7 @@ export async function searchListings(
       ${category ? sql`AND (
         l.primary_space_type::text = ${category}
         OR EXISTS (SELECT 1 FROM listing_activity_tag t WHERE t.listing_id = l.id AND t.tag = ${category})
+        OR (${category === "bouldering" || category === "climbing"} AND l.primary_space_type::text = 'bouldering_gym')
       )` : sql``}
       ${partySize !== undefined ? sql`AND l.max_occupancy >= ${partySize}` : sql``}
       ${priceMax !== undefined ? sql`AND ${effectivePriceSql} <= ${priceMax}` : sql``}

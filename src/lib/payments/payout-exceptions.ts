@@ -8,7 +8,8 @@ export type PayoutExceptionCause =
   | "settlement_missing" | "settlement_returned" | "settlement_read_unavailable"
   | "wallet_unavailable" | "wallet_insufficient" | "transfer_failed"
   | "transfer_stuck" | "transfer_read_unavailable" | "transfer_outcome_uncertain"
-  | "payout_basis_missing" | "missed_friday_cutoff" | "destination_action_required";
+  | "payout_basis_missing" | "missed_friday_cutoff" | "destination_action_required"
+  | "api_fee_over_budget" | "transfer_fee_over_budget" | "transfer_fee_unavailable";
 
 const NEXT_ACTION: Record<PayoutExceptionCause, string> = {
   settlement_missing: "Verify the booking payment in a deposited merchant payout; retain HOLD until correlated proof exists.",
@@ -23,6 +24,9 @@ const NEXT_ACTION: Record<PayoutExceptionCause, string> = {
   payout_basis_missing: "Verify the frozen booking payout basis before any transfer can be claimed.",
   missed_friday_cutoff: "Identify the blocking settlement, funds, transfer, or host gate and own recovery for the next Friday cohort.",
   destination_action_required: "Contact the host to complete payout destination setup; keep automated release on HOLD.",
+  api_fee_over_budget: "Record the actual provider fee and review account pricing. Reconcile the existing transfer; never resend it.",
+  transfer_fee_over_budget: "Review the verified fee against the frozen payout budget and Wallet debit; stop further dispatch scope, never resend this transfer.",
+  transfer_fee_unavailable: "Restore provider fee readback and reconcile the existing transfer before marking it Paid or sending another payout.",
 };
 
 const sha = (value: string) => createHash("sha256").update(value).digest("hex");

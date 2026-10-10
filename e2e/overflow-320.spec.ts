@@ -42,6 +42,8 @@ import { AVATAR_CROP_TITLE } from "../src/lib/avatar";
 // was in fact still standing on the wizard's first step (D10).
 import { COVER_PREVIEW_TITLE } from "../src/lib/listing/cover-frames";
 
+const OPS_ORIGIN = "http://ops.localhost:3000";
+
 // RESP-01 / AC#29 — nothing overflows the viewport horizontally at 320px, on seventeen named routes
 // plus three route STATES, in both themes. Measured in real pixels in real Chromium.
 //
@@ -416,6 +418,10 @@ async function openAvatarCropDialog(page: Page): Promise<void> {
 type RouteRow = {
   /** How the route is named in failures and skip messages. */
   readonly name: string;
+  /** Staff authentication is exposed only on the separate ops hostname. */
+  readonly origin?: string;
+  /** The fixed ops gateway 404 has four laid-out elements; keep its overflow check non-vacuous. */
+  readonly minExaminedElements?: number;
   /**
    * `null` for a route this harness cannot reach, in which case `skip` says why, IN THE MESSAGE.
    * A resolver rather than a literal where the path depends on the catalogue.
@@ -671,6 +677,36 @@ const ROUTES: readonly RouteRow[] = [
     name: "/login",
     path: "/login",
     tell: '[data-testid="panel-card"]',
+  },
+  {
+    name: "ops login",
+    origin: "http://ops.localhost:3000",
+    path: "/login",
+    tell: 'h1:has-text("Sign in")',
+  },
+  {
+    name: "ops forgot password",
+    origin: "http://ops.localhost:3000",
+    path: "/forgot-password",
+    tell: 'h1:has-text("Reset your password")',
+  },
+  {
+    name: "ops reset password · missing token",
+    origin: "http://ops.localhost:3000",
+    path: "/reset-password",
+    tell: 'h1:has-text("Set a new password")',
+  },
+  {
+    name: "ops invitation · inactive",
+    origin: "http://ops.localhost:3000",
+    path: "/invite/unmatched-e2e-token",
+    tell: 'h1:has-text("no longer active")',
+  },
+  {
+    name: "ops cloak · gateway denial",
+    path: "/_ops-cloak",
+    tell: 'h1:has-text("Page not found")',
+    minExaminedElements: 4,
   },
   {
     name: "/signup",
@@ -956,7 +992,7 @@ test.describe(`AC#29 — nothing scrolls sideways at ${FLOOR_PX}px`, () => {
           truncator.set(true);
         }
 
-        await page.goto(`${BASE}${path}`);
+        await page.goto(`${row.origin ?? BASE}${path}`);
         await page.evaluate(() => document.fonts.ready);
 
         // The one row whose subject is behind an interaction. It runs BEFORE `expectReachable`, because
@@ -969,7 +1005,7 @@ test.describe(`AC#29 — nothing scrolls sideways at ${FLOOR_PX}px`, () => {
         const where = `${title} · ${FLOOR_PX}px`;
         await expectReachable(page, row, where);
 
-        await expectNoOverflow(page, where);
+        await expectNoOverflow(page, where, row.minExaminedElements);
 
         // The overlay rows' second measurement. Runs AFTER the document scan rather than instead of
         // it: the document clause is still the right question for the page BEHIND the overlay, and
@@ -2855,6 +2891,8 @@ type Phase14Row = {
    * made the original guard's own sentence false of the shipped app.
    */
   readonly noOwnControls?: string;
+  /** A provider outage can replace a form with a read-only fallback; both states remain measured. */
+  readonly noOwnControlsWhen?: { readonly tell: string; readonly reason: string };
 };
 
 /**
@@ -3188,59 +3226,46 @@ const PHASE_14_ROWS: readonly Phase14Row[] = [
   {
     name: "/host/payouts/return",
     path: () => "/host/payouts/return",
-    // ⚠ THE WORST PLATE TRAP IN THE TABLE, AND IT IS WORTH NAMING AS ONE. `payouts/return/loading.tsx`
-    // renders `<h1>Thanks — that&apos;s submitted</h1>` BYTE-IDENTICALLY to the page it stands in for —
-    // deliberately, so the sentence does not move when the payout state lands. A heading hook here does
-    // not merely fail to prove the resolved page; it proves the SKELETON. `PayoutBanner` is the one
-    // element the plate replaces with a `PanelSkeleton`, so it is the only honest tell on this route.
+    // The banner is present only after the route resolves; a heading may also appear in its plate.
     tell: "[data-payout-banner]",
     tellWhy:
       "the payout banner, which is the entire difference between this route's resolved document and " +
-      "its plate — the plate renders the SAME `h1` verbatim and a `PanelSkeleton` in the banner's " +
+      "its plate — the plate renders a `PanelSkeleton` in the banner's " +
       "slot. The attribute is state-agnostic on purpose: the banner renders one of four states and " +
       "`derivePayoutStatus` picks it from the fixture's `host_payout` row, so pinning a single state " +
       "here would make the row a fixture assertion rather than a reachability guard.",
     touch: [],
     touchWhy:
-      "NONE DECLARED. The one control is `Back to your dashboard`, `variant=\"outline\"` at the " +
+      "NONE DECLARED. The one control is `Set payout destination`, `variant=\"outline\"` at the " +
       "Button's default height (`payouts/return/page.tsx:49`), with no height note anywhere in the " +
       "spec. The banner's own `Set up payouts` action does not render in the fixture's enabled state.",
   },
   {
     name: "/host/payouts/refresh",
     path: () => "/host/payouts/refresh",
-    // ⚠ THIS ROW MEASURES A FALLBACK, AND THE FALLBACK IS THE ONLY THING IT CAN MEASURE — MEASURED
-    // 30 August 2026 rather than reasoned about, because the plan's own threat model got this route
-    // wrong (T-17-59 asserts these two rows "issue no PayMongo call").
-    //
-    // `payouts/refresh/page.tsx` calls `refreshOnboardingLink()` → `startPayoutOnboarding()` →
-    // `createOnboardingLink()`, which is a REAL `POST https://api.paymongo.com/v1/linked_accounts/
-    // onboarding_links` with whatever `PAYMONGO_SECRET_KEY` the local `.env` carries. On success the
-    // page `redirect()`s to PayMongo and there is no document here at all. Platforms / Linked Accounts
-    // is beta / sales-gated (src/lib/paymongo.ts's own BETA NOTE), so the call fails, `res.ok` is
-    // false, and the host lands on the retry sentence this row names. PROBED on a freshly signed-up
-    // host, both directions of the failure: `h1: "Let's pick up where you left off"`, no redirect.
-    //
-    // WHAT THAT COSTS, stated so nobody discovers it: two outbound POSTs per run (one per theme), each
-    // writing one `audit` row with `outcome: "error"`. Neither creates a PayMongo resource — the
-    // endpoint 404s before it reaches one — and `afterAll` deletes the audit rows. It also spends 2 of
-    // `startPayoutOnboarding`'s 5-per-60s per-identity budget, which is why the two cases are the only
-    // visits this file makes to this route.
-    //
-    // AND THE PLATE IS NOT A TRAP HERE, unusually: `payouts/refresh/loading.tsx` renders one
-    // `Reopening payout setup…` paragraph and no heading at all.
-    tell: 'h1:has-text("pick up where you left off")',
+    // The legacy provider-return route is now an inert handoff into host-owned payout setup. It
+    // renders this heading without contacting the provider. Its loading plate has no heading.
+    tell: 'h1:has-text("Set your payout destination")',
     tellWhy:
-      "the retry sentence's own heading, which exists on no other route and which the route's plate " +
-      "does not render (its whole content is a `Reopening payout setup…` status paragraph). It is " +
-      "matched on a substring rather than in full because the shipped copy contains a typographic " +
-      "apostrophe (`&apos;`), and a spec re-typing one is the drift `AVATAR_CROP_TITLE`'s import note " +
-      "warns about — the substring carries no apostrophe and cannot go quietly wrong.",
+      "the payout destination heading, which exists on no other route and which the route's plate " +
+      "does not render (its whole content is a `Reopening payout setup…` status paragraph).",
     touch: [],
     touchWhy:
-      "NONE DECLARED. The fallback renders exactly one control, `Back to your dashboard`, " +
+      "NONE DECLARED. The page renders one outline control for payout setup, " +
       "`variant=\"outline\"` at the Button's default height and with no height note in the spec — the " +
       "same opt-in argument every row above records.",
+  },
+  {
+    name: "/host/payouts",
+    path: () => "/host/payouts",
+    tell: 'h1:has-text("Payout destination")',
+    tellWhy: "the destination heading is rendered by the resolved host page, while its loading plate has no heading and a login redirect has different copy.",
+    touch: [],
+    touchWhy: "No control on this row declares a 44px target; this row measures the complete payout destination document for horizontal overflow at the phone width.",
+    noOwnControlsWhen: {
+      tell: 'text="Payout setup is temporarily unavailable"',
+      reason: "the provider bank directory is unavailable in the credential-free CI run, so this resolved page deliberately renders a read-only outage alert instead of the payout form",
+    },
   },
   {
     // ─── /host/verify (plan 18.1-11) ─────────────────────────────────────────────────────────────
@@ -3468,7 +3493,11 @@ test.describe(`AC#36 — every Phase-14 host surface at ${FLOOR_PX}px, in both t
         }
 
         await expectNoOverflow(page, where);
-        await expectTargets(page, where, row.noOwnControls);
+        const fallback = row.noOwnControlsWhen;
+        const noOwnControls = fallback && (await page.locator(fallback.tell).isVisible())
+          ? fallback.reason
+          : row.noOwnControls;
+        await expectTargets(page, where, noOwnControls);
         await expectTouchTargets(page, where, row);
         await expectVisibleFocus(page, where);
       });
@@ -3564,10 +3593,12 @@ test.describe(`OPS-04 — the /ops review queue at ${FLOOR_PX}px, in both themes
       await seedTheme(page.context(), theme);
       await page.setViewportSize({ width: FLOOR_PX, height: 900 });
 
-      await page.goto(`${BASE}/ops`);
+      await page.goto(`${OPS_ORIGIN}/ops`);
       await page.evaluate(() => document.fonts.ready);
 
       const where = `/ops · ${theme} · ${FLOOR_PX}px`;
+      const listingCard = page.getByTestId("row-card").filter({ hasText: seed!.title });
+      await listingCard.getByRole("button", { name: "Show listing evidence" }).click();
 
       // THE TELL IS A PHOTOGRAPH, not the page header and not a row card. `row-card` would be
       // satisfied by the HOST row alone, which carries no image and is therefore not the shape this
@@ -3577,7 +3608,7 @@ test.describe(`OPS-04 — the /ops review queue at ${FLOOR_PX}px, in both themes
       // (18-UI-SPEC's does-not-move table), and its scope rule is explicit: an id is added only where
       // a role or label query cannot express the target. `section[aria-label]` can.
       await expect(
-        page.locator('[data-testid="row-card"] section[aria-label^="Photos of "]'),
+        listingCard.locator('section[aria-label^="Photos of "]'),
         `${where}: the queue rendered no photo mosaic, so the row this block exists to measure is ` +
           "not on the page. Either the fixture's listing did not reach the queue (check " +
           "`review_state`), or the session is not staff and this is the root 404 — which does not " +
@@ -3652,7 +3683,7 @@ test.describe(`AC#22 / D-196 — the signed-in header cluster at ${FLOOR_PX}px`,
   test.describe.configure({ timeout: 60_000 });
 
   for (const theme of THEMES) {
-    test(`${theme} · Profile clears ${TARGET_FLOOR_PX}px and the cluster fits its budget`, async ({
+    test(`${theme} · account menu clears ${TARGET_FLOOR_PX}px and the cluster fits its budget`, async ({
       page,
     }) => {
       await seedTheme(page.context(), theme);
@@ -3676,33 +3707,28 @@ test.describe(`AC#22 / D-196 — the signed-in header cluster at ${FLOOR_PX}px`,
       // and the case would fail here rather than passing on a measurement nothing else can see.
       const controls = await collectControls(page);
       const shell = controls.filter((c) => c.inShell);
-      const profile = shell.find((c) => c.label === "a[Profile]");
+      const menu = shell.find((c) => c.label === "button[Navigation menu]");
       expect(
-        profile,
-        `${where}: the target-size scan returned no \`a[Profile]\` from inside \`site-header\`. The ` +
+        menu,
+        `${where}: the target-size scan returned no account menu from inside \`site-header\`. The ` +
           `scan found ${shell.length} shell control(s): ${shell.map((c) => `${c.label} ${c.w}x${c.h}`).join(", ") || "(none)"}. ` +
-          "Either the header is excluded from `collectControls` again — the exclusion D-196 narrowed " +
-          "— or the signed-in cluster stopped rendering the Profile control, and the two assertions " +
-          "below would be vacuous either way.",
+          "The account control must appear in the measured header control set.",
       ).toBeDefined();
 
-      const { w, h } = profile as Control;
+      const { w, h } = menu as Control;
       expect(
         w,
-        `${where}: the Profile control measures ${w}x${h}px, and its WIDTH is ` +
+        `${where}: the account menu measures ${w}x${h}px, and its WIDTH is ` +
           `${Math.round((TARGET_FLOOR_PX - w) * 10) / 10}px under the ${TARGET_FLOOR_PX}px WCAG 2.5.8 ` +
-          "AA target-size floor. This is the control that reaches a user's own account, on every " +
-          "signed-in route in the product. D-196's fix is PADDING on the link (`p-1.5`, 6px, taking " +
-          "a 16px glyph to 28px) — not a bigger glyph, and not on `NAV_LINK_CLASS`, which four " +
-          "header links share.",
+          "AA target-size floor. This is the control that opens account actions.",
       ).toBeGreaterThanOrEqual(TARGET_FLOOR_PX);
       expect(
         h,
-        `${where}: the Profile control measures ${w}x${h}px, and its HEIGHT is ` +
-          `${Math.round((TARGET_FLOOR_PX - h) * 10) / 10}px under the ${TARGET_FLOOR_PX}px floor. ` +
-          "Both axes are asserted separately so the failure names which one moved: padding fixes " +
-          "both, a width-only change fixes neither.",
+        `${where}: the account menu measures ${w}x${h}px, below the ${TARGET_FLOOR_PX}px height floor.`,
       ).toBeGreaterThanOrEqual(TARGET_FLOOR_PX);
+
+      await page.getByRole("button", { name: "Navigation menu" }).click();
+      await expect(page.getByRole("menuitem", { name: "Profile" })).toHaveAttribute("href", "/profile");
 
       // ── THE OTHER HALF OF D-196: THE BUDGET THE PADDING SPENDS FROM ──────────────────────────────
       const slot = page.getByTestId("site-auth-slot");
@@ -3851,6 +3877,10 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
   { surface: "/forgot-password", coveredBy: ["/forgot-password", "/forgot-password · post-submit"] },
   { surface: "/reset-password", coveredBy: ["/reset-password", "/reset-password · missing token"] },
   { surface: "/profile", coveredBy: ["/profile", "/profile · crop dialog open"] },
+  { surface: "/%5Fops-auth/login", coveredBy: ["ops login"] },
+  { surface: "/%5Fops-auth/forgot-password", coveredBy: ["ops forgot password"] },
+  { surface: "/%5Fops-auth/reset-password", coveredBy: ["ops reset password · missing token"] },
+  { surface: "/%5Fops-auth/invite/[token]", coveredBy: ["ops invitation · inactive"] },
 
   // ─── PAGE ROUTES · BOOKER (Phase 13, plan 13-15 · `/bookings` added by 17-11) ─────────────────
   { surface: "/bookings", coveredBy: ["/bookings (the booker's list)"] },
@@ -3885,6 +3915,7 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
   { surface: "/host/listings/[id]/availability", coveredBy: ["/host/listings/[id]/availability"] },
   { surface: "/host/payouts/return", coveredBy: ["/host/payouts/return"] },
   { surface: "/host/payouts/refresh", coveredBy: ["/host/payouts/refresh"] },
+  { surface: "/host/payouts", coveredBy: ["/host/payouts"] },
 
   // ─── PAGE ROUTES · HOST STANDING (plan 18.1-11) ───────────────────────────────────────────────
   //
@@ -3905,6 +3936,7 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
   // gates. It is additionally the ONLY list surface in the product whose row carries a photograph,
   // which makes it the hardest 320px case in this file rather than the softest.
   { surface: "/ops", coveredBy: ["/ops"] },
+  { surface: "/_ops-cloak", coveredBy: ["ops cloak · gateway denial"] },
 
   // ─── PAGE ROUTES · THE `src/app/dev` EXCLUSION (D-201, exclusion 1 of 4) ──────────────────────
   {
@@ -3983,6 +4015,14 @@ const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
   {
     surface: "src/app/(host)/host/error.tsx",
     coveredBy: ["error boundary · src/app/(host)/host/error.tsx"],
+  },
+  {
+    surface: "src/app/(host)/host/earnings/error.tsx",
+    excluded:
+      "The earnings segment boundary needs a controlled failure inside /host/earnings. The existing " +
+      "/host/dev-throw vehicle reaches the parent host boundary, and the ordinary earnings row " +
+      "measures the successful page. No earnings-read fault fixture exists in this harness, so this " +
+      "fallback's 320px geometry remains unmeasured rather than being attributed to another row.",
   },
   {
     surface: "src/app/(legal)/error.tsx",

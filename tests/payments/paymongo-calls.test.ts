@@ -18,6 +18,9 @@ import {
   expireCheckoutSession,
   getCheckoutSession,
   createBatchTransfer,
+  createExternalHostPayout,
+  getTransfer,
+  getManualTransferDetails,
   createRefund,
   listReceivingInstitutions,
   listWalletAccounts,
@@ -536,6 +539,88 @@ describe("createBatchTransfer — inhouse payout (/v2, D-52/PAY-03)", () => {
     expect(transfer.provider).toBe("paymongo");
     expect(transfer.amount).toBe(135000); // net, verbatim — no gateway-fee subtraction (D-52)
   });
+});
+
+describe("controlled external host payout", () => {
+  it("sends one ₱17.10 InstaPay transfer with a booking-stable idempotency key", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ data: { id: "batch_test", transfers: [
+        { id: "tr_test12345678", status: "pending" },
+      ] } }),
+    );
+    const destination = { number: "09123456789", name: "Sample Host", bic: "GXCHPHM2XXX" };
+    const input = { netCents: 1710, bookingId: "one-booking", description: "FitOut test", destination };
+    expect(await createExternalHostPayout(input)).toEqual({
+      batchId: "batch_test", transferId: "tr_test12345678", status: "pending",
+    });
+    const call = lastCall(fetchMock);
+    expect(call.url).toBe("https://api.paymongo.com/v2/batch_transfers");
+    expect(call.method).toBe("POST");
+    expect(call.headers["Idempotency-Key"]).toBe("host-external-payout:one-booking");
+    const body = call.body as { transfers: Array<Record<string, unknown>> };
+    expect(body.transfers).toHaveLength(1);
+    expect(body.transfers[0]).toMatchObject({ provider: "instapay", amount: 1710,
+      currency: "PHP", reference_number: "host-payout-one-booking",
+      destination_account: destination });
+    fetchMock.mockClear();
+    fetchMock.mockResolvedValue(jsonResponse({ data: { id: "batch_test",
+      transfers: [{ id: "tr_test12345678", status: "pending" }], } }));
+    await createExternalHostPayout(input);
+    expect(lastCall(fetchMock).headers["Idempotency-Key"]).toBe("host-external-payout:one-booking");
+  });
+
+  it("reads a flat live transfer and preserves the provider-reported fee", async () => {
+    for (const fee of [0, 1000, 1200]) {
+      fetchMock.mockClear();
+      fetchMock.mockResolvedValue(new Response(JSON.stringify({ data: {
+        id: "tr_test12345678", status: "succeeded", amount: 1710, fee,
+        currency: "PHP", provider: "instapay", merchant_id: "org_live",
+        livemode: true, created_at: Math.floor(Date.now() / 1000),
+        reference_number: "host-payout-one-booking",
+        source_account: { number: "0099", name: "FitOut Wallet", bic: "PAEYPHM2XXX" },
+        destination_account: { number: "09123456789", name: "Sample Host", bic: "GXCHPHM2XXX" },
+      } }), { status: 200, headers: { Date: new Date().toUTCString() } }));
+      const transfer = await getManualTransferDetails("tr_test12345678");
+      expect(transfer.feeCents).toBe(fee);
+      expect(transfer.referenceNumber).toBe("host-payout-one-booking");
+      expect(transfer.destination.bic).toBe("GXCHPHM2XXX");
+      expect(lastCall(fetchMock).method).toBe("GET");
+    }
+  });
+  it("does not silently retry a timed-out transfer POST", async () => {
+    fetchMock.mockRejectedValue(new Error("network response lost"));
+    await expect(createExternalHostPayout({ netCents: 1710, bookingId: "one-booking",
+      description: "FitOut test", destination: {
+        number: "09123456789", name: "Sample Host", bic: "GXCHPHM2XXX",
+      } })).rejects.toThrow("network response lost");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(lastCall(fetchMock).headers["Idempotency-Key"]).toBe("host-external-payout:one-booking");
+  });
+});
+
+describe("getTransfer — provider fee readback", () => {
+  it.each([0, 1000, 1200])("reads a verified %i-cent fee from the existing transfer", async (fee) => {
+    fetchMock.mockResolvedValue(jsonResponse({ data: {
+      id: "tr_fee_test", status: "succeeded", reference_number: "host-payout-booking",
+      amount: 1710, fee, currency: "PHP",
+    } }));
+    expect(await getTransfer("tr_fee_test")).toMatchObject({
+      id: "tr_fee_test", amount: 1710, feeCents: fee, status: "succeeded",
+    });
+    expect(lastCall(fetchMock).url).toBe("https://api.paymongo.com/v2/transfers/tr_fee_test");
+    expect(lastCall(fetchMock).method).toBe("GET");
+  });
+
+  it.each([undefined, -1, 1.5, "unavailable"]) (
+    "rejects an unverified fee %s instead of marking a transfer Paid",
+    async (fee) => {
+      fetchMock.mockResolvedValue(jsonResponse({ data: {
+        id: "tr_fee_test", status: "succeeded", reference_number: "host-payout-booking",
+        amount: 1710, fee, currency: "PHP",
+      } }));
+      await expect(getTransfer("tr_fee_test")).rejects.toThrow("unverified shape");
+    },
+  );
 });
 
 describe("createRefund — refund mechanism (/v1, D-60)", () => {

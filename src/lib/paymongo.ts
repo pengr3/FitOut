@@ -18,6 +18,7 @@
 // test depends on a live PayMongo call.
 
 import { randomUUID } from "node:crypto";
+import { STANDARD_PAYOUT_TRANSFER_FEE_CENTS } from "@/lib/payments/payout-fee-policy";
 
 // Version-less base (Pitfall 3): PayMongo mixes /v1 (Checkout Sessions, Refunds, Linked Accounts) and
 // /v2 (Batch Transfers, Wallets) endpoints. Every caller passes a FULLY versioned path (`/v1/...` or
@@ -574,7 +575,8 @@ export async function createExternalHostPayout(input: {
   }
   const sourceAccount = platformWallet();
   const json = await paymongoFetch<{
-    data?: { id?: string; attributes?: { transfers?: Array<{ id?: string; status?: string }> } };
+    data?: { id?: string; transfers?: Array<{ id?: string; status?: string }>;
+      attributes?: { transfers?: Array<{ id?: string; status?: string }> } };
   }>("/v2/batch_transfers", {
     method: "POST",
     idempotencyKey: `host-external-payout:${input.bookingId}`,
@@ -599,8 +601,14 @@ export async function createExternalHostPayout(input: {
     },
   });
 
-  const transfer = json.data?.attributes?.transfers?.[0];
-  return { batchId: json.data?.id ?? "", transferId: transfer?.id ?? "", status: transfer?.status ?? "" };
+  // Current PayMongo /v2 response is flat `data.transfers`; retain the older
+  // attributes envelope for accounts still returning it. A malformed response
+  // is uncertain after a POST: the durable caller must read by reference, never repost.
+  const transfers = json.data?.transfers ?? json.data?.attributes?.transfers;
+  if (transfers?.length !== 1 || !/^(?:tr|wallet_tr)_[A-Za-z0-9]{8,64}$/.test(transfers[0]?.id ?? ""))
+    throw new Error("PayMongo transfer create response has no single verified transfer ID");
+  return { batchId: json.data?.id ?? "", transferId: transfers[0].id!,
+    status: transfers[0].status ?? "" };
 }
 
 /**
@@ -728,6 +736,7 @@ export type WalletAccount = {
 export type PayoutWalletFunding = {
   walletId: string;
   availableCents: number;
+  /** Conservative fee reserve, not the provider's final charged fee. */
   feeCents: number;
   observedAt: Date;
 };
@@ -762,7 +771,8 @@ export async function readPayoutWalletFunding(now: Date = new Date()): Promise<P
       wallet.account.currency !== "PHP" ||
       !Number.isSafeInteger(available) || !Number.isSafeInteger(pending) ||
       (available as number) < 0 || (pending as number) < 0) return null;
-  return { walletId, availableCents: available as number, feeCents, observedAt: new Date() };
+  return { walletId, availableCents: available as number,
+    feeCents: Math.max(feeCents, STANDARD_PAYOUT_TRANSFER_FEE_CENTS), observedAt: new Date() };
 }
 
 /**
@@ -854,21 +864,26 @@ export async function findHostPayoutTransfers(bookingId: string): Promise<Transf
  * response before UAT); the caller's mapTransferStatus treats any unknown/in-flight value as still
  * `processing` so an unrecognized status can never spuriously flip a payout to Paid.
  */
-export async function getTransfer(transferId: string): Promise<Transfer> {
+export async function getTransfer(transferId: string): Promise<Transfer & { feeCents: number }> {
   const json = await paymongoFetch<{ data: { id: string; attributes?: Record<string, unknown>;
-    status?: string; reference_number?: string; amount?: number; currency?: string } }>(
+    status?: string; reference_number?: string; amount?: number; fee?: number | string;
+    currency?: string } }>(
     `/v2/transfers/${transferId}`,
     { method: "GET" }, // GET — no Idempotency-Key
   );
   const attrs = json.data.attributes ?? json.data;
+  const fee = typeof attrs.fee === "number" ? attrs.fee :
+    typeof attrs.fee === "string" && /^\d+$/.test(attrs.fee) ? Number(attrs.fee) : NaN;
   if (typeof json.data.id !== "string" || typeof attrs.status !== "string" ||
       typeof attrs.reference_number !== "string" || !attrs.reference_number ||
       typeof attrs.amount !== "number" || !Number.isSafeInteger(attrs.amount) ||
+      !Number.isSafeInteger(fee) || fee < 0 ||
       typeof attrs.currency !== "string" || !attrs.currency) {
     throw new Error("PayMongo transfer read returned an unverified shape");
   }
   return { id: json.data.id, status: attrs.status,
-    referenceNumber: attrs.reference_number, amount: attrs.amount, currency: attrs.currency };
+    referenceNumber: attrs.reference_number, amount: attrs.amount,
+    feeCents: fee, currency: attrs.currency };
 }
 
 // Read-only merchant-payout surfaces. Raw responses stay in process memory and are validated by
@@ -885,4 +900,137 @@ export async function getMerchantPayout(payoutId: string): Promise<unknown> {
 export async function listMerchantPayoutTransactions(payoutId: string, after?: string): Promise<unknown> {
   const cursor = after ? `&after=${encodeURIComponent(after)}` : "";
   return paymongoFetch<unknown>(`/v1/payouts/${encodeURIComponent(payoutId)}/transactions?limit=20${cursor}`, { method: "GET" });
+}
+
+type ManualWalletFunding = { walletId: string; availableCents: number };
+type ManualWalletFundingCheck = { funding: ManualWalletFunding | null; reason: string };
+
+/** A redacted diagnosis of the exact source Wallet. No key, account value or provider body escapes. */
+export async function inspectManualPayoutWalletFunding(): Promise<ManualWalletFundingCheck> {
+  const walletId = process.env.PAYMONGO_WALLET_ID ?? "";
+  const merchantId = process.env.PAYMONGO_ORGANIZATION_ID ?? "";
+  const walletNumber = process.env.PLATFORM_WALLET_NUMBER ?? "";
+  const walletName = process.env.PLATFORM_WALLET_NAME ?? "";
+  if (!walletId || !merchantId || !walletNumber || !walletName)
+    return { funding: null, reason: "wallet_settings_missing" };
+  if (!process.env.PAYMONGO_SECRET_KEY?.startsWith("sk_live_"))
+    return { funding: null, reason: "wallet_key_not_live" };
+  let json: { data?: {
+    id?: unknown; merchant_id?: unknown; livemode?: unknown; status?: unknown;
+    balance?: { available?: unknown };
+    account?: { provider?: unknown; account_number?: unknown; account_name?: unknown; currency?: unknown };
+  } };
+  try {
+    json = await paymongoFetch<typeof json>(`/v2/wallets/${encodeURIComponent(walletId)}?fields=balance&fields=account`, {
+      method: "GET", freshAt: new Date(), signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    return { funding: null, reason: "wallet_api_unavailable" };
+  }
+  const wallet = json.data;
+  const available = wallet?.balance?.available;
+  if (wallet?.id !== walletId) return { funding: null, reason: "wallet_id_mismatch" };
+  if (wallet.merchant_id !== merchantId) return { funding: null, reason: "wallet_merchant_mismatch" };
+  if (wallet.livemode !== true) return { funding: null, reason: "wallet_not_live" };
+  if (wallet.status !== "activated") return { funding: null, reason: "wallet_not_activated" };
+  if (wallet.account?.provider !== "paymongo") return { funding: null, reason: "wallet_provider_mismatch" };
+  if (wallet.account.account_number !== walletNumber)
+    return { funding: null, reason: "wallet_account_number_mismatch" };
+  if (wallet.account.account_name !== walletName)
+    return { funding: null, reason: "wallet_account_name_mismatch" };
+  if (wallet.account.currency !== "PHP") return { funding: null, reason: "wallet_currency_mismatch" };
+  if (!Number.isSafeInteger(available) || (available as number) < 0)
+    return { funding: null, reason: "wallet_balance_invalid" };
+  return { funding: { walletId, availableCents: available as number }, reason: "wallet_verified" };
+}
+
+/** Dashboard-assisted payouts do not trust an estimated API fee. The operator verifies the fee at authorization. */
+export async function readManualPayoutWalletFunding(): Promise<ManualWalletFunding | null> {
+  return (await inspectManualPayoutWalletFunding()).funding;
+}
+
+export type ManualTransferDetails = {
+  id: string; status: string; amountCents: number; feeCents: number; currency: string;
+  provider: string; merchantId: string; liveMode: boolean; createdAt: Date;
+  referenceNumber: string | null;
+  source: { number: string; name: string; bic: string };
+  destination: { number: string; name: string; bic: string };
+};
+
+/** Strict read of a Dashboard transfer; callers must compare every identity field to the frozen claim. */
+export async function getManualTransferDetails(transferId: string): Promise<ManualTransferDetails> {
+  if (!/^(?:tr|wallet_tr)_[A-Za-z0-9]{8,64}$/.test(transferId)) throw new Error("Invalid transfer identifier");
+  const json = await paymongoFetch<{ data?: Record<string, unknown> }>(
+    `/v2/transfers/${encodeURIComponent(transferId)}`, { method: "GET", freshAt: new Date() },
+  );
+  const data = json.data;
+  const attrs = data?.attributes && typeof data.attributes === "object"
+    ? data.attributes as Record<string, unknown> : data;
+  const source = attrs?.source_account as Record<string, unknown> | undefined;
+  const destination = attrs?.destination_account as Record<string, unknown> | undefined;
+  const fee = typeof attrs?.fee === "number" ? attrs.fee :
+    typeof attrs?.fee === "string" && /^\d+$/.test(attrs.fee) ? Number(attrs.fee) : NaN;
+  const rawCreated = attrs?.created_at;
+  const createdAt = typeof rawCreated === "number"
+    ? new Date(rawCreated < 10_000_000_000 ? rawCreated * 1000 : rawCreated)
+    : typeof rawCreated === "string" ? new Date(rawCreated) : new Date(NaN);
+  if (data?.id !== transferId || !attrs || typeof attrs.status !== "string" ||
+      !Number.isSafeInteger(attrs.amount) || !Number.isSafeInteger(fee) || fee < 0 ||
+      typeof attrs.currency !== "string" || typeof attrs.provider !== "string" ||
+      typeof attrs.merchant_id !== "string" || typeof attrs.livemode !== "boolean" ||
+      !Number.isFinite(createdAt.getTime()) ||
+      typeof source?.number !== "string" || typeof source?.name !== "string" || typeof source?.bic !== "string" ||
+      typeof destination?.number !== "string" || typeof destination?.name !== "string" || typeof destination?.bic !== "string") {
+    throw new Error("Incomplete transfer readback");
+  }
+  return {
+    id: transferId, status: attrs.status, amountCents: attrs.amount as number,
+    feeCents: fee, currency: attrs.currency, provider: attrs.provider,
+    merchantId: attrs.merchant_id, liveMode: attrs.livemode, createdAt,
+    referenceNumber: typeof attrs.reference_number === "string" ? attrs.reference_number : null,
+    source: { number: source.number, name: source.name, bic: source.bic },
+    destination: { number: destination.number, name: destination.name, bic: destination.bic },
+  };
+}
+
+/** Scan the bounded merchant transfer history before the one-off API send. An incomplete scan is HOLD. */
+export async function listPossibleHostTransfers(amountCents: number, since: Date): Promise<ManualTransferDetails[]> {
+  const matches: ManualTransferDetails[] = [];
+  let afterId: string | null = null;
+  const seen = new Set<string>();
+  for (let page = 0; page < 10; page++) {
+    const cursor = afterId ? `&after_id=${encodeURIComponent(afterId)}` : "";
+    const json = await paymongoFetch<unknown>(`/v2/transfers?limit=100${cursor}`, {
+      method: "GET", freshAt: new Date(), signal: AbortSignal.timeout(5000),
+    });
+    if (!json || typeof json !== "object" || !Array.isArray((json as { data?: unknown }).data))
+      throw new Error("Transfer inventory unavailable");
+    const rows = (json as { data: unknown[] }).data;
+    for (const raw of rows) {
+      if (!raw || typeof raw !== "object") throw new Error("Incomplete transfer inventory");
+      const item = raw as Record<string, unknown>;
+      const attrs = item.attributes && typeof item.attributes === "object"
+        ? item.attributes as Record<string, unknown> : item;
+      if (typeof item.id !== "string" || !/^(?:tr|wallet_tr)_[A-Za-z0-9]{8,64}$/.test(item.id) ||
+          seen.has(item.id) || !Number.isSafeInteger(attrs.amount))
+        throw new Error("Incomplete transfer inventory");
+      seen.add(item.id);
+      if (attrs.amount === amountCents) {
+        const detail = await getManualTransferDetails(item.id);
+        if (detail.createdAt >= since) matches.push(detail);
+      }
+    }
+    if (rows.length < 100) return matches;
+    const tail = rows.at(-1) as { id?: unknown } | undefined;
+    afterId = typeof tail?.id === "string" ? tail.id : null;
+    if (!afterId) throw new Error("Transfer inventory cursor unavailable");
+  }
+  throw new Error("Transfer inventory exceeded bounded scan");
+}
+
+/** Account-scoped Wallet inventory for the staff-only settlement readback. No transfer call. */
+export async function listMerchantWallets(): Promise<unknown> {
+  return paymongoFetch<unknown>("/v2/wallets?status=activated&fields=account&fields=balance", {
+    method: "GET", freshAt: new Date(), signal: AbortSignal.timeout(5000),
+  });
 }

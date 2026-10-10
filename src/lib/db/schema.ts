@@ -680,6 +680,8 @@ export const hostPayoutLedger = pgTable(
     // D-71: how much of a DEBIT has been netted so far. A debit is only `paid` when recovered_cents == -net_cents.
     recoveredCents: integer("recovered_cents").default(0).notNull(),
     transferId: text("transfer_id"), // PayMongo batch/transfer id (set when the transfer fires)
+    feeBudgetCents: integer("fee_budget_cents"), // frozen pre-dispatch Wallet reserve; null on legacy/netted claims
+    actualFeeCents: integer("actual_fee_cents"), // provider GET; null until verified
     paidAt: timestamp("paid_at", { withTimezone: true }), // when processing → paid
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -694,6 +696,26 @@ export const hostPayoutLedger = pgTable(
     unique("host_payout_ledger_booking_id_kind_unique").on(t.bookingId, t.kind),
   ],
 );
+
+/** Operator-assisted first transfer. The payout ledger's booking/kind unique key remains the claim lock. */
+export const manualHostPayoutAttempt = pgTable("manual_host_payout_attempt", {
+  bookingId: text("booking_id").primaryKey().references(() => booking.id, { onDelete: "restrict" }),
+  claimId: text("claim_id").notNull().unique().references(() => hostPayoutLedger.id, { onDelete: "restrict" }),
+  staffId: text("staff_id").notNull().references(() => user.id, { onDelete: "restrict" }),
+  walletId: text("wallet_id").notNull(),
+  institutionBic: text("institution_bic").notNull(),
+  accountNameCiphertext: text("account_name_ciphertext").notNull(),
+  accountNumberCiphertext: text("account_number_ciphertext").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  maxDebitCents: integer("max_debit_cents").notNull(),
+  transferId: text("transfer_id").unique(),
+  state: text("state").default("prepared").notNull(),
+  actualFeeCents: integer("actual_fee_cents"),
+  apiReservedAt: timestamp("api_reserved_at", { withTimezone: true }),
+  apiAuthorizedStaffId: text("api_authorized_staff_id").references(() => user.id, { onDelete: "restrict" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
 
 // ---------------------------------------------------------------------------
 // Phase-7 notification model (D-86/D-91/D-92). One `notification` row per in-app notification, written

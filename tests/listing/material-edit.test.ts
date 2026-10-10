@@ -317,6 +317,14 @@ describe("LVER-03 [listing_fields] — a material edit to an APPROVED listing re
     expect(res.ok).toBe(true);
     expect(await reviewStateOf(listingId)).toBe("pending");
   });
+
+  it("removing a day rate is a material price change", async () => {
+    const hostId = await signInHost("me.approved.no-day-rate@example.com");
+    const listingId = await makeListing(hostId, "approved");
+    const res = await saveListingStep(listingId, { dayRateCents: null });
+    expect(res.ok).toBe(true);
+    expect(await reviewStateOf(listingId)).toBe("pending");
+  });
 });
 
 describe("LVER-03 [listing_fields] — the same edit burns down a GRANDFATHERED listing (D-213)", () => {

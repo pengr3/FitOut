@@ -236,12 +236,23 @@ describe("Friday Wallet funding preflight (HPAY-03)", () => {
   }
 
   it("permits exact available coverage of the net amount and fee", async () => {
-    const { b } = await candidate();
+    const { bookingId, b } = await candidate();
     mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 181000,
       feeCents: 1000, observedAt: FRIDAY_NOON });
     mockPayMongo.createBatchTransfer.mockClear();
     expect((await payOne(testDb.db, b)).status).toBe("processing");
     expect(mockPayMongo.createBatchTransfer).toHaveBeenCalledTimes(1);
+    expect((await readLedger(bookingId)).feeBudgetCents).toBe(1000);
+  });
+
+  it("reserves the standard fee even if an estimate reports a free transfer", async () => {
+    const { bookingId, b } = await candidate();
+    mockWalletFunding.mockResolvedValueOnce({ walletId: "wallet_fitout_test", availableCents: 180000,
+      feeCents: 0, observedAt: FRIDAY_NOON });
+    mockPayMongo.createBatchTransfer.mockClear();
+    expect((await payOne(testDb.db, b)).status).toBe("skipped-no-wallet");
+    expect(await readLedger(bookingId)).toBeUndefined();
+    expect(mockPayMongo.createBatchTransfer).not.toHaveBeenCalled();
   });
 
   it("waits unclaimed when available funds are one centavo short", async () => {

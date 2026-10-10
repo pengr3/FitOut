@@ -109,7 +109,7 @@ describe("runtime public-origin callers", () => {
     }
   });
 
-  it("keeps host, onboarding, and hosted-verification links on the shared authority", () => {
+  it("keeps host and hosted-verification links on the shared authority", () => {
     for (const caller of providerAndHostCallers) {
       const source = readFileSync(join(process.cwd(), caller), "utf8");
       expect(source.includes('from "@/lib/app-origins"'), caller).toBe(true);

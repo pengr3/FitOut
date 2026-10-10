@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { hashPassword } from "better-auth/crypto";
 import postgres from "postgres";
+import { signInOps } from "./helpers/ops-sign-in";
 
 import { seedTheme } from "./helpers/theme";
 
@@ -21,7 +22,7 @@ const LONG_DESCRIPTION =
 function assertLocalDatabase(): void {
   const hostname = new URL(DATABASE_URL).hostname.toLowerCase().replace(/^\[|\]$/g, "");
   expect(
-    ["localhost", "127.0.0.1", "::1"],
+    ["localhost", "127.0.0.1", "::1", ...(process.env.CI === "true" ? ["postgres"] : [])],
     "the ops queue tracer must never seed a non-local database",
   ).toContain(hostname);
 }
@@ -99,11 +100,7 @@ test("staff can inspect a complete pending listing across the Court/Grove queue 
       `;
     });
 
-    const signIn = await context.request.post(`${OPS_ORIGIN}/api/auth/sign-in/email`, {
-      headers: { host: OPS_HOST, origin: OPS_ORIGIN },
-      data: { email: staffEmail, password: PASSWORD },
-      failOnStatusCode: false,
-    });
+    const signIn = await signInOps(context.request, staffEmail, PASSWORD);
     expect(signIn.status(), "ops-host Better Auth sign-in failed").toBe(200);
 
     const page = await context.newPage();

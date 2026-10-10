@@ -195,10 +195,10 @@ async function selectTargetDay(page: Page): Promise<void> {
 /** Open the listing, navigate to the target day, and pick the [startLabel, endLabel] hourly run. */
 // VERBATIM from search-and-book.spec.ts:227-233 — see the header's copy note.
 async function pickWindow(page: Page, startLabel: string, endLabel: string): Promise<void> {
-  await expect(page.getByText(/Times shown in .*Makati.*\(GMT\+8\)/i)).toBeVisible();
+  await expect(page.getByText(/Times shown in Philippine Time \(GMT\+8\)/i)).toBeVisible();
   await selectTargetDay(page);
-  await page.getByRole("button", { name: startLabel, exact: true }).click(); // start anchor
-  await page.getByRole("button", { name: endLabel, exact: true }).click(); // end → fills the run
+  await page.getByRole("button", { name: new RegExp(`^Start at ${startLabel}$`) }).click(); // start anchor
+  await page.getByRole("button", { name: new RegExp(`^End at ${endLabel}$`) }).click(); // end → fills the run
 }
 
 /**
@@ -291,7 +291,7 @@ test("the total rendered on the reserve page IS the total the database froze (GA
   await page.getByRole("link", { name: new RegExp(LISTING_TITLE) }).click();
   await page.waitForURL(new RegExp(`/listings/${listingId}`));
 
-  // ── Pick a venue-tz window (5–7 PM: the 6 PM slot's END closes the run) and place the instant hold.
+  // ── Pick a venue-tz window (5–6 PM: one hour with an exclusive checkout boundary) and place the instant hold.
   await pickWindow(page, "5:00 PM", "6:00 PM");
   const bookBtn = page.getByRole("button", { name: "Book this space" });
   await expect(bookBtn).toBeEnabled();

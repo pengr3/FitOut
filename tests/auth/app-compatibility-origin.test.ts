@@ -40,9 +40,17 @@ describe("staged app origin continuity", () => {
         expect(response.headers.get("x-middleware-next")).toBe("1");
         expect(response.headers.get("location")).toBeNull();
       }
+      expect(route(host, "/api/internal/manual-payout-recipient", "POST").headers.get("x-middleware-next")).toBe("1");
+      expect(route(host, "/api/internal/manual-payout-recipient", "GET").headers.get("x-middleware-rewrite")).toContain("/ops-gateway");
+      expect(route(host, "/api/ops/settlement-readback").headers.get("x-middleware-rewrite")).toContain("/ops-gateway");
       expect(route(host, "/api/contact", "POST").status).toBe(404);
       expect(route(host, "/marketing/contact").status).toBe(404);
     }
+    for (const host of ["marketing-stage.fitout.live", "ops.fitout.live", "unknown.test"]) {
+      expect(route(host, "/api/internal/manual-payout-recipient", "POST").headers.get("x-middleware-rewrite")).toContain("/ops-gateway");
+    }
+    expect(route("ops.fitout.live", "/api/ops/settlement-readback").headers.get("x-middleware-next")).toBe("1");
+    expect(route("ops.fitout.live", "/api/ops/settlement-readback", "POST").headers.get("x-middleware-rewrite")).toContain("/ops-gateway");
     expect(origins.absoluteAppUrl("/login?key=a&key=b")).toBe(`${primary}/login?key=a&key=b`);
     for (const host of ["app.fitout.live.evil", "fitout.live:444", "unknown.test"]) {
       expect(origins.classifyRequestHost(host)).toBe("unknown");

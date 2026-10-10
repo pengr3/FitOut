@@ -49,6 +49,8 @@ const OPS_CLOAK_PATH = "/_ops-cloak";
 const OPS_GATEWAY_PATH = "/ops-gateway";
 const OPS_PATH = "/ops";
 const AUTH_API_PATH = "/api/auth";
+const OPS_SETTLEMENT_READBACK_PATH = "/api/ops/settlement-readback";
+const MANUAL_PAYOUT_RECIPIENT_PATH = "/api/internal/manual-payout-recipient";
 const OPS_GATEWAY_SOURCE_HEADER = "x-fitout-ops-gateway-source";
 const OPS_GATEWAY_HANDOFF_HEADER = "x-fitout-ops-gateway-handoff";
 
@@ -119,6 +121,22 @@ export function proxy(request: NextRequest) {
   if (isPathSegment(pathname, OPS_GATEWAY_PATH)) return nextWithoutGatewayHeaders(request);
 
   const hostClass = classifyRequestHost(request.headers.get("host"));
+
+  // The single read-only PayMongo diagnostic is visible only on the dedicated ops host.
+  // Its handler still checks the staff session; proxy routing is not an authorization decision.
+  if (pathname === OPS_SETTLEMENT_READBACK_PATH) {
+    return hostClass === "ops" && request.method === "GET"
+      ? nextWithoutGatewayHeaders(request)
+      : gatewayRewrite(request);
+  }
+
+  // The production web runtime alone holds the existing recipient-decryption key.
+  // The route itself requires a separate server-to-server bearer token and one held claim.
+  if (pathname === MANUAL_PAYOUT_RECIPIENT_PATH) {
+    return hostClass === "app" && request.method === "POST"
+      ? nextWithoutGatewayHeaders(request)
+      : gatewayRewrite(request);
+  }
 
   if (hostClass === "ops") {
     // Internal route names are never a public API, even on the correct host.

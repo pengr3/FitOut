@@ -93,7 +93,7 @@
 //
 // ⚠ THE FIXTURE'S DAY IS A FIXED LITERAL AND SO HAS A SHELF LIFE. `scripts/seed-baseline-fixtures.ts`
 // chose fixed dates over relative ones deliberately (a relative date shows up as a pixel diff on every
-// dispatch and trains people to re-mint), and the cost is that once real time passes 2026-09-16 the
+// dispatch and trains people to re-mint), and the cost is that once real time passes 2026-12-16 the
 // window is in the PAST, `openOnSearchedDay` goes false and no selection is seeded. THE FAILURE IS
 // LOUD: `expectSelectionSeeded` below names it in one sentence. The fix is the fixture's constants plus
 // a re-dispatch — never a widened threshold and never a skip.
@@ -328,7 +328,7 @@ async function stubSearchAddress(page: Page): Promise<void> {
 }
 
 async function beginSearchActivity(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Start your search" }).click();
+  await page.getByRole("button", { name: "Search activity" }).click();
   await expect(page.locator('[data-slot="command-input"]')).toHaveAttribute(
     "aria-label",
     "Search for activity or type",
@@ -339,6 +339,7 @@ async function chooseSearchAddress(page: Page): Promise<void> {
   await page.getByRole("combobox", { name: "Search for your address" }).click();
   await page.getByPlaceholder("Type a street or city…").fill("Makati");
   await page.getByRole("option", { name: /2 Real Street, Makati/i }).click();
+  await page.getByRole("button", { name: "Search party size" }).click();
   await expect(page.getByRole("heading", { name: "Who is this for?" })).toBeVisible();
 }
 
@@ -358,6 +359,7 @@ function progressiveSearchDrive(surface: "search-idle-pill" | "search-activity-s
       const filter = page.locator('[data-slot="command-input"]');
       await filter.fill(SPACE_TYPE_LABEL);
       await page.getByRole("option", { name: SPACE_TYPE_LABEL, exact: true }).click();
+      await page.getByRole("button", { name: "Search location" }).click();
       if (surface === "search-location-step") return;
       await chooseSearchAddress(page);
       if (surface === "search-party-step") {
@@ -367,13 +369,13 @@ function progressiveSearchDrive(surface: "search-idle-pill" | "search-activity-s
       }
       if (surface === "search-results") {
         await page.getByRole("button", { name: "For me" }).click();
-        await expect(page.getByRole("button", { name: "1 person" })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Search party size" })).toBeVisible();
         return;
       }
       await page.getByRole("button", { name: "For a group" }).click();
       await page.getByLabel("Number of people").fill("1000");
       await page.getByRole("button", { name: "See spaces" }).click();
-      await expect(page.getByRole("button", { name: "1000 people" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Search party size" })).toBeVisible();
     },
   };
 }
@@ -971,6 +973,20 @@ function bookingNotFoundDrive(_purpose: DrivePurpose, url: string | null): Surfa
 const DRIVES: Partial<
   Record<SurfaceId, (purpose: DrivePurpose, url: string | null) => SurfaceDrive>
 > = {
+  "dev-theme": (_purpose, url) => ({
+    needsClock: false,
+    captureMode: "fullPage",
+    timeoutMs: 60_000,
+    async navigate({ page }) {
+      await page.goto(url as string);
+      // Both preview panes choose a three-hour run after hydration. Capturing between the
+      // first and second effect-driven clicks produces a different availability surface.
+      await expect(page.locator('[data-slot="toggle-group"] button[aria-pressed="true"]')).toHaveCount(6);
+      await expect(page.locator('[id$="-space-type"]')).toHaveCount(2);
+      await expect(page.locator('[id$="-space-type"]').first()).toContainText("Pickleball court");
+      await expect(page.locator('[id$="-space-type"]').last()).toContainText("Pickleball court");
+    },
+  }),
   "search-idle-pill": () => progressiveSearchDrive("search-idle-pill"),
   "search-activity-step": () => progressiveSearchDrive("search-activity-step"),
   "search-location-step": () => progressiveSearchDrive("search-location-step"),

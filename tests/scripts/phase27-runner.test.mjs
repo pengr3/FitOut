@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
-import { runSequential, safeEnvironment, sanitizeLog } from "../../scripts/run-phase27-gates.mjs";
+import { runSequential, safeEnvironment, sanitizeLog, exportGitEnvironment } from "../../scripts/run-phase27-gates.mjs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -139,4 +139,26 @@ test("captured child logs redact credentials split across output chunks", async 
   assert.ok(!/fake-secret|fake-session|fake-code/.test(log));
   assert.match(log, /redacted/);
   assert.equal(sanitizeLog("Tests  29 passed (29)"), "Tests  29 passed (29)");
+});
+
+test("source export resolves linked-checkout metadata without changing its index", (t) => {
+  const f = fixture(t);
+  const repo = join(f.directory, "repository"), linked = join(f.directory, "linked");
+  const git = (...args) => {
+    const result = spawnSync("git", args, { cwd: f.directory, encoding: "utf8", windowsHide: true });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  git("init", repo);
+  writeFileSync(join(repo, "tracked.txt"), "reviewed source");
+  git("-C", repo, "add", "tracked.txt");
+  git("-C", repo, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "fixture");
+  git("-C", repo, "worktree", "add", "--detach", linked, "HEAD");
+  const env = { ...process.env, ...exportGitEnvironment(linked, linked, join(f.directory, "export.index")) };
+  assert.notEqual(env.GIT_DIR, join(linked, ".git"));
+  const before = readFileSync(join(env.GIT_DIR, "index"));
+  const loaded = spawnSync("git", ["read-tree", "HEAD"], { cwd: linked, env, encoding: "utf8", windowsHide: true });
+  assert.equal(loaded.status, 0, loaded.stderr);
+  assert.equal(existsSync(env.GIT_INDEX_FILE), true);
+  assert.deepEqual(readFileSync(join(env.GIT_DIR, "index")), before);
 });

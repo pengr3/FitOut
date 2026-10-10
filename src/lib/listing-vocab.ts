@@ -60,6 +60,7 @@ export const ACTIVITY_TAGS = [
   { value: "weightlifting", label: "Weightlifting" },
   { value: "boxing_mma", label: "Boxing / MMA" },
   { value: "climbing", label: "Climbing" },
+  { value: "bouldering", label: "Bouldering" },
   { value: "general_fitness", label: "General fitness" },
 ] as const;
 

@@ -43,7 +43,7 @@ const validTimestamp = (value) => typeof value === "string" && /^\d{4}-\d\d-\d\d
 export const SOURCE_SCOPE = ["src/", "public/", "tests/", "e2e/", "scripts/", "package.json", "package-lock.json", "pnpm-lock.yaml", "next.config.ts", "next-env.d.ts", "tsconfig.json", "vitest.config.ts", "vitest.design.config.ts", "playwright.config.ts", "eslint.config.mjs", "postcss.config.mjs", "components.json", "instrumentation.ts", "vercel.json"];
 // Keep historical manifests valid; newly captured proof also binds added root configs.
 const SOURCE_EXTENSIONS = ["playwright.streaming.config.ts", "drizzle/"];
-export const QUOTA_MIGRATION_FILES = ["drizzle/0034_contact_quota.sql", "drizzle/meta/_journal.json", "drizzle/meta/0034_snapshot.json"];
+export const QUOTA_MIGRATION_FILES = ["drizzle/0037_contact_quota.sql", "drizzle/meta/_journal.json", "drizzle/meta/0037_snapshot.json"];
 const CAPTURE_SCOPE = [...SOURCE_SCOPE, ...SOURCE_EXTENSIONS];
 const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
 export const manifestDigest = (files) => sha256(JSON.stringify(files));

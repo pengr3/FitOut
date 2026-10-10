@@ -346,3 +346,53 @@ version is not. No settings, deployment or credentials were changed.
 ## October 10 continuation
 
 The project owner confirms the monitored launch support inbox. One authorized standalone Resend transport test is Delivered with the expected Reply-To; owner receipt and a deployed Contact endpoint/reply are still pending. Preview has a hidden web database binding, no returned ops database binding and production ops origins in both projects. No dedicated schema-only Preview branch exists; isolation is unproved. Quota-table and dedicated Preview branch decisions remain pending. See 27-INBOX-AND-PREVIEW-READBACK-20261010.md; no settings or deployment changed.
+
+## October 10 current continuation readback (04:54 UTC)
+
+This section supersedes the earlier continuation paragraph. Plans18–20 completed:
+schema-only Preview branch `br-silent-glade-b31mruln` exists, its reviewed quota
+table/index and contention proof pass, and both isolated Preview deployments are
+READY at b8358b11. Actual disposable signup/session, ops rejection of the app
+Preview cookie and disabled Contact503 are recorded in 27-20-SUMMARY.md. The owner
+confirmed the standalone transport email receipt and sent a reply; reply arrival
+and a deployed Contact roundtrip remain unproved. The stable Preview stays pinned
+for the owner's UI walkthrough. None of this proves production cutover.
+
+Current nonsecret account readback is retained at
+`playwright/.cache/phase27-08/compatibility-inventory-readback-20261010.json`:
+
+- Production alias/deployment readbacks retain customer
+  `dpl_8PpCPij5v1zQiD8gDP14Ju54QAAv` and ops
+  `dpl_Ho1raNTZDcnQ4zwpDu2P19NX6QBS`, both READY at 36455580.
+  The app subdomain is still not attached; www has no redirect. Web Production
+  auth/public app variables remain apex, ops remains its existing dedicated host;
+  marketing, compatibility and Contact variables are absent in Production scope.
+- Google client readback confirms the saved app JavaScript origin and localhost,
+  apex and app callbacks. Audience is External/Testing with zero test users.
+  Branding name is FitOut, authorized domain fitout.live; home/privacy/terms URL
+  fields are blank. Publishing remains unchanged. Installed Better Auth uses
+  default email/profile/openid scopes with no added auth.ts scopes. Google's
+  [identity-only exception](https://support.google.com/cloud/answer/15549945?hl=en)
+  means Testing/zero test users alone is not evidence of blocked basic sign-in.
+  This is a source-based inference; fresh new-host sign-in remains required.
+- PayMongo retains one Enabled apex webhook and the same five subscriptions.
+  No new destination, signing-secret reveal, event replay or financial action.
+  The inspected endpoint page does not establish live/test mode or signed delivery.
+- Didit explicitly shows CLMC Sandbox/Test mode, one Active apex destination,
+  payload v3, one event. Production application/key/workflow correspondence and
+  the selected event name remain unproved. No mode switch or identity session.
+- Inngest Production has one Active fitout app, 14 functions, Serve/SDK4.13.0,
+  still pinned to the recorded old deployment URL. Its credential query must be
+  handled privately in coordinated registration replacement; no credential value
+  is copied into this artifact. No sync, schedule or event mutation occurred.
+- Resend send.fitout.live is Verified. No further email was sent.
+- Explicit read-only Neon Production query on `br-divine-lake-b3in9zag` confirms
+  `public.contact_quota` absent, existing migration ledger with 37 rows and latest
+  timestamp1791388800000. The new quota journal timestamp is1791565875571.
+  Production writes remain zero. Propose only the reviewed additive quota
+  migration and normal ledger bookkeeping, with exact branch/SQL readback;
+  never run schema push or replay old manual migrations.
+
+Original08/09 remain incomplete. Compatibility staging proof is being prepared
+locally; exact production setting/migration authority and deployed provider/inbox
+proof remain pending. Checkout, payout and legal HOLD are unchanged.

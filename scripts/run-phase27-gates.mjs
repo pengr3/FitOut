@@ -10,6 +10,14 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 const save = (path, value) => writeFileSync(path, typeof value === "string" ? value : JSON.stringify(value, null, 2), { flag: "wx" });
 
+// A linked checkout stores .git as a file; resolve the actual metadata directory.
+export function exportGitEnvironment(checkout, exported, indexFile) {
+  const gitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], {
+    cwd: checkout, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+  return { GIT_DIR: gitDir, GIT_WORK_TREE: exported, GIT_INDEX_FILE: indexFile, GIT_OPTIONAL_LOCKS: "0" };
+}
+
 // Start from operating-system plumbing; provider credentials are never inherited.
 export function safeEnvironment(kind, inherited = process.env) {
   const env = {};
@@ -162,7 +170,7 @@ async function main() {
   const copying = await child("robocopy.exe", [join(root, "node_modules"), join(exported, "node_modules"), "/E", "/MT:8", "/NFL", "/NDL", "/NJH", "/NJS", "/NP"], { cwd: root, env: setupEnv });
   save(join(runDir, "dependencies.log"), copying.output);
   if (copying.exitCode === null || copying.exitCode > 7) throw new Error("Existing dependency copy failed");
-  const gitEnv = { GIT_DIR: join(root, ".git"), GIT_WORK_TREE: exported, GIT_INDEX_FILE: join(runDir, "export.index"), GIT_OPTIONAL_LOCKS: "0" };
+  const gitEnv = exportGitEnvironment(root, exported, join(runDir, "export.index"));
   const browserRun = join(exported, "playwright/.cache/phase27-08/release-browser");
   const environment = (kind) => {
     const env = { ...safeEnvironment(kind), ...gitEnv, CHROME_LOG_FILE: join(runDir, "chromium-debug.log") };

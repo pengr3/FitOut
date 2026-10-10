@@ -54,10 +54,10 @@
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 //
 // The actions cluster is session-derived on pages that are otherwise fully public, so it resolves
-// after the rest of the header. `AUTH_SLOT_BOX` (`h-11 min-w-22`) is the box it occupies whether it is
+// after the rest of the header. `AUTH_SLOT_BOX` (`h-11 min-w-40`) is the box it occupies whether it is
 // pending or resolved, and `ml-auto … justify-end` anchors it RIGHT so resolution moves only the
 // cluster's own left edge — the brand, the header box and every element on the page are outside it.
-// Its 88px width is the navigation trigger (32px), standard gap (12px), and bell (44px), and the
+// Its 160px width also covers the signed-in context control beside the notification bell, and the
 // fallback reads the same constant.
 //
 // ═════════════════════════════════════════════════════════════════════════════════════════════════

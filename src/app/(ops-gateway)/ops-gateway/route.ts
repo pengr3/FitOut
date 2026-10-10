@@ -38,6 +38,9 @@ function inwardHeaders(request: Request): Headers {
 
 async function forwardStaffRequest(request: Request): Promise<Response> {
   const target = new URL(OPS_PATH, request.url);
+  // Keep the visible result query on the inward page request so a Server Action's
+  // redirect can render its outcome instead of leaving staff with an unchanged panel.
+  target.search = new URL(request.url).search;
   // After a Proxy rewrite, Next's Route Handler URL can carry the server's listening authority
   // even though the original, already-classified Host header is still correct. Rebuild the inward
   // authority from that header so the second pass stays on the ops partition.

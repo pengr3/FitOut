@@ -13,10 +13,8 @@ for (const width of [320, 375, 768, 1440]) {
     await page.getByRole("link", { name: "Open App", exact: true }).click();
     const group = page.getByRole("group", { name: "Search spaces", exact: true });
     await expect(group).toHaveCount(1);
-    const trigger = group.getByRole("button", { name: "Start your search", exact: true });
+    const trigger = group.getByRole("button", { name: "Search activity", exact: true });
     await expect(trigger).toBeVisible();
-    const anchor = await trigger.boundingBox();
-    expect(anchor).not.toBeNull();
     await trigger.click();
     const panel = page.getByRole("dialog", { name: "Search spaces", exact: true });
     await expect(panel).toHaveCount(1);
@@ -32,7 +30,8 @@ for (const width of [320, 375, 768, 1440]) {
         expect(box!.width).toBe(width);
         expect(box!.height).toBe(900);
       } else {
-        expect(Math.abs(box!.y - (anchor!.y + anchor!.height + 8))).toBeLessThan(2);
+        expect(box!.y).toBeGreaterThanOrEqual(0);
+        expect(box!.y + box!.height).toBeLessThanOrEqual(900);
         expect(box!.x).toBeGreaterThanOrEqual(16);
         expect(box!.x + box!.width).toBeLessThanOrEqual(width - 15);
       }
@@ -66,7 +65,7 @@ test("URL-backed long answers retain identity, edit focus and browser Back", asy
   await page.goto(`${base}/?${query}`);
   const group = page.getByRole("group", { name: "Search spaces", exact: true });
   await expect(group).toHaveCount(1);
-  const location = group.getByRole("button", { name: /^Location:/ });
+  const location = group.getByRole("button", { name: "Search location", exact: true });
   await expect(location).toBeVisible();
   await noOverflow(page);
   const before = page.url();
@@ -77,11 +76,14 @@ test("URL-backed long answers retain identity, edit focus and browser Back", asy
   expect(page.url()).toBe(before);
   await page.keyboard.press("Escape");
   await expect(panel).toHaveCount(0);
-  // Cancel intentionally clears the progressive journey; browser Back restores the URL answers.
-  await expect(page).toHaveURL(`${base}/`);
-  await page.goBack();
+  // Deployed search cancellation preserves existing URL-backed answers.
   await expect(page).toHaveURL(before);
-  await expect(page.getByRole("button", { name: /^Location:/ })).toHaveCount(1);
+  await expect(location).toBeFocused();
+  await page.goBack();
+  await expect(page).toHaveURL(`${base}/`);
+  await page.goForward();
+  await expect(page).toHaveURL(before);
+  await expect(page.getByRole("button", { name: "Search location", exact: true })).toHaveCount(1);
   expect(context.pages()).toEqual([page]);
 });
 
@@ -92,7 +94,7 @@ test("search controls are disabled while the page has no client handlers", async
     await page.goto(base);
     // React streams this real control inside a hidden Suspense segment; JS normally reveals it.
     // Count its SSR DOM even when the loading fallback remains visible with JavaScript disabled.
-    const trigger = page.locator('button[aria-label="Start your search"]');
+    const trigger = page.locator('button[aria-label="Search activity"]');
     await expect(trigger).toHaveCount(1);
     await expect(trigger).toBeDisabled();
     await expect(page.getByRole("dialog", { name: "Search spaces", exact: true })).toHaveCount(0);

@@ -101,7 +101,7 @@ import {
   publishChecklistTriggerLabel,
   type PublishChecklistRow,
 } from "@/components/host/publish-checklist";
-import { publishSchema } from "@/lib/validation/listing";
+import { draftSchema, publishSchema } from "@/lib/validation/listing";
 
 afterEach(cleanup);
 
@@ -297,7 +297,7 @@ const ROW_FOR_FIELD: Record<"exclusive" | "open_capacity", Record<ForkedField, s
   exclusive: {
     maxOccupancy: "Capacity",
     hourlyRateCents: "Hourly rate",
-    dayRateCents: "Day rate",
+    dayRateCents: null,
     perHeadPriceCents: null,
   },
   open_capacity: {
@@ -329,6 +329,13 @@ function fieldsTheGateRequires(mode: "exclusive" | "open_capacity"): string[] {
   }
   return required.sort();
 }
+
+it("lets a whole-space host publish hourly-only and clear a previously entered day rate", () => {
+  const hourlyOnly = { ...publishablePayload("exclusive") };
+  delete (hourlyOnly as Record<string, unknown>).dayRateCents;
+  expect(publishSchema.safeParse(hourlyOnly).success).toBe(true);
+  expect(draftSchema.safeParse({ dayRateCents: null }).success).toBe(true);
+});
 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -446,21 +453,21 @@ describe("the persistent publish checklist (HFLOW-02 / D-149)", () => {
     expect(btn!.getAttribute("aria-expanded")).toBe("false");
 
     // CLOSED means the rows are NOT in the document — not merely hidden. That is what keeps a
-    // ten-row panel from pushing the first input below the fold on every step of a nine-step form,
+    // nine-row panel from pushing the first input below the fold on every step of a nine-step form,
     // and it is why `wizard-occupancy.test.tsx`'s field-label queries still resolve to one element.
     expect(rowLabels(theContainer())).toEqual([]);
 
     // The figure is the component's own composition, not a retyped sentence.
-    expect(btn!.textContent).toContain(publishChecklistTriggerLabel(9, 10));
+    expect(btn!.textContent).toContain(publishChecklistTriggerLabel(8, 9));
 
     await openTheCollapsible();
     expect(trigger()!.getAttribute("aria-expanded")).toBe("true");
     const labels = rowLabels(theContainer());
-    expect(labels).toHaveLength(10);
+    expect(labels).toHaveLength(9);
     expect(labels).toContain("Verified email");
 
-    // …and the figure tracks the rows rather than a constant: nine of the ten are done.
-    expect(markers(theContainer())).toHaveLength(10);
+    // …and the figure tracks the rows rather than a constant: eight of the nine are done.
+    expect(markers(theContainer())).toHaveLength(9);
   });
 
   // ── (5) THE FIX AFFORDANCE ─────────────────────────────────────────────────────────────────────────

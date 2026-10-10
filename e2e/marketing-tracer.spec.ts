@@ -9,7 +9,7 @@ test("apex Home opens real anonymous app search in the same tab", async ({ page,
   await expect(page).toHaveURL("http://localhost:3000/");
   await expect(page.getByRole("heading", { name: "Find a space to play" })).toBeVisible();
   await expect(page.getByRole("group", { name: "Search spaces" })).toBeVisible();
-  const startSearch = page.getByRole("group", { name: "Search spaces", exact: true }).getByRole("button", { name: "Start your search", exact: true });
+  const startSearch = page.getByRole("group", { name: "Search spaces", exact: true }).getByRole("button", { name: "Search activity", exact: true });
   await expect(startSearch).toBeVisible();
   await startSearch.click();
   await expect(page.getByRole("dialog", { name: "Search spaces", exact: true }).getByRole("heading", { name: "What are you looking for?", exact: true })).toBeVisible();

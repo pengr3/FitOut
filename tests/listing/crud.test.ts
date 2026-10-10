@@ -139,6 +139,21 @@ describe("listing CRUD via the real server action (LIST-01/04)", () => {
     expect(row.location!.y).toBeCloseTo(30.2672, 4); // latitude
   });
 
+  it("saves bouldering as a primary type and clears a previously set day rate", async () => {
+    await signInHost("crud.bouldering@example.com");
+    const created = await createDraftListing();
+    if (!created.ok) throw new Error("setup failed");
+    const id = created.id!;
+
+    expect((await saveListingStep(id, { primarySpaceType: "bouldering_gym", dayRateCents: 360_000 })).ok).toBe(true);
+    expect((await readListing(id)).dayRateCents).toBe(360_000);
+
+    expect((await saveListingStep(id, { dayRateCents: null })).ok).toBe(true);
+    const row = await readListing(id);
+    expect(row.primarySpaceType).toBe("bouldering_gym");
+    expect(row.dayRateCents).toBeNull();
+  });
+
   it("a NON-owner calling saveListingStep on someone else's listing is rejected (IDOR guard)", async () => {
     await signInHost("crud.owner@example.com");
     const created = await createDraftListing();

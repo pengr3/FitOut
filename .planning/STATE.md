@@ -17,7 +17,7 @@ progress:
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 13
   completed_phases: 2
-  total_plans: 150
+  total_plans: 151
   # 2026-10-09: Phase 27 has seventeen plans (nine original plus eight gaps); no new plan or phase
   # was executed/completed by planning. Preserve curated phase/completion totals.
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
@@ -63,6 +63,8 @@ progress:
 ---
 
 # Project State
+
+October10: Plan21 production-continuity repair executing;18/21 plans and142/151 total. Stable Preview retained; old candidates ineligible for cutover. Original08/09, all requirement acceptance and all HOLDs remain. See27-PRODUCTION-CONTINUITY.md.
 
 **Latest focus (2026-10-10):** Bounded plans18–20 complete; 18/20 phase plans and142/150 total. All six guarded gates and fresh cold/warm pass at b8358b11. Exact paired Preview deployments are READY; disposable writes reach the explicit schema-only branch, owned session works, ops rejects the actual app Preview cookie, Contact returns503 and browser retains fields. One disposable account/session remains and zero bookings. Normal owner-browser production/Preview host-cookie isolation is observed; no production token was exported/replayed and the full production matrix remains unproved. Production aliases/env metadata unchanged, Contact off; original08/09 and all seven requirements pending; all HOLDs persist.
 

@@ -414,13 +414,13 @@ and historic counts remain unchanged. Planning is not implementation or live dep
 | DOMAIN-01 | Phase 27 · 27-01 · 27-02 · 27-06 · 27-07 · 27-08 · 27-09 | Planned — exact host/RSC/session partition evidence pending |
 | DOMAIN-02 | Phase 27 · 27-01 · 27-02 · 27-03 · 27-08 · 27-09 | Planned — legacy auth/service and live continuity evidence pending |
 | DOMAIN-03 | Phase 27 · 27-08 · 27-09 | Planned — prepared packet and observed reversible cutover pending |
-| HPAY-01 | Phase 26 | Pending |
+| HPAY-01 | Phase 26 | Sample booking proved in live FitOut on 2026-10-07; recurring settlement and reversal monitoring still pending. |
 | HPAY-02 | Phase 26 | Complete |
 | HPAY-03 | Phase 26 | Complete |
 | HPAY-04 | Phase 26 | Complete |
 | HPAY-05 | Phase 26 implementation; later public release | Pending — earnings and booking parity complete; product copy review and browser backstop remain. Full agreement and terms publication were deferred by user direction and do not block account proof. |
 | HPAY-06 | Phase 26 | Implementation complete in 26-06; monitored owner, controlled receipt, and acknowledgement evidence remain HOLD |
-| HPAY-07 | Phase 26 | Pending — account proof and bounded money-path authority are HOLD; broad-release authorization remains separate. Terms publication is deferred outside this account-proof gate. |
+| HPAY-07 | Phase 26 | One bounded live API payout reconciled on 2026-10-07; automated fee, Friday scheduling, alert ownership and broad-release authorization remain HOLD. Terms publication is deferred separately. |
 
 **47 original v1.2 requirements across seven phases — 22 complete, 25 outstanding.** Phase 26 adds
 seven pending `HPAY` requirements and is not included in that historic milestone-cycle count.

@@ -450,14 +450,14 @@ test.describe("the searched window survives the click to the listing (D-59 #1)",
     // -- THE WINDOW -----------------------------------------------------------------------------
     // 5-6 PM reads as SELECTED in the picker. `aria-pressed` is the picker's own honest signal for a
     // committed run (slot-picker.tsx), and it is asserted before the rail so a failure names the grid.
-    await expect(page.getByRole("button", { name: "5:00 PM", exact: true })).toHaveAttribute(
+    await expect(page.getByRole("button", { name: /^(?:Start at |End at )?5:00 PM(?:$| —)/ })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
-    // The run is 17:00-18:00 - ONE hour - so 6:00 PM must NOT be swept in.
-    await expect(page.getByRole("button", { name: "6:00 PM", exact: true })).toHaveAttribute(
+    // The run is 17:00-18:00 - ONE hour. 6:00 PM is its highlighted checkout boundary.
+    await expect(page.getByRole("button", { name: /^(?:Start at |End at )?6:00 PM(?:$| —)/ })).toHaveAttribute(
       "aria-pressed",
-      "false",
+      "true",
     );
 
     // -- THE RAIL -------------------------------------------------------------------------------
@@ -554,7 +554,7 @@ test.describe("the searched window survives the click to the listing (D-59 #1)",
     // Wait for the NEW day to be on screen before counting, so a count of 1 cannot mean "the second
     // request has not fired yet".
     await expect(page.getByRole("heading", { name: targetDayHeading })).toBeVisible();
-    await expect(page.getByRole("button", { name: "5:00 PM", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^(?:Start at |End at )?5:00 PM(?:$| —)/ })).toBeVisible();
 
     // Give a would-be second request room to arrive and still be counted - otherwise `=== 1` would be
     // asserting a race rather than a property.
