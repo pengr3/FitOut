@@ -1,8 +1,8 @@
 # Phase 27 — Prepared cutover and rollback packet
 
-October10 source continuity repair: candidate d67fbecfa41e902cbf506c93dbcf53b60085e802 includes deployed production36455580 and preserves all30 payment/scheduler files and payout migrations0034–0036. Contact is0037 with unchanged reviewed SQL bytes. Fresh six-gate, cold and separately built compatibility A/B local proof passes. The stable b835 walkthrough Preview is historical UI/deployment evidence; it does not prove this integrated source. Production prerequisites and exact original08 authority remain pending.
+October10 source continuity repair: candidate d67fbecfa41e902cbf506c93dbcf53b60085e802 includes deployed production36455580 and preserves all30 payment/scheduler files and payout migrations0034–0036. Contact is0037 with unchanged reviewed SQL bytes. Fresh six-gate, cold and separately built compatibility A/B local proof passes. The stable b835 walkthrough Preview is historical UI/deployment evidence; it does not prove this integrated source. Owner has now approved this exact packet; production prerequisites remain pending.
 
-**Production cutover remains pending.** The
+**Exact packet approved; production execution awaits prerequisites.** The
 architecture is already authorized by D-16/D-17. The remaining checkpoint concerns
 actual account prerequisites and exact external changes, not routine implementation
 choices. The separately approved Google client-registration additions are saved,
@@ -10,9 +10,8 @@ and current-apex Google sign-in passed for the existing browser account. No
 production deployment, DNS change, deployed Contact inquiry or fund movement
 occurred. The separately authorized isolated Preview deployments and one
 standalone email transport test are recorded in plans18–20. The owner is reviewing
-the stable b835 Preview while local compatibility preparation continues; a newer
-candidate must pass its own complete checks before replacing the proposed SHA.
-Task 27-08-03 is blocking-human and is reserved for the owner when available.
+the stable b835 Preview. Integrated d67fbecf has passed its own complete checks.
+Task 27-08-03 now has exact action authority; account/control prerequisites remain.
 
 ```json
 {
@@ -23,12 +22,16 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
     "www": "https://www.fitout.live -> https://fitout.live"
   },
   "proposedRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
-  "candidateAcceptance": "Integrated exact candidate passes local full/cold/A/B proof; 30 money/scheduler files match production36455580. Old b835 walkthrough Preview stays fixed. Production prerequisites, exact authority and full live provider/Contact inquiry-reply evidence remain pending.",
-  "approvedRevision": null,
+  "candidateAcceptance": "Exact source engineering proof passes and owner approved this cutover packet. Production database binding and account/control prerequisites remain; no deployed or live acceptance is claimed.",
+  "approvedRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
   "authority": {
-    "status": "pending",
-    "scope": null,
-    "approvedAt": null
+    "status": "approved",
+    "scope": "Owner approves the exact proposed d67fbecf Stage A/B/C production cutover, listed domain/nonsecret Production environment/provider destination changes, additive 0037 quota migration and scoped rollback. Execution is conditional on outstanding database binding and account/control prerequisites. Contact remains disabled pending its separate controls/enablement/inquiry checkpoint. Checkout, payout and legal HOLD remain.",
+    "approvedAt": "2026-10-10T10:01:21Z",
+    "owner": "project owner (user)",
+    "evidence": "Current chat: \"cutover packet is approved.\"",
+    "priorPacketGitBlob": "faa481eda48a7057771a3ba3eccb69abc5dc74b8",
+    "prerequisitesResolved": false
   },
   "holds": {
     "checkout": "HOLD",
@@ -50,7 +53,7 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
       "previewBranch": "br-silent-glade-b31mruln",
       "previewApplied": false,
       "productionApplied": false,
-      "productionApproval": "pending original08 exact revised packet",
+      "productionApproval": "Approved exact packet; apply only after both actual Production DATABASE_URL bindings to the intended branch are confirmed",
       "rollback": "Disable Contact first and restore pinned deployments; leave the additive table intact. No DROP or deletion is authorized.",
       "historicalReviewedWindowsSha256": "99516450850c7ea1f400aff1197145d79179ea58e742b3c5ca1a9fc5bc93f4d6",
       "previewEquivalentTablePresent": true,
@@ -393,3 +396,10 @@ Preview-only deployment and remaining access checkpoint: see 27-20-PREVIEW-ACCES
 
 
 Plan20 bounded preparation is complete; see its SUMMARY. This does not resolve the compatibility-first rollout, production migration/Contact authorization, full deployed matrix or inquiry/reply checkpoint.
+
+## Exact packet approval — October 10
+
+Recorded at 2026-10-10T10:01:21Z. The owner explicitly said “cutover packet is approved.” This approves the existing exact d67fbecfa41e902cbf506c93dbcf53b60085e802 packet; no repeat cutover approval is required. The approval does not assert the unreadable Production DATABASE_URL values target the intended database. Both runtime bindings still need confirmation for misty-bar-13534461 / br-divine-lake-b3in9zag / neondb. Current read-only preflight playwright/.cache/phase27-08/approved-cutover-preflight-20261010.json confirms unchanged production aliases/source, unchanged Preview aliases, app domain not yet attached, www redirect absent and explicit primary schema unchanged. No provider secret, database URL or credential is recorded. No production setting/deployment/migration or Contact inquiry was performed. Contact stays disabled and all money/legal HOLDs persist. Original08 remains incomplete only for its unresolved account/control prerequisites; original09 remains dependent. Earlier pending-approval paragraphs are dated history superseded by this approval.
+
+
+Approved release source preparation (2026-10-10T10:08:34Z): exact d67fbecfa41e902cbf506c93dbcf53b60085e802 is published and read back at refs/heads/codex/phase27-cutover-d67fbecf in pengr3/FitOut. Browser environment rows confirm both projects track dev for Production and other unassigned branches use Preview. Automatic isolated Preview builds dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay (web) and dpl_3eFqxwfjD2m7DPmeev4ytQ6B6Q1Z (ops) started; current states dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay=BUILDING, dpl_3eFqxwfjD2m7DPmeev4ytQ6B6Q1Z=QUEUED. These are release-source preparation, not approved Stage A/B/C production deployments or final runtime acceptance. All five Production/walkthrough aliases are unchanged. No Production environment/domain/provider setting or migration changed; no Contact send. Read playwright/.cache/phase27-08/approved-release-branch-20261010.json. Actual both-project Production database binding remains required.

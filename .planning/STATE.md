@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan21 complete;19/21; original08 exact production checkpoint and09 live proof remain"
-last_updated: "2026-10-10T07:43:28.083Z"
+stopped_at: "Exact d67fbecf cutover packet approved; Production database bindings/account prerequisites pending"
+last_updated: "2026-10-10T10:01:21Z"
 last_activity: 2026-10-10
-last_activity_desc: Integrated candidate passes six full gates, cold and rebuilt A/B proof; original production checkpoint remains
+last_activity_desc: Exact packet authority recorded; both Production database bindings and account/control prerequisites remain
 state_head: d67fbecf
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -2265,3 +2265,8 @@ Resume file: None
   `.planning/todos/pending/2026-09-01-ops-staff-management-surface-and-invite-flow.md`, so the next
   reader does not follow the older ruling. Note the seeded UAT account `host@fitout.test` violates the
   rule today (`role='staff'` **and** `can_host = t`) and must be re-seeded or split in the same plan.
+
+October10 exact cutover approval (2026-10-10T10:01:21Z): owner approved d67fbecf packet. Approval is recorded; do not ask again. Runtime Production database targets remain unproved for both projects; no production mutation. Counts remain19/21 and143/151 until original08 prerequisites resolve; Contact off and checkout/payout/legal HOLD.
+
+
+Approved release source preparation (2026-10-10T10:08:34Z): exact d67fbecfa41e902cbf506c93dbcf53b60085e802 is published and read back at refs/heads/codex/phase27-cutover-d67fbecf in pengr3/FitOut. Browser environment rows confirm both projects track dev for Production and other unassigned branches use Preview. Automatic isolated Preview builds dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay (web) and dpl_3eFqxwfjD2m7DPmeev4ytQ6B6Q1Z (ops) started; current states dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay=BUILDING, dpl_3eFqxwfjD2m7DPmeev4ytQ6B6Q1Z=QUEUED. These are release-source preparation, not approved Stage A/B/C production deployments or final runtime acceptance. All five Production/walkthrough aliases are unchanged. No Production environment/domain/provider setting or migration changed; no Contact send. Read playwright/.cache/phase27-08/approved-release-branch-20261010.json. Actual both-project Production database binding remains required.
