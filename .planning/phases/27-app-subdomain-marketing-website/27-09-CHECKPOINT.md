@@ -26,3 +26,6 @@ Both projects currently require manual Production promotion; their auto-domain a
 Validator results at 2026-10-10T12:04:27.308Z: prepared PASS; deployed FAIL and live FAIL for the explicitly missing observations, partial inventory, and Contact/inbox gates. These are acceptance failures, not observed site outages. No completed Plan 09 summary or phase completion is recorded.
 
 Plan 09 requires "Enable Contact only after the verified WAF/global control read-back" and "unresolved observations cannot be auto-approved." The execution skill requires preserving checkpoint and verification gates. The remaining checkpoint concerns concrete controls and observations; it is not another cutover approval.
+
+
+Latest Contact control progress (2026-10-10T13:42:35.904Z): exact quota function passed primary rollback-only tests with table0 afterward. Published WAF rule is logging-only50/600s, not enforcing. Attempted429 action opened Pro upgrade, cancelled; no billing or Contact flag change. Three empty-body probes returned503, all public boundary reads preserved. See27-CONTACT-NO-MAIL-TEST-PACKET.md for the prepared, unapproved restricted production test; no app-code change or paid upgrade proposed. Six matrix scenarios still pending.

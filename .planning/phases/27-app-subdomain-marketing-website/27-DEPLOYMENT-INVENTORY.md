@@ -142,13 +142,13 @@ content remains unproved here. No request used a protection bypass.
       "id": "contact-waf-global",
       "status": "partial",
       "owner": "Vercel security and mailbox owners",
-      "current": "Production Contact remains false with actual 503/recoverable form feedback. The reviewed 0037 quota schema is applied and empty; engineering and isolated Preview enforcement passed. Active firewall API returned 404 config-not-found. Actual production trusted-ingress/global-budget/alert enforcement remains unobserved.",
+      "current": "Production Contact remains false in both projects. Exact quota algorithm passed a rollback-only primary database test; table remains empty. Customer project now has one published logging-only Contact rule50/600s byIP, scopedProduction/apex/exactPOSTpath. Enforcing429 opens Pro upgrade in this account; cancelled. Legacy config API still404 despite actual UI rule. Deployed ingress/quota/alert and no-mail test authority remain pending.",
       "target": "Verified deployment-wide per-IP <=5/15min plus global mailbox <=100/hour before Contact true; process-local Map insufficient",
       "requiredProof": "Published enforcing rule + trusted ingress + distributed cross-region/global mailbox budget and bounded control test; account plan/limits checked",
       "rollback": "CONTACT_PRODUCTION_ENABLED=false on customer/ops deployments, redeploy, verify real 503 and retained form recovery",
-      "observedAt": "2026-10-10T12:06:50.450Z",
-      "observationType": "Dated evidence consolidation and partial-status review; provider account readback times are retained in the cited sources, not asserted fresh here.",
-      "source": "playwright/.cache/phase27-08/production-provider-readback-20261010.json + .planning/phases/27-app-subdomain-marketing-website/27-EVIDENCE.md"
+      "observedAt": "2026-10-10T13:42:35.904Z",
+      "observationType": "Fresh signed-in browser saved-rule readback, public-only Production flag reads, primary rollback proof and disabled HTTP probes",
+      "source": "playwright/.cache/phase27-08/production-contact-control-progress-20261010.json"
     },
     {
       "id": "deployment-revision",

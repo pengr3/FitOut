@@ -60,6 +60,86 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
       "previewReplayRequired": false,
       "productionAppliedAt": "2026-10-10T11:07:41.631Z",
       "productionReadback": "38 migration entries; exact canonical hash; empty quota table; expected three NOT NULL columns and both indexes. Atomic exact precondition guard retained prior37 entries."
+    },
+    "controlProgress": {
+      "recordedAt": "2026-10-10T13:42:35.904Z",
+      "primaryQuota": {
+        "proof": "playwright/.cache/phase27-08/production-primary-quota-rollback-proof-20261010.json",
+        "perIp": "5 admitted, 2 limited within rolling 900-second window",
+        "global": "Counter99 admits one slot; next distinct IP limited at100 within3600 seconds",
+        "persistentWrites": 0,
+        "limit": "This proves the primary database backing and exact algorithm, not deployed HTTP ingress, deployed-secret correspondence, cross-instance race, or alert delivery. Synthetic HMAC secret used; no deployed secret read."
+      },
+      "edgeRule": {
+        "id": "rule_phase_27_contact_edge_guard_R85Dc4",
+        "name": "Phase 27 Contact edge guard",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "hostname": "fitout.live",
+        "path": "/api/contact",
+        "method": "POST",
+        "environment": "production",
+        "enabled": true,
+        "algorithm": "fixed_window",
+        "windowSeconds": 600,
+        "limit": 50,
+        "key": "ip_address",
+        "mitigation": "log",
+        "enforcing": false,
+        "readback": "Normal signed-in browser saved rule editor; reopened after cancelling paid upgrade",
+        "screenshot": "playwright/.cache/phase27-08/production-contact-log-rule-20261010.jpg",
+        "accountGate": "Selecting enforcing429 opened Pro upgrade; cancelled. Docs say Hobby rate limit available, account UI disagrees. No billing gate bypass."
+      },
+      "disabledHttp": {
+        "proof": "playwright/.cache/phase27-08/production-contact-edge-logging-20261010.json",
+        "probes": 3,
+        "statuses": [
+          503,
+          503,
+          503
+        ],
+        "boundaryStatuses": [
+          {
+            "url": "https://fitout.live/",
+            "method": "GET",
+            "status": 200
+          },
+          {
+            "url": "https://app.fitout.live/",
+            "method": "GET",
+            "status": 200
+          },
+          {
+            "url": "https://ops.fitout.live/login",
+            "method": "GET",
+            "status": 200
+          },
+          {
+            "url": "https://fitout.live/api/contact",
+            "method": "GET",
+            "status": 405
+          },
+          {
+            "url": "https://app.fitout.live/api/contact",
+            "method": "POST",
+            "status": 404
+          }
+        ]
+      },
+      "flags": {
+        "web": false,
+        "ops": false,
+        "readback": "Exact public Production environment values returnedfalse in both Vercel projects"
+      },
+      "nextAction": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-NO-MAIL-TEST-PACKET.md",
+      "nextActionAuthority": "pending",
+      "sourceChanged": false,
+      "mailSent": false,
+      "holds": {
+        "checkout": "HOLD",
+        "payout": "HOLD",
+        "legal": "HOLD"
+      },
+      "limits": "Primary database and logging-only edge progress; complete live control and alert observations still pending. No new scenario is marked complete."
     }
   },
   "receivers": [

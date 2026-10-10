@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09 Stage C live; remaining control/issued-token/staff-capability/rollback evidence checkpoint"
-last_updated: "2026-10-10T11:57:15.492Z"
+stopped_at: "Plan09 Contact: primary quota rollback proof passed; restricted no-mail test approval pending"
+last_updated: "2026-10-10T13:42:35.904Z"
 last_activity: 2026-10-10
-last_activity_desc: Approved Stage A/B/C topology live; 29/35 matrix observed; Contact disabled
+last_activity_desc: Primary quota verified without persistent writes; edge rule logs only; Contact disabled
 state_head: d67fbecf
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
