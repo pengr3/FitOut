@@ -1343,7 +1343,7 @@ Plans:
 
 **Wave 8** *(blocked on Wave 7 completion)*
 
-- [ ] 27-08-PLAN.md — Run complete local host/browser gates and prepare reviewable cutover packet.
+- [x] 27-08-PLAN.md — Run complete local host/browser gates and prepare reviewable cutover packet.
 
 Local preparation and four review fixes are committed. Final 52 browser cases, focused security/evidence
 tests, types, lint and build pass; full unit/design retain eight/nine baseline or prior-dirty-source failures.
@@ -1566,3 +1566,5 @@ to review.
 Phase27 latest bounded preparation status (October10):18/20 plans,142/150 curated total. Original08/09 remain pending. Exact b8358b11 full gates and bounded Preview checks pass; the full production matrix and compatibility/authority checkpoint are separate. Contact off, all HOLDs persist.
 
 Phase27 latest bounded preparation status (2026-10-10T07:43:28.083Z):19/21 plans,143/151 curated total. Integrated d67fbecf full/cold/A/B local proof passes; production36455580 source/migrations preserved. Original08/09 and all seven requirements pending. Stable ownerb835 Preview retained; Contact off, all HOLDs persist.
+
+Phase27 current execution (2026-10-10T11:07:41.631Z): Plan08 preparation complete;20/21 plans and144/151 curated. Exact packet authority and database owner attestation resolved. Original09 staged production rollout/live Contact proof remains incomplete; no requirement completion or money/legal release.

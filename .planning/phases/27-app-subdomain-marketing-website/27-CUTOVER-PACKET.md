@@ -31,15 +31,16 @@ Task 27-08-03 now has exact action authority; account/control prerequisites rema
     "owner": "project owner (user)",
     "evidence": "Current chat: \"cutover packet is approved.\"",
     "priorPacketGitBlob": "faa481eda48a7057771a3ba3eccb69abc5dc74b8",
-    "prerequisitesResolved": false
+    "prerequisitesResolved": true,
+    "prerequisiteScope": "Staged topology cutover with Contact disabled; provider registration changes require their fresh per-provider readback. Contact controls, enablement, inquiry and actual receipt/reply remain gated in Plan09."
   },
   "holds": {
     "checkout": "HOLD",
     "payout": "HOLD",
     "legal": "HOLD"
   },
-  "rollbackOwner": "Vercel release account owner; named operator confirmation pending",
-  "monitoringOwner": "Project owner (user) confirms monitored launch support inbox and authorizes one transport test, October 10 Manila; release monitoring and deployed Contact receipt/reply still pending.",
+  "rollbackOwner": "Codex release operator through existing pengr3s-projects account tools, acting for the project owner under exact packet/rollback authority",
+  "monitoringOwner": "Codex release operator during the current authorized execution; project owner owns monitored support inbox. Record bounded Stage A/B/C health checks and rollout thresholds; Contact enablement/inquiry and observed receipt/reply remain separate.",
   "contact": {
     "enabled": false,
     "controlsVerified": false,
@@ -52,13 +53,15 @@ Task 27-08-03 now has exact action authority; account/control prerequisites rema
       "sha256": "8b657d22de785aaa5c2ba3ab201a255f91af9c72b4bd0a9c5c1c9ef6fd593b34",
       "previewBranch": "br-silent-glade-b31mruln",
       "previewApplied": false,
-      "productionApplied": false,
+      "productionApplied": true,
       "productionApproval": "Approved exact packet; apply only after both actual Production DATABASE_URL bindings to the intended branch are confirmed",
       "rollback": "Disable Contact first and restore pinned deployments; leave the additive table intact. No DROP or deletion is authorized.",
       "historicalReviewedWindowsSha256": "99516450850c7ea1f400aff1197145d79179ea58e742b3c5ca1a9fc5bc93f4d6",
       "previewEquivalentTablePresent": true,
       "previewHistoricalAppliedPath": "drizzle/0034_contact_quota.sql",
-      "previewReplayRequired": false
+      "previewReplayRequired": false,
+      "productionAppliedAt": "2026-10-10T11:07:41.631Z",
+      "productionReadback": "38 migration entries; exact canonical hash; empty quota table; expected three NOT NULL columns and both indexes. Atomic exact precondition guard retained prior37 entries."
     }
   },
   "receivers": [
@@ -158,6 +161,26 @@ Task 27-08-03 now has exact action authority; account/control prerequisites rema
       "path": "playwright/.cache/phase27-08/production-continuity-source-d67fbecf-20261010.json",
       "sha256": "87c703d821c01611fb931651251f61d6e4e19dbceb52a0249adafc16f4f5d75b"
     }
+  },
+  "productionDatabaseBinding": {
+    "status": "owner-confirmed",
+    "project": "misty-bar-13534461",
+    "branch": "br-divine-lake-b3in9zag",
+    "database": "neondb",
+    "vercelProjects": [
+      "fitout-web",
+      "fitout-ops"
+    ],
+    "confirmedAt": "2026-10-10T10:58:41.869Z",
+    "evidence": "Owner answered \"yeah approb\" to the immediate BOTH-project target confirmation request. Values remain sensitive/write-only; this is owner attestation, not independent secret readback."
+  },
+  "rolloutStatus": {
+    "stage": "A production builds started; not promoted",
+    "observedAt": "2026-10-10T11:07:41.631Z",
+    "webDeployment": "dpl_EawThnAR9vr4EEumpTHnpBh6yAYB",
+    "opsDeployment": "dpl_GjHd59ThRnH73gmFbUjhGviN1ZQV",
+    "autoAssignCustomDomains": false,
+    "contactEnabled": false
   }
 }
 ```
@@ -406,3 +429,9 @@ Approved release source preparation (2026-10-10T10:08:34Z): exact d67fbecfa41e90
 
 
 Final approved-source Preview build readback (2026-10-10T10:12:06Z): web dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay and ops dpl_3eFqxwfjD2m7DPmeev4ytQ6B6Q1Z are both READY at exact d67fbecfa41e902cbf506c93dbcf53b60085e802 on codex/phase27-cutover-d67fbecf. Existing Production and all three b835 walkthrough aliases are freshly read back unchanged. Source publication/build preparation is complete; these isolated Preview builds are not Stage A/B/C Production builds and do not supply live runtime acceptance. No new access link, provider setting, Production environment/domain/migration or Contact inquiry. Both actual Production DATABASE_URL bindings remain the immediate human/account prerequisite. Authority is approved and must not be requested again. Counts stay19/21, original08/09 and all seven requirements pending. Proof: playwright/.cache/phase27-08/approved-release-builds-final-20261010.json.
+
+
+Production binding owner confirmation (2026-10-10T10:58:41.869Z): affirmative reply “yeah approb” is recorded as BOTH fitout-web and fitout-ops Production DATABASE_URL targets confirmed to misty-bar-13534461 / br-divine-lake-b3in9zag / neondb. This is owner attestation because Vercel Secret values cannot be independently read back. Existing exact d67fbecf cutover/0037/rollback authority persists; do not ask again for these confirmations. Codex operates the scoped release/rollback and records active monitoring for this execution. Contact stays disabled while its production controls/alert/inquiry prerequisites are incomplete; all checkout/payout/legal HOLDs remain. No production action is claimed by this confirmation record.
+
+
+Plan08 preparation checkpoint resolved (2026-10-10T11:07:41.631Z): exact owner cutover authority and both-project database target attestation are recorded. Named scoped release/rollback operator is Codex acting for the project owner. Saved Stage A origins and automatic-domain staging controls are read back. Reviewed0037 production quota migration applied atomically with normal ledger bookkeeping and actual structural readback. Contact stays false; no send, provider registration edit or requirement acceptance is claimed. Plan08 completes preparation, not live rollout. Plan09 now executes and proves staged topology, provider/session boundaries and remaining Contact controls/inquiry/receipt/reply. Proof: playwright/.cache/phase27-08/production-cutover-snapshot-03-20261010.json.

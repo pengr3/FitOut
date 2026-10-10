@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Exact d67fbecf cutover packet approved; Production database bindings/account prerequisites pending"
-last_updated: "2026-10-10T10:12:06Z"
+stopped_at: "Plan08 complete;20/21; Plan09 approved staged production rollout in progress"
+last_updated: "2026-10-10T11:07:41.631Z"
 last_activity: 2026-10-10
-last_activity_desc: Exact packet approved and both release-source Preview builds READY; Production database bindings remain pending
+last_activity_desc: Preparation checkpoint resolved; Stage A production builds underway with Contact disabled
 state_head: d67fbecf
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -58,9 +58,12 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 143
+  completed_plans: 144
   percent: 15
 ---
+
+Current execution (2026-10-10T11:07:41.631Z): Plan08 complete,20/21 Phase27 plans and144/151 curated. Owner approved exact d67fbecf cutover and confirmed both Production database targets. Plan09 staged Production rollout is in progress; auto-domain assignment is disabled, Stage A settings are saved and0037 quota is applied with readback. Contact false, no real mail or financial event, all money/legal HOLDs remain. All seven live requirements stay pending. Older paragraphs below retain dated history.
+
 
 # Project State
 
@@ -2273,3 +2276,6 @@ Approved release source preparation (2026-10-10T10:08:34Z): exact d67fbecfa41e90
 
 
 Final approved-source Preview build readback (2026-10-10T10:12:06Z): web dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay and ops dpl_3eFqxwfjD2m7DPmeev4ytQ6B6Q1Z are both READY at exact d67fbecfa41e902cbf506c93dbcf53b60085e802 on codex/phase27-cutover-d67fbecf. Existing Production and all three b835 walkthrough aliases are freshly read back unchanged. Source publication/build preparation is complete; these isolated Preview builds are not Stage A/B/C Production builds and do not supply live runtime acceptance. No new access link, provider setting, Production environment/domain/migration or Contact inquiry. Both actual Production DATABASE_URL bindings remain the immediate human/account prerequisite. Authority is approved and must not be requested again. Counts stay19/21, original08/09 and all seven requirements pending. Proof: playwright/.cache/phase27-08/approved-release-builds-final-20261010.json.
+
+
+Production binding confirmation (2026-10-10T10:58:41.869Z): owner affirmed both exact Production database targets. Record as owner-confirmed, not secret readback. Proceed with approved d67fbecf staged cutover; maintain current pins until fresh staged builds/checks succeed. No new code, Contact enablement, mail or fund movement is authorized by the target confirmation. Counts remain19/21 pending original08/09 completion.
