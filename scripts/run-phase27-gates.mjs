@@ -15,7 +15,9 @@ export function exportGitEnvironment(checkout, exported, indexFile) {
   const gitDir = execFileSync("git", ["rev-parse", "--absolute-git-dir"], {
     cwd: checkout, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
   }).trim();
-  return { GIT_DIR: gitDir, GIT_WORK_TREE: exported, GIT_INDEX_FILE: indexFile, GIT_OPTIONAL_LOCKS: "0" };
+  return { GIT_DIR: gitDir, GIT_WORK_TREE: exported, GIT_INDEX_FILE: indexFile, GIT_OPTIONAL_LOCKS: "0",
+    // Windows exports can exceed MAX_PATH. This process-local option changes no Git config.
+    GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.longpaths", GIT_CONFIG_VALUE_0: "true" };
 }
 
 // Start from operating-system plumbing; provider credentials are never inherited.

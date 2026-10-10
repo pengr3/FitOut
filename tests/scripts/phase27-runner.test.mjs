@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import { runSequential, safeEnvironment, sanitizeLog, exportGitEnvironment } from "../../scripts/run-phase27-gates.mjs";
@@ -154,11 +154,17 @@ test("source export resolves linked-checkout metadata without changing its index
   git("-C", repo, "add", "tracked.txt");
   git("-C", repo, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-m", "fixture");
   git("-C", repo, "worktree", "add", "--detach", linked, "HEAD");
-  const env = { ...process.env, ...exportGitEnvironment(linked, linked, join(f.directory, "export.index")) };
+  const exported = join(f.directory, "long-export-" + "a".repeat(90), "b".repeat(90));
+  mkdirSync(exported, { recursive: true });
+  writeFileSync(join(exported, "tracked.txt"), "reviewed source");
+  const env = { ...process.env, ...exportGitEnvironment(linked, exported, join(f.directory, "export.index")) };
   assert.notEqual(env.GIT_DIR, join(linked, ".git"));
   const before = readFileSync(join(env.GIT_DIR, "index"));
   const loaded = spawnSync("git", ["read-tree", "HEAD"], { cwd: linked, env, encoding: "utf8", windowsHide: true });
   assert.equal(loaded.status, 0, loaded.stderr);
   assert.equal(existsSync(env.GIT_INDEX_FILE), true);
+  const status = spawnSync("git", ["status", "--porcelain", "--untracked-files=all"], { cwd: exported, env, encoding: "utf8", windowsHide: true });
+  assert.equal(status.status, 0, status.stderr);
+  assert.equal(status.stdout.trim(), "", status.stderr);
   assert.deepEqual(readFileSync(join(env.GIT_DIR, "index")), before);
 });
