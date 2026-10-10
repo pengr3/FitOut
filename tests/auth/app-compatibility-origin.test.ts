@@ -64,7 +64,7 @@ describe("staged app origin continuity", () => {
     expect(response.headers.get("location")).toBe(`${NEW}/reset-password${query}`);
   });
 
-  it.each([
+  const invalidConfigurations: Array<Record<string, string>> = [
     { APP_COMPATIBILITY_ORIGIN: OLD },
     { APP_COMPATIBILITY_ORIGIN: RESERVED },
     { APP_COMPATIBILITY_ORIGIN: "https://ops.fitout.live" },
@@ -74,7 +74,8 @@ describe("staged app origin continuity", () => {
     { APP_COMPATIBILITY_ORIGIN: "https://*.fitout.live" },
     { APP_COMPATIBILITY_ORIGIN: "https://app.fitout.live/path" },
     { APP_COMPATIBILITY_ORIGIN: "https://user@app.fitout.live" },
-  ])("fails closed for conflicting or invalid compatibility configuration %j", async (overrides) => {
+  ];
+  it.each(invalidConfigurations)("fails closed for conflicting or invalid compatibility configuration %j", async (overrides) => {
     await expect(configure(overrides)).rejects.toThrow();
   });
 

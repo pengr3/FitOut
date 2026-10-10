@@ -57,7 +57,7 @@ const appCompatibility = configured(process.env.APP_COMPATIBILITY_ORIGIN)
   ? parseOrigin(process.env.APP_COMPATIBILITY_ORIGIN, "APP_COMPATIBILITY_ORIGIN") : null;
 if (appCompatibility) {
   const hostname = appCompatibility.hostname.toLowerCase();
-  if (hostname.includes("*")) throw new Error("APP_COMPATIBILITY_ORIGIN must name one exact host");
+  if (/\*/.test(hostname)) throw new Error("APP_COMPATIBILITY_ORIGIN must name one exact host");
   const local = hostname === "localhost" || hostname.endsWith(".localhost") ||
     hostname === "127.0.0.1" || hostname === "[::1]";
   if (appCompatibility.protocol !== "https:" && !local) {
