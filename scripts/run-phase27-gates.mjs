@@ -1,6 +1,6 @@
 import { spawn, execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, openSync, closeSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, closeSync, readFileSync, writeFileSync, unlinkSync, lstatSync } from "node:fs";
 import { delimiter, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runnerSummary, QUOTA_MIGRATION_FILES } from "./verify-phase27-evidence.mjs";
@@ -18,6 +18,14 @@ export function exportGitEnvironment(checkout, exported, indexFile) {
   return { GIT_DIR: gitDir, GIT_WORK_TREE: exported, GIT_INDEX_FILE: indexFile, GIT_OPTIONAL_LOCKS: "0",
     // Windows exports can exceed MAX_PATH. This process-local option changes no Git config.
     GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "core.longpaths", GIT_CONFIG_VALUE_0: "true" };
+}
+
+// Native Windows bundlers also have path limits; Git's longpaths flag is insufficient.
+export function sourceExportDirectory(checkout, runDir, platform = process.platform) {
+  if (platform !== "win32") return join(runDir, "source");
+  const exported = join(resolve(checkout), ".p27", digest(Buffer.from(resolve(runDir))).slice(0, 12));
+  if (exported.length > 120) throw new Error("Windows immutable export requires a shorter checkout path");
+  return exported;
 }
 
 // Start from operating-system plumbing; provider credentials are never inherited.
@@ -163,7 +171,11 @@ async function main() {
   save(join(runDir, "runtime-preflight.json"), runtime);
   const archive = join(runDir, "source.zip");
   git("archive", "--format=zip", `--output=${archive}`, revision);
-  const exported = join(runDir, "source");
+  const exported = sourceExportDirectory(root, runDir);
+  const exportParent = dirname(exported);
+  if (existsSync(exported) || existsSync(exportParent) && lstatSync(exportParent).isSymbolicLink()) throw new Error("Preserve existing or linked export path");
+  mkdirSync(exportParent, { recursive: true });
+  save(join(runDir, "source-export.json"), { revision, path: relative(root, exported).replaceAll("\\", "/"), purpose: "unique physical immutable source export; no junction or global filesystem setting" });
   const setupEnv = { ...safeEnvironment("setup"), PHASE27_ARCHIVE: archive, PHASE27_EXPORT: exported };
   const expansion = await child("powershell.exe", ["-NoProfile", "-Command", "Expand-Archive -LiteralPath $env:PHASE27_ARCHIVE -DestinationPath $env:PHASE27_EXPORT"], { cwd: root, env: setupEnv });
   save(join(runDir, "expand.log"), expansion.output);

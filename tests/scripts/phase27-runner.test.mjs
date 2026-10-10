@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
-import { runSequential, safeEnvironment, sanitizeLog, exportGitEnvironment } from "../../scripts/run-phase27-gates.mjs";
+import { runSequential, safeEnvironment, sanitizeLog, exportGitEnvironment, sourceExportDirectory } from "../../scripts/run-phase27-gates.mjs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -167,4 +167,15 @@ test("source export resolves linked-checkout metadata without changing its index
   assert.equal(status.status, 0, status.stderr);
   assert.equal(status.stdout.trim(), "", status.stderr);
   assert.deepEqual(readFileSync(join(env.GIT_DIR, "index")), before);
+});
+
+test("native Windows export keeps generated Next chunks below MAX_PATH without a link", (t) => {
+  const f=fixture(t),run=join(f.directory,"playwright",".cache","phase27-08","full-"+"a".repeat(8)+"-"+"b".repeat(36));
+  const exported=sourceExportDirectory(f.directory,run,"win32");
+  const chunk=join(exported,".next","server","chunks","1oeh_server_app_(public)_invite_[token]_opengraph-image-ikagei_route_actions_18tscdr.js.map");
+  assert.ok(chunk.length<260,chunk);
+  assert.ok(exported.startsWith(join(f.directory,".p27")+sep));
+  assert.notEqual(sourceExportDirectory(f.directory,run+"-new","win32"),exported);
+  assert.equal(sourceExportDirectory(f.directory,run,"linux"),join(run,"source"));
+  assert.throws(()=>sourceExportDirectory(join(f.directory,"x".repeat(130)),run,"win32"),/shorter checkout/);
 });
