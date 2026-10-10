@@ -1,6 +1,6 @@
 # Plan 09 — Restricted Contact control test
 
-Status: prepared for owner approval. This test has NOT been performed. The existing cutover and database approvals remain resolved; this requests only the new bounded test window described below.
+Status: owner approved the bounded test window at 2026-10-10T21:16:29.368Z (Asia/Manila October 11). Execution is authorized within the exact scope below. The live test has NOT been performed. Existing cutover and database approvals remain resolved.
 
 The exact approved application source remains d67fbecfa41e902cbf506c93dbcf53b60085e802. The quota algorithm has now passed a rollback-only test on the primary database: 5 admissions and 2 denials for a synthetic IP; a counter seeded at 99 admits the last hourly slot and rejects the next distinct IP. The primary table is still empty. This supports the database control but does not substitute for deployed HTTP ingress or alert/disable proof.
 
@@ -25,4 +25,6 @@ The customer project has one published logging-only rule, Phase 27 Contact edge 
 
 ## Current authority
 
-Pending. No temporary deny guard is saved or published, no synthetic production quota row persists, and both Production Contact flags remain false. Only the logging rule and rollback-only database test are complete.
+Owner replied: "bounded test window approved". This explicitly authorizes the scoped temporary guard, public Contact flag, exact-source staged promotion, synthetic global quota fixture and exact-match cleanup. Do not ask for this same scope again.
+
+Preflight at 2026-10-10T21:16:29.368Z: both Production flags read false; primary neondb quota_rows=0; customer dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW and ops dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ remain READY. Browser Vercel session is signed out, so login handoff is pending. No temporary deny guard is saved or published, no quota fixture persists, no flag or deployment changed, and no mail was sent. Existing logging rule and rollback-only database evidence remain supporting observations.

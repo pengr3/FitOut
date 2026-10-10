@@ -29,3 +29,6 @@ Plan 09 requires "Enable Contact only after the verified WAF/global control read
 
 
 Latest Contact control progress (2026-10-10T13:42:35.904Z): exact quota function passed primary rollback-only tests with table0 afterward. Published WAF rule is logging-only50/600s, not enforcing. Attempted429 action opened Pro upgrade, cancelled; no billing or Contact flag change. Three empty-body probes returned503, all public boundary reads preserved. See27-CONTACT-NO-MAIL-TEST-PACKET.md for the prepared, unapproved restricted production test; no app-code change or paid upgrade proposed. Six matrix scenarios still pending.
+
+
+Bounded Contact window approved (2026-10-10T21:16:29.368Z): owner approved the exact no-mail packet. Preflight confirms both flags false, primary quota empty, and retained Stage C pins READY. Browser Vercel login handoff is pending. No test guard, fixture, temporary enabled deployment or mail exists. This is a login prerequisite, not another approval checkpoint. Six matrix scenarios remain pending.
