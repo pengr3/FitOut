@@ -50,8 +50,14 @@ proof of a functioning redirect.
 Production quota preparation: explicit read-only query on project
 `misty-bar-13534461`, primary branch `br-divine-lake-b3in9zag`, database `neondb`
 finds no public.contact_quota table. The existing migration ledger has37 entries,
-latest timestamp1791388800000. Proposed0034 is timestamp1791565875571 and its
-SQL digest is99516450850c7ea1f400aff1197145d79179ea58e742b3c5ca1a9fc5bc93f4d6.
+latest timestamp1791388800000. Proposed0037 is timestamp1791565875571 and its
+canonical Git/LF SQL digest is
+8b657d22de785aaa5c2ba3ab201a255f91af9c72b4bd0a9c5c1c9ef6fd593b34.
+The historical reviewed Windows/CRLF digest is
+99516450850c7ea1f400aff1197145d79179ea58e742b3c5ca1a9fc5bc93f4d6;
+the renamed migration has the same committed SQL bytes. Preserve production's
+existing manual-payout migrations0034–0036. The Preview's already applied Contact
+table is historical0034 provenance and must not be replayed as0037.
 Confirm the deployment's private database binding to this exact branch before
 any approved production write. Apply only this reviewed additive table/index and
 normal migration bookkeeping; do not schema-push or replay manual history.
@@ -78,3 +84,5 @@ four auth suites, including 13 new staging cases). Full exact-revision gates and
 built-server staging proof are pending; this focused result is not deployment
 or production verification. Existing b835 isolated Preview remains the owner's
 stable review link until a replacement is explicitly prepared.
+
+Latest exact-source local proof (2026-10-10T07:43:28.083Z): d67fbecfa41e902cbf506c93dbcf53b60085e802 passes all six full gates, a fresh cold browser test and independently rebuilt Stage A/B9-case runtime proof. FinalC BUILD_ID restored. Proof: playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/compatibility-ca0ae860-03fd-4bc0-9257-4af46d4cd7da/report.json. Cloud stages and live provider/session observations remain pending; stableb835 owner Preview does not prove the integrated source.

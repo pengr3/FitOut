@@ -1367,7 +1367,7 @@ Supplementary engineering repairs, approved for planning and continuous local wo
 - [x] 27-18-PLAN.md — Atomic shared Contact quotas and additive migration; focused and actual Neon race proof (D-23)
 - [x] 27-19-PLAN.md — Schema-only Preview branch and saved isolated bindings; deployment proof belongs to Plan20 (D-23)
 - [x] 27-20-PLAN.md — Six guarded full gates/cold proof and actual isolated Preview write/session/Contact checks; original production checkpoint remains (D-23)
-- [ ] 27-21-PLAN.md — Preserve deployed source, resolve migration numbering, reverify exact integrated release source
+- [x] 27-21-PLAN.md — Preserve deployed production source, resolve Contact migration collision, and reverify exact integrated source before cutover
 
 ## Carried Forward (not v1.2 scope until promoted)
 
@@ -1564,3 +1564,5 @@ to review.
 
 
 Phase27 latest bounded preparation status (October10):18/20 plans,142/150 curated total. Original08/09 remain pending. Exact b8358b11 full gates and bounded Preview checks pass; the full production matrix and compatibility/authority checkpoint are separate. Contact off, all HOLDs persist.
+
+Phase27 latest bounded preparation status (2026-10-10T07:43:28.083Z):19/21 plans,143/151 curated total. Integrated d67fbecf full/cold/A/B local proof passes; production36455580 source/migrations preserved. Original08/09 and all seven requirements pending. Stable ownerb835 Preview retained; Contact off, all HOLDs persist.

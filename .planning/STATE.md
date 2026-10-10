@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "D-23 plans18-20 complete; 18/20; original08 exact production rollout/prerequisite checkpoint and09 live proof remain"
-last_updated: "2026-10-09T19:34:21.242Z"
+stopped_at: "Plan21 complete;19/21; original08 exact production checkpoint and09 live proof remain"
+last_updated: "2026-10-10T07:43:28.083Z"
 last_activity: 2026-10-10
-last_activity_desc: Plan20 complete; exact-SHA full gates and isolated Preview API/browser proofs pass; original production checkpoint pending
-state_head: b8358b11
+last_activity_desc: Integrated candidate passes six full gates, cold and rebuilt A/B proof; original production checkpoint remains
+state_head: d67fbecf
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -58,13 +58,13 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 142
+  completed_plans: 143
   percent: 15
 ---
 
 # Project State
 
-October10: Plan21 production-continuity repair executing;18/21 plans and142/151 total. Stable Preview retained; old candidates ineligible for cutover. Original08/09, all requirement acceptance and all HOLDs remain. See27-PRODUCTION-CONTINUITY.md.
+October10 continuation: Plan21 complete;19/21 phase plans and143/151 total. Exact integrated candidate d67fbecfa41e902cbf506c93dbcf53b60085e802 passes six full gates, cold and separately built compatibility A/B proof, preserving30 deployed payment/scheduler files and migrations0034–0036. Contact is0037 with unchanged reviewed SQL. Work is in the attached managed worktree; unrelated shared drafts and stableb835 UI Preview remain preserved. Prepared evidence validates in the integrated worktree. Original08/09 and all seven requirements remain pending; exact production authority/database binding and deployed provider/Contact receipt-reply proof remain. Contact off, all HOLDs persist. Read27-21-SUMMARY.md. Earlier paragraphs are history.
 
 **Latest focus (2026-10-10):** Bounded plans18–20 complete; 18/20 phase plans and142/150 total. All six guarded gates and fresh cold/warm pass at b8358b11. Exact paired Preview deployments are READY; disposable writes reach the explicit schema-only branch, owned session works, ops rejects the actual app Preview cookie, Contact returns503 and browser retains fields. One disposable account/session remains and zero bookings. Normal owner-browser production/Preview host-cookie isolation is observed; no production token was exported/replayed and the full production matrix remains unproved. Production aliases/env metadata unchanged, Contact off; original08/09 and all seven requirements pending; all HOLDs persist.
 

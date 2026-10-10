@@ -1,6 +1,6 @@
 # Phase 27 — Prepared cutover and rollback packet
 
-October10 source continuity blocker: existing proposed b8358b11 and local compatibility c0f9a6c5 omit code already deployed in production36455580. They are ineligible for production cutover. Plan21 integrates that baseline and renumbers Contact to0037 after production0034–0036; an exact replacement candidate must pass fresh gates before this packet is actionable. Historical acceptance and the unchanged walkthrough Preview remain evidence for their stated sources. Read27-PRODUCTION-CONTINUITY.md. No production action is authorized by this note.
+October10 source continuity repair: candidate d67fbecfa41e902cbf506c93dbcf53b60085e802 includes deployed production36455580 and preserves all30 payment/scheduler files and payout migrations0034–0036. Contact is0037 with unchanged reviewed SQL bytes. Fresh six-gate, cold and separately built compatibility A/B local proof passes. The stable b835 walkthrough Preview is historical UI/deployment evidence; it does not prove this integrated source. Production prerequisites and exact original08 authority remain pending.
 
 **Production cutover remains pending.** The
 architecture is already authorized by D-16/D-17. The remaining checkpoint concerns
@@ -22,8 +22,8 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
     "ops": "https://ops.fitout.live",
     "www": "https://www.fitout.live -> https://fitout.live"
   },
-  "proposedRevision": "b8358b11a63aadef2c84c9eb64b78be0a07ddcd4",
-  "candidateAcceptance": "Six full guarded gates plus fresh cold/warm pass at b8358b11. Paired exact-SHA isolated Preview builds READY; actual disposable branch write, app session, ops rejection of app Preview cookie, and Contact503 pass. Full production token/live matrix, rollout prerequisites and original cutover authority remain pending.",
+  "proposedRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+  "candidateAcceptance": "Integrated exact candidate passes local full/cold/A/B proof; 30 money/scheduler files match production36455580. Old b835 walkthrough Preview stays fixed. Production prerequisites, exact authority and full live provider/Contact inquiry-reply evidence remain pending.",
   "approvedRevision": null,
   "authority": {
     "status": "pending",
@@ -45,13 +45,17 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
     "globalBudget": "Atomic database-wide <=100 delivery attempts/hour and <=5/original trusted IP/15 minutes implemented and tested locally and on isolated Preview. Production migration, alert/disable proof and Contact enablement remain pending.",
     "disabledRecovery": "Keep CONTACT_PRODUCTION_ENABLED=false; verify real 503, retained fields, no delivery announcement; no development-mail fallback",
     "quotaMigration": {
-      "path": "drizzle/0034_contact_quota.sql",
-      "sha256": "99516450850c7ea1f400aff1197145d79179ea58e742b3c5ca1a9fc5bc93f4d6",
+      "path": "drizzle/0037_contact_quota.sql",
+      "sha256": "8b657d22de785aaa5c2ba3ab201a255f91af9c72b4bd0a9c5c1c9ef6fd593b34",
       "previewBranch": "br-silent-glade-b31mruln",
-      "previewApplied": true,
+      "previewApplied": false,
       "productionApplied": false,
-      "productionApproval": "pending original08 release packet",
-      "rollback": "Disable Contact first and restore pinned deployments; leave the additive table intact. No DROP or deletion is authorized."
+      "productionApproval": "pending original08 exact revised packet",
+      "rollback": "Disable Contact first and restore pinned deployments; leave the additive table intact. No DROP or deletion is authorized.",
+      "historicalReviewedWindowsSha256": "99516450850c7ea1f400aff1197145d79179ea58e742b3c5ca1a9fc5bc93f4d6",
+      "previewEquivalentTablePresent": true,
+      "previewHistoricalAppliedPath": "drizzle/0034_contact_quota.sql",
+      "previewReplayRequired": false
     }
   },
   "receivers": [
@@ -76,7 +80,7 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
   ],
   "rollout": [
     "Record exact approved final SHA, current alias deployment IDs, DNS RRsets/TTL, Production env scopes and provider registrations; resolve high threats and failed engineering gates before external mutation",
-    "Prepare compatibility revision retaining current apex app behavior during app-alias proof; do not activate final apex marketing before app origin is observed. This intermediate deployment requires a separately verified origin configuration/compatibility revision; final exact-host marketing source alone cannot serve old apex app at the same time",
+    "Use exact integrated revision d67fbecfa41e902cbf506c93dbcf53b60085e802; build each Stage A/B/C separately per27-COMPATIBILITY-ROLLOUT.md. Keep StageA primary apex/app compatibility, StageB primary app/apex compatibility, StageC primary app/compatibility unset/apex marketing. Reserved marketing host stays unattached. Local proof is not deployed evidence.",
     "Attach app.fitout.live to existing fitout-web; verify DNS/TLS and real app search/auth/returns/session cookies on approved revision. Retain ops project and old direct signed receivers",
     "Add exact Google app origin/callback and approved provider browser returns; migrate machine registrations only after both direct receiver URLs are proved, keeping one Inngest scheduler",
     "Set final both-project Production app vars=https://app.fitout.live, MARKETING_APP_URL=https://fitout.live, OPS_APP_URL unchanged; rebuild and promote exact reviewed final SHA; verify app/marketing/ops HTML/Link/RSC/cache/session matrix before announcing apex change",
@@ -117,6 +121,40 @@ Task 27-08-03 is blocking-human and is reserved for the owner when available.
     "schemaOnlyPreviewBranchAndPreviewBindings": true,
     "productionCutover": false,
     "publicContactEnablement": false
+  },
+  "compatibility": {
+    "variable": "APP_COMPATIBILITY_ORIGIN",
+    "stageA": {
+      "app": "https://fitout.live",
+      "compatibility": "https://app.fitout.live",
+      "marketing": "https://marketing-stage.fitout.live"
+    },
+    "stageB": {
+      "app": "https://app.fitout.live",
+      "compatibility": "https://fitout.live",
+      "marketing": "https://marketing-stage.fitout.live"
+    },
+    "stageC": {
+      "app": "https://app.fitout.live",
+      "compatibility": null,
+      "marketing": "https://fitout.live"
+    },
+    "freshBuildEveryStage": true,
+    "contactEnabled": false,
+    "proof": {
+      "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/compatibility-ca0ae860-03fd-4bc0-9257-4af46d4cd7da/report.json",
+      "sha256": "bfe6fc5ad2af0cb10fac67a08ac12ee865d5b2f000e5da6ea1f41edf151c239c"
+    }
+  },
+  "productionContinuity": {
+    "baseline": "3645558085e81fed38d644c7b50c64ce921a72ad",
+    "candidate": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+    "productionIsAncestor": true,
+    "payoutCodeUnchanged": true,
+    "proof": {
+      "path": "playwright/.cache/phase27-08/production-continuity-source-d67fbecf-20261010.json",
+      "sha256": "87c703d821c01611fb931651251f61d6e4e19dbceb52a0249adafc16f4f5d75b"
+    }
   }
 }
 ```
@@ -181,9 +219,9 @@ they do not authenticate observations or authorize deployment or Contact enablem
 
 Do not deploy the final split source directly over apex as a supposed
 compatibility-only stage. Its marketing classification would switch apex at once.
-First establish and verify an intermediate compatibility revision/configuration,
-or record owner-approved coordinated app-alias/origin promotion with the explicit
-temporary window and rollback. This unresolved rollout prerequisite blocks mutation.
+Use the separately rebuilt and locally proved Stage A/B/C configuration in
+27-COMPATIBILITY-ROLLOUT.md. Cloud rollout, exact authority and deployed checks
+remain prerequisites; local compatibility proof does not authorize mutation.
 
 ## Provider and browser-return targets
 
