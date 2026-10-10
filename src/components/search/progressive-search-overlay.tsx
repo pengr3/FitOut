@@ -18,7 +18,7 @@ export function ProgressiveSearchOverlay({ open, trigger, returnFocus, onOpenAut
   return (
     <ResponsiveDialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) onDismiss(); }}
       trigger={trigger} title="Search spaces" hideTitle showCloseButton={false}
-      contentClassName={"max-sm:inset-0 max-sm:h-[100dvh] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:overflow-y-auto max-sm:data-open:zoom-in-100 max-sm:data-closed:zoom-out-100 " + DESKTOP_WIDTH_CLASS[desktopPresentation] + " sm:max-h-[calc(100dvh-4rem)] sm:overflow-y-auto"}
+      contentClassName={"max-sm:inset-0 max-sm:h-[100dvh] max-sm:max-h-none max-sm:w-full max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none max-sm:overflow-y-auto max-sm:data-open:zoom-in-100 max-sm:data-closed:zoom-out-100 " + DESKTOP_WIDTH_CLASS[desktopPresentation] + " sm:w-[calc(100%-2rem)] sm:max-h-[calc(100dvh-4rem)] sm:overflow-y-auto"}
       onOpenAutoFocus={onOpenAutoFocus} onCloseAutoFocus={(event) => {
         if (!trigger && returnFocus) { event.preventDefault(); returnFocus.focus(); }
       }}>
