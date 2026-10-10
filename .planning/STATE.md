@@ -6,9 +6,9 @@ current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
 stopped_at: "Exact d67fbecf cutover packet approved; Production database bindings/account prerequisites pending"
-last_updated: "2026-10-10T10:01:21Z"
+last_updated: "2026-10-10T10:12:06Z"
 last_activity: 2026-10-10
-last_activity_desc: Exact packet authority recorded; both Production database bindings and account/control prerequisites remain
+last_activity_desc: Exact packet approved and both release-source Preview builds READY; Production database bindings remain pending
 state_head: d67fbecf
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -2270,3 +2270,6 @@ October10 exact cutover approval (2026-10-10T10:01:21Z): owner approved d67fbecf
 
 
 Approved release source preparation (2026-10-10T10:08:34Z): exact d67fbecfa41e902cbf506c93dbcf53b60085e802 is published and read back at refs/heads/codex/phase27-cutover-d67fbecf in pengr3/FitOut. Browser environment rows confirm both projects track dev for Production and other unassigned branches use Preview. Automatic isolated Preview builds dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay (web) and dpl_3eFqxwfjD2m7DPmeev4ytQ6B6Q1Z (ops) started; current states dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay=BUILDING, dpl_3eFqxwfjD2m7DPmeev4ytQ6B6Q1Z=QUEUED. These are release-source preparation, not approved Stage A/B/C production deployments or final runtime acceptance. All five Production/walkthrough aliases are unchanged. No Production environment/domain/provider setting or migration changed; no Contact send. Read playwright/.cache/phase27-08/approved-release-branch-20261010.json. Actual both-project Production database binding remains required.
+
+
+Final approved-source Preview build readback (2026-10-10T10:12:06Z): web dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay and ops dpl_3eFqxwfjD2m7DPmeev4ytQ6B6Q1Z are both READY at exact d67fbecfa41e902cbf506c93dbcf53b60085e802 on codex/phase27-cutover-d67fbecf. Existing Production and all three b835 walkthrough aliases are freshly read back unchanged. Source publication/build preparation is complete; these isolated Preview builds are not Stage A/B/C Production builds and do not supply live runtime acceptance. No new access link, provider setting, Production environment/domain/migration or Contact inquiry. Both actual Production DATABASE_URL bindings remain the immediate human/account prerequisite. Authority is approved and must not be requested again. Counts stay19/21, original08/09 and all seven requirements pending. Proof: playwright/.cache/phase27-08/approved-release-builds-final-20261010.json.
