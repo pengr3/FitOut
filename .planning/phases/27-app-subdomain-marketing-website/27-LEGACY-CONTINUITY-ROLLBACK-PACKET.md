@@ -1,10 +1,10 @@
 # Phase 27 — Controlled legacy continuity and rollback packet
 
-This is a prepared proposal. No origin setting, public alias, auth fixture or email was changed by preparing it. Contact remains disabled.
+The owner approved this exact packet on October 12, Manila time. Preflight is incomplete; the live window has not started. No origin setting, public alias, auth fixture or email was changed by preparing it. Contact remains disabled.
 
 The original links are unavailable and have a one-hour lifetime. The live checks therefore need freshly issued links during a controlled old-origin transition. This packet also exercises the real host-only session and full rollback while preserving the exact source and current restoration pins.
 
-The public apex would temporarily serve the app during a maximum 15-minute window. The current approved packet only authorizes source recovery while preserving Stage C origins; this origin/mail/fixture scope needs its own explicit authorization before staging.
+The public apex would temporarily serve the app during a maximum 15-minute window. The current approved packet only authorizes source recovery while preserving Stage C origins; the owner has now explicitly authorized this origin/mail/fixture scope.
 
 Both original and temporary builds must keep Contact disabled. This packet does not exercise Contact quotas, send an inquiry, change a real owner password, invoke financial jobs, replay migrations or change DNS.
 
@@ -16,7 +16,7 @@ The strict Production matrix stays pending until the real observations exist. Pr
 
 ```json
 {
-  "status": "prepared; not executed",
+  "status": "approved; preflight incomplete; live window not started",
   "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
   "current": {
     "web": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
@@ -96,6 +96,17 @@ The strict Production matrix stays pending until the real observations exist. Pr
     "Restore saved Stage C settings and manual domain assignment. Confirm Contactfalse, quota0, no new inquiry mail, and unchanged financial/legal HOLDs."
   ],
   "cleanup": "Only the newly captured fixture ID, exact email, creation time and auth rows may be removed under the specifically approved cleanup scope, after proving zero business records. No broad prefix deletion, no owner account cleanup, no DROP/TRUNCATE or migration replay. Retain delivery metadata and redacted evidence.",
-  "acceptance": "These are newly issued, genuine links across a controlled transition. Do not relabel them as original October10 emails. A supported rehearsal or source-only rollback cannot substitute for these live observations."
+  "acceptance": "These are newly issued, genuine links across a controlled transition. Do not relabel them as original October10 emails. A supported rehearsal or source-only rollback cannot substitute for these live observations.",
+  "authority": {
+    "status": "approved",
+    "recordedAt": "2026-10-11T23:26:31.594Z",
+    "ownerInstruction": "okay approved the legacy-session and email-link packet, go ahead and execute it. keep Contact disabled for now",
+    "scope": "Exact packet at source58897a94, fifteen-minute origins/session/fixture/two-email window and scoped cleanup; Contact false throughout."
+  }
 }
 ```
+
+
+Preflight findings: Vercel get_alias and get_project_domain both return404 for marketing-stage.fitout.live, and project-domain inventory confirms it is absent. Browser tool cannot initialize (failed to write kernel assets, path not found), including after one session reset. No Google/Inngest/email handoff readback is available through the owner browser. No production configuration, alias, fixture, mail or Contact request was changed. Approval is retained; do not request the original packet again.
+
+Local rehearsal attempt bf628203 failed during source expansion due to diskfull before builds; its regenerable partial export was removed safely and only238145536bytes remainfree. Read27-LEGACY-CONTINUITY-EXECUTION.md. Live window remainsunstarted; owner approval retained.
