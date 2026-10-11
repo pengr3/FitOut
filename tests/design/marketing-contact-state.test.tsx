@@ -8,21 +8,17 @@ vi.mock("@/lib/app-origins", () => ({ absoluteMarketingUrl: (path: string) => `h
 vi.mock("@/components/marketing/contact-form", () => ({ ContactForm: () => <form aria-label="Contact inquiry" /> }));
 afterEach(() => { cleanup(); vi.unstubAllEnvs(); });
 
-describe("Contact availability", () => {
-  it("offers the existing email when deployed delivery is disabled", () => {
+describe("Contact privacy and availability", () => {
+  it.each(["preview", "production"])("keeps the form available in %s even when delivery is disabled", (environment) => {
     vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", environment);
     vi.stubEnv("CONTACT_PRODUCTION_ENABLED", "false");
-    render(<Contact />);
-    expect(screen.queryByRole("form")).toBeNull();
-    expect(screen.getByRole("link", { name: "Email FitOut" }).getAttribute("href")).toBe(`mailto:${SUPPORT_EMAIL}`);
-    expect(screen.getByText(/contact form is temporarily unavailable/)).toBeTruthy();
-  });
-  it("keeps the form when deployed sending is configured", () => {
-    vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("CONTACT_PRODUCTION_ENABLED", "true");
-    vi.stubEnv("RESEND_API_KEY", "inert-unit-test-marker");
-    render(<Contact />);
+    vi.stubEnv("RESEND_API_KEY", "");
+    const { container } = render(<Contact />);
     expect(screen.getByRole("form", { name: "Contact inquiry" })).toBeTruthy();
+    expect(screen.queryByRole("link", { name: "Email FitOut" })).toBeNull();
+    expect(container.querySelector('a[href^="mailto:"]')).toBeNull();
+    expect(container.textContent).not.toContain(SUPPORT_EMAIL);
     expect(screen.queryByText(/temporarily unavailable/)).toBeNull();
   });
 });
