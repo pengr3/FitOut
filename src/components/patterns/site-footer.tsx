@@ -76,7 +76,7 @@
 
 import Link from "next/link";
 
-import { absolutePublicUrl } from "@/lib/app-origins";
+import { absoluteMarketingUrl, absolutePublicUrl } from "@/lib/app-origins";
 import { SITE_TAGLINE, SUPPORT_EMAIL } from "@/lib/site";
 
 /**
@@ -190,14 +190,12 @@ export function SiteFooter() {
                 </Link>
               </li>
             ))}
-            {/* THE GUARD, AND IT HAS NO ELSE-BRANCH ON PURPOSE (D-26). While `SUPPORT_EMAIL` is
-                `null` this renders nothing at all — not a placeholder, not a disabled link. The
-                address is INTERPOLATED from the constant and never retyped, which is the half
-                `tests/design/site-contacts.test.ts` checks structurally the moment the constant is
-                set: exactly one such link, and it must read the constant rather than a literal. */}
+            {/* Keep the private recipient out of public markup, including the root 404 fallback
+                serialized into marketing responses. The owner now wants inquiries through the
+                Contact form. Preserve the existing monitored-channel presence guard. */}
             {SUPPORT_EMAIL !== null ? (
               <li>
-                <a href={`mailto:${SUPPORT_EMAIL}`} className={LINK_CLASS}>
+                <a href={absoluteMarketingUrl("/contact")} className={LINK_CLASS}>
                   Support
                 </a>
               </li>
