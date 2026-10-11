@@ -5,7 +5,7 @@ Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg 
 ```json
 {
   "status": "incomplete-live-proof",
-  "recordedAt": "2026-10-11T16:31:31.501Z",
+  "recordedAt": "2026-10-11T23:15:09.667Z",
   "matrixVersion": 1,
   "deployedRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
   "sourceManifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
@@ -187,10 +187,11 @@ Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg 
       "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "unknown-host-denied",
       "expected": "Unchanged required Phase27 matrix contract",
-      "status": "pending",
-      "outcome": "pending",
-      "observed": "No fresh complete observation for this exact source/deployment scenario.",
-      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
+      "status": "observed",
+      "outcome": "pass",
+      "observed": "Real HTTPS404 at the Vercel ingress boundary, no redirect, cookie or app/marketing/internal-error content. Unknown host is denied before application routing; no claim that application code handled this unmapped host.",
+      "proof": "playwright/.cache/phase27-08/remaining8-boundaries-http.json",
+      "observedAt": "2026-10-11T22:17:47.395Z"
     },
     {
       "id": "internal-namespace-denied",
@@ -245,10 +246,11 @@ Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg 
       "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "staff-customer-capability-denied",
       "expected": "Unchanged required Phase27 matrix contract",
-      "status": "pending",
-      "outcome": "pending",
-      "observed": "Real authenticated staff activateHosting denial and unchanged flags/audit passed via home navigation. Exact POST /start-hosting remains unobserved; not relabeled.",
-      "proof": "playwright/.cache/phase27-08/disabled-pair-browser-proofs-58897a94.json"
+      "status": "observed",
+      "outcome": "pass",
+      "observed": "Actual authenticated POST /start-hosting returned the staff denial via the deployed Server Action. Role staff, canBook/canHost false before and after; durable audit ineligible_role matches actor hash and request time; own new session signed out and verified cleared. Current alias/source binding retained.",
+      "proof": "playwright/.cache/phase27-08/remaining8-staff-result-b17a3443-1a15-4582-ac19-4f7b87a9d5d5.json",
+      "observedAt": "2026-10-11T23:10:37.295Z"
     },
     {
       "id": "stale-session-recovery",
@@ -547,9 +549,9 @@ Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg 
     }
   ],
   "highThreats": [
-    "T-27-28: real authenticated staff capability denial passed via current home-route action; exact matrix /start-hosting POST remains unobserved",
     "T-27-29: scoped ingress and synthetic alert proofs pass at their recorded sources; full same-candidate exhaustion-to-alert and rollback/control acceptance remain unproved; public Contact staysdisabled",
-    "T-27-27: valid issued-link/rollback observations remain incomplete"
+    "T-27-27: valid issued-link/rollback observations remain incomplete",
+    "OPS-11 data consistency: readonly primary aggregate shows one separate staff account with both customer capabilities true; activation denies staff roles, but booking/host gates include capability-only checks. Account provenance and safe remediation remain unverified; no account changed."
   ],
   "rollbackVerified": false,
   "contactControlsVerified": false,
@@ -1572,7 +1574,7 @@ Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg 
     "screenshot": "playwright/.cache/phase27-08/disabled-pair-staff-denial-58897a94.png",
     "scope": "Real authenticated staff action denial; exact matrix POST /start-hosting path is not inferred from the home-route UI action"
   },
-  "freshObservedCount": 24,
+  "freshObservedCount": 29,
   "supplementalSourceRecovery": {
     "recordedAt": "2026-10-11T16:28:21.813Z",
     "kind": "source-only recovery",
@@ -1628,7 +1630,22 @@ Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg 
     "processStatus": "Original execution session no longer exists; capture stopped after19rounds. Missing later samples cannot be reconstructed.",
     "extendedWindowComplete": false
   },
-  "finalDisabledReadbacks": "playwright/.cache/phase27-08/disabled-pair-final-readbacks.json"
+  "finalDisabledReadbacks": "playwright/.cache/phase27-08/disabled-pair-final-readbacks.json",
+  "remainingProofs": {
+    "recordedAt": "2026-10-11T23:15:09.667Z",
+    "observed": 29,
+    "pending": [
+      "host-only-session-bridge",
+      "issued-verify-token",
+      "issued-reset-token",
+      "contact-trusted-ingress-per-ip",
+      "contact-distributed-global-budget",
+      "rollback-verified"
+    ],
+    "staffProviderBinding": "playwright/.cache/phase27-08/remaining8-staff-provider-binding.json",
+    "legacyLinkAvailability": "playwright/.cache/phase27-08/remaining8-old-link-availability.json",
+    "contactEnabled": false
+  }
 }
 ```
 
@@ -1672,3 +1689,8 @@ Offline live validator rerun after recording this result still FAILs. It specifi
 ## Disabled58897a94 Production update
 
 2026-10-11T15:58:10.380Z: Current public web/Ops now serve exact58897a94 under new owner authority. 24/35 fresh rows; original30 dated multi-source rows archived intact under historicalLiveAcceptance. Staff capability denial is supplemental actual proof, not a forged exact-path observation. Contact remainsdisabled. Plan09 incomplete.
+
+
+## Remaining live proofs — October 12 Manila
+
+Fresh acceptance is 29/35 at exact 58897a94. Unknown-host ingress denial and authenticated exact POST /start-hosting now pass with real proof. Staff flags remained false and its temporary session was cleared; the durable audit and unchanged alias bind the request. Six matrix cases remain pending. Original pre-move links are unavailable/expired; the prepared controlled-transition packet is not executed or approved. Contact remains disabled. Plan 09, all seven requirements, full rollback, extended monitoring, external inventory and remaining Contact controls stay pending. One separate primary staff account with both customer capabilities true is logged as a new data-consistency gap; the passing test applies only to its identified flags-off account.

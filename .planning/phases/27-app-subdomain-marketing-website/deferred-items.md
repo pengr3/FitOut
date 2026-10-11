@@ -222,3 +222,12 @@ permanent default scheduling fix remains deferred.
 - Disabled58897a94 rollout: actual staff activateHosting denial is proved via home navigation, while the required matrix URL fixes POST /start-hosting. Plan a proper captured exact-route replay or explicitly reviewed acceptance-contract correction; never relabel the home action as that path.
 - Previously issued valid verify/reset links remainunavailable/unconfirmed; reset TTL1hour makes an original pre-cutover reset link unavailable a daylater. Plan a controlled issued-link transition test without changing the owner password or collecting bearer links.
 - Current customer browse shows a broken seed-listing image; captured staff-denial screenshot retains it. UI/media cleanup remainsoutside this release-source proof scope.
+
+
+## October 12 remaining-proof follow-up
+
+Exact authenticated POST /start-hosting is now observed: staff denied for ineligible_role, both capabilities unchanged false, own new session signed out and cleared. The home-route-only proof gap is resolved by the new exact-route artifact; preserve earlier dated evidence. Unknown-host live ingress denial also passes. Fresh count29/35; six matrix cases remain pending.
+
+New OPS-11 data consistency gap: readonly primary aggregate at 2026-10-11T23:15:21.097Z finds one separate staff row with both can_book and can_host true. It is not the earlier documented host@fitout.test seed. Capability activation uses authoritative role equality and refuses staff, but committed placeHold/rebook capability checks and host layout include capability-only guards. No production booking/listing action was attempted and no account was changed. Investigate provenance and any business records, then plan explicit role/data remediation and regression proof; do not silently clear flags or treat the flags-off staff test as coverage of this account.
+
+Prepared controlled legacy continuity/rollback packet requires fresh local exact-source rehearsal and provider prerequisites before an exact public-origin/auth-mail/fixture window. Current Contactfalse stops quota exercise before parsing; retain scoped historical ingress/alert tests with their original deployments. No gate is waived.

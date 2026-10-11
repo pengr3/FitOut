@@ -1,0 +1,101 @@
+# Phase 27 — Controlled legacy continuity and rollback packet
+
+This is a prepared proposal. No origin setting, public alias, auth fixture or email was changed by preparing it. Contact remains disabled.
+
+The original links are unavailable and have a one-hour lifetime. The live checks therefore need freshly issued links during a controlled old-origin transition. This packet also exercises the real host-only session and full rollback while preserving the exact source and current restoration pins.
+
+The public apex would temporarily serve the app during a maximum 15-minute window. The current approved packet only authorizes source recovery while preserving Stage C origins; this origin/mail/fixture scope needs its own explicit authorization before staging.
+
+Both original and temporary builds must keep Contact disabled. This packet does not exercise Contact quotas, send an inquiry, change a real owner password, invoke financial jobs, replay migrations or change DNS.
+
+The fixture receives exactly two auth emails at the owner Gmail plus-address listed below. Only that new fixture can be cleaned up after its identity and zero business records are verified.
+
+Auth links are opened through browser handoffs without exposing their bearer URLs in chat. Reset continuity stops at the valid reset form; no password change is submitted.
+
+The strict Production matrix stays pending until the real observations exist. Preparing or approving the packet is not a verification pass.
+
+```json
+{
+  "status": "prepared; not executed",
+  "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+  "current": {
+    "web": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+    "ops": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+    "app": "https://app.fitout.live",
+    "marketing": "https://fitout.live",
+    "compatibility": null,
+    "contact": false
+  },
+  "purpose": [
+    "A genuine old-host-only session through a controlled origin transition",
+    "Genuine verification and reset emails issued before retiring the test legacy origin",
+    "Full origin/session/provider rollback and restoration"
+  ],
+  "stages": [
+    {
+      "stage": "A",
+      "app": "https://fitout.live",
+      "compatibility": "https://app.fitout.live",
+      "marketing": "https://marketing-stage.fitout.live",
+      "ops": "https://ops.fitout.live",
+      "contact": false
+    },
+    {
+      "stage": "B",
+      "app": "https://app.fitout.live",
+      "compatibility": "https://fitout.live",
+      "marketing": "https://marketing-stage.fitout.live",
+      "ops": "https://ops.fitout.live",
+      "contact": false
+    },
+    {
+      "stage": "restore current pair",
+      "app": "https://app.fitout.live",
+      "compatibility": null,
+      "marketing": "https://fitout.live",
+      "ops": "https://ops.fitout.live",
+      "contact": false
+    }
+  ],
+  "testFixture": {
+    "email": "pengr.clmc.3+phase27-continuity@gmail.com",
+    "role": "user",
+    "canBook": false,
+    "canHost": false,
+    "accounts": 1,
+    "authEmails": 2,
+    "ownerAccountPasswordChanged": false,
+    "financialOrListingDataCreated": false,
+    "credentialHandling": "An ephemeral fixture credential remains private to the test client; no owner password, cookie, bearer link, or signing secret is persisted in evidence."
+  },
+  "limits": {
+    "publicOriginWindowMinutes": 15,
+    "validLinkTTLMinutes": 60,
+    "authEmails": 2,
+    "fixtureAccounts": 1,
+    "contactPostRequests": 0,
+    "financialInvocations": 0,
+    "dnsChanges": 0,
+    "migrations": 0,
+    "secretRotations": 0
+  },
+  "preconditions": [
+    "Owner explicitly approves this exact origin/mail/fixture/cleanup scope before staging. The current source-update packet preserves Stage C origins.",
+    "Fresh local built Stage A/B rehearsal at the exact source passes. Existing D67 rehearsal remains historical.",
+    "Existing marketing-stage alias, exact Google old/new redirect URIs, current alias pins, both database bindings and all nonsecret origin/disabled settings are read back. No new domain or wildcard trust.",
+    "Both staged pairs are READY and Contactfalse/no-mail-modefalse is saved and confirmed before traffic. Domain assignment remains manual.",
+    "The single financial Inngest registration remains at14 unchanged functions, with no manual financial invocation. Automatic staging refreshes must be reconciled before the window; otherwise stop.",
+    "Fixture email does not already exist. Current owner/staff accounts, sessions and capability flags are left unchanged.",
+    "Operator can restore the current pair immediately. Stop after two consecutive health failures or any signature, session, provider, or fixture mismatch."
+  ],
+  "observations": [
+    "Record new Stage A/B deployment IDs and source, plus real old/new host session behavior; never transfer a browser cookie between hosts.",
+    "Issue one real verification email and one reset email for the new fixture from the old authority while it is active.",
+    "Restore the exact current disabled pair before15minutes. Open the real old links through the owner browser handoff while valid; verify email consumption on the fixture and show the reset form backed by an unexpired fixture reset record. Do not submit a password change.",
+    "Read back four health surfaces, exact origins/aliases, host-only session recovery, direct signed-receiver boundaries and one financial Inngest registration with14 unchanged functions.",
+    "Restore saved Stage C settings and manual domain assignment. Confirm Contactfalse, quota0, no new inquiry mail, and unchanged financial/legal HOLDs."
+  ],
+  "cleanup": "Only the newly captured fixture ID, exact email, creation time and auth rows may be removed under the specifically approved cleanup scope, after proving zero business records. No broad prefix deletion, no owner account cleanup, no DROP/TRUNCATE or migration replay. Retain delivery metadata and redacted evidence.",
+  "acceptance": "These are newly issued, genuine links across a controlled transition. Do not relabel them as original October10 emails. A supported rehearsal or source-only rollback cannot substitute for these live observations."
+}
+```

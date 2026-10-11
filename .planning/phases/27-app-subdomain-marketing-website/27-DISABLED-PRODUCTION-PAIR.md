@@ -8,9 +8,9 @@ Exact58897a94 is now serving both public Production projects. Contact remainsdis
 
 Staging retained manual domain assignment and saved Contactfalse on both; web verificationfalse and Ops absent/defaultfalse. All three public aliases were promoted afterREADY. Empty correct-Origin ContactPOST503 proves the Production disabled guard before parsing. Immutable deployment env values are not exposed by the connector; no captured flag snapshot is fabricated. Automatic assignment was restoredfalse on both after promotion. No dev push, DNS change, migration replay, financial job invocation or inquiry occurred.
 
-Fresh complete matrix observations: **27/35**. Historical30 dated observations across D67 and bounded588 are preserved under historicalLiveAcceptance, with original IDs/source/time. The new matrix retains8pending cases (countderived by actual fresh results); no old proof was reassigned.
+Fresh complete matrix observations: **29/35**. Historical30 dated observations across D67 and bounded588 are preserved under historicalLiveAcceptance, with original IDs/source/time. The new matrix retains6pending cases (countderived by actual fresh results); no old proof was reassigned.
 
-Actual owner-entered staff credentials reached both Ops and customer app. The customer home-menu Start hosting server action denied with “This account cannot activate hosting.” Primary audit recorded ineligible_role at2026-10-11T15:45:46.534355Z and both capability flags stayedfalse. This resolves the real capability-risk observation at the home action; exact matrix POST /start-hosting remainspending. Passwords/cookies were not collected.
+Actual owner-entered staff credentials reached both Ops and customer app. The customer home-menu Start hosting server action denied with “This account cannot activate hosting.” Primary audit recorded ineligible_role at2026-10-11T15:45:46.534355Z and both capability flags stayedfalse. This resolves the real capability-risk observation at the home action; The exact matrix POST /start-hosting now passes at2026-10-11T23:10:37.295Z with a matching durable denial audit, unchanged flags and its own temporary session cleared. Passwords/cookies were not persisted.
 
 Inngest automatically refreshed financial fitout to the new disabled web build:14 identical names and a single Active registration. Separate fitout-contact-alerts remainsapex with one5-minute monitor. Actual scheduled run01M4NTJ1N0J1M05HRHPVN6PQQQ after rollout completed with active=true, quotaAvailable=true, pendingProcessed=0, staleCount=0. This confirms real scheduler/receiver continuity, not actual exhaustion delivery or financial key correspondence. Primary quota0; alert1sent/0pending.
 
@@ -37,7 +37,7 @@ Browser approval review blocked clicking Redeploy solely for snapshot inspection
     "preview": "dpl_C9qrNjxKPHVk5jTsgvH1Cr9JFn9Q"
   },
   "contactEnabled": false,
-  "freshObservedCount": 27,
+  "freshObservedCount": 29,
   "proofs": [
     {
       "path": "playwright/.cache/phase27-08/disabled-pair-authority-58897a94.json",
@@ -118,3 +118,6 @@ Browser approval review blocked clicking Redeploy solely for snapshot inspection
 
 
 Final canonical validation: preparedPASS; deployedFAIL and liveFAIL on the eight pending matrix rows, partial provider inventory, unresolved high threats, full rollback/Contact controls and controlled inquiry/receipt/reply evidence. Source and validator unchanged; no gate was weakened. Logs are retained under playwright/.cache/phase27-08/disabled-pair-verify-final-{stage}.log.
+
+
+Latest follow-up 2026-10-11T23:15:09.667Z: unknown-host boundary and exact authenticated staff POST pass. Six matrix cases remain pending. Read27-REMAINING-LIVE-PROOFS.md. Separate staff capability-data inconsistency is logged; no production account, Contact flag, provider, origin or deployment changed.
