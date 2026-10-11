@@ -1,5 +1,7 @@
 # Phase 27 — Plan 09 live checkpoint
 
+Latest checkpoint 2026-10-11T16:28:21.817Z: Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg and Ops dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4. Contact remains disabled. Fresh matrix27/35; historical30 observations remain archived with original source/IDs/time. Source-only recovery passed; full topology rollback and extended monitoring remain incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-DISABLED-PRODUCTION-PAIR.md. Earlier source statements below are dated history.
+
 Current source reconciliation (2026-10-11T09:33:12.518Z): Release-source reconciliation completed at58897a94: six fresh full gates and prepared validation pass; old D67 proof/approval archived faithfully. Current web b61cb4a4 and Ops D67 remain disabled, four health200/Contact503, primaryquota0/pendingalerts0. No external mutation or inquiry. Deployed/live validation retains actual candidate-deployment/source/authority and other live gaps. Plan09 remains20/21; curated144/151; all7requirements pending;30/35 dated multi-source observations. Read27-RELEASE-SOURCE-RECONCILIATION.md and revised packet. Original D67 cutover/database approvals remain resolved for their original scope; candidate permanent rollout authority is separate. No repeat approval of the completed ingress test is required.
 
 Earlier dated checkpoint follows.
@@ -69,3 +71,6 @@ Actual Vercel ingress passed at exact 58897a94 under the owner-approved bounded 
 
 
 Offline live validator rerun after recording this result still FAILs. It specifically rejects contact-trusted-ingress-per-ip for candidate identity mismatch: the independently approved58897a94 scoped test is newer than the D67 engineering/cutover packet. The actual ingress test passed; it does not supply single-release acceptance. Other reported gaps are partial external inventory/high threats, staff capability denial, genuine issued verification/reset links, aggregate quota-to-alert chain, full rollback/Contact controls, actual inquiry receipt/Reply-To/reply and controlled inquiry authority. Preserve these failures and reconcile the release packet rather than weakening the validator or relabeling historical source evidence.
+
+
+2026-10-11T15:58:10.380Z: Disabled58897a94 pair nowlive; Contactfalse;24/35 fresh matrix observations, old30archived. Real staff home-action denial/auditpassed; exactpathnotclaimed. Separate scheduled monitorprocessed0, financial14unchanged. Initial15minhealthy/extendedmonitorrunning. Read27-DISABLED-PRODUCTION-PAIR.md. Plan09stillincomplete.

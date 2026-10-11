@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: exact58897a94 source preparation reconciled; single-release rollout/live observations pending"
-last_updated: "2026-10-11T09:33:12.518Z"
+stopped_at: "Plan09: disabled588 pair,27 fresh proofs, remaining live gates pending"
+last_updated: "2026-10-11T16:28:21.817Z"
 last_activity: 2026-10-11
-last_activity_desc: Exact58897a94 six-gate source reconciliation prepared; Contact disabled, no external changes
-state_head: b61cb4a4
+last_activity_desc: Disabled exact58897a94 source pair promoted; Contactfalse; live proofs recorded
+state_head: 58897a94
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -61,6 +61,9 @@ progress:
   completed_plans: 144
   percent: 15
 ---
+
+Latest checkpoint 2026-10-11T16:28:21.817Z: Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg and Ops dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4. Contact remains disabled. Fresh matrix27/35; historical30 observations remain archived with original source/IDs/time. Source-only recovery passed; full topology rollback and extended monitoring remain incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-DISABLED-PRODUCTION-PAIR.md. Earlier source statements below are dated history.
+
 
 Current release-source checkpoint (2026-10-11T09:33:12.518Z): Release-source reconciliation completed at58897a94: six fresh full gates and prepared validation pass; old D67 proof/approval archived faithfully. Current web b61cb4a4 and Ops D67 remain disabled, four health200/Contact503, primaryquota0/pendingalerts0. No external mutation or inquiry. Deployed/live validation retains actual candidate-deployment/source/authority and other live gaps. Plan09 remains20/21; curated144/151; all7requirements pending;30/35 dated multi-source observations. Read27-RELEASE-SOURCE-RECONCILIATION.md and revised packet.
 

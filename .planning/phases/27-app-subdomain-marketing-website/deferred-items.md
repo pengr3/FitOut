@@ -7,6 +7,9 @@ scope_expansion: false
 repair_started: false
 ---
 
+Latest checkpoint 2026-10-11T16:28:21.817Z: Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg and Ops dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4. Contact remains disabled. Fresh matrix27/35; historical30 observations remain archived with original source/IDs/time. Source-only recovery passed; full topology rollback and extended monitoring remain incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-DISABLED-PRODUCTION-PAIR.md. Earlier source statements below are dated history.
+
+
 # Phase 27 deferred findings
 
 The user decided: "let's keep the scope as is, then log findings as gaps and
@@ -214,3 +217,8 @@ Final disposition: the scheduling-only full run passed all six gates at exact
 passes/original six skips, and all 59 browser cases. All source guards passed.
 The failed parallel run and refused duplicate collection are retained; the
 permanent default scheduling fix remains deferred.
+
+
+- Disabled58897a94 rollout: actual staff activateHosting denial is proved via home navigation, while the required matrix URL fixes POST /start-hosting. Plan a proper captured exact-route replay or explicitly reviewed acceptance-contract correction; never relabel the home action as that path.
+- Previously issued valid verify/reset links remainunavailable/unconfirmed; reset TTL1hour makes an original pre-cutover reset link unavailable a daylater. Plan a controlled issued-link transition test without changing the owner password or collecting bearer links.
+- Current customer browse shows a broken seed-listing image; captured staff-denial screenshot retains it. UI/media cleanup remainsoutside this release-source proof scope.

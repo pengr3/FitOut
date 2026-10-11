@@ -1,30 +1,30 @@
 # Phase27 actual production evidence — incomplete
 
-The original D67 source was deployed through separate Stage A/B/C builds. Current traffic is disabled web b61cb4a4 and Ops D67; proposed58897a94 now has six fresh full engineering gates. The opening deployedRevision/deployment IDs remain the original dated D67 matrix context, not a current alias claim. Read27-RELEASE-SOURCE-RECONCILIATION.md. This records dated source-specific facts and five outstanding matrix scenarios; it does not complete Plan09 or release Contact/payments/legal. Browser aggregate clock entries are approximate capture windows; exact HTTP/database readbacks carry their own times.
+Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg and Ops dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4. Contact remains disabled. Fresh matrix27/35; historical30 observations remain archived with original source/IDs/time. Source-only recovery passed; full topology rollback and extended monitoring remain incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-DISABLED-PRODUCTION-PAIR.md. Earlier source statements below are dated history.
 
 ```json
 {
   "status": "incomplete-live-proof",
-  "recordedAt": "2026-10-10T11:57:15.492Z",
+  "recordedAt": "2026-10-11T16:31:31.501Z",
   "matrixVersion": 1,
-  "deployedRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
-  "sourceManifestSha256": "da10f8a0faea204c810cbe544142971181c86bab0d252d5515ea3b671d8a8157",
-  "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+  "deployedRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+  "sourceManifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
+  "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
   "deployments": {
     "customer": {
-      "id": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "id": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "origin": "https://app.fitout.live"
     },
     "ops": {
-      "id": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "id": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "origin": "https://ops.fitout.live"
     },
     "preview": {
-      "id": "dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
-      "origin": "https://fitout-qduqjxsvi-pengr3s-projects.vercel.app"
+      "id": "dpl_C9qrNjxKPHVk5jTsgvH1Cr9JFn9Q",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+      "origin": "https://fitout-mfuqlntu7-pengr3s-projects.vercel.app"
     }
   },
   "hostProviderControlMatrix": [
@@ -33,529 +33,521 @@ The original D67 source was deployed through separate Stage A/B/C builds. Curren
       "host": "fitout.live",
       "url": "https://fitout.live/",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "marketing-home",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:32:54.344Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual HTTPS200 on marketing host; no redirect or internal-error marker.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:29.113Z"
     },
     {
       "id": "marketing-hosts",
       "host": "fitout.live",
       "url": "https://fitout.live/hosts",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "marketing-hosts",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:32:55.228Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual HTTPS200 on marketing host; no redirect or internal-error marker.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:30.643Z"
     },
     {
       "id": "marketing-players",
       "host": "fitout.live",
       "url": "https://fitout.live/players",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "marketing-players",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:32:56.315Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual HTTPS200 on marketing host; no redirect or internal-error marker.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:31.507Z"
     },
     {
       "id": "marketing-about",
       "host": "fitout.live",
       "url": "https://fitout.live/about",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "marketing-about",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:32:57.387Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual HTTPS200 on marketing host; no redirect or internal-error marker.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:32.572Z"
     },
     {
       "id": "marketing-faq",
       "host": "fitout.live",
       "url": "https://fitout.live/faq",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "marketing-faq",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:32:58.204Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual HTTPS200 on marketing host; no redirect or internal-error marker.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:33.138Z"
     },
     {
       "id": "marketing-contact",
       "host": "fitout.live",
       "url": "https://fitout.live/contact",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "marketing-contact",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:32:58.825Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual HTTPS200 on marketing host; no redirect or internal-error marker.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:33.688Z"
     },
     {
       "id": "app-home-only",
       "host": "app.fitout.live",
       "url": "https://app.fitout.live/",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "app-home-only",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:33:02.597Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual customer search home200, correct search content and no-store response.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:35.935Z"
     },
     {
       "id": "www-full-query",
       "host": "www.fitout.live",
-      "url": "https://www.fitout.live/?tag=a&tag=b&phase27=continuity",
+      "url": "https://www.fitout.live/",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "www-full-query",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "307 to apex root preserves repeated/full query exactly.",
-      "observedAt": "2026-10-10T11:52:05.061Z",
-      "proof": "playwright/.cache/phase27-08/production-www-root-query-20261010.json"
+      "observed": "Actual307 to apex with both supplied proof/keep query keys preserved.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:41.088Z"
     },
     {
       "id": "old-app-deep-link",
       "host": "fitout.live",
-      "url": "https://fitout.live/profile?tab=bookings&tag=a&tag=b&phase27=continuity",
+      "url": "https://fitout.live/profile",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "old-app-deep-link",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 307; no inappropriate redirect or internal error. Full repeated query preserved to app.",
-      "observedAt": "2026-10-10T11:33:03.402Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual307 to customer profile preserving supplied query.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:34.553Z"
     },
     {
       "id": "ops-front-door",
       "host": "ops.fitout.live",
       "url": "https://ops.fitout.live/",
       "method": "GET",
-      "deploymentId": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "ops-front-door",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 404; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:33:05.188Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual Ops root404; separate staff /login200. Root never serves customer search.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:41.225Z"
     },
     {
       "id": "unknown-host-denied",
       "host": "lookalike.fitout.live",
       "url": "https://lookalike.fitout.live/",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "unknown-host-denied",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
-      "status": "observed",
-      "outcome": "pass",
-      "observed": "Actual HTTPS 404; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:33:06.427Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "expected": "Unchanged required Phase27 matrix contract",
+      "status": "pending",
+      "outcome": "pending",
+      "observed": "No fresh complete observation for this exact source/deployment scenario.",
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
     },
     {
       "id": "internal-namespace-denied",
       "host": "app.fitout.live",
       "url": "https://app.fitout.live/marketing",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "internal-namespace-denied",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 404; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:33:06.490Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual internal /marketing namespace404.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:40.198Z"
     },
     {
       "id": "host-only-session-bridge",
       "host": "fitout.live",
       "url": "https://fitout.live/auth/session-check",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "host-only-session-bridge",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
-      "status": "observed",
-      "outcome": "pass",
-      "observed": "Normal old session-check bridge returns to authenticated app; app was initially anonymous at new host; no signed-cookie export. Staff sign-out does not end app session.",
-      "observedAt": "2026-10-10T11:53:30Z",
-      "proof": "playwright/.cache/phase27-08/production-browser-final-20261010.json"
+      "expected": "Unchanged required Phase27 matrix contract",
+      "status": "pending",
+      "outcome": "pending",
+      "observed": "No fresh complete observation for this exact source/deployment scenario.",
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
     },
     {
       "id": "customer-ops-session-isolation",
       "host": "ops.fitout.live",
       "url": "https://ops.fitout.live/ops",
       "method": "GET",
-      "deploymentId": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "customer-ops-session-isolation",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "After staff sign-out, Ops /ops is cloaked while customer app remains authenticated. Pre-existing staff console was accessible before sign-out.",
-      "observedAt": "2026-10-10T11:53:30Z",
-      "proof": "playwright/.cache/phase27-08/production-browser-final-20261010.json"
+      "observed": "Actual owner customer profile authenticated, Ops /ops Page not found, then customer profile still authenticated. Browser host-cookie isolation without token export.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-auth-final.json",
+      "observedAt": "2026-10-11T16:23:26.396Z"
     },
     {
       "id": "staff-customer-capability-denied",
       "host": "app.fitout.live",
       "url": "https://app.fitout.live/start-hosting",
       "method": "POST",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "staff-customer-capability-denied",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
-      "status": "unknown",
+      "expected": "Unchanged required Phase27 matrix contract",
+      "status": "pending",
       "outcome": "pending",
-      "observed": "No staff-only customer-origin credential/POST test. Existing staff continuity and customer-to-ops browser denial do not substitute.",
-      "proof": "Pending actual observation",
-      "observedAt": "2026-10-10T11:57:15.492Z"
+      "observed": "Real authenticated staff activateHosting denial and unchanged flags/audit passed via home navigation. Exact POST /start-hosting remains unobserved; not relabeled.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-browser-proofs-58897a94.json"
     },
     {
       "id": "stale-session-recovery",
       "host": "app.fitout.live",
       "url": "https://app.fitout.live/auth/session-check",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "stale-session-recovery",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Malformed test cookie expires with Secure/HttpOnly and no Domain; no-store307 returns app login.",
-      "observedAt": "2026-10-10T11:34:54.343Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-supplemental-20261010.json"
+      "observed": "Fabricated invalid session yields307 login and secure HttpOnly host-only deletion, no-store.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-supplemental-58897a94.json",
+      "observedAt": "2026-10-11T15:42:04.973Z"
     },
     {
       "id": "google-fresh-state",
       "host": "app.fitout.live",
       "url": "https://app.fitout.live/api/auth/callback/google",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "google-fresh-state",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Fresh final app Google flow returns authenticated app home, with no code/state replay or credential copy.",
-      "observedAt": "2026-10-10T11:53:30Z",
-      "proof": "playwright/.cache/phase27-08/production-browser-final-20261010.json"
+      "observed": "Actual sign-out, app login Google button, authenticated return and owner profile. Fresh end-to-end flow; callback query/state/token not inspected or collected.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-auth-final.json",
+      "observedAt": "2026-10-11T16:23:26.396Z"
     },
     {
       "id": "issued-verify-token",
       "host": "fitout.live",
       "url": "https://fitout.live/api/auth/verify-email",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "issued-verify-token",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
-      "status": "unknown",
+      "expected": "Unchanged required Phase27 matrix contract",
+      "status": "pending",
       "outcome": "pending",
-      "observed": "Previously issued, still-valid owner verification link unavailable; fabricated invalid bridge is supporting evidence only.",
-      "proof": "Pending actual observation",
-      "observedAt": "2026-10-10T11:57:15.492Z"
+      "observed": "No fresh complete observation for this exact source/deployment scenario.",
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
     },
     {
       "id": "issued-reset-token",
       "host": "fitout.live",
       "url": "https://fitout.live/reset-password",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "issued-reset-token",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
-      "status": "unknown",
+      "expected": "Unchanged required Phase27 matrix contract",
+      "status": "pending",
       "outcome": "pending",
-      "observed": "Previously issued, still-valid owner reset link unavailable; fabricated invalid bridge is supporting evidence only.",
-      "proof": "Pending actual observation",
-      "observedAt": "2026-10-10T11:57:15.492Z"
+      "observed": "No fresh complete observation for this exact source/deployment scenario.",
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
     },
     {
       "id": "next-link-rsc-history",
       "host": "fitout.live",
       "url": "https://fitout.live/hosts",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "next-link-rsc-history",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Client-side Home/Hosts content and title update; Back/Forward restore correct marketing views; same-tab app entry journeys pass.",
-      "observedAt": "2026-10-10T11:53:30Z",
-      "proof": "playwright/.cache/phase27-08/production-browser-final-20261010.json"
+      "observed": "Actual browser Next Hosts click then back restored correct marketing URL, heading and title.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-browser-proofs-58897a94.json",
+      "observedAt": "2026-10-11T15:42:50Z"
     },
     {
       "id": "rsc-prefetch-isolation",
       "host": "app.fitout.live",
       "url": "https://app.fitout.live/",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "rsc-prefetch-isolation",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Three app RSC prefetch responses contain app search, no marketing shell, correct text/x-component and private no-store policy.",
-      "observedAt": "2026-10-10T11:33:19.952Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual app RSC prefetch contains customer search, excludes marketing hero.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-supplemental-58897a94.json",
+      "observedAt": "2026-10-11T15:42:02.536Z"
     },
     {
       "id": "alternating-html-rsc-cache",
       "host": "fitout.live",
       "url": "https://fitout.live/",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "alternating-html-rsc-cache",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Three rounds on both hosts keep marketing/app content separate; RSC content and vary headers match. Supplemental marketing RSC includes Good plans, no app search.",
-      "observedAt": "2026-10-10T11:33:19.952Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual alternating RSC/HTML and host requests retained expected content types and host-specific bodies.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-supplemental-58897a94.json",
+      "observedAt": "2026-10-11T15:42:03.513Z"
     },
     {
       "id": "metadata-robots-sitemap",
       "host": "fitout.live",
       "url": "https://fitout.live/sitemap.xml",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "metadata-robots-sitemap",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Marketing six exact canonical URLs, robots allow public root and disallow internal/API routes, sitemap has six apex URLs, advertised social image returns PNG200. Unused unadvertised opengraph-image404 retained.",
-      "observedAt": "2026-10-10T11:34:54.629Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-supplemental-20261010.json"
+      "observed": "Actual apex canonical plus expected marketing sitemap locations and robots sitemap.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-supplemental-58897a94.json",
+      "observedAt": "2026-10-11T15:42:03.897Z"
     },
     {
       "id": "paymongo-old-direct",
       "host": "fitout.live",
       "url": "https://fitout.live/api/paymongo/webhook",
       "method": "POST",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "paymongo-old-direct",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 400; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:33:06.861Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual unsigned empty POST reaches direct handler without redirect; signature/auth rejection, no valid event.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:42.837Z"
     },
     {
       "id": "paymongo-target-direct",
       "host": "app.fitout.live",
       "url": "https://app.fitout.live/api/paymongo/webhook",
       "method": "POST",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "paymongo-target-direct",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 400; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:33:07.193Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual unsigned empty POST reaches direct handler without redirect; signature/auth rejection, no valid event.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:44.232Z"
     },
     {
       "id": "didit-old-direct",
       "host": "fitout.live",
       "url": "https://fitout.live/api/didit/webhook",
       "method": "POST",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "didit-old-direct",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 400; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:33:07.518Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual unsigned empty POST reaches direct handler without redirect; signature/auth rejection, no valid event.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:43.284Z"
     },
     {
       "id": "didit-target-direct",
       "host": "app.fitout.live",
       "url": "https://app.fitout.live/api/didit/webhook",
       "method": "POST",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "didit-target-direct",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 400; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:33:07.866Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual unsigned empty POST reaches direct handler without redirect; signature/auth rejection, no valid event.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:44.587Z"
     },
     {
       "id": "inngest-old-direct",
       "host": "fitout.live",
       "url": "https://fitout.live/api/inngest",
       "method": "POST",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "inngest-old-direct",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 401; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:33:08.182Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual unsigned empty POST reaches direct handler without redirect; signature/auth rejection, no valid event.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:43.906Z"
     },
     {
       "id": "inngest-target-direct",
       "host": "app.fitout.live",
       "url": "https://app.fitout.live/api/inngest",
       "method": "POST",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "inngest-target-direct",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 401; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:33:08.510Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual unsigned empty POST reaches direct handler without redirect; signature/auth rejection, no valid event.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:44.908Z"
     },
     {
       "id": "preview-account-isolation",
-      "host": "fitout-qduqjxsvi-pengr3s-projects.vercel.app",
-      "url": "https://fitout-qduqjxsvi-pengr3s-projects.vercel.app/",
+      "host": "fitout-mfuqlntu7-pengr3s-projects.vercel.app",
+      "url": "https://fitout-mfuqlntu7-pengr3s-projects.vercel.app/",
       "method": "GET",
-      "deploymentId": "dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_C9qrNjxKPHVk5jTsgvH1Cr9JFn9Q",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "preview-account-isolation",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Exact D67 Preview initially anonymous with zero bookable spaces; existing fixture login increases isolated session count1->2, while Production fixture counts remain0/0. No new bypass or protection change.",
-      "observedAt": "2026-10-10T11:47:22.000Z",
-      "proof": "playwright/.cache/phase27-08/production-exact-preview-isolation-20261010.json"
+      "observed": "Same browser: Production owner profile authenticated, exact588 Preview home logged out and /profile returns login, Production profile still authenticated. Read-only owner-account count primary1/schema-only Preview0. No account/session/token export or new account.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-preview-isolation-final.json",
+      "observedAt": "2026-10-11T16:30:51.047Z"
     },
     {
       "id": "contact-default-disabled",
       "host": "fitout.live",
       "url": "https://fitout.live/api/contact",
       "method": "POST",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "contact-default-disabled",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Actual HTTPS 503; no inappropriate redirect or internal error. ",
-      "observedAt": "2026-10-10T11:33:09.032Z",
-      "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      "observed": "Actual correct-Origin empty ContactPOST503 before parsing; savedflagsfalse.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:45.216Z"
     },
     {
       "id": "contact-trusted-ingress-per-ip",
       "host": "fitout.live",
       "url": "https://fitout.live/api/contact",
       "method": "POST",
-      "deploymentId": "dpl_2GQFRsod2L9XsEegZJRKKRW7SMLT",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
       "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "contact-trusted-ingress-per-ip",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
-      "status": "observed",
-      "outcome": "pass",
-      "observed": "Actual apex Vercel ingress: A3/B2 no-mail reservations, distinct module UUIDs, sixth shared429 Retry-After844 despite B handling only3; spoof429/806 with identical5-attempt fingerprints. Independent mobile deny, exact disabled baseline restoration within151s and owned cleanup2 confirmed.",
-      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-VERCEL-INGRESS-RESULT.md",
-      "observedAt": "2026-10-11T07:53:43.353Z"
+      "expected": "Unchanged required Phase27 matrix contract",
+      "status": "pending",
+      "outcome": "pending",
+      "observed": "No fresh complete observation for this exact source/deployment scenario.",
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
     },
     {
       "id": "contact-distributed-global-budget",
       "host": "fitout.live",
       "url": "https://fitout.live/api/contact",
       "method": "POST",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "contact-distributed-global-budget",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
-      "status": "unknown",
+      "expected": "Unchanged required Phase27 matrix contract",
+      "status": "pending",
       "outcome": "pending",
-      "observed": "Actual exact-source Production HTTP global429 with Retry-After3311 under owned100-reservation primary fixture; exact fixture unchanged and removed after recovery. Manual operator restore503 observed. Automatic quota alert notification remains unproved; row stays pending.",
-      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md",
-      "observedAt": "2026-10-11T05:31:14.208Z"
+      "observed": "No fresh complete observation for this exact source/deployment scenario.",
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
     },
     {
       "id": "contact-disabled-recovery",
       "host": "fitout.live",
       "url": "https://fitout.live/api/contact",
       "method": "POST",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "contact-disabled-recovery",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+      "expected": "Unchanged required Phase27 matrix contract",
       "status": "observed",
       "outcome": "pass",
-      "observed": "Disabled Contact gives recoverable failure, retains all synthetic fields and re-enables button; no delivery announcement; primary quota remains empty.",
-      "observedAt": "2026-10-10T11:52:15.304Z",
-      "proof": "playwright/.cache/phase27-08/production-browser-final-20261010.json"
+      "observed": "New disabled release actual503 while six marketing pages/customer/staff login are healthy. Inquiry form recovery not newly inferred.",
+      "proof": "playwright/.cache/phase27-08/disabled-pair-http-58897a94-network.json",
+      "observedAt": "2026-10-11T15:36:45.216Z"
     },
     {
       "id": "rollback-verified",
       "host": "app.fitout.live",
       "url": "https://app.fitout.live/",
       "method": "GET",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "rollback-verified",
-      "expected": "Approved host/provider/control contract in Plan09 and required matrix",
-      "status": "unknown",
+      "expected": "Unchanged required Phase27 matrix contract",
+      "status": "pending",
       "outcome": "pending",
-      "observed": "Actual scoped Contact test promotion followed by restore to Stage C disabled customer pin, savedflagfalse, Contact503 and all3surfaces200. Ops pin unchanged. Full origin/session/provider cutover rollback and failure-threshold evidence remain pending.",
-      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md",
-      "observedAt": "2026-10-11T05:31:14.208Z"
+      "observed": "Source-only pinned baseline and candidate recovery passed health/disabled/authenticated profile. Full origins/sessions/provider rollback remains unobserved.",
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
     }
   ],
   "highThreats": [
-    "T-27-28: staff-only customer capability denial remains unobserved",
+    "T-27-28: real authenticated staff capability denial passed via current home-route action; exact matrix /start-hosting POST remains unobserved",
     "T-27-29: scoped ingress and synthetic alert proofs pass at their recorded sources; full same-candidate exhaustion-to-alert and rollback/control acceptance remain unproved; public Contact staysdisabled",
     "T-27-27: valid issued-link/rollback observations remain incomplete"
   ],
@@ -574,301 +566,1069 @@ The original D67 source was deployed through separate Stage A/B/C builds. Curren
     "payout": "HOLD",
     "legal": "HOLD"
   },
-  "stageARollbackTargets": {
-    "customer": "dpl_EawThnAR9vr4EEumpTHnpBh6yAYB",
-    "ops": "dpl_GjHd59ThRnH73gmFbUjhGviN1ZQV"
-  },
-  "originalRollbackTargets": {
-    "customer": "dpl_8PpCPij5v1zQiD8gDP14Ju54QAAv",
-    "ops": "dpl_Ho1raNTZDcnQ4zwpDu2P19NX6QBS"
-  },
-  "monitoring": {
-    "boundedRounds": 9,
-    "boundedChecks": 36,
-    "healthyChecks": 36,
-    "firstBoundedRound": "2026-10-10T11:40:20.967Z",
-    "lastBoundedRound": "2026-10-10T11:48:31.177Z",
-    "proof": "playwright/.cache/phase27-08/production-stage-C-health-monitor-20261010.json",
-    "limit": "Initial rollout probes plus nine minute-spaced rounds are observed; remaining hourly monitoring and full-account five-minute 5xx percentage are not claimed. Legacy observability query returned400; expected Inngest denial errors were the only inspected runtime clusters.",
-    "finalHandoffHealth": {
-      "proof": "playwright/.cache/phase27-08/production-final-handoff-health-20261010.json",
-      "checks": 4,
-      "healthyChecks": 4
-    }
-  },
-  "releaseControls": {
-    "autoAssignCustomDomains": false,
-    "productionGitBranch": "dev",
-    "remoteProductionBranchAdvanced": false,
-    "releaseSourceBranch": "codex/phase27-cutover-d67fbecf",
-    "reason": "Manual staging control remains while full live proof is incomplete and dev has not been aligned to the candidate. No shared dirty source was pushed.",
-    "finalBrowserReadback": {
-      "observedAt": "2026-10-10T12:04:27.308Z",
-      "webAutoAssignCustomDomains": false,
-      "opsAutoAssignCustomDomains": false,
-      "source": "Existing signed-in browser Production Environment pages, both checkbox Value: 0"
-    }
-  },
-  "sourceLimits": "Browser aggregate evidence records an observation window rather than exact per-action timestamps; actual HTTPS and branch readbacks have individual UTC timestamps. No bearer tokens/cookies/provider credentials/PII in proof.",
-  "validation": {
-    "validatedAt": "2026-10-10T12:04:27.308Z",
-    "prepared": {
-      "outcome": "pass",
-      "exitCode": 0
+  "historicalLiveAcceptance": {
+    "status": "incomplete-live-proof",
+    "recordedAt": "2026-10-10T11:57:15.492Z",
+    "matrixVersion": 1,
+    "deployedRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+    "sourceManifestSha256": "da10f8a0faea204c810cbe544142971181c86bab0d252d5515ea3b671d8a8157",
+    "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+    "deployments": {
+      "customer": {
+        "id": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "origin": "https://app.fitout.live"
+      },
+      "ops": {
+        "id": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "origin": "https://ops.fitout.live"
+      },
+      "preview": {
+        "id": "dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "origin": "https://fitout-qduqjxsvi-pengr3s-projects.vercel.app"
+      }
     },
-    "deployed": {
-      "outcome": "fail",
-      "exitCode": 1,
-      "reason": "Six pending matrix scenarios, partial external inventory, unresolved high threats, and rollback/Contact controls unverified."
-    },
-    "live": {
-      "outcome": "fail",
-      "exitCode": 1,
-      "reason": "Deployed-stage gaps plus actual receipt/Reply-To/reply and scoped inquiry/enabled readback missing."
-    },
-    "validatorRoot": "C:/Users/Admin/.codex/worktrees/phase27-production-continuity/FitOut",
-    "sourceChanged": false
-  },
-  "contactVerificationLimit": "Approved production handleContact checks disabled flag before original-client identity and rate/quota logic. No-mail disabled probes cannot prove those live controls; no enablement or primary quota fixture was attempted.",
-  "contactControlProgress": {
-    "recordedAt": "2026-10-11T05:31:14.208Z",
-    "result": "Bounded no-mail test completed; disabled deployment and saved flags restored; exact fixture removed; temporary guard disabled and published.",
-    "source": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
-    "testDeploymentId": "dpl_FTxX4Sa4pq8jcW21kmuwiV5vxUFW",
-    "restoredCustomerId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-    "restoredOpsId": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
-    "publicContactEnabled": false,
-    "temporaryGuard": {
-      "id": "rule_phase_27_restricted_contact_test_j9IM6v",
-      "enabled": false,
-      "cleanupPublished": true,
-      "distinctNetworkDenialObserved": true,
-      "originalLogRulePreserved": true
-    },
-    "globalQuotaHTTP": {
-      "status": 429,
-      "retryAfterSeconds": 3311,
-      "proof": "playwright/.cache/phase27-08/contact-bounded-http-20261011.json",
-      "requestId": "sin1::iad1::rw7l5-1791696332669-a73a54cbd492"
-    },
-    "rotatedHeaderProbes": {
-      "statuses": [
-        429,
-        400,
-        400,
-        400,
-        400,
-        429
-      ],
-      "sixthRetryAfterSeconds": 895,
-      "scope": "One ingress and sequential process observations; shared cross-instance per-IP enforcement not established."
-    },
-    "recovery": {
-      "status": 503,
-      "healthySurfaces": 3,
-      "quotaRows": 0,
-      "fieldsRetained": true,
-      "proof": "playwright/.cache/phase27-08/contact-recovery-20261011.json"
-    },
-    "mailTransport": "No success response; global quota denied before send in exact source. Request trace reports no outgoing HTTP calls; direct PostgreSQL trace instrumentation is not established.",
-    "automaticAlertVerified": false,
-    "scopedRollbackObserved": true,
-    "fullCutoverRollbackVerified": false,
-    "evidence": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md",
-    "remainingGates": [
-      "Automatic quota alert/notification and ongoing monitoring",
-      "Actual shared per-IP ingress enforcement across instances",
-      "Full cutover rollback acceptance",
-      "Other staff capability, issued-link, provider, inbox and release-control gates"
+    "hostProviderControlMatrix": [
+      {
+        "id": "marketing-home",
+        "host": "fitout.live",
+        "url": "https://fitout.live/",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "marketing-home",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:32:54.344Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "marketing-hosts",
+        "host": "fitout.live",
+        "url": "https://fitout.live/hosts",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "marketing-hosts",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:32:55.228Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "marketing-players",
+        "host": "fitout.live",
+        "url": "https://fitout.live/players",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "marketing-players",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:32:56.315Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "marketing-about",
+        "host": "fitout.live",
+        "url": "https://fitout.live/about",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "marketing-about",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:32:57.387Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "marketing-faq",
+        "host": "fitout.live",
+        "url": "https://fitout.live/faq",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "marketing-faq",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:32:58.204Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "marketing-contact",
+        "host": "fitout.live",
+        "url": "https://fitout.live/contact",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "marketing-contact",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:32:58.825Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "app-home-only",
+        "host": "app.fitout.live",
+        "url": "https://app.fitout.live/",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "app-home-only",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 200; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:33:02.597Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "www-full-query",
+        "host": "www.fitout.live",
+        "url": "https://www.fitout.live/?tag=a&tag=b&phase27=continuity",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "www-full-query",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "307 to apex root preserves repeated/full query exactly.",
+        "observedAt": "2026-10-10T11:52:05.061Z",
+        "proof": "playwright/.cache/phase27-08/production-www-root-query-20261010.json"
+      },
+      {
+        "id": "old-app-deep-link",
+        "host": "fitout.live",
+        "url": "https://fitout.live/profile?tab=bookings&tag=a&tag=b&phase27=continuity",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "old-app-deep-link",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 307; no inappropriate redirect or internal error. Full repeated query preserved to app.",
+        "observedAt": "2026-10-10T11:33:03.402Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "ops-front-door",
+        "host": "ops.fitout.live",
+        "url": "https://ops.fitout.live/",
+        "method": "GET",
+        "deploymentId": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "ops-front-door",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 404; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:33:05.188Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "unknown-host-denied",
+        "host": "lookalike.fitout.live",
+        "url": "https://lookalike.fitout.live/",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "unknown-host-denied",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 404; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:33:06.427Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "internal-namespace-denied",
+        "host": "app.fitout.live",
+        "url": "https://app.fitout.live/marketing",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "internal-namespace-denied",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 404; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:33:06.490Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "host-only-session-bridge",
+        "host": "fitout.live",
+        "url": "https://fitout.live/auth/session-check",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "host-only-session-bridge",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Normal old session-check bridge returns to authenticated app; app was initially anonymous at new host; no signed-cookie export. Staff sign-out does not end app session.",
+        "observedAt": "2026-10-10T11:53:30Z",
+        "proof": "playwright/.cache/phase27-08/production-browser-final-20261010.json"
+      },
+      {
+        "id": "customer-ops-session-isolation",
+        "host": "ops.fitout.live",
+        "url": "https://ops.fitout.live/ops",
+        "method": "GET",
+        "deploymentId": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "customer-ops-session-isolation",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "After staff sign-out, Ops /ops is cloaked while customer app remains authenticated. Pre-existing staff console was accessible before sign-out.",
+        "observedAt": "2026-10-10T11:53:30Z",
+        "proof": "playwright/.cache/phase27-08/production-browser-final-20261010.json"
+      },
+      {
+        "id": "staff-customer-capability-denied",
+        "host": "app.fitout.live",
+        "url": "https://app.fitout.live/start-hosting",
+        "method": "POST",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "staff-customer-capability-denied",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "unknown",
+        "outcome": "pending",
+        "observed": "No staff-only customer-origin credential/POST test. Existing staff continuity and customer-to-ops browser denial do not substitute.",
+        "proof": "Pending actual observation",
+        "observedAt": "2026-10-10T11:57:15.492Z"
+      },
+      {
+        "id": "stale-session-recovery",
+        "host": "app.fitout.live",
+        "url": "https://app.fitout.live/auth/session-check",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "stale-session-recovery",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Malformed test cookie expires with Secure/HttpOnly and no Domain; no-store307 returns app login.",
+        "observedAt": "2026-10-10T11:34:54.343Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-supplemental-20261010.json"
+      },
+      {
+        "id": "google-fresh-state",
+        "host": "app.fitout.live",
+        "url": "https://app.fitout.live/api/auth/callback/google",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "google-fresh-state",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Fresh final app Google flow returns authenticated app home, with no code/state replay or credential copy.",
+        "observedAt": "2026-10-10T11:53:30Z",
+        "proof": "playwright/.cache/phase27-08/production-browser-final-20261010.json"
+      },
+      {
+        "id": "issued-verify-token",
+        "host": "fitout.live",
+        "url": "https://fitout.live/api/auth/verify-email",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "issued-verify-token",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "unknown",
+        "outcome": "pending",
+        "observed": "Previously issued, still-valid owner verification link unavailable; fabricated invalid bridge is supporting evidence only.",
+        "proof": "Pending actual observation",
+        "observedAt": "2026-10-10T11:57:15.492Z"
+      },
+      {
+        "id": "issued-reset-token",
+        "host": "fitout.live",
+        "url": "https://fitout.live/reset-password",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "issued-reset-token",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "unknown",
+        "outcome": "pending",
+        "observed": "Previously issued, still-valid owner reset link unavailable; fabricated invalid bridge is supporting evidence only.",
+        "proof": "Pending actual observation",
+        "observedAt": "2026-10-10T11:57:15.492Z"
+      },
+      {
+        "id": "next-link-rsc-history",
+        "host": "fitout.live",
+        "url": "https://fitout.live/hosts",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "next-link-rsc-history",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Client-side Home/Hosts content and title update; Back/Forward restore correct marketing views; same-tab app entry journeys pass.",
+        "observedAt": "2026-10-10T11:53:30Z",
+        "proof": "playwright/.cache/phase27-08/production-browser-final-20261010.json"
+      },
+      {
+        "id": "rsc-prefetch-isolation",
+        "host": "app.fitout.live",
+        "url": "https://app.fitout.live/",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "rsc-prefetch-isolation",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Three app RSC prefetch responses contain app search, no marketing shell, correct text/x-component and private no-store policy.",
+        "observedAt": "2026-10-10T11:33:19.952Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "alternating-html-rsc-cache",
+        "host": "fitout.live",
+        "url": "https://fitout.live/",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "alternating-html-rsc-cache",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Three rounds on both hosts keep marketing/app content separate; RSC content and vary headers match. Supplemental marketing RSC includes Good plans, no app search.",
+        "observedAt": "2026-10-10T11:33:19.952Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "metadata-robots-sitemap",
+        "host": "fitout.live",
+        "url": "https://fitout.live/sitemap.xml",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "metadata-robots-sitemap",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Marketing six exact canonical URLs, robots allow public root and disallow internal/API routes, sitemap has six apex URLs, advertised social image returns PNG200. Unused unadvertised opengraph-image404 retained.",
+        "observedAt": "2026-10-10T11:34:54.629Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-supplemental-20261010.json"
+      },
+      {
+        "id": "paymongo-old-direct",
+        "host": "fitout.live",
+        "url": "https://fitout.live/api/paymongo/webhook",
+        "method": "POST",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "paymongo-old-direct",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 400; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:33:06.861Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "paymongo-target-direct",
+        "host": "app.fitout.live",
+        "url": "https://app.fitout.live/api/paymongo/webhook",
+        "method": "POST",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "paymongo-target-direct",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 400; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:33:07.193Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "didit-old-direct",
+        "host": "fitout.live",
+        "url": "https://fitout.live/api/didit/webhook",
+        "method": "POST",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "didit-old-direct",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 400; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:33:07.518Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "didit-target-direct",
+        "host": "app.fitout.live",
+        "url": "https://app.fitout.live/api/didit/webhook",
+        "method": "POST",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "didit-target-direct",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 400; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:33:07.866Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "inngest-old-direct",
+        "host": "fitout.live",
+        "url": "https://fitout.live/api/inngest",
+        "method": "POST",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "inngest-old-direct",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 401; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:33:08.182Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "inngest-target-direct",
+        "host": "app.fitout.live",
+        "url": "https://app.fitout.live/api/inngest",
+        "method": "POST",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "inngest-target-direct",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 401; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:33:08.510Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "preview-account-isolation",
+        "host": "fitout-qduqjxsvi-pengr3s-projects.vercel.app",
+        "url": "https://fitout-qduqjxsvi-pengr3s-projects.vercel.app/",
+        "method": "GET",
+        "deploymentId": "dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "preview-account-isolation",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Exact D67 Preview initially anonymous with zero bookable spaces; existing fixture login increases isolated session count1->2, while Production fixture counts remain0/0. No new bypass or protection change.",
+        "observedAt": "2026-10-10T11:47:22.000Z",
+        "proof": "playwright/.cache/phase27-08/production-exact-preview-isolation-20261010.json"
+      },
+      {
+        "id": "contact-default-disabled",
+        "host": "fitout.live",
+        "url": "https://fitout.live/api/contact",
+        "method": "POST",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "contact-default-disabled",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual HTTPS 503; no inappropriate redirect or internal error. ",
+        "observedAt": "2026-10-10T11:33:09.032Z",
+        "proof": "playwright/.cache/phase27-08/production-stage-C-final-http-20261010.json"
+      },
+      {
+        "id": "contact-trusted-ingress-per-ip",
+        "host": "fitout.live",
+        "url": "https://fitout.live/api/contact",
+        "method": "POST",
+        "deploymentId": "dpl_2GQFRsod2L9XsEegZJRKKRW7SMLT",
+        "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+        "scenario": "contact-trusted-ingress-per-ip",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Actual apex Vercel ingress: A3/B2 no-mail reservations, distinct module UUIDs, sixth shared429 Retry-After844 despite B handling only3; spoof429/806 with identical5-attempt fingerprints. Independent mobile deny, exact disabled baseline restoration within151s and owned cleanup2 confirmed.",
+        "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-VERCEL-INGRESS-RESULT.md",
+        "observedAt": "2026-10-11T07:53:43.353Z"
+      },
+      {
+        "id": "contact-distributed-global-budget",
+        "host": "fitout.live",
+        "url": "https://fitout.live/api/contact",
+        "method": "POST",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "contact-distributed-global-budget",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "unknown",
+        "outcome": "pending",
+        "observed": "Actual exact-source Production HTTP global429 with Retry-After3311 under owned100-reservation primary fixture; exact fixture unchanged and removed after recovery. Manual operator restore503 observed. Automatic quota alert notification remains unproved; row stays pending.",
+        "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md",
+        "observedAt": "2026-10-11T05:31:14.208Z"
+      },
+      {
+        "id": "contact-disabled-recovery",
+        "host": "fitout.live",
+        "url": "https://fitout.live/api/contact",
+        "method": "POST",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "contact-disabled-recovery",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "observed",
+        "outcome": "pass",
+        "observed": "Disabled Contact gives recoverable failure, retains all synthetic fields and re-enables button; no delivery announcement; primary quota remains empty.",
+        "observedAt": "2026-10-10T11:52:15.304Z",
+        "proof": "playwright/.cache/phase27-08/production-browser-final-20261010.json"
+      },
+      {
+        "id": "rollback-verified",
+        "host": "app.fitout.live",
+        "url": "https://app.fitout.live/",
+        "method": "GET",
+        "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+        "scenario": "rollback-verified",
+        "expected": "Approved host/provider/control contract in Plan09 and required matrix",
+        "status": "unknown",
+        "outcome": "pending",
+        "observed": "Actual scoped Contact test promotion followed by restore to Stage C disabled customer pin, savedflagfalse, Contact503 and all3surfaces200. Ops pin unchanged. Full origin/session/provider cutover rollback and failure-threshold evidence remain pending.",
+        "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md",
+        "observedAt": "2026-10-11T05:31:14.208Z"
+      }
     ],
+    "highThreats": [
+      "T-27-28: staff-only customer capability denial remains unobserved",
+      "T-27-29: scoped ingress and synthetic alert proofs pass at their recorded sources; full same-candidate exhaustion-to-alert and rollback/control acceptance remain unproved; public Contact staysdisabled",
+      "T-27-27: valid issued-link/rollback observations remain incomplete"
+    ],
+    "rollbackVerified": false,
+    "contactControlsVerified": false,
+    "contactEnabledReadback": false,
+    "inquiryAuthority": "pending separate checkpoint",
+    "inbox": {
+      "owner": "project owner",
+      "receipt": "pending deployed inquiry",
+      "replyTo": "pending deployed inquiry",
+      "reply": "pending deployed inquiry"
+    },
     "holds": {
       "checkout": "HOLD",
       "payout": "HOLD",
       "legal": "HOLD"
+    },
+    "stageARollbackTargets": {
+      "customer": "dpl_EawThnAR9vr4EEumpTHnpBh6yAYB",
+      "ops": "dpl_GjHd59ThRnH73gmFbUjhGviN1ZQV"
+    },
+    "originalRollbackTargets": {
+      "customer": "dpl_8PpCPij5v1zQiD8gDP14Ju54QAAv",
+      "ops": "dpl_Ho1raNTZDcnQ4zwpDu2P19NX6QBS"
+    },
+    "monitoring": {
+      "boundedRounds": 9,
+      "boundedChecks": 36,
+      "healthyChecks": 36,
+      "firstBoundedRound": "2026-10-10T11:40:20.967Z",
+      "lastBoundedRound": "2026-10-10T11:48:31.177Z",
+      "proof": "playwright/.cache/phase27-08/production-stage-C-health-monitor-20261010.json",
+      "limit": "Initial rollout probes plus nine minute-spaced rounds are observed; remaining hourly monitoring and full-account five-minute 5xx percentage are not claimed. Legacy observability query returned400; expected Inngest denial errors were the only inspected runtime clusters.",
+      "finalHandoffHealth": {
+        "proof": "playwright/.cache/phase27-08/production-final-handoff-health-20261010.json",
+        "checks": 4,
+        "healthyChecks": 4
+      }
+    },
+    "releaseControls": {
+      "autoAssignCustomDomains": false,
+      "productionGitBranch": "dev",
+      "remoteProductionBranchAdvanced": false,
+      "releaseSourceBranch": "codex/phase27-cutover-d67fbecf",
+      "reason": "Manual staging control remains while full live proof is incomplete and dev has not been aligned to the candidate. No shared dirty source was pushed.",
+      "finalBrowserReadback": {
+        "observedAt": "2026-10-10T12:04:27.308Z",
+        "webAutoAssignCustomDomains": false,
+        "opsAutoAssignCustomDomains": false,
+        "source": "Existing signed-in browser Production Environment pages, both checkbox Value: 0"
+      }
+    },
+    "sourceLimits": "Browser aggregate evidence records an observation window rather than exact per-action timestamps; actual HTTPS and branch readbacks have individual UTC timestamps. No bearer tokens/cookies/provider credentials/PII in proof.",
+    "validation": {
+      "validatedAt": "2026-10-10T12:04:27.308Z",
+      "prepared": {
+        "outcome": "pass",
+        "exitCode": 0
+      },
+      "deployed": {
+        "outcome": "fail",
+        "exitCode": 1,
+        "reason": "Six pending matrix scenarios, partial external inventory, unresolved high threats, and rollback/Contact controls unverified."
+      },
+      "live": {
+        "outcome": "fail",
+        "exitCode": 1,
+        "reason": "Deployed-stage gaps plus actual receipt/Reply-To/reply and scoped inquiry/enabled readback missing."
+      },
+      "validatorRoot": "C:/Users/Admin/.codex/worktrees/phase27-production-continuity/FitOut",
+      "sourceChanged": false
+    },
+    "contactVerificationLimit": "Approved production handleContact checks disabled flag before original-client identity and rate/quota logic. No-mail disabled probes cannot prove those live controls; no enablement or primary quota fixture was attempted.",
+    "contactControlProgress": {
+      "recordedAt": "2026-10-11T05:31:14.208Z",
+      "result": "Bounded no-mail test completed; disabled deployment and saved flags restored; exact fixture removed; temporary guard disabled and published.",
+      "source": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "testDeploymentId": "dpl_FTxX4Sa4pq8jcW21kmuwiV5vxUFW",
+      "restoredCustomerId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+      "restoredOpsId": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+      "publicContactEnabled": false,
+      "temporaryGuard": {
+        "id": "rule_phase_27_restricted_contact_test_j9IM6v",
+        "enabled": false,
+        "cleanupPublished": true,
+        "distinctNetworkDenialObserved": true,
+        "originalLogRulePreserved": true
+      },
+      "globalQuotaHTTP": {
+        "status": 429,
+        "retryAfterSeconds": 3311,
+        "proof": "playwright/.cache/phase27-08/contact-bounded-http-20261011.json",
+        "requestId": "sin1::iad1::rw7l5-1791696332669-a73a54cbd492"
+      },
+      "rotatedHeaderProbes": {
+        "statuses": [
+          429,
+          400,
+          400,
+          400,
+          400,
+          429
+        ],
+        "sixthRetryAfterSeconds": 895,
+        "scope": "One ingress and sequential process observations; shared cross-instance per-IP enforcement not established."
+      },
+      "recovery": {
+        "status": 503,
+        "healthySurfaces": 3,
+        "quotaRows": 0,
+        "fieldsRetained": true,
+        "proof": "playwright/.cache/phase27-08/contact-recovery-20261011.json"
+      },
+      "mailTransport": "No success response; global quota denied before send in exact source. Request trace reports no outgoing HTTP calls; direct PostgreSQL trace instrumentation is not established.",
+      "automaticAlertVerified": false,
+      "scopedRollbackObserved": true,
+      "fullCutoverRollbackVerified": false,
+      "evidence": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md",
+      "remainingGates": [
+        "Automatic quota alert/notification and ongoing monitoring",
+        "Actual shared per-IP ingress enforcement across instances",
+        "Full cutover rollback acceptance",
+        "Other staff capability, issued-link, provider, inbox and release-control gates"
+      ],
+      "holds": {
+        "checkout": "HOLD",
+        "payout": "HOLD",
+        "legal": "HOLD"
+      }
+    },
+    "currentContactAlertRelease": {
+      "source": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5",
+      "branch": "codex/phase27-contact-alerts-b61cb4a4",
+      "deployment": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+      "aliases": [
+        {
+          "host": "fitout.live",
+          "id": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+          "state": "READY",
+          "sha": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5"
+        },
+        {
+          "host": "app.fitout.live",
+          "id": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+          "state": "READY",
+          "sha": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5"
+        },
+        {
+          "host": "ops.fitout.live",
+          "id": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+          "state": "READY",
+          "sha": "d67fbecfa41e902cbf506c93dbcf53b60085e802"
+        }
+      ],
+      "migration": {
+        "tag": "0038_contact_alert",
+        "hash": "c09257eb07ccee4a840abd0400283313d0821973bc8c64a0d10dc993a993f4d9",
+        "ledgerEntries": 39,
+        "when": 1791698400000
+      },
+      "recipient": "pengr.clmc.3@gmail.com",
+      "contactEnabled": false,
+      "scheduler": {
+        "app": "fitout-contact-alerts",
+        "endpoint": "https://fitout.live/api/contact-alerts/inngest",
+        "function": "contact-control-monitor",
+        "cron": "1-59/5 * * * *",
+        "syncedAt": "2026-10-11T06:19:21Z"
+      },
+      "synthetic": {
+        "id": "p27-owner-alert-20261011-b61cb4a4",
+        "createdAt": "2026-10-11T06:19:52.912Z",
+        "providerId": "01a1299f-3ff8-7eff-a94c-783d416d5993",
+        "sentAt": "2026-10-11T06:21:05.756Z",
+        "providerStatus": "delivered",
+        "ownerInboxConfirmed": true
+      },
+      "checks": {
+        "contactAndRouting": 186,
+        "design": {
+          "passed": 1510,
+          "skipped": 6
+        },
+        "typescript": "pass after clearing failed-webpack generated type cache",
+        "lint": "pass",
+        "drizzleCheck": "pass",
+        "cloudBuild": [
+          "Cloning github.com/pengr3/FitOut (Branch: codex/phase27-contact-alerts-b61cb4a4, Commit: b61cb4a)",
+          "Cloning completed: 4.119s",
+          "Running \"vercel build\"",
+          "npm warn deprecated serialize-error-cjs@0.1.4: Rolling release, please update to 0.2.0",
+          "Running \"next build\"",
+          "✓ Compiled successfully in 40.0s",
+          "  Running TypeScript ...",
+          "  Finished TypeScript in 34.2s ...",
+          "Build Completed in /vercel/output [2m]"
+        ]
+      },
+      "firstScheduledRun": {
+        "id": "01M4MSYB70J1M05HRHPVN6PQQQ",
+        "trigger": "inngest/scheduled.timer",
+        "fireAt": "2026-10-11T06:21:00Z",
+        "completedAt": "2026-10-11T06:21:06Z",
+        "output": {
+          "active": true,
+          "pendingProcessed": 1,
+          "quotaAvailable": true,
+          "staleCount": 0
+        }
+      },
+      "ownerConfirmation": {
+        "receivedIn": "inbox",
+        "reportedAt": "2026-10-11T06:22:30Z",
+        "reportedAtPrecision": "approximate capture window",
+        "source": "Owner reply: Received in inbox"
+      },
+      "secondScheduledRun": {
+        "id": "01M4MT7G60J1M05HRHPVN6PQQQ",
+        "trigger": "inngest/scheduled.timer",
+        "fireAt": "2026-10-11T06:26:00Z",
+        "completedAt": "2026-10-11T06:26:03Z",
+        "output": {
+          "active": true,
+          "pendingProcessed": 0,
+          "quotaAvailable": true,
+          "staleCount": 0
+        }
+      },
+      "finalDatabaseState": {
+        "totalAlerts": 1,
+        "syntheticAlerts": 1,
+        "pendingAlerts": 0,
+        "quotaRows": 0,
+        "providerId": "01a1299f-3ff8-7eff-a94c-783d416d5993"
+      },
+      "proofFiles": {
+        "runtime": "playwright/.cache/phase27-08/contact-alert-release-runtime.json",
+        "deliveryScreenshot": "playwright/.cache/phase27-08/contact-alert-delivered-20261011.png",
+        "secondCronScreenshot": "playwright/.cache/phase27-08/contact-alert-second-cron-20261011.png"
+      },
+      "existingInngestApp": {
+        "id": "fitout",
+        "functions": 14,
+        "lastSync": "2026-10-11T06:16:08Z",
+        "syncStatus": "Success",
+        "destination": "https://fitout-6nx1msej4-pengr3s-projects.vercel.app/api/inngest",
+        "observation": "Vercel automatically resynced the existing app while building the new Production deployment. Existing financial function source and signatures are unchanged; no manual financial scheduler edits or test invocation."
+      },
+      "runtime": {
+        "observedAt": "2026-10-11T06:26:58.055Z",
+        "checks": [
+          {
+            "url": "https://fitout.live/",
+            "status": 200
+          },
+          {
+            "url": "https://fitout.live/contact",
+            "status": 200
+          },
+          {
+            "url": "https://app.fitout.live/",
+            "status": 200
+          },
+          {
+            "url": "https://ops.fitout.live/login",
+            "status": 200
+          }
+        ],
+        "contact": {
+          "status": 503,
+          "requestId": "sin1::iad1::qhf2p-1791700020368-2a3d410880d7",
+          "body": "{\"ok\":false,\"error\":\"Your message could not be sent. Please try again later.\"}"
+        },
+        "unsignedScheduler": {
+          "status": 401,
+          "redirected": false
+        }
+      }
+    },
+    "scopedIngressVerification": {
+      "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+      "deployments": [
+        "dpl_Dw7CfRqiPVYunAasT5A3SeRWNm6o",
+        "dpl_2GQFRsod2L9XsEegZJRKKRW7SMLT"
+      ],
+      "restoredBaseline": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-VERCEL-INGRESS-RESULT.md",
+      "observationCount": 30,
+      "historicalD67Observations": 29,
+      "singleReleaseAcceptance": false
+    },
+    "evidenceRole": "Dated original D67 topology matrix plus separately scoped58897a94 ingress observation; not current one-source release acceptance.",
+    "releaseSourceReconciliation": {
+      "recordedAt": "2026-10-11T09:33:12.518Z",
+      "candidateRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+      "sourceManifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
+      "currentWeb": {
+        "id": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+        "revision": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5"
+      },
+      "currentOps": {
+        "id": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+        "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802"
+      },
+      "engineeringGatesPassed": 6,
+      "sourceAlignedPreparation": true,
+      "singleReleaseAcceptance": false,
+      "historicalMatrixObservations": 30,
+      "permanentCandidateRolloutExecuted": false,
+      "contactEnabled": false,
+      "evidence": ".planning/phases/27-app-subdomain-marketing-website/27-RELEASE-SOURCE-RECONCILIATION.md"
     }
   },
-  "currentContactAlertRelease": {
-    "source": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5",
-    "branch": "codex/phase27-contact-alerts-b61cb4a4",
-    "deployment": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+  "disabledPairPromotion": {
+    "observedAt": "2026-10-11T15:39:03.751Z",
+    "promotedAt": "2026-10-11T15:35:33.056Z",
     "aliases": [
       {
         "host": "fitout.live",
-        "id": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
-        "state": "READY",
-        "sha": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5"
+        "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg"
       },
       {
         "host": "app.fitout.live",
-        "id": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
-        "state": "READY",
-        "sha": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5"
+        "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg"
       },
       {
         "host": "ops.fitout.live",
-        "id": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
-        "state": "READY",
-        "sha": "d67fbecfa41e902cbf506c93dbcf53b60085e802"
+        "deploymentId": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4"
       }
     ],
-    "migration": {
-      "tag": "0038_contact_alert",
-      "hash": "c09257eb07ccee4a840abd0400283313d0821973bc8c64a0d10dc993a993f4d9",
-      "ledgerEntries": 39,
-      "when": 1791698400000
-    },
-    "recipient": "pengr.clmc.3@gmail.com",
-    "contactEnabled": false,
-    "scheduler": {
-      "app": "fitout-contact-alerts",
-      "endpoint": "https://fitout.live/api/contact-alerts/inngest",
-      "function": "contact-control-monitor",
-      "cron": "1-59/5 * * * *",
-      "syncedAt": "2026-10-11T06:19:21Z"
-    },
-    "synthetic": {
-      "id": "p27-owner-alert-20261011-b61cb4a4",
-      "createdAt": "2026-10-11T06:19:52.912Z",
-      "providerId": "01a1299f-3ff8-7eff-a94c-783d416d5993",
-      "sentAt": "2026-10-11T06:21:05.756Z",
-      "providerStatus": "delivered",
-      "ownerInboxConfirmed": true
-    },
-    "checks": {
-      "contactAndRouting": 186,
-      "design": {
-        "passed": 1510,
-        "skipped": 6
+    "builds": [
+      {
+        "id": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+        "url": "fitout-6dr93opgm-pengr3s-projects.vercel.app",
+        "readyState": "READY",
+        "target": "production",
+        "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5"
       },
-      "typescript": "pass after clearing failed-webpack generated type cache",
-      "lint": "pass",
-      "drizzleCheck": "pass",
-      "cloudBuild": [
-        "Cloning github.com/pengr3/FitOut (Branch: codex/phase27-contact-alerts-b61cb4a4, Commit: b61cb4a)",
-        "Cloning completed: 4.119s",
-        "Running \"vercel build\"",
-        "npm warn deprecated serialize-error-cjs@0.1.4: Rolling release, please update to 0.2.0",
-        "Running \"next build\"",
-        "✓ Compiled successfully in 40.0s",
-        "  Running TypeScript ...",
-        "  Finished TypeScript in 34.2s ...",
-        "Build Completed in /vercel/output [2m]"
-      ]
-    },
-    "firstScheduledRun": {
-      "id": "01M4MSYB70J1M05HRHPVN6PQQQ",
-      "trigger": "inngest/scheduled.timer",
-      "fireAt": "2026-10-11T06:21:00Z",
-      "completedAt": "2026-10-11T06:21:06Z",
-      "output": {
-        "active": true,
-        "pendingProcessed": 1,
-        "quotaAvailable": true,
-        "staleCount": 0
+      {
+        "id": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+        "url": "fitout-ajur9x7xb-pengr3s-projects.vercel.app",
+        "readyState": "READY",
+        "target": "production",
+        "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5"
       }
-    },
-    "ownerConfirmation": {
-      "receivedIn": "inbox",
-      "reportedAt": "2026-10-11T06:22:30Z",
-      "reportedAtPrecision": "approximate capture window",
-      "source": "Owner reply: Received in inbox"
-    },
-    "secondScheduledRun": {
-      "id": "01M4MT7G60J1M05HRHPVN6PQQQ",
-      "trigger": "inngest/scheduled.timer",
-      "fireAt": "2026-10-11T06:26:00Z",
-      "completedAt": "2026-10-11T06:26:03Z",
-      "output": {
-        "active": true,
-        "pendingProcessed": 0,
-        "quotaAvailable": true,
-        "staleCount": 0
+    ],
+    "originReadback": [
+      {
+        "project": "web",
+        "key": "APP_COMPATIBILITY_ORIGIN",
+        "value": ""
+      },
+      {
+        "project": "web",
+        "key": "MARKETING_APP_URL",
+        "value": "https://fitout.live"
+      },
+      {
+        "project": "web",
+        "key": "BETTER_AUTH_URL",
+        "value": "https://app.fitout.live"
+      },
+      {
+        "project": "web",
+        "key": "NEXT_PUBLIC_APP_URL",
+        "value": "https://app.fitout.live"
+      },
+      {
+        "project": "web",
+        "key": "OPS_APP_URL",
+        "value": "https://ops.fitout.live"
+      },
+      {
+        "project": "ops",
+        "key": "APP_COMPATIBILITY_ORIGIN",
+        "value": ""
+      },
+      {
+        "project": "ops",
+        "key": "MARKETING_APP_URL",
+        "value": "https://fitout.live"
+      },
+      {
+        "project": "ops",
+        "key": "BETTER_AUTH_URL",
+        "value": "https://app.fitout.live"
+      },
+      {
+        "project": "ops",
+        "key": "NEXT_PUBLIC_APP_URL",
+        "value": "https://app.fitout.live"
+      },
+      {
+        "project": "ops",
+        "key": "OPS_APP_URL",
+        "value": "https://ops.fitout.live"
       }
-    },
-    "finalDatabaseState": {
-      "totalAlerts": 1,
-      "syntheticAlerts": 1,
-      "pendingAlerts": 0,
-      "quotaRows": 0,
-      "providerId": "01a1299f-3ff8-7eff-a94c-783d416d5993"
-    },
-    "proofFiles": {
-      "runtime": "playwright/.cache/phase27-08/contact-alert-release-runtime.json",
-      "deliveryScreenshot": "playwright/.cache/phase27-08/contact-alert-delivered-20261011.png",
-      "secondCronScreenshot": "playwright/.cache/phase27-08/contact-alert-second-cron-20261011.png"
-    },
-    "existingInngestApp": {
-      "id": "fitout",
-      "functions": 14,
-      "lastSync": "2026-10-11T06:16:08Z",
-      "syncStatus": "Success",
-      "destination": "https://fitout-6nx1msej4-pengr3s-projects.vercel.app/api/inngest",
-      "observation": "Vercel automatically resynced the existing app while building the new Production deployment. Existing financial function source and signatures are unchanged; no manual financial scheduler edits or test invocation."
-    },
-    "runtime": {
-      "observedAt": "2026-10-11T06:26:58.055Z",
-      "checks": [
+    ],
+    "buildSummaries": [
+      [
         {
-          "url": "https://fitout.live/",
-          "status": 200
+          "date": 1791732736076,
+          "text": "Deployment completed"
         },
         {
-          "url": "https://fitout.live/contact",
-          "status": 200
+          "date": 1791732727662,
+          "text": "✓ Generating static pages using 1 worker (49/49) in 734ms"
         },
         {
-          "url": "https://app.fitout.live/",
-          "status": 200
+          "date": 1791732725636,
+          "text": "  Finished TypeScript in 24.6s ..."
         },
         {
-          "url": "https://ops.fitout.live/login",
-          "status": 200
+          "date": 1791732700985,
+          "text": "✓ Compiled successfully in 28.2s"
         }
       ],
-      "contact": {
-        "status": 503,
-        "requestId": "sin1::iad1::qhf2p-1791700020368-2a3d410880d7",
-        "body": "{\"ok\":false,\"error\":\"Your message could not be sent. Please try again later.\"}"
-      },
-      "unsignedScheduler": {
-        "status": 401,
-        "redirected": false
-      }
-    }
-  },
-  "scopedIngressVerification": {
-    "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
-    "deployments": [
-      "dpl_Dw7CfRqiPVYunAasT5A3SeRWNm6o",
-      "dpl_2GQFRsod2L9XsEegZJRKKRW7SMLT"
+      [
+        {
+          "date": 1791732822235,
+          "text": "Deployment completed"
+        },
+        {
+          "date": 1791732813303,
+          "text": "✓ Generating static pages using 1 worker (49/49) in 745ms"
+        },
+        {
+          "date": 1791732811268,
+          "text": "  Finished TypeScript in 23.6s ..."
+        },
+        {
+          "date": 1791732787706,
+          "text": "✓ Compiled successfully in 27.5s"
+        }
+      ]
     ],
-    "restoredBaseline": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
-    "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-VERCEL-INGRESS-RESULT.md",
-    "observationCount": 30,
-    "historicalD67Observations": 29,
-    "singleReleaseAcceptance": false
+    "flagsScope": "Production savedflags beforebuild arefalse; runtimeemptybody503 verifiesdisabled gate; immutableenvsnapshotnotindependentlyavailable"
   },
-  "evidenceRole": "Dated original D67 topology matrix plus separately scoped58897a94 ingress observation; not current one-source release acceptance.",
-  "releaseSourceReconciliation": {
-    "recordedAt": "2026-10-11T09:33:12.518Z",
-    "candidateRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
-    "sourceManifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
-    "currentWeb": {
-      "id": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
-      "revision": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5"
+  "supplementalStaffDenial": {
+    "observedAt": "2026-10-11T15:45:46.534Z",
+    "origin": "https://app.fitout.live",
+    "actualEntryPoint": "Home navigation menu Start hosting; invokes activateHosting server action on current home route",
+    "observed": "This account cannot activate hosting.",
+    "audit": "Actual primary database latest activateHosting denial for owner-used staff account, reason=ineligible_role, timestamp2026-10-11 15:45:46.534355+00",
+    "readback": {
+      "role": "staff",
+      "canBook": false,
+      "canHost": false
     },
-    "currentOps": {
-      "id": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802"
+    "screenshot": "playwright/.cache/phase27-08/disabled-pair-staff-denial-58897a94.png",
+    "scope": "Real authenticated staff action denial; exact matrix POST /start-hosting path is not inferred from the home-route UI action"
+  },
+  "freshObservedCount": 24,
+  "supplementalSourceRecovery": {
+    "recordedAt": "2026-10-11T16:28:21.813Z",
+    "kind": "source-only recovery",
+    "startedAt": "2026-10-11T16:06:14.555Z",
+    "restoredAliasesAt": "2026-10-11T16:08:13.795Z",
+    "baselineProof": "playwright/.cache/phase27-08/disabled-source-recovery-baseline.json",
+    "restoredProof": "playwright/.cache/phase27-08/disabled-source-recovery-restored.json",
+    "aliasReadback": [
+      {
+        "host": "fitout.live",
+        "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+        "updatedAt": "2026-10-11T16:08:13.790Z"
+      },
+      {
+        "host": "app.fitout.live",
+        "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+        "updatedAt": "2026-10-11T16:08:13.795Z"
+      },
+      {
+        "host": "ops.fitout.live",
+        "deploymentId": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+        "updatedAt": "2026-10-11T16:08:06.214Z"
+      }
+    ],
+    "baseline": {
+      "web": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+      "ops": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ"
     },
-    "engineeringGatesPassed": 6,
-    "sourceAlignedPreparation": true,
-    "singleReleaseAcceptance": false,
-    "historicalMatrixObservations": 30,
-    "permanentCandidateRolloutExecuted": false,
+    "restored": {
+      "web": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "ops": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4"
+    },
+    "health": "Both baseline and restored probes: four public200, correct-Origin Contact503/no-store, old/new unsigned Inngest401/direct",
+    "authenticatedProfileAfterRestore": true,
     "contactEnabled": false,
-    "evidence": ".planning/phases/27-app-subdomain-marketing-website/27-RELEASE-SOURCE-RECONCILIATION.md"
-  }
+    "originChanged": false,
+    "fullTopologyRollbackVerified": false
+  },
+  "monitoring": {
+    "recordedAt": "2026-10-11T16:28:21.816Z",
+    "originalProof": "playwright/.cache/phase27-08/disabled-pair-monitor-58897a94.json",
+    "rounds": 19,
+    "healthChecks": 76,
+    "allRecordedHealthy": true,
+    "first": "2026-10-11T15:37:59.936Z",
+    "last": "2026-10-11T16:08:00.067Z",
+    "sourceRecoveryWindow": {
+      "start": "2026-10-11T16:06:14.555Z",
+      "end": "2026-10-11T16:08:13.795Z"
+    },
+    "baselineRound": 18,
+    "scope": "Round18 falls before both alias restores, so the monitor global revision label does not bind that round to58897a94. Rounds0..17 predate recovery. Raw proof retained unchanged.",
+    "processStatus": "Original execution session no longer exists; capture stopped after19rounds. Missing later samples cannot be reconstructed.",
+    "extendedWindowComplete": false
+  },
+  "finalDisabledReadbacks": "playwright/.cache/phase27-08/disabled-pair-final-readbacks.json"
 }
 ```
 
@@ -907,3 +1667,8 @@ Actual Vercel ingress passed at exact 58897a94 under the owner-approved bounded 
 
 
 Offline live validator rerun after recording this result still FAILs. It specifically rejects contact-trusted-ingress-per-ip for candidate identity mismatch: the independently approved58897a94 scoped test is newer than the D67 engineering/cutover packet. The actual ingress test passed; it does not supply single-release acceptance. Other reported gaps are partial external inventory/high threats, staff capability denial, genuine issued verification/reset links, aggregate quota-to-alert chain, full rollback/Contact controls, actual inquiry receipt/Reply-To/reply and controlled inquiry authority. Preserve these failures and reconcile the release packet rather than weakening the validator or relabeling historical source evidence.
+
+
+## Disabled58897a94 Production update
+
+2026-10-11T15:58:10.380Z: Current public web/Ops now serve exact58897a94 under new owner authority. 24/35 fresh rows; original30 dated multi-source rows archived intact under historicalLiveAcceptance. Staff capability denial is supplemental actual proof, not a forged exact-path observation. Contact remainsdisabled. Plan09 incomplete.

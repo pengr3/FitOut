@@ -1,5 +1,7 @@
 # Phase 27 — Prepared cutover and rollback packet
 
+Latest checkpoint 2026-10-11T16:28:21.817Z: Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg and Ops dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4. Contact remains disabled. Fresh matrix27/35; historical30 observations remain archived with original source/IDs/time. Source-only recovery passed; full topology rollback and extended monitoring remain incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-DISABLED-PRODUCTION-PAIR.md. Earlier source statements below are dated history.
+
 Current reconciliation (2026-10-11T09:33:12.518Z): proposed source58897a94 now binds six fresh full engineering gates and the actual scoped ingress proof. Public traffic remains disabled web b61cb4a4 and Ops D67. The original D67 cutover approval and rollout are retained in historicalCutoverApproval; the completed58897a94 ingress approval does not authorize a permanent candidate rollout or public Contact. See27-RELEASE-SOURCE-RECONCILIATION.md. Earlier narrative below describes dated history.
 
 Historical October10 source continuity repair: candidate d67fbecfa41e902cbf506c93dbcf53b60085e802 includes deployed production36455580 and preserves all30 payment/scheduler files and payout migrations0034–0036. Contact is0037 with unchanged reviewed SQL bytes. Fresh six-gate, cold and separately built compatibility A/B local proof passes. The stable b835 walkthrough Preview is historical UI/deployment evidence; it does not prove this integrated source. The owner approved this exact packet and the staged topology is now live. Plan 09 acceptance remains pending.
@@ -22,14 +24,14 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
     "www": "https://www.fitout.live -> https://fitout.live"
   },
   "proposedRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
-  "candidateAcceptance": "Exact58897a94 six full engineering gates and its scoped cross-runtime Vercel ingress proof pass. Current public web is b61cb4a4; Ops is D67. Thirty historical matrix observations span D67 and the bounded58897a94 test. Single-release deployments, authority and fresh live observations remain pending; Contact staysfalse.",
-  "approvedRevision": null,
+  "candidateAcceptance": "Exact58897a94 six full gates pass; new disabled Production pair is live with24/35 fresh complete matrix observations. Historical proof retained; no Contact enablement or Plan09 completion.",
+  "approvedRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
   "authority": {
-    "status": "pending-candidate-rollout",
-    "scope": "The original D67 cutover and completed58897a94 bounded ingress approvals remain valid only for their recorded scope. The latest owner instruction authorizes release-source reconciliation while Contact stays disabled. No new permanent58897a94 Production pair/promotion, branch advance or public Contact inquiry is executed or claimed by this reconciliation.",
+    "status": "approved",
     "owner": "project owner (user)",
-    "approvedAt": null,
-    "evidence": "Current chat: okay go ahead with the release-source reconciliation, keep Contact disabled for now"
+    "approvedAt": "2026-10-11T15:30:23.023Z",
+    "scope": "Build a new disabled Production web/Ops pair at exact58897a94, verify captured configuration, promote that disabled source pair for remaining live proofs, preserve current StageC origins and pinned baseline recovery. Keep Contact disabled on both. No branch advance, DNS change, migration replay, financial job invocation, real inquiry, Contact enablement or broad topology reversal is authorized by this instruction.",
+    "evidence": "Current chat: okay go ahead with the disabled Production pair at 58897a94, then continue the remaining live proofs. keep Contact disabled for now"
   },
   "holds": {
     "checkout": "HOLD",
@@ -254,17 +256,71 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
     "evidence": "Owner answered \"yeah approb\" to the immediate BOTH-project target confirmation request. Values remain sensitive/write-only; this is owner attestation, not independent secret readback."
   },
   "rolloutStatus": {
-    "stage": "Prepared candidate reconciled; no new rollout in this task",
-    "observedAt": "2026-10-11T09:27:02Z",
-    "webDeployment": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
-    "webRevision": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5",
-    "opsDeployment": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
-    "opsRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+    "stage": "Disabled candidate pair promoted, StageC origins preserved",
+    "observedAt": "2026-10-11T15:58:10.380Z",
+    "webDeployment": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+    "webRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "opsDeployment": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+    "opsRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
     "contactEnabled": false,
-    "candidateProductionPairReady": false,
-    "proof": {
-      "path": "playwright/.cache/phase27-08/release-source-account-final-readback-20261011.json",
-      "sha256": "e7211a8b07f6ada09ce73e12cafd1332d9b256cca4b05336a81d859aeb80dc08"
+    "candidateProductionPairReady": true,
+    "autoAssignCustomDomains": false,
+    "proof": "playwright/.cache/phase27-08/disabled-pair-promotion-58897a94.json",
+    "sourceRecovery": {
+      "recordedAt": "2026-10-11T16:28:21.813Z",
+      "kind": "source-only recovery",
+      "startedAt": "2026-10-11T16:06:14.555Z",
+      "restoredAliasesAt": "2026-10-11T16:08:13.795Z",
+      "baselineProof": "playwright/.cache/phase27-08/disabled-source-recovery-baseline.json",
+      "restoredProof": "playwright/.cache/phase27-08/disabled-source-recovery-restored.json",
+      "aliasReadback": [
+        {
+          "host": "fitout.live",
+          "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+          "updatedAt": "2026-10-11T16:08:13.790Z"
+        },
+        {
+          "host": "app.fitout.live",
+          "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+          "updatedAt": "2026-10-11T16:08:13.795Z"
+        },
+        {
+          "host": "ops.fitout.live",
+          "deploymentId": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+          "updatedAt": "2026-10-11T16:08:06.214Z"
+        }
+      ],
+      "baseline": {
+        "web": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+        "ops": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ"
+      },
+      "restored": {
+        "web": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+        "ops": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4"
+      },
+      "health": "Both baseline and restored probes: four public200, correct-Origin Contact503/no-store, old/new unsigned Inngest401/direct",
+      "authenticatedProfileAfterRestore": true,
+      "contactEnabled": false,
+      "originChanged": false,
+      "fullTopologyRollbackVerified": false
+    },
+    "finalReadback": "playwright/.cache/phase27-08/disabled-pair-final-readbacks.json",
+    "monitoring": {
+      "recordedAt": "2026-10-11T16:28:21.816Z",
+      "originalProof": "playwright/.cache/phase27-08/disabled-pair-monitor-58897a94.json",
+      "rounds": 19,
+      "healthChecks": 76,
+      "allRecordedHealthy": true,
+      "first": "2026-10-11T15:37:59.936Z",
+      "last": "2026-10-11T16:08:00.067Z",
+      "sourceRecoveryWindow": {
+        "start": "2026-10-11T16:06:14.555Z",
+        "end": "2026-10-11T16:08:13.795Z"
+      },
+      "baselineRound": 18,
+      "scope": "Round18 falls before both alias restores, so the monitor global revision label does not bind that round to58897a94. Rounds0..17 predate recovery. Raw proof retained unchanged.",
+      "processStatus": "Original execution session no longer exists; capture stopped after19rounds. Missing later samples cannot be reconstructed.",
+      "extendedWindowComplete": false
     }
   },
   "contactAlertScopeExtension": {
@@ -358,6 +414,34 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
     "scope": "Prepare one exact candidate, verify engineering/source continuity, reconcile inventory and rerun evidence validators; keep Contact disabled.",
     "evidence": "Current chat: okay go ahead with the release-source reconciliation, keep Contact disabled for now",
     "completedAt": "2026-10-11T09:33:12.518Z"
+  },
+  "sourcePreparationAuthority": {
+    "status": "pending-candidate-rollout",
+    "scope": "The original D67 cutover and completed58897a94 bounded ingress approvals remain valid only for their recorded scope. The latest owner instruction authorizes release-source reconciliation while Contact stays disabled. No new permanent58897a94 Production pair/promotion, branch advance or public Contact inquiry is executed or claimed by this reconciliation.",
+    "owner": "project owner (user)",
+    "approvedAt": null,
+    "evidence": "Current chat: okay go ahead with the release-source reconciliation, keep Contact disabled for now"
+  },
+  "disabledPairRolloutAuthorization": {
+    "status": "approved",
+    "owner": "project owner (user)",
+    "approvedAt": "2026-10-11T15:30:23.023Z",
+    "scope": "Build a new disabled Production web/Ops pair at exact58897a94, verify captured configuration, promote that disabled source pair for remaining live proofs, preserve current StageC origins and pinned baseline recovery. Keep Contact disabled on both. No branch advance, DNS change, migration replay, financial job invocation, real inquiry, Contact enablement or broad topology reversal is authorized by this instruction.",
+    "evidence": "Current chat: okay go ahead with the disabled Production pair at 58897a94, then continue the remaining live proofs. keep Contact disabled for now"
+  },
+  "preDisabledPairRolloutStatus": {
+    "stage": "Prepared candidate reconciled; no new rollout in this task",
+    "observedAt": "2026-10-11T09:27:02Z",
+    "webDeployment": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+    "webRevision": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5",
+    "opsDeployment": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+    "opsRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+    "contactEnabled": false,
+    "candidateProductionPairReady": false,
+    "proof": {
+      "path": "playwright/.cache/phase27-08/release-source-account-final-readback-20261011.json",
+      "sha256": "e7211a8b07f6ada09ce73e12cafd1332d9b256cca4b05336a81d859aeb80dc08"
+    }
   }
 }
 ```
@@ -624,3 +708,13 @@ Final topology (2026-10-10T11:57:15.492Z): all three fresh Stage A/B/C cloud pai
 Automatic Contact alerts are live on web dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68 / b61cb4a43c8dd4c10e7444014fb66646aba36ec5. Separate app fitout-contact-alerts, signed receiver https://fitout.live/api/contact-alerts/inngest, every five minutes. Primary ledger39 with additive0038 hash c09257eb07ccee4a840abd0400283313d0821973bc8c64a0d10dc993a993f4d9. First real scheduled run 01M4MSYB70J1M05HRHPVN6PQQQ processed1 synthetic incident; Resend delivered 01a1299f-3ff8-7eff-a94c-783d416d5993 and owner confirmed inbox receipt. Next scheduled run 01M4MT7G60J1M05HRHPVN6PQQQ processed0; one test email, no duplicate. Contact remains false/503, quota0, Ops stays D67. No public inquiry was sent. Other Plan09 evidence and money/legal HOLDs remain.
 
 Read .planning/phases/27-app-subdomain-marketing-website/27-CONTACT-AUTOMATIC-ALERTS.md. Earlier D67/source-only scope and pending-alert paragraphs are dated history superseded by this owner-authorized Contact extension. No other original Plan09 gate waived.
+
+
+## Disabled candidate source rollout authorized — October11
+
+2026-10-11T15:30:23.023Z: The owner authorized the exact58897a94 disabled Production pair and continuation of live proofs. The new scope above supersedes the earlier pending candidate authority; original D67 cutover and bounded ingress approvals remain retained. Build/promotion results are not yet claimed. Contact remains disabled. No automatic plan completion or historical observation relabeling.
+
+
+## Disabled58897a94 Production update
+
+Both new immutable Production targets are READY and manually promoted. Saved Production flags and runtime disabled gate verified; captured immutable flag snapshot was not independently accessible. Baseline pins b61web/D67Ops retained. Automatic financial registration refreshed to disabled candidate with14 unchanged functions; no manual financial invocation.

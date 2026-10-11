@@ -1,5 +1,7 @@
 # Phase 27 — Release-source reconciliation
 
+Latest checkpoint 2026-10-11T16:28:21.817Z: Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg and Ops dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4. Contact remains disabled. Fresh matrix27/35; historical30 observations remain archived with original source/IDs/time. Source-only recovery passed; full topology rollback and extended monitoring remain incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-DISABLED-PRODUCTION-PAIR.md. Earlier source statements below are dated history.
+
 Exact `58897a94` is the proposed candidate for engineering and the revised packet. Six fresh full engineering gates pass at manifest `8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a`. Current public traffic remains disabled web `b61cb4a4` and Ops `d67fbecf`; this task made no external change or inquiry send.
 
 ```json
