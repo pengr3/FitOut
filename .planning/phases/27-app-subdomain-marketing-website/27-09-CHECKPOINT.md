@@ -1,6 +1,6 @@
 # Phase 27 — Plan 09 live checkpoint
 
-The original approved Stage A/B/C rollout used d67fbecfa41e902cbf506c93dbcf53b60085e802; current web is the scoped Contact alert release b61cb4a43c8dd4c10e7444014fb66646aba36ec5, while Ops remains D67. The29/35 matrix observations below are dated D67 history, not reassigned to the new web source. Plan 08 is complete: 20/21 phase plans and 144/151 curated plans. The live matrix has 29/35 observed scenarios. All seven phase requirements remain pending. Cutover and both database-target approvals are resolved; do not request them again.
+The original approved Stage A/B/C rollout used d67fbecfa41e902cbf506c93dbcf53b60085e802; current web is the scoped Contact alert release b61cb4a43c8dd4c10e7444014fb66646aba36ec5, while Ops remains D67. The29/35 matrix observations below are dated D67 history, not reassigned to the new web source. Plan 08 is complete: 20/21 phase plans and 144/151 curated plans. The matrix now has30/35 dated observations:29 historical D67 plus one scoped58897a94 ingress test; single-release reconciliation remains pending. All seven phase requirements remain pending. Cutover and both database-target approvals are resolved; do not request them again.
 
 Live entry points:
 
@@ -8,14 +8,13 @@ Live entry points:
 - Customer app: https://app.fitout.live/
 - Staff sign-in: https://ops.fitout.live/login
 
-Six matrix observations remain:
+Five matrix observations remain:
 
 1. Staff-only credentials must fail the customer capability POST at /start-hosting. Existing staff continuity and customer-to-ops denial were observed; they do not prove this separate direction. Ops was signed out during the isolation check. If staff credentials are needed, hand the browser to the owner for entry.
 2. A previously issued, still-valid email-verification link must survive the origin transition.
 3. A previously issued, still-valid password-reset link must survive the origin transition. Invalid synthetic link bridges were observed, but genuine issued links were unavailable. Do not collect bearer links or passwords in chat, change a password on the owner's behalf, or claim an expired link supplies this proof.
-4. Temporary original-IP WAF denial and deployed sequential local-IP enforcement are observed; shared cross-instance per-IP admission evidence remains pending.
-5. Actual production shared mailbox quota returned429 under the owned100-reservation fixture, with manual disable/rollback recovery. Automatic synthetic scheduled alert delivery and owner inbox receipt now pass; actual exhaustion-to-alert evidence on one current live release remains a separate gate. Contact is disabled, savedflagsfalse, fixture removed and temporaryguarddisabled. Read27-CONTACT-BOUNDED-TEST-RESULT.md.
-6. Rollback targets are retained and READY, and a scoped Contact test rollback was exercised; full topology/session/provider rollback and failure-threshold evidence remain pending. Preserve original and Stage A pins, the additive quota table, and direct receivers. Do not reverse healthy traffic merely to fill an evidence row.
+4. Actual production shared mailbox quota returned429 under the owned100-reservation fixture, with manual disable/rollback recovery. Automatic synthetic scheduled alert delivery and owner inbox receipt now pass; actual exhaustion-to-alert evidence on one current live release remains a separate gate. Contact is disabled, savedflagsfalse, fixture removed and temporaryguarddisabled. Read27-CONTACT-BOUNDED-TEST-RESULT.md.
+5. Rollback targets are retained and READY, and a scoped Contact test rollback was exercised; full topology/session/provider rollback and failure-threshold evidence remain pending. Preserve original and Stage A pins, the additive quota table, and direct receivers. Do not reverse healthy traffic merely to fill an evidence row.
 
 Additional live acceptance gates remain: partial provider mode/key/workflow correspondence, actual Contact inbox receipt/Reply-To/reply, and release-control reconciliation. No new signed financial event or scheduler mutation is authorized. All checkout, payout, and legal HOLDs remain.
 
@@ -58,3 +57,11 @@ Shared per-IP enforcement passed through HTTP in three independent local Node pr
 ## Actual Vercel ingress preparation — October 11
 
 Actual Vercel ingress preparation: no-mail verification candidate 58897a94 is committed on codex/phase27-contact-ingress-58897a94. Both protected Preview builds are READY (web dpl_C9qrNjxKPHVk5jTsgvH1Cr9JFn9Q; Ops Preview dpl_CHPg7gJKmrFVKNUz6QaFgJL6b4TK). Cloud web build compiled in 25.9s and finished TypeScript in 27.9s. Contact/routing 237 passed; full design 1510 passed, 6 skipped; types/lint pass and test database containment is clean. The exact saved narrow Deny rule is now published active while Contact stays disabled, with the original Log rule unchanged. The allowed verifier returned 503 and all four health reads returned 200; primary quota is zero and retained alert state is one sent/zero pending. Production aliases remain web b61cb4a4 and Ops D67, with both saved flags false. No Production test build, promotion, fixture, inquiry email or financial invocation occurred. Await exact amended-packet approval and the owner mobile-data denial, including matching provider evidence. The live window has not started and the matrix row stays pending. Read 27-CONTACT-VERCEL-INGRESS-TEST-PACKET.md. Counts and all money/legal HOLDs are unchanged.
+
+
+## Actual Vercel ingress completed — October11
+
+Actual Vercel ingress passed at exact 58897a94 under the owner-approved bounded no-mail packet. A reserved3, distinct runtime B reserved2 and denied the sixth429 (Retry-After844); forged client-IP headers remained429 (806) with identical two quota fingerprints. Both aliases restored to disabled b61cb4a4 within151 seconds; saved flagsfalse, quota0, alert1sent/pending0, four health reads200, unsigned alert receiver401, OpsD67 unchanged. Exactly two owned rows removed under advisory lock. Temporary Deny disabled/published; original Log retained. Auto domain assignment restoredfalse. Automatic Inngest refresh reconciled with14 unchanged functions on a new disabled baseline-source build. No inquiry email or manual financial invocation. One matrix row now passes:30/35 dated observations (29 D67 history plus this scoped588 proof), not single-release acceptance. Plan09 remains incomplete,20/21 and144/151; all7requirements and money/legal HOLDs remain. Read 27-CONTACT-VERCEL-INGRESS-RESULT.md.
+
+
+Offline live validator rerun after recording this result still FAILs. It specifically rejects contact-trusted-ingress-per-ip for candidate identity mismatch: the independently approved58897a94 scoped test is newer than the D67 engineering/cutover packet. The actual ingress test passed; it does not supply single-release acceptance. Other reported gaps are partial external inventory/high threats, staff capability denial, genuine issued verification/reset links, aggregate quota-to-alert chain, full rollback/Contact controls, actual inquiry receipt/Reply-To/reply and controlled inquiry authority. Preserve these failures and reconcile the release packet rather than weakening the validator or relabeling historical source evidence.

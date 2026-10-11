@@ -1,6 +1,6 @@
 # Phase27 actual production evidence — incomplete
 
-Exact approved source is deployed through separate Stage A/B/C builds. This records actual facts and six outstanding matrix scenarios; it does not complete Plan09 or release Contact/payments/legal. Browser aggregate clock entries are approximate capture windows; exact HTTP/database readbacks carry their own times.
+Exact approved source is deployed through separate Stage A/B/C builds. This records dated source-specific facts and five outstanding matrix scenarios; it does not complete Plan09 or release Contact/payments/legal. Browser aggregate clock entries are approximate capture windows; exact HTTP/database readbacks carry their own times.
 
 ```json
 {
@@ -498,15 +498,15 @@ Exact approved source is deployed through separate Stage A/B/C builds. This reco
       "host": "fitout.live",
       "url": "https://fitout.live/api/contact",
       "method": "POST",
-      "deploymentId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
-      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "deploymentId": "dpl_2GQFRsod2L9XsEegZJRKKRW7SMLT",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "contact-trusted-ingress-per-ip",
       "expected": "Approved host/provider/control contract in Plan09 and required matrix",
-      "status": "unknown",
-      "outcome": "pending",
-      "observed": "Temporary WAF independently denied owner mobile carrier while verifier reached disabled handler. Enabled exact-source sequential probes with rotated synthetic forwarding headers returned429,400,400,400,400,429; sixth Retry-After895. Process observation only; shared cross-instance per-IP admission proof remains pending. Temporary guard disabled after recovery.",
-      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md",
-      "observedAt": "2026-10-11T05:31:14.208Z"
+      "status": "observed",
+      "outcome": "pass",
+      "observed": "Actual apex Vercel ingress: A3/B2 no-mail reservations, distinct module UUIDs, sixth shared429 Retry-After844 despite B handling only3; spoof429/806 with identical5-attempt fingerprints. Independent mobile deny, exact disabled baseline restoration within151s and owned cleanup2 confirmed.",
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-VERCEL-INGRESS-RESULT.md",
+      "observedAt": "2026-10-11T07:53:43.353Z"
     },
     {
       "id": "contact-distributed-global-budget",
@@ -835,6 +835,18 @@ Exact approved source is deployed through separate Stage A/B/C builds. This reco
         "redirected": false
       }
     }
+  },
+  "scopedIngressVerification": {
+    "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "deployments": [
+      "dpl_Dw7CfRqiPVYunAasT5A3SeRWNm6o",
+      "dpl_2GQFRsod2L9XsEegZJRKKRW7SMLT"
+    ],
+    "restoredBaseline": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+    "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-VERCEL-INGRESS-RESULT.md",
+    "observationCount": 30,
+    "historicalD67Observations": 29,
+    "singleReleaseAcceptance": false
   }
 }
 ```
@@ -866,3 +878,11 @@ Shared per-IP enforcement passed through HTTP in three independent local Node pr
 ## Actual Vercel ingress preparation — October 11
 
 Actual Vercel ingress preparation: no-mail verification candidate 58897a94 is committed on codex/phase27-contact-ingress-58897a94. Both protected Preview builds are READY (web dpl_C9qrNjxKPHVk5jTsgvH1Cr9JFn9Q; Ops Preview dpl_CHPg7gJKmrFVKNUz6QaFgJL6b4TK). Cloud web build compiled in 25.9s and finished TypeScript in 27.9s. Contact/routing 237 passed; full design 1510 passed, 6 skipped; types/lint pass and test database containment is clean. The exact saved narrow Deny rule is now published active while Contact stays disabled, with the original Log rule unchanged. The allowed verifier returned 503 and all four health reads returned 200; primary quota is zero and retained alert state is one sent/zero pending. Production aliases remain web b61cb4a4 and Ops D67, with both saved flags false. No Production test build, promotion, fixture, inquiry email or financial invocation occurred. Await exact amended-packet approval and the owner mobile-data denial, including matching provider evidence. The live window has not started and the matrix row stays pending. Read 27-CONTACT-VERCEL-INGRESS-TEST-PACKET.md. Counts and all money/legal HOLDs are unchanged.
+
+
+## Actual Vercel ingress completed — October11
+
+Actual Vercel ingress passed at exact 58897a94 under the owner-approved bounded no-mail packet. A reserved3, distinct runtime B reserved2 and denied the sixth429 (Retry-After844); forged client-IP headers remained429 (806) with identical two quota fingerprints. Both aliases restored to disabled b61cb4a4 within151 seconds; saved flagsfalse, quota0, alert1sent/pending0, four health reads200, unsigned alert receiver401, OpsD67 unchanged. Exactly two owned rows removed under advisory lock. Temporary Deny disabled/published; original Log retained. Auto domain assignment restoredfalse. Automatic Inngest refresh reconciled with14 unchanged functions on a new disabled baseline-source build. No inquiry email or manual financial invocation. One matrix row now passes:30/35 dated observations (29 D67 history plus this scoped588 proof), not single-release acceptance. Plan09 remains incomplete,20/21 and144/151; all7requirements and money/legal HOLDs remain. Read 27-CONTACT-VERCEL-INGRESS-RESULT.md.
+
+
+Offline live validator rerun after recording this result still FAILs. It specifically rejects contact-trusted-ingress-per-ip for candidate identity mismatch: the independently approved58897a94 scoped test is newer than the D67 engineering/cutover packet. The actual ingress test passed; it does not supply single-release acceptance. Other reported gaps are partial external inventory/high threats, staff capability denial, genuine issued verification/reset links, aggregate quota-to-alert chain, full rollback/Contact controls, actual inquiry receipt/Reply-To/reply and controlled inquiry authority. Preserve these failures and reconcile the release packet rather than weakening the validator or relabeling historical source evidence.

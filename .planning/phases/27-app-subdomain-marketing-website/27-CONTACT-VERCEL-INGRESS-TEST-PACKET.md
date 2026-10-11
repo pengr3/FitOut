@@ -2,7 +2,7 @@
 
 Prepared 2026-10-11T07:14:31.077Z. Source: 58897a9459cf31b7c8937254dc17ab61ae0ce1d5, branch codex/phase27-contact-ingress-58897a94. This remains Phase 27/Plan 09. Phase 28 is not defined in the current roadmap.
 
-The owner instructed "go ahead continue" after the restricted-window explanation. Preparation is verified; both protected Preview builds are READY. Exact amended source/window approval has been requested and is pending. The live window has not started: the current production release is unchanged, Contact remains disabled, and no production quota fixture or inquiry has been created. This packet makes the no-mail mechanism and different-runtime evidence concrete; do not silently reuse the completed D67 window as authority for a different source or broader operation.
+The owner explicitly approved this exact amended packet: "Approve this exact packet". The bounded test is now complete with the disabled baseline restored, exact cleanup complete and the temporary rule disabled. See 27-CONTACT-VERCEL-INGRESS-RESULT.md. The preparation snapshot below is dated history.
 
 ## Exact candidate and no-mail safeguard
 
@@ -185,3 +185,11 @@ Actual Vercel ingress preparation: no-mail verification candidate 58897a94 is co
   "ownerMobileCheck": "requested; current independent denial pending"
 }
 ```
+
+
+## Approved window completed
+
+Actual Vercel ingress passed at exact 58897a94 under the owner-approved bounded no-mail packet. A reserved3, distinct runtime B reserved2 and denied the sixth429 (Retry-After844); forged client-IP headers remained429 (806) with identical two quota fingerprints. Both aliases restored to disabled b61cb4a4 within151 seconds; saved flagsfalse, quota0, alert1sent/pending0, four health reads200, unsigned alert receiver401, OpsD67 unchanged. Exactly two owned rows removed under advisory lock. Temporary Deny disabled/published; original Log retained. Auto domain assignment restoredfalse. Automatic Inngest refresh reconciled with14 unchanged functions on a new disabled baseline-source build. No inquiry email or manual financial invocation. One matrix row now passes:30/35 dated observations (29 D67 history plus this scoped588 proof), not single-release acceptance. Plan09 remains incomplete,20/21 and144/151; all7requirements and money/legal HOLDs remain. Read 27-CONTACT-VERCEL-INGRESS-RESULT.md.
+
+
+Offline live validator rerun after recording this result still FAILs. It specifically rejects contact-trusted-ingress-per-ip for candidate identity mismatch: the independently approved58897a94 scoped test is newer than the D67 engineering/cutover packet. The actual ingress test passed; it does not supply single-release acceptance. Other reported gaps are partial external inventory/high threats, staff capability denial, genuine issued verification/reset links, aggregate quota-to-alert chain, full rollback/Contact controls, actual inquiry receipt/Reply-To/reply and controlled inquiry authority. Preserve these failures and reconcile the release packet rather than weakening the validator or relabeling historical source evidence.
