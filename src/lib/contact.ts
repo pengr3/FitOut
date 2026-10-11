@@ -1,5 +1,5 @@
 import "server-only";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { isIP } from "node:net";
 import { MARKETING_ORIGIN } from "@/lib/app-origins";
 import { sendContactInquiry } from "@/lib/email";
@@ -8,6 +8,8 @@ import { reserveContactQuota } from "@/lib/contact-quota";
 import { CONTACT_FIELDS, contactSchema, type ContactField, type ContactResult } from "@/lib/validation/contact";
 
 const MAX_BYTES = 16 * 1024;
+// Anonymous module-instance marker: logged only during an explicitly configured no-mail test.
+const verificationInstanceId = randomUUID();
 const unavailable = "Your message could not be sent. Please try again later.";
 function response(status: number, result: ContactResult, retryAfter?: number): Response {
   return Response.json(result, { status, headers: { "Cache-Control": "no-store", ...(retryAfter ? { "Retry-After": String(retryAfter) } : {}) } });
@@ -80,10 +82,21 @@ export async function handleContact(request: Request): Promise<Response> {
   const budget = rateLimit(`contact:sender:${hashed(parsed.data.email)}`, { max: 3, window: 3600 });
   if (!budget.ok) { const retryAfter = Math.min(3600, Math.max(1, budget.retryAfter)); return response(429, { ok: false, error: "Too many attempts. Please wait before trying again.", retryAfter }, retryAfter); }
   const shared = await reserveContactQuota(ip);
+  const verification = process.env.CONTACT_INGRESS_VERIFICATION_MODE === "true";
+  if (verification) {
+    // No IP, sender, inquiry, request headers, credentials or raw errors in this evidence.
+    console.info("contact-ingress-verification " + JSON.stringify({
+      instanceId: verificationInstanceId,
+      reservation: shared.ok ? "reserved" : shared.reason,
+    }));
+  }
   if (!shared.ok) {
     if (shared.reason === "limited") return response(429, { ok: false, error: "Too many attempts. Please wait before trying again.", retryAfter: shared.retryAfter }, shared.retryAfter);
     return response(503, { ok: false, error: unavailable });
   }
+  // Exercise the real reservation without reaching any email transport. This never
+  // bypasses the earlier production-enable, exact-host/origin or trusted-IP guards.
+  if (verification) return response(503, { ok: false, error: unavailable });
   try {
     const result = await sendContactInquiry(parsed.data);
     if (result.delivered && result.transport === "resend") return response(200, { ok: true });

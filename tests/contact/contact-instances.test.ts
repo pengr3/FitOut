@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { fork, type ChildProcess } from "node:child_process";
 import { request as httpRequest } from "node:http";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -14,7 +14,8 @@ import { contactQuota } from "@/lib/db/schema";
 const secret = "contact-instances-test-secret-at-least-32-characters";
 const trustedIp = "203.0.113.17";
 const ipKey = "contact:ip:v1:" + createHmac("sha256", secret).update("fitout/contact-quota/ip/v1\0").update(trustedIp).digest("hex");
-type Instance = { child: ChildProcess; port: number; pid: number; databasePid: number };
+type VerificationEvent = { instanceId: string; reservation: "reserved" | "limited" | "unavailable" };
+type Instance = { child: ChildProcess; port: number; pid: number; databasePid: number; events: VerificationEvent[] };
 let fixture: TestDb;
 let directory: string;
 let bundle: string;
@@ -27,7 +28,7 @@ async function stop(instance: Instance) {
     instance.child.send("stop");
   });
 }
-async function start(disabled = false): Promise<Instance> {
+async function start(disabled = false, verification = false): Promise<Instance> {
   // Whitelist env: no Resend, production DB, Inngest or other inherited credentials.
   const child = fork(bundle, [], { execArgv: [], silent: true, env: {
     SystemRoot: process.env.SystemRoot,
@@ -35,11 +36,22 @@ async function start(disabled = false): Promise<Instance> {
     NODE_ENV: disabled ? "production" : "test",
     VERCEL: "1", VERCEL_ENV: disabled ? "production" : "preview",
     VERCEL_URL: "contact-instance-test.vercel.app",
-    CONTACT_PRODUCTION_ENABLED: "false",
+    CONTACT_PRODUCTION_ENABLED: "false", CONTACT_INGRESS_VERIFICATION_MODE: verification ? "true" : "false",
     BETTER_AUTH_URL: "http://app.localhost", NEXT_PUBLIC_APP_URL: "http://app.localhost",
     MARKETING_APP_URL: "http://marketing.localhost", OPS_APP_URL: "http://ops.localhost",
     DATABASE_URL: testDatabaseUrl(), CONTACT_TEST_SCHEMA: fixture.schema, BETTER_AUTH_SECRET: secret,
   } });
+  const events: VerificationEvent[] = [];
+  let pendingLine = "";
+  child.stdout?.on("data", chunk => {
+    pendingLine += String(chunk);
+    const lines = pendingLine.split(/\r?\n/);
+    pendingLine = lines.pop() ?? "";
+    for (const line of lines) {
+      const prefix = "contact-ingress-verification ";
+      if (line.startsWith(prefix)) events.push(JSON.parse(line.slice(prefix.length)));
+    }
+  });
   return await new Promise<Instance>((resolve, reject) => {
     let diagnostics = "";
     child.stderr?.on("data", chunk => { diagnostics += String(chunk); });
@@ -49,7 +61,7 @@ async function start(disabled = false): Promise<Instance> {
     child.once("message", message => {
       clearTimeout(timeout);
       const data = message as Omit<Instance, "child">;
-      const instance = { ...data, child };
+      const instance = { ...data, child, events };
       instances.push(instance);
       resolve(instance);
     });
@@ -155,8 +167,33 @@ describe("Contact HTTP quota across independent processes (isolated, no mail)", 
       concurrentAttempts: 8, admittedReservations: 5, sharedDenials: 3, restartDenied: true,
       missingTrustedIdentityDenied: true, independentIpAdmitted: true, rollingExpiryAdmitted: true, actualEmailsSent: 0 }));
   });
+  it("runs real shared reservations in verification mode with zero transport calls and distinct anonymous runtime markers", async () => {
+    const servers = await Promise.all([start(false, true), start(false, true), start(false, true)]);
+    const responses = await Promise.all(Array.from({ length: 8 }, (_, index) => submit(servers[index % 3], index)));
+    expect(responses.filter(r => r.status === 503)).toHaveLength(5);
+    expect(responses.filter(r => r.status === 429)).toHaveLength(3);
+    expect((await Promise.all(servers.map(meta))).every(r => r.transportAttempts === 0)).toBe(true);
+    await vi.waitFor(() => expect(servers.flatMap(s => s.events)).toHaveLength(8));
+    const events = servers.flatMap(s => s.events);
+    expect(new Set(events.map(e => e.instanceId)).size).toBe(3);
+    expect(events.filter(e => e.reservation === "reserved")).toHaveLength(5);
+    expect(events.filter(e => e.reservation === "limited")).toHaveLength(3);
+    expect(events.every(e => Object.keys(e).sort().join(",") === "instanceId,reservation")).toBe(true);
+    expect(JSON.stringify(events)).not.toContain(trustedIp);
+    const rows = await fixture.db.select().from(contactQuota);
+    expect(rows.find(r => r.key === ipKey)?.attempts).toHaveLength(5);
+    expect(rows.find(r => r.key === "contact:global:v1")?.attempts).toHaveLength(5);
+    await stop(servers[0]);
+    const restarted = await start(false, true);
+    expect((await submit(restarted, 9)).status).toBe(429);
+    await vi.waitFor(() => expect(restarted.events).toHaveLength(1));
+    expect(new Set([...events, ...restarted.events].map(e => e.instanceId)).size).toBe(4);
+    expect((await meta(restarted)).transportAttempts).toBe(0);
+    console.log(JSON.stringify({ proof: "contact-verification-mode", reserved: 5, denied: 3,
+      runtimeMarkers: 3, replacementMarkerDistinct: true, replacementDenied: true, transportCalls: 0 }));
+  });
   it("keeps production-disabled requests ahead of quota and transport", async () => {
-    const disabled = await start(true);
+    const disabled = await start(true, true);
     expect((await submit(disabled, 0)).status).toBe(503);
     expect(await fixture.db.select().from(contactQuota)).toHaveLength(0);
     expect((await meta(disabled)).transportAttempts).toBe(0);

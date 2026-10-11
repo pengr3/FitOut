@@ -12,7 +12,7 @@ function request(body: unknown = valid, headers: Record<string, string | undefin
 }
 beforeEach(async () => {
   vi.resetModules();
-  for (const [key, value] of Object.entries({ NODE_ENV: "test", VERCEL: "", VERCEL_ENV: "", VERCEL_URL: "", BETTER_AUTH_URL: "http://localhost:3000", NEXT_PUBLIC_APP_URL: "http://localhost:3000", MARKETING_APP_URL: local, OPS_APP_URL: "http://ops.localhost:3000", MARKETING_PREVIEW_URL: "", CONTACT_PRODUCTION_ENABLED: "" })) vi.stubEnv(key, value);
+  for (const [key, value] of Object.entries({ NODE_ENV: "test", VERCEL: "", VERCEL_ENV: "", VERCEL_URL: "", BETTER_AUTH_URL: "http://localhost:3000", NEXT_PUBLIC_APP_URL: "http://localhost:3000", MARKETING_APP_URL: local, OPS_APP_URL: "http://ops.localhost:3000", MARKETING_PREVIEW_URL: "", CONTACT_PRODUCTION_ENABLED: "", CONTACT_INGRESS_VERIFICATION_MODE: "" })) vi.stubEnv(key, value);
   transport.send.mockReset().mockResolvedValue({ delivered: true, transport: "resend" });
   sharedQuota.reserve.mockReset().mockResolvedValue({ ok: true });
   ({ POST } = await import("@/app/api/contact/route"));
@@ -91,6 +91,49 @@ describe("Contact public send boundary", () => {
     expect((await POST(request(valid, { "x-vercel-forwarded-for": "203.0.113.1" }, "https://fitout.live"))).status).toBe(503);
     expect(transport.send).not.toHaveBeenCalled();
     expect(sharedQuota.reserve).not.toHaveBeenCalled();
+  });
+  it("verification mode reserves quota but never reaches inquiry transport or leaks request data", async () => {
+    await deployed();
+    vi.stubEnv("CONTACT_INGRESS_VERIFICATION_MODE", "true");
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      const response = await POST(request(valid, { "x-vercel-forwarded-for": "203.0.113.1" }, "https://fitout.live"));
+      expect(response.status).toBe(503);
+      expect(sharedQuota.reserve).toHaveBeenCalledWith("203.0.113.1");
+      expect(transport.send).not.toHaveBeenCalled();
+      expect(log).toHaveBeenCalledTimes(1);
+      const entry = String(log.mock.calls[0][0]);
+      const evidence = JSON.parse(entry.slice("contact-ingress-verification ".length));
+      expect(Object.keys(evidence).sort()).toEqual(["instanceId", "reservation"]);
+      expect(evidence.instanceId).toMatch(/^[0-9a-f-]{36}$/);
+      expect(evidence.reservation).toBe("reserved");
+      for (const value of ["203.0.113.1", "Person@example.com", "person@example.com", "Hello", "Visitor"]) expect(entry).not.toContain(value);
+      expect(await response.text()).not.toContain(evidence.instanceId);
+    } finally { log.mockRestore(); }
+  });
+  it("verification mode preserves the actual shared denial and retry", async () => {
+    await deployed();
+    vi.stubEnv("CONTACT_INGRESS_VERIFICATION_MODE", "true");
+    sharedQuota.reserve.mockResolvedValue({ ok: false, reason: "limited", retryAfter: 73 });
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      const response = await POST(request(valid, { "x-vercel-forwarded-for": "203.0.113.1" }, "https://fitout.live"));
+      expect(response.status).toBe(429);
+      expect(response.headers.get("retry-after")).toBe("73");
+      expect(log.mock.calls[0][0]).toContain('"reservation":"limited"');
+      expect(transport.send).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
+  });
+  it("verification mode cannot override the disabled production flag", async () => {
+    await deployed("false");
+    vi.stubEnv("CONTACT_INGRESS_VERIFICATION_MODE", "true");
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      expect((await POST(request(valid, { "x-vercel-forwarded-for": "203.0.113.1" }, "https://fitout.live"))).status).toBe(503);
+      expect(sharedQuota.reserve).not.toHaveBeenCalled();
+      expect(transport.send).not.toHaveBeenCalled();
+      expect(log).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
   });
   it.each(["", "203.0.113.1, 203.0.113.2", "invalid", "203.0.113.1:1234", "203.0. 113.1"]) ("denies missing/malformed/chained Vercel identity %s", async (ip) => {
     await deployed();
