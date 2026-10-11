@@ -504,9 +504,9 @@ Exact approved source is deployed through separate Stage A/B/C builds. This reco
       "expected": "Approved host/provider/control contract in Plan09 and required matrix",
       "status": "unknown",
       "outcome": "pending",
-      "observed": "Exact trusted-header implementation, current Vercel header documentation and logging-only scoped rule readback exist. Enforcing edge rate limit opened paid upgrade; cancelled. Deployed handler ingress/per-IP proof remains pending.",
-      "proof": "Pending actual observation",
-      "observedAt": "2026-10-10T11:57:15.492Z"
+      "observed": "Temporary WAF independently denied owner mobile carrier while verifier reached disabled handler. Enabled exact-source sequential probes with rotated synthetic forwarding headers returned429,400,400,400,400,429; sixth Retry-After895. Process observation only; shared cross-instance per-IP admission proof remains pending. Temporary guard disabled after recovery.",
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md",
+      "observedAt": "2026-10-11T05:31:14.208Z"
     },
     {
       "id": "contact-distributed-global-budget",
@@ -519,9 +519,9 @@ Exact approved source is deployed through separate Stage A/B/C builds. This reco
       "expected": "Approved host/provider/control contract in Plan09 and required matrix",
       "status": "unknown",
       "outcome": "pending",
-      "observed": "Primary database rollback-only test now proves exact quota algorithm:5/7 per-IP admissions and global100 cap with zero persistent writes. Actual deployed HTTP quota/alert proof remains pending; no public enablement.",
-      "proof": "Pending actual observation",
-      "observedAt": "2026-10-10T11:57:15.492Z"
+      "observed": "Actual exact-source Production HTTP global429 with Retry-After3311 under owned100-reservation primary fixture; exact fixture unchanged and removed after recovery. Manual operator restore503 observed. Automatic quota alert notification remains unproved; row stays pending.",
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md",
+      "observedAt": "2026-10-11T05:31:14.208Z"
     },
     {
       "id": "contact-disabled-recovery",
@@ -549,9 +549,9 @@ Exact approved source is deployed through separate Stage A/B/C builds. This reco
       "expected": "Approved host/provider/control contract in Plan09 and required matrix",
       "status": "unknown",
       "outcome": "pending",
-      "observed": "Original and Stage A pins retained and READY; no threshold breach or actual rollback exercise occurred.",
-      "proof": "Pending actual observation",
-      "observedAt": "2026-10-10T11:57:15.492Z"
+      "observed": "Actual scoped Contact test promotion followed by restore to Stage C disabled customer pin, savedflagfalse, Contact503 and all3surfaces200. Ops pin unchanged. Full origin/session/provider cutover rollback and failure-threshold evidence remain pending.",
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md",
+      "observedAt": "2026-10-11T05:31:14.208Z"
     }
   ],
   "highThreats": [
@@ -631,84 +631,61 @@ Exact approved source is deployed through separate Stage A/B/C builds. This reco
   },
   "contactVerificationLimit": "Approved production handleContact checks disabled flag before original-client identity and rate/quota logic. No-mail disabled probes cannot prove those live controls; no enablement or primary quota fixture was attempted.",
   "contactControlProgress": {
-    "recordedAt": "2026-10-10T13:42:35.904Z",
-    "primaryQuota": {
-      "proof": "playwright/.cache/phase27-08/production-primary-quota-rollback-proof-20261010.json",
-      "perIp": "5 admitted, 2 limited within rolling 900-second window",
-      "global": "Counter99 admits one slot; next distinct IP limited at100 within3600 seconds",
-      "persistentWrites": 0,
-      "limit": "This proves the primary database backing and exact algorithm, not deployed HTTP ingress, deployed-secret correspondence, cross-instance race, or alert delivery. Synthetic HMAC secret used; no deployed secret read."
+    "recordedAt": "2026-10-11T05:31:14.208Z",
+    "result": "Bounded no-mail test completed; disabled deployment and saved flags restored; exact fixture removed; temporary guard disabled and published.",
+    "source": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+    "testDeploymentId": "dpl_FTxX4Sa4pq8jcW21kmuwiV5vxUFW",
+    "restoredCustomerId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+    "restoredOpsId": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+    "publicContactEnabled": false,
+    "temporaryGuard": {
+      "id": "rule_phase_27_restricted_contact_test_j9IM6v",
+      "enabled": false,
+      "cleanupPublished": true,
+      "distinctNetworkDenialObserved": true,
+      "originalLogRulePreserved": true
     },
-    "edgeRule": {
-      "id": "rule_phase_27_contact_edge_guard_R85Dc4",
-      "name": "Phase 27 Contact edge guard",
-      "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
-      "hostname": "fitout.live",
-      "path": "/api/contact",
-      "method": "POST",
-      "environment": "production",
-      "enabled": true,
-      "algorithm": "fixed_window",
-      "windowSeconds": 600,
-      "limit": 50,
-      "key": "ip_address",
-      "mitigation": "log",
-      "enforcing": false,
-      "readback": "Normal signed-in browser saved rule editor; reopened after cancelling paid upgrade",
-      "screenshot": "playwright/.cache/phase27-08/production-contact-log-rule-20261010.jpg",
-      "accountGate": "Selecting enforcing429 opened Pro upgrade; cancelled. Docs say Hobby rate limit available, account UI disagrees. No billing gate bypass."
+    "globalQuotaHTTP": {
+      "status": 429,
+      "retryAfterSeconds": 3311,
+      "proof": "playwright/.cache/phase27-08/contact-bounded-http-20261011.json",
+      "requestId": "sin1::iad1::rw7l5-1791696332669-a73a54cbd492"
     },
-    "disabledHttp": {
-      "proof": "playwright/.cache/phase27-08/production-contact-edge-logging-20261010.json",
-      "probes": 3,
+    "rotatedHeaderProbes": {
       "statuses": [
-        503,
-        503,
-        503
+        429,
+        400,
+        400,
+        400,
+        400,
+        429
       ],
-      "boundaryStatuses": [
-        {
-          "url": "https://fitout.live/",
-          "method": "GET",
-          "status": 200
-        },
-        {
-          "url": "https://app.fitout.live/",
-          "method": "GET",
-          "status": 200
-        },
-        {
-          "url": "https://ops.fitout.live/login",
-          "method": "GET",
-          "status": 200
-        },
-        {
-          "url": "https://fitout.live/api/contact",
-          "method": "GET",
-          "status": 405
-        },
-        {
-          "url": "https://app.fitout.live/api/contact",
-          "method": "POST",
-          "status": 404
-        }
-      ]
+      "sixthRetryAfterSeconds": 895,
+      "scope": "One ingress and sequential process observations; shared cross-instance per-IP enforcement not established."
     },
-    "flags": {
-      "web": false,
-      "ops": false,
-      "readback": "Exact public Production environment values returnedfalse in both Vercel projects"
+    "recovery": {
+      "status": 503,
+      "healthySurfaces": 3,
+      "quotaRows": 0,
+      "fieldsRetained": true,
+      "proof": "playwright/.cache/phase27-08/contact-recovery-20261011.json"
     },
-    "nextAction": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-NO-MAIL-TEST-PACKET.md",
-    "nextActionAuthority": "pending",
-    "sourceChanged": false,
-    "mailSent": false,
+    "mailTransport": "No success response; global quota denied before send in exact source. Request trace reports no outgoing HTTP calls; direct PostgreSQL trace instrumentation is not established.",
+    "automaticAlertVerified": false,
+    "scopedRollbackObserved": true,
+    "fullCutoverRollbackVerified": false,
+    "evidence": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md",
+    "remainingGates": [
+      "Automatic quota alert/notification and ongoing monitoring",
+      "Actual shared per-IP ingress enforcement across instances",
+      "Full cutover rollback acceptance",
+      "Other staff capability, issued-link, provider, inbox and release-control gates"
+    ],
     "holds": {
       "checkout": "HOLD",
       "payout": "HOLD",
       "legal": "HOLD"
-    },
-    "limits": "Primary database and logging-only edge progress; complete live control and alert observations still pending. No new scenario is marked complete."
+    }
   }
 }
 ```
@@ -721,3 +698,6 @@ Exact approved source is deployed through separate Stage A/B/C builds. This reco
 2026-10-10T21:32:10.541Z: Vercel login restored. Temporary rule rule_phase_27_restricted_contact_test_j9IM6v was scoped to exact Production POST /api/contact on fitout.live, staged/published as plain Log, and one marked empty-body probe produced one match with one original verifier IP captured privately. Rule was then edited, published and reopened with an additional original-IP Does not equal condition and plain Deny. No upgrade or system bypass occurred. Verifier POST returned503. Codex browser synthetic example.invalid submission also returned503, so it does not prove independent denial; no distinct original IP is claimed. Owner mobile-data probe requested and pending. Four completed preflight POSTs, both flags false, primary quota_rows0, no fixture or temporary enabled deployment, no email. HTTP request trace for initial probe shows no outgoing requests. Counts remain20/21,144/151,29/35, all seven requirements pending.
 
 Saved ignored evidence contact-guard-preflight-20261011.json and contact-temporary-guard-20261011.png. Individual request logs supply503 and no outgoing APIs; custom-rule traffic supplies the single Log match. Hobby custom queries are read-only and the12h runtime-log request was rejected by retention; corrected15m runtime events were empty, so request-list evidence was used. No automatic alert, actual deployed global quota execution or rollback is claimed.
+
+
+Latest bounded Contact test: see .planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md. All six complete matrix gates remain pending; partial evidence does not increment29/35.

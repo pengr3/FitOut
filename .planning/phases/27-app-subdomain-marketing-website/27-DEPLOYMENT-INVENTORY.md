@@ -142,13 +142,13 @@ content remains unproved here. No request used a protection bypass.
       "id": "contact-waf-global",
       "status": "partial",
       "owner": "Vercel security and mailbox owners",
-      "current": "Production Contact remains false in both projects. Exact quota algorithm passed a rollback-only primary database test; table remains empty. Customer project now has one published logging-only Contact rule50/600s byIP, scopedProduction/apex/exactPOSTpath. Enforcing429 opens Pro upgrade in this account; cancelled. Legacy config API still404 despite actual UI rule. Deployed ingress/quota/alert and no-mail test authority remain pending.",
+      "current": "Bounded approved no-mail test completed: distinct-network temporary WAF denial, deployed global429 Retry-After3311 and sequential local6th429 observed. Restored Stage C customer/ops pins, both savedflagsfalse, quota0 and temporaryguarddisabled; original logging rule remains active. Automatic quota alert and shared cross-instance per-IP proof pending.",
       "target": "Verified deployment-wide per-IP <=5/15min plus global mailbox <=100/hour before Contact true; process-local Map insufficient",
       "requiredProof": "Published enforcing rule + trusted ingress + distributed cross-region/global mailbox budget and bounded control test; account plan/limits checked",
       "rollback": "CONTACT_PRODUCTION_ENABLED=false on customer/ops deployments, redeploy, verify real 503 and retained form recovery",
-      "observedAt": "2026-10-10T13:42:35.904Z",
-      "observationType": "Fresh signed-in browser saved-rule readback, public-only Production flag reads, primary rollback proof and disabled HTTP probes",
-      "source": "playwright/.cache/phase27-08/production-contact-control-progress-20261010.json"
+      "observedAt": "2026-10-11T05:31:14.208Z",
+      "observationType": "Actual mobile-carrier WAF evidence, Production HTTP probes, deployment/publicflag readback and exact-fingerprint fixture cleanup",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md"
     },
     {
       "id": "deployment-revision",

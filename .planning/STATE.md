@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09 Contact: temporary guard published; different-network denial probe pending"
-last_updated: "2026-10-10T21:32:10.541Z"
+stopped_at: "Plan09 Contact: bounded no-mail test restored; alert and cross-instance evidence gaps pending"
+last_updated: "2026-10-11T05:31:14.208Z"
 last_activity: 2026-10-11
-last_activity_desc: Temporary verifier-only Contact guard published; owner mobile-data denial proof pending; Contact off
+last_activity_desc: Live global quota429 and scoped rollback observed; Contact off, quota0, temporaryguarddisabled
 state_head: d67fbecf
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -2282,3 +2282,8 @@ Final approved-source Preview build readback (2026-10-10T10:12:06Z): web dpl_A9X
 
 
 Production binding confirmation (2026-10-10T10:58:41.869Z): owner affirmed both exact Production database targets. Record as owner-confirmed, not secret readback. Proceed with approved d67fbecf staged cutover; maintain current pins until fresh staged builds/checks succeed. No new code, Contact enablement, mail or fund movement is authorized by the target confirmation. Counts remain19/21 pending original08/09 completion.
+
+
+## Bounded Contact test completed — October 11
+
+2026-10-11T05:31:14.208Z: Owner mobile-data denial was observed from a distinct original IP. Exact-source staged deployment dpl_FTxX4Sa4pq8jcW21kmuwiV5vxUFW was promoted for six no-mail probes: global429 Retry-After3311; malformed requests400; sixth request429 Retry-After895 despite rotated synthetic forwarding headers. The active operator immediately restored customer dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW and savedflagfalse; Ops remained dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ with falseflag. Fresh503, all3surfaces200 and field retention passed. Exact100-reservation fixture matched and was removed; primaryquota0. Temporary guard disabled and published, originalLogrule preserved. No mail success or transport call was recorded. See27-CONTACT-BOUNDED-TEST-RESULT.md for limits. Automatic alert and deployed shared cross-instance per-IP proof remain open; scoped rollback does not establish full cutover rollback. No new matrix pass or plan completion:20/21,144/151,29/35,all7requirementspending.

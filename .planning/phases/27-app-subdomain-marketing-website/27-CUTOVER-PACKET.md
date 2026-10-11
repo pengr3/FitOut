@@ -44,8 +44,8 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
     "controlsVerified": false,
     "processLocalIsGlobal": false,
     "perIpPolicy": "Enforcing trusted-ingress deployment-wide <=5 attempts per 15 minutes per original client; account-wide proof pending",
-    "globalBudget": "Atomic database-wide <=100 delivery attempts/hour and <=5/original trusted IP/15 minutes implemented and tested in engineering and isolated Preview. Reviewed production 0037 migration applied with structural readback; actual production enforcement, alert/disable proof, and Contact enablement remain pending.",
-    "disabledRecovery": "Actual503, recoverable feedback, retained synthetic fields, no success message and zero primary quota rows observed.",
+    "globalBudget": "Atomic100/hour control observed through exact-source Production HTTP429 under an owned100-reservation fixture; fixture removed after disabled503 recovery. Automatic alert and complete shared per-IP ingress proof remain pending.",
+    "disabledRecovery": "Fresh disabled503, retained synthetic fields and enabled Send button, all3surfaces200, savedflagsfalse, primaryquota0, temporaryguarddisabled.",
     "quotaMigration": {
       "path": "drizzle/0037_contact_quota.sql",
       "sha256": "8b657d22de785aaa5c2ba3ab201a255f91af9c72b4bd0a9c5c1c9ef6fd593b34",
@@ -62,84 +62,61 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
       "productionReadback": "38 migration entries; exact canonical hash; empty quota table; expected three NOT NULL columns and both indexes. Atomic exact precondition guard retained prior37 entries."
     },
     "controlProgress": {
-      "recordedAt": "2026-10-10T13:42:35.904Z",
-      "primaryQuota": {
-        "proof": "playwright/.cache/phase27-08/production-primary-quota-rollback-proof-20261010.json",
-        "perIp": "5 admitted, 2 limited within rolling 900-second window",
-        "global": "Counter99 admits one slot; next distinct IP limited at100 within3600 seconds",
-        "persistentWrites": 0,
-        "limit": "This proves the primary database backing and exact algorithm, not deployed HTTP ingress, deployed-secret correspondence, cross-instance race, or alert delivery. Synthetic HMAC secret used; no deployed secret read."
+      "recordedAt": "2026-10-11T05:31:14.208Z",
+      "result": "Bounded no-mail test completed; disabled deployment and saved flags restored; exact fixture removed; temporary guard disabled and published.",
+      "source": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "testDeploymentId": "dpl_FTxX4Sa4pq8jcW21kmuwiV5vxUFW",
+      "restoredCustomerId": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+      "restoredOpsId": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+      "publicContactEnabled": false,
+      "temporaryGuard": {
+        "id": "rule_phase_27_restricted_contact_test_j9IM6v",
+        "enabled": false,
+        "cleanupPublished": true,
+        "distinctNetworkDenialObserved": true,
+        "originalLogRulePreserved": true
       },
-      "edgeRule": {
-        "id": "rule_phase_27_contact_edge_guard_R85Dc4",
-        "name": "Phase 27 Contact edge guard",
-        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
-        "hostname": "fitout.live",
-        "path": "/api/contact",
-        "method": "POST",
-        "environment": "production",
-        "enabled": true,
-        "algorithm": "fixed_window",
-        "windowSeconds": 600,
-        "limit": 50,
-        "key": "ip_address",
-        "mitigation": "log",
-        "enforcing": false,
-        "readback": "Normal signed-in browser saved rule editor; reopened after cancelling paid upgrade",
-        "screenshot": "playwright/.cache/phase27-08/production-contact-log-rule-20261010.jpg",
-        "accountGate": "Selecting enforcing429 opened Pro upgrade; cancelled. Docs say Hobby rate limit available, account UI disagrees. No billing gate bypass."
+      "globalQuotaHTTP": {
+        "status": 429,
+        "retryAfterSeconds": 3311,
+        "proof": "playwright/.cache/phase27-08/contact-bounded-http-20261011.json",
+        "requestId": "sin1::iad1::rw7l5-1791696332669-a73a54cbd492"
       },
-      "disabledHttp": {
-        "proof": "playwright/.cache/phase27-08/production-contact-edge-logging-20261010.json",
-        "probes": 3,
+      "rotatedHeaderProbes": {
         "statuses": [
-          503,
-          503,
-          503
+          429,
+          400,
+          400,
+          400,
+          400,
+          429
         ],
-        "boundaryStatuses": [
-          {
-            "url": "https://fitout.live/",
-            "method": "GET",
-            "status": 200
-          },
-          {
-            "url": "https://app.fitout.live/",
-            "method": "GET",
-            "status": 200
-          },
-          {
-            "url": "https://ops.fitout.live/login",
-            "method": "GET",
-            "status": 200
-          },
-          {
-            "url": "https://fitout.live/api/contact",
-            "method": "GET",
-            "status": 405
-          },
-          {
-            "url": "https://app.fitout.live/api/contact",
-            "method": "POST",
-            "status": 404
-          }
-        ]
+        "sixthRetryAfterSeconds": 895,
+        "scope": "One ingress and sequential process observations; shared cross-instance per-IP enforcement not established."
       },
-      "flags": {
-        "web": false,
-        "ops": false,
-        "readback": "Exact public Production environment values returnedfalse in both Vercel projects"
+      "recovery": {
+        "status": 503,
+        "healthySurfaces": 3,
+        "quotaRows": 0,
+        "fieldsRetained": true,
+        "proof": "playwright/.cache/phase27-08/contact-recovery-20261011.json"
       },
-      "nextAction": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-NO-MAIL-TEST-PACKET.md",
-      "nextActionAuthority": "pending",
-      "sourceChanged": false,
-      "mailSent": false,
+      "mailTransport": "No success response; global quota denied before send in exact source. Request trace reports no outgoing HTTP calls; direct PostgreSQL trace instrumentation is not established.",
+      "automaticAlertVerified": false,
+      "scopedRollbackObserved": true,
+      "fullCutoverRollbackVerified": false,
+      "evidence": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md",
+      "remainingGates": [
+        "Automatic quota alert/notification and ongoing monitoring",
+        "Actual shared per-IP ingress enforcement across instances",
+        "Full cutover rollback acceptance",
+        "Other staff capability, issued-link, provider, inbox and release-control gates"
+      ],
       "holds": {
         "checkout": "HOLD",
         "payout": "HOLD",
         "legal": "HOLD"
-      },
-      "limits": "Primary database and logging-only edge progress; complete live control and alert observations still pending. No new scenario is marked complete."
+      }
     }
   },
   "receivers": [
