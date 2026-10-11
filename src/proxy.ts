@@ -40,7 +40,7 @@ import {
   LOGGED_OUT_ONLY,
 } from "@/lib/session-check";
 import { absoluteAppUrl, classifyRequestHost } from "@/lib/app-origins";
-import { hostRoutePolicy, isMarketingScreenshot, isPathSegment } from "@/lib/host-route-policy";
+import { hostRoutePolicy, isMarketingPhoto, isMarketingScreenshot, isPathSegment } from "@/lib/host-route-policy";
 import { legacyAuthLinkDecision } from "@/lib/legacy-auth-links";
 import { verifyOpsGatewayHandoff } from "@/lib/ops/gateway-handoff";
 
@@ -111,7 +111,7 @@ function isOpsPassPath(pathname: string): boolean {
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (isPathSegment(pathname, "/marketing") && !isMarketingScreenshot(pathname)) return new NextResponse(null, { status: 404 });
+  if (isPathSegment(pathname, "/marketing") && !isMarketingScreenshot(pathname) && !isMarketingPhoto(pathname)) return new NextResponse(null, { status: 404 });
 
   // The historical cloak path is itself internal. Terminate direct requests in the response
   // gateway so every denied route class receives the same constant bytes.

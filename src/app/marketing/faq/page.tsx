@@ -1,3 +1,4 @@
+import { marketingSearchImage } from "@/lib/marketing-assets";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { MarketingFaq, type FaqQuestion } from "@/components/marketing/faq";
@@ -7,7 +8,7 @@ export const metadata: Metadata = {
   title: "FAQ",
   description: "Practical answers for players and hosts, from finding an available session to preparing a space for bookings.",
   alternates: { canonical: absoluteMarketingUrl("/faq") },
-  openGraph: { type: "website", title: "FAQ | FitOut", url: absoluteMarketingUrl("/faq"), images: [{ url: absoluteMarketingUrl("/marketing/screenshots/search.png"), width: 1120, height: 578, alt: "FitOut demo search by activity, location and group size." }] },
+  openGraph: { type: "website", title: "FAQ | FitOut", url: absoluteMarketingUrl("/faq"), images: [marketingSearchImage] },
 };
 const linkClass = "inline-flex min-h-11 items-center rounded-lg font-medium text-foreground underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 

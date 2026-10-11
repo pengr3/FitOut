@@ -77,7 +77,7 @@ import { composeReviewSentence, reviewSignalFor } from "@/lib/listing/review-sig
 import type { ListingReviewState } from "@/lib/db/schema";
 import type { ListingReviewHistory } from "@/lib/listing/review-history";
 import { MATERIAL_FIELD_LABELS } from "@/lib/listing/re-review-copy";
-import { MATERIAL_FIELDS } from "@/lib/listing/re-review";
+import { MATERIAL_FIELDS } from "@/lib/listing/material-fields";
 
 export type ListingCardData = {
   id: string;

@@ -8,6 +8,8 @@ const root = resolve("public/marketing/screenshots");
 const names = ["search", "account", "verification", "listing", "bookable", "session", "booking"];
 const manifest = JSON.parse(readFileSync(resolve(root, "manifest.json"), "utf8"));
 const allowed = new Set(names.map((name) => `/marketing/screenshots/${name}.png`));
+const photos = JSON.parse(readFileSync("public/marketing/photos/manifest.json", "utf8"));
+for (const photo of Object.values(photos.photos) as { path: string }[]) allowed.add(photo.path);
 
 // Parse code, not explanatory comments. Include static image imports and image
 // strings used by shared step data as well as direct JSX sources.
@@ -54,8 +56,8 @@ describe("authentic marketing asset contract", () => {
       const manilaDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(entry.capturedAt));
       expect(entry.captureDate).toBe(manilaDate);
       expect(Array.isArray(entry.fixtureIds)).toBe(true);
-      expect(entry.provenance).toMatchObject({ source: "actual-local-app-browser", fixture: "e2e/helpers/marketing-fixtures.ts", demoState: true, providersCalled: false, paymentConfirmed: false });
-      expect(entry.provenance.imagery).toContain("No photographs");
+      expect(entry.provenance).toMatchObject({ source: "actual-local-app-browser", fixture: name === "listing" ? "e2e/helpers/marketing-fixtures.ts" : "e2e/helpers/marketing-gallery.ts", demoState: true, providersCalled: false, paymentConfirmed: false });
+      if (name !== "listing") expect(entry.provenance.imagery).toContain("licensed Unsplash/Pexels");
       expect(entry.pixelReview.disposition).toBe("approved-safe");
       expect(entry.pixelReview.reviewedSha256).toBe(entry.sha256);
       expect(entry.pixelReview.reviewer).toMatch(/image viewer/i);
@@ -68,7 +70,7 @@ describe("authentic marketing asset contract", () => {
     }
   });
 
-  it("published marketing image sources use only manifest screenshots", () => {
+  it("published marketing image sources use only recorded screenshots or licensed photos", () => {
     const modules = [...marketingModules(resolve("src/app/marketing")), ...marketingModules(resolve("src/components/marketing"))];
     for (const file of modules) {
       for (const source of imageSources(readFileSync(file, "utf8"))) {

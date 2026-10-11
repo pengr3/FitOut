@@ -83,6 +83,17 @@ describe("marketing route and method policy", () => {
     expect(route("/marketing/screenshots/search.png", "GET", "app.example.test").status).toBe(404);
     for (const path of ["/marketing", "/marketing/contact", "/marketing/screenshots/manifest.json"]) expect(route(path).status).toBe(404);
   });
+  it.each(["tennis", "basketball", "badminton", "gym", "studio"])("serves reference photo %s on app and marketing with read methods only", (name) => {
+    const path = `/marketing/photos/${name}.jpg`;
+    for (const host of ["example.test", "app.example.test"]) {
+      for (const method of ["GET", "HEAD"]) expect(route(path, method, host).headers.get("x-middleware-next")).toBe("1");
+      expect(route(path, "POST", host).status).toBe(405);
+    }
+    expect(route(path, "GET", "unknown.test").status).toBe(404);
+    expect(route(path, "GET", "ops.example.test").headers.get("x-middleware-rewrite")).toContain("/ops-gateway");
+    expect(route("/marketing/photos/manifest.json").status).toBe(404);
+    expect(route("/marketing/photos/unlisted.jpg").status).toBe(404);
+  });
   it("does not derive trust from forwarded Host and removes private routing markers", () => {
     expect(route("/", "GET", "unknown.test", { "x-forwarded-host": "example.test" }).status).toBe(404);
     const response = route("/profile", "GET", "app.example.test", {

@@ -4,8 +4,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { format } from "date-fns";
 import { tz } from "@date-fns/tz";
-import { marketingFixture } from "./helpers/marketing-fixtures";
-import { pickWindow, submitProgressiveSearch, targetYear, targetMonth, targetDay } from "./helpers/booker-seed";
+import { marketingGallery } from "./helpers/marketing-gallery";
+import { targetYear, targetMonth, targetDay } from "./helpers/booker-seed";
 
 test.use({ viewport: { width: 1280, height: 900 }, timezoneId: "Asia/Manila", geolocation: { latitude: 14.565, longitude: 121.03 }, permissions: ["geolocation"] });
 test.setTimeout(120_000);
@@ -14,6 +14,9 @@ async function capture(page: Page, region: Locator, name: string, state: string,
   await expect(region).toBeVisible();
   // Refuse external browser requests, and require actual rendered app state before any write.
   await page.evaluate(() => document.fonts.ready);
+  const bounds = await region.boundingBox();
+  if (bounds && bounds.height > 680) await page.setViewportSize({ width: 1280, height: Math.ceil(bounds.height + 260) });
+  await page.evaluate(() => window.scrollTo(0, 0));
   if (process.env.FITOUT_CAPTURE_MARKETING !== "1") return;
   const bytes = await region.screenshot({ animations: "disabled", type: "png" });
   const dir = resolve("public/marketing/screenshots");
@@ -29,7 +32,7 @@ async function capture(page: Page, region: Locator, name: string, state: string,
     width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20), route: url.pathname + url.search,
     assertedState: state, capturedAt: new Date().toISOString(), captureDate: format(new Date(), "yyyy-MM-dd", { in: tz("Asia/Manila") }),
     timezone: "Asia/Manila", sessionDate: sessionDate ?? null, fixtureIds: ids,
-    provenance: { source: "actual-local-app-browser", fixture: "e2e/helpers/marketing-fixtures.ts", spec: "e2e/marketing-captures.spec.ts", imagery: "No photographs: app's empty photo state; no external, generated or sketch assets", demoState: true, providersCalled: false, paymentConfirmed: false },
+    provenance: { source: "actual-local-app-browser", fixture: "e2e/helpers/marketing-gallery.ts", spec: "e2e/marketing-captures.spec.ts", imagery: "Five synthetic bookable spaces with licensed Unsplash/Pexels reference photographs; sources in public/marketing/photos/manifest.json", demoState: true, providersCalled: false, paymentConfirmed: false },
     pixelReview: { disposition: "pending", reviewer: null, notes: "Requires inspection of exact retained PNG before publication" },
   };
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
@@ -44,21 +47,31 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("@hero real progressive search", async ({ page }) => {
-  const fixture = await marketingFixture();
+  const fixture = await marketingGallery();
   try {
-    await submitProgressiveSearch(page, { spaceTypeLabel: fixture.spaceTypeLabel });
+    await page.goto("/");
+    await page.getByRole("button", { name: "Search location", exact: true }).click();
+    await page.getByRole("button", { name: "Use my location" }).click();
+    await page.waitForURL((url) => url.searchParams.has("lat"));
+    await expect(page.getByRole("heading", { name: fixture.title, exact: true })).toBeVisible();
+    for (const title of ["The Afternoon Court", "Bluebird Sports Hall", "The Training Floor", "Daylight Movement Studio"]) await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+    await page.evaluate(async () => { await Promise.all(Array.from(document.images).map((img) => img.decode())); });
     await expect(page.getByRole("button", { name: "Search activity", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Search location", exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Search party size", exact: true })).toBeVisible();
-    await capture(page, page.getByRole("region", { name: "Space search" }), "search", "Activity, location and party answers in genuine progressive search", [fixture.listingId]);
+    await capture(page, page.getByRole("region", { name: "Space search" }), "search", "Real location search with five photographed bookable spaces across courts, gyms and studios", fixture.listingIds);
   } finally { await fixture.cleanup(); }
 });
 
 test("@hosts real account, verification/payout roadmap, listing and bookable states", async ({ page }) => {
-  const fixture = await marketingFixture();
+  const fixture = await marketingGallery();
   try {
     await page.goto("/signup");
+    await expect(page.getByLabel("First name")).toBeEnabled();
     await page.getByRole("radio", { name: "Host a space" }).click();
+    await expect(page.getByRole("radio", { name: "Host a space" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("button", { name: "Sign up to host", exact: true })).toBeEnabled();
+    await expect(page.getByLabel("First name")).toBeEnabled();
     await expect(page.getByLabel("First name")).toBeEmpty();
     await capture(page, page.locator("main > div"), "account", "Genuine host account signup; empty personal fields", []);
     const hostId = await fixture.account(page, "host");
@@ -68,36 +81,32 @@ test("@hosts real account, verification/payout roadmap, listing and bookable sta
     await expect(roadmap).toContainText(/payout/i);
     await capture(page, roadmap, "verification", "Unverified demo host; real four-step account-check and payout roadmap; no bank or identity fields", [hostId]);
     await fixture.readyHost(hostId);
-    // Existing /new intermittently 404s locally. Use the same genuine draft wizard
-    // with this owned fixture; record the actual edit route, never claim /new worked.
-    await fixture.sql`UPDATE listing SET status = 'draft', title = '', description = '' WHERE id = ${fixture.listingId}`;
-    await page.goto(`/host/listings/${fixture.listingId}/edit`);
-    await expect(page).toHaveURL(/\/host\/listings\/[^/]+\/edit$/);
-    await expect(page.getByRole("heading", { name: "What kind of space is it?" })).toBeVisible();
-    await expect(page.getByRole("combobox", { name: "Primary space type" })).toBeVisible();
-    await capture(page, page.locator("main"), "listing", "Genuine draft listing setup wizard, space-type first step, after existing host approval gate; owned local seeded draft", [hostId, fixture.listingId]);
-    await fixture.sql`UPDATE listing SET status = 'published', title = 'FitOut Demo Court', description = 'A demo space for your next session.' WHERE id = ${fixture.listingId}`;
+    // The existing inspected listing-wizard capture stays intact. This pass
+    // refreshes photo-bearing surfaces without entering concurrent app-wizard work.
     await page.goto("/host/listings");
     await expect(page.getByRole("heading", { name: "Your listings" })).toBeVisible();
-    await expect(page.getByText("Live", { exact: true })).toBeVisible();
-    await capture(page, page.locator("main"), "bookable", "Real Live listing after email, payouts, host approval, listing approval, publication and operating-hours gates pass in local demo fixture", [hostId, fixture.listingId]);
+    await expect(page.getByText("Live", { exact: true })).toHaveCount(5);
+    await page.evaluate(async () => { await Promise.all(Array.from(document.images).map((img) => img.decode())); });
+    await capture(page, page.locator("main"), "bookable", "Five real Live listings with photographs after all local readiness gates pass", [hostId, ...fixture.listingIds]);
   } finally { await fixture.cleanup(); }
 });
 
 test("@players real future session selection and unpaid booking review", async ({ page }) => {
-  const fixture = await marketingFixture();
+  const fixture = await marketingGallery();
   try {
     const bookerId = await fixture.account(page, "book");
     const sessionDate = `${targetYear}-${String(targetMonth).padStart(2, "0")}-${String(targetDay).padStart(2, "0")}`;
     expect(sessionDate > format(new Date(), "yyyy-MM-dd", { in: tz("Asia/Manila") })).toBe(true);
-    await page.goto(`/listings/${fixture.listingId}`);
-    await pickWindow(page, "2:00 PM", "3:00 PM");
+    // Use the same verified session deep link as a real search-result card.
+    await page.goto(`/listings/${fixture.listingId}?date=${sessionDate}&start=14:00&end=15:00`);
+    await expect(page.getByRole("button", { name: "Start at 2:00 PM", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: "3:00 PM — checkout selected; booking ends here", exact: true })).toHaveAttribute("aria-pressed", "true");
     const book = page.getByRole("button", { name: /^Book this space$/ });
     await expect(book).toBeEnabled();
     const availability = page.locator("section").filter({ has: page.getByRole("heading", { name: "Availability", exact: true }) });
     await capture(page, availability, "session", "Real available future 14:00–15:00 Manila session selected in genuine calendar/hour picker; book CTA enabled", [fixture.listingId, bookerId], sessionDate);
     await book.click();
-    await expect(page).toHaveURL(/\/book\?hold=/);
+    await expect(page).toHaveURL(/\/book\?hold=/, { timeout: 30_000 });
     await expect(page.getByRole("button", { name: "Confirm & pay", exact: true })).toBeEnabled();
     await expect(page.getByRole("heading", { name: "Confirm and pay" })).toBeVisible();
     const holdId = new URL(page.url()).searchParams.get("hold")!;
