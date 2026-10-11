@@ -686,6 +686,147 @@ Exact approved source is deployed through separate Stage A/B/C builds. This reco
       "payout": "HOLD",
       "legal": "HOLD"
     }
+  },
+  "currentContactAlertRelease": {
+    "source": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5",
+    "branch": "codex/phase27-contact-alerts-b61cb4a4",
+    "deployment": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+    "aliases": [
+      {
+        "host": "fitout.live",
+        "id": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+        "state": "READY",
+        "sha": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5"
+      },
+      {
+        "host": "app.fitout.live",
+        "id": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+        "state": "READY",
+        "sha": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5"
+      },
+      {
+        "host": "ops.fitout.live",
+        "id": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+        "state": "READY",
+        "sha": "d67fbecfa41e902cbf506c93dbcf53b60085e802"
+      }
+    ],
+    "migration": {
+      "tag": "0038_contact_alert",
+      "hash": "c09257eb07ccee4a840abd0400283313d0821973bc8c64a0d10dc993a993f4d9",
+      "ledgerEntries": 39,
+      "when": 1791698400000
+    },
+    "recipient": "pengr.clmc.3@gmail.com",
+    "contactEnabled": false,
+    "scheduler": {
+      "app": "fitout-contact-alerts",
+      "endpoint": "https://fitout.live/api/contact-alerts/inngest",
+      "function": "contact-control-monitor",
+      "cron": "1-59/5 * * * *",
+      "syncedAt": "2026-10-11T06:19:21Z"
+    },
+    "synthetic": {
+      "id": "p27-owner-alert-20261011-b61cb4a4",
+      "createdAt": "2026-10-11T06:19:52.912Z",
+      "providerId": "01a1299f-3ff8-7eff-a94c-783d416d5993",
+      "sentAt": "2026-10-11T06:21:05.756Z",
+      "providerStatus": "delivered",
+      "ownerInboxConfirmed": true
+    },
+    "checks": {
+      "contactAndRouting": 186,
+      "design": {
+        "passed": 1510,
+        "skipped": 6
+      },
+      "typescript": "pass after clearing failed-webpack generated type cache",
+      "lint": "pass",
+      "drizzleCheck": "pass",
+      "cloudBuild": [
+        "Cloning github.com/pengr3/FitOut (Branch: codex/phase27-contact-alerts-b61cb4a4, Commit: b61cb4a)",
+        "Cloning completed: 4.119s",
+        "Running \"vercel build\"",
+        "npm warn deprecated serialize-error-cjs@0.1.4: Rolling release, please update to 0.2.0",
+        "Running \"next build\"",
+        "✓ Compiled successfully in 40.0s",
+        "  Running TypeScript ...",
+        "  Finished TypeScript in 34.2s ...",
+        "Build Completed in /vercel/output [2m]"
+      ]
+    },
+    "firstScheduledRun": {
+      "id": "01M4MSYB70J1M05HRHPVN6PQQQ",
+      "trigger": "inngest/scheduled.timer",
+      "fireAt": "2026-10-11T06:21:00Z",
+      "completedAt": "2026-10-11T06:21:06Z",
+      "output": {
+        "active": true,
+        "pendingProcessed": 1,
+        "quotaAvailable": true,
+        "staleCount": 0
+      }
+    },
+    "ownerConfirmation": {
+      "receivedIn": "inbox",
+      "reportedAt": "2026-10-11T06:22:30Z",
+      "reportedAtPrecision": "approximate capture window",
+      "source": "Owner reply: Received in inbox"
+    },
+    "secondScheduledRun": {
+      "id": "01M4MT7G60J1M05HRHPVN6PQQQ",
+      "trigger": "inngest/scheduled.timer",
+      "fireAt": "2026-10-11T06:26:00Z",
+      "completedAt": "2026-10-11T06:26:03Z",
+      "output": {
+        "active": true,
+        "pendingProcessed": 0,
+        "quotaAvailable": true,
+        "staleCount": 0
+      }
+    },
+    "finalDatabaseState": {
+      "totalAlerts": 1,
+      "syntheticAlerts": 1,
+      "pendingAlerts": 0,
+      "quotaRows": 0,
+      "providerId": "01a1299f-3ff8-7eff-a94c-783d416d5993"
+    },
+    "proofFiles": {
+      "runtime": "playwright/.cache/phase27-08/contact-alert-release-runtime.json",
+      "deliveryScreenshot": "playwright/.cache/phase27-08/contact-alert-delivered-20261011.png",
+      "secondCronScreenshot": "playwright/.cache/phase27-08/contact-alert-second-cron-20261011.png"
+    },
+    "runtime": {
+      "observedAt": "2026-10-11T06:26:58.055Z",
+      "checks": [
+        {
+          "url": "https://fitout.live/",
+          "status": 200
+        },
+        {
+          "url": "https://fitout.live/contact",
+          "status": 200
+        },
+        {
+          "url": "https://app.fitout.live/",
+          "status": 200
+        },
+        {
+          "url": "https://ops.fitout.live/login",
+          "status": 200
+        }
+      ],
+      "contact": {
+        "status": 503,
+        "requestId": "sin1::iad1::qhf2p-1791700020368-2a3d410880d7",
+        "body": "{\"ok\":false,\"error\":\"Your message could not be sent. Please try again later.\"}"
+      },
+      "unsignedScheduler": {
+        "status": 401,
+        "redirected": false
+      }
+    }
   }
 }
 ```
@@ -701,3 +842,9 @@ Saved ignored evidence contact-guard-preflight-20261011.json and contact-tempora
 
 
 Latest bounded Contact test: see .planning/phases/27-app-subdomain-marketing-website/27-CONTACT-BOUNDED-TEST-RESULT.md. All six complete matrix gates remain pending; partial evidence does not increment29/35.
+
+## Automatic Contact alerts — October 11
+
+Automatic Contact alerts are live on web dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68 / b61cb4a43c8dd4c10e7444014fb66646aba36ec5. Separate app fitout-contact-alerts, signed receiver https://fitout.live/api/contact-alerts/inngest, every five minutes. Primary ledger39 with additive0038 hash c09257eb07ccee4a840abd0400283313d0821973bc8c64a0d10dc993a993f4d9. First real scheduled run 01M4MSYB70J1M05HRHPVN6PQQQ processed1 synthetic incident; Resend delivered 01a1299f-3ff8-7eff-a94c-783d416d5993 and owner confirmed inbox receipt. Next scheduled run 01M4MT7G60J1M05HRHPVN6PQQQ processed0; one test email, no duplicate. Contact remains false/503, quota0, Ops stays D67. No public inquiry was sent. Other Plan09 evidence and money/legal HOLDs remain.
+
+Read .planning/phases/27-app-subdomain-marketing-website/27-CONTACT-AUTOMATIC-ALERTS.md. Earlier D67/source-only scope and pending-alert paragraphs are dated history superseded by this owner-authorized Contact extension. No other original Plan09 gate waived.

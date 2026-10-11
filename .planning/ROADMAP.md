@@ -1568,3 +1568,9 @@ Phase27 latest bounded preparation status (October10):18/20 plans,142/150 curate
 Phase27 latest bounded preparation status (2026-10-10T07:43:28.083Z):19/21 plans,143/151 curated total. Integrated d67fbecf full/cold/A/B local proof passes; production36455580 source/migrations preserved. Original08/09 and all seven requirements pending. Stable ownerb835 Preview retained; Contact off, all HOLDs persist.
 
 Phase27 current execution (2026-10-10T11:07:41.631Z): Plan08 preparation complete;20/21 plans and144/151 curated. Exact packet authority and database owner attestation resolved. Original09 staged production rollout/live Contact proof remains incomplete; no requirement completion or money/legal release.
+
+## Phase27 automatic alert progress
+
+Automatic Contact alerts are live on web dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68 / b61cb4a43c8dd4c10e7444014fb66646aba36ec5. Separate app fitout-contact-alerts, signed receiver https://fitout.live/api/contact-alerts/inngest, every five minutes. Primary ledger39 with additive0038 hash c09257eb07ccee4a840abd0400283313d0821973bc8c64a0d10dc993a993f4d9. First real scheduled run 01M4MSYB70J1M05HRHPVN6PQQQ processed1 synthetic incident; Resend delivered 01a1299f-3ff8-7eff-a94c-783d416d5993 and owner confirmed inbox receipt. Next scheduled run 01M4MT7G60J1M05HRHPVN6PQQQ processed0; one test email, no duplicate. Contact remains false/503, quota0, Ops stays D67. No public inquiry was sent. Other Plan09 evidence and money/legal HOLDs remain.
+
+Plan counters unchanged; original09 incomplete.

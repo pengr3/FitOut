@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09 Contact: bounded no-mail test restored; alert and cross-instance evidence gaps pending"
-last_updated: "2026-10-11T05:31:14.208Z"
+stopped_at: "Plan09 Contact: automatic alerts live and inbox-confirmed; Contact disabled; remaining live evidence pending"
+last_updated: "2026-10-11T06:28:43.207Z"
 last_activity: 2026-10-11
-last_activity_desc: Live global quota429 and scoped rollback observed; Contact off, quota0, temporaryguarddisabled
-state_head: d67fbecf
+last_activity_desc: Contact-only alerts deployed, scheduled delivery and duplicate check verified; Contact off
+state_head: b61cb4a4
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass

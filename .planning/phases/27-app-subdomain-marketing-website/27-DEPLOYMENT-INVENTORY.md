@@ -161,7 +161,42 @@ content remains unproved here. No request used a protection bypass.
       "requiredProof": "Approved final source SHA, build/environment binding, alias read-back and rollback candidates",
       "rollback": "Recorded exact READY deployment IDs above; restore env and rebuild where origins changed"
     }
-  ]
+  ],
+  "currentContactAlertRelease": {
+    "observedAt": "2026-10-11T06:28:43.207Z",
+    "webDeployment": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+    "webRevision": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5",
+    "opsUnchanged": {
+      "host": "ops.fitout.live",
+      "id": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+      "state": "READY",
+      "sha": "d67fbecfa41e902cbf506c93dbcf53b60085e802"
+    },
+    "contactFlag": false,
+    "primaryMigration": {
+      "tag": "0038_contact_alert",
+      "hash": "c09257eb07ccee4a840abd0400283313d0821973bc8c64a0d10dc993a993f4d9",
+      "ledgerEntries": 39,
+      "when": 1791698400000
+    },
+    "monitor": {
+      "app": "fitout-contact-alerts",
+      "endpoint": "https://fitout.live/api/contact-alerts/inngest",
+      "function": "contact-control-monitor",
+      "cron": "1-59/5 * * * *",
+      "syncedAt": "2026-10-11T06:19:21Z"
+    },
+    "recipient": "pengr.clmc.3@gmail.com",
+    "syntheticDelivery": {
+      "id": "p27-owner-alert-20261011-b61cb4a4",
+      "createdAt": "2026-10-11T06:19:52.912Z",
+      "providerId": "01a1299f-3ff8-7eff-a94c-783d416d5993",
+      "sentAt": "2026-10-11T06:21:05.756Z",
+      "providerStatus": "delivered",
+      "ownerInboxConfirmed": true
+    },
+    "evidence": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-AUTOMATIC-ALERTS.md"
+  }
 }
 ```
 
@@ -555,3 +590,9 @@ Current live Stage A (2026-10-10T11:23:52.596Z): customer dpl_EawThnAR9vr4EEumpT
 
 
 Final C current readback (2026-10-10T11:57:15.492Z): exact customer/ops IDs in27-EVIDENCE. Six marketing routes and app/staff front doors work; canonical/sitemap/advertised image facts observed; both old/new unsigned receivers remain direct. Auth/session/browser/mobile history and exact-source isolated Preview observations are retained. Provider production mode/key/workflow correspondence and remaining Contact control facts stay partial, not inferred from existing secret presence or old dashboard history. No real mail, funds, secrets, DNS or provider registration change. Auto-domain flag remainsfalse for manual release control; production branchdev has not been pushed. Current root/source drafts remain preserved.
+
+## Automatic Contact alerts — October 11
+
+Automatic Contact alerts are live on web dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68 / b61cb4a43c8dd4c10e7444014fb66646aba36ec5. Separate app fitout-contact-alerts, signed receiver https://fitout.live/api/contact-alerts/inngest, every five minutes. Primary ledger39 with additive0038 hash c09257eb07ccee4a840abd0400283313d0821973bc8c64a0d10dc993a993f4d9. First real scheduled run 01M4MSYB70J1M05HRHPVN6PQQQ processed1 synthetic incident; Resend delivered 01a1299f-3ff8-7eff-a94c-783d416d5993 and owner confirmed inbox receipt. Next scheduled run 01M4MT7G60J1M05HRHPVN6PQQQ processed0; one test email, no duplicate. Contact remains false/503, quota0, Ops stays D67. No public inquiry was sent. Other Plan09 evidence and money/legal HOLDs remain.
+
+Read .planning/phases/27-app-subdomain-marketing-website/27-CONTACT-AUTOMATIC-ALERTS.md. Earlier D67/source-only scope and pending-alert paragraphs are dated history superseded by this owner-authorized Contact extension. No other original Plan09 gate waived.

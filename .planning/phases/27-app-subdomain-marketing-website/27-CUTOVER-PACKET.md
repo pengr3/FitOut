@@ -243,6 +243,13 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
     "autoAssignCustomDomains": false,
     "contactEnabled": false,
     "proof": ".planning/phases/27-app-subdomain-marketing-website/27-EVIDENCE.md"
+  },
+  "contactAlertScopeExtension": {
+    "ownerAuthorization": "Implement automatic alerts using owner Gmail; test; keep Contact disabled",
+    "revision": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5",
+    "deployment": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+    "evidence": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-AUTOMATIC-ALERTS.md",
+    "contactEnabled": false
   }
 }
 ```
@@ -503,3 +510,9 @@ Live rollout readback (2026-10-10T11:23:52.596Z): both Stage A Production builds
 
 
 Final topology (2026-10-10T11:57:15.492Z): all three fresh Stage A/B/C cloud pairs use approved d67fbecf; final web/ops IDs are recorded in rolloutStatus. All three b835 owner aliases remain unchanged. www307 saved/read back and full repeated queries preserved. No sender DNS/provider destination/secret/Production Git branch edit, no real email or money action. Contact503/recovery is real; quota remains empty. Exact-source Preview fixture authentication writes only isolated branch.29/35 live matrix scenarios observed; remaining six and partial provider inventory are explicit in27-EVIDENCE.md. All seven requirements and Plan09 remain incomplete. Original/Stage A rollback pins remain retained, no threshold-triggered rollback invoked. Automatic Production domains remain manually controlled until candidate/Git/live acceptance reconciliation.
+
+## Automatic Contact alerts — October 11
+
+Automatic Contact alerts are live on web dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68 / b61cb4a43c8dd4c10e7444014fb66646aba36ec5. Separate app fitout-contact-alerts, signed receiver https://fitout.live/api/contact-alerts/inngest, every five minutes. Primary ledger39 with additive0038 hash c09257eb07ccee4a840abd0400283313d0821973bc8c64a0d10dc993a993f4d9. First real scheduled run 01M4MSYB70J1M05HRHPVN6PQQQ processed1 synthetic incident; Resend delivered 01a1299f-3ff8-7eff-a94c-783d416d5993 and owner confirmed inbox receipt. Next scheduled run 01M4MT7G60J1M05HRHPVN6PQQQ processed0; one test email, no duplicate. Contact remains false/503, quota0, Ops stays D67. No public inquiry was sent. Other Plan09 evidence and money/legal HOLDs remain.
+
+Read .planning/phases/27-app-subdomain-marketing-website/27-CONTACT-AUTOMATIC-ALERTS.md. Earlier D67/source-only scope and pending-alert paragraphs are dated history superseded by this owner-authorized Contact extension. No other original Plan09 gate waived.
