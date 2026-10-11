@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09 Contact: automatic alerts live and inbox-confirmed; Contact disabled; remaining live evidence pending"
-last_updated: "2026-10-11T06:32:08.155Z"
+stopped_at: "Plan09 Contact: cross-process quota test passed; public Contact disabled; real Vercel ingress evidence pending"
+last_updated: "2026-10-11T06:49:04.075Z"
 last_activity: 2026-10-11
-last_activity_desc: Contact-only alerts deployed, scheduled delivery and duplicate check verified; Contact off
+last_activity_desc: Shared per-IP HTTP quota tested across independent local processes; Contact off
 state_head: b61cb4a4
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -2287,3 +2287,8 @@ Production binding confirmation (2026-10-10T10:58:41.869Z): owner affirmed both 
 ## Bounded Contact test completed — October 11
 
 2026-10-11T05:31:14.208Z: Owner mobile-data denial was observed from a distinct original IP. Exact-source staged deployment dpl_FTxX4Sa4pq8jcW21kmuwiV5vxUFW was promoted for six no-mail probes: global429 Retry-After3311; malformed requests400; sixth request429 Retry-After895 despite rotated synthetic forwarding headers. The active operator immediately restored customer dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW and savedflagfalse; Ops remained dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ with falseflag. Fresh503, all3surfaces200 and field retention passed. Exact100-reservation fixture matched and was removed; primaryquota0. Temporary guard disabled and published, originalLogrule preserved. No mail success or transport call was recorded. See27-CONTACT-BOUNDED-TEST-RESULT.md for limits. Automatic alert and deployed shared cross-instance per-IP proof remain open; scoped rollback does not establish full cutover rollback. No new matrix pass or plan completion:20/21,144/151,29/35,all7requirementspending.
+
+
+## Shared per-IP process test — October 11
+
+Shared per-IP enforcement passed through HTTP in three independent local Node processes with three distinct Postgres backends. Eight concurrent attempts reserved exactly five slots; the other three received 429. Each process handled at most three race requests, so its local five-attempt cap could not explain the denials. A restarted process was still denied by the stored quota. Missing trusted identity returned 403; a second IP and an expired IP window could reserve slots. No email was sent. All 233 Contact and host-routing tests, TypeScript, and scoped lint passed, with clean test database containment. Both production flags remain false, public Contact returns 503, and the production database has zero quota rows and one previously sent alert with none pending. Test commit: 3aaf4bb4; production source: b61cb4a4. Actual Vercel client-IP handling across deployed instances remains unverified. Counts remain 20/21 phase plans, 144/151 curated plans, 29/35 historical matrix observations, and all seven requirements pending. See 27-CONTACT-PER-IP-INSTANCE-TEST.md.

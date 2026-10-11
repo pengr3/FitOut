@@ -1,6 +1,6 @@
 # Phase 27 — Plan 09 live checkpoint
 
-The approved Stage A/B/C rollout is live at source d67fbecfa41e902cbf506c93dbcf53b60085e802. Plan 08 is complete: 20/21 phase plans and 144/151 curated plans. The live matrix has 29/35 observed scenarios. All seven phase requirements remain pending. Cutover and both database-target approvals are resolved; do not request them again.
+The original approved Stage A/B/C rollout used d67fbecfa41e902cbf506c93dbcf53b60085e802; current web is the scoped Contact alert release b61cb4a43c8dd4c10e7444014fb66646aba36ec5, while Ops remains D67. The29/35 matrix observations below are dated D67 history, not reassigned to the new web source. Plan 08 is complete: 20/21 phase plans and 144/151 curated plans. The live matrix has 29/35 observed scenarios. All seven phase requirements remain pending. Cutover and both database-target approvals are resolved; do not request them again.
 
 Live entry points:
 
@@ -14,7 +14,7 @@ Six matrix observations remain:
 2. A previously issued, still-valid email-verification link must survive the origin transition.
 3. A previously issued, still-valid password-reset link must survive the origin transition. Invalid synthetic link bridges were observed, but genuine issued links were unavailable. Do not collect bearer links or passwords in chat, change a password on the owner's behalf, or claim an expired link supplies this proof.
 4. Temporary original-IP WAF denial and deployed sequential local-IP enforcement are observed; shared cross-instance per-IP admission evidence remains pending.
-5. Actual production shared mailbox quota returned429 under the owned100-reservation fixture, with manual disable/rollback recovery. Automatic quota alert notification remains unproved. Contact is disabled, savedflagsfalse, fixture removed and temporaryguarddisabled. Read27-CONTACT-BOUNDED-TEST-RESULT.md.
+5. Actual production shared mailbox quota returned429 under the owned100-reservation fixture, with manual disable/rollback recovery. Automatic synthetic scheduled alert delivery and owner inbox receipt now pass; actual exhaustion-to-alert evidence on one current live release remains a separate gate. Contact is disabled, savedflagsfalse, fixture removed and temporaryguarddisabled. Read27-CONTACT-BOUNDED-TEST-RESULT.md.
 6. Rollback targets are retained and READY, and a scoped Contact test rollback was exercised; full topology/session/provider rollback and failure-threshold evidence remain pending. Preserve original and Stage A pins, the additive quota table, and direct receivers. Do not reverse healthy traffic merely to fill an evidence row.
 
 Additional live acceptance gates remain: partial provider mode/key/workflow correspondence, actual Contact inbox receipt/Reply-To/reply, and release-control reconciliation. No new signed financial event or scheduler mutation is authorized. All checkout, payout, and legal HOLDs remain.
@@ -48,3 +48,8 @@ The earlier mobile-data prerequisite is resolved by the completed test below. Re
 Automatic Contact alerts are live on web dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68 / b61cb4a43c8dd4c10e7444014fb66646aba36ec5. Separate app fitout-contact-alerts, signed receiver https://fitout.live/api/contact-alerts/inngest, every five minutes. Primary ledger39 with additive0038 hash c09257eb07ccee4a840abd0400283313d0821973bc8c64a0d10dc993a993f4d9. First real scheduled run 01M4MSYB70J1M05HRHPVN6PQQQ processed1 synthetic incident; Resend delivered 01a1299f-3ff8-7eff-a94c-783d416d5993 and owner confirmed inbox receipt. Next scheduled run 01M4MT7G60J1M05HRHPVN6PQQQ processed0; one test email, no duplicate. Contact remains false/503, quota0, Ops stays D67. No public inquiry was sent. Other Plan09 evidence and money/legal HOLDs remain.
 
 Read .planning/phases/27-app-subdomain-marketing-website/27-CONTACT-AUTOMATIC-ALERTS.md. Earlier D67/source-only scope and pending-alert paragraphs are dated history superseded by this owner-authorized Contact extension. No other original Plan09 gate waived.
+
+
+## Shared per-IP process test — October 11
+
+Shared per-IP enforcement passed through HTTP in three independent local Node processes with three distinct Postgres backends. Eight concurrent attempts reserved exactly five slots; the other three received 429. Each process handled at most three race requests, so its local five-attempt cap could not explain the denials. A restarted process was still denied by the stored quota. Missing trusted identity returned 403; a second IP and an expired IP window could reserve slots. No email was sent. All 233 Contact and host-routing tests, TypeScript, and scoped lint passed, with clean test database containment. Both production flags remain false, public Contact returns 503, and the production database has zero quota rows and one previously sent alert with none pending. Test commit: 3aaf4bb4; production source: b61cb4a4. Actual Vercel client-IP handling across deployed instances remains unverified. Counts remain 20/21 phase plans, 144/151 curated plans, 29/35 historical matrix observations, and all seven requirements pending. See 27-CONTACT-PER-IP-INSTANCE-TEST.md.
