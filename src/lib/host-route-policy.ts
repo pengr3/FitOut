@@ -7,6 +7,7 @@ const SEARCH_DISCRIMINATORS = ["lat", "lng", "category", "partySize", "locationL
 const BRAND_ASSETS = new Set(["/favicon.ico", "/icon-court.svg", "/icon-grove.svg"]);
 const MARKETING_METADATA = new Set(["/opengraph-image", "/robots.txt", "/sitemap.xml"]);
 const SCREENSHOTS = new Set(["search", "account", "verification", "listing", "bookable", "session", "booking"].map((name) => `/marketing/screenshots/${name}.png`));
+const MARKETING_PHOTOS = new Set(["tennis", "basketball", "badminton", "gym", "studio"].map((name) => `/marketing/photos/${name}.jpg`));
 const RECEIVERS: Record<string, readonly string[]> = {
   "/api/paymongo/webhook": ["POST"],
   "/api/didit/webhook": ["POST"],
@@ -19,6 +20,8 @@ export function isPathSegment(pathname: string, segment: string): boolean {
 }
 
 export function isMarketingScreenshot(pathname: string): boolean { return SCREENSHOTS.has(pathname); }
+
+export function isMarketingPhoto(pathname: string): boolean { return MARKETING_PHOTOS.has(pathname); }
 
 /** Exact checked preview authority; forwarded host hints never participate. */
 export function isMarketingPreviewRequest(host: string | null): boolean {
@@ -40,7 +43,7 @@ export function hostRoutePolicy(host: RequestHostClass, pathname: string, method
   const read = method === "GET" || method === "HEAD";
   if (host === "unknown") return { kind: "deny", status: 404 };
   if (isPathSegment(pathname, "/marketing")) {
-    if (host === "marketing" && isMarketingScreenshot(pathname)) {
+    if ((host === "marketing" && isMarketingScreenshot(pathname)) || ((host === "marketing" || host === "app") && isMarketingPhoto(pathname))) {
       return read ? { kind: "next" } : { kind: "deny", status: 405, allow: "GET, HEAD" };
     }
     return { kind: "deny", status: 404 };

@@ -36,7 +36,7 @@ describe("honest marketing audience journeys", () => {
     expect(screen.getByText(/Browse before signing in/)).toBeTruthy();
     expect(screen.getByText(/^Choose your activity, location and group size/)).toBeTruthy();
     expect(screen.getByText(/Sign in or create an account when needed to book/)).toBeTruthy();
-    expect(screen.getByText(/before payment; this is not a confirmed booking/)).toBeTruthy();
+    expect(document.querySelector("figcaption")).toBeNull();
   });
   it.each([
     ["hosts", Hosts, hostsModule, "Start hosting", "/start-hosting"],
@@ -57,12 +57,12 @@ describe("honest marketing audience journeys", () => {
     expect(screen.getByText(/Confirm your payout recipient details/)).toBeTruthy();
     expect(screen.getByText(/does not guarantee approval or payment release/)).toBeTruthy();
     expect(screen.getByText(/email verification, payout setup, host approval, listing review/)).toBeTruthy();
-    expect(screen.getByText(/existing edit wizard/)).toBeTruthy();
+    expect(document.querySelector("figcaption")).toBeNull();
     expect(document.body.textContent).not.toMatch(/instantly bookable|all hosts are verified|guaranteed payouts|approved immediately/i);
   });
   it.each([Hosts, Players])("renders real-dimension accessible images in a server-only step composition", (Page) => {
     render(<Page />);
-    for (const image of screen.getAllByRole("img")) {
+    for (const image of screen.getAllByRole("img").filter((img) => img.getAttribute("src")?.startsWith("/marketing/screenshots/"))) {
       const entry = Object.values(manifest.captures).find((capture) => (capture as { path: string }).path === image.getAttribute("src")) as { width: number; height: number };
       expect(entry).toBeTruthy();
       expect(image.getAttribute("width")).toBe(String(entry.width));

@@ -29,11 +29,11 @@ export function MarketingHeader({ appUrl }: { appUrl: string }) {
         trigger.current?.focus();
       }
     }}>
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-4 sm:gap-4 sm:px-6">
-        <Link href="/" aria-label="FitOut home" className={cn(buttonVariants({ variant: "ghost", size: "touch" }), "mr-auto text-heading text-brand")}>FitOut</Link>
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-4 sm:gap-4 sm:px-6 lg:grid lg:grid-cols-[1fr_auto_1fr]">
+        <Link href="/" aria-label="FitOut home" className={cn(buttonVariants({ variant: "ghost", size: "touch" }), "mr-auto justify-self-start text-heading text-brand")}><span aria-hidden="true" className="mr-2 flex size-7 items-center justify-center rounded-lg bg-brand text-brand-foreground"><svg viewBox="0 0 24 24" className="size-5" fill="none"><path d="M7 5h12M7 5v14M7 11h9M4 5h3M4 11h3" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg></span>FitOut</Link>
         <Button ref={trigger} disabled={!hydrated} variant="outline" size="touch" className="lg:hidden motion-reduce:transition-none" aria-expanded={open} aria-controls={menuId} onClick={() => setOpen(!open)}>Menu</Button>
         <nav id={menuId} aria-label="Main navigation" className={cn("order-last w-full lg:order-none lg:w-auto lg:flex", open ? "block" : "hidden")}>
-          <ul className="flex flex-col gap-1 pt-3 lg:flex-row lg:pt-0">
+          <ul className="flex flex-col gap-1 pt-3 lg:flex-row lg:justify-center lg:pt-0">
             {destinations.map(([label, href]) => (
               <li key={href}>
                 <Link href={href} onClick={() => setOpen(false)} className={cn(buttonVariants({ variant: "ghost", size: "touch" }), "w-full justify-start lg:w-auto motion-reduce:transition-none")}>{label}</Link>
@@ -41,7 +41,7 @@ export function MarketingHeader({ appUrl }: { appUrl: string }) {
             ))}
           </ul>
         </nav>
-        <a href={appUrl} className={cn(buttonVariants({ variant: "brand", size: "touch" }), "motion-reduce:transition-none")}>Open App</a>
+        <a href={appUrl} className={cn(buttonVariants({ variant: "brand", size: "touch" }), "justify-self-end motion-reduce:transition-none")}>Open App</a>
       </div>
     </header>
   );

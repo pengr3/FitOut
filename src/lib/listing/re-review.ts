@@ -113,17 +113,7 @@ export type ReReviewTrigger = "listing_fields" | "listing_photos";
  * concrete columns, because "address" is eight columns plus a PostGIS point and no string key could
  * stand for that honestly.
  */
-export const MATERIAL_FIELDS = [
-  "address",
-  "space_type",
-  "capacity",
-  "photos",
-  "price",
-  "title",
-  "description",
-] as const;
-
-export type MaterialField = (typeof MATERIAL_FIELDS)[number];
+export { MATERIAL_FIELDS, type MaterialField } from "@/lib/listing/material-fields";
 
 /**
  * The three states a material edit pulls BACK into review.

@@ -43,7 +43,7 @@ describe("marketing metadata partition", () => {
     const modules = [await import("@/app/marketing/page"), await import("@/app/marketing/hosts/page"), await import("@/app/marketing/players/page"), await import("@/app/marketing/about/page"), await import("@/app/marketing/faq/page"), await import("@/app/marketing/contact/page")];
     for (let i = 0; i < modules.length; i++) {
       expect(modules[i].metadata.alternates?.canonical).toBe(`https://fitout.live${paths[i]}`);
-      expect(modules[i].metadata.openGraph).toEqual(expect.objectContaining({ url: `https://fitout.live${paths[i]}`, images: [expect.objectContaining({ url: "https://fitout.live/marketing/screenshots/search.png" })] }));
+      expect(modules[i].metadata.openGraph).toEqual(expect.objectContaining({ url: `https://fitout.live${paths[i]}`, images: [expect.objectContaining({ url: `https://fitout.live/marketing/${i === 0 || i === 3 ? "photos/tennis.jpg" : "screenshots/search.png"}` })] }));
     }
     const { metadata } = await import("@/app/marketing/layout");
     expect(new URL(String(metadata.metadataBase)).origin).toBe("https://fitout.live");
