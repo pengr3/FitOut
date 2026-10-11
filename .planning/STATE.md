@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09 Contact: cross-process quota test passed; public Contact disabled; real Vercel ingress evidence pending"
-last_updated: "2026-10-11T06:49:04.075Z"
+stopped_at: "Plan09: no-mail ingress candidate ready in protected Preview; restricted guard active, Contact off; source approval/mobile proof pending"
+last_updated: "2026-10-11T07:21:36.357Z"
 last_activity: 2026-10-11
-last_activity_desc: Shared per-IP HTTP quota tested across independent local processes; Contact off
+last_activity_desc: Actual ingress test prepared at 58897a94; Preview READY; disabled-Contact guard published
 state_head: b61cb4a4
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -2292,3 +2292,8 @@ Production binding confirmation (2026-10-10T10:58:41.869Z): owner affirmed both 
 ## Shared per-IP process test — October 11
 
 Shared per-IP enforcement passed through HTTP in three independent local Node processes with three distinct Postgres backends. Eight concurrent attempts reserved exactly five slots; the other three received 429. Each process handled at most three race requests, so its local five-attempt cap could not explain the denials. A restarted process was still denied by the stored quota. Missing trusted identity returned 403; a second IP and an expired IP window could reserve slots. No email was sent. All 233 Contact and host-routing tests, TypeScript, and scoped lint passed, with clean test database containment. Both production flags remain false, public Contact returns 503, and the production database has zero quota rows and one previously sent alert with none pending. Test commit: 3aaf4bb4; production source: b61cb4a4. Actual Vercel client-IP handling across deployed instances remains unverified. Counts remain 20/21 phase plans, 144/151 curated plans, 29/35 historical matrix observations, and all seven requirements pending. See 27-CONTACT-PER-IP-INSTANCE-TEST.md.
+
+
+## Actual Vercel ingress preparation — October 11
+
+Actual Vercel ingress preparation: no-mail verification candidate 58897a94 is committed on codex/phase27-contact-ingress-58897a94. Both protected Preview builds are READY (web dpl_C9qrNjxKPHVk5jTsgvH1Cr9JFn9Q; Ops Preview dpl_CHPg7gJKmrFVKNUz6QaFgJL6b4TK). Cloud web build compiled in 25.9s and finished TypeScript in 27.9s. Contact/routing 237 passed; full design 1510 passed, 6 skipped; types/lint pass and test database containment is clean. The exact saved narrow Deny rule is now published active while Contact stays disabled, with the original Log rule unchanged. The allowed verifier returned 503 and all four health reads returned 200; primary quota is zero and retained alert state is one sent/zero pending. Production aliases remain web b61cb4a4 and Ops D67, with both saved flags false. No Production test build, promotion, fixture, inquiry email or financial invocation occurred. Await exact amended-packet approval and the owner mobile-data denial, including matching provider evidence. The live window has not started and the matrix row stays pending. Read 27-CONTACT-VERCEL-INGRESS-TEST-PACKET.md. Counts and all money/legal HOLDs are unchanged.
