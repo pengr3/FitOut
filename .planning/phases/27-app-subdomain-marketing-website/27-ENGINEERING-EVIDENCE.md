@@ -1,5 +1,7 @@
 # Phase 27 engineering evidence
 
+Current reconciliation (2026-10-11T09:33:12.518Z): active engineering candidate is exact58897a94, manifest 8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a. All six fresh full gates pass. D67 is archived with its original source labels and logs. See27-RELEASE-SOURCE-RECONCILIATION.md. Earlier prose below is dated history.
+
 Engineering preparation and live account facts remain separate. Full unit/design and the first full browser gate failed. A successful build/typecheck/lint is insufficient to claim the engineering contract complete. No checkout, payout, legal, provider, deployment or live mail release occurred.
 
 October9 additional clean-source preparation is in
@@ -2471,58 +2473,7 @@ raw recovery nor deployment acceptance is fabricated.
         "skipGuardPassed": true,
         "acceptancePassed": false,
         "disposition": "Five full gates passed; complete browser run had58 passes and one tablet dialog gutter failure at768px. Corrected desktop width while preserving geometry/focus assertions. No cold/staging proof started on the failed full run."
-      }
-    ],
-    "terminalOnlyChecks": [
-      {
-        "startedAt": "2026-10-08T21:53:16.8572376Z",
-        "finishedAt": "2026-10-08T21:53:25.7517511Z",
-        "durationSeconds": 8.8945135,
-        "exitCode": 0,
-        "command": "node node_modules/typescript/bin/tsc --noEmit",
-        "status": "pass",
-        "resultData": {
-          "runner": "typescript",
-          "errors": 0
-        },
-        "terminalOutput": "",
-        "rawLogAvailable": false,
-        "reason": "Successful tsc emitted no stdout; Tee-Object did not create review-final-types.log. Actual tool terminal exit/timing and pre-gate source03 are retained; no contemporaneous raw file is invented. Later canonical production build explicitly typechecked successfully.",
-        "testedSource": {
-          "provenance": "snapshot",
-          "path": "playwright/.cache/phase27-08/review-source-03.json",
-          "sha256": "1b5a2650d103b1400831bc80d2b5fbed9ec9b789c999d8c1fa02940391cca3f9",
-          "revision": "821af3f74340f4c785985797299b41bf02eecbdb",
-          "dirty": true,
-          "claim": "working-tree",
-          "capturedAt": "2026-10-08T21:53:12.232Z",
-          "manifestSha256": "a702247e5af107209ee6accbcd39a09c3033ce22ba4fff356ab8ecdefe8651ab"
-        }
-      }
-    ],
-    "browserDisposition": "All 52 test cases passed, terminal exit0. Windows server teardown stalled; root verified exact runner20004/pwsh12544/cmd1736 and owned Next20988/start-server9188/build children17140/20916, stopped only the owned Next descendants and left runner/unrelated Node untouched. This was assisted teardown, not normal teardown. One unattributed Next dev streaming TypeError controller[kState].transformAlgorithm is not a function (digest2206780199, ignored frames) occurred between successful cases47 and48; log does not identify route/action/source frame. Retained for independent review; no error-free runtime claim."
-  },
-  "logRetentionIncident": {
-    "recordedAt": "2026-10-09T07:58:16.429Z",
-    "cause": "Clean preparation reused four historical filenames",
-    "recovered": [
-      "types from byte-identical final-types.log",
-      "lint from byte-identical final-lint.log"
-    ],
-    "unrecoverable": [
-      "historical release-build raw bytes",
-      "historical release-browser raw bytes"
-    ],
-    "preserved": "Original raw digests and existing committed terminal transcripts; current clean log bytes moved to unique names",
-    "newEvidence": "27-CLEAN-SOURCE-PREPARATION.md"
-  },
-  "releaseCandidateVerification": {
-    "schemaVersion": 1,
-    "disposition": "Fresh exact-source six full gates, cold/warm and separately rebuilt compatibility A/B runtime proof pass. Candidate integrates deployed production baseline, preserves payout code, and renumbers reviewed Contact SQL0037. Existing owner Preview remains b835; production cutover/live provider/inbox acceptance remain pending.",
-    "supersedesSha256": "15c0ab3c2e11f45bccdae325342cb90c5bff94b3d3f054a8e3ba85f72c642de3",
-    "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
-    "sourceManifestSha256": "da10f8a0faea204c810cbe544142971181c86bab0d252d5515ea3b671d8a8157",
-    "gates": [
+      },
       {
         "command": "node node_modules/vitest/vitest.mjs run",
         "startedAt": "2026-10-10T07:14:12.566Z",
@@ -2769,19 +2720,776 @@ raw recovery nor deployment acceptance is fabricated.
         "additionalArguments": "e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --workers=1",
         "executedCommand": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --project=chromium --workers=1",
         "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+      },
+      {
+        "command": "node node_modules/vitest/vitest.mjs run --maxWorkers=4",
+        "startedAt": "2026-10-11T08:33:07.626Z",
+        "finishedAt": "2026-10-11T08:41:53.138Z",
+        "durationSeconds": 525.512,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "Test Files  271 passed | 2 skipped (273)\nTests  3449 passed | 5 skipped (3454)",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 271,
+            "failed": 0,
+            "skipped": 2
+          },
+          "tests": {
+            "passed": 3449,
+            "failed": 0,
+            "skipped": 5
+          }
+        },
+        "terminalSummary": "Test Files  271 passed | 2 skipped (273)\nTests  3449 passed | 5 skipped (3454)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/unit.log",
+        "logSha256": "a51fa92a5435f6108c3d3591c3c76334cfee5905fcf5a083de816182220097c2",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/unit-source.json",
+          "sha256": "cae38873e349bfb1ddedfe5bfca6e07cbf02db746242ab3377da942a1da1766d",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T08:33:07.601Z",
+          "manifestSha256": "4b065c722630c0bc65bb7f7914b6e1e8e58aaa051e51c007ceb6ae90a477cc28"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+      },
+      {
+        "command": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts --maxWorkers=2",
+        "startedAt": "2026-10-11T08:41:54.723Z",
+        "finishedAt": "2026-10-11T08:43:54.623Z",
+        "durationSeconds": 119.9,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 91,
+            "failed": 0,
+            "skipped": 0
+          },
+          "tests": {
+            "passed": 1510,
+            "failed": 0,
+            "skipped": 6
+          }
+        },
+        "terminalSummary": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/design.log",
+        "logSha256": "332601b6ac1eeae697ccb254ee2f279e90e7142a1c288934a39dd853555b7973",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/design-source.json",
+          "sha256": "e8763f98bb9d5070370cb0b361d450c85052ed12ec6d2bb1f821b995b27581c1",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T08:41:54.701Z",
+          "manifestSha256": "4b065c722630c0bc65bb7f7914b6e1e8e58aaa051e51c007ceb6ae90a477cc28"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+      },
+      {
+        "command": "node node_modules/typescript/bin/tsc --noEmit",
+        "startedAt": "2026-10-11T08:43:55.925Z",
+        "finishedAt": "2026-10-11T08:45:13.747Z",
+        "durationSeconds": 77.822,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "No TypeScript diagnostics.",
+        "resultData": {
+          "runner": "typescript",
+          "errors": 0
+        },
+        "terminalSummary": "No TypeScript diagnostics.",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/types.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/types-source.json",
+          "sha256": "97bf572eb039703d46fe4a44c36cb3f9be344cb1d3e2f6eeb7b06c969152a667",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T08:43:55.902Z",
+          "manifestSha256": "4b065c722630c0bc65bb7f7914b6e1e8e58aaa051e51c007ceb6ae90a477cc28"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+      },
+      {
+        "command": "node node_modules/eslint/bin/eslint.js .",
+        "startedAt": "2026-10-11T08:45:15.147Z",
+        "finishedAt": "2026-10-11T08:52:29.361Z",
+        "durationSeconds": 434.214,
+        "exitCode": 4294967295,
+        "status": "fail",
+        "result": "No ESLint diagnostics.",
+        "resultData": {
+          "runner": "eslint",
+          "errors": 0,
+          "warnings": 0
+        },
+        "terminalSummary": "No ESLint diagnostics.",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/lint.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/lint-source.json",
+          "sha256": "24d4ebcae470bf8b6d233ba5daef90420efba6525b4f5f2abdd6507a5c4865a9",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T08:45:15.125Z",
+          "manifestSha256": "4b065c722630c0bc65bb7f7914b6e1e8e58aaa051e51c007ceb6ae90a477cc28"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": false,
+        "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+      },
+      {
+        "command": "node node_modules/next/dist/bin/next build",
+        "startedAt": "2026-10-11T08:52:31.417Z",
+        "finishedAt": "2026-10-11T08:52:40.426Z",
+        "durationSeconds": 9.009,
+        "exitCode": 1,
+        "status": "fail",
+        "result": "> Build error occurred",
+        "resultData": {
+          "runner": "next-build",
+          "compiled": false,
+          "generated": false,
+          "errors": 1
+        },
+        "terminalSummary": "> Build error occurred",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/build.log",
+        "logSha256": "106fd417a7b68004a45b6718e842d8168a291b6acacac027a47eb42f217f4808",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/build-source.json",
+          "sha256": "cd9af8200e9524d5e6d7b3b410f29772dd1b05def618f612aa45043c5eb66c5f",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T08:52:31.393Z",
+          "manifestSha256": "4b065c722630c0bc65bb7f7914b6e1e8e58aaa051e51c007ceb6ae90a477cc28"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": false,
+        "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+      },
+      {
+        "command": "node node_modules/vitest/vitest.mjs run --maxWorkers=4",
+        "startedAt": "2026-10-11T08:56:19.242Z",
+        "finishedAt": "2026-10-11T09:05:06.546Z",
+        "durationSeconds": 527.304,
+        "exitCode": 1,
+        "status": "fail",
+        "result": "Test Files  1 failed | 270 passed | 2 skipped (273)\nTests  1 failed | 3448 passed | 5 skipped (3454)",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 270,
+            "failed": 1,
+            "skipped": 2
+          },
+          "tests": {
+            "passed": 3448,
+            "failed": 1,
+            "skipped": 5
+          }
+        },
+        "terminalSummary": "Test Files  1 failed | 270 passed | 2 skipped (273)\nTests  1 failed | 3448 passed | 5 skipped (3454)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/unit.log",
+        "logSha256": "e4437705e9763ed67939f8a1f15d1fd7ca85fa6e895eca2c167b62bee8125455",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/unit-source.json",
+          "sha256": "a71871d63ca8637a860c268ba34a848d93e5016f32500b4e1ce69c29f4ed9a21",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T08:56:19.220Z",
+          "manifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": false,
+        "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+      },
+      {
+        "command": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts --maxWorkers=2",
+        "startedAt": "2026-10-11T09:05:11.266Z",
+        "finishedAt": "2026-10-11T09:07:13.470Z",
+        "durationSeconds": 122.204,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 91,
+            "failed": 0,
+            "skipped": 0
+          },
+          "tests": {
+            "passed": 1510,
+            "failed": 0,
+            "skipped": 6
+          }
+        },
+        "terminalSummary": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/design.log",
+        "logSha256": "452c75162b2783942b366a6eb77ec5898cc8cfc581bf5f58e88e3aa91f7c6f04",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/design-source.json",
+          "sha256": "a35959883d6113a0df16e7b5c78c80cb0bc0a80e04829251ee55d139e76172d7",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T09:05:11.244Z",
+          "manifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+      },
+      {
+        "command": "node node_modules/typescript/bin/tsc --noEmit",
+        "startedAt": "2026-10-11T09:07:16.749Z",
+        "finishedAt": "2026-10-11T09:08:30.798Z",
+        "durationSeconds": 74.049,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "No TypeScript diagnostics.",
+        "resultData": {
+          "runner": "typescript",
+          "errors": 0
+        },
+        "terminalSummary": "No TypeScript diagnostics.",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/types.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/types-source.json",
+          "sha256": "97fb49d9243dde147af7b3799af75f12163ac362a0264c71575f966fe0ee291c",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T09:07:16.722Z",
+          "manifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+      },
+      {
+        "command": "node node_modules/eslint/bin/eslint.js .",
+        "startedAt": "2026-10-11T09:08:34.511Z",
+        "finishedAt": "2026-10-11T09:10:19.539Z",
+        "durationSeconds": 105.028,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "33 problems (0 errors, 33 warnings)",
+        "resultData": {
+          "runner": "eslint",
+          "errors": 0,
+          "warnings": 33
+        },
+        "terminalSummary": "33 problems (0 errors, 33 warnings)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/lint.log",
+        "logSha256": "99f93cbfe481bf5d5d4aa95e4f6e5464dd29cae7b633febb6e28c617b8b61fce",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/lint-source.json",
+          "sha256": "f6a9190a3205028e49ac9eced95a4f32da797ebed83698a18693f61a9c7424a5",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T09:08:34.487Z",
+          "manifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+      },
+      {
+        "command": "node node_modules/next/dist/bin/next build",
+        "startedAt": "2026-10-11T09:10:25.206Z",
+        "finishedAt": "2026-10-11T09:12:18.777Z",
+        "durationSeconds": 113.571,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "✓ Compiled successfully in 46s\n✓ Generating static pages using 7 workers (49/49) in 6.2s\nFinalizing page optimization ...",
+        "resultData": {
+          "runner": "next-build",
+          "compiled": true,
+          "generated": true,
+          "errors": 0
+        },
+        "terminalSummary": "✓ Compiled successfully in 46s\n✓ Generating static pages using 7 workers (49/49) in 6.2s\nFinalizing page optimization ...",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/build.log",
+        "logSha256": "754ec484ce7da4f0f1db37315b2daffaea744cfea59f1222ac85cc27f60ac5d6",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/build-source.json",
+          "sha256": "80e215bac01a5e6b0c1c7338ea3f930f262b8ff702803745c21022ad1c4f84ad",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T09:10:25.169Z",
+          "manifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+      },
+      {
+        "command": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --project=chromium --workers=1",
+        "startedAt": "2026-10-11T09:12:23.944Z",
+        "finishedAt": "2026-10-11T09:14:09.125Z",
+        "durationSeconds": 105.181,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "59 passed (1.7m)",
+        "resultData": {
+          "runner": "playwright",
+          "tests": {
+            "passed": 59,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        "terminalSummary": "59 passed (1.7m)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/browser.log",
+        "logSha256": "e43ff5f96653938f84f62dab0023ade751963eddc6bb0ef0a983e9c284579f0c",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/browser-source.json",
+          "sha256": "b055370c51ea49517f3eec783ae8d426c3a6ed4ac6959a7a77f3a42107f739fe",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T09:12:23.917Z",
+          "manifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
       }
     ],
-    "coldProof": {
-      "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/final-cold-9f749f37-33e6-4aa9-a097-4e2aac46f348/report.json",
-      "sha256": "90911e1bad9f7fd9934781b91773b8a499162a69c70c59844f9140450564b6f1"
-    },
-    "compatibilityProof": {
-      "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/compatibility-ca0ae860-03fd-4bc0-9257-4af46d4cd7da/report.json",
-      "sha256": "bfe6fc5ad2af0cb10fac67a08ac12ee865d5b2f000e5da6ea1f41edf151c239c"
-    },
+    "terminalOnlyChecks": [
+      {
+        "startedAt": "2026-10-08T21:53:16.8572376Z",
+        "finishedAt": "2026-10-08T21:53:25.7517511Z",
+        "durationSeconds": 8.8945135,
+        "exitCode": 0,
+        "command": "node node_modules/typescript/bin/tsc --noEmit",
+        "status": "pass",
+        "resultData": {
+          "runner": "typescript",
+          "errors": 0
+        },
+        "terminalOutput": "",
+        "rawLogAvailable": false,
+        "reason": "Successful tsc emitted no stdout; Tee-Object did not create review-final-types.log. Actual tool terminal exit/timing and pre-gate source03 are retained; no contemporaneous raw file is invented. Later canonical production build explicitly typechecked successfully.",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/review-source-03.json",
+          "sha256": "1b5a2650d103b1400831bc80d2b5fbed9ec9b789c999d8c1fa02940391cca3f9",
+          "revision": "821af3f74340f4c785985797299b41bf02eecbdb",
+          "dirty": true,
+          "claim": "working-tree",
+          "capturedAt": "2026-10-08T21:53:12.232Z",
+          "manifestSha256": "a702247e5af107209ee6accbcd39a09c3033ce22ba4fff356ab8ecdefe8651ab"
+        }
+      }
+    ],
+    "browserDisposition": "All 52 test cases passed, terminal exit0. Windows server teardown stalled; root verified exact runner20004/pwsh12544/cmd1736 and owned Next20988/start-server9188/build children17140/20916, stopped only the owned Next descendants and left runner/unrelated Node untouched. This was assisted teardown, not normal teardown. One unattributed Next dev streaming TypeError controller[kState].transformAlgorithm is not a function (digest2206780199, ignored frames) occurred between successful cases47 and48; log does not identify route/action/source frame. Retained for independent review; no error-free runtime claim."
+  },
+  "logRetentionIncident": {
+    "recordedAt": "2026-10-09T07:58:16.429Z",
+    "cause": "Clean preparation reused four historical filenames",
+    "recovered": [
+      "types from byte-identical final-types.log",
+      "lint from byte-identical final-lint.log"
+    ],
+    "unrecoverable": [
+      "historical release-build raw bytes",
+      "historical release-browser raw bytes"
+    ],
+    "preserved": "Original raw digests and existing committed terminal transcripts; current clean log bytes moved to unique names",
+    "newEvidence": "27-CLEAN-SOURCE-PREPARATION.md"
+  },
+  "releaseCandidateVerification": {
+    "schemaVersion": 1,
+    "disposition": "Fresh exact58897a94 six full engineering gates pass. Reviewed sequential runner, ordering, clean-source, skip and immutable log guards are preserved. Candidate retains30 money/scheduler files and migrations0034–0038 from the disabled current web baseline. Scoped actual Vercel ingress proof is at this same source. Public deployments remain web b61cb4a4 and Ops D67; old cold/A/B and live observations remain dated history. Full single-release acceptance is pending.",
+    "supersedesSha256": "7cde626fc07a2a72ee2b89cd4ebc56c6a5c1b34779a495f2a37ded84c5c39370",
+    "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "sourceManifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
+    "gates": [
+      {
+        "command": "node node_modules/vitest/vitest.mjs run",
+        "startedAt": "2026-10-11T09:16:12.614Z",
+        "finishedAt": "2026-10-11T09:24:10.312Z",
+        "durationSeconds": 477.698,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "Test Files  271 passed | 2 skipped (273)\nTests  3449 passed | 5 skipped (3454)",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 271,
+            "failed": 0,
+            "skipped": 2
+          },
+          "tests": {
+            "passed": 3449,
+            "failed": 0,
+            "skipped": 5
+          }
+        },
+        "terminalSummary": "Test Files  271 passed | 2 skipped (273)\nTests  3449 passed | 5 skipped (3454)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/unit.log",
+        "logSha256": "d4bdd0f883b51a129d412b734f224e401dd87bca56e2f72264f24133bef21f97",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/unit-source.json",
+          "sha256": "54a89e26f0bd8515b09e4962624fc28f65a5afa4bf70b43ec126ab8a3448cdf3",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T09:16:12.595Z",
+          "manifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "executedCommand": "node node_modules/vitest/vitest.mjs run --maxWorkers=4 --config C:/Users/Admin/.codex/worktrees/phase27-production-continuity/FitOut/playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/unit-scheduling.config.mjs",
+        "additionalArguments": "--maxWorkers=4 --config C:/Users/Admin/.codex/worktrees/phase27-production-continuity/FitOut/playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/unit-scheduling.config.mjs",
+        "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+      },
+      {
+        "command": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts",
+        "startedAt": "2026-10-11T09:24:15.064Z",
+        "finishedAt": "2026-10-11T09:26:09.615Z",
+        "durationSeconds": 114.551,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+        "resultData": {
+          "runner": "vitest",
+          "files": {
+            "passed": 91,
+            "failed": 0,
+            "skipped": 0
+          },
+          "tests": {
+            "passed": 1510,
+            "failed": 0,
+            "skipped": 6
+          }
+        },
+        "terminalSummary": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/design.log",
+        "logSha256": "3c071da78e4ff2b613814f22e9ba573419905949c55d31f61769183288878770",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/design-source.json",
+          "sha256": "734c9841265302af12cb579f1f3b3b6f8704afc0491b5fdad54020d177f12f1b",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T09:24:15.042Z",
+          "manifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "executedCommand": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts --maxWorkers=2",
+        "additionalArguments": "--maxWorkers=2",
+        "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+      },
+      {
+        "command": "node node_modules/typescript/bin/tsc --noEmit",
+        "startedAt": "2026-10-11T09:26:14.651Z",
+        "finishedAt": "2026-10-11T09:26:25.605Z",
+        "durationSeconds": 10.954,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "No TypeScript diagnostics.",
+        "resultData": {
+          "runner": "typescript",
+          "errors": 0
+        },
+        "terminalSummary": "No TypeScript diagnostics.",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/types.log",
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/types-source.json",
+          "sha256": "0efea3c9a743480ce17d5ca222eb1bc8b1b6bbff4803c5642966929ad0c1c798",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T09:26:14.622Z",
+          "manifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "executedCommand": "node node_modules/typescript/bin/tsc --noEmit",
+        "additionalArguments": "",
+        "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+      },
+      {
+        "command": "node node_modules/eslint/bin/eslint.js .",
+        "startedAt": "2026-10-11T09:26:29.220Z",
+        "finishedAt": "2026-10-11T09:28:17.250Z",
+        "durationSeconds": 108.03,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "33 problems (0 errors, 33 warnings)",
+        "resultData": {
+          "runner": "eslint",
+          "errors": 0,
+          "warnings": 33
+        },
+        "terminalSummary": "33 problems (0 errors, 33 warnings)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/lint.log",
+        "logSha256": "99f93cbfe481bf5d5d4aa95e4f6e5464dd29cae7b633febb6e28c617b8b61fce",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/lint-source.json",
+          "sha256": "59f86afcc92e2e8ec5dae4fa62800ce6d55f163edb3105e7c1212ea6086a21fe",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T09:26:29.194Z",
+          "manifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "executedCommand": "node node_modules/eslint/bin/eslint.js .",
+        "additionalArguments": "",
+        "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+      },
+      {
+        "command": "node node_modules/next/dist/bin/next build",
+        "startedAt": "2026-10-11T09:28:20.795Z",
+        "finishedAt": "2026-10-11T09:30:09.132Z",
+        "durationSeconds": 108.337,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "✓ Compiled successfully in 48s\n✓ Generating static pages using 7 workers (49/49) in 4.7s\nFinalizing page optimization ...",
+        "resultData": {
+          "runner": "next-build",
+          "compiled": true,
+          "generated": true,
+          "errors": 0
+        },
+        "terminalSummary": "✓ Compiled successfully in 48s\n✓ Generating static pages using 7 workers (49/49) in 4.7s\nFinalizing page optimization ...",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/build.log",
+        "logSha256": "ab005943633bd48681155f56e938a6757987a83e255538779042bc43a04a34e8",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/build-source.json",
+          "sha256": "c172b4fe4d2a44ab279e08010483f93a4a4524feb9c0aa9aef94fbcee71ac372",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T09:28:20.774Z",
+          "manifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "executedCommand": "node node_modules/next/dist/bin/next build",
+        "additionalArguments": "",
+        "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+      },
+      {
+        "command": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts --project=chromium",
+        "startedAt": "2026-10-11T09:30:15.477Z",
+        "finishedAt": "2026-10-11T09:31:55.599Z",
+        "durationSeconds": 100.122,
+        "exitCode": 0,
+        "status": "pass",
+        "result": "59 passed (1.6m)",
+        "resultData": {
+          "runner": "playwright",
+          "tests": {
+            "passed": 59,
+            "failed": 0,
+            "skipped": 0
+          }
+        },
+        "terminalSummary": "59 passed (1.6m)",
+        "evidenceKind": "raw-log",
+        "rawLogAvailable": true,
+        "rawLogPath": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/browser.log",
+        "logSha256": "004baaed32fa57f18e9f59b72ab2c8c505683d9309fff48a7f7c352c6ab7996b",
+        "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+        "testedSource": {
+          "provenance": "snapshot",
+          "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/browser-source.json",
+          "sha256": "8ffbb64d5f76184f39407f5c5dc29aa399302b36ba7f5afbbb5623aca8a3ad00",
+          "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+          "dirty": false,
+          "claim": "clean-revision",
+          "capturedAt": "2026-10-11T09:30:15.449Z",
+          "manifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a"
+        },
+        "timedOut": false,
+        "signal": null,
+        "sourceGuardPassed": true,
+        "skipGuardPassed": true,
+        "acceptancePassed": true,
+        "executedCommand": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --project=chromium --workers=1",
+        "additionalArguments": "e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --workers=1",
+        "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+      }
+    ],
     "productionContinuityProof": {
-      "path": "playwright/.cache/phase27-08/production-continuity-source-d67fbecf-20261010.json",
-      "sha256": "87c703d821c01611fb931651251f61d6e4e19dbceb52a0249adafc16f4f5d75b"
+      "path": "playwright/.cache/phase27-08/release-source-continuity-58897a94-20261011.json",
+      "sha256": "baffe8f2b34a65d8c34b5a2284d2b1574378aa47fab145cda4d64f83ca871bdd"
+    },
+    "runnerReport": {
+      "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/gates/report.json",
+      "sha256": "fba7b80ec4c78abe8a38880ba9b8508a5a73ea5a155e625115e2d95248bcae70"
+    },
+    "sourceExport": {
+      "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/source-export.json",
+      "sha256": "7841bcfeec84d92ce65d86f012064af291c5fcdddb31a9be756610b8d220a7fa"
+    },
+    "harnessProvenance": "Same six fixed jobs executed via committed runSequential API in a fresh physical exact-source Git archive export. Prior physical node_modules copy reused within verified owned exports, with package source unchanged; no junction. Failed direct-worktree attempt retained. No application, runner or validator acceptance change. Source captured before and after every gate; raw reports retained.",
+    "supplementalCompatibility": {
+      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "scope": "Historical D67 cold/A/B proofs retained in archivedReleaseCandidateVerifications; not claimed as fresh58897a94 evidence."
+    },
+    "unitScheduling": {
+      "config": {
+        "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/unit-scheduling.config.mjs",
+        "sha256": "17b590c9e357832b74e31ca21e86d6d77405ccbd79f5a4ef1df4f2114127929f"
+      },
+      "originalCensus": {
+        "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/original-census.json",
+        "sha256": "f8dde3de755781ba96d0bf6f1c18917b78897cefec3f7bc24e4484923bbb4a64"
+      },
+      "scheduledCensus": {
+        "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/scheduled-census.json",
+        "sha256": "7ed7672d458ed200eba15c61f5d8738027609b305776dac1f662310c472efeeb"
+      },
+      "originalFiles": 273,
+      "scheduledUniqueFiles": 273,
+      "contactSerialFiles": 8,
+      "otherParallelFiles": 265,
+      "assertionsChanged": false,
+      "skipPolicyChanged": false,
+      "timeoutPolicyChanged": false,
+      "officialReference": "https://main.vitest.dev/guide/recipes/parallel-sequential.html",
+      "gapLedger": ".planning/phases/27-app-subdomain-marketing-website/deferred-items.md"
     }
   },
   "archivedReleaseCandidateVerifications": [
@@ -3297,6 +4005,275 @@ raw recovery nor deployment acceptance is fabricated.
         }
       ],
       "releaseEligibility": "Ineligible against observed production36455580; retained stable Preview and local proof only."
+    },
+    {
+      "schemaVersion": 1,
+      "disposition": "Fresh exact-source six full gates, cold/warm and separately rebuilt compatibility A/B runtime proof pass. Candidate integrates deployed production baseline, preserves payout code, and renumbers reviewed Contact SQL0037. Existing owner Preview remains b835; production cutover/live provider/inbox acceptance remain pending.",
+      "supersedesSha256": "15c0ab3c2e11f45bccdae325342cb90c5bff94b3d3f054a8e3ba85f72c642de3",
+      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "sourceManifestSha256": "da10f8a0faea204c810cbe544142971181c86bab0d252d5515ea3b671d8a8157",
+      "gates": [
+        {
+          "command": "node node_modules/vitest/vitest.mjs run",
+          "startedAt": "2026-10-10T07:14:12.566Z",
+          "finishedAt": "2026-10-10T07:21:29.279Z",
+          "durationSeconds": 436.713,
+          "exitCode": 0,
+          "status": "pass",
+          "result": "Test Files  267 passed | 2 skipped (269)\nTests  3429 passed | 5 skipped (3434)",
+          "resultData": {
+            "runner": "vitest",
+            "files": {
+              "passed": 267,
+              "failed": 0,
+              "skipped": 2
+            },
+            "tests": {
+              "passed": 3429,
+              "failed": 0,
+              "skipped": 5
+            }
+          },
+          "terminalSummary": "Test Files  267 passed | 2 skipped (269)\nTests  3429 passed | 5 skipped (3434)",
+          "evidenceKind": "raw-log",
+          "rawLogAvailable": true,
+          "rawLogPath": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/gates/unit.log",
+          "logSha256": "d8e50d143a29671dab3749607cd33617256140b274e9331c040c0326ff8bdb62",
+          "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+          "testedSource": {
+            "provenance": "snapshot",
+            "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/gates/unit-source.json",
+            "sha256": "c9e6791edcf9976135a71222ec09858a7d6222287195dd4b87c7646f3fe1e0e3",
+            "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+            "dirty": false,
+            "claim": "clean-revision",
+            "capturedAt": "2026-10-10T07:14:12.547Z",
+            "manifestSha256": "da10f8a0faea204c810cbe544142971181c86bab0d252d5515ea3b671d8a8157"
+          },
+          "timedOut": false,
+          "signal": null,
+          "sourceGuardPassed": true,
+          "skipGuardPassed": true,
+          "acceptancePassed": true,
+          "additionalArguments": "--maxWorkers=4",
+          "executedCommand": "node node_modules/vitest/vitest.mjs run --maxWorkers=4",
+          "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+        },
+        {
+          "command": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts",
+          "startedAt": "2026-10-10T07:21:33.705Z",
+          "finishedAt": "2026-10-10T07:23:20.014Z",
+          "durationSeconds": 106.309,
+          "exitCode": 0,
+          "status": "pass",
+          "result": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+          "resultData": {
+            "runner": "vitest",
+            "files": {
+              "passed": 91,
+              "failed": 0,
+              "skipped": 0
+            },
+            "tests": {
+              "passed": 1510,
+              "failed": 0,
+              "skipped": 6
+            }
+          },
+          "terminalSummary": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+          "evidenceKind": "raw-log",
+          "rawLogAvailable": true,
+          "rawLogPath": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/gates/design.log",
+          "logSha256": "9a2e432aca9ee8cb094015d145d9ebda2b53b44ed97af80830ae535db311d91f",
+          "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+          "testedSource": {
+            "provenance": "snapshot",
+            "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/gates/design-source.json",
+            "sha256": "8a19c71adbda9560aec803ec771d4b61a963f969f99bbb5fe144eed88fc20d40",
+            "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+            "dirty": false,
+            "claim": "clean-revision",
+            "capturedAt": "2026-10-10T07:21:33.686Z",
+            "manifestSha256": "da10f8a0faea204c810cbe544142971181c86bab0d252d5515ea3b671d8a8157"
+          },
+          "timedOut": false,
+          "signal": null,
+          "sourceGuardPassed": true,
+          "skipGuardPassed": true,
+          "acceptancePassed": true,
+          "additionalArguments": "--maxWorkers=2",
+          "executedCommand": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts --maxWorkers=2",
+          "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+        },
+        {
+          "command": "node node_modules/typescript/bin/tsc --noEmit",
+          "startedAt": "2026-10-10T07:23:23.123Z",
+          "finishedAt": "2026-10-10T07:24:27.997Z",
+          "durationSeconds": 64.874,
+          "exitCode": 0,
+          "status": "pass",
+          "result": "No TypeScript diagnostics.",
+          "resultData": {
+            "runner": "typescript",
+            "errors": 0
+          },
+          "terminalSummary": "No TypeScript diagnostics.",
+          "evidenceKind": "raw-log",
+          "rawLogAvailable": true,
+          "rawLogPath": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/gates/types.log",
+          "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+          "testedSource": {
+            "provenance": "snapshot",
+            "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/gates/types-source.json",
+            "sha256": "b035f5c2d23cb6704c1602c4c5e4085748b4bfc60496f54c64a3f2adffeb3ac5",
+            "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+            "dirty": false,
+            "claim": "clean-revision",
+            "capturedAt": "2026-10-10T07:23:23.101Z",
+            "manifestSha256": "da10f8a0faea204c810cbe544142971181c86bab0d252d5515ea3b671d8a8157"
+          },
+          "timedOut": false,
+          "signal": null,
+          "sourceGuardPassed": true,
+          "skipGuardPassed": true,
+          "acceptancePassed": true,
+          "additionalArguments": "",
+          "executedCommand": "node node_modules/typescript/bin/tsc --noEmit",
+          "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+        },
+        {
+          "command": "node node_modules/eslint/bin/eslint.js .",
+          "startedAt": "2026-10-10T07:24:31.403Z",
+          "finishedAt": "2026-10-10T07:26:01.358Z",
+          "durationSeconds": 89.955,
+          "exitCode": 0,
+          "status": "pass",
+          "result": "33 problems (0 errors, 33 warnings)",
+          "resultData": {
+            "runner": "eslint",
+            "errors": 0,
+            "warnings": 33
+          },
+          "terminalSummary": "33 problems (0 errors, 33 warnings)",
+          "evidenceKind": "raw-log",
+          "rawLogAvailable": true,
+          "rawLogPath": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/gates/lint.log",
+          "logSha256": "0a032441420e5236ac2bb5b8d41945742ded83587a8b3fee2bdefabab8b38d05",
+          "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+          "testedSource": {
+            "provenance": "snapshot",
+            "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/gates/lint-source.json",
+            "sha256": "289412dcfdadb3a74e893763f556ffcf1fd21f65575ef797fd7d53fbbc6ce69c",
+            "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+            "dirty": false,
+            "claim": "clean-revision",
+            "capturedAt": "2026-10-10T07:24:31.381Z",
+            "manifestSha256": "da10f8a0faea204c810cbe544142971181c86bab0d252d5515ea3b671d8a8157"
+          },
+          "timedOut": false,
+          "signal": null,
+          "sourceGuardPassed": true,
+          "skipGuardPassed": true,
+          "acceptancePassed": true,
+          "additionalArguments": "",
+          "executedCommand": "node node_modules/eslint/bin/eslint.js .",
+          "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+        },
+        {
+          "command": "node node_modules/next/dist/bin/next build",
+          "startedAt": "2026-10-10T07:26:05.596Z",
+          "finishedAt": "2026-10-10T07:27:33.571Z",
+          "durationSeconds": 87.975,
+          "exitCode": 0,
+          "status": "pass",
+          "result": "✓ Compiled successfully in 39.3s\n✓ Generating static pages using 7 workers (48/48) in 5.5s\nFinalizing page optimization ...",
+          "resultData": {
+            "runner": "next-build",
+            "compiled": true,
+            "generated": true,
+            "errors": 0
+          },
+          "terminalSummary": "✓ Compiled successfully in 39.3s\n✓ Generating static pages using 7 workers (48/48) in 5.5s\nFinalizing page optimization ...",
+          "evidenceKind": "raw-log",
+          "rawLogAvailable": true,
+          "rawLogPath": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/gates/build.log",
+          "logSha256": "43e59b017f0573feccbb89e358809687685c2cd83db71eabb5c5f61bb985defe",
+          "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+          "testedSource": {
+            "provenance": "snapshot",
+            "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/gates/build-source.json",
+            "sha256": "31fa7dc682438ac43e8cf47831d9380e49dccc51e495101d4bd2e01d90b0100b",
+            "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+            "dirty": false,
+            "claim": "clean-revision",
+            "capturedAt": "2026-10-10T07:26:05.574Z",
+            "manifestSha256": "da10f8a0faea204c810cbe544142971181c86bab0d252d5515ea3b671d8a8157"
+          },
+          "timedOut": false,
+          "signal": null,
+          "sourceGuardPassed": true,
+          "skipGuardPassed": true,
+          "acceptancePassed": true,
+          "additionalArguments": "",
+          "executedCommand": "node node_modules/next/dist/bin/next build",
+          "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+        },
+        {
+          "command": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts --project=chromium",
+          "startedAt": "2026-10-10T07:27:37.898Z",
+          "finishedAt": "2026-10-10T07:29:13.259Z",
+          "durationSeconds": 95.361,
+          "exitCode": 0,
+          "status": "pass",
+          "result": "59 passed (1.5m)",
+          "resultData": {
+            "runner": "playwright",
+            "tests": {
+              "passed": 59,
+              "failed": 0,
+              "skipped": 0
+            }
+          },
+          "terminalSummary": "59 passed (1.5m)",
+          "evidenceKind": "raw-log",
+          "rawLogAvailable": true,
+          "rawLogPath": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/gates/browser.log",
+          "logSha256": "5d4a3a64d732f2f4339ad72a26e88038638828e888384fc0538eaf154d46a9c3",
+          "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+          "testedSource": {
+            "provenance": "snapshot",
+            "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/gates/browser-source.json",
+            "sha256": "3b5fcc7727bb6b2e8767141c94366ee2d10b28487e70af8e8ccd4e22f0eff20a",
+            "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+            "dirty": false,
+            "claim": "clean-revision",
+            "capturedAt": "2026-10-10T07:27:37.874Z",
+            "manifestSha256": "da10f8a0faea204c810cbe544142971181c86bab0d252d5515ea3b671d8a8157"
+          },
+          "timedOut": false,
+          "signal": null,
+          "sourceGuardPassed": true,
+          "skipGuardPassed": true,
+          "acceptancePassed": true,
+          "additionalArguments": "e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --workers=1",
+          "executedCommand": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --project=chromium --workers=1",
+          "commandRepresentation": "Canonical command plus additionalArguments; immutable runner record retains actual argv."
+        }
+      ],
+      "coldProof": {
+        "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/final-cold-9f749f37-33e6-4aa9-a097-4e2aac46f348/report.json",
+        "sha256": "90911e1bad9f7fd9934781b91773b8a499162a69c70c59844f9140450564b6f1"
+      },
+      "compatibilityProof": {
+        "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/compatibility-ca0ae860-03fd-4bc0-9257-4af46d4cd7da/report.json",
+        "sha256": "bfe6fc5ad2af0cb10fac67a08ac12ee865d5b2f000e5da6ea1f41edf151c239c"
+      },
+      "productionContinuityProof": {
+        "path": "playwright/.cache/phase27-08/production-continuity-source-d67fbecf-20261010.json",
+        "sha256": "87c703d821c01611fb931651251f61d6e4e19dbceb52a0249adafc16f4f5d75b"
+      },
+      "archiveDisposition": "Superseded as proposed candidate by exact58897a94. Original six full gates, cold and compatibility proof remain dated D67 evidence; no source relabeling."
     }
   ],
   "retainedAttemptArtifacts": [
@@ -4294,6 +5271,301 @@ raw recovery nor deployment acceptance is fabricated.
       "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/compatibility-56a0467e-16d7-4eb6-8590-ed9cf5bba76b/stage-a-server.log",
       "sha256": "44150d04cbf3cc70bf5ebc7aaa0a4204d2162f1add225b511942c61759ec3123",
       "disposition": "Failed supplementary staging probe retained: missing-Origin Contact request correctly returned403 before disabled503. Harness now retains that negative and adds the valid browser Origin; no application/source change or false stage acceptance."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/runtime-preflight.json",
+      "sha256": "7729315a43bd67a4a3dc9362c64ec51130a2d6a39684d80575c40c32127e568b",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/initial-source.json",
+      "sha256": "e2d5dc8cb9a650746cfe1625a1b333154ac52d353cd680a9e03e25234090490a",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/browser-post-source.json",
+      "sha256": "b5c49ae72cd37ed6bdca96150e943d8546edae773c5cda25c038a6a9c13989fd",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/browser-record.json",
+      "sha256": "b77f8db4fe4761db3b0dbc707670e078fdfc6772ba9dc5c8095b8e222873abbc",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/browser-source.json",
+      "sha256": "88756fb0544301c17348efca7b6439c08c03a6c54bd1d2accd286dfe96990e3c",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/browser.log",
+      "sha256": "cfa430965143b625ea1e51c65347452823e9e969a46a922f745de9d074646834",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/build-post-source.json",
+      "sha256": "fece7ead25a2a9a93424fa5443bfff0dcd843ae250f109f151e5f3fe56072666",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/build-record.json",
+      "sha256": "dcf6dc297d91f172ae32aa09dee5a7196d4aa6b2be9740907385ef312dceecc1",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/build-source.json",
+      "sha256": "cd9af8200e9524d5e6d7b3b410f29772dd1b05def618f612aa45043c5eb66c5f",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/build.log",
+      "sha256": "106fd417a7b68004a45b6718e842d8168a291b6acacac027a47eb42f217f4808",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/design-post-source.json",
+      "sha256": "1b1ff18983a468fcf05dfde4a2842555835ce010b691ddbded856863383907c5",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/design-record.json",
+      "sha256": "5835f2a4f0429c7d6b5670c707f4ffe8b8d366e633a157838dc5f3fdcbc48623",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/design-source.json",
+      "sha256": "e8763f98bb9d5070370cb0b361d450c85052ed12ec6d2bb1f821b995b27581c1",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/design.log",
+      "sha256": "332601b6ac1eeae697ccb254ee2f279e90e7142a1c288934a39dd853555b7973",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/lint-post-source.json",
+      "sha256": "5d970131414bae56b33b625161d26684fa15ef544b84624dfb26b1cab9b0ee49",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/lint-record.json",
+      "sha256": "2c84c279ef9c867a7a1554a877bd942eadf6e2740d5eaa635aeda1b74c333788",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/lint-source.json",
+      "sha256": "24d4ebcae470bf8b6d233ba5daef90420efba6525b4f5f2abdd6507a5c4865a9",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/report.json",
+      "sha256": "ee938b2243ebb6c7dd5fa20be365474922042215c9e7519ac7a975a5cb2e0cf6",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/types-post-source.json",
+      "sha256": "47ae60b7fa73f55eb890563de84c2637e45a4dd9865b1ce3ec4364864236ac50",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/types-record.json",
+      "sha256": "090402632cf172430ab22a0876e49b455de8ac56477def6f3a6ff9ced55bf18c",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/types-source.json",
+      "sha256": "97bf572eb039703d46fe4a44c36cb3f9be344cb1d3e2f6eeb7b06c969152a667",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/unit-post-source.json",
+      "sha256": "8296d5a96422454d88568480fd65741bf9080202916fa80ad9ffcb3e812a2e00",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/unit-record.json",
+      "sha256": "b1ee18815ba404602bf81b703dac2fb4e87577cbd67e661978a191edf5f4c6a2",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/unit-source.json",
+      "sha256": "cae38873e349bfb1ddedfe5bfca6e07cbf02db746242ab3377da942a1da1766d",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-full-58897a94-20261011/gates/unit.log",
+      "sha256": "a51fa92a5435f6108c3d3591c3c76334cfee5905fcf5a083de816182220097c2",
+      "disposition": "First direct-worktree harness attempted exact58897a94: unit/design/types passed; owned lint explicitly interrupted after it traversed old ignored source-export copies. Turbopack then rejected the external dependency junction; browser correctly refused the failed build precondition. No complete browser totals or accepted source replacement inferred. Fresh physical source export corrects the harness without application/validator changes."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/runtime-preflight.json",
+      "sha256": "7729315a43bd67a4a3dc9362c64ec51130a2d6a39684d80575c40c32127e568b",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/initial-source.json",
+      "sha256": "d43789a7ae7ee5a6e0b87670a25e8879de252838d2cb8cc7dee9984a71f0cc87",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/source-export.json",
+      "sha256": "1cf3359ae8aa0840e8300a72c36cf9bc055d9142e37dcd6ab1849e2f718a07d0",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/source.zip",
+      "sha256": "c9288a5f19c3aed5afe25266adf65465694925df9d4923f1ff4089bb6e745e61",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/browser-post-source.json",
+      "sha256": "01ca7e6d17893298a3c038b48aef78ea7d8a26790580881b6d6ab5c64051e9c4",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/browser-record.json",
+      "sha256": "68d08028caca5fe5cf3dd215406e34718595d232950d7cd9027d68cae014691c",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/browser-source.json",
+      "sha256": "b055370c51ea49517f3eec783ae8d426c3a6ed4ac6959a7a77f3a42107f739fe",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/browser.log",
+      "sha256": "e43ff5f96653938f84f62dab0023ade751963eddc6bb0ef0a983e9c284579f0c",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/build-post-source.json",
+      "sha256": "e77af14c1439581f556ea422388faccc09446756c656395656e8d8f23a05c631",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/build-record.json",
+      "sha256": "2dc7d64c245d3d5821c06f0f17c3e5cb6cc692c28b3f9e3c2565ab315a396634",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/build-source.json",
+      "sha256": "80e215bac01a5e6b0c1c7338ea3f930f262b8ff702803745c21022ad1c4f84ad",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/build.log",
+      "sha256": "754ec484ce7da4f0f1db37315b2daffaea744cfea59f1222ac85cc27f60ac5d6",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/design-post-source.json",
+      "sha256": "1343ed199381c7be1f87dee6470db353c6457bb2b3139ce23282b54503324ad5",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/design-record.json",
+      "sha256": "de59479bc3bb34d9693d3473a5582844583e0c3d44ad36897d547bb47d3202c7",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/design-source.json",
+      "sha256": "a35959883d6113a0df16e7b5c78c80cb0bc0a80e04829251ee55d139e76172d7",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/design.log",
+      "sha256": "452c75162b2783942b366a6eb77ec5898cc8cfc581bf5f58e88e3aa91f7c6f04",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/lint-post-source.json",
+      "sha256": "cd6222b09ddc7b851c755495fa52ccea1b7c1d0b88f6274c726b25a4638fb7a5",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/lint-record.json",
+      "sha256": "b9e0a306f007d0670613e296f9b3ceff7fec71583b24ad091a80c33b753aa841",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/lint-source.json",
+      "sha256": "f6a9190a3205028e49ac9eced95a4f32da797ebed83698a18693f61a9c7424a5",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/lint.log",
+      "sha256": "99f93cbfe481bf5d5d4aa95e4f6e5464dd29cae7b633febb6e28c617b8b61fce",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/report.json",
+      "sha256": "da6b8894e2a84c82f92966b4c3ff09d8077bf7d6d6db5f638d78b5f5a5d9b6d1",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/types-post-source.json",
+      "sha256": "dc0fc671c21d8aaf8609b5d3208259319f1b4ae57d9627bd8f855d877ddad290",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/types-record.json",
+      "sha256": "5c0fcc73003e0f1fe50297b621e0958660d8b2cdcf3a88c130f0e74bc5ffe990",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/types-source.json",
+      "sha256": "97fb49d9243dde147af7b3799af75f12163ac362a0264c71575f966fe0ee291c",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/unit-post-source.json",
+      "sha256": "20ad108e2df85ddfb5d3a9aa3f6b0a5d11d4c1edc51500c3c7fe6b794d41f21a",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/unit-record.json",
+      "sha256": "1e97be8b1efb8f92cb53dbb953edd1745c8563c98d9eda7f6100f2edc9390764",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/unit-source.json",
+      "sha256": "a71871d63ca8637a860c268ba34a848d93e5016f32500b4e1ce69c29f4ed9a21",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/unit.log",
+      "sha256": "e4437705e9763ed67939f8a1f15d1fd7ca85fa6e895eca2c167b62bee8125455",
+      "disposition": "Physical export attempt retained: one Contact instance race assertion failed with eight503 responses while another test intentionally held the same database advisory lock; other outcomes remain exactly recorded. File schemas do not isolate database advisory locks. Accepted subsequent run uses all273 original files and identical assertions with Contact files serial after the unchanged parallel group, without altered skip/timeout policy or production code."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/inheritance-attempt-unit-scheduling.config.mjs",
+      "sha256": "deb35aa04a0537fc7d092abe40b3cfe8be41a5beddc9d19d80eb54dbbafa8d1b",
+      "disposition": "Collection-only scheduling config inherited include arrays and duplicated file collection. Exact-census precondition refused before any gate/test execution; corrected config captures all273 original files exactly once. No test totals inferred."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/inheritance-attempt-original-census.json",
+      "sha256": "74f34de7a587dd0e5f0bac4d1ae18bdab32bf11198958ff96362e8f749d17e1c",
+      "disposition": "Collection-only scheduling config inherited include arrays and duplicated file collection. Exact-census precondition refused before any gate/test execution; corrected config captures all273 original files exactly once. No test totals inferred."
+    },
+    {
+      "path": "playwright/.cache/phase27-08/reconciled-serial-full-58897a94-20261011/inheritance-attempt-scheduled-census.json",
+      "sha256": "d390f8749ffc35d4c8d02c941b692398ccfe4450f704ec21a9b5fa1e1f62b601",
+      "disposition": "Collection-only scheduling config inherited include arrays and duplicated file collection. Exact-census precondition refused before any gate/test execution; corrected config captures all273 original files exactly once. No test totals inferred."
     }
   ]
 }

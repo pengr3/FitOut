@@ -1,6 +1,6 @@
 # Phase27 actual production evidence — incomplete
 
-Exact approved source is deployed through separate Stage A/B/C builds. This records dated source-specific facts and five outstanding matrix scenarios; it does not complete Plan09 or release Contact/payments/legal. Browser aggregate clock entries are approximate capture windows; exact HTTP/database readbacks carry their own times.
+The original D67 source was deployed through separate Stage A/B/C builds. Current traffic is disabled web b61cb4a4 and Ops D67; proposed58897a94 now has six fresh full engineering gates. The opening deployedRevision/deployment IDs remain the original dated D67 matrix context, not a current alias claim. Read27-RELEASE-SOURCE-RECONCILIATION.md. This records dated source-specific facts and five outstanding matrix scenarios; it does not complete Plan09 or release Contact/payments/legal. Browser aggregate clock entries are approximate capture windows; exact HTTP/database readbacks carry their own times.
 
 ```json
 {
@@ -556,7 +556,7 @@ Exact approved source is deployed through separate Stage A/B/C builds. This reco
   ],
   "highThreats": [
     "T-27-28: staff-only customer capability denial remains unobserved",
-    "T-27-29: production Contact enforcement/alert control unproved; public send remains disabled",
+    "T-27-29: scoped ingress and synthetic alert proofs pass at their recorded sources; full same-candidate exhaustion-to-alert and rollback/control acceptance remain unproved; public Contact staysdisabled",
     "T-27-27: valid issued-link/rollback observations remain incomplete"
   ],
   "rollbackVerified": false,
@@ -847,6 +847,27 @@ Exact approved source is deployed through separate Stage A/B/C builds. This reco
     "observationCount": 30,
     "historicalD67Observations": 29,
     "singleReleaseAcceptance": false
+  },
+  "evidenceRole": "Dated original D67 topology matrix plus separately scoped58897a94 ingress observation; not current one-source release acceptance.",
+  "releaseSourceReconciliation": {
+    "recordedAt": "2026-10-11T09:33:12.518Z",
+    "candidateRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "sourceManifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
+    "currentWeb": {
+      "id": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+      "revision": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5"
+    },
+    "currentOps": {
+      "id": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+      "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802"
+    },
+    "engineeringGatesPassed": 6,
+    "sourceAlignedPreparation": true,
+    "singleReleaseAcceptance": false,
+    "historicalMatrixObservations": 30,
+    "permanentCandidateRolloutExecuted": false,
+    "contactEnabled": false,
+    "evidence": ".planning/phases/27-app-subdomain-marketing-website/27-RELEASE-SOURCE-RECONCILIATION.md"
   }
 }
 ```

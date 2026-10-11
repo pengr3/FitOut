@@ -1,8 +1,10 @@
 # Phase 27 — Prepared cutover and rollback packet
 
-October10 source continuity repair: candidate d67fbecfa41e902cbf506c93dbcf53b60085e802 includes deployed production36455580 and preserves all30 payment/scheduler files and payout migrations0034–0036. Contact is0037 with unchanged reviewed SQL bytes. Fresh six-gate, cold and separately built compatibility A/B local proof passes. The stable b835 walkthrough Preview is historical UI/deployment evidence; it does not prove this integrated source. The owner approved this exact packet and the staged topology is now live. Plan 09 acceptance remains pending.
+Current reconciliation (2026-10-11T09:33:12.518Z): proposed source58897a94 now binds six fresh full engineering gates and the actual scoped ingress proof. Public traffic remains disabled web b61cb4a4 and Ops D67. The original D67 cutover approval and rollout are retained in historicalCutoverApproval; the completed58897a94 ingress approval does not authorize a permanent candidate rollout or public Contact. See27-RELEASE-SOURCE-RECONCILIATION.md. Earlier narrative below describes dated history.
 
-**Exact packet approved; Stage C topology is live. Plan09 live acceptance remains incomplete.** The
+Historical October10 source continuity repair: candidate d67fbecfa41e902cbf506c93dbcf53b60085e802 includes deployed production36455580 and preserves all30 payment/scheduler files and payout migrations0034–0036. Contact is0037 with unchanged reviewed SQL bytes. Fresh six-gate, cold and separately built compatibility A/B local proof passes. The stable b835 walkthrough Preview is historical UI/deployment evidence; it does not prove this integrated source. The owner approved this exact packet and the staged topology is now live. Plan 09 acceptance remains pending.
+
+**Historical D67 packet approved; its Stage C rollout occurred on October10. Plan09 remains incomplete.** The
 architecture is already authorized by D-16/D-17. The remaining checkpoint concerns
 actual account prerequisites and exact external changes, not routine implementation
 choices. The separately approved Google client-registration additions are saved,
@@ -19,18 +21,15 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
     "ops": "https://ops.fitout.live",
     "www": "https://www.fitout.live -> https://fitout.live"
   },
-  "proposedRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
-  "candidateAcceptance": "Exact source engineering proof passes; owner approved the cutover and attested both Production database targets. Stage A/B/C rollout is live. Plan 09 deployed/live acceptance remains incomplete with 29/35 observed matrix scenarios, partial provider correspondence, and Contact controls/inbox proof missing.",
-  "approvedRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+  "proposedRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+  "candidateAcceptance": "Exact58897a94 six full engineering gates and its scoped cross-runtime Vercel ingress proof pass. Current public web is b61cb4a4; Ops is D67. Thirty historical matrix observations span D67 and the bounded58897a94 test. Single-release deployments, authority and fresh live observations remain pending; Contact staysfalse.",
+  "approvedRevision": null,
   "authority": {
-    "status": "approved",
-    "scope": "Owner approves the exact proposed d67fbecf Stage A/B/C production cutover, listed domain/nonsecret Production environment/provider destination changes, additive 0037 quota migration and scoped rollback. Execution is conditional on outstanding database binding and account/control prerequisites. Contact remains disabled pending its separate controls/enablement/inquiry checkpoint. Checkout, payout and legal HOLD remain.",
-    "approvedAt": "2026-10-10T10:01:21Z",
+    "status": "pending-candidate-rollout",
+    "scope": "The original D67 cutover and completed58897a94 bounded ingress approvals remain valid only for their recorded scope. The latest owner instruction authorizes release-source reconciliation while Contact stays disabled. No new permanent58897a94 Production pair/promotion, branch advance or public Contact inquiry is executed or claimed by this reconciliation.",
     "owner": "project owner (user)",
-    "evidence": "Current chat: \"cutover packet is approved.\"",
-    "priorPacketGitBlob": "faa481eda48a7057771a3ba3eccb69abc5dc74b8",
-    "prerequisitesResolved": true,
-    "prerequisiteScope": "Staged topology cutover with Contact disabled; provider registration changes require their fresh per-provider readback. Contact controls, enablement, inquiry and actual receipt/reply remain gated in Plan09."
+    "approvedAt": null,
+    "evidence": "Current chat: okay go ahead with the release-source reconciliation, keep Contact disabled for now"
   },
   "holds": {
     "checkout": "HOLD",
@@ -43,9 +42,9 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
     "enabled": false,
     "controlsVerified": false,
     "processLocalIsGlobal": false,
-    "perIpPolicy": "Enforcing trusted-ingress deployment-wide <=5 attempts per 15 minutes per original client; account-wide proof pending",
-    "globalBudget": "Atomic100/hour control observed through exact-source Production HTTP429 under an owned100-reservation fixture; fixture removed after disabled503 recovery. Automatic alert and complete shared per-IP ingress proof remain pending.",
-    "disabledRecovery": "Fresh disabled503, retained synthetic fields and enabled Send button, all3surfaces200, savedflagsfalse, primaryquota0, temporaryguarddisabled.",
+    "perIpPolicy": "Atomic deployment-wide <=5 attempts/15min; actual Vercel A/B distinct-runtime and forged-header denial passed at58897a94 under completed bounded no-mail authority. This scoped pass is preserved separately from current baseline traffic.",
+    "globalBudget": "Atomic100/hour HTTP429 fixture observed on D67; scheduled synthetic alert delivery/duplicate suppression observed on b61cb4a4 with owner inbox receipt. The complete exhaustion-to-alert chain on one candidate deployment is still pending.",
+    "disabledRecovery": "Fresh reconciliation readback: web and Ops saved Contactfalse, web no-mail modefalse; actualContact503, four healthy pages200, unsigned alert receiver401; primaryquota0 and pendingalerts0. No inquiry transport executed.",
     "quotaMigration": {
       "path": "drizzle/0037_contact_quota.sql",
       "sha256": "8b657d22de785aaa5c2ba3ab201a255f91af9c72b4bd0a9c5c1c9ef6fd593b34",
@@ -117,6 +116,19 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
         "payout": "HOLD",
         "legal": "HOLD"
       }
+    },
+    "currentControlEvidence": {
+      "ingress": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-VERCEL-INGRESS-RESULT.md",
+      "alert": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-AUTOMATIC-ALERTS.md",
+      "health": {
+        "path": "playwright/.cache/phase27-08/release-source-health-final-20261011.json",
+        "sha256": "6c491617eb8f0aed8b2d58df49076807f5f7d83302ec340dcdbf03985786801b"
+      },
+      "database": {
+        "path": "playwright/.cache/phase27-08/release-source-database-final-readback-20261011.json",
+        "sha256": "1723ec59bab1687a610c50514573b67775bd634562028117967a84245d08bb2c"
+      },
+      "publicEnablementAuthorized": false
     }
   },
   "receivers": [
@@ -140,21 +152,21 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
     }
   ],
   "rollout": [
-    "Record exact approved final SHA, current alias deployment IDs, DNS RRsets/TTL, Production env scopes and provider registrations; resolve high threats and failed engineering gates before external mutation",
-    "Use exact integrated revision d67fbecfa41e902cbf506c93dbcf53b60085e802; build each Stage A/B/C separately per27-COMPATIBILITY-ROLLOUT.md. Keep StageA primary apex/app compatibility, StageB primary app/apex compatibility, StageC primary app/compatibility unset/apex marketing. Reserved marketing host stays unattached. Local proof is not deployed evidence.",
-    "Attach app.fitout.live to existing fitout-web; verify DNS/TLS and real app search/auth/returns/session cookies on approved revision. Retain ops project and old direct signed receivers",
-    "Add exact Google app origin/callback and approved provider browser returns; migrate machine registrations only after both direct receiver URLs are proved, keeping one Inngest scheduler",
-    "Set final both-project Production app vars=https://app.fitout.live, MARKETING_APP_URL=https://fitout.live, OPS_APP_URL unchanged; rebuild and promote exact reviewed final SHA; verify app/marketing/ops HTML/Link/RSC/cache/session matrix before announcing apex change",
-    "Configure www 307 to apex with full path/query; preserve sending-domain DNS. Keep Contact false until published distributed controls and available inbox owner are proved",
-    "Only after scoped authority and controls: enable Contact, read back exact deployment, authorize one safe inquiry, observe inbox/Reply-To/reply, then run deployed/live evidence validator"
+    "Preserve current web b61cb4a4 and Ops D67 serving IDs, origin configuration, Contactfalse and original/StageA rollback pins. Snapshot exact account/provider destinations and domain assignment controls before an approved candidate rollout.",
+    "Stage a new immutable Production pair from exact58897a9459cf31b7c8937254dc17ab61ae0ce1d5 with CONTACT_PRODUCTION_ENABLED=false on both and CONTACT_INGRESS_VERIFICATION_MODE=false. Do not reuse the two earlier enabled no-mail ingress test builds. Keep automatic custom-domain assignment disabled.",
+    "Preserve current StageC origins and direct old/new PayMongo, Didit and Inngest signed receiver routes. No DNS change, signing-key rotation, schema replay, financial invocation or retired payout onboarding is part of this source reconciliation.",
+    "Present exact source, disabled new deployment IDs, current readbacks, rollback pins and remaining live observation scope for candidate rollout authority. Permanent promotion, dev advance and release announcement are not performed by this preparation task.",
+    "After exact candidate rollout authority, promote only the new disabled pair and reread aliases/configuration. Reconcile any automatic Inngest destination refresh with the14 unchanged financial functions and separate Contact alert app without invoking financial jobs.",
+    "Collect fresh candidate-specific35-row host/provider/control observations with actual deployment identities. Preserve historical D67 and bounded58897a94 results; do not relabel them. Genuine issued links and staff-only capability denial require appropriate owner/browser evidence.",
+    "Keep Contactfalse until a separately authorized controlled test proves remaining quota-to-alert and full rollback/control gates. Public enablement and one reply-capable inquiry/receipt/Reply-To/reply require their own recorded scope, then deployed/live validator acceptance."
   ],
   "rollback": [
-    "On threshold breach disable Contact first, rebuild/redeploy both affected projects, verify real 503 and recoverable feedback",
-    "Restore customer apex alias to dpl_8PpCPij5v1zQiD8gDP14Ju54QAAv and ops alias to dpl_Ho1raNTZDcnQ4zwpDu2P19NX6QBS only through scoped release authority",
-    "Restore recorded Production BETTER_AUTH_URL/NEXT_PUBLIC_APP_URL=https://fitout.live; remove newly added marketing variables only if absent before; retain OPS_APP_URL=https://ops.fitout.live; rebuild because public app URL is build-time",
-    "Restore saved exact DNS RRsets/TTL and www redirect state if changed; keep app alias compatible until outstanding links drain; do not remove send.fitout.live records",
-    "Restore exact saved Google/provider destinations and one Inngest registration; keep both direct signed receivers during rollback; never rotate signing keys or replay OAuth code/state",
-    "Re-prove old app sign-in/search/reset/verify/deep links and isolated staff session; retain payment/payout/legal HOLD; record incident and unknown observations"
+    "Disable Contact first on both projects; keep no-mail verification modefalse. Use exact current disabled baseline web dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68 and Ops dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ as immediate source-update recovery targets. Earlier pre-phase and StageA pins remain historical fallback, never silently substituted.",
+    "Restore the source-update aliases only through recorded release/rollback scope. Preserve current StageC origins and www307 policy; a topology reversal requires its separate retained original packet and real session/provider/link recovery observations.",
+    "Verify actualContact503 and recoverable feedback, four healthy surfaces, savedflagsfalse, and precise alias source readback after recovery. Contact test-only builds are not disabled recovery targets.",
+    "Preserve additive0037 quota and0038 alert tables; do not DROP, rerun migrations, delete broad quota rows or rewrite sent alert history. Any future owned test fixture cleanup requires exact key/value matching under the reviewed advisory lock.",
+    "Read back and reconcile the financial Inngest registration to the retained disabled baseline destination https://fitout-b08esines-pengr3s-projects.vercel.app/api/inngest with14 unchanged functions, and separate Contact alert receiver. Do not manually invoke payment/payout jobs.",
+    "Retain original Google/provider entries and direct signed receivers; no code/state replay, secret rotation or financial delivery test. Keep checkout/payout/legal HOLD and record all failed or missing observations."
   ],
   "thresholds": [
     "Any unknown/lookalike host exposes account or staff content, cross-host session acceptance, wrong canonical/OG or internal namespace response: stop immediately and roll back",
@@ -211,16 +223,22 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
       "customer": "dpl_EawThnAR9vr4EEumpTHnpBh6yAYB",
       "ops": "dpl_GjHd59ThRnH73gmFbUjhGviN1ZQV",
       "purpose": "Verified app-compatible additional targets; preserve original pre-phase pins as ultimate rollback."
-    }
+    },
+    "proofRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+    "proofScope": "Historical locally built D67 Stage A/B proof. The new source is a Contact-only runtime delta; no fresh58897a94 supplemental A/B proof is inferred. Current Stage C topology is already deployed.",
+    "candidateRevalidation": "pending if required for a newly scoped topology cutover"
   },
   "productionContinuity": {
-    "baseline": "3645558085e81fed38d644c7b50c64ce921a72ad",
-    "candidate": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+    "baseline": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5",
+    "originalBaseline": "3645558085e81fed38d644c7b50c64ce921a72ad",
+    "candidate": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
     "productionIsAncestor": true,
     "payoutCodeUnchanged": true,
+    "unchangedMoneyFiles": 30,
+    "unchangedMigrations": 5,
     "proof": {
-      "path": "playwright/.cache/phase27-08/production-continuity-source-d67fbecf-20261010.json",
-      "sha256": "87c703d821c01611fb931651251f61d6e4e19dbceb52a0249adafc16f4f5d75b"
+      "path": "playwright/.cache/phase27-08/release-source-continuity-58897a94-20261011.json",
+      "sha256": "baffe8f2b34a65d8c34b5a2284d2b1574378aa47fab145cda4d64f83ca871bdd"
     }
   },
   "productionDatabaseBinding": {
@@ -236,13 +254,18 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
     "evidence": "Owner answered \"yeah approb\" to the immediate BOTH-project target confirmation request. Values remain sensitive/write-only; this is owner attestation, not independent secret readback."
   },
   "rolloutStatus": {
-    "stage": "C promoted; topology/readbacks observed; full live proof incomplete",
-    "observedAt": "2026-10-10T11:57:15.492Z",
-    "webDeployment": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+    "stage": "Prepared candidate reconciled; no new rollout in this task",
+    "observedAt": "2026-10-11T09:27:02Z",
+    "webDeployment": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
+    "webRevision": "b61cb4a43c8dd4c10e7444014fb66646aba36ec5",
     "opsDeployment": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
-    "autoAssignCustomDomains": false,
+    "opsRevision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
     "contactEnabled": false,
-    "proof": ".planning/phases/27-app-subdomain-marketing-website/27-EVIDENCE.md"
+    "candidateProductionPairReady": false,
+    "proof": {
+      "path": "playwright/.cache/phase27-08/release-source-account-final-readback-20261011.json",
+      "sha256": "e7211a8b07f6ada09ce73e12cafd1332d9b256cca4b05336a81d859aeb80dc08"
+    }
   },
   "contactAlertScopeExtension": {
     "ownerAuthorization": "Implement automatic alerts using owner Gmail; test; keep Contact disabled",
@@ -250,6 +273,91 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
     "deployment": "dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68",
     "evidence": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-AUTOMATIC-ALERTS.md",
     "contactEnabled": false
+  },
+  "historicalCutoverApproval": {
+    "revision": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+    "authority": {
+      "status": "approved",
+      "scope": "Owner approves the exact proposed d67fbecf Stage A/B/C production cutover, listed domain/nonsecret Production environment/provider destination changes, additive 0037 quota migration and scoped rollback. Execution is conditional on outstanding database binding and account/control prerequisites. Contact remains disabled pending its separate controls/enablement/inquiry checkpoint. Checkout, payout and legal HOLD remain.",
+      "approvedAt": "2026-10-10T10:01:21Z",
+      "owner": "project owner (user)",
+      "evidence": "Current chat: \"cutover packet is approved.\"",
+      "priorPacketGitBlob": "faa481eda48a7057771a3ba3eccb69abc5dc74b8",
+      "prerequisitesResolved": true,
+      "prerequisiteScope": "Staged topology cutover with Contact disabled; provider registration changes require their fresh per-provider readback. Contact controls, enablement, inquiry and actual receipt/reply remain gated in Plan09."
+    },
+    "rolloutStatus": {
+      "stage": "C promoted; topology/readbacks observed; full live proof incomplete",
+      "observedAt": "2026-10-10T11:57:15.492Z",
+      "webDeployment": "dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW",
+      "opsDeployment": "dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ",
+      "autoAssignCustomDomains": false,
+      "contactEnabled": false,
+      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-EVIDENCE.md"
+    },
+    "compatibility": {
+      "variable": "APP_COMPATIBILITY_ORIGIN",
+      "stageA": {
+        "app": "https://fitout.live",
+        "compatibility": "https://app.fitout.live",
+        "marketing": "https://marketing-stage.fitout.live"
+      },
+      "stageB": {
+        "app": "https://app.fitout.live",
+        "compatibility": "https://fitout.live",
+        "marketing": "https://marketing-stage.fitout.live"
+      },
+      "stageC": {
+        "app": "https://app.fitout.live",
+        "compatibility": null,
+        "marketing": "https://fitout.live",
+        "savedConfigRepresentation": "APP_COMPATIBILITY_ORIGIN empty, treated as unset by approved configured(value); history retained, no irreversible deletion"
+      },
+      "freshBuildEveryStage": true,
+      "contactEnabled": false,
+      "proof": {
+        "path": "playwright/.cache/phase27-08/full-d67fbecf-3f9395cd-4c75-4e1a-b1f7-d08b2e7f47f7/compatibility-ca0ae860-03fd-4bc0-9257-4af46d4cd7da/report.json",
+        "sha256": "bfe6fc5ad2af0cb10fac67a08ac12ee865d5b2f000e5da6ea1f41edf151c239c"
+      },
+      "stageARollbackTargets": {
+        "customer": "dpl_EawThnAR9vr4EEumpTHnpBh6yAYB",
+        "ops": "dpl_GjHd59ThRnH73gmFbUjhGviN1ZQV",
+        "purpose": "Verified app-compatible additional targets; preserve original pre-phase pins as ultimate rollback."
+      }
+    },
+    "productionContinuity": {
+      "baseline": "3645558085e81fed38d644c7b50c64ce921a72ad",
+      "candidate": "d67fbecfa41e902cbf506c93dbcf53b60085e802",
+      "productionIsAncestor": true,
+      "payoutCodeUnchanged": true,
+      "proof": {
+        "path": "playwright/.cache/phase27-08/production-continuity-source-d67fbecf-20261010.json",
+        "sha256": "87c703d821c01611fb931651251f61d6e4e19dbceb52a0249adafc16f4f5d75b"
+      }
+    },
+    "rollout": [
+      "Record exact approved final SHA, current alias deployment IDs, DNS RRsets/TTL, Production env scopes and provider registrations; resolve high threats and failed engineering gates before external mutation",
+      "Use exact integrated revision d67fbecfa41e902cbf506c93dbcf53b60085e802; build each Stage A/B/C separately per27-COMPATIBILITY-ROLLOUT.md. Keep StageA primary apex/app compatibility, StageB primary app/apex compatibility, StageC primary app/compatibility unset/apex marketing. Reserved marketing host stays unattached. Local proof is not deployed evidence.",
+      "Attach app.fitout.live to existing fitout-web; verify DNS/TLS and real app search/auth/returns/session cookies on approved revision. Retain ops project and old direct signed receivers",
+      "Add exact Google app origin/callback and approved provider browser returns; migrate machine registrations only after both direct receiver URLs are proved, keeping one Inngest scheduler",
+      "Set final both-project Production app vars=https://app.fitout.live, MARKETING_APP_URL=https://fitout.live, OPS_APP_URL unchanged; rebuild and promote exact reviewed final SHA; verify app/marketing/ops HTML/Link/RSC/cache/session matrix before announcing apex change",
+      "Configure www 307 to apex with full path/query; preserve sending-domain DNS. Keep Contact false until published distributed controls and available inbox owner are proved",
+      "Only after scoped authority and controls: enable Contact, read back exact deployment, authorize one safe inquiry, observe inbox/Reply-To/reply, then run deployed/live evidence validator"
+    ],
+    "rollback": [
+      "On threshold breach disable Contact first, rebuild/redeploy both affected projects, verify real 503 and recoverable feedback",
+      "Restore customer apex alias to dpl_8PpCPij5v1zQiD8gDP14Ju54QAAv and ops alias to dpl_Ho1raNTZDcnQ4zwpDu2P19NX6QBS only through scoped release authority",
+      "Restore recorded Production BETTER_AUTH_URL/NEXT_PUBLIC_APP_URL=https://fitout.live; remove newly added marketing variables only if absent before; retain OPS_APP_URL=https://ops.fitout.live; rebuild because public app URL is build-time",
+      "Restore saved exact DNS RRsets/TTL and www redirect state if changed; keep app alias compatible until outstanding links drain; do not remove send.fitout.live records",
+      "Restore exact saved Google/provider destinations and one Inngest registration; keep both direct signed receivers during rollback; never rotate signing keys or replay OAuth code/state",
+      "Re-prove old app sign-in/search/reset/verify/deep links and isolated staff session; retain payment/payout/legal HOLD; record incident and unknown observations"
+    ]
+  },
+  "sourceReconciliationAuthorization": {
+    "status": "approved",
+    "scope": "Prepare one exact candidate, verify engineering/source continuity, reconcile inventory and rerun evidence validators; keep Contact disabled.",
+    "evidence": "Current chat: okay go ahead with the release-source reconciliation, keep Contact disabled for now",
+    "completedAt": "2026-10-11T09:33:12.518Z"
   }
 }
 ```

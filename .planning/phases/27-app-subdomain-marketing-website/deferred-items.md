@@ -187,3 +187,30 @@ passes and fresh same-build cold-server proof; this is not deployed acceptance.
 - Unused unadvertised /opengraph-image GET404 is retained. Actual declared public marketing screenshot OG image returnsPNG200; six marketing canonical/sitemap routes are correct. Do not misclassify this unused-route probe as advertised OG failure.
 - Final live completion still needs staff-only capability denial, previously issued valid auth links, actual production trusted-ingress/global quota/alert control and rollback observations. Per-owner unchanged-scope direction these remain explicit evidence gates, not fabricated test passes.
 - Automatic Production domain assignment remainsfalse while dev is unaligned to exact release source; full request-percentage metric and extended monitoring unproved. Reconcile release controls after acceptance.
+
+## Verification scheduling finding — October 11
+
+Exact candidate `58897a94`, physical export run
+`playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/report.json`:
+full unit run retained one failure in
+`tests/contact/contact-instances.test.ts`. All eight race requests returned 503
+while `contact-quota.test.ts` deliberately held the same database advisory lock
+`(27018, 1)` to test timeout behavior. Separate file schemas do not isolate that
+database-wide lock. The earlier direct-worktree unit run passed all 3,449 tests;
+the actual bounded Vercel A/B ingress proof also remains source-specific history.
+Neither result rewrites this failed full run.
+
+Reconciliation uses an ignored scheduling-only harness to run all eight Contact
+files serially after the other 265 files. Collection is guarded: all 273 original
+files occur exactly once, with unchanged assertions, skips and test deadlines.
+The first inheritance configuration was refused for duplicate collection and
+retained before test execution. Results remain pending until the final full run
+finishes; see `27-RELEASE-SOURCE-RECONCILIATION.md` for its final disposition.
+Plan a permanent default test scheduling fix after execution. No production
+quota timeout, application source or acceptance criterion is changed here.
+
+Final disposition: the scheduling-only full run passed all six gates at exact
+`58897a94`, with 3,449 unit passes/original five skips, 1,510 design
+passes/original six skips, and all 59 browser cases. All source guards passed.
+The failed parallel run and refused duplicate collection are retained; the
+permanent default scheduling fix remains deferred.

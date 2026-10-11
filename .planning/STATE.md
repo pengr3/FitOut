@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: actual Vercel cross-runtime ingress passed; disabled baseline restored; five matrix gates remain"
-last_updated: "2026-10-11T07:53:43.353Z"
+stopped_at: "Plan09: exact58897a94 source preparation reconciled; single-release rollout/live observations pending"
+last_updated: "2026-10-11T09:33:12.518Z"
 last_activity: 2026-10-11
-last_activity_desc: Actual Vercel ingress passed at58897a94; Contact disabled, baseline restored, quota clean
+last_activity_desc: Exact58897a94 six-gate source reconciliation prepared; Contact disabled, no external changes
 state_head: b61cb4a4
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -61,6 +61,11 @@ progress:
   completed_plans: 144
   percent: 15
 ---
+
+Current release-source checkpoint (2026-10-11T09:33:12.518Z): Release-source reconciliation completed at58897a94: six fresh full gates and prepared validation pass; old D67 proof/approval archived faithfully. Current web b61cb4a4 and Ops D67 remain disabled, four health200/Contact503, primaryquota0/pendingalerts0. No external mutation or inquiry. Deployed/live validation retains actual candidate-deployment/source/authority and other live gaps. Plan09 remains20/21; curated144/151; all7requirements pending;30/35 dated multi-source observations. Read27-RELEASE-SOURCE-RECONCILIATION.md and revised packet.
+
+Earlier paragraphs are dated history.
+
 
 Current live checkpoint (2026-10-10T11:57:15.492Z): Stage C topology is deployed at approved d67fbecf; 29/35 matrix scenarios are observed. Plan 09 remains incomplete: 20/21 phase plans and 144/151 curated plans. All seven requirements remain pending. Contact is disabled and all HOLDs remain. Read 27-EVIDENCE.md and 27-09-CHECKPOINT.md.
 

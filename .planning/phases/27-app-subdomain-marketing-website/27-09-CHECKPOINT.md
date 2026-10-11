@@ -1,5 +1,9 @@
 # Phase 27 — Plan 09 live checkpoint
 
+Current source reconciliation (2026-10-11T09:33:12.518Z): Release-source reconciliation completed at58897a94: six fresh full gates and prepared validation pass; old D67 proof/approval archived faithfully. Current web b61cb4a4 and Ops D67 remain disabled, four health200/Contact503, primaryquota0/pendingalerts0. No external mutation or inquiry. Deployed/live validation retains actual candidate-deployment/source/authority and other live gaps. Plan09 remains20/21; curated144/151; all7requirements pending;30/35 dated multi-source observations. Read27-RELEASE-SOURCE-RECONCILIATION.md and revised packet. Original D67 cutover/database approvals remain resolved for their original scope; candidate permanent rollout authority is separate. No repeat approval of the completed ingress test is required.
+
+Earlier dated checkpoint follows.
+
 The original approved Stage A/B/C rollout used d67fbecfa41e902cbf506c93dbcf53b60085e802; current web is the scoped Contact alert release b61cb4a43c8dd4c10e7444014fb66646aba36ec5, while Ops remains D67. The29/35 matrix observations below are dated D67 history, not reassigned to the new web source. Plan 08 is complete: 20/21 phase plans and 144/151 curated plans. The matrix now has30/35 dated observations:29 historical D67 plus one scoped58897a94 ingress test; single-release reconciliation remains pending. All seven phase requirements remain pending. Cutover and both database-target approvals are resolved; do not request them again.
 
 Live entry points:
