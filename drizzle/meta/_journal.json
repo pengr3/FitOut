@@ -267,6 +267,13 @@
       "when": 1791565875571,
       "tag": "0037_contact_quota",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791698400000,
+      "tag": "0038_contact_alert",
+      "breakpoints": true
     }
   ]
 }

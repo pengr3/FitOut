@@ -16,6 +16,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   pgTable,
+  check,
   pgEnum,
   text,
   integer,
@@ -35,6 +36,19 @@ export const contactQuota = pgTable("contact_quota", {
   attempts: jsonb("attempts").$type<number[]>().notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 }, (t) => [index("contact_quota_expiry_idx").on(t.expiresAt)]);
+
+// Dedicated Contact incidents, independent of the money alert queue.
+export const contactAlert = pgTable("contact_alert", {
+  id: text("id").primaryKey().default(sql`gen_random_uuid()::text`),
+  kind: text("kind").notNull().default("global_budget"),
+  attemptCount: integer("attempt_count").notNull().default(100),
+  synthetic: boolean("synthetic").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().default(sql`clock_timestamp()`),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  providerId: text("provider_id"),
+}, (t) => [index("contact_alert_pending_idx").on(t.createdAt).where(sql`sent_at IS NULL`),
+  check("contact_alert_kind_check", sql`kind = 'global_budget'`),
+  check("contact_alert_attempt_count_check", sql`attempt_count = 100`)]);
 
 export const user = pgTable("user", {
   id: text("id").primaryKey(),

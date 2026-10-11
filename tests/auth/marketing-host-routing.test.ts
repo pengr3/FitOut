@@ -52,7 +52,7 @@ describe("marketing route and method policy", () => {
     expect(route(path).status).toBe(404);
     expect(route(path, "POST").status).toBe(path.startsWith("/api/") ? 405 : 404);
   });
-  it.each(["/api/paymongo/webhook", "/api/didit/webhook", "/api/inngest"])("keeps signed receiver %s direct on both app and marketing", (path) => {
+  it.each(["/api/paymongo/webhook", "/api/didit/webhook", "/api/inngest", "/api/contact-alerts/inngest"])("keeps signed receiver %s direct on both app and marketing", (path) => {
     for (const host of ["example.test", "app.example.test"]) {
       const response = route(path, "POST", host);
       expect(response.headers.get("x-middleware-next")).toBe("1");
@@ -63,7 +63,9 @@ describe("marketing route and method policy", () => {
     expect(route(path + "/extra", "POST").status).toBe(405);
   });
   it("preserves Inngest GET/PUT and rejects other webhook methods", () => {
-    for (const method of ["GET", "HEAD", "PUT"]) expect(route("/api/inngest", method).headers.get("x-middleware-next")).toBe("1");
+    for (const path of ["/api/inngest", "/api/contact-alerts/inngest"]) {
+      for (const method of ["GET", "HEAD", "PUT"]) expect(route(path, method).headers.get("x-middleware-next")).toBe("1");
+    }
     expect(route("/api/paymongo/webhook").status).toBe(405);
     expect(route("/api/didit/webhook").status).toBe(405);
   });

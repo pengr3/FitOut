@@ -11,6 +11,7 @@ const RECEIVERS: Record<string, readonly string[]> = {
   "/api/paymongo/webhook": ["POST"],
   "/api/didit/webhook": ["POST"],
   "/api/inngest": ["GET", "HEAD", "POST", "PUT"],
+  "/api/contact-alerts/inngest": ["GET", "HEAD", "POST", "PUT"],
 };
 
 export function isPathSegment(pathname: string, segment: string): boolean {

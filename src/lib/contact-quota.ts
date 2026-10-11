@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 import { isIP } from "node:net";
 import { inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { recordContactBudgetAlert } from "@/lib/contact-alerts";
 import { contactQuota } from "@/lib/db/schema";
 
 export type ContactQuotaResult =
@@ -48,13 +49,17 @@ export async function reserveContactQuota(
       const global = retained(globalRow ? globalRow.attempts : [], now, GLOBAL_WINDOW, 100);
       const individual = retained(ipRow ? ipRow.attempts : [], now, IP_WINDOW, 5);
       const waits: number[] = [];
-      if (global.length >= 100) waits.push(global[0] + GLOBAL_WINDOW - now);
+      if (global.length >= 100) {
+        await recordContactBudgetAlert(tx);
+        waits.push(global[0] + GLOBAL_WINDOW - now);
+      }
       if (individual.length >= 5) waits.push(individual[0] + IP_WINDOW - now);
       if (waits.length) return { ok: false, reason: "limited", retryAfter: Math.max(1, Math.min(3600, Math.ceil(Math.max(...waits) / 1000))) };
       await tx.insert(contactQuota).values([
         { key: GLOBAL_KEY, attempts: [...global, now], expiresAt: new Date(now + GLOBAL_WINDOW) },
         { key: ipKey, attempts: [...individual, now], expiresAt: new Date(now + IP_WINDOW) },
       ]).onConflictDoUpdate({ target: contactQuota.key, set: { attempts: sql`excluded.attempts`, expiresAt: sql`excluded.expires_at` } });
+      if (global.length === 99) await recordContactBudgetAlert(tx);
       return { ok: true };
     });
   } catch {
