@@ -10,7 +10,7 @@ The100th shared reservation atomically records a durable incident; real incident
 
 Resend receives one stable idempotency key/body per incident. Failed delivery stays pending; acceptance records the provider ID. Uncertain incidents older than23hours require manual review rather than blind replay beyond provider24hour idempotency retention. Quota-unavailability alerts use scheduler-persisted steps independently of appDB with a stable key/body per UTC calendar hour, distinct from rolling-hour global-incident suppression.
 
-Incident ID/time and aggregate state only; no inquiry/sender/IP/payment data or raw error messages. Existing fitout money-job registration unchanged; Contact app separate.
+Incident ID/time and aggregate state only; no inquiry, sender, IP, payment data or raw error messages. Contact app is separate. Vercel automatically resynced the existing fitout app to the new Production deployment while building it (06:16:08 UTC); its 14 existing functions and financial source/signatures are retained. No manual financial scheduler edits or test invocation. Automatic platform destination refresh is recorded separately from unchanged money-job source.
 
 ## Tests and build
 
@@ -28,11 +28,11 @@ Implementation remains in the isolated managed release checkout and dedicated Gi
 
 ## Remaining acceptance
 
-Plan09/Phase27 remain incomplete: shared per-IP ingress across instances, staff capability denial, genuine issued-link continuity, full topology rollback, provider/release-control reconciliation and actual public Contact inquiry receipt/reply. Previous29/35 matrix observations are dated D67 history; this scoped release does not relabel all old rows as new-source proof. Contact remains disabled until owner changes that instruction. Counts20/21 plans,144/151 curated and all seven requirements pending retained.
+Plan09/Phase27 remain incomplete: shared per-IP ingress across instances, staff capability denial, genuine issued-link continuity, full topology rollback, provider/release-control reconciliation and actual public Contact inquiry receipt/reply. Previous 29/35 matrix observations are dated D67 history; this scoped release does not relabel old rows as new-source proof. Contact remains disabled until the owner changes that instruction. Counts stay 20/21 plans, 144/151 curated, all seven requirements pending. Prepared validator passes; deployed/live acceptance validators still fail for these missing observations, partial inventory and unresolved high threats. This successful alert test does not waive them.
 
 ## Observed proof
 
-Recorded 2026-10-11T06:28:43.207Z.
+Recorded 2026-10-11T06:32:08.155Z.
 
 ```json
 {
@@ -144,6 +144,14 @@ Recorded 2026-10-11T06:28:43.207Z.
     "runtime": "playwright/.cache/phase27-08/contact-alert-release-runtime.json",
     "deliveryScreenshot": "playwright/.cache/phase27-08/contact-alert-delivered-20261011.png",
     "secondCronScreenshot": "playwright/.cache/phase27-08/contact-alert-second-cron-20261011.png"
+  },
+  "existingInngestApp": {
+    "id": "fitout",
+    "functions": 14,
+    "lastSync": "2026-10-11T06:16:08Z",
+    "syncStatus": "Success",
+    "destination": "https://fitout-6nx1msej4-pengr3s-projects.vercel.app/api/inngest",
+    "observation": "Vercel automatically resynced the existing app while building the new Production deployment. Existing financial function source and signatures are unchanged; no manual financial scheduler edits or test invocation."
   },
   "runtime": {
     "observedAt": "2026-10-11T06:26:58.055Z",
