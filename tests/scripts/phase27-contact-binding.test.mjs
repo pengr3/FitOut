@@ -32,7 +32,7 @@ function controlledFixture(global=false){
  guard:{id:"rule_phase_27_restricted_contact_test_j9IM6v",environment:"production",host:"fitout.live",path:"/api/contact",method:"POST",action:"Deny",originalIpNotEqual:true,published:true,freshDifferentNetworkDenial:true,freshOperator503:true,provedAt:"2026-10-08T20:59:00.000Z"},
  window:{startedAt:"2026-10-08T21:00:00.000Z",restoredAt:"2026-10-08T21:04:00.000Z"},contactPosts:global?5:10,inquiryCalls:0,
  quota:{preRows:0,cleanupFingerprintMatched:true,cleanupRows:2,finalRows:0,cleanedAt:"2026-10-08T21:04:10.000Z"},
- restoration:{apexId:f.live.deploymentId,appId:f.live.deploymentId,opsId:f.live.deployments.ops.id,contactFlag:false,verificationFlag:false,contactStatus:503,healthySurfaces:4,pendingAlerts:0,priorSyntheticAlertsRetained:1,guardDisabled:true,originalLogPreserved:true,financialReceiverRestored:true,contactAppSeparate:true,financialFunctions:functions},
+ restoration:{apexId:f.live.deploymentId,appId:f.live.deploymentId,opsId:f.live.deployments.ops.id,contactFlag:false,verificationFlag:false,contactStatus:503,healthySurfaces:4,pendingAlerts:0,priorSyntheticAlertsRetained:1,guardDisabled:true,originalLogPreserved:true,financialReceiverRestored:true,contactAppSeparate:true,financialFunctions:[...functions]},
  perIp:{reserved:5,sharedDenials:2,globalCount:5,ipCount:5,keyCount:2,requestsInRuntimeAtFirstDenial:3,forgedHeadersDenied:true,fingerprintsUnchanged:true},alertsCreated:0,alertEmails:0,
  global:{seedReservations:99,httpReservation:1,finalReservations:100,ipReservations:1,naturalIncident:true,manualAlertInsert:false,incidents:1,syntheticFlag:false,otherRuntimeDenied:true,incidentId:"fixtureNaturalIncident",incidentCreatedAt:"2026-10-08T21:01:00.000Z"},
  alert:{recipient:authority.recipient,incidentId:"fixtureNaturalIncident",scheduledTimer:true,manualInvoke:false,firstRunId:"fixtureScheduled1",secondRunId:"fixtureScheduled2",firstPendingProcessed:1,secondPendingProcessed:0,providerAcceptances:1,providerId:"fixtureProviderAccepted",delivered:true,ownerReceived:true,ownedCleanupMatches:true,priorSentSyntheticRetained:true,finalPending:0,firstRunAt:"2026-10-08T21:06:00.000Z",secondRunAt:"2026-10-08T21:11:00.000Z",cleanedAt:"2026-10-08T21:12:00.000Z"}};
@@ -130,3 +130,28 @@ test("observer digest mismatch prevents variant acceptance",()=>{const x=control
 test("observer log cannot claim failures/skips as pass",()=>{const x=controlledFixture();const gate=x.f.engineering.observerVerification.gate;gate.log=x.put(gate.log.path,"ℹ pass 44\nℹ fail 1\nℹ skipped 0\nℹ cancelled 0\n");assert.ok(validateEvidence(x.f).some(e=>e.includes("observer gate command/runner totals invalid")));});
 test("observer missing source files fail",()=>{const x=controlledFixture();const source=JSON.parse(x.f.logs.get(x.f.engineering.observerVerification.source.path));source.files.pop();x.f.engineering.observerVerification.source=x.put(x.f.engineering.observerVerification.source.path,source);assert.ok(validateEvidence(x.f).some(e=>e.includes("observer exact source files")));});
 test("inventory/high-threat/inbox gates remain enforced after control binding",()=>{const x=controlledFixture();x.f.inventory.rows[0].status="partial";x.f.live.highThreats=["still-open"];assert.ok(validateEvidence(x.f).some(e=>e.includes("external inventory")));assert.ok(validateEvidence(x.f).some(e=>e.includes("high threats")));assert.ok(validateEvidence({...x.f,stage:"live"}).some(e=>e.includes("Actual owner-observed receipt")));});
+
+function stagedFixture(global=false){
+ const x=controlledFixture(global);
+ x.authority.stagingAuthority={...x.authority,ownerInstruction:"Hypothetical protected-staging approval fixture"};
+ x.authority.approvedAt="2026-10-08T20:30:00.000Z";
+ return x;
+}
+for(const global of [false,true])test("protected staging approved before builds and live window approved afterwards "+(global?"global":"IP"),()=>assert.deepEqual(validateEvidence(stagedFixture(global).f),[]));
+const stagingRejects=[
+ ["missing",x=>delete x.authority.stagingAuthority],
+ ["prepared",x=>x.authority.stagingAuthority.status="prepared"],
+ ["missing owner instruction",x=>x.authority.stagingAuthority.ownerInstruction=""],
+ ["historical packet",x=>x.authority.stagingAuthority.packetId="historical"],
+ ["wrong revision",x=>x.authority.stagingAuthority.revision="d".repeat(40)],
+ ["wrong manifest",x=>x.authority.stagingAuthority.manifest="d".repeat(64)],
+ ["wrong baseline",x=>x.authority.stagingAuthority.baselineId="dpl_historical"],
+ ["wrong Ops",x=>x.authority.stagingAuthority.opsId="dpl_otherOps"],
+ ["wrong project",x=>x.authority.stagingAuthority.projectId="prj_other"],
+ ["late staging approval",x=>x.authority.stagingAuthority.approvedAt="2026-10-08T20:20:00.000Z"],
+ ["invalid staging timestamp",x=>x.authority.stagingAuthority.approvedAt="not UTC"],
+ ["live window before approval",x=>x.authority.approvedAt="2026-10-08T21:00:01.000Z"],
+];
+for(const [name,change]of stagingRejects)test("actual checker rejects protected staging authority "+name,()=>{const x=stagedFixture();change(x);assert.ok(validateEvidence(x.f).some(e=>e.includes("variant/authority chronology")));});
+
+test("controlled fixture function mutations cannot contaminate later current-release cases",()=>{const x=controlledFixture(),y=controlledFixture();x.b.restoration.financialFunctions[0]="wrong";assert.deepEqual(validateEvidence(y.f),[]);});

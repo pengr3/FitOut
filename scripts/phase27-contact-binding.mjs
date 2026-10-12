@@ -126,7 +126,15 @@ export function validateControlledContact({ row, live, packet, engineering, root
     "CONTACT_INGRESS_VERIFICATION_MODE,CONTACT_PRODUCTION_ENABLED" &&
     d.overrides.CONTACT_PRODUCTION_ENABLED === "true" && d.overrides.CONTACT_INGRESS_VERIFICATION_MODE === "true",
     "only two deployment no-mail flags may differ");
-   check(utc(d.createdAt) && Date.parse(a?.approvedAt) <= Date.parse(d.createdAt) &&
+   const stagedBeforeWindowApproval = Date.parse(d.createdAt) < Date.parse(a?.approvedAt);
+   const s = a?.stagingAuthority;
+   const stagingApproved = !stagedBeforeWindowApproval || (s?.status === "approved" &&
+    s.packetId === a?.packetId && nonempty(s.ownerInstruction) && utc(s.approvedAt) &&
+    s.revision === live.deployedRevision && s.manifest === live.sourceManifestSha256 &&
+    s.baselineId === c?.id && s.opsId === ops?.id && s.projectId === a?.projectId &&
+    Date.parse(s.approvedAt) <= Date.parse(d.createdAt));
+   check(utc(d.createdAt) && utc(a?.approvedAt) && stagingApproved &&
+    Date.parse(a.approvedAt) <= Date.parse(b.window?.startedAt) &&
     Date.parse(d.createdAt) < Date.parse(b.window?.startedAt), "variant/authority chronology");
   }
   check(Array.isArray(ds) && ds.some(d=>d.id === row.deploymentId) &&

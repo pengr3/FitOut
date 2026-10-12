@@ -5571,34 +5571,90 @@ raw recovery nor deployment acceptance is fabricated.
   "observerVerification": {
     "schemaVersion": 1,
     "source": {
-      "path": "playwright/.cache/phase27-08/contact-binding-repair-8691eb33-0f97-423a-a496-f2c37ecd5436/observer-source.json",
-      "sha256": "9d358d459228f35dc0d1ed8434d124527b7304e593b19332eef7b9e691d0db23"
+      "path": "playwright/.cache/phase27-08/contact-binding-chronology-5e198bb9-5127-4891-8504-dc6c558adbde/observer-source.json",
+      "sha256": "45c973ff1baf8a076fa5d4d76fbda21c725841035c2622242427c98c8a1b7e8e"
     },
     "gate": {
       "command": "node --test --test-reporter=spec tests/scripts/phase27-evidence.test.mjs tests/scripts/phase27-contact-binding.test.mjs",
       "status": "pass",
       "exitCode": 0,
-      "startedAt": "2026-10-12T06:46:46.942Z",
-      "finishedAt": "2026-10-12T06:46:47.881Z",
+      "startedAt": "2026-10-12T07:29:51.137Z",
+      "finishedAt": "2026-10-12T07:29:52.117Z",
       "log": {
-        "path": "playwright/.cache/phase27-08/contact-binding-repair-8691eb33-0f97-423a-a496-f2c37ecd5436/observer-test.log",
-        "sha256": "65434454cc876d31c05cbf2e2d1ed72e119bd91f2adb3461eb0f03a98a62e0e7"
+        "path": "playwright/.cache/phase27-08/contact-binding-chronology-5e198bb9-5127-4891-8504-dc6c558adbde/observer-test.log",
+        "sha256": "6771b390bb54361321eaecbcfe5833bc364f1ab2729cef21018d9ead9bb28633"
       },
-      "terminalSummary": "ℹ pass 191\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0",
+      "terminalSummary": "ℹ pass 206\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0",
       "resultData": {
         "runner": "node-test",
         "tests": {
-          "passed": 191,
+          "passed": 206,
           "failed": 0,
           "skipped": 0
         }
       }
-    },
-    "recordingRepair": {
-      "at": "2026-10-12T06:48:01.371Z",
-      "reason": "Windows file-URL import was required to parse typed totals; original raw log/source/times retained unchanged."
     }
-  }
+  },
+  "observerVerificationHistory": [
+    {
+      "schemaVersion": 1,
+      "source": {
+        "path": "playwright/.cache/phase27-08/contact-binding-repair-8691eb33-0f97-423a-a496-f2c37ecd5436/observer-source.json",
+        "sha256": "9d358d459228f35dc0d1ed8434d124527b7304e593b19332eef7b9e691d0db23"
+      },
+      "gate": {
+        "command": "node --test --test-reporter=spec tests/scripts/phase27-evidence.test.mjs tests/scripts/phase27-contact-binding.test.mjs",
+        "status": "pass",
+        "exitCode": 0,
+        "startedAt": "2026-10-12T06:46:46.942Z",
+        "finishedAt": "2026-10-12T06:46:47.881Z",
+        "log": {
+          "path": "playwright/.cache/phase27-08/contact-binding-repair-8691eb33-0f97-423a-a496-f2c37ecd5436/observer-test.log",
+          "sha256": "65434454cc876d31c05cbf2e2d1ed72e119bd91f2adb3461eb0f03a98a62e0e7"
+        },
+        "terminalSummary": "ℹ pass 191\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0",
+        "resultData": {
+          "runner": "node-test",
+          "tests": {
+            "passed": 191,
+            "failed": 0,
+            "skipped": 0
+          }
+        }
+      },
+      "recordingRepair": {
+        "at": "2026-10-12T06:48:01.371Z",
+        "reason": "Windows file-URL import was required to parse typed totals; original raw log/source/times retained unchanged."
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "source": {
+        "path": "playwright/.cache/phase27-08/contact-binding-chronology-fa17fef4-29c2-49b5-a773-ec02664c6ff0/observer-source.json",
+        "sha256": "ee208e05eb376b2e3de4cd03f3c214f605d284f68263591343bcc99468ff8e74"
+      },
+      "gate": {
+        "command": "node --test --test-reporter=spec tests/scripts/phase27-evidence.test.mjs tests/scripts/phase27-contact-binding.test.mjs",
+        "status": "fail",
+        "exitCode": 1,
+        "startedAt": "2026-10-12T07:29:00.728Z",
+        "finishedAt": "2026-10-12T07:29:01.750Z",
+        "log": {
+          "path": "playwright/.cache/phase27-08/contact-binding-chronology-fa17fef4-29c2-49b5-a773-ec02664c6ff0/observer-test.log",
+          "sha256": "552d9ee13991b4e2cccb9dc9e94bdf2080397a90e3ba030314a2f6d446f29135"
+        },
+        "terminalSummary": "ℹ pass 203\nℹ fail 2\nℹ cancelled 0\nℹ skipped 0",
+        "resultData": {
+          "runner": "node-test",
+          "tests": {
+            "passed": 203,
+            "failed": 2,
+            "skipped": 0
+          }
+        }
+      }
+    }
+  ]
 }
 ```
 
@@ -5788,3 +5844,6 @@ Plan20 bounded Preview runtime checks pass; see 27-20-SUMMARY.md and the final 2
 ## Independent controlled-Contact observer repair
 
 Owner requested the verifier-binding repair and continued Contact tests while keeping Contactdisabled. Four offline verifier/test files changed in the isolated release worktree. No deployed application/source, configuration or old release gate was relabeled. The coverage matrix remainsversion1 with35 unchanged scenarios; optional controlled bindings and independent observer provenance each useschemaVersion1. Only the two Contact control rows may use actual same-source no-mail deployment IDs. All other identity/host/source/engineering/inventory/threat/inbox/control checks remain. New observer source captured before191 actual integration/regression tests, allpass/zero failure/skip. Raw capture/log hashes and typed totals retained separately from archived588 application gates. Initial Windows import recording omitted typed totals; corrected from unchanged raw bytes and incomplete recording preserved.
+
+
+Observer chronology repair 2026-10-12T07:32:41.130Z:206 actual checker tests pass,0fail/skip. A protected variant may precede bounded-window approval only with a separate, exact, owner-approved staging authority (same packet/source/manifest/baseline/Ops/project) recorded before its creation. Window authority still must precede live execution. Missing/late/historical staging authority fails closed. Initial chronology gate203pass/2fail is retained: a shared function-array fixture was contaminated by an earlier negative case; cloning the array fixes fixture isolation, with an explicit regression. Existing191 observer proof and all unchanged588 application gates retain their original bytes and timestamps. No live Contact acceptance or phase completion is claimed.
