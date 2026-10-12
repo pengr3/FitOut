@@ -27,3 +27,8 @@ probe.mjs, create-request.json, command-template.json, authority.json.
 Probe SHA256 41cb23f7a544b9519f61f4488d7bf46c2f41ac7a1070c72850a59aa661f4d820.
 
 If denial passes, use it as an alternative independent-network preflight observation. Reconcile the live packet/verifier binding explicitly before requesting a later exact bounded window. Do not rewrite the failed phone observation or treat this as either completed Contact control.
+
+
+## Approved external disabled probe outcome 2026-10-12T09:20:44.387Z
+
+Owner approved the exact single-request packet; executed once09:13Z. HTTP403 and exact-rule Vercel Deny1 match uniqueUA and sole distinct cloud originalIP; marker-preset query count1. Owned Sandbox stopped after41.244seconds, no persistent snapshot/source/secrets/ports. Primary after09:14:20.821Z remainsquota0/alert1/pending0; apexCogas/Ops5WY and Contactfalse readback unchanged. Independent-network restriction prerequisite passes via this expressly approved cloud alternative. Exact phone Allowed503 remains unresolved history. No livewindow or completedContactcontrol;33/35 unchanged. Evidence C:/Users/Admin/Roaming/FitOut/playwright/.cache/phase27-08/per-ip-external-preflight-7781be9b-3b1e-4530-9e83-1c033a98d5a0/status.json. Next exact reviewable window27-CONTACT-PER-IP-WINDOW-AMENDMENT.md is prepared, approval pending;3 historical preflightposts+7 enabled no-mail+1 recovery=11/12 with no automaticretry.

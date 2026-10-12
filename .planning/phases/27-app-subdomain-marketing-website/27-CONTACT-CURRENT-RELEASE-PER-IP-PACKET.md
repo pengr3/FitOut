@@ -196,3 +196,8 @@ Current staged preparation 2026-10-12T07:42:22.310Z: both exact588 no-mail varia
 
 
 First current-release preflight retained as incomplete 2026-10-12T07:48:40.036Z: owner Wi-Fi-off/mobile-data confirmation is recorded, but no current matching Vercel Deny through3:41PM Manila. Runtime Contact search shows only operator probes. No enabled window, quota reservation or mail. Current source observer206passes committedde06bd9d. Read 27-CONTACT-PER-IP-PREFLIGHT-RETRY.md for the exact unapproved two-request renewal; never request another phone submission under the old request budget.
+
+
+## Approved external disabled probe outcome 2026-10-12T09:20:44.387Z
+
+Owner approved the exact single-request packet; executed once09:13Z. HTTP403 and exact-rule Vercel Deny1 match uniqueUA and sole distinct cloud originalIP; marker-preset query count1. Owned Sandbox stopped after41.244seconds, no persistent snapshot/source/secrets/ports. Primary after09:14:20.821Z remainsquota0/alert1/pending0; apexCogas/Ops5WY and Contactfalse readback unchanged. Independent-network restriction prerequisite passes via this expressly approved cloud alternative. Exact phone Allowed503 remains unresolved history. No livewindow or completedContactcontrol;33/35 unchanged. Evidence C:/Users/Admin/Roaming/FitOut/playwright/.cache/phase27-08/per-ip-external-preflight-7781be9b-3b1e-4530-9e83-1c033a98d5a0/status.json. Next exact reviewable window27-CONTACT-PER-IP-WINDOW-AMENDMENT.md is prepared, approval pending;3 historical preflightposts+7 enabled no-mail+1 recovery=11/12 with no automaticretry.
