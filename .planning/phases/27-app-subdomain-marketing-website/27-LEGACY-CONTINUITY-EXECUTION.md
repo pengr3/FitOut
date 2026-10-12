@@ -24,3 +24,14 @@ Current Inngest remains one active financial app at the restoration deployment w
 Google console currently cannot load/select fitout-505104: client content is a progress indicator and project search returns Stars are not currently available. The hidden optimized-source heading was diagnostic fallback content, not a visible error. The owner is asked to restore project access in the preserved Google tab. Google old/new callback readback remains required before any live window. No additional approval is needed for either completed authority scope.
 
 Fresh matrix29/35 and all original completion gates remain unchanged. Contact stays disabled.
+
+
+## Google verified; CLI authentication handoff
+
+Owner restored Google project FitOut (fitout-505104). Exact old and new Google redirect callbacks are present; no OAuth setting changed and no client secret was read. Google preflight is passed.
+
+Automatic approval review rejected the project-wide autoAssignCustomDomains update because its persistent effects extend to future deployments beyond staged suppression. It was not applied. The safer prepared alternative is per-deployment autoAssignCustomDomains:false with nonsecret runtime/build origin overrides; installed CLI59.10.0 confirms that request field. The Vercel connector schema refuses that field plus env/build, so no connector deployment was created. A bounded CLI request timed out; two recent-deployment readbacks show no marked or late stage build. The CLI whoami result is Logged out. Do not blindly retry the unknown outcome; source/marker readback is retained.
+
+Opened visible PowerShell166876 titled FitOut Vercel CLI sign-in, scoped to the existing team, with CI mode to prevent another browser from opening. The owner must enter its code in the preserved Codex Vercel Authorize Device tab, review and complete Allow Access themselves, then replyready. No device code/token/credentials are persisted in evidence or requested in chat. The agent does not complete that access grant. Both rollout and fallback approvals remain valid.
+
+Fresh aliases still match exact current web/Ops restoration pins, including existing Vercel domain. No Production origin, alias, deployment, fixture or auth email changed; public window remainsunstarted and Contactdisabled. Prepared local proof remains complete; live matrix29/35 and all original requirements pending.

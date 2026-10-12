@@ -112,7 +112,7 @@ The strict Production matrix stays pending until the real observations exist. Pr
     "restorationDeployment": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg"
   },
   "preflight": {
-    "status": "awaiting Google owner handoff; live window not started",
+    "status": "Google verified; awaiting owner CLI device sign-in; live window not started",
     "localRehearsal": "pass; both fresh builds and9 runtime tests each",
     "proof": "playwright/.cache/phase27-08/legacy-built-retry-c1c1334b-d080-49d6-9c07-578f133a5186/report.json",
     "candidateApplicationRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
@@ -121,7 +121,9 @@ The strict Production matrix stays pending until the real observations exist. Pr
     "browserRecovered": true,
     "diskRecovered": true,
     "origins": "playwright/.cache/phase27-08/legacy-approved-current-origins.json",
-    "inngest": "playwright/.cache/phase27-08/legacy-approved-inngest-readback.json"
+    "inngest": "playwright/.cache/phase27-08/legacy-approved-inngest-readback.json",
+    "google": "playwright/.cache/phase27-08/legacy-approved-google-redirects.json",
+    "stagingTooling": "playwright/.cache/phase27-08/legacy-cli-auth-checkpoint.json"
   }
 }
 ```
