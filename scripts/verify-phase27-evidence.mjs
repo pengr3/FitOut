@@ -1,3 +1,4 @@
+import { CONTROL_ROWS, validateBindingObserver, validateControlledContact } from "./phase27-contact-binding.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { isAbsolute, relative, resolve } from "node:path";
@@ -269,6 +270,7 @@ for (const id of ids) {
   if (row?.status !== "unknown") check(Boolean(row?.observedAt && row?.source), `${id}: current source/date required`);
   if (row?.status === "unknown") check(row.current.toLowerCase().includes("unknown"), `${id}: unknown asserted as fact`);
 }
+if (engineering.observerVerification !== undefined) errors.push(...validateBindingObserver(engineering.observerVerification, { root, readLog, revision: packet.approvedRevision, summarize: runnerSummary }));
 if (stage === "deployed" || stage === "live") {
   const acceptanceGates = hasCandidate ? candidate?.gates : engineering.gates;
   check(Array.isArray(acceptanceGates) && acceptanceGates.length === commands.length && acceptanceGates.every((gate) => gate?.status === "pass"), "Failed engineering gates block deployment acceptance");
@@ -300,7 +302,11 @@ if (stage === "deployed" || stage === "live") {
     const project = requirement.host === "$preview" ? "preview" : requirement.host === "ops.fitout.live" ? "ops" : "customer";
     const candidate = live.deployments?.[project];
     const expectedHost = requirement.host === "$preview" ? (typeof candidate?.origin === "string" ? candidate.origin.replace("https://", "") : undefined) : requirement.host;
-    check(row.deploymentId === candidate?.id && row.revision === candidate?.revision, `${row.id}: candidate identity mismatch`);
+    if (row.controlTestProof !== undefined) {
+      errors.push(...validateControlledContact({ row, live, packet, engineering, root, readLog }));
+      // Ordinary scenarios never gain a variant exception, even with an attached proof.
+      if (!CONTROL_ROWS.includes(row.id)) check(row.deploymentId === candidate?.id && row.revision === candidate?.revision, `${row.id}: candidate identity mismatch`);
+    } else check(row.deploymentId === candidate?.id && row.revision === candidate?.revision, `${row.id}: candidate identity mismatch`);
     let url;
     try { url = typeof row.url === "string" ? new URL(row.url) : undefined; } catch { /* rejected below */ }
     check(row.host === expectedHost && row.method === requirement.method && url?.protocol === "https:" && url.host === expectedHost && url.pathname === requirement.path && !url.username && !url.password, `${row.id}: exact host/URL/method missing`);

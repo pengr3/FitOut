@@ -34,6 +34,8 @@ export function completeFixture() {
   delete engineering.releaseCandidateVerification;
   // Synthetic tests supply their own artifact bytes; current real history is validated separately.
   delete engineering.retainedAttemptArtifacts;
+  // Observer fixtures supply their own independent tool snapshot/logs.
+  delete engineering.observerVerification;
   const inventory = load("27-DEPLOYMENT-INVENTORY.md");
   const packet = load("27-CUTOVER-PACKET.md");
   const logs = new Map();

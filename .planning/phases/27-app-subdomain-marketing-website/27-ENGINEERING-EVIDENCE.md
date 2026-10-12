@@ -5567,7 +5567,38 @@ raw recovery nor deployment acceptance is fabricated.
       "sha256": "d390f8749ffc35d4c8d02c941b692398ccfe4450f704ec21a9b5fa1e1f62b601",
       "disposition": "Collection-only scheduling config inherited include arrays and duplicated file collection. Exact-census precondition refused before any gate/test execution; corrected config captures all273 original files exactly once. No test totals inferred."
     }
-  ]
+  ],
+  "observerVerification": {
+    "schemaVersion": 1,
+    "source": {
+      "path": "playwright/.cache/phase27-08/contact-binding-repair-8691eb33-0f97-423a-a496-f2c37ecd5436/observer-source.json",
+      "sha256": "9d358d459228f35dc0d1ed8434d124527b7304e593b19332eef7b9e691d0db23"
+    },
+    "gate": {
+      "command": "node --test --test-reporter=spec tests/scripts/phase27-evidence.test.mjs tests/scripts/phase27-contact-binding.test.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "startedAt": "2026-10-12T06:46:46.942Z",
+      "finishedAt": "2026-10-12T06:46:47.881Z",
+      "log": {
+        "path": "playwright/.cache/phase27-08/contact-binding-repair-8691eb33-0f97-423a-a496-f2c37ecd5436/observer-test.log",
+        "sha256": "65434454cc876d31c05cbf2e2d1ed72e119bd91f2adb3461eb0f03a98a62e0e7"
+      },
+      "terminalSummary": "ℹ pass 191\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0",
+      "resultData": {
+        "runner": "node-test",
+        "tests": {
+          "passed": 191,
+          "failed": 0,
+          "skipped": 0
+        }
+      }
+    },
+    "recordingRepair": {
+      "at": "2026-10-12T06:48:01.371Z",
+      "reason": "Windows file-URL import was required to parse typed totals; original raw log/source/times retained unchanged."
+    }
+  }
 }
 ```
 
@@ -5752,3 +5783,8 @@ D-23 paired Preview deployment/browser evidence and its remaining protected API 
 
 
 Plan20 bounded Preview runtime checks pass; see 27-20-SUMMARY.md and the final 27-PREVIEW-ISOLATION-EVIDENCE.md section. Production acceptance is not inferred.
+
+
+## Independent controlled-Contact observer repair
+
+Owner requested the verifier-binding repair and continued Contact tests while keeping Contactdisabled. Four offline verifier/test files changed in the isolated release worktree. No deployed application/source, configuration or old release gate was relabeled. The coverage matrix remainsversion1 with35 unchanged scenarios; optional controlled bindings and independent observer provenance each useschemaVersion1. Only the two Contact control rows may use actual same-source no-mail deployment IDs. All other identity/host/source/engineering/inventory/threat/inbox/control checks remain. New observer source captured before191 actual integration/regression tests, allpass/zero failure/skip. Raw capture/log hashes and typed totals retained separately from archived588 application gates. Initial Windows import recording omitted typed totals; corrected from unchanged raw bytes and incomplete recording preserved.
