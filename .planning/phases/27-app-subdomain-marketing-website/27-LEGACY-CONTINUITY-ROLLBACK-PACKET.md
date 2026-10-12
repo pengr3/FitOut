@@ -36,7 +36,7 @@ The strict Production matrix stays pending until the real observations exist. Pr
       "stage": "A",
       "app": "https://fitout.live",
       "compatibility": "https://app.fitout.live",
-      "marketing": "https://marketing-stage.fitout.live",
+      "marketing": "https://fitout-web-psi.vercel.app",
       "ops": "https://ops.fitout.live",
       "contact": false
     },
@@ -44,7 +44,7 @@ The strict Production matrix stays pending until the real observations exist. Pr
       "stage": "B",
       "app": "https://app.fitout.live",
       "compatibility": "https://fitout.live",
-      "marketing": "https://marketing-stage.fitout.live",
+      "marketing": "https://fitout-web-psi.vercel.app",
       "ops": "https://ops.fitout.live",
       "contact": false
     },
@@ -82,7 +82,7 @@ The strict Production matrix stays pending until the real observations exist. Pr
   "preconditions": [
     "Owner explicitly approves this exact origin/mail/fixture/cleanup scope before staging. The current source-update packet preserves Stage C origins.",
     "Fresh local built Stage A/B rehearsal at the exact source passes. Existing D67 rehearsal remains historical.",
-    "Existing marketing-stage alias, exact Google old/new redirect URIs, current alias pins, both database bindings and all nonsecret origin/disabled settings are read back. No new domain or wildcard trust.",
+    "Approved existing verified fitout-web-psi.vercel.app alias, exact Google old/new redirect URIs, current alias pins, both database bindings and all nonsecret origin/disabled settings are read back. No new domain or wildcard trust.",
     "Both staged pairs are READY and Contactfalse/no-mail-modefalse is saved and confirmed before traffic. Domain assignment remains manual.",
     "The single financial Inngest registration remains at14 unchanged functions, with no manual financial invocation. Automatic staging refreshes must be reconciled before the window; otherwise stop.",
     "Fixture email does not already exist. Current owner/staff accounts, sessions and capability flags are left unchanged.",
@@ -102,6 +102,26 @@ The strict Production matrix stays pending until the real observations exist. Pr
     "recordedAt": "2026-10-11T23:26:31.594Z",
     "ownerInstruction": "okay approved the legacy-session and email-link packet, go ahead and execute it. keep Contact disabled for now",
     "scope": "Exact packet at source58897a94, fifteen-minute origins/session/fixture/two-email window and scoped cleanup; Contact false throughout."
+  },
+  "domainAmendment": {
+    "status": "approved",
+    "recordedAt": "2026-10-12T01:23:37.712Z",
+    "ownerInstruction": "okay approved the existing-domain fallback.",
+    "originalMarketingOrigin": "https://marketing-stage.fitout.live",
+    "approvedMarketingOrigin": "https://fitout-web-psi.vercel.app",
+    "restorationDeployment": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg"
+  },
+  "preflight": {
+    "status": "awaiting Google owner handoff; live window not started",
+    "localRehearsal": "pass; both fresh builds and9 runtime tests each",
+    "proof": "playwright/.cache/phase27-08/legacy-built-retry-c1c1334b-d080-49d6-9c07-578f133a5186/report.json",
+    "candidateApplicationRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "actualRehearsalCheckout": "acb15bf167a97057afd72d9ad71686f5ad71d1d0",
+    "manifest": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
+    "browserRecovered": true,
+    "diskRecovered": true,
+    "origins": "playwright/.cache/phase27-08/legacy-approved-current-origins.json",
+    "inngest": "playwright/.cache/phase27-08/legacy-approved-inngest-readback.json"
   }
 }
 ```
@@ -110,3 +130,8 @@ The strict Production matrix stays pending until the real observations exist. Pr
 Preflight findings: Vercel get_alias and get_project_domain both return404 for marketing-stage.fitout.live, and project-domain inventory confirms it is absent. Browser tool cannot initialize (failed to write kernel assets, path not found), including after one session reset. No Google/Inngest/email handoff readback is available through the owner browser. No production configuration, alias, fixture, mail or Contact request was changed. Approval is retained; do not request the original packet again.
 
 Local rehearsal attempt bf628203 failed during source expansion due to diskfull before builds; its regenerable partial export was removed safely and only238145536bytes remainfree. Read27-LEGACY-CONTINUITY-EXECUTION.md. Live window remainsunstarted; owner approval retained.
+
+Existing-domain amendment approved 2026-10-11T23:51:01.890Z: Stage A/B MARKETING_APP_URL uses https://fitout-web-psi.vercel.app in place of the absent marketing-stage.fitout.live. Restore its captured web deployment dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg with the current pair. All other packet limits remain. Browser initialization now works; provider prerequisites must be read back before the window.
+
+
+Latest follow-up: existing-domain amendment approved, browser and disk access recovered, fresh exact-source Stage A/B built rehearsal passed (9 HTTP tests per stage, no skip/failure), and current14-function Inngest registration plus both nonsecret Production origin/disabled settings read back. Google console does not select/load the project; its project search returns “Stars are not currently available.” Owner handoff requested. No Production stage, origin/alias change, fixture or email was started. Earlier preflight failures remain dated history.

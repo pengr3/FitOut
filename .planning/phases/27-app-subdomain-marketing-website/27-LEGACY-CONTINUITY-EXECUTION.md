@@ -4,7 +4,7 @@ The owner approved the legacy-session/email-link packet on October 12, Manila ti
 
 Read-only preflight confirms current web/Ops restoration pins, saved Production Contactfalse on both, web no-mail modefalse, zero proposed fixture accounts, zero quota rows and zero pending alerts.
 
-Execution is held by three concrete prerequisites:
+Earlier preflight holds below are dated history; the latest status is appended.
 
 - marketing-stage.fitout.live is absent from both aliases and web project domain inventory. A prepared amendment uses the existing verified fitout-web-psi.vercel.app domain, currently on the web restoration pin, with no DNS/new domain. Await the amendment answer; do not request the original packet approval again.
 - Codex browser control cannot initialize: failed to write kernel assets, path not found, including after one tool reset. Google URI, Inngest14-function readbacks and bearer-link handoff remain unavailable. Restart/reopen Codex is requested; never move the handoff into chat.
@@ -13,3 +13,14 @@ Execution is held by three concrete prerequisites:
 The actual checkout ca1641a2 has no source-scope difference from approved58897a94. The attempted rehearsal is a failure, not a source/build/runtime pass. Existing six candidate engineering gates remain historical retained proof; no test was waived. Fresh live acceptance remains29/35; Plan09 remains20/21 and curated144/151, all7requirements pending.
 
 Proof: playwright/.cache/phase27-08/legacy-approved-preflight.json. Runner source retained at legacy-approved-local-rehearsal.mjs. The zero-byte partial preflight from the disk-full failure is retained separately. Resume with the same recorded authority after resolving these prerequisites; no extra original-packet approval is required.
+
+
+## Latest execution checkpoint — October 12
+
+Both approvals are recorded. The fallback uses the existing verified fitout-web-psi.vercel.app domain; no DNS or new domain. Browser control recovered and disk readback showed6149038080bytes free before the new run. The first post-recovery rehearsal refused its missing generated next-env.d.ts; all other source hashes matched. Generate-only typegen repaired that build precondition without changing application source or assertions. The failed attempt report is retained. Fresh retry c1c1334b passed both builds and9 actual local HTTP tests per stage, with zero failures/skips and unchanged source guards. Actual checkoutacb15bf1 contains only later docs relative to application58897a94; exact manifest8618880b matched. These are fresh local supplemental passes, not live Production observations.
+
+Current Inngest remains one active financial app at the restoration deployment with14 unchanged functions; Contact alerts remain separate. Both projects saved origins match Stage C and Contact flagsfalse; web no-mail-modefalse. Nothing was modified externally.
+
+Google console currently cannot load/select fitout-505104: client content is a progress indicator and project search returns Stars are not currently available. The hidden optimized-source heading was diagnostic fallback content, not a visible error. The owner is asked to restore project access in the preserved Google tab. Google old/new callback readback remains required before any live window. No additional approval is needed for either completed authority scope.
+
+Fresh matrix29/35 and all original completion gates remain unchanged. Contact stays disabled.
