@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: disabled588 pair,27 fresh proofs, remaining live gates pending"
-last_updated: "2026-10-11T16:28:21.817Z"
-last_activity: 2026-10-11
-last_activity_desc: Disabled exact58897a94 source pair promoted; Contactfalse; live proofs recorded
+stopped_at: "Plan09: legacy packet complete;33 fresh proofs; Contact and other gates pending"
+last_updated: "2026-10-12T02:54:42.912Z"
+last_activity: 2026-10-12
+last_activity_desc: Approved legacy continuity and rollback passed; original disabled pair restored; exact fixture cleaned
 state_head: 58897a94
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -62,7 +62,7 @@ progress:
   percent: 15
 ---
 
-Latest checkpoint 2026-10-12T01:54:57.751Z: Both legacy/fallback approvals retained. Google old/new callbacks verified; fresh Stage A/B local builds and18 runtime checks pass. Per-deployment staged suppression/origin overrides are unsupported by the Vercel connector; project-wide auto-assignment update rejected by automatic approval review and not applied. CLI staged request timed out with no matching deployment; CLI reports Logged out. Owner device authorization handoff open in PowerShell166876 and Codex Vercel tab. Four aliases unchanged; Contactfalse; no live window, fixture or auth mail. Fresh29/35, Plan09 20/21, curated144/151, all7requirements pending. Read27-LEGACY-CONTINUITY-EXECUTION.md.
+Latest checkpoint 2026-10-12T02:54:42.912Z: Approved legacy packet executed. Exact588 web A/B staged with deployment-only origin overrides, original web Cogas aliases restored in290.383seconds, Ops5WY unchanged. Old-only session, genuine original verification/reset links and full origin/session/provider rollback pass. Original Inngest receiver restored with14 functions; separate Contact monitor unchanged. Exact disposable fixture/auth rows cleaned after zero-business checks. Contactfalse throughout; zero ContactPOSTs, two auth emails, no password/financial invocation/DNS/migration/global-setting change. Fresh33/35; two Contact scenarios plus inventory/staff-data/inquiry/monitoring/release-control gates remain. Plan09 20/21, curated144/151, all7requirements pending. Read27-LEGACY-CONTINUITY-EXECUTION.md.
 
 
 Current release-source checkpoint (2026-10-11T09:33:12.518Z): Release-source reconciliation completed at58897a94: six fresh full gates and prepared validation pass; old D67 proof/approval archived faithfully. Current web b61cb4a4 and Ops D67 remain disabled, four health200/Contact503, primaryquota0/pendingalerts0. No external mutation or inquiry. Deployed/live validation retains actual candidate-deployment/source/authority and other live gaps. Plan09 remains20/21; curated144/151; all7requirements pending;30/35 dated multi-source observations. Read27-RELEASE-SOURCE-RECONCILIATION.md and revised packet.

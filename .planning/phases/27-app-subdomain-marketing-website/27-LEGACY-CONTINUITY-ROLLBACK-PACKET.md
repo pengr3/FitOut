@@ -1,6 +1,6 @@
 # Phase 27 — Controlled legacy continuity and rollback packet
 
-The owner approved this exact packet on October 12, Manila time. Preflight is incomplete; the live window has not started. No origin setting, public alias, auth fixture or email was changed by preparing it. Contact remains disabled.
+The owner-approved packet is now executed and the original disabled Production pair restored. Exact fixture/auth cleanup is verified. Read27-LEGACY-CONTINUITY-EXECUTION.md. Earlier preflight statements below are dated history.
 
 The original links are unavailable and have a one-hour lifetime. The live checks therefore need freshly issued links during a controlled old-origin transition. This packet also exercises the real host-only session and full rollback while preserving the exact source and current restoration pins.
 
@@ -16,7 +16,7 @@ The strict Production matrix stays pending until the real observations exist. Pr
 
 ```json
 {
-  "status": "approved; preflight incomplete; live window not started",
+  "status": "completed approved packet; phase acceptance incomplete",
   "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
   "current": {
     "web": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
@@ -112,7 +112,7 @@ The strict Production matrix stays pending until the real observations exist. Pr
     "restorationDeployment": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg"
   },
   "preflight": {
-    "status": "Google verified; awaiting owner CLI device sign-in; live window not started",
+    "status": "passed; owner CLI authentication confirmed and approved window executed",
     "localRehearsal": "pass; both fresh builds and9 runtime tests each",
     "proof": "playwright/.cache/phase27-08/legacy-built-retry-c1c1334b-d080-49d6-9c07-578f133a5186/report.json",
     "candidateApplicationRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
@@ -124,6 +124,119 @@ The strict Production matrix stays pending until the real observations exist. Pr
     "inngest": "playwright/.cache/phase27-08/legacy-approved-inngest-readback.json",
     "google": "playwright/.cache/phase27-08/legacy-approved-google-redirects.json",
     "stagingTooling": "playwright/.cache/phase27-08/legacy-cli-auth-checkpoint.json"
+  },
+  "execution": {
+    "recordedAt": "2026-10-12T02:54:42.912Z",
+    "status": "completed-approved-legacy-packet; phase acceptance remains incomplete",
+    "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "manifest": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
+    "window": {
+      "startedAt": "2026-10-12T02:18:51.968Z",
+      "restoreBy": "2026-10-12T02:33:51.968Z",
+      "watchdogRestoreAt": "2026-10-12T02:31:51.968Z",
+      "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+      "ids": {
+        "A": "dpl_GnVPs9UE2oUnodsESRd2xmbvJymW",
+        "B": "dpl_FcvUSqNcmF82gbgKnmM8oDcLyYN7",
+        "C": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg"
+      },
+      "contactEnabled": false
+    },
+    "restored": {
+      "stage": "C",
+      "at": "2026-10-12T02:23:42.351Z",
+      "results": [
+        {
+          "alias": "fitout.live",
+          "target": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+          "at": "2026-10-12T02:23:36.775Z",
+          "exitCode": 0,
+          "accepted": true,
+          "oldDeploymentId": "dpl_FcvUSqNcmF82gbgKnmM8oDcLyYN7"
+        },
+        {
+          "alias": "app.fitout.live",
+          "target": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+          "at": "2026-10-12T02:23:39.659Z",
+          "exitCode": 0,
+          "accepted": true,
+          "oldDeploymentId": "dpl_FcvUSqNcmF82gbgKnmM8oDcLyYN7"
+        },
+        {
+          "alias": "fitout-web-psi.vercel.app",
+          "target": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+          "at": "2026-10-12T02:23:42.350Z",
+          "exitCode": 0,
+          "accepted": true,
+          "oldDeploymentId": "dpl_FcvUSqNcmF82gbgKnmM8oDcLyYN7"
+        }
+      ],
+      "allAccepted": true,
+      "opsChanged": false,
+      "contactEnabled": false,
+      "readbackStatus": "control plane accepted; root verifies exact aliases separately"
+    },
+    "stageA": "dpl_GnVPs9UE2oUnodsESRd2xmbvJymW",
+    "stageB": "dpl_FcvUSqNcmF82gbgKnmM8oDcLyYN7",
+    "unchangedOps": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+    "publicWindowSeconds": 290.383,
+    "completed": [
+      "host-only-session-bridge",
+      "issued-verify-token",
+      "issued-reset-token",
+      "rollback-verified"
+    ],
+    "contactEnabled": false,
+    "contactPostRequests": 0,
+    "fixtureAccountsCreated": 1,
+    "authEmailsRequested": 2,
+    "fixtureCleanup": "Exact ID/email/creation-time/role/capabilities match, zero all inbound business records and audit; one fixture and one reset record removed; auth cascades confirmed zero accounts/sessions/verifications.",
+    "financialInvocations": 0,
+    "dnsChanges": 0,
+    "migrations": 0,
+    "secretRotations": 0,
+    "projectWideSettingsChanged": false,
+    "proofs": {
+      "client": "playwright/.cache/phase27-08/legacy-fixture-client-result.json",
+      "emailsScheduler": "playwright/.cache/phase27-08/legacy-original-email-and-scheduler-proof.json",
+      "providerCleanup": "playwright/.cache/phase27-08/legacy-final-provider-and-cleanup.json",
+      "health": "playwright/.cache/phase27-08/legacy-final-public-health.json",
+      "watchdog": "playwright/.cache/phase27-08/legacy-window-watchdog.json"
+    },
+    "limits": [
+      "Freshly issued genuine fixture links across controlled old-origin transition; not original October10 emails.",
+      "Reset continuity ends at valid form; no password changed.",
+      "Verification consumption proved by exact fixture email_verified=true; final iframe page UI success not claimed.",
+      "Existing fallback alias returns baseline404 after Stage C; its Stage A/B200 does not imply permanent marketing support.",
+      "Manual Inngest resync restores original immutable receiver and fourteen functions; provider no longer displays Git/Vercel metadata, so exact source is independently bound by Vercel deployment readback.",
+      "Watchdog recorded 60 healthy reads and stopped on manual restore. No forced failure or broader hourly/5xx monitoring proof.",
+      "Temporary Stage A/B immutable builds remain staged without the three public aliases; Ops never changed."
+    ],
+    "remaining": [
+      "contact-trusted-ingress-per-ip",
+      "contact-distributed-global-budget",
+      "partial provider inventory",
+      "separate flags-on staff data consistency gap",
+      "controlled deployed inquiry and receipt/Reply-To/reply authority",
+      "extended monitoring and release-control reconciliation"
+    ],
+    "automaticReview": [
+      {
+        "action": "project-wide autoAssignCustomDomains update",
+        "applied": false,
+        "resolution": "per-deployment suppression"
+      },
+      {
+        "action": "new Stage A Ops build",
+        "applied": false,
+        "resolution": "existing unchanged Ops deployment in both pairs"
+      },
+      {
+        "action": "current Stage B Resync",
+        "applied": false,
+        "resolution": "original sync inspection followed by verified exact original receiver override"
+      }
+    ]
   }
 }
 ```
@@ -137,3 +250,6 @@ Existing-domain amendment approved 2026-10-11T23:51:01.890Z: Stage A/B MARKETING
 
 
 Latest follow-up: existing-domain amendment approved, browser and disk access recovered, fresh exact-source Stage A/B built rehearsal passed (9 HTTP tests per stage, no skip/failure), and current14-function Inngest registration plus both nonsecret Production origin/disabled settings read back. Google console does not select/load the project; its project search returns “Stars are not currently available.” Owner handoff requested. No Production stage, origin/alias change, fixture or email was started. Earlier preflight failures remain dated history.
+
+
+Latest checkpoint 2026-10-12T02:54:42.912Z: Approved legacy packet executed. Exact588 web A/B staged with deployment-only origin overrides, original web Cogas aliases restored in290.383seconds, Ops5WY unchanged. Old-only session, genuine original verification/reset links and full origin/session/provider rollback pass. Original Inngest receiver restored with14 functions; separate Contact monitor unchanged. Exact disposable fixture/auth rows cleaned after zero-business checks. Contactfalse throughout; zero ContactPOSTs, two auth emails, no password/financial invocation/DNS/migration/global-setting change. Fresh33/35; two Contact scenarios plus inventory/staff-data/inquiry/monitoring/release-control gates remain. Plan09 20/21, curated144/151, all7requirements pending. Read27-LEGACY-CONTINUITY-EXECUTION.md.

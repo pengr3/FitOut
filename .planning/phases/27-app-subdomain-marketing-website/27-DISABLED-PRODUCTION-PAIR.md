@@ -121,3 +121,8 @@ Final canonical validation: preparedPASS; deployedFAIL and liveFAIL on the eight
 
 
 Latest follow-up 2026-10-11T23:15:09.667Z: unknown-host boundary and exact authenticated staff POST pass. Six matrix cases remain pending. Read27-REMAINING-LIVE-PROOFS.md. Separate staff capability-data inconsistency is logged; no production account, Contact flag, provider, origin or deployment changed.
+
+
+## Latest approved continuity restoration
+
+Latest checkpoint 2026-10-12T02:54:42.912Z: Approved legacy packet executed. Exact588 web A/B staged with deployment-only origin overrides, original web Cogas aliases restored in290.383seconds, Ops5WY unchanged. Old-only session, genuine original verification/reset links and full origin/session/provider rollback pass. Original Inngest receiver restored with14 functions; separate Contact monitor unchanged. Exact disposable fixture/auth rows cleaned after zero-business checks. Contactfalse throughout; zero ContactPOSTs, two auth emails, no password/financial invocation/DNS/migration/global-setting change. Fresh33/35; two Contact scenarios plus inventory/staff-data/inquiry/monitoring/release-control gates remain. Plan09 20/21, curated144/151, all7requirements pending. Read27-LEGACY-CONTINUITY-EXECUTION.md.

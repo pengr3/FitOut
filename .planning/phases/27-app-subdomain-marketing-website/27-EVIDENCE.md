@@ -1,11 +1,11 @@
 # Phase27 actual production evidence — incomplete
 
-Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg and Ops dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4. Contact remains disabled. Fresh matrix27/35; historical30 observations remain archived with original source/IDs/time. Source-only recovery passed; full topology rollback and extended monitoring remain incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-DISABLED-PRODUCTION-PAIR.md. Earlier source statements below are dated history.
+Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored after the approved legacy packet. Contact remains disabled. Fresh matrix33/35; two Contact scenarios pending. Historical proof retains its original source/IDs/time. Actual origins/session/email/provider rollback now passes; extended monitoring remains incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-LEGACY-CONTINUITY-EXECUTION.md. Earlier statements below are dated history.
 
 ```json
 {
   "status": "incomplete-live-proof",
-  "recordedAt": "2026-10-11T23:15:09.667Z",
+  "recordedAt": "2026-10-12T02:54:42.912Z",
   "matrixVersion": 1,
   "deployedRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
   "sourceManifestSha256": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
@@ -217,10 +217,11 @@ Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg 
       "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "host-only-session-bridge",
       "expected": "Unchanged required Phase27 matrix contract",
-      "status": "pending",
-      "outcome": "pending",
-      "observed": "No fresh complete observation for this exact source/deployment scenario.",
-      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
+      "status": "observed",
+      "outcome": "pass",
+      "observed": "Genuine host-only old-origin fixture session remains valid through Stage B. After exact Stage C restoration it reaches new-host login200 without a loop; a separate new-host sign-in matches actor/role/capabilities, then its own session is signed out and confirmed null. No cookie transferred between hosts.",
+      "proof": "playwright/.cache/phase27-08/legacy-approved-execution-result.json",
+      "observedAt": "2026-10-12T02:23:57.008Z"
     },
     {
       "id": "customer-ops-session-isolation",
@@ -291,10 +292,11 @@ Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg 
       "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "issued-verify-token",
       "expected": "Unchanged required Phase27 matrix contract",
-      "status": "pending",
-      "outcome": "pending",
-      "observed": "No fresh complete observation for this exact source/deployment scenario.",
-      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
+      "status": "observed",
+      "outcome": "pass",
+      "observed": "Genuine delivered fixture verification email issued at old fitout.live in Stage A. Original CTA clicked after current Cogas restoration without rewriting bearer URL; exact primary fixture email_verified changed false to true. Email delivery ID and redacted origin/query-key metadata retained; not an original October10 email.",
+      "proof": "playwright/.cache/phase27-08/legacy-approved-execution-result.json",
+      "observedAt": "2026-10-12T02:29:07.401Z"
     },
     {
       "id": "issued-reset-token",
@@ -305,10 +307,11 @@ Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg 
       "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "issued-reset-token",
       "expected": "Unchanged required Phase27 matrix contract",
-      "status": "pending",
-      "outcome": "pending",
-      "observed": "No fresh complete observation for this exact source/deployment scenario.",
-      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
+      "status": "observed",
+      "outcome": "pass",
+      "observed": "Genuine delivered old-origin fixture reset CTA clicked after current Cogas restoration. Browser reaches Set a new password form at app.fitout.live while primary has one unexpired fixture-owned reset record. No password entered/submitted; bearer path/query omitted. Not an original October10 email.",
+      "proof": "playwright/.cache/phase27-08/legacy-approved-execution-result.json",
+      "observedAt": "2026-10-12T02:37:08.801Z"
     },
     {
       "id": "next-link-rsc-history",
@@ -542,18 +545,18 @@ Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg 
       "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "rollback-verified",
       "expected": "Unchanged required Phase27 matrix contract",
-      "status": "pending",
-      "outcome": "pending",
-      "observed": "Source-only pinned baseline and candidate recovery passed health/disabled/authenticated profile. Full origins/sessions/provider rollback remains unobserved.",
-      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
+      "status": "observed",
+      "outcome": "pass",
+      "observed": "Actual old/new primary and compatibility origins exercised through staged web A/B at exact588; all three web aliases restored to original Cogas in290.383seconds; Ops unchanged5WY. Old-only session recovery and both original delivered links pass; original single financial receiver restored with14 unchanged functions and separate Contact alert app. Final saved Stage C origins/flags, four baseline surfaces (including restored fallback404), direct unsigned400/401 boundaries, quota0/pendingalerts0 and exact fixture cleanup confirmed. Extended monitoring/forced failure not claimed.",
+      "proof": "playwright/.cache/phase27-08/legacy-approved-execution-result.json",
+      "observedAt": "2026-10-12T02:54:42.912Z"
     }
   ],
   "highThreats": [
-    "T-27-29: scoped ingress and synthetic alert proofs pass at their recorded sources; full same-candidate exhaustion-to-alert and rollback/control acceptance remain unproved; public Contact staysdisabled",
-    "T-27-27: valid issued-link/rollback observations remain incomplete",
+    "T-27-29: full same-current-deployment per-IP and global exhaustion-to-alert controls remain unproved; public Contact stays disabled",
     "OPS-11 data consistency: readonly primary aggregate shows one separate staff account with both customer capabilities true; activation denies staff roles, but booking/host gates include capability-only checks. Account provenance and safe remediation remain unverified; no account changed."
   ],
-  "rollbackVerified": false,
+  "rollbackVerified": true,
   "contactControlsVerified": false,
   "contactEnabledReadback": false,
   "inquiryAuthority": "pending separate checkpoint",
@@ -1574,7 +1577,7 @@ Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg 
     "screenshot": "playwright/.cache/phase27-08/disabled-pair-staff-denial-58897a94.png",
     "scope": "Real authenticated staff action denial; exact matrix POST /start-hosting path is not inferred from the home-route UI action"
   },
-  "freshObservedCount": 29,
+  "freshObservedCount": 33,
   "supplementalSourceRecovery": {
     "recordedAt": "2026-10-11T16:28:21.813Z",
     "kind": "source-only recovery",
@@ -1630,21 +1633,130 @@ Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg 
     "processStatus": "Original execution session no longer exists; capture stopped after19rounds. Missing later samples cannot be reconstructed.",
     "extendedWindowComplete": false
   },
-  "finalDisabledReadbacks": "playwright/.cache/phase27-08/disabled-pair-final-readbacks.json",
+  "finalDisabledReadbacks": "playwright/.cache/phase27-08/legacy-final-provider-and-cleanup.json",
   "remainingProofs": {
-    "recordedAt": "2026-10-11T23:15:09.667Z",
-    "observed": 29,
+    "recordedAt": "2026-10-12T02:54:42.912Z",
+    "observed": 33,
     "pending": [
-      "host-only-session-bridge",
-      "issued-verify-token",
-      "issued-reset-token",
       "contact-trusted-ingress-per-ip",
-      "contact-distributed-global-budget",
-      "rollback-verified"
+      "contact-distributed-global-budget"
     ],
     "staffProviderBinding": "playwright/.cache/phase27-08/remaining8-staff-provider-binding.json",
     "legacyLinkAvailability": "playwright/.cache/phase27-08/remaining8-old-link-availability.json",
     "contactEnabled": false
+  },
+  "legacyContinuityExecution": {
+    "recordedAt": "2026-10-12T02:54:42.912Z",
+    "status": "completed-approved-legacy-packet; phase acceptance remains incomplete",
+    "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "manifest": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
+    "window": {
+      "startedAt": "2026-10-12T02:18:51.968Z",
+      "restoreBy": "2026-10-12T02:33:51.968Z",
+      "watchdogRestoreAt": "2026-10-12T02:31:51.968Z",
+      "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+      "ids": {
+        "A": "dpl_GnVPs9UE2oUnodsESRd2xmbvJymW",
+        "B": "dpl_FcvUSqNcmF82gbgKnmM8oDcLyYN7",
+        "C": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg"
+      },
+      "contactEnabled": false
+    },
+    "restored": {
+      "stage": "C",
+      "at": "2026-10-12T02:23:42.351Z",
+      "results": [
+        {
+          "alias": "fitout.live",
+          "target": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+          "at": "2026-10-12T02:23:36.775Z",
+          "exitCode": 0,
+          "accepted": true,
+          "oldDeploymentId": "dpl_FcvUSqNcmF82gbgKnmM8oDcLyYN7"
+        },
+        {
+          "alias": "app.fitout.live",
+          "target": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+          "at": "2026-10-12T02:23:39.659Z",
+          "exitCode": 0,
+          "accepted": true,
+          "oldDeploymentId": "dpl_FcvUSqNcmF82gbgKnmM8oDcLyYN7"
+        },
+        {
+          "alias": "fitout-web-psi.vercel.app",
+          "target": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+          "at": "2026-10-12T02:23:42.350Z",
+          "exitCode": 0,
+          "accepted": true,
+          "oldDeploymentId": "dpl_FcvUSqNcmF82gbgKnmM8oDcLyYN7"
+        }
+      ],
+      "allAccepted": true,
+      "opsChanged": false,
+      "contactEnabled": false,
+      "readbackStatus": "control plane accepted; root verifies exact aliases separately"
+    },
+    "stageA": "dpl_GnVPs9UE2oUnodsESRd2xmbvJymW",
+    "stageB": "dpl_FcvUSqNcmF82gbgKnmM8oDcLyYN7",
+    "unchangedOps": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+    "publicWindowSeconds": 290.383,
+    "completed": [
+      "host-only-session-bridge",
+      "issued-verify-token",
+      "issued-reset-token",
+      "rollback-verified"
+    ],
+    "contactEnabled": false,
+    "contactPostRequests": 0,
+    "fixtureAccountsCreated": 1,
+    "authEmailsRequested": 2,
+    "fixtureCleanup": "Exact ID/email/creation-time/role/capabilities match, zero all inbound business records and audit; one fixture and one reset record removed; auth cascades confirmed zero accounts/sessions/verifications.",
+    "financialInvocations": 0,
+    "dnsChanges": 0,
+    "migrations": 0,
+    "secretRotations": 0,
+    "projectWideSettingsChanged": false,
+    "proofs": {
+      "client": "playwright/.cache/phase27-08/legacy-fixture-client-result.json",
+      "emailsScheduler": "playwright/.cache/phase27-08/legacy-original-email-and-scheduler-proof.json",
+      "providerCleanup": "playwright/.cache/phase27-08/legacy-final-provider-and-cleanup.json",
+      "health": "playwright/.cache/phase27-08/legacy-final-public-health.json",
+      "watchdog": "playwright/.cache/phase27-08/legacy-window-watchdog.json"
+    },
+    "limits": [
+      "Freshly issued genuine fixture links across controlled old-origin transition; not original October10 emails.",
+      "Reset continuity ends at valid form; no password changed.",
+      "Verification consumption proved by exact fixture email_verified=true; final iframe page UI success not claimed.",
+      "Existing fallback alias returns baseline404 after Stage C; its Stage A/B200 does not imply permanent marketing support.",
+      "Manual Inngest resync restores original immutable receiver and fourteen functions; provider no longer displays Git/Vercel metadata, so exact source is independently bound by Vercel deployment readback.",
+      "Watchdog recorded 60 healthy reads and stopped on manual restore. No forced failure or broader hourly/5xx monitoring proof.",
+      "Temporary Stage A/B immutable builds remain staged without the three public aliases; Ops never changed."
+    ],
+    "remaining": [
+      "contact-trusted-ingress-per-ip",
+      "contact-distributed-global-budget",
+      "partial provider inventory",
+      "separate flags-on staff data consistency gap",
+      "controlled deployed inquiry and receipt/Reply-To/reply authority",
+      "extended monitoring and release-control reconciliation"
+    ],
+    "automaticReview": [
+      {
+        "action": "project-wide autoAssignCustomDomains update",
+        "applied": false,
+        "resolution": "per-deployment suppression"
+      },
+      {
+        "action": "new Stage A Ops build",
+        "applied": false,
+        "resolution": "existing unchanged Ops deployment in both pairs"
+      },
+      {
+        "action": "current Stage B Resync",
+        "applied": false,
+        "resolution": "original sync inspection followed by verified exact original receiver override"
+      }
+    ]
   }
 }
 ```
