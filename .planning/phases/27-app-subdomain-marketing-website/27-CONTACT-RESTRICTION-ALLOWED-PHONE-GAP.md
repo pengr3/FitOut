@@ -28,3 +28,10 @@ Official references: [custom rule execution](https://vercel.com/docs/vercel-fire
 Resolve the device/network relationship and obtain trustworthy phone original-IP or equivalent matched provider enforcement evidence. Any further Contact POSTs require a new exact request budget. Any rule repair must be concrete and stay within owner authority; preserve the original Log/system mitigation and keep Contactfalse. Do not promote either protected no-mail variant, create global99 fixtures, send the global control alert or mark either remaining live test passed while this prerequisite is unsatisfied.
 
 Proof directory:playwright/.cache/phase27-08/per-ip-preflight-retry-b98c8894-2acd-44cf-923a-a22d599f4371. Core files:authority.json,operator-provider-trace.txt,phone-provider-trace.txt/.png,owner-phone-report.json,firewall-cli-readback.json,firewall-overview-diagnostic.json,passive-phone-minute-traffic.txt,primary-after-two-requests.json,status.json.
+
+
+## Read-only diagnosis continuation 2026-10-12T09:06:29.857Z
+
+Owner confirms the computer uses separate internet. This resolves the physical-network handoff, not the phone original-IP attribution. Correct CLI list endpoint /v1/security/firewall/config returns active version8, firewallEnabled:true, two valid active rules, no IP rules, draft:null. Published at07:24:24.515Z. The earlier MCP /config/active404 was an endpoint inspection limitation, now resolved; no rules were edited.
+
+Vercel preset Query Builder explicitly retained4:23pm–4:24pm and reported7 requests matching the exempt operator IP (PH/PLDT/ASN9299). This is passive aggregate evidence, not the exact phone original IP. Persisted redacted operator-ip-phone-minute-query.txt/.json. No further Contact POSTs. Rule-order/exemption cause remains unresolved. Prepared27-CONTACT-EXTERNAL-DISABLED-PREFLIGHT.md proposes exactly one cloud-network request with one nonpersistent two-minute Sandbox, approval pending. No livewindow/fixture/mail authority. Matrix33/35 unchanged.
