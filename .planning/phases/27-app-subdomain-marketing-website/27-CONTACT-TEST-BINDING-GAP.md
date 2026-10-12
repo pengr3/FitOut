@@ -10,7 +10,7 @@ The previous scoped per-IP test already supplies exact588 source, two actual dis
 
 Proposed repair for planning: permit only these two Contact rows to carry a typed controlled-test binding: actual test deployment IDs, exact candidate revision and source manifest, baseline/current restoration IDs, explicit deployment-config diff limited to two Contact flags, independent actual WAF restriction/denial, runtime marker/request/quota fingerprints, current packet authority, bounded timer/restoration/cleanup, fixed control-alert recipient and matched scheduler/provider evidence. Keep all ordinary marketing/auth/provider rows strictly bound to the current immutable customer/ops/preview IDs. Reject mismatched source, unapproved config, arbitrary historical test IDs, absent distinct runtimes, unproved no-mail mode, incomplete restoration, nonzero inquiry delivery, missing or duplicate alert, and unknown cleanup.
 
-A validator change is itself in SOURCE_SCOPE (scripts/) and changes the captured manifest. Therefore a proper repair needs a planned code/test change, meaningful negative validator tests, a new exact source capture and six engineering gates before new single-source acceptance. Do not silently patch the checker, weaken existing assertions or reuse588 engineering digests for changed verification code. Existing33 observations and approved completed packets remain their recorded history.
+A validator change is itself in SOURCE_SCOPE (scripts/) and changes a new capture of that checkout. Its observer provenance must be recorded separately from the unchanged deployed588 source; old release gates cannot claim coverage of the new observer. If the repair is treated as a new application release revision, new exact source capture/six engineering gates and actual new release observations are required. A versioned observer-only repair can retain the archived588 release context with its own hash-bound validation tests. Read27-CONTACT-TEST-BINDING-REPAIR-PLAN.md before choosing/implementing this distinction. Do not silently patch the checker, weaken existing assertions or reuse588 engineering digests for changed verification code. Existing33 observations and approved completed packets remain their recorded history.
 
 Until this decision is planned/implemented, live no-mail packets can supply supplemental correctly attributed evidence, but cannot close canonical current-deployment rows. Recommended sequence: resolve this binding repair first, then run only missing/relevant live evidence against the accepted source/config contract. Contact remains disabled throughout preparation.
 
@@ -33,3 +33,6 @@ Until this decision is planned/implemented, live no-mail packets can supply supp
   "total": 35
 }
 ```
+
+
+Latest preparation:45 specification-prototype tests pass (hypothetical fixtures only); authoritative checker unchanged. Owner reports Docker Desktop running, but both observed engine connections and loopbackPostgres time out. Runtime stage count0, remote mutationfalse. Restart/own-PowerShell docker ps handoff pending.
