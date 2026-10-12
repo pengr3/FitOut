@@ -25,3 +25,6 @@ Local HTTP/real-Postgres rehearsal remains blocked: Docker Desktop processes run
 ## Authority boundary
 
 Current user request authorizes preparation and independent checks while Contactdisabled. These artifacts make the binding repair reviewable. Original completed ingress/legacy packets are not new test-window authority. A new actual5-minute operator-only gate/window, primary99-reservation fixture and its cleanup, or one control-alert email still uses its prepared exact packet and current readiness checks; never infer public enablement.
+
+
+Contact local readiness 2026-10-12T06:33:18.850Z: Docker desktop-linux responds. Existing stopped fitout-db-1 started without volume changes; pg_isready, fitout_test SQL and host5432 pass. Fresh exact588 isolated rehearsal passed: disabled gate no quota/mail; three-process/shared-backend race5 reservations/3 denials plus restart denial; global99 seed plus real HTTP100th slot, different-runtime global denial, one natural incident, first local monitor processes1/stub-alert1 and second0, no inquiry/real email. Unique owned schema removed. Both exact live packets remain unexecuted; verifier-binding repair still proposed, authoritative checker unchanged, Contactdisabled, currentmatrix33/35. Proof: playwright/.cache/phase27-08/contact-controls-ready-be1b8a83-3a7a-4e42-88bd-70c36abd2ba5/report.json.

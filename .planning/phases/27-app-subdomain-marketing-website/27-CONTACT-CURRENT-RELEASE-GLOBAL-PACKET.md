@@ -48,7 +48,15 @@ At most8 ContactPOSTs across all stages,2 enabled probes,5-minute public window 
   "approval": "Previous completed packets retain their original scope; no new window inferred from preparation-only continuation.",
   "bindingGap": "27-CONTACT-TEST-BINDING-GAP.md",
   "readOnlyPreflight": "playwright/.cache/phase27-08/contact-controls-prep-195aa046-4a0a-4089-92ce-4bc1a12d2854/production-readonly-preflight.json",
-  "localRehearsal": "pending Docker engine; failed precondition retained",
+  "localRehearsal": {
+    "status": "pass",
+    "proof": "playwright/.cache/phase27-08/contact-controls-ready-be1b8a83-3a7a-4e42-88bd-70c36abd2ba5/report.json",
+    "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "finishedAt": "2026-10-12T06:32:20.652Z",
+    "ownedSchemaRemoved": true,
+    "actualEmailsSent": 0,
+    "limit": "Loopback real HTTP/isolated Postgres; scheduler step persistence and delivery stubbed; not live Vercel or provider acceptance"
+  },
   "freshCanonicalObservedCount": 33,
   "id": "p27-current-global-alert-20261012",
   "order": 2,
@@ -115,3 +123,6 @@ At most8 ContactPOSTs across all stages,2 enabled probes,5-minute public window 
   }
 }
 ```
+
+
+Latest local readiness 2026-10-12T06:33:18.850Z: Docker engine responds, existing fitout-db-1 started, fitout_test read-only connection and host5432 reachability confirmed. Fresh exact588 isolated runtime rehearsal passed; source checks retained, unique schema removed. Live window unstarted, saved Production gates unchangedfalse. Earlier local runtime blockers remain dated history.
