@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: API-trace attempt closed after local import denial; recovery verified, Contact disabled"
-last_updated: "2026-10-13T04:58:30.235Z"
+stopped_at: "Plan09: per-IP proof accepted34/35; global-budget proof pending; Contact disabled"
+last_updated: "2026-10-13T05:26:16.241Z"
 last_activity: 2026-10-13
-last_activity_desc: API-trace attempt safely closed; observer220pass, route matcher repair prepared; per-IP/global proofs pending
+last_activity_desc: Fresh repaired-driver per-IP test passed and strictly bound; Production restored, Contact disabled; global-budget proof next
 state_head: 58897a94
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -62,7 +62,7 @@ progress:
   percent: 15
 ---
 
-Latest checkpoint 2026-10-13T04:37:21.254Z: Owner-approved ten-request retry closed incomplete. Fresh operator503 and unique cloud403 were matched under guard v14; Sandbox stopped after28.471seconds. A route GET1 still served Cogas; later GET3/4 actually served A. Premature DOM matching, one browser timeout and agent round trips consumed B-tail headroom. A reserved3; B/spoof were not sent. API restoration200.304seconds and actual disabled recovery503 at256.185seconds, within300. Exact2ownedrows removed; primaryquota0/alert1/pending0; temporaryDeny disabled/publishedv15; pins/falseflags/scheduler14+1 retained. Actual6POSTs of10; unused4 cannot reopen the closed window. Matrix33/35, Plan09 20/21, curated144/151 and all7requirements pending. Read-only Vercel OTEL trace retrieval proves actual deployment/source; measured availability within33.813seconds. Automated eight-minute/six-minute-watchdog proposal is unapproved, including a strict IP-only observer profile. Isolated proposal220tests pass; authoritative206observer remains unchanged. Read27-CONTACT-PER-IP-TAIL-RESULT.md and27-CONTACT-PER-IP-API-TRACE-RETRY.md.
+Latest checkpoint 2026-10-13T05:26:16.241Z: User-requested fresh repaired-driver attempt passes. TenContactPOSTs, sixrouteGETs, actualA3+B2reservations, sixth429/825 and forged-header429/822 across distinct runtimes. ActualCogas restored in143.571seconds; recovery503/no-store in174.743seconds; exact2ownedrows removed, primary0/1/0, guarddisabledpublishedv19, originalflags/aliases/scheduler14+1 retained. Strict220-tested observer binding accepts per-IP only; matrix34/35. Global-budget proof is pending and not authorized by this packet; broader inventory/threat/inquiry gates, Plan09incomplete20/21, curated144/151 and sevenrequirements remain. Read27-CONTACT-PER-IP-REPAIRED-DRIVER-RESULT.md.
 
 
 Current release-source checkpoint (2026-10-11T09:33:12.518Z): Release-source reconciliation completed at58897a94: six fresh full gates and prepared validation pass; old D67 proof/approval archived faithfully. Current web b61cb4a4 and Ops D67 remain disabled, four health200/Contact503, primaryquota0/pendingalerts0. No external mutation or inquiry. Deployed/live validation retains actual candidate-deployment/source/authority and other live gaps. Plan09 remains20/21; curated144/151; all7requirements pending;30/35 dated multi-source observations. Read27-RELEASE-SOURCE-RECONCILIATION.md and revised packet.
@@ -2358,3 +2358,6 @@ Readiness retry 2026-10-13T02:51:05.804Z: ownerapproved exactscope; activeguard 
 
 
 Executed IP amendment 2026-10-13T03:17:29.044Z: exactsingle-IP refresh publishedv12 at03:06:43.724Z whileContactfalse; originalLog/systemmitigations preserved, pinsCogas/Ops5WY and savedflagsfalse verified. Replacement503 at03:00:36.718Z was prematurely executed beforepublication and is explicitly NOT guardedoperatorproof; retainedconsumedrequest. Authorizedcloud403 at03:07:49.971Z matched exactDeny/uniqueUA count1, distinctAWS/USsource; Sandboxstopped20.917seconds. Primaryquota0/alert1/pending0, no publicwindow or acceptedmatrixrow. Total3POSTs consumed under11cap. Narrow one-additional-request timingrepair27-CONTACT-GUARDED-OPERATOR-TIMING-REPAIR.md proposescap12; approvalpending. Aliashelperrequires the not-yet-created operator-guarded-final-result.json, so earlier503 cannot unlockpromotion. BothContactlivecontrols remainpending33/35.
+
+
+Latest checkpoint 2026-10-13T05:26:16.241Z: User-requested fresh repaired-driver attempt passes. TenContactPOSTs, sixrouteGETs, actualA3+B2reservations, sixth429/825 and forged-header429/822 across distinct runtimes. ActualCogas restored in143.571seconds; recovery503/no-store in174.743seconds; exact2ownedrows removed, primary0/1/0, guarddisabledpublishedv19, originalflags/aliases/scheduler14+1 retained. Strict220-tested observer binding accepts per-IP only; matrix34/35. Global-budget proof is pending and not authorized by this packet; broader inventory/threat/inquiry gates, Plan09incomplete20/21, curated144/151 and sevenrequirements remain. Read27-CONTACT-PER-IP-REPAIRED-DRIVER-RESULT.md.

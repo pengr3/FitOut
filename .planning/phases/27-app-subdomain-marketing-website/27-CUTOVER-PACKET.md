@@ -442,6 +442,42 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
       "path": "playwright/.cache/phase27-08/release-source-account-final-readback-20261011.json",
       "sha256": "e7211a8b07f6ada09ce73e12cafd1332d9b256cca4b05336a81d859aeb80dc08"
     }
+  },
+  "contactTestAuthorities": {
+    "contact-trusted-ingress-per-ip": {
+      "status": "approved",
+      "packetId": "p27-current-per-ip-20261012",
+      "attemptId": "p27-per-ip-api-trace-repaired-20261013-a19f3c88",
+      "ownerInstruction": "okay prepare the fresh packet with the repaired driver, then let's retry the per-IP test. keep Contact disabled for now",
+      "approvedAt": "2026-10-13T05:11:11.681Z",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+      "manifest": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
+      "baselineId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "opsId": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+      "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+      "maxWindowSeconds": 480,
+      "maxPosts": 10,
+      "watchdogSeconds": 360,
+      "windowProfile": "api-trace-eight-minute-v1",
+      "routeProofMethod": "vercel-otel-actual-request",
+      "stagingAuthority": {
+        "status": "approved",
+        "packetId": "p27-current-per-ip-20261012",
+        "ownerInstruction": "okay go ahead with the verifier-binding repair, then continue the two Contact tests one by one. keep Contact disabled for now",
+        "approvedAt": "2026-10-12T06:51:07.894Z",
+        "approvalTimeSource": "Owner instruction recorded in repair-result.json before either protected build was requested; live-window authority remains separate",
+        "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+        "manifest": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
+        "baselineId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+        "opsId": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+      },
+      "executionPacketId": "p27-per-ip-api-trace-repaired-20261013-a19f3c88",
+      "authorityCapture": {
+        "path": "playwright/.cache/phase27-08/per-ip-api-trace-repaired-a19f3c88/approval.json",
+        "sha256": "be456900440024790bf7fd01084127a317c3fcba77a642064def074992d2ded4"
+      }
+    }
   }
 }
 ```
@@ -718,3 +754,6 @@ Read .planning/phases/27-app-subdomain-marketing-website/27-CONTACT-AUTOMATIC-AL
 ## Disabled58897a94 Production update
 
 Both new immutable Production targets are READY and manually promoted. Saved Production flags and runtime disabled gate verified; captured immutable flag snapshot was not independently accessible. Baseline pins b61web/D67Ops retained. Automatic financial registration refreshed to disabled candidate with14 unchanged functions; no manual financial invocation.
+
+
+Current per-IP update 2026-10-13T05:22:54.003Z: fresh repaired-driver actual ten-POST test passes, original disabled Production restored in143.571seconds, exact2owned quota rows removed, primary0/1/0, original schedulers14+1 preserved, savedflagsfalse, guarddisabledversion19. Original staging family retained; independent fresh attempt p27-per-ip-api-trace-repaired-20261013-a19f3c88 explicitly bound. Matrix34/35. Global-budget proof, inventory/high-threat/inquiry and other phase gates remain pending; no phase completion.

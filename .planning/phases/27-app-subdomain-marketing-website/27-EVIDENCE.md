@@ -1,6 +1,6 @@
 # Phase27 actual production evidence — incomplete
 
-Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored after the approved legacy packet. Contact remains disabled. Fresh matrix33/35; two Contact scenarios pending. Historical proof retains its original source/IDs/time. Actual origins/session/email/provider rollback now passes; extended monitoring remains incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-LEGACY-CONTINUITY-EXECUTION.md. Earlier statements below are dated history.
+Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored after the approved legacy packet. Contact remains disabled. Fresh matrix34/35; global-budget Contact scenario pending. Historical proof retains its original source/IDs/time. Actual origins/session/email/provider rollback now passes; extended monitoring remains incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-LEGACY-CONTINUITY-EXECUTION.md. Earlier statements below are dated history.
 
 ```json
 {
@@ -498,14 +498,19 @@ Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored a
       "host": "fitout.live",
       "url": "https://fitout.live/api/contact",
       "method": "POST",
-      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "deploymentId": "dpl_ED46Ed99PCUUhJrYSr6neFWTyu7m",
       "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "contact-trusted-ingress-per-ip",
       "expected": "Unchanged required Phase27 matrix contract",
-      "status": "pending",
-      "outcome": "pending",
-      "observed": "No fresh complete observation for this exact source/deployment scenario.",
-      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
+      "status": "observed",
+      "outcome": "pass",
+      "observed": "Actual cross-runtime 3+2 shared reservations; sixth429/825s and forged-header429/822s. Exact-source no-mail A/B, actual route pairs, ten total POSTs, Cogas restoration and exact cleanup verified.",
+      "proof": "playwright/.cache/phase27-08/per-ip-api-trace-repaired-a19f3c88/control-binding.json",
+      "observedAt": "2026-10-13T05:22:54.003Z",
+      "controlTestProof": {
+        "path": "playwright/.cache/phase27-08/per-ip-api-trace-repaired-a19f3c88/control-binding.json",
+        "sha256": "f509100cd1a40fc5482c7b870ee1c61a713c104816a4f8077832ec62914f271c"
+      }
     },
     {
       "id": "contact-distributed-global-budget",
@@ -1577,7 +1582,7 @@ Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored a
     "screenshot": "playwright/.cache/phase27-08/disabled-pair-staff-denial-58897a94.png",
     "scope": "Real authenticated staff action denial; exact matrix POST /start-hosting path is not inferred from the home-route UI action"
   },
-  "freshObservedCount": 33,
+  "freshObservedCount": 34,
   "supplementalSourceRecovery": {
     "recordedAt": "2026-10-11T16:28:21.813Z",
     "kind": "source-only recovery",
@@ -1635,10 +1640,9 @@ Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored a
   },
   "finalDisabledReadbacks": "playwright/.cache/phase27-08/legacy-final-provider-and-cleanup.json",
   "remainingProofs": {
-    "recordedAt": "2026-10-12T02:54:42.912Z",
-    "observed": 33,
+    "recordedAt": "2026-10-13T05:22:54.003Z",
+    "observed": 34,
     "pending": [
-      "contact-trusted-ingress-per-ip",
       "contact-distributed-global-budget"
     ],
     "staffProviderBinding": "playwright/.cache/phase27-08/remaining8-staff-provider-binding.json",
@@ -1806,3 +1810,6 @@ Offline live validator rerun after recording this result still FAILs. It specifi
 ## Remaining live proofs — October 12 Manila
 
 Fresh acceptance is 29/35 at exact 58897a94. Unknown-host ingress denial and authenticated exact POST /start-hosting now pass with real proof. Staff flags remained false and its temporary session was cleared; the durable audit and unchanged alias bind the request. Six matrix cases remain pending. Original pre-move links are unavailable/expired; the prepared controlled-transition packet is not executed or approved. Contact remains disabled. Plan 09, all seven requirements, full rollback, extended monitoring, external inventory and remaining Contact controls stay pending. One separate primary staff account with both customer capabilities true is logged as a new data-consistency gap; the passing test applies only to its identified flags-off account.
+
+
+Current per-IP update 2026-10-13T05:22:54.003Z: fresh repaired-driver actual ten-POST test passes, original disabled Production restored in143.571seconds, exact2owned quota rows removed, primary0/1/0, original schedulers14+1 preserved, savedflagsfalse, guarddisabledversion19. Original staging family retained; independent fresh attempt p27-per-ip-api-trace-repaired-20261013-a19f3c88 explicitly bound. Matrix34/35. Global-budget proof, inventory/high-threat/inquiry and other phase gates remain pending; no phase completion.
