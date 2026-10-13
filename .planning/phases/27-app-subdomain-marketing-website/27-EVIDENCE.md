@@ -1769,6 +1769,47 @@ Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored a
     "observedAt": "2026-10-13T06:42:33.291Z",
     "source": "27-CONTACT-GLOBAL-ALERT-FRESH-RESULT.md",
     "scope": "Shared per-IP and global exhaustion-to-scheduled-alert controls, exact disabled recovery and cleanup accepted at58897a94. Public inquiry, receipt/Reply-To/reply and enablement remain separate pending gates."
+  },
+  "inventoryReconciliation": {
+    "recordedAt": "2026-10-13T07:39:52.164Z",
+    "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "currentWeb": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+    "currentOps": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+    "closedInventoryRows": [
+      "customer-project",
+      "ops-project",
+      "environment-scopes",
+      "inngest"
+    ],
+    "remainingPartialRows": [
+      {
+        "id": "paymongo",
+        "remainingProof": "Bind actual runtime credentials/mode to this account without exposing keys, then a separately scoped harmless signed nonfinancial proof or eligible existing delivery. Dashboard key existence and old local configuration do not supply deployment correspondence."
+      },
+      {
+        "id": "didit",
+        "remainingProof": "Establish which application/workflow/environment the actual deployment uses and resolve signed delivery correspondence. Historical failed Test deliveries require diagnosis; no real identity session, test event, live-mode switch or workflow edit performed."
+      },
+      {
+        "id": "resend-sender",
+        "remainingProof": "Only the separately authorized actual current-source inquiry/Reply-To/reply portion of this original row remains. No need to repeat the control alert or reveal a key."
+      },
+      {
+        "id": "support-mailbox",
+        "remainingProof": "One separately approved bounded harmless inquiry from a controlled reply-capable sender, actual readable owner receipt, matching Reply-To and reply arrival; Contact remainsfalse now."
+      }
+    ],
+    "contactEnabled": false,
+    "productionMutations": 0,
+    "contactPosts": 0,
+    "providerTestEvents": 0,
+    "manualFinancialInvocations": 0,
+    "applicationCodeChanges": 0,
+    "phaseComplete": false,
+    "proof": {
+      "path": "playwright/.cache/phase27-08/inventory-reconcile-2026-10-13-78dca654/reconciliation-result.json",
+      "sha256": "5a18fd19368c906b76d09edbb616cc2a7aca40427fd60018e42590b875fda9fe"
+    }
   }
 }
 ```
@@ -1827,3 +1868,6 @@ Global-budget/automatic-alert update 2026-10-13T06:38:54.780Z: approved fresh pa
 
 
 Contact-control ledger reconciliation 2026-10-13T06:42:33.291Z: both actual controls pass; contact-waf-global now observed and the specifically obsolete T-27-29 control-exhaustion gap is closed with matched proof. OPS-11 staff-account consistency remains unresolved. Public inquiry/Reply-To/reply and provider inventory correspondence remain pending; Contact stays disabled. Prior prose is dated history.
+
+
+Inventory reconciliation 2026-10-13T07:39:52.164Z: four former partial rows now observed(customer,Ops,environment scopes,Inngest) from fresh readbacks plus matched existing proof; remainingPayMongo/Didit runtime correspondence and real inquiry portions ofResend/mailbox remainpartial. LocalTEST/sandbox values are identified as dated clues. Contact staysdisabled; no deployment, provider edit/event, inquiry or manual financial job. Read27-INVENTORY-RECONCILIATION.md.
