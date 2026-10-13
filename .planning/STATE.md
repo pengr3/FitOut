@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: per-IP proof accepted34/35; global-budget proof pending; Contact disabled"
-last_updated: "2026-10-13T05:26:16.241Z"
+stopped_at: "Plan09: per-IP accepted34/35; fresh five-POST global-alert packet awaiting owner approval; Contact disabled"
+last_updated: "2026-10-13T05:50:48.497Z"
 last_activity: 2026-10-13
-last_activity_desc: Fresh repaired-driver per-IP test passed and strictly bound; Production restored, Contact disabled; global-budget proof next
+last_activity_desc: Fresh global-alert packet prepared with local/SQL/driver refusal checks; no Production mutation or mail; approval pending
 state_head: 58897a94
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -2361,3 +2361,6 @@ Executed IP amendment 2026-10-13T03:17:29.044Z: exactsingle-IP refresh published
 
 
 Latest checkpoint 2026-10-13T05:26:16.241Z: User-requested fresh repaired-driver attempt passes. TenContactPOSTs, sixrouteGETs, actualA3+B2reservations, sixth429/825 and forged-header429/822 across distinct runtimes. ActualCogas restored in143.571seconds; recovery503/no-store in174.743seconds; exact2ownedrows removed, primary0/1/0, guarddisabledpublishedv19, originalflags/aliases/scheduler14+1 retained. Strict220-tested observer binding accepts per-IP only; matrix34/35. Global-budget proof is pending and not authorized by this packet; broader inventory/threat/inquiry gates, Plan09incomplete20/21, curated144/151 and sevenrequirements remain. Read27-CONTACT-PER-IP-REPAIRED-DRIVER-RESULT.md.
+
+
+Global packet preparation 2026-10-13T05:50:48.497Z: currentquota0/pending0/recentnatural0, retainedsynthetic1, originalreceivers14+1, false flags and firewall19 verified read-only. Fresh exact588 localHTTP rehearsal passes,13SQL cleanup/refusal checks pass, offlineglobaldriver completion/refusal/drift scenarios pass. Prepared scope5ContactPOSTs,300secondwindow/240secondwatchdog, freshG/H protected builds,15minute scheduled observation and1owner control alert. NoProductionmutation/POST/build/Sandbox/email. Approval pending; matrix34/35 and other phase gates unchanged. Read27-CONTACT-GLOBAL-ALERT-FRESH-PACKET.md.
