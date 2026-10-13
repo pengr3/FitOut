@@ -26,3 +26,8 @@ e2e/fixtures/*.png binary
 e2e/fixtures/*.jpg binary
 e2e/fixtures/*.gif binary
 e2e/fixtures/*.svg text eol=lf
+
+# Phase27 provider packet hashes compare exact reviewed bytes across Windows checkouts.
+.planning/phases/27-app-subdomain-marketing-website/runtime-proof/* text eol=lf
+.planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-PROOF-PACKET.md text eol=lf
+.planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-PREPARATION.json text eol=lf
