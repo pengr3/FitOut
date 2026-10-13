@@ -1,5 +1,9 @@
 # Phase27 actual production evidence — incomplete
 
+Owner test-account disposition recorded 2026-10-13T12:03:48.437Z: cancel the proposed account cleanup and preserve the existing test accounts as they are. No repair authority, attempt or Production credential was created. The deployed6bb6e3f7 customer-role guards remain; both Contact settings stay false. Retain the legacy flags-on staff identity as an explicit owner-approved testing fixture, not a repaired data invariant. Account cleanup is no longer awaiting approval. Provider signed delivery and actual inquiry/reply gates remain open; phase/requirement counts are unchanged. See 27-OPS11-TEST-ACCOUNT-DISPOSITION.md.
+
+Earlier account-cleanup preparation is superseded by this owner decision.
+
 OPS-11 disabled release accepted 2026-10-13T11:38:29.375Z: source6bb6e3f7, webG8ZbTT/Ops3qtket, all eight serving aliases and false Contact values verified. Staff page/action denial and customer control passed; 30/40GETs,1hostingPOST,0ContactPOSTs/account mutations/manual financial jobs. Receivers14/16triggers plus separate1 verified; both watchdogs ended. The legacy staff flag repair selected by the owner is prepared separately and awaiting its account-write approval. Provider signed delivery and actual inquiry/reply remain open. The35/35matrix remains dated588;20/21plans,144/151curated, sevenpending requirements. Read27-OPS11-DISABLED-ROLLOUT-RESULT.md and27-OPS11-ACCOUNT-REPAIR-PACKET.md.
 
 Earlier preparation and588candidate sections below are dated history. The structured35-row matrix retains its original source labels; the accepted current pair is in ops11DisabledRelease.
@@ -568,9 +572,7 @@ Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disab
       "observedAt": "2026-10-12T02:54:42.912Z"
     }
   ],
-  "highThreats": [
-    "OPS-11 data invariant: one historical staff account still has both customer flags true. The positive-role guards now serve6bb6e3f7 and the bounded staff/customer checks passed. Owner selected retained staff and clearing flags; exact separate attributed repair is prepared but not approved/executed."
-  ],
+  "highThreats": [],
   "rollbackVerified": true,
   "contactControlsVerified": true,
   "contactEnabledReadback": false,
@@ -1848,9 +1850,48 @@ Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disab
     "resultFile": "27-OPS11-DISABLED-ROLLOUT-RESULT.json",
     "resultSha256": "5c2e8bfb24b54be8db2d8a2f1e9a43d74f3a4a13a08f52dc1b86dd910826a637",
     "oldMatrixSourceRetained": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
-    "accountRepairStatus": "owner-selected-prepared-not-executed",
-    "accountRepairPacket": "27-OPS11-ACCOUNT-REPAIR-PACKET.md"
-  }
+    "accountRepairStatus": "cancelled-owner-keeps-test-accounts",
+    "accountRepairPacket": "27-OPS11-ACCOUNT-REPAIR-PACKET.md",
+    "accountDispositionFile": "27-OPS11-TEST-ACCOUNT-DISPOSITION.md"
+  },
+  "ops11TestAccountRetention": {
+    "recordedAt": "2026-10-13T12:03:48.437Z",
+    "status": "cancelled-preserve-test-accounts",
+    "decisionSource": "direct-user",
+    "ownerInstruction": "oh no we don't have to touch our accounts made for testing its okay you don't have to touch and revert its status quo",
+    "supersedes": "Earlier keep-staff/clear-capabilities preparation choice",
+    "accountWritesAuthorized": false,
+    "repairExecuted": false,
+    "repairAttemptStarted": false,
+    "productionCredentialRead": false,
+    "retainExistingTestAccounts": true,
+    "retainedLegacyTestAccount": {
+      "id": "987a6470-5c2a-4fab-8816-a1d4dd78209d",
+      "role": "staff",
+      "canBook": true,
+      "canHost": true
+    },
+    "deployedRoleGuardsRetained": true,
+    "deploymentRollbackRequested": false,
+    "contactDisabled": true,
+    "dataInvariantRepaired": false,
+    "testFixtureExceptionAccepted": true,
+    "phaseComplete": false,
+    "decisionFile": "27-OPS11-TEST-ACCOUNT-DISPOSITION.md"
+  },
+  "acceptedTestExceptions": [
+    {
+      "id": "ops11-retained-flags-on-staff-test-fixture",
+      "recordedAt": "2026-10-13T12:03:48.437Z",
+      "targetUserId": "987a6470-5c2a-4fab-8816-a1d4dd78209d",
+      "decisionFile": "27-OPS11-TEST-ACCOUNT-DISPOSITION.md",
+      "ownerInstruction": "oh no we don't have to touch our accounts made for testing its okay you don't have to touch and revert its status quo",
+      "flagsIntentionallyRetained": true,
+      "dataInvariantRepaired": false,
+      "roleBoundaryStillEnforced": true,
+      "accountCleanupCancelled": true
+    }
+  ]
 }
 ```
 

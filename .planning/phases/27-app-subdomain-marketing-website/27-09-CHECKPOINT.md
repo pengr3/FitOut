@@ -1,5 +1,8 @@
 # Phase 27 — Plan 09 live checkpoint
 
+Owner test-account disposition recorded 2026-10-13T12:03:48.437Z: cancel the proposed account cleanup and preserve the existing test accounts as they are. No repair authority, attempt or Production credential was created. The deployed6bb6e3f7 customer-role guards remain; both Contact settings stay false. Retain the legacy flags-on staff identity as an explicit owner-approved testing fixture, not a repaired data invariant. Account cleanup is no longer awaiting approval. Provider signed delivery and actual inquiry/reply gates remain open; phase/requirement counts are unchanged. See 27-OPS11-TEST-ACCOUNT-DISPOSITION.md.
+
+
 OPS-11 disabled release accepted 2026-10-13T11:38:29.375Z: source6bb6e3f7, webG8ZbTT/Ops3qtket, all eight serving aliases and false Contact values verified. Staff page/action denial and customer control passed; 30/40GETs,1hostingPOST,0ContactPOSTs/account mutations/manual financial jobs. Receivers14/16triggers plus separate1 verified; both watchdogs ended. The legacy staff flag repair selected by the owner is prepared separately and awaiting its account-write approval. Provider signed delivery and actual inquiry/reply remain open. The35/35matrix remains dated588;20/21plans,144/151curated, sevenpending requirements. Read27-OPS11-DISABLED-ROLLOUT-RESULT.md and27-OPS11-ACCOUNT-REPAIR-PACKET.md.
 
 

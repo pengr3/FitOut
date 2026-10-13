@@ -249,3 +249,9 @@ Contact local readiness 2026-10-12T06:33:18.850Z: Docker desktop-linux responds.
 ## OPS-11 code preparation — October13
 
 Read-only provenance confirms one separate legacy staff identity with both customer capabilitiestrue, three ended booking windows and a payout destination. Positive customer-role guards are repaired at6bb6e3f7 and pass all six canonical gates plus actual local flags-on staff HTML/Flight/upload denial. The owner must still settle that exact account's disposition and approve the new disabled source rollout; no Production account changed. Keep this high threat open until its serving/data scope is observed. Status-only probes would misread25 streaming200 neutral not-found responses; protected-body denial is independently observed. Strict transport status remediation is a separate planning decision. Read27-OPS11-REPAIR-RESULT.md/.json; no Phase28 assignment or requirement closure.
+
+
+## Owner disposition — retained OPS-11 testing fixture
+
+Owner test-account disposition recorded 2026-10-13T12:03:48.437Z: cancel the proposed account cleanup and preserve the existing test accounts as they are. No repair authority, attempt or Production credential was created. The deployed6bb6e3f7 customer-role guards remain; both Contact settings stay false. Retain the legacy flags-on staff identity as an explicit owner-approved testing fixture, not a repaired data invariant. Account cleanup is no longer awaiting approval. Provider signed delivery and actual inquiry/reply gates remain open; phase/requirement counts are unchanged. See 27-OPS11-TEST-ACCOUNT-DISPOSITION.md.
+The earlier mandatory account-cleanup recommendation is superseded. No role/capability or historical-record mutation is authorized for these testing accounts. The deployed guards remain required and are not reverted.
