@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: inquiry attempt stopped on export omission; complete archive/typecheck repaired; one replacement-build approval pending; Contact disabled"
-last_updated: "2026-10-13T15:00:40.207Z"
+stopped_at: "Plan09: replacement build READY and removed; inquiry stopped before window on current-IP proof; Contact disabled"
+last_updated: "2026-10-13T15:27:01.938Z"
 last_activity: 2026-10-13
-last_activity_desc: Removed failed owned test build; complete export repaired and validated; no Contact send
+last_activity_desc: Replacement build repair passed; original receiver restored; no Contact send
 state_head: 6bb6e3f7
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -61,6 +61,8 @@ progress:
   completed_plans: 144
   percent: 15
 ---
+Contact inquiry replacement closed 2026-10-13T15:27:01.938Z: the owner-approved complete6bb replacement built READY and was removed after exact identity/no-alias/original-receiver checks; provider404 confirmed. Current operator original-IP proof was not obtained before sufficient lease headroom remained, so no window or Contact POST/email was started. Two cumulative builds consumed;0POSTs,0Sandbox,0firewall/IP/quota/account changes. Inngest automatic receiver drift was restored toG8/private query unchanged with14+1 functions. Final8 aliases remainG8/Ops3qt;3 saved valuesfalse; guarddisabled/version21/no draft; primaryquota0/pending0/retainedalert1/hash unchanged. Closed before original15:28:35Z lease, with no extension. Contact disabled;20/21 and144/151/all7 requirements pending. Read27-CONTACT-INQUIRY-REPLACEMENT-RESULT.md/.json; next attempt needs a fresh packet after the ingress tooling is repaired.
+
 Provider signed-delivery result 2026-10-13T13:05:35.708Z: Didit Sandbox provider Test Not Started reached the actual6bb webG8 function with200, fresh signed eventd5a49c51-c418-4c12-95bd-613a257175e2 and complete Sandbox envelope; four apex/app unsigned controls have direct400 and matched current function records. FivePOSTs total, one Didit send/no repeat observed through2026-10-13T12:55:55.215Z; no PayMongo send. Business/audit hashes, aliases, false Contact flags, provider metadata and14+1 scheduler registrations remain unchanged. The run ledger closed33.430seconds beyond its900-second limit after final UI selector failures: functional proofs are observed, strict packet execution is not accepted. No further send or configuration change occurred during the overrun. PayMongo LIVE signed delivery and actual Contact inquiry/reply remain pending; testing accounts stay unchanged, Contact disabled, phase20/21 and curated144/151 with seven requirements pending. Read27-PROVIDER-SIGNED-DELIVERY-RESULT.md/.json.
 
 Signed-delivery preparation 2026-10-13T12:32:51Z: current disabled6bb webG8/Ops3qt pair and all eight aliases/three false values read back; 84/84 exact-source webhook tests pass. PayMongo LIVE has no eligible nonfinancial replay (only old payment history, Retry disabled). Didit's12 historical test failures were404; inspected unsent Not Started preview omits event_id/environment and has a stale timestamp. Fresh packet proposes four unsigned controls and one Didit diagnostic dispatch, maximum15minutes/up to three natural Didit attempts; no PayMongo send, deployment/configuration/account mutation or Contact enablement. The diagnostic can retain synthetic audit outcomes; a mismatch may appear in the existing automatic Ops digest. Preparation only: no delivery proof or phase count advances. Read27-PROVIDER-SIGNED-DELIVERY-PACKET.md and27-PROVIDER-SIGNED-DELIVERY-PREPARATION.json. Existing test accounts remain unchanged.
