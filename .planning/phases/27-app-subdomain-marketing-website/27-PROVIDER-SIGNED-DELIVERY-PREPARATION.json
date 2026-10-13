@@ -1,0 +1,324 @@
+{
+  "status": "prepared-not-approved-not-executed",
+  "at": "2026-10-13T12:32:51Z",
+  "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+  "sourceManifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+  "sourceArchiveSha256": "8feb311adca91cbbfa5c0eb27991ebc8f8f7c0e2dcc4cebc24f6484c8eb9a8ea",
+  "teamId": "team_EZAfhT8qJ6msqrCzas3rvdjG",
+  "webProjectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+  "opsProjectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+  "sourceProvenance": "Accepted OPS-11 archive/manifest and 62 hash-bound captures, not inferred parent Git metadata.",
+  "deployments": [
+    {
+      "id": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+      "url": "fitout-116qj6x3i-pengr3s-projects.vercel.app",
+      "state": "READY",
+      "target": "production"
+    },
+    {
+      "id": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+      "url": "fitout-ldqhhi7oz-pengr3s-projects.vercel.app",
+      "state": "READY",
+      "target": "production"
+    }
+  ],
+  "servingAliases": [
+    {
+      "alias": "app.fitout.live",
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA"
+    },
+    {
+      "alias": "www.fitout.live",
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA"
+    },
+    {
+      "alias": "fitout.live",
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA"
+    },
+    {
+      "alias": "fitout-web-pengr3s-projects.vercel.app",
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA"
+    },
+    {
+      "alias": "fitout-web-psi.vercel.app",
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA"
+    },
+    {
+      "alias": "ops.fitout.live",
+      "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL"
+    },
+    {
+      "alias": "fitout-ops-pengr3s-projects.vercel.app",
+      "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL"
+    },
+    {
+      "alias": "fitout-ops.vercel.app",
+      "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL"
+    }
+  ],
+  "flags": [
+    {
+      "id": "dnMtMhC8l8iT0R29",
+      "key": "CONTACT_PRODUCTION_ENABLED",
+      "value": "false",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1791704419042
+    },
+    {
+      "id": "rQL4dNKbzaXbN08K",
+      "key": "CONTACT_PRODUCTION_ENABLED",
+      "value": "false",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1791630164853
+    },
+    {
+      "id": "NftlOnb5TDKNewez",
+      "key": "CONTACT_INGRESS_VERIFICATION_MODE",
+      "value": "false",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1791704423844
+    }
+  ],
+  "providerMetadata": [
+    {
+      "id": "mQ8RAQUrfHQ1wO2O",
+      "key": "DIDIT_ENVIRONMENT",
+      "type": "sensitive",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1790148741102
+    },
+    {
+      "id": "7weae3NT6eoj6WUQ",
+      "key": "PAYMONGO_SECRET_KEY",
+      "type": "sensitive",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1790479421000
+    },
+    {
+      "id": "1Ly4wLr7cokgrgPh",
+      "key": "PAYMONGO_PUBLIC_KEY",
+      "type": "sensitive",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1790479684447
+    },
+    {
+      "id": "45NnTBHVFL7WUNHQ",
+      "key": "PAYMONGO_WEBHOOK_SECRET",
+      "type": "sensitive",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1789719586852
+    },
+    {
+      "id": "ZjlIgeBKZjxszvtt",
+      "key": "DIDIT_API_KEY",
+      "type": "sensitive",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1790151853638
+    },
+    {
+      "id": "YBW4LOCSbgmkVtFC",
+      "key": "DIDIT_WORKFLOW_ID",
+      "type": "sensitive",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1790151816129
+    },
+    {
+      "id": "XsPfItju5Uzr4lxQ",
+      "key": "DIDIT_WEBHOOK_SECRET",
+      "type": "sensitive",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1790156447834
+    }
+  ],
+  "paymongo": {
+    "runtimeMode": "LIVE, earlier protected runtime correspondence proof",
+    "hookId": "hook_6UWbRKJQBt1CUnuhRfoFC6XE",
+    "enabled": true,
+    "url": "https://fitout.live/api/paymongo/webhook",
+    "events": [
+      "checkout_session.payment.paid",
+      "merchant.activated",
+      "merchant.declined",
+      "payment.refunded",
+      "payment.refund.updated"
+    ],
+    "primaryProcessedCounts": [
+      {
+        "type": "checkout_session.payment.paid",
+        "count": 1
+      }
+    ],
+    "visibleHistory": {
+      "type": "checkout_session.payment.paid",
+      "status": "Success",
+      "createdAt": "2026-09-27 11:42 UTC+8",
+      "retries": 0,
+      "retryDisabled": true
+    },
+    "eligibleNonfinancialLiveReplay": false,
+    "liveSignedDelivery": "pending"
+  },
+  "didit": {
+    "runtimeEnvironment": "SANDBOX, earlier protected runtime correspondence proof",
+    "applicationId": "8c987e39-86bd-452f-a18b-a5153beda380",
+    "destinationId": "e887a8c1-7d92-4a14-9fc1-1a7f7efae154",
+    "url": "https://fitout.live/api/didit/webhook",
+    "version": "v3",
+    "events": [
+      "status.updated"
+    ],
+    "historicalTestDeliveries": 12,
+    "historicalFailures": 12,
+    "historicalHttpStatus": 404,
+    "historicalDates": [
+      "2026-09-22",
+      "2026-09-23"
+    ],
+    "preparedScenario": "Not Started",
+    "previewEventId": null,
+    "previewEnvironment": null,
+    "previewTimestamp": 1768867200,
+    "previewSessionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "previewVendorData": "your-vendor-reference-id",
+    "previewEditable": false,
+    "sendClicked": false,
+    "unknownSampleMatches": {
+      "users": 0,
+      "hostVerification": 0
+    },
+    "wireEnrichment": "unknown until approved provider send; preview alone does not prove transmitted envelope"
+  },
+  "localTests": {
+    "exactSourceExport": ".p27/22dfd169577d",
+    "files": 4,
+    "passed": 84,
+    "exitCode": 0,
+    "testDatabase": "localhost/fitout_test",
+    "perFileIsolationClean": true,
+    "firstAttempt": "Wrong local role rejected before tests; corrected to the established fitout role without provisioning or production access.",
+    "rawLog": "playwright/.cache/phase27-08/provider-signed-prep-6bb-20261013/focused-tests.log"
+  },
+  "observer": {
+    "mcpRuntimeLogHour": "HTTP400 retention error, not evidence of no deliveries",
+    "cliRequestLogs": "CLI59.10.0 query accepted for exact deployment, /api/didit/webhook, since15m, limit5; zero records returned; no receipt proof"
+  },
+  "externalActions": {
+    "webhookPosts": 0,
+    "providerSends": 0,
+    "deployments": 0,
+    "aliasChanges": 0,
+    "providerSettingsChanges": 0,
+    "accountWrites": 0,
+    "productionDbWrites": 0,
+    "directMail": 0,
+    "financialJobsInvoked": 0
+  },
+  "contactDisabled": true,
+  "testAccountsUnchanged": true,
+  "phaseCounts": {
+    "numberedPlans": "20/21",
+    "curatedPlans": "144/151",
+    "pendingRequirements": 7
+  },
+  "sourceFiles": [
+    {
+      "path": "src/app/api/paymongo/webhook/route.ts",
+      "gitBlobSha256": "73b24608ea2761cae9e5afb0fc9e787de4a2641a4ce311f039f8828df15ba311",
+      "testedExportSha256": "4d9cd2811345b0246349c08ccd5c6f6f3139c7aeb60269f3ae81c9827619cfc1",
+      "byteEqual": false,
+      "gitNormalizedEqual": true,
+      "lineEndingDifference": "Git LF / tested export CRLF; source bytes and normalized correspondence recorded separately"
+    },
+    {
+      "path": "src/app/api/didit/webhook/route.ts",
+      "gitBlobSha256": "c3870bf2e394a79685a6cb663eb2a1dc58378757e920742d5270db35ef3263eb",
+      "testedExportSha256": "533c931215ac4fefe1a51aceb956d525a12f56e2724bd3d57b3f2e13b1611066",
+      "byteEqual": false,
+      "gitNormalizedEqual": true,
+      "lineEndingDifference": "Git LF / tested export CRLF; source bytes and normalized correspondence recorded separately"
+    },
+    {
+      "path": "src/lib/verification/apply-verdict.ts",
+      "gitBlobSha256": "a3d37e0982ffd61d669790a7d18e3c4a124624e45bee000e9d20117f3faca4d3",
+      "testedExportSha256": "a396567834a0b0f09913497157d38c485ba11f673ae8698b26890b9148586495",
+      "byteEqual": false,
+      "gitNormalizedEqual": true,
+      "lineEndingDifference": "Git LF / tested export CRLF; source bytes and normalized correspondence recorded separately"
+    },
+    {
+      "path": "src/lib/verification/didit-verdict.ts",
+      "gitBlobSha256": "4f632e9895aca301e0aee22f08db7c8baaaea07c1be459041ca54049d514814c",
+      "testedExportSha256": "388b5d0f56ff483ab44bb24bf16597595f4646cd1f4bec52bf2aeeb74891800f",
+      "byteEqual": false,
+      "gitNormalizedEqual": true,
+      "lineEndingDifference": "Git LF / tested export CRLF; source bytes and normalized correspondence recorded separately"
+    },
+    {
+      "path": "tests/paymongo/webhook-signature.test.ts",
+      "gitBlobSha256": "9a54b656b819fe7a29b5cd3a3fd51fc7263b649f4dd50b0df61a892dd773fe42",
+      "testedExportSha256": "30e21e517b967f6345a7c7625d4f64f0c713ca5c85407c1d0acc82dcd6388b8e",
+      "byteEqual": false,
+      "gitNormalizedEqual": true,
+      "lineEndingDifference": "Git LF / tested export CRLF; source bytes and normalized correspondence recorded separately"
+    },
+    {
+      "path": "tests/paymongo/webhook-merchant-activated.test.ts",
+      "gitBlobSha256": "f2cb3f291407fe2ed3a36d0a73a7df889f3a3c4487c312d8785b44716e6d0415",
+      "testedExportSha256": "bc9c7e5c5a036561256d97929d6916df2cb2cf9423698404663a960222bb1275",
+      "byteEqual": false,
+      "gitNormalizedEqual": true,
+      "lineEndingDifference": "Git LF / tested export CRLF; source bytes and normalized correspondence recorded separately"
+    },
+    {
+      "path": "tests/verification/didit-webhook.test.ts",
+      "gitBlobSha256": "358cac1ce21b1a35f64394de5ef481f777c57f3205e9c29658b062d852e3b5b6",
+      "testedExportSha256": "66cb0e98f31347f583c376c6ee7ebc99c2a8b91cb6b47dc4b0003ecc71e60995",
+      "byteEqual": false,
+      "gitNormalizedEqual": true,
+      "lineEndingDifference": "Git LF / tested export CRLF; source bytes and normalized correspondence recorded separately"
+    },
+    {
+      "path": "tests/verification/didit-verdict.test.ts",
+      "gitBlobSha256": "669a0ae828307d111dcbc8ebeb048c97c400948e6cc39a6c06f67efccaaeda7a",
+      "testedExportSha256": "00b3ffc5d5ba30d3ee47bef7b5ae64f5d3b483fe6b3e1a216820b3026e5a0941",
+      "byteEqual": false,
+      "gitNormalizedEqual": true,
+      "lineEndingDifference": "Git LF / tested export CRLF; source bytes and normalized correspondence recorded separately"
+    }
+  ],
+  "captures": [
+    {
+      "path": "playwright/.cache/phase27-08/provider-signed-prep-6bb-20261013/focused-tests.log",
+      "sha256": "fd83ef1016d2a2ae1fa4d06bd2450f43bd32f1378ea39778f6b46332fa38af12"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/provider-signed-prep-6bb-20261013/didit-unsent-not-started.json",
+      "sha256": "9ef4dec4f082c94e4f35d020b0c5fa2be6cf59db54a29261ff334bf729e52cdc"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/provider-signed-prep-6bb-20261013/didit-unsent-not-started.png",
+      "sha256": "00dd78d2b4355946065a786f1b3dbbf02b1c101611b19232a74a26a2d2c77efe"
+    }
+  ],
+  "packetSha256": "8366ab3111d47b42687f4a51bbd8a6d11e2a2b00478f682184e76259601960e4"
+}

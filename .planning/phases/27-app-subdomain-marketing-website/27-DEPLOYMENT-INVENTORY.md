@@ -1,5 +1,8 @@
 # Phase 27 — Current external inventory
 
+Signed-delivery preparation 2026-10-13T12:32:51Z: current disabled6bb webG8/Ops3qt pair and all eight aliases/three false values read back; 84/84 exact-source webhook tests pass. PayMongo LIVE has no eligible nonfinancial replay (only old payment history, Retry disabled). Didit's12 historical test failures were404; inspected unsent Not Started preview omits event_id/environment and has a stale timestamp. Fresh packet proposes four unsigned controls and one Didit diagnostic dispatch, maximum15minutes/up to three natural Didit attempts; no PayMongo send, deployment/configuration/account mutation or Contact enablement. The diagnostic can retain synthetic audit outcomes; a mismatch may appear in the existing automatic Ops digest. Preparation only: no delivery proof or phase count advances. Read27-PROVIDER-SIGNED-DELIVERY-PACKET.md and27-PROVIDER-SIGNED-DELIVERY-PREPARATION.json. Existing test accounts remain unchanged.
+
+
 Current reconciliation 2026-10-13T07:39:52.164Z: exact58897a94 webCogas/Ops5WY read back; matrix35/35; four ofeightpartial rows closed. PayMongo,Didit,Resend-inquiry andmailbox-inquiry remainpartial; Contactdisabled. Earlier opening checkpoints are dated history.
 
 Latest checkpoint 2026-10-11T16:28:21.817Z: Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg and Ops dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4. Contact remains disabled. Fresh matrix27/35; historical30 observations remain archived with original source/IDs/time. Source-only recovery passed; full topology rollback and extended monitoring remain incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-DISABLED-PRODUCTION-PAIR.md. Earlier source statements below are dated history.
@@ -98,7 +101,15 @@ content remains unproved here. No request used a protection bypass.
       "observedAt": "2026-10-13T08:58:31.086Z",
       "observationType": "Approved bounded current-Production configuration observation on protected staged588 extension; serving mapping qualified by unchanged metadata",
       "source": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md",
-      "remainingProof": "Separately scoped harmless signed nonfinancial delivery or eligible existing exact-release delivery. Runtime configuration correspondence is observed; public key mode alone does not attribute that public key to the account."
+      "remainingProof": "Current LIVE provider-origin signed nonfinancial delivery remains pending. Read-only primary contains only one historical checkout paid event; dashboard Retry is disabled. No eligible nonfinancial replay; Test-mode sender does not prove this LIVE hook. Current packet permits unsigned controls only.",
+      "signedDeliveryPreparation": {
+        "at": "2026-10-13T12:32:51Z",
+        "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+        "packet": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-SIGNED-DELIVERY-PACKET.md",
+        "packetSha256": "8366ab3111d47b42687f4a51bbd8a6d11e2a2b00478f682184e76259601960e4",
+        "providerSends": 0,
+        "status": "prepared-not-approved"
+      }
     },
     {
       "id": "didit",
@@ -112,7 +123,15 @@ content remains unproved here. No request used a protection bypass.
       "observationType": "Approved bounded current-Production configuration observation on protected staged588 extension; serving mapping qualified by unchanged metadata",
       "source": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md",
       "providerReadbackDate": "2026-10-09",
-      "remainingProof": "Historical Test-delivery/retry diagnosis and suitable current signed-delivery proof remain. Configuration workflow/environment/signing uncertainty is resolved on the protected current-Production extension with qualified serving-release metadata continuity; no switch to live or real identity session was performed."
+      "remainingProof": "Current provider-origin Sandbox delivery and processing remain pending. All12 historical Test deliveries were404; unsent Not Started preview has a stale timestamp and no event_id/environment. One separately approved diagnostic will test actual sender enrichment; queued or environment-mismatch200 alone is not acceptance.",
+      "signedDeliveryPreparation": {
+        "at": "2026-10-13T12:32:51Z",
+        "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+        "packet": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-SIGNED-DELIVERY-PACKET.md",
+        "packetSha256": "8366ab3111d47b42687f4a51bbd8a6d11e2a2b00478f682184e76259601960e4",
+        "providerSends": 0,
+        "status": "prepared-not-approved"
+      }
     },
     {
       "id": "inngest",
@@ -826,6 +845,16 @@ content remains unproved here. No request used a protection bypass.
     "paymongoMode": "live",
     "diditEnvironment": "sandbox",
     "contactDisabled": true
+  },
+  "providerSignedDeliveryPreparation": {
+    "at": "2026-10-13T12:32:51Z",
+    "packet": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-SIGNED-DELIVERY-PACKET.md",
+    "packetSha256": "8366ab3111d47b42687f4a51bbd8a6d11e2a2b00478f682184e76259601960e4",
+    "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "contactDisabled": true,
+    "testAccountsUnchanged": true,
+    "approved": false,
+    "executed": false
   }
 }
 ```

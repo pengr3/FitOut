@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: disabled OPS-11 release accepted; owner keeps testing accounts unchanged; provider delivery and inquiry/reply pending; Contact disabled"
-last_updated: "2026-10-13T12:03:48.437Z"
+stopped_at: "Plan09: signed-delivery packet prepared; PayMongo LIVE replay unavailable; Didit diagnostic awaiting approval; Contact disabled"
+last_updated: "2026-10-13T12:32:51Z"
 last_activity: 2026-10-13
-last_activity_desc: Owner cancelled account cleanup; preserve test accounts and deployed role guards; Contact disabled
+last_activity_desc: Prepared bounded Didit diagnostic and receiver controls; preserve PayMongo LIVE and testing accounts
 state_head: 6bb6e3f7
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -61,6 +61,8 @@ progress:
   completed_plans: 144
   percent: 15
 ---
+Signed-delivery preparation 2026-10-13T12:32:51Z: current disabled6bb webG8/Ops3qt pair and all eight aliases/three false values read back; 84/84 exact-source webhook tests pass. PayMongo LIVE has no eligible nonfinancial replay (only old payment history, Retry disabled). Didit's12 historical test failures were404; inspected unsent Not Started preview omits event_id/environment and has a stale timestamp. Fresh packet proposes four unsigned controls and one Didit diagnostic dispatch, maximum15minutes/up to three natural Didit attempts; no PayMongo send, deployment/configuration/account mutation or Contact enablement. The diagnostic can retain synthetic audit outcomes; a mismatch may appear in the existing automatic Ops digest. Preparation only: no delivery proof or phase count advances. Read27-PROVIDER-SIGNED-DELIVERY-PACKET.md and27-PROVIDER-SIGNED-DELIVERY-PREPARATION.json. Existing test accounts remain unchanged.
+
 Owner test-account disposition recorded 2026-10-13T12:03:48.437Z: cancel the proposed account cleanup and preserve the existing test accounts as they are. No repair authority, attempt or Production credential was created. The deployed6bb6e3f7 customer-role guards remain; both Contact settings stay false. Retain the legacy flags-on staff identity as an explicit owner-approved testing fixture, not a repaired data invariant. Account cleanup is no longer awaiting approval. Provider signed delivery and actual inquiry/reply gates remain open; phase/requirement counts are unchanged. See 27-OPS11-TEST-ACCOUNT-DISPOSITION.md.
 
 OPS-11 disabled release accepted 2026-10-13T11:38:29.375Z: source6bb6e3f7, webG8ZbTT/Ops3qtket, all eight serving aliases and false Contact values verified. Staff page/action denial and customer control passed; 30/40GETs,1hostingPOST,0ContactPOSTs/account mutations/manual financial jobs. Receivers14/16triggers plus separate1 verified; both watchdogs ended. The legacy staff flag repair selected by the owner is prepared separately and awaiting its account-write approval. Provider signed delivery and actual inquiry/reply remain open. The35/35matrix remains dated588;20/21plans,144/151curated, sevenpending requirements. Read27-OPS11-DISABLED-ROLLOUT-RESULT.md and27-OPS11-ACCOUNT-REPAIR-PACKET.md.
