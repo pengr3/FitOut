@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { executeCoordinator, RETRY_ID } from './coordinator.mjs';
+import { executeCoordinator, RETRY_ID, protectedProject } from './coordinator.mjs';
 import { createProbe, PACKET_ID, SOURCE } from './probe.mjs';
 
 const base = resolve('playwright/.cache/phase27-08/provider-runtime-prepared/coordinator-tests');
@@ -11,6 +11,16 @@ const host = 'fitout-coordinator-fixture-pengr3s-projects.vercel.app';
 const approval = { status: 'approved', packetId: PACKET_ID, source: SOURCE, attemptId: RETRY_ID,
   approvedAt: new Date().toISOString(), ownerInstruction: 'offline fixture only', contactDisabled: true,
   limits: { productionBuilds: 1, diagnosticGets: 3, providerGets: 4 } };
+test('actual protection API object without enabled field is accepted', () => {
+  assert.equal(protectedProject({id:'project',accountId:'team',ssoProtection:{deploymentType:'all_except_custom_domains'}},'project','team'),true);
+});
+for (const [name, value] of [['disabled',null],['explicitly disabled',{enabled:false,deploymentType:'all_except_custom_domains'}],['weaker scope',{deploymentType:'preview'}]]) test(`protection rejects ${name}`, () => {
+  assert.equal(protectedProject({id:'project',accountId:'team',ssoProtection:value},'project','team'),false);
+});
+test('protection rejects another team or project', () => {
+  const p={id:'project',accountId:'team',ssoProtection:{deploymentType:'all_except_custom_domains'}};
+  assert.equal(protectedProject(p,'other','team'),false); assert.equal(protectedProject(p,'project','other'),false);
+});
 async function context(failure) {
   const dir = await mkdtemp(resolve(base, 'attempt-')); const calls = []; let probe;
   const step = name => { calls.push(name); if (failure === name) throw new Error('fixture failure'); };

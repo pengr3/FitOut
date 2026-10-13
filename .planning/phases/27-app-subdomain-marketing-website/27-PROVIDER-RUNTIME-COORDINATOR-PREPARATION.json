@@ -1,9 +1,9 @@
 {
-  "preparedAt": "2026-10-13T08:35:42.102Z",
+  "preparedAt": "2026-10-13T08:48:47.721Z",
   "attemptId": "p27-provider-runtime-coordinator-retry-20261013",
   "status": "prepared-awaiting-fresh-approval",
   "tests": {
-    "passed": 43,
+    "passed": 48,
     "failed": 0,
     "fixtureOnly": true
   },
@@ -16,11 +16,11 @@
   "artifacts": [
     {
       "path": "coordinator.mjs",
-      "sha256": "ddde46ea7e8da10c7a2257164177a68079fc551c2ceaa36cbe72c096a8e08993"
+      "sha256": "ffbc39f8d2262a980a833690f9dc45360cc7d67713df05ea37bb0a17e0e58b5a"
     },
     {
       "path": "coordinator.test.mjs",
-      "sha256": "db6ee45662db21fd9cc4e05809314ee164a06cb6c4ca0a0ceccc0ea66ec9f759"
+      "sha256": "774992d29b40d822b12757f0a08987e3ca7d1802141f96996475f67dc385a9c9"
     },
     {
       "path": "driver.mjs",
@@ -52,8 +52,8 @@
     },
     {
       "path": "run-coordinator.mjs",
-      "sha256": "e9e2c2f9f57481e7ff6a609896ea343351de993f60a7562e7a4b77983137367c"
+      "sha256": "3a62b22397ea339fea8f69a1ed6ff9bec6e005a62a6d1caad2846835cc514a1f"
     }
   ],
-  "bundleSha256": "328d42a3767c0d28f26ede7603a7d2f7cf5afac152c46e4a57a2ee8d65cbbc37"
+  "bundleSha256": "42f7c9628a1d8914f78fe4602c57c9a6e9a05d85fdd03bebacf273fcbdcfb312"
 }

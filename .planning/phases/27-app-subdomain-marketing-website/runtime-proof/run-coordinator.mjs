@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { executeCoordinator, RETRY_ID } from './coordinator.mjs';
+import { executeCoordinator, RETRY_ID, protectedProject } from './coordinator.mjs';
 import { prepareExport } from './prepare-export.mjs';
 import { vercelTransport } from './driver.mjs';
 import { PACKET_ID, SOURCE } from './probe.mjs';
@@ -53,7 +53,7 @@ async function validatePlatform() {
   const reference = metadata(JSON.parse(await readFile(root + '/playwright/.cache/phase27-08/inventory-reconcile-2026-10-13-78dca654/env-metadata.json','utf8'))[0]);
   if (JSON.stringify(envs) !== JSON.stringify(reference)) throw new Error('Provider metadata drift');
   const p = await api('/v9/projects/' + project);
-  if (p.accountId !== team || p.ssoProtection?.enabled !== true || p.ssoProtection?.deploymentType !== 'all_except_custom_domains') throw new Error('Protection or project scope drift');
+  if (!protectedProject(p,project,team)) throw new Error('Protection or project scope drift');
   return { observedAt: new Date().toISOString(), pins, flags, providerMetadata: envs, protected: true };
 }
 
@@ -84,6 +84,7 @@ async function main() {
       return exported;
     },
     stageOnce: async e => {
+      await writeFile(resolve(dir,'build-attempt.json'),JSON.stringify({attemptId:RETRY_ID,source:SOURCE,submittedAt:new Date().toISOString(),maximumBuilds:1}),{flag:'wx'});
       const r = await command(['deploy','--prod','--skip-domain','--no-wait','--yes','--non-interactive','--no-color','--scope','pengr3s-projects','--project',project,
         '--env','CONTACT_PRODUCTION_ENABLED=false','--env','CONTACT_INGRESS_VERIFICATION_MODE=false','--build-env','CONTACT_PRODUCTION_ENABLED=false','--build-env','CONTACT_INGRESS_VERIFICATION_MODE=false',
         '--meta','phase27ProofPacket=' + PACKET_ID,'--meta','phase27ProofAttempt=' + RETRY_ID,'--meta','phase27BaseRevision=' + SOURCE,'--json'],e.destination,120000);

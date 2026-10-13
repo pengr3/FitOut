@@ -1,6 +1,6 @@
 # Phase27 actual production evidence — incomplete
 
-Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored after the approved legacy packet. Contact remains disabled. Fresh matrix34/35; global-budget Contact scenario pending. Historical proof retains its original source/IDs/time. Actual origins/session/email/provider rollback now passes; extended monitoring remains incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-LEGACY-CONTINUITY-EXECUTION.md. Earlier statements below are dated history.
+Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disabled. Matrix35/35. Protected current-Production configuration proof observesPayMongoLIVE andDiditSANDBOX with matching provider signing configuration; directCogas diagnostic andsuccessfulsigneddelivery are notclaimed. Provider delivery/inquiry/reply andOPS-11 gates remain. Plan09 stays20/21, curated144/151, all7requirements pending. Read27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md; older sections retain their historical dates.
 
 ```json
 {
@@ -1810,6 +1810,18 @@ Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored a
       "path": "playwright/.cache/phase27-08/inventory-reconcile-2026-10-13-78dca654/reconciliation-result.json",
       "sha256": "5a18fd19368c906b76d09edbb616cc2a7aca40427fd60018e42590b875fda9fe"
     }
+  },
+  "providerRuntimeConfiguration": {
+    "observedAt": "2026-10-13T08:58:31.086Z",
+    "resultSource": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md",
+    "diagnosticDeploymentId": "dpl_7GKcUipbZpTX5H13i9QfCGcySWtb",
+    "acceptedBase": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "paymongoMode": "live",
+    "diditEnvironment": "sandbox",
+    "signingSecretsMatch": true,
+    "scope": "Protected current-Production extension with qualified serving metadata/source continuity; no directCogas diagnostic",
+    "successfulSignedProviderDeliveryObserved": false,
+    "contactDisabled": true
   }
 }
 ```

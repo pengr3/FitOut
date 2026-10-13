@@ -4,6 +4,11 @@ import { runProof } from './driver.mjs';
 
 export const RETRY_ID = 'p27-provider-runtime-coordinator-retry-20261013';
 
+export function protectedProject(project, projectId, teamId) {
+  return project?.id === projectId && project.accountId === teamId && project.ssoProtection !== null &&
+    project.ssoProtection?.deploymentType === 'all_except_custom_domains' && project.ssoProtection.enabled !== false;
+}
+
 // Generate, hold and consume the signing key in this one process. No IPC or key export.
 export async function executeCoordinator({ approval, ops, clock = Date.now }) {
   if (approval?.status !== 'approved' || approval.packetId !== PACKET_ID || approval.source !== SOURCE ||

@@ -1,6 +1,6 @@
 # Phase 27 — repaired provider runtime coordinator retry
 
-**Prepared; fresh approval required.** Attempt `p27-provider-runtime-coordinator-retry-20261013` under packet `p27-provider-runtime-20261013`. This replaces the failed local signing handoff. It does not reuse the first packet's exhausted build allowance.
+**Original prepared packet retained; later approved execution completed.** See27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md for the actual48-tested parser repair,3GET result and final recovery. The43-test/bundle values below are the original reviewed preparation, not the final execution bundle. Attempt `p27-provider-runtime-coordinator-retry-20261013` under packet `p27-provider-runtime-20261013`. This replaces the failed local signing handoff. It does not reuse the first packet's exhausted build allowance.
 
 The first attempt created one protected READY build but sent zero diagnostic/provider requests. Local IPC was denied. Public domains stayed on the disabled Cogas/5WY pair; the approved generated-alias alignment and original Inngest restoration are verified. See `27-PROVIDER-RUNTIME-ATTEMPT-RESULT.md` for the retained failure history.
 

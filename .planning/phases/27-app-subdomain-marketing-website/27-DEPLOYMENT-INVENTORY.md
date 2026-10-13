@@ -24,7 +24,7 @@ content remains unproved here. No request used a protection bypass.
 
 ```json
 {
-  "observedAt": "2026-10-11T09:33:12.518Z",
+  "observedAt": "2026-10-13T09:02:22.710Z",
   "rows": [
     {
       "id": "customer-project",
@@ -91,28 +91,28 @@ content remains unproved here. No request used a protection bypass.
       "id": "paymongo",
       "status": "partial",
       "owner": "PayMongo account owner",
-      "current": "Fresh authenticated dashboard: one Enabled hook_6UWbRKJQBt1CUnuhRfoFC6XE atapex/api/paymongo/webhook, samefive events and signing-secret controls. Developers listsLIVE andTEST keys. Local Sep2 configuration usesTEST keys. Existing same588 old/new unsigned400 receiver observations retained. The deployed key/mode/signing correspondence and successful signed nonfinancial delivery remain unproved.",
+      "current": "Actual staged Production runtime usesLIVE secret/public modes. GET200 exactEnabledhook_6UWbRKJQBt1CUnuhRfoFC6XE matchesapex destination/fiveevents/LIVE mode; runtime signing secret matches privately. Seven provider envmetadata entries unchanged andpredateCogas. Public-key account correspondence not independently established; directCogas diagnostic andsuccessfulsigneddelivery notclaimed.",
       "target": "Direct old https://fitout.live/api/paymongo/webhook and new https://app.fitout.live/api/paymongo/webhook; browser success/cancel returns app; no financial events",
       "requiredProof": "Account-mode receiver/event/signature configuration read-back, retained old receiver, unsigned denial and bounded signed nonfinancial proof authority",
       "rollback": "Restore exact prior receiver/event registration; keep both direct handlers and unchanged signing/deduplication; checkout HOLD",
-      "observedAt": "2026-10-13T07:39:52.164Z",
-      "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation",
-      "source": ".planning/phases/27-app-subdomain-marketing-website/27-INVENTORY-RECONCILIATION.md",
-      "remainingProof": "Bind actual runtime credentials/mode to this account without exposing keys, then a separately scoped harmless signed nonfinancial proof or eligible existing delivery. Dashboard key existence and old local configuration do not supply deployment correspondence."
+      "observedAt": "2026-10-13T08:58:31.086Z",
+      "observationType": "Approved bounded current-Production configuration observation on protected staged588 extension; serving mapping qualified by unchanged metadata",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md",
+      "remainingProof": "Separately scoped harmless signed nonfinancial delivery or eligible existing exact-release delivery. Runtime configuration correspondence is observed; public key mode alone does not attribute that public key to the account."
     },
     {
       "id": "didit",
       "status": "partial",
       "owner": "Didit application owner",
-      "current": "Fresh authenticated CLMC Sandbox/Test app8c987e39-86bd-452f-a18b-a5153beda380 shows one Active FitOut host verification destination atapex/api/didit/webhook, v3/oneevent. Existing delivery summary12/100%errors, lastSept23; no current successful delivery claimed. Workflow list includesFitOut Host Verification, displayed IDprefix63f24717. Local Sep2 configuration issandbox withworkflowpresent. Exact source derives browsercallback fromapp origin/host/verify; deployed sensitive environment/workflow/signing correspondence remains unverified.",
+      "current": "Actual staged Production runtime explicitlyacceptsSANDBOX; workflow63f24717-7167-4cee-867e-688284d4c2ee GET200 matchesFitOut Host Verification andconsoleapp8c987e39-86bd-452f-a18b-a5153beda380. Callbackapp.fitout.live/host/verify. Exactuniqueapexdestinatione887a8c1-7d92-4a14-9fc1-1a7f7efae154 GET200enabled/v3/status.updated andruntime signing secretmatches. PriorSept23Testdelivery12failures retained; no newtestevent/session.",
       "target": "Direct old/new /api/didit/webhook; browser return https://app.fitout.live/host/verify; eligibility unchanged",
       "requiredProof": "Exact application/workflow receiver and signature/retry read-back; browser return; no real identity session required for inventory",
       "rollback": "Restore saved webhook/return registration; never redirect webhook POST or alter approval policy",
-      "observedAt": "2026-10-13T07:39:52.164Z",
-      "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation",
-      "source": ".planning/phases/27-app-subdomain-marketing-website/27-INVENTORY-RECONCILIATION.md",
+      "observedAt": "2026-10-13T08:58:31.086Z",
+      "observationType": "Approved bounded current-Production configuration observation on protected staged588 extension; serving mapping qualified by unchanged metadata",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md",
       "providerReadbackDate": "2026-10-09",
-      "remainingProof": "Establish which application/workflow/environment the actual deployment uses and resolve signed delivery correspondence. Historical failed Test deliveries require diagnosis; no real identity session, test event, live-mode switch or workflow edit performed."
+      "remainingProof": "Historical Test-delivery/retry diagnosis and suitable current signed-delivery proof remain. Configuration workflow/environment/signing uncertainty is resolved on the protected current-Production extension with qualified serving-release metadata continuity; no switch to live or real identity session was performed."
     },
     {
       "id": "inngest",
@@ -662,7 +662,171 @@ content remains unproved here. No request used a protection bypass.
       "requiredProof": "Permanent exact disabled pair, exact candidate rollout authority, clean manifest/readbacks and fresh35-row matrix. Historical/test-only deployments must not be reassigned.",
       "rollback": "Recorded exact READY deployment IDs above; restore env and rebuild where origins changed"
     }
-  ]
+  ],
+  "historicalRowsBeforeProviderRuntime20261013": [
+    {
+      "id": "customer-project",
+      "status": "observed",
+      "owner": "Vercel account owner",
+      "current": "Fresh read-only aliases apex/app/retiredfallback retain READY productionCogas at58897a94 in fitout-web. Exact disabled rollout authority and current-source customer Google/session/legacy bridge proofs matched; no new deployment or login test.",
+      "target": "Same fitout-web hosts on a newly built disabled exact58897a94 candidate; no new deployment/promotion executed here.",
+      "observedAt": "2026-10-13T07:39:52.164Z",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-INVENTORY-RECONCILIATION.md",
+      "requiredProof": "Exact disabled candidate build/promotion authority and new candidate-specific customer/session observation.",
+      "rollback": "Restore apex alias to dpl_8PpCPij5v1zQiD8gDP14Ju54QAAv; retain old/new receivers",
+      "evidenceBoundary": "Fresh identity/configuration readback; existing actual dated session/transition proofs are retained with their original timestamps.",
+      "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation"
+    },
+    {
+      "id": "ops-project",
+      "status": "observed",
+      "owner": "Vercel account owner",
+      "current": "Fresh ops alias retains READY production5WY at58897a94 in separate fitout-ops. Actual current-source customer-to-Ops session denial and flags-off staff POST/start-hosting denial/audit matched; the separate OPS-11 account consistency issue remains open.",
+      "target": "Separate retained Ops project on disabled exact58897a94 candidate, with unchanged host-only staff isolation.",
+      "observedAt": "2026-10-13T07:39:52.164Z",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-INVENTORY-RECONCILIATION.md",
+      "requiredProof": "New candidate-specific Ops build/alias and staff/customer capability isolation observations.",
+      "rollback": "Restore ops alias to dpl_Ho1raNTZDcnQ4zwpDu2P19NX6QBS and original Production origin values",
+      "evidenceBoundary": "Project/candidate isolation observed; no claim that all staff accounts have correct capabilities.",
+      "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation"
+    },
+    {
+      "id": "dns-tls-www",
+      "status": "observed",
+      "owner": "Vercel/DNS account owner",
+      "current": "No DNS writes; normal HTTPS hostname validation succeeds; www->apex307 readback preserves full repeated path/query.",
+      "target": "Valid apex/app/ops TLS; www.fitout.live 307 to https://fitout.live preserving path/query, later permanent only after acceptance",
+      "observedAt": "2026-10-10T11:57:15.492Z",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-EVIDENCE.md",
+      "requiredProof": "Current authoritative DNS RRsets, app record target, certificate hostname/expiry, actual www GET/HEAD path/query redirect",
+      "rollback": "Restore saved exact prior RRsets/TTL and alias settings; preserve sender-domain DNS"
+    },
+    {
+      "id": "environment-scopes",
+      "status": "observed",
+      "owner": "Vercel account owner",
+      "current": "Fresh26 allowlisted nonsecret reads show exact Production app/marketing/Ops origins and Contactfalse on both projects, web verificationfalse. Generic isolated Phase27 Preview origins/falseflags retained; separate marketing-UI branch overrides use its own app/marketing hosts. Production DB mapping remains explicit prior BOTH-project owner attestation; exact-source global HTTP/primary quota proof and retained schema-only Preview write/read/session isolation supplement it.",
+      "target": "Production both app vars=https://app.fitout.live; MARKETING_APP_URL=https://fitout.live; ops unchanged; Contact false. Preview generated exact app authority plus explicit isolated ops/marketing aliases and schema-only DB",
+      "observedAt": "2026-10-13T07:39:52.164Z",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-INVENTORY-RECONCILIATION.md",
+      "requiredProof": "Exact disabled candidate build-scoped flags/origins and full Production/Preview binding/correspondence; historical attestation not independently decrypted values.",
+      "rollback": "Restore both Production app vars=https://fitout.live; restore prior marketing key absence and ops origin; rebuild because NEXT_PUBLIC is baked",
+      "evidenceBoundary": "Sensitive database/provider credential bytes were not decrypted. Owner DB attestation remains identified as attestation; individual provider mode/workflow correspondence stays in its own partial row. Saved metadata is configuration readback, not every build runtime value.",
+      "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation"
+    },
+    {
+      "id": "google-oauth",
+      "status": "observed",
+      "owner": "Google Cloud OAuth client owner",
+      "current": "Fresh client readback app JS origin and localhost/apex/app callbacks; actual fresh app Google flows pass A/B/C; Publishing remains Testing/basic identity exception.",
+      "target": "Add https://app.fitout.live origin and exact https://app.fitout.live/api/auth/callback/google; retain needed old registrations during bridge window",
+      "requiredProof": "Current client/account/mode read-back, old/new exact entries, live state/consent roundtrip without code/state replay",
+      "rollback": "Restore saved registrations; old apex OAuth codes restart sign-in rather than replay",
+      "observedAt": "2026-10-10T11:57:15.492Z",
+      "source": "playwright/.cache/phase27-08/production-provider-readback-20261010.json + production-browser-final-20261010.json"
+    },
+    {
+      "id": "paymongo",
+      "status": "partial",
+      "owner": "PayMongo account owner",
+      "current": "Fresh authenticated dashboard: one Enabled hook_6UWbRKJQBt1CUnuhRfoFC6XE atapex/api/paymongo/webhook, samefive events and signing-secret controls. Developers listsLIVE andTEST keys. Local Sep2 configuration usesTEST keys. Existing same588 old/new unsigned400 receiver observations retained. The deployed key/mode/signing correspondence and successful signed nonfinancial delivery remain unproved.",
+      "target": "Direct old https://fitout.live/api/paymongo/webhook and new https://app.fitout.live/api/paymongo/webhook; browser success/cancel returns app; no financial events",
+      "requiredProof": "Account-mode receiver/event/signature configuration read-back, retained old receiver, unsigned denial and bounded signed nonfinancial proof authority",
+      "rollback": "Restore exact prior receiver/event registration; keep both direct handlers and unchanged signing/deduplication; checkout HOLD",
+      "observedAt": "2026-10-13T07:39:52.164Z",
+      "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-INVENTORY-RECONCILIATION.md",
+      "remainingProof": "Bind actual runtime credentials/mode to this account without exposing keys, then a separately scoped harmless signed nonfinancial proof or eligible existing delivery. Dashboard key existence and old local configuration do not supply deployment correspondence."
+    },
+    {
+      "id": "didit",
+      "status": "partial",
+      "owner": "Didit application owner",
+      "current": "Fresh authenticated CLMC Sandbox/Test app8c987e39-86bd-452f-a18b-a5153beda380 shows one Active FitOut host verification destination atapex/api/didit/webhook, v3/oneevent. Existing delivery summary12/100%errors, lastSept23; no current successful delivery claimed. Workflow list includesFitOut Host Verification, displayed IDprefix63f24717. Local Sep2 configuration issandbox withworkflowpresent. Exact source derives browsercallback fromapp origin/host/verify; deployed sensitive environment/workflow/signing correspondence remains unverified.",
+      "target": "Direct old/new /api/didit/webhook; browser return https://app.fitout.live/host/verify; eligibility unchanged",
+      "requiredProof": "Exact application/workflow receiver and signature/retry read-back; browser return; no real identity session required for inventory",
+      "rollback": "Restore saved webhook/return registration; never redirect webhook POST or alter approval policy",
+      "observedAt": "2026-10-13T07:39:52.164Z",
+      "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-INVENTORY-RECONCILIATION.md",
+      "providerReadbackDate": "2026-10-09",
+      "remainingProof": "Establish which application/workflow/environment the actual deployment uses and resolve signed delivery correspondence. Historical failed Test deliveries require diagnosis; no real identity session, test event, live-mode switch or workflow edit performed."
+    },
+    {
+      "id": "inngest",
+      "status": "observed",
+      "owner": "Inngest workspace owner",
+      "current": "Fresh Production fitout registration retains approved immutable Cogas/api/inngest with14 functions/triggers; separate fitout-contact-alerts retainsapex/api/contact-alerts/inngest with1 five-minute monitor. Existing natural Production timer01M4T21ZN0Z1BNH0734JSSM9D5 completed07:19 with scanned0/outcomesempty. Exact source has fail-closed signing guard; natural Contact timer/Resend delivery also matched. Both direct old/new receiver denial proofs retained.",
+      "target": "Retain compatible old/new /api/inngest GET/HEAD/POST/PUT, registration on approved app origin without duplicate schedules",
+      "requiredProof": "Fresh exact candidate registration/source/mode/signing correspondence after any separately approved source rollout, preserving one financial scheduler and separate Contact jobs.",
+      "rollback": "Restore prior serve registration without creating duplicate schedules; retained direct apex endpoint",
+      "observedAt": "2026-10-13T07:39:52.164Z",
+      "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-INVENTORY-RECONCILIATION.md",
+      "providerReadbackDate": "2026-10-09",
+      "evidenceBoundary": "Current signed serve operation established by registered source and completed natural timers; signing/event-key bytes not read. No job manually invoked. Immutable original serve registration is retained under approved restoration; no stable-origin resync performed. Vercel console-log query found no application log lines and is not used as a request trace."
+    },
+    {
+      "id": "resend-sender",
+      "status": "partial",
+      "owner": "Resend sending-domain owner",
+      "current": "Fresh verifiedsend.fitout.live domain and Production EMAIL_FROM FitOut<updates@send.fitout.live>. Exact Resend APIlogb3f9134c-374a-4a69-b642-474bb08e3a10 identifiesSending-access keyfitout-production-mail, HTTP200 POST/emails and provider01a133e7-75a7-71ec-a52e-247e07a30a3f for the received natural Contact alert. Sender/key correspondence is now directly observed; actual real inquiry/Reply-To/reply remains separate and pending.",
+      "target": "Retain verified send.fitout.live sender, fixed From, existing monitored SUPPORT_EMAIL and validated Contact Reply-To",
+      "requiredProof": "Current candidate sender/key correspondence plus actual controlled inquiry/Reply-To/reply after separate authority.",
+      "rollback": "Retain sender DNS/key; set Contact false first; restore previous sender config only if changed",
+      "observedAt": "2026-10-13T07:39:52.164Z",
+      "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-INVENTORY-RECONCILIATION.md",
+      "providerReadbackDate": "2026-10-09",
+      "remainingProof": "Only the separately authorized actual current-source inquiry/Reply-To/reply portion of this original row remains. No need to repeat the control alert or reveal a key."
+    },
+    {
+      "id": "support-mailbox",
+      "status": "partial",
+      "owner": "Existing SUPPORT_EMAIL mailbox owner",
+      "current": "Owner Gmailpengr.clmc.3@gmail.com is the exact-source public SUPPORT_EMAIL constant and confirmed today's natural scheduled alert receipt. Earlier standalone transport/reply and old-link mail remain dated history; current deployed Contact inquiry/Reply-To/reply has not been exercised.",
+      "target": "Existing monitored inbox receives one safe authorized inquiry and owner confirms Reply-To plus reply arrival",
+      "requiredProof": "Separately authorized actual candidate Contact inquiry with controlled reply-capable sender, owner receipt and matching Reply-To/reply arrival.",
+      "rollback": "Disable Contact and retain recoverable failure; no new mailbox/ticketing system",
+      "observedAt": "2026-10-13T07:39:52.164Z",
+      "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-INVENTORY-RECONCILIATION.md",
+      "remainingProof": "One separately approved bounded harmless inquiry from a controlled reply-capable sender, actual readable owner receipt, matching Reply-To and reply arrival; Contact remainsfalse now."
+    },
+    {
+      "id": "contact-waf-global",
+      "status": "observed",
+      "owner": "Vercel security and mailbox owners",
+      "current": "Same exact58897a94 accepted per-IP and global controlled variants: five shared per-IP reservations, forged-header denial;99 owned global seed+one real HTTP slot creates one natural incident; distinct runtime429/3512seconds; natural scheduled pending1 then0, exact one delivered alert and owner Gmail receipt; baselineCogas restored158.745seconds, exact2quota+1newincident cleanup, primary0/1/0, savedflagsfalse, temporaryDeny disabledv21, original14+separate1 functions retained.",
+      "target": "Verified deployment-wide per-IP <=5/15min plus global mailbox <=100/hour before Contact true; process-local Map insufficient",
+      "requiredProof": "Complete quota exhaustion-to-alert chain and full rollback/control acceptance on one deployed candidate; public Contact staysfalse.",
+      "rollback": "CONTACT_PRODUCTION_ENABLED=false on customer/ops deployments, redeploy, verify real 503 and retained form recovery",
+      "observedAt": "2026-10-13T06:42:33.291Z",
+      "observationType": "Actual hash-bound typed control evidence, Vercel runtime/route traces, locked exact primary cleanup, independent Inngest and Resend UI, direct owner receipt",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-GLOBAL-ALERT-FRESH-RESULT.md"
+    },
+    {
+      "id": "deployment-revision",
+      "status": "observed",
+      "owner": "Vercel release owner",
+      "current": "Both Production projects exact58897a9459cf31b7c8937254dc17ab61ae0ce1d5, webdpl_CogasJRD4eqwEDh7yKtFT65i1Fmg, Opsdpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4; fresh aliases; six gates retained.",
+      "target": "Engineering, proposed packet and fresh candidate acceptance agree on58897a94; after separate rollout authority, one exact disabled Production pair and candidate-specific observations.",
+      "observedAt": "2026-10-11T09:33:12.518Z",
+      "source": "playwright/.cache/phase27-08/disabled-pair-promotion-58897a94.json",
+      "requiredProof": "Permanent exact disabled pair, exact candidate rollout authority, clean manifest/readbacks and fresh35-row matrix. Historical/test-only deployments must not be reassigned.",
+      "rollback": "Recorded exact READY deployment IDs above; restore env and rebuild where origins changed"
+    }
+  ],
+  "providerRuntime": {
+    "source": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md",
+    "diagnosticDeploymentId": "dpl_7GKcUipbZpTX5H13i9QfCGcySWtb",
+    "actualRuntimeObservedAt": "2026-10-13T08:58:31.086Z",
+    "finalReadbackAt": "2026-10-13T09:02:22.710Z",
+    "status": "configuration-observed-delivery-gaps-retained",
+    "paymongoMode": "live",
+    "diditEnvironment": "sandbox",
+    "contactDisabled": true
+  }
 }
 ```
 
