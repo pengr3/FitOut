@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: replacement build READY and removed; inquiry stopped before window on current-IP proof; Contact disabled"
-last_updated: "2026-10-13T15:27:01.938Z"
-last_activity: 2026-10-13
-last_activity_desc: Replacement build repair passed; original receiver restored; no Contact send
+stopped_at: "Plan09: IP lookup repaired; fresh inquiry packet prepared awaiting approval; Contact disabled"
+last_updated: "2026-10-13T16:52:08.761Z"
+last_activity: 2026-10-14
+last_activity_desc: Verified IP lookup and native source; fresh inquiry packet prepared, no Contact send
 state_head: 6bb6e3f7
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -61,6 +61,8 @@ progress:
   completed_plans: 144
   percent: 15
 ---
+Contact IP lookup repaired 2026-10-13T16:52:08.761Z: pinned workspace CLI63.1.2 resolves the existing and fresh marked GET to the verified operator exemption; actual G8 trace and browser-page original IP match. Native staging checkout is clean6bb/all2459 archive+1113 manifest files verified;62 local guard checks pass. Unsent hydrated form/visual email pair, Verified Resend sender and14+1original receivers prepared. No Production mutation/build/ContactPOST/email/account change. Fresh four-POST inquiry packet is prepared awaiting exact owner approval; old attempt remains closed, no lease started. Contactdisabled;20/21 and144/151/all7requirements pending. Read27-CONTACT-IP-LOOKUP-REPAIR.md and27-CONTACT-INQUIRY-FRESH-PACKET.md.
+
 Contact inquiry replacement closed 2026-10-13T15:27:01.938Z: the owner-approved complete6bb replacement built READY and was removed after exact identity/no-alias/original-receiver checks; provider404 confirmed. Current operator original-IP proof was not obtained before sufficient lease headroom remained, so no window or Contact POST/email was started. Two cumulative builds consumed;0POSTs,0Sandbox,0firewall/IP/quota/account changes. Inngest automatic receiver drift was restored toG8/private query unchanged with14+1 functions. Final8 aliases remainG8/Ops3qt;3 saved valuesfalse; guarddisabled/version21/no draft; primaryquota0/pending0/retainedalert1/hash unchanged. Closed before original15:28:35Z lease, with no extension. Contact disabled;20/21 and144/151/all7 requirements pending. Read27-CONTACT-INQUIRY-REPLACEMENT-RESULT.md/.json; next attempt needs a fresh packet after the ingress tooling is repaired.
 
 Provider signed-delivery result 2026-10-13T13:05:35.708Z: Didit Sandbox provider Test Not Started reached the actual6bb webG8 function with200, fresh signed eventd5a49c51-c418-4c12-95bd-613a257175e2 and complete Sandbox envelope; four apex/app unsigned controls have direct400 and matched current function records. FivePOSTs total, one Didit send/no repeat observed through2026-10-13T12:55:55.215Z; no PayMongo send. Business/audit hashes, aliases, false Contact flags, provider metadata and14+1 scheduler registrations remain unchanged. The run ledger closed33.430seconds beyond its900-second limit after final UI selector failures: functional proofs are observed, strict packet execution is not accepted. No further send or configuration change occurred during the overrun. PayMongo LIVE signed delivery and actual Contact inquiry/reply remain pending; testing accounts stay unchanged, Contact disabled, phase20/21 and curated144/151 with seven requirements pending. Read27-PROVIDER-SIGNED-DELIVERY-RESULT.md/.json.
