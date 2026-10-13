@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan 09: OPS-11 repair6bb6e3f7 verified locally; exact disabled rollout/account decision, provider delivery and inquiry/reply pending; Contact disabled"
-last_updated: "2026-10-13T10:38:21.268Z"
+stopped_at: "Plan09: disabled OPS-11 release6bb6e3f7 accepted; separate legacy account repair, provider delivery and inquiry/reply pending; Contact disabled"
+last_updated: "2026-10-13T11:38:29.375Z"
 last_activity: 2026-10-13
-last_activity_desc: OPS-11 repair passes six canonical gates and flags-on staff runtime proof; Production/account unchanged; Contact disabled
-state_head: 58897a94
+last_activity_desc: Disabled OPS-11 Production pair accepted; account cleanup packet prepared, Contact disabled
+state_head: 6bb6e3f7
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -61,6 +61,8 @@ progress:
   completed_plans: 144
   percent: 15
 ---
+OPS-11 disabled release accepted 2026-10-13T11:38:29.375Z: source6bb6e3f7, webG8ZbTT/Ops3qtket, all eight serving aliases and false Contact values verified. Staff page/action denial and customer control passed; 30/40GETs,1hostingPOST,0ContactPOSTs/account mutations/manual financial jobs. Receivers14/16triggers plus separate1 verified; both watchdogs ended. The legacy staff flag repair selected by the owner is prepared separately and awaiting its account-write approval. Provider signed delivery and actual inquiry/reply remain open. The35/35matrix remains dated588;20/21plans,144/151curated, sevenpending requirements. Read27-OPS11-DISABLED-ROLLOUT-RESULT.md and27-OPS11-ACCOUNT-REPAIR-PACKET.md.
+
 OPS-11 preparation 2026-10-13T10:38:21.268Z: new candidate6bb6e3f7, manifesta8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499, passes3,459unit/1,510design/59browser plus types/lint/build; additional38 staff HTTP/Flight denials/upload403. Existing flags-on staff account provenance observed; no Production account or deployment changed. New exact disabled rollout and account disposition remainpending; provider signed delivery/actual inquiry/reply/Plan09 stillopen. Contactdisabled, matrix35/35 at588,20/21plans,144/151curated, sevenpending requirements. Read27-OPS11-REPAIR-RESULT.md.
 
 

@@ -1,5 +1,9 @@
 # Phase27 actual production evidence — incomplete
 
+OPS-11 disabled release accepted 2026-10-13T11:38:29.375Z: source6bb6e3f7, webG8ZbTT/Ops3qtket, all eight serving aliases and false Contact values verified. Staff page/action denial and customer control passed; 30/40GETs,1hostingPOST,0ContactPOSTs/account mutations/manual financial jobs. Receivers14/16triggers plus separate1 verified; both watchdogs ended. The legacy staff flag repair selected by the owner is prepared separately and awaiting its account-write approval. Provider signed delivery and actual inquiry/reply remain open. The35/35matrix remains dated588;20/21plans,144/151curated, sevenpending requirements. Read27-OPS11-DISABLED-ROLLOUT-RESULT.md and27-OPS11-ACCOUNT-REPAIR-PACKET.md.
+
+Earlier preparation and588candidate sections below are dated history. The structured35-row matrix retains its original source labels; the accepted current pair is in ops11DisabledRelease.
+
 OPS-11 preparation 2026-10-13T10:38:21.268Z: source6bb6e3f7 passes all six engineering gates and separate flags-on staff runtime proof. Serving Production remains58897a94; account repair/disabled rollout, provider signed delivery and actual inquiry/reply remain open. Contact disabled. Read27-OPS11-REPAIR-RESULT.md.
 
 Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disabled. Matrix35/35. Protected current-Production configuration proof observesPayMongoLIVE andDiditSANDBOX with matching provider signing configuration; directCogas diagnostic andsuccessfulsigneddelivery are notclaimed. Provider delivery/inquiry/reply andOPS-11 gates remain. Plan09 stays20/21, curated144/151, all7requirements pending. Read27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md; older sections retain their historical dates.
@@ -565,7 +569,7 @@ Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disab
     }
   ],
   "highThreats": [
-    "OPS-11: one historical staff account remains flags-on. Provenance is observed and code repair6bb6e3f7 passes local gates, but the new guards are not serving and the exact account disposition/repair remains unapproved."
+    "OPS-11 data invariant: one historical staff account still has both customer flags true. The positive-role guards now serve6bb6e3f7 and the bounded staff/customer checks passed. Owner selected retained staff and clearing flags; exact separate attributed repair is prepared but not approved/executed."
   ],
   "rollbackVerified": true,
   "contactControlsVerified": true,
@@ -1834,6 +1838,18 @@ Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disab
     "contactEnabled": false,
     "productionRolledOut": false,
     "accountChanged": false
+  },
+  "ops11DisabledRelease": {
+    "sourceRevision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "acceptedAt": "2026-10-13T11:38:29.375Z",
+    "webDeploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+    "opsDeploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+    "contactDisabled": true,
+    "resultFile": "27-OPS11-DISABLED-ROLLOUT-RESULT.json",
+    "resultSha256": "5c2e8bfb24b54be8db2d8a2f1e9a43d74f3a4a13a08f52dc1b86dd910826a637",
+    "oldMatrixSourceRetained": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "accountRepairStatus": "owner-selected-prepared-not-executed",
+    "accountRepairPacket": "27-OPS11-ACCOUNT-REPAIR-PACKET.md"
   }
 }
 ```

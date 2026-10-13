@@ -1,0 +1,607 @@
+{
+  "schemaVersion": 1,
+  "status": "accepted-disabled-production-release",
+  "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+  "archiveSha256": "8feb311adca91cbbfa5c0eb27991ebc8f8f7c0e2dcc4cebc24f6484c8eb9a8ea",
+  "sourceManifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+  "sourceManifestFiles": 1113,
+  "acceptedAt": "2026-10-13T11:38:29.375Z",
+  "webDeploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+  "opsDeploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+  "approvalPacket": "27-OPS11-DISABLED-ROLLOUT-PACKET.md",
+  "approvalPacketSha256": "26ac515bbaed6b199f8d4f643c1c33166a3f019373a8c6742310f8f71fe84912",
+  "servingAliases": [
+    {
+      "kind": "ops",
+      "alias": "ops.fitout.live",
+      "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL"
+    },
+    {
+      "kind": "ops",
+      "alias": "fitout-ops.vercel.app",
+      "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL"
+    },
+    {
+      "kind": "ops",
+      "alias": "fitout-ops-pengr3s-projects.vercel.app",
+      "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL"
+    },
+    {
+      "kind": "web",
+      "alias": "fitout.live",
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA"
+    },
+    {
+      "kind": "web",
+      "alias": "app.fitout.live",
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA"
+    },
+    {
+      "kind": "web",
+      "alias": "www.fitout.live",
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA"
+    },
+    {
+      "kind": "web",
+      "alias": "fitout-web-psi.vercel.app",
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA"
+    },
+    {
+      "kind": "web",
+      "alias": "fitout-web-pengr3s-projects.vercel.app",
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA"
+    }
+  ],
+  "flags": [
+    {
+      "key": "CONTACT_PRODUCTION_ENABLED",
+      "id": "dnMtMhC8l8iT0R29",
+      "value": "false"
+    },
+    {
+      "key": "CONTACT_INGRESS_VERIFICATION_MODE",
+      "id": "NftlOnb5TDKNewez",
+      "value": "false"
+    },
+    {
+      "key": "CONTACT_PRODUCTION_ENABLED",
+      "id": "rQL4dNKbzaXbN08K",
+      "value": "false"
+    }
+  ],
+  "ordinaryGetAttempts": 30,
+  "maximumOrdinaryGets": 40,
+  "hostingPosts": 1,
+  "contactPosts": 0,
+  "accountMutations": 0,
+  "manualFinancialJobs": 0,
+  "staff": {
+    "htmlDenials": [
+      {
+        "route": "/host",
+        "status": 404,
+        "neutralBody": true
+      },
+      {
+        "route": "/host/listings",
+        "status": 404,
+        "neutralBody": true
+      },
+      {
+        "route": "/host/payouts",
+        "status": 404,
+        "neutralBody": true
+      },
+      {
+        "route": "/bookings",
+        "status": 200,
+        "neutralBody": true
+      }
+    ],
+    "flightDenials": [
+      {
+        "route": "/host",
+        "status": 200,
+        "neutralBody": true
+      },
+      {
+        "route": "/host/listings",
+        "status": 200,
+        "neutralBody": true
+      },
+      {
+        "route": "/host/payouts",
+        "status": 200,
+        "neutralBody": true
+      },
+      {
+        "route": "/bookings",
+        "status": 200,
+        "neutralBody": true
+      }
+    ],
+    "actionDenial": true,
+    "capabilitiesUnchanged": true,
+    "ownSessionCleared": true,
+    "flagsOnProductionAccountWasNotUsed": true
+  },
+  "customerControl": {
+    "at": "2026-10-13T11:37:16.695Z",
+    "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "passed": true,
+    "protectedBookingsPermitted": true,
+    "profileIdentityUnchanged": true,
+    "customerRoleProvenByNewProtectedBookingsBoundary": true,
+    "actorIdSha256": "21fed412de69b28bbd7c99328fefed6a833922b24ebfc08bea1e0dc893397285",
+    "credentialLifecycleUserPerformed": true,
+    "existingBrowserSessionNotRevoked": true,
+    "cumulativeAgentBrowserGets": 7,
+    "countIncludesOneBlockedApiNavigation": true,
+    "fullEmailPhoneCredentialsCookiesPersisted": false
+  },
+  "registrations": {
+    "observedAt": "2026-10-13T11:37:16.658Z",
+    "receiverHost": "fitout-116qj6x3i-pengr3s-projects.vercel.app",
+    "receiverPath": "/api/inngest",
+    "receiverVerified": true,
+    "financialFunctions": 14,
+    "financialTriggers": 16,
+    "functions": [
+      {
+        "id": "fitout-checkout-retire-sweep",
+        "triggers": [
+          "TZ=Asia/Manila 4-59/5 * * * *"
+        ]
+      },
+      {
+        "id": "fitout-didit-reconcile",
+        "triggers": [
+          "TZ=Asia/Manila 8-59/15 * * * *"
+        ]
+      },
+      {
+        "id": "fitout-guest-email",
+        "triggers": [
+          "fitout/guest-email"
+        ]
+      },
+      {
+        "id": "fitout-guest-email-failure",
+        "triggers": [
+          "inngest/function.failed"
+        ]
+      },
+      {
+        "id": "fitout-notify",
+        "triggers": [
+          "fitout/notify"
+        ]
+      },
+      {
+        "id": "fitout-notify-failure",
+        "triggers": [
+          "inngest/function.failed"
+        ]
+      },
+      {
+        "id": "fitout-ops-alert-digest",
+        "triggers": [
+          "TZ=Asia/Manila 10 23 * * 5",
+          "TZ=Asia/Manila 50 8 * * *",
+          "fitout/payout-cutoff-alert"
+        ]
+      },
+      {
+        "id": "fitout-payment-reconcile",
+        "triggers": [
+          "TZ=Asia/Manila 2-59/5 * * * *"
+        ]
+      },
+      {
+        "id": "fitout-payout-reconcile",
+        "triggers": [
+          "TZ=Asia/Manila 30 * * * *"
+        ]
+      },
+      {
+        "id": "fitout-payout-sweep",
+        "triggers": [
+          "TZ=Asia/Manila 0 12-23 * * 5"
+        ]
+      },
+      {
+        "id": "fitout-reminders-sweep",
+        "triggers": [
+          "TZ=Asia/Manila 45 * * * *"
+        ]
+      },
+      {
+        "id": "fitout-request-expiry-sweep",
+        "triggers": [
+          "TZ=Asia/Manila 15 * * * *"
+        ]
+      },
+      {
+        "id": "fitout-settlement-account-probe",
+        "triggers": [
+          "fitout/settlement-account-probe"
+        ]
+      },
+      {
+        "id": "fitout-settlement-reconcile",
+        "triggers": [
+          "TZ=Asia/Manila 40 * * * *"
+        ]
+      }
+    ],
+    "contactFunctions": 1,
+    "contactReceiver": "https://fitout.live/api/contact-alerts/inngest",
+    "managedQueryPersisted": false,
+    "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "webDeploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+    "opsDeploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL"
+  },
+  "watchdogsEnded": true,
+  "publicCutoverSeconds": 270.017,
+  "inferredParentGitMetadataIsNotSourceProof": true,
+  "old588MatrixReassigned": false,
+  "phaseComplete": false,
+  "plan09Complete": false,
+  "curatedCounts": {
+    "phasePlans": "20/21",
+    "allPlans": "144/151",
+    "requirementsPending": 7
+  },
+  "remaining": [
+    "One legacy staff account still carries both customer flags; owner selected retained staff and clearing flags, exact repair prepared but not executed",
+    "Provider signed delivery/workflow acceptance remains open",
+    "Actual Contact inquiry receipt, Reply-To and reply remain open; Contact stays disabled",
+    "Broader phase evidence and independent money/legal HOLDs remain"
+  ],
+  "accountRepairPrepared": {
+    "packet": "27-OPS11-ACCOUNT-REPAIR-PACKET.md",
+    "packetSha256": "ff8fce3f38826f87e079f5eaf9411fd11100058dc91108e04ccb849fe38a4f4d",
+    "driver": "ops11-account-repair/repair.mjs",
+    "driverSha256": "88b5bed5d9ae21bda43e1367610167df52dad4483496ffbeb849f33334917b0f",
+    "status": "prepared-not-approved",
+    "localAuthoritySavepointRollbackPassed": true,
+    "productionCredentialRead": false
+  },
+  "artifacts": [
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/accepted.json",
+      "sha256": "db44bf0fdbbab5c425550980cb88f6c45636c7df635caa04ed3e1c27ec9f532d",
+      "bytes": 1811
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/account-driver-missing-approval.json",
+      "sha256": "f898a8c9a59f4222a2f77735aa07e61ef6599a62ee547838bd70c539db32c61a",
+      "bytes": 542
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/account-policy-local-audit-fixture-complete-result.json",
+      "sha256": "8a91c44c50bf1904cf4037b931ed41792a04abadef090b20b7731a51ea82655c",
+      "bytes": 535
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/account-policy-local-result.json",
+      "sha256": "87a6d704fd72b28ae10ab4443d84c73bb1dbc62d7563850cde88943c1279b54c",
+      "bytes": 829
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-app.fitout.live.json",
+      "sha256": "00cfa69850b4ed57729f35664c9cbdff33950b996b0088122ed088d3a9629953",
+      "bytes": 32
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-fitout-ops-pengr3s-projects.vercel.app.json",
+      "sha256": "e2a2e6567e753b07ba4b5eb95215499fe471fe940f854470889119620afdf609",
+      "bytes": 55
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-fitout-ops.vercel.app.json",
+      "sha256": "050624588d34a569291980a933e4a50d0e8567131f5bfebac8335f55ea384830",
+      "bytes": 38
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-fitout-web-pengr3s-projects.vercel.app.json",
+      "sha256": "f5710df71e543e150737f9fab13ca48e5280d2bc9bce883945de266eae233eb7",
+      "bytes": 55
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-fitout-web-psi.vercel.app.json",
+      "sha256": "1c27efe37973c05b03267b630f2ef7a41f8dfa5421aed1e936f0fddd03746762",
+      "bytes": 42
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-fitout.live.json",
+      "sha256": "6055f2b4016a488e5808b8b2fd0aada8e0f170604966ce7325044c17282cb517",
+      "bytes": 28
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-ops.fitout.live.json",
+      "sha256": "74c39075e8887029fba30ef60912c7a54cdec259b6116bfea43dd43d4650f8df",
+      "bytes": 32
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-www.fitout.live.json",
+      "sha256": "7e7f7cbb9710e1ed119da023806e059b8fa47c8f15cb68cf18998cce4b5cf5a4",
+      "bytes": 32
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/authority.json",
+      "sha256": "8069e976949e699e4821b898c6a9a500e661e8ddcdb18d8cda85bccacfa33b46",
+      "bytes": 557
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/baseline-registrations.json",
+      "sha256": "82781366a82e4199f87ae22c4926f8a54fd5ad4d3867da7d67fb275edf7c1682",
+      "bytes": 2377
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/browser-customer-after.json",
+      "sha256": "871a13d999c38c36026bfbce782b8a60a38e276809f9054b2434cb2cd81850a2",
+      "bytes": 558
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/browser-customer-ready.json",
+      "sha256": "448b8e32b03d0b99e30ba148226e685582b5674ce99a1a3c850bdd1069966763",
+      "bytes": 459
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/browser-watchdog-armed.json",
+      "sha256": "1795a63e7a9638c74292f9bafa85abf4afb20b46337318db11335b8232827ea9",
+      "bytes": 301
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/browser-watchdog-ended.json",
+      "sha256": "3dcc6bd31b4dfff04909112779e844bf016f601ce0fd10e8ec790a1962b363e6",
+      "bytes": 49
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/browser-watchdog-heartbeat.json",
+      "sha256": "500c79b8b4cd1c808128927b2a6d4420ee2a7c01e62f3cec151887c592650d4b",
+      "bytes": 85
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/browser-watchdog-smoke-passed.json",
+      "sha256": "5eae1987193b8821786011e7a5296d1eac5b3a9d783aa0f6affdd2041a655b2c",
+      "bytes": 60
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/candidate-alias-assignments.json",
+      "sha256": "e4219f9858b4dda7827b8e54d5acba8ee74a95020aa328ca3646fd797d43013f",
+      "bytes": 1899
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/cutover-started.json",
+      "sha256": "c7bfe3da894f212918158c1a34b733ec6ec56efd87ab30ba9ee7b0e9c9d4ef81",
+      "bytes": 201
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/operator-health.json",
+      "sha256": "0708b642588bc64f196ac89d2cf76a56e191690ec96c35194c8577603dbc9838",
+      "bytes": 1909
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-build-attempt.json",
+      "sha256": "b16f28a850b240ffdadf14dedafbc16ffd11e21bd248a0cc31fc4839cd4cac4f",
+      "bytes": 176
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-export.json",
+      "sha256": "deba1bc132fe18432d0257f51ae19bb64db4abc501c035ca8cbc15a613f34a44",
+      "bytes": 372
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-generated-alias-reconciled.json",
+      "sha256": "77e1431098eb9bbf7f0a209d347666174a59f558af917fa807b04776c0b762b7",
+      "bytes": 181
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-post-stage.json",
+      "sha256": "d4ffb31d75d616763800593bfbe1dc5122900df2e39f211b87a58c4481d053bf",
+      "bytes": 1368
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-preflight.json",
+      "sha256": "0a66386fb8b063a3bb534669d7910ba219de65568b833685ef3eea84e2552ff6",
+      "bytes": 1368
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-ready.json",
+      "sha256": "08a71fc1043db0d6bdd03a5caf0d41f076a27c6e574e30ed7c0a7261879042ac",
+      "bytes": 1147
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-resumed-preflight.json",
+      "sha256": "ad96d57c45650b3c4e958864ef7ad51541ba68f8dda76654341e873de9fb6e19",
+      "bytes": 1368
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-stage-created.json",
+      "sha256": "fd388d9dc8c55618166af7bdbf4e18c6bfbd351a32107b11559ff756358ff020",
+      "bytes": 256
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-stage-stopped.json",
+      "sha256": "d37bd2f3c950bce0689e2954132527b45510ca6b80c82541deceb2686ed74612",
+      "bytes": 289
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/platform-preflight.json",
+      "sha256": "564b3898b45997d951dfae959eeb42a97405cbf8d9d97c23b885a706f7a57df2",
+      "bytes": 32961
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/primary-after.json",
+      "sha256": "90816897f06485a34c49a6a3f5cf37d6d97adb890126fdc730d4278249bdb518",
+      "bytes": 1971
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/promotion-health-passed.json",
+      "sha256": "c5482557de96c3db8528e24eb88fefebde246499f29faaccf63e39fd4496bacc",
+      "bytes": 107
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/promotion-preflight.json",
+      "sha256": "aac215b4f047f6e1f828377a65e3a25c0a63c36518e0a1d179037043c11ff4f3",
+      "bytes": 1591
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/promotion-ready.json",
+      "sha256": "5c232109f6411a40c4aa408ff1d90f19721ae24c7fd8b3b649981eef23e70f2e",
+      "bytes": 215
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/release-registrations.json",
+      "sha256": "14d374d6948e8c28d2b3aae61114722a2a2198797b7587ae96161125a49c8bbe",
+      "bytes": 2251
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/scheduler-functions.png",
+      "sha256": "1dc411922d7d1463ea2271ac16b5226d5ce836f3bbc48d54bdff5a7c7893acc2",
+      "bytes": 96657
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/staging-registrations.json",
+      "sha256": "96c2887c6f6d035d8088230044f9d8348c77f421286a01686566d5d59e64a599",
+      "bytes": 2330
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-ready.json",
+      "sha256": "555d6f2f45b9c2b471b8fc79e5195685b4f241e1b29d8de8e191f9a4af64522e",
+      "bytes": 554
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-result-customer-handoff-2.json",
+      "sha256": "540eb5406d7164a0a68393804f42d00d6b2d390a677899350931a35ab9f33e96",
+      "bytes": 406
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-result-customer-handoff-3.json",
+      "sha256": "a72e228c6a0362e2e22fb7264e5e6d0323dfb898d55643c810d85c573cf19e34",
+      "bytes": 678
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-result-staff-browser-customer-4.json",
+      "sha256": "0fb587e0b8c9b692b44191a9c935a48d9cfa5bc8c6fa2b78076f9dcfaa1abe4d",
+      "bytes": 3159
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-result.json",
+      "sha256": "dcfd13fa6effab4c402d0e001f9feacebfafee2c6c6f2be311073226f77bf72d",
+      "bytes": 593
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-started-customer-handoff-2.json",
+      "sha256": "074c276b7a809c092d596c7d46daafe65555fe00afe2e23d1f346d3a0b3f14a0",
+      "bytes": 182
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-started-customer-handoff-3.json",
+      "sha256": "c51c34bed2e2a685a58d8cdffca33f8ba46e2647c73d5b8b3f75fd3a9845fabd",
+      "bytes": 182
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-started-staff-browser-customer-4.json",
+      "sha256": "21b5baf743be5a62435bca1e4ee425667eeb199ddd311975325070cc2618865d",
+      "bytes": 188
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-started.json",
+      "sha256": "07881287fdc3e470137341511581d396eeb2a56ba7b55fbaa62288e783a0dbf9",
+      "bytes": 85
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/watchdog-ended.json",
+      "sha256": "0b280a9072b8a43d6ae1a51c38bcb06470a4a800d0fc81de22f617204cdf1aff",
+      "bytes": 79
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/watchdog-heartbeat.json",
+      "sha256": "d5422d4182f5e84718aa974f877abb909daf46359e52a7d8c5adf594808b03cb",
+      "bytes": 94
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/watchdog-started.json",
+      "sha256": "0d2b74ab353810a3816c429bb75506dbeb94661aef3b15320e31bb7346502690",
+      "bytes": 110
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/web-build-attempt.json",
+      "sha256": "e9a30413ab7db321485cc564d6897adcbc0bffa368f89d1262f1dd7563e73614",
+      "bytes": 176
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/web-export.json",
+      "sha256": "c793360421a8c91eed019ed5aa8232f0fcc444f1b1e9a2d4d04df622b8794334",
+      "bytes": 372
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/web-post-stage.json",
+      "sha256": "9883ef730ee8ba4d517e288d389bae05e0363b3920d1286ffbe6dfd30e49be08",
+      "bytes": 1368
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/web-preflight.json",
+      "sha256": "05e0c4d89f77df7fe45daaa21f567dd76aa22c828ffb5fadd1e42c6d203bc2b6",
+      "bytes": 1368
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/web-ready.json",
+      "sha256": "e6cddba81217f9891e868d4434c5ec92f8a78ee8195dace8e7759dff8bdee7de",
+      "bytes": 1147
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/web-stage-created.json",
+      "sha256": "2b1fc61543442ade7c1dc7004ddc3aa92e7c880bdb7a26ec26102518bcbc924f",
+      "bytes": 256
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/primary-aggregate-before-staff.json",
+      "sha256": "eae0d7ded5f97c5ad26db35b88fd9df36c1da80ff176b6f39e07915a3fbe5524",
+      "bytes": 399
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/validators/prepared.log",
+      "sha256": "36bb7f4868285929ec900a6ca412050c70124def213ed28f5faf7aa95375d31b",
+      "bytes": 139
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/validators/deployed.log",
+      "sha256": "c0355074479ffc4ddf884aee9667cb00c290dc123e004318b214a5decf4e8cb4",
+      "bytes": 112
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/validators/live.log",
+      "sha256": "7b0fc9e0e130e1bab69e76437521f4e134d4c6b9eb72e6fe41515db6a02ef6c8",
+      "bytes": 233
+    }
+  ],
+  "evidenceValidators": {
+    "profile": "Retained primary Phase27 evidence record at58897a94; scoped6bb disabled acceptance is separately captured",
+    "prepared": {
+      "status": "pass",
+      "log": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/validators/prepared.log"
+    },
+    "deployed": {
+      "status": "fail",
+      "reasons": [
+        "Unknown/partial external inventory",
+        "Unresolved high threats"
+      ],
+      "log": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/validators/deployed.log"
+    },
+    "live": {
+      "status": "fail",
+      "reasons": [
+        "Unknown/partial external inventory",
+        "Unresolved high threats",
+        "Actual receipt/Reply-To/reply missing",
+        "Controlled inquiry authority/Contact enablement readback missing"
+      ],
+      "log": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/validators/live.log"
+    }
+  }
+}

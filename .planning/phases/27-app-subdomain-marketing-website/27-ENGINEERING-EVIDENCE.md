@@ -1,5 +1,9 @@
 # Phase 27 engineering evidence
 
+OPS-11 disabled release accepted 2026-10-13T11:38:29.375Z: source6bb6e3f7, webG8ZbTT/Ops3qtket, all eight serving aliases and false Contact values verified. Staff page/action denial and customer control passed; 30/40GETs,1hostingPOST,0ContactPOSTs/account mutations/manual financial jobs. Receivers14/16triggers plus separate1 verified; both watchdogs ended. The legacy staff flag repair selected by the owner is prepared separately and awaiting its account-write approval. Provider signed delivery and actual inquiry/reply remain open. The35/35matrix remains dated588;20/21plans,144/151curated, sevenpending requirements. Read27-OPS11-DISABLED-ROLLOUT-RESULT.md and27-OPS11-ACCOUNT-REPAIR-PACKET.md.
+
+Earlier preparation and588candidate sections below are dated history. The structured35-row matrix retains its original source labels; the accepted current pair is in ops11DisabledRelease.
+
 OPS-11 preparation 2026-10-13T10:38:21.268Z: source6bb6e3f7 passes all six engineering gates and separate flags-on staff runtime proof. Serving Production remains58897a94; account repair/disabled rollout, provider signed delivery and actual inquiry/reply remain open. Contact disabled. Read27-OPS11-REPAIR-RESULT.md.
 
 Current reconciliation (2026-10-11T09:33:12.518Z): active engineering candidate is exact58897a94, manifest 8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a. All six fresh full gates pass. D67 is archived with its original source labels and logs. See27-RELEASE-SOURCE-RECONCILIATION.md. Earlier prose below is dated history.
@@ -5666,6 +5670,18 @@ raw recovery nor deployment acceptance is fabricated.
     "contactEnabled": false,
     "productionRolledOut": false,
     "accountChanged": false
+  },
+  "ops11DisabledRelease": {
+    "sourceRevision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "acceptedAt": "2026-10-13T11:38:29.375Z",
+    "webDeploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+    "opsDeploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+    "contactDisabled": true,
+    "resultFile": "27-OPS11-DISABLED-ROLLOUT-RESULT.json",
+    "resultSha256": "5c2e8bfb24b54be8db2d8a2f1e9a43d74f3a4a13a08f52dc1b86dd910826a637",
+    "oldMatrixSourceRetained": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "accountRepairStatus": "owner-selected-prepared-not-executed",
+    "accountRepairPacket": "27-OPS11-ACCOUNT-REPAIR-PACKET.md"
   }
 }
 ```
