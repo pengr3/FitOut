@@ -1,0 +1,534 @@
+{
+  "schemaVersion": 1,
+  "status": "prepared-awaiting-owner-approval",
+  "packetId": "p27-contact-inquiry-20261013-6bb",
+  "preparedAt": "2026-10-13T14:03:26.144Z",
+  "packet": {
+    "path": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-INQUIRY-PACKET.md",
+    "sha256": "b950f5574a9b33c18718623e3491422e840e00e8053da90f4faccb77c990fa6c"
+  },
+  "source": {
+    "preparedAt": "2026-10-13T13:57:47.632Z",
+    "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "manifest": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+    "archive": "8feb311adca91cbbfa5c0eb27991ebc8f8f7c0e2dcc4cebc24f6484c8eb9a8ea",
+    "files": 1113,
+    "exported": "C:/Users/Admin/Roaming/FitOut/.p27/contact-inquiry-6bb-20261013",
+    "overrides": {
+      "CONTACT_PRODUCTION_ENABLED": "true",
+      "CONTACT_INGRESS_VERIFICATION_MODE": "false"
+    },
+    "publicBuildCreated": false
+  },
+  "platform": {
+    "recordedAt": "2026-10-13T13:44:33.346Z",
+    "projects": [
+      {
+        "id": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "teamId": "team_EZAfhT8qJ6msqrCzas3rvdjG",
+        "protection": {
+          "enabled": true,
+          "deploymentType": "all_except_custom_domains"
+        },
+        "deploymentType": "all_except_custom_domains"
+      },
+      {
+        "id": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+        "teamId": "team_EZAfhT8qJ6msqrCzas3rvdjG",
+        "protection": {
+          "enabled": true,
+          "deploymentType": "all_except_custom_domains"
+        },
+        "deploymentType": "all_except_custom_domains"
+      }
+    ],
+    "aliases": [
+      {
+        "alias": "fitout.live",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "app.fitout.live",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "www.fitout.live",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": "fitout.live"
+      },
+      {
+        "alias": "fitout-web-psi.vercel.app",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-web-pengr3s-projects.vercel.app",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "ops.fitout.live",
+        "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+        "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-ops.vercel.app",
+        "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+        "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-ops-pengr3s-projects.vercel.app",
+        "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+        "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "redirect": null
+      }
+    ],
+    "flags": [
+      {
+        "id": "dnMtMhC8l8iT0R29",
+        "key": "CONTACT_PRODUCTION_ENABLED",
+        "value": "false",
+        "updatedAt": 1791704419042
+      },
+      {
+        "id": "rQL4dNKbzaXbN08K",
+        "key": "CONTACT_PRODUCTION_ENABLED",
+        "value": "false",
+        "updatedAt": 1791630164853
+      },
+      {
+        "id": "NftlOnb5TDKNewez",
+        "key": "CONTACT_INGRESS_VERIFICATION_MODE",
+        "value": "false",
+        "updatedAt": 1791704423844
+      }
+    ],
+    "config": [
+      {
+        "id": "XVADPR8FKRpZm07g",
+        "key": "EMAIL_FROM",
+        "value": "FitOut <updates@send.fitout.live>",
+        "updatedAt": 1789293211717
+      },
+      {
+        "id": "PuAMOafiLLhX84Z5",
+        "key": "NEXT_PUBLIC_APP_URL",
+        "value": "https://app.fitout.live",
+        "updatedAt": 1791631074243
+      },
+      {
+        "id": "CsTU4zmpmnIJeSos",
+        "key": "MARKETING_APP_URL",
+        "value": "https://fitout.live",
+        "updatedAt": 1791631619308
+      }
+    ],
+    "credentialMetadata": [
+      {
+        "id": "j4xBkgQouIOa4pK0",
+        "key": "CONTACT_ALERT_EMAIL",
+        "type": "plain",
+        "target": [
+          "production"
+        ],
+        "updatedAt": 1791698793295,
+        "gitBranch": null
+      },
+      {
+        "id": "XVADPR8FKRpZm07g",
+        "key": "EMAIL_FROM",
+        "type": "encrypted",
+        "target": [
+          "production"
+        ],
+        "updatedAt": 1789293211717,
+        "gitBranch": null
+      },
+      {
+        "id": "mQ8RAQUrfHQ1wO2O",
+        "key": "DIDIT_ENVIRONMENT",
+        "type": "sensitive",
+        "target": [
+          "production"
+        ],
+        "updatedAt": 1790148741102,
+        "gitBranch": null
+      },
+      {
+        "id": "5mo2g2j7wpgacRfS",
+        "key": "BETTER_AUTH_SECRET",
+        "type": "sensitive",
+        "target": [
+          "production"
+        ],
+        "updatedAt": 1788866872944,
+        "gitBranch": null
+      },
+      {
+        "id": "Xm1Ro0v5k5fAmaRH",
+        "key": "RESEND_API_KEY",
+        "type": "sensitive",
+        "target": [
+          "production"
+        ],
+        "updatedAt": 1789294166992,
+        "gitBranch": null
+      },
+      {
+        "id": "7weae3NT6eoj6WUQ",
+        "key": "PAYMONGO_SECRET_KEY",
+        "type": "sensitive",
+        "target": [
+          "production"
+        ],
+        "updatedAt": 1790479421000,
+        "gitBranch": null
+      },
+      {
+        "id": "1Ly4wLr7cokgrgPh",
+        "key": "PAYMONGO_PUBLIC_KEY",
+        "type": "sensitive",
+        "target": [
+          "production"
+        ],
+        "updatedAt": 1790479684447,
+        "gitBranch": null
+      },
+      {
+        "id": "45NnTBHVFL7WUNHQ",
+        "key": "PAYMONGO_WEBHOOK_SECRET",
+        "type": "sensitive",
+        "target": [
+          "production"
+        ],
+        "updatedAt": 1789719586852,
+        "gitBranch": null
+      },
+      {
+        "id": "ZjlIgeBKZjxszvtt",
+        "key": "DIDIT_API_KEY",
+        "type": "sensitive",
+        "target": [
+          "production"
+        ],
+        "updatedAt": 1790151853638,
+        "gitBranch": null
+      },
+      {
+        "id": "YBW4LOCSbgmkVtFC",
+        "key": "DIDIT_WORKFLOW_ID",
+        "type": "sensitive",
+        "target": [
+          "production"
+        ],
+        "updatedAt": 1790151816129,
+        "gitBranch": null
+      },
+      {
+        "id": "XsPfItju5Uzr4lxQ",
+        "key": "DIDIT_WEBHOOK_SECRET",
+        "type": "sensitive",
+        "target": [
+          "production"
+        ],
+        "updatedAt": 1790156447834,
+        "gitBranch": null
+      }
+    ],
+    "primary": [
+      {
+        "observed_at": "2026-10-13T13:43:19.389Z",
+        "quota_rows": 0,
+        "pending_alerts": 0,
+        "alert_rows": 1,
+        "alert_snapshot_md5": "f10f0474d68fe574a2830467d6244d8d"
+      }
+    ],
+    "externalMutations": 0,
+    "contactPosts": 0,
+    "providerSends": 0
+  },
+  "control": {
+    "observedAt": "2026-10-13T13:47:02.413Z",
+    "active": {
+      "version": 21,
+      "firewallEnabled": true,
+      "rules": [
+        {
+          "id": "rule_phase_27_contact_edge_guard_R85Dc4",
+          "name": "Phase 27 Contact edge guard",
+          "active": true,
+          "valid": true,
+          "action": {
+            "mitigate": {
+              "redirect": null,
+              "action": "rate_limit",
+              "rateLimit": {
+                "limit": 50,
+                "action": "log",
+                "window": 600,
+                "algo": "fixed_window",
+                "keys": [
+                  "ip"
+                ]
+              },
+              "actionDuration": null
+            }
+          },
+          "conditionGroup": [
+            {
+              "conditions": [
+                {
+                  "type": "path",
+                  "op": "eq",
+                  "value": "/api/contact"
+                },
+                {
+                  "type": "method",
+                  "op": "eq",
+                  "value": "POST"
+                },
+                {
+                  "type": "host",
+                  "op": "eq",
+                  "value": "fitout.live"
+                },
+                {
+                  "type": "environment",
+                  "op": "eq",
+                  "value": "production"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "rule_phase_27_restricted_contact_test_j9IM6v",
+          "name": "Phase 27 restricted Contact test",
+          "active": false,
+          "valid": true,
+          "action": {
+            "mitigate": {
+              "redirect": null,
+              "action": "deny",
+              "rateLimit": null,
+              "actionDuration": null
+            }
+          },
+          "conditionGroup": [
+            {
+              "conditions": [
+                {
+                  "type": "path",
+                  "op": "eq",
+                  "value": "/api/contact"
+                },
+                {
+                  "type": "method",
+                  "op": "eq",
+                  "value": "POST"
+                },
+                {
+                  "type": "host",
+                  "op": "eq",
+                  "value": "fitout.live"
+                },
+                {
+                  "type": "environment",
+                  "op": "eq",
+                  "value": "production"
+                },
+                {
+                  "neg": true,
+                  "op": "eq",
+                  "type": "ip_address",
+                  "value": "[private operator IP]",
+                  "valueSha256": "c2c29fa2cacf12031462993e9a24d4bfde83bc78e9f9b53ce865aaa7bdb28bbf"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "draft": null,
+    "projects": [
+      {
+        "id": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "teamId": "team_EZAfhT8qJ6msqrCzas3rvdjG",
+        "autoAssignCustomDomains": false,
+        "protection": {
+          "deploymentType": "all_except_custom_domains"
+        }
+      },
+      {
+        "id": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+        "teamId": "team_EZAfhT8qJ6msqrCzas3rvdjG",
+        "autoAssignCustomDomains": false,
+        "protection": {
+          "deploymentType": "all_except_custom_domains"
+        }
+      }
+    ],
+    "deployments": [
+      {
+        "id": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "url": "fitout-116qj6x3i-pengr3s-projects.vercel.app",
+        "readyState": "READY",
+        "target": "production",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "teamId": "team_EZAfhT8qJ6msqrCzas3rvdjG",
+        "autoAssignCustomDomains": false
+      },
+      {
+        "id": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "url": "fitout-ldqhhi7oz-pengr3s-projects.vercel.app",
+        "readyState": "READY",
+        "target": "production",
+        "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+        "teamId": "team_EZAfhT8qJ6msqrCzas3rvdjG",
+        "autoAssignCustomDomains": false
+      }
+    ],
+    "readOnlyGets": 5,
+    "externalMutations": 0
+  },
+  "inquiry": {
+    "name": "FitOut release check",
+    "email": "francisgerard.silva@gmail.com",
+    "confirmEmail": "francisgerard.silva@gmail.com",
+    "mobile": "",
+    "website": "",
+    "message": "Phase 27 Contact inquiry check. Reference P27-CONTACT-20261013-6BB. Please reply: Received P27-CONTACT-20261013-6BB."
+  },
+  "senderAuthority": "Direct owner reply: francisgerard.silva@gmail.com",
+  "mailboxes": {
+    "support": "pengr.clmc.3@gmail.com",
+    "replyReceiver": "francisgerard.silva@gmail.com"
+  },
+  "offlineTests": {
+    "passed": 37,
+    "failed": 0,
+    "exitCode": 0,
+    "logSha256": "cb7ed38c8528396ff0308708891180214c0e2a156fd5ab558fd981b2a0683ef8"
+  },
+  "pendingAuthorityRefusals": [
+    {
+      "file": "stage.mjs",
+      "exitCode": 1,
+      "expectedRefusal": true
+    },
+    {
+      "file": "watchdog.mjs",
+      "exitCode": 1,
+      "expectedRefusal": true
+    }
+  ],
+  "syntax": [
+    {
+      "file": "stage.mjs",
+      "exitCode": 0
+    },
+    {
+      "file": "watchdog.mjs",
+      "exitCode": 0
+    },
+    {
+      "file": "protocol.mjs",
+      "exitCode": 0
+    }
+  ],
+  "captures": [
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/approval.json",
+      "sha256": "a6a3932d08746992680a1ab5ef6229c0931cfd3d2051419d3f722ba18c2001da"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/control-preparation.json",
+      "sha256": "3c740480ad23ee6f5468fb880e0345dd5f82dfca2fdc68b545beeb058e9e4ff8"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/finalize-preparation.mjs",
+      "sha256": "685e0511f6b3d62302b7aaceecae75feb474cfbedaf6441fc69c67717204f958"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/form-prepared.png",
+      "sha256": "d904db4fcf25af8ce54f4c9385792466b6f473b0d5a8ca190838892311be5972"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/platform-preparation.json",
+      "sha256": "7c372d1d30100bb4e25a109f3d7b272bd85560b7ef002879c6cb3c4a5d1b6328"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/protocol-tests-initial-failure.log",
+      "sha256": "607b227095abae095cb0e81f8bcf18abbe48da272f1871f0da7fa01058fcec09"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/protocol-tests.log",
+      "sha256": "cb7ed38c8528396ff0308708891180214c0e2a156fd5ab558fd981b2a0683ef8"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/protocol.mjs",
+      "sha256": "1e5582395bda09de3e16df7cf366db6c0c90fc61ebc8eab637babf2e383d7b32"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/protocol.test.mjs",
+      "sha256": "6009f75bb97457025a45e8e0861ad9fcfc1564bdb6fe3a8025766bc269338f0d"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/read-control.mjs",
+      "sha256": "f72f3b3c931e1fa1b17afbf3249f3fbe4cab0bf60e3affe8dc56b0377c35aa3c"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/resend-domain-preparation.txt",
+      "sha256": "29711dceca85c0edb65fb57aea95a442533c10a2e47a437974f4903db1762aee"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/source-preparation.json",
+      "sha256": "53f91da60287516a82ccedb156c2bcc874b73ee2f9cc0a72a02d62276d7a0cef"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/stage.mjs",
+      "sha256": "70506858bf91508d4ed86a1bd3d4532cd0db4ec738b66df523838b1c4d49dd49"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/stage.mjs-prepared-refusal.log",
+      "sha256": "5077a5e5867c6841e77c292db606d9e99b9ec3b8f91d48c6381a7ac95dc014d3"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/watchdog.mjs",
+      "sha256": "ef65961881a771efcd91606f85e0f99b2ca2ec9073c5ea00e1226d03f0057d15"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/watchdog.mjs-prepared-refusal.log",
+      "sha256": "7b0038761ba8b1c658129ee89bb087e407ffef36c1d990a964a622a9cdcc04cd"
+    }
+  ],
+  "contactDisabled": true,
+  "externalMutations": 0,
+  "contactPosts": 0,
+  "emails": 0,
+  "testAccountsChanged": false,
+  "phaseCounts": {
+    "completedNumberedPlans": 20,
+    "totalNumberedPlans": 21,
+    "curatedCompleted": 144,
+    "curatedTotal": 151,
+    "pendingRequirements": 7
+  },
+  "remaining": "Scoped test authority, actual inquiry/receipt/Reply-To/reply, final verification",
+  "preparationHistory": {
+    "initialArchiveExport": "Windows Archive module failed before any deployment; exact accepted-source file copy verified all1113 manifest entries.",
+    "initialOfflineGuard": "The aborted-window test found that a second recovery could use the remaining budget. Added consumed-stage refusal; failed TAP retained and corrected37/37 passed.",
+    "initialReadOnlyCli": "Sandboxed CLI failed; escalated read-only GET fallback succeeded."
+  }
+}
