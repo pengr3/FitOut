@@ -517,14 +517,19 @@ Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored a
       "host": "fitout.live",
       "url": "https://fitout.live/api/contact",
       "method": "POST",
-      "deploymentId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "deploymentId": "dpl_4NJowGQh9SUUX72Nx9Bi2h9ABkm9",
       "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
       "scenario": "contact-distributed-global-budget",
       "expected": "Unchanged required Phase27 matrix contract",
-      "status": "pending",
-      "outcome": "pending",
-      "observed": "No fresh complete observation for this exact source/deployment scenario.",
-      "proof": ".planning/phases/27-app-subdomain-marketing-website/27-DISABLED-PRODUCTION-PAIR.md"
+      "status": "observed",
+      "outcome": "pass",
+      "observed": "99 owned seed reservations plus one real no-mail HTTP reservation created one natural incident. Distinct runtime denied with429/3512s; scheduled timers processed1 then0, one provider delivery and direct owner inbox receipt. Exact quota/incident cleanup, disabled Cogas restoration and14+1 functions preserved.",
+      "proof": "playwright/.cache/phase27-08/global-alert-prepared-9ae3a34c/control-binding.json",
+      "observedAt": "2026-10-13T06:38:54.780Z",
+      "controlTestProof": {
+        "path": "playwright/.cache/phase27-08/global-alert-prepared-9ae3a34c/control-binding.json",
+        "sha256": "6ad75751931f88d92530d82662897ae6164a229d0fc4a326635f53116b053f32"
+      }
     },
     {
       "id": "contact-disabled-recovery",
@@ -558,11 +563,10 @@ Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored a
     }
   ],
   "highThreats": [
-    "T-27-29: full same-current-deployment per-IP and global exhaustion-to-alert controls remain unproved; public Contact stays disabled",
     "OPS-11 data consistency: readonly primary aggregate shows one separate staff account with both customer capabilities true; activation denies staff roles, but booking/host gates include capability-only checks. Account provenance and safe remediation remain unverified; no account changed."
   ],
   "rollbackVerified": true,
-  "contactControlsVerified": false,
+  "contactControlsVerified": true,
   "contactEnabledReadback": false,
   "inquiryAuthority": "pending separate checkpoint",
   "inbox": {
@@ -1582,7 +1586,7 @@ Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored a
     "screenshot": "playwright/.cache/phase27-08/disabled-pair-staff-denial-58897a94.png",
     "scope": "Real authenticated staff action denial; exact matrix POST /start-hosting path is not inferred from the home-route UI action"
   },
-  "freshObservedCount": 34,
+  "freshObservedCount": 35,
   "supplementalSourceRecovery": {
     "recordedAt": "2026-10-11T16:28:21.813Z",
     "kind": "source-only recovery",
@@ -1640,11 +1644,9 @@ Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored a
   },
   "finalDisabledReadbacks": "playwright/.cache/phase27-08/legacy-final-provider-and-cleanup.json",
   "remainingProofs": {
-    "recordedAt": "2026-10-13T05:22:54.003Z",
-    "observed": 34,
-    "pending": [
-      "contact-distributed-global-budget"
-    ],
+    "recordedAt": "2026-10-13T06:38:54.780Z",
+    "observed": 35,
+    "pending": [],
     "staffProviderBinding": "playwright/.cache/phase27-08/remaining8-staff-provider-binding.json",
     "legacyLinkAvailability": "playwright/.cache/phase27-08/remaining8-old-link-availability.json",
     "contactEnabled": false
@@ -1761,6 +1763,12 @@ Current Production pair: exact58897a94 web Cogas and unchanged Ops5WY restored a
         "resolution": "original sync inspection followed by verified exact original receiver override"
       }
     ]
+  },
+  "controlThreatResolution": {
+    "id": "T-27-29",
+    "observedAt": "2026-10-13T06:42:33.291Z",
+    "source": "27-CONTACT-GLOBAL-ALERT-FRESH-RESULT.md",
+    "scope": "Shared per-IP and global exhaustion-to-scheduled-alert controls, exact disabled recovery and cleanup accepted at58897a94. Public inquiry, receipt/Reply-To/reply and enablement remain separate pending gates."
   }
 }
 ```
@@ -1813,3 +1821,9 @@ Fresh acceptance is 29/35 at exact 58897a94. Unknown-host ingress denial and aut
 
 
 Current per-IP update 2026-10-13T05:22:54.003Z: fresh repaired-driver actual ten-POST test passes, original disabled Production restored in143.571seconds, exact2owned quota rows removed, primary0/1/0, original schedulers14+1 preserved, savedflagsfalse, guarddisabledversion19. Original staging family retained; independent fresh attempt p27-per-ip-api-trace-repaired-20261013-a19f3c88 explicitly bound. Matrix34/35. Global-budget proof, inventory/high-threat/inquiry and other phase gates remain pending; no phase completion.
+
+
+Global-budget/automatic-alert update 2026-10-13T06:38:54.780Z: approved fresh packet p27-global-alert-20261013-9ae3a34c completed exactly five Contact POSTs. Guarded no-mail window158.745seconds; global100/IP1, distinct runtime429/3512seconds, natural incident e68a2c7e-8425-4a93-8e87-0cd79c47284c, scheduled06:16 processed1 and06:21 processed0, exact one provider acceptance, owner Gmail receipt confirmed. Original disabled Cogas restored, both exact owned quota rows and only the new incident removed; primary0 quota/1 prior sent synthetic/0 pending. Guarddisabledv21; savedflagsfalse; original14 plus separate1 functions preserved. Typed eight-role proof validates; matrix35/35. Contact remains disabled. Inventory/high-threat/inquiry and other release gates still require their existing disposition; no phase completion claim.
+
+
+Contact-control ledger reconciliation 2026-10-13T06:42:33.291Z: both actual controls pass; contact-waf-global now observed and the specifically obsolete T-27-29 control-exhaustion gap is closed with matched proof. OPS-11 staff-account consistency remains unresolved. Public inquiry/Reply-To/reply and provider inventory correspondence remain pending; Contact stays disabled. Prior prose is dated history.

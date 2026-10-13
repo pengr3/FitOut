@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: per-IP accepted34/35; fresh five-POST global-alert packet awaiting owner approval; Contact disabled"
-last_updated: "2026-10-13T05:50:48.497Z"
+stopped_at: "Plan09: Contact controls accepted35/35; provider inventory, OPS-11 and real inquiry gates remain; Contact disabled"
+last_updated: "2026-10-13T06:42:33.291Z"
 last_activity: 2026-10-13
-last_activity_desc: Fresh global-alert packet prepared with local/SQL/driver refusal checks; no Production mutation or mail; approval pending
+last_activity_desc: Approved five-POST global-budget and scheduled alert proof passed; exact cleanup complete; Contact disabled
 state_head: 58897a94
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -61,6 +61,9 @@ progress:
   completed_plans: 144
   percent: 15
 ---
+
+Latest checkpoint 2026-10-13T06:42:33.291Z: both Contact controls accepted at58897a94, matrix35/35. Global99+realHTTP100, distinct-runtime429/3512, natural scheduler1then0 and exact one Resend delivery with direct owner receipt. Window158.745seconds; baseline restored, exact2quota+1newincident cleanup within approved15minutes, primary0/1/0. Guarddisabledv21, savedflagsfalse, Ops/aliases/schedulers14+1 preserved. Partial inventory, OPS-11 and actual inquiry/Reply-To/reply plus enablement authority remain; Contact disabled, Plan09incomplete20/21, curated144/151 and seven requirements pending. Read27-CONTACT-GLOBAL-ALERT-FRESH-RESULT.md.
+
 
 Latest checkpoint 2026-10-13T05:26:16.241Z: User-requested fresh repaired-driver attempt passes. TenContactPOSTs, sixrouteGETs, actualA3+B2reservations, sixth429/825 and forged-header429/822 across distinct runtimes. ActualCogas restored in143.571seconds; recovery503/no-store in174.743seconds; exact2ownedrows removed, primary0/1/0, guarddisabledpublishedv19, originalflags/aliases/scheduler14+1 retained. Strict220-tested observer binding accepts per-IP only; matrix34/35. Global-budget proof is pending and not authorized by this packet; broader inventory/threat/inquiry gates, Plan09incomplete20/21, curated144/151 and sevenrequirements remain. Read27-CONTACT-PER-IP-REPAIRED-DRIVER-RESULT.md.
 

@@ -144,15 +144,15 @@ content remains unproved here. No request used a protection bypass.
     },
     {
       "id": "contact-waf-global",
-      "status": "partial",
+      "status": "observed",
       "owner": "Vercel security and mailbox owners",
-      "current": "Actual58897a94 bounded A/B shared per-IP and forged-header denial passed; scoped rollback restored disabled b61cb4a4. D67 global100 fixture429 and b61 scheduled synthetic alert proof are separate dated observations. Temporary restriction disabled/published, originalLog retained; current quota0, pendingalerts0 and Contact503.",
+      "current": "Same exact58897a94 accepted per-IP and global controlled variants: five shared per-IP reservations, forged-header denial;99 owned global seed+one real HTTP slot creates one natural incident; distinct runtime429/3512seconds; natural scheduled pending1 then0, exact one delivered alert and owner Gmail receipt; baselineCogas restored158.745seconds, exact2quota+1newincident cleanup, primary0/1/0, savedflagsfalse, temporaryDeny disabledv21, original14+separate1 functions retained.",
       "target": "Verified deployment-wide per-IP <=5/15min plus global mailbox <=100/hour before Contact true; process-local Map insufficient",
       "requiredProof": "Complete quota exhaustion-to-alert chain and full rollback/control acceptance on one deployed candidate; public Contact staysfalse.",
       "rollback": "CONTACT_PRODUCTION_ENABLED=false on customer/ops deployments, redeploy, verify real 503 and retained form recovery",
-      "observedAt": "2026-10-11T09:33:12.518Z",
-      "observationType": "Actual mobile-carrier WAF evidence, Production HTTP probes, deployment/publicflag readback and exact-fingerprint fixture cleanup",
-      "source": ".planning/phases/27-app-subdomain-marketing-website/27-RELEASE-SOURCE-RECONCILIATION.md"
+      "observedAt": "2026-10-13T06:42:33.291Z",
+      "observationType": "Actual hash-bound typed control evidence, Vercel runtime/route traces, locked exact primary cleanup, independent Inngest and Resend UI, direct owner receipt",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-GLOBAL-ALERT-FRESH-RESULT.md"
     },
     {
       "id": "deployment-revision",
@@ -911,3 +911,6 @@ Read .planning/phases/27-app-subdomain-marketing-website/27-CONTACT-AUTOMATIC-AL
 ## Disabled58897a94 Production update
 
 Actual new provider/source readbacks supplement prior inventory. Unproved financial key/mode, inquiry/Reply-To and global control correspondence remainpartial; no inventory-wide pass inferred.
+
+
+Contact-control ledger reconciliation 2026-10-13T06:42:33.291Z: both actual controls pass; contact-waf-global now observed and the specifically obsolete T-27-29 control-exhaustion gap is closed with matched proof. OPS-11 staff-account consistency remains unresolved. Public inquiry/Reply-To/reply and provider inventory correspondence remain pending; Contact stays disabled. Prior prose is dated history.

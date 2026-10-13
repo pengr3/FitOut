@@ -1,0 +1,21 @@
+# Phase 27 — fresh global-budget and automatic-alert result
+
+Completed October 13, 2026. **Both Contact control tests pass. Contact remains disabled.** Host/provider matrix **35/35**. Plan09 and Phase27 remain incomplete pending the separate release acceptance gaps.
+
+Owner approved packet p27-global-alert-20261013-9ae3a34c at05:53:14.346Z. Approval: “Approve this exact five-POST global-budget and automatic-alert packet”. This result closes that single attempt; no retry or public inquiry was performed.
+
+The guarded no-mail window ran06:12:12.786Z–06:14:51.531Z (2:12–2:14PM Manila),158.745seconds of the approved300, with an independent240second watchdog. Exactly five ContactPOSTs: disabled operator503, independent cloud403, G503 real hundredth reservation, H429 global denial, disabled recovery503/no-store. Six actual API GET/provider route proofs matched G/H/restoration. One nonpersistent cloud machine was stopped.
+
+Protected G dpl_9GMumndFe7Tsq7N8WLa9wiC9DAdW and H dpl_4NJowGQh9SUUX72Nx9Bi2h9ABkm9 were created after approval from58897a9459cf31b7c8937254dc17ab61ae0ce1d5, manifest8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a. Only their two no-mail deployment flags differed; saved flags remainedfalse. Actual runtimes8f0b6524-c835-453e-8550-bc0992a1e450 and418298d8-0e98-48be-8494-168bf7bbce49 were distinct.
+
+The99-reservation owned fixture plus G's actual HTTP request yielded global100/IP1 and natural nonsynthetic incident e68a2c7e-8425-4a93-8e87-0cd79c47284c at06:13:19.054266Z. H returned429 with Retry-After3512seconds, preserving global100/IP1 and the same sole incident. No manual incident insert, inquiry delivery or financial invocation occurred.
+
+The06:16 natural timer01M4SYEM80J1M05HRHPVN6PQQQ processed1 and included the exact durable delivery step. Resend01a133e7-75a7-71ec-a52e-247e07a30a3f delivered “FitOut Contact alert: hourly quota exhausted” to pengr.clmc.3@gmail.com; the owner confirmed “Received in inbox”. The06:21 natural timer01M4SYQS70J1M05HRHPVN6PQQQ processed0, with no second delivery step. Provider list showed exactly one new natural alert plus the earlier synthetic email; no duplicate.
+
+Cogas dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg was restored before quota cleanup. The exact two captured quota rows were removed under the approved locked fingerprint check. Only after matched timer, provider and owner proof was the exact new sent incident removed under locks27018,1 and27018,2. The final primary observation06:29:10.84543Z precedes the approved06:29:51.531Z deadline: quota0, pending0 and one unchanged earlier synthetic incident p27-owner-alert-20261011-b61cb4a4. Cleanup preserved all of its timestamp/provider/count fields.
+
+Final aliases are Cogas on apex/app/retiredfallback, Ops dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4 unchanged; health200/200/200/404. Saved Contact/verification flagsfalse. TemporaryDeny disabled and publishedv21, originalLog/system mitigations preserved. Original Cogas Inngest receiver retains14 functions; separate Contact receiver retains1. A staging-induced automatic receiver change was reconciled to the original URL while preserving its private managed query; no financial function was manually invoked.
+
+Eight independently captured and hash-bound evidence roles validate against the unchanged220-tested observer. Artifact: playwright/.cache/phase27-08/global-alert-prepared-9ae3a34c/control-binding.json. First/second scheduler captures, Resend screenshots and exact SQL cleanup receipts are in the same directory. Both controlled rows now pass at the current source. Contact inventory control row and its obsolete T-27-29 control gap are reconciled; this does not supply real inquiry evidence.
+
+Remaining acceptance gates: partial provider/project/environment inventory correspondence; OPS-11 separate staff account with both customer capabilitiestrue and safe remediation unverified; actual Contact inquiry receipt, validated Reply-To and received reply; separately scoped inquiry authority and enabled readback. Prepared verifierPASS; deployed/live retain these specific failures. No Plan09 summary, requirement completion or counter increment is claimed. Curated144/151, Phase27 plans20/21, seven requirements pending. Checkout/payout/legal HOLDs remain.

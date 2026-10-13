@@ -477,6 +477,26 @@ Plan 08 is complete. Plan 09 retains the specific live control and observation g
         "path": "playwright/.cache/phase27-08/per-ip-api-trace-repaired-a19f3c88/approval.json",
         "sha256": "be456900440024790bf7fd01084127a317c3fcba77a642064def074992d2ded4"
       }
+    },
+    "contact-distributed-global-budget": {
+      "status": "approved",
+      "packetId": "p27-global-alert-20261013-9ae3a34c",
+      "attemptId": "p27-global-alert-20261013-9ae3a34c",
+      "ownerInstruction": "Approve this exact five-POST global-budget and automatic-alert packet",
+      "approvedAt": "2026-10-13T05:53:14.346Z",
+      "revision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+      "manifest": "8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a",
+      "baselineId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+      "opsId": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+      "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+      "maxWindowSeconds": 300,
+      "maxPosts": 5,
+      "watchdogSeconds": 240,
+      "recipient": "pengr.clmc.3@gmail.com",
+      "authorityCapture": {
+        "path": "playwright/.cache/phase27-08/global-alert-prepared-9ae3a34c/approval.json",
+        "sha256": "93ea22b98d6dca35bb03c77a868b874beb3ec6c2da6b2d35d5c1394092f72683"
+      }
     }
   }
 }
@@ -757,3 +777,6 @@ Both new immutable Production targets are READY and manually promoted. Saved Pro
 
 
 Current per-IP update 2026-10-13T05:22:54.003Z: fresh repaired-driver actual ten-POST test passes, original disabled Production restored in143.571seconds, exact2owned quota rows removed, primary0/1/0, original schedulers14+1 preserved, savedflagsfalse, guarddisabledversion19. Original staging family retained; independent fresh attempt p27-per-ip-api-trace-repaired-20261013-a19f3c88 explicitly bound. Matrix34/35. Global-budget proof, inventory/high-threat/inquiry and other phase gates remain pending; no phase completion.
+
+
+Global-budget/automatic-alert update 2026-10-13T06:38:54.780Z: approved fresh packet p27-global-alert-20261013-9ae3a34c completed exactly five Contact POSTs. Guarded no-mail window158.745seconds; global100/IP1, distinct runtime429/3512seconds, natural incident e68a2c7e-8425-4a93-8e87-0cd79c47284c, scheduled06:16 processed1 and06:21 processed0, exact one provider acceptance, owner Gmail receipt confirmed. Original disabled Cogas restored, both exact owned quota rows and only the new incident removed; primary0 quota/1 prior sent synthetic/0 pending. Guarddisabledv21; savedflagsfalse; original14 plus separate1 functions preserved. Typed eight-role proof validates; matrix35/35. Contact remains disabled. Inventory/high-threat/inquiry and other release gates still require their existing disposition; no phase completion claim.
