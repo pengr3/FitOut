@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: provider configuration observed PayMongoLIVE/DiditSANDBOX; delivery, inquiry/reply andOPS-11 remain; Contact disabled"
-last_updated: "2026-10-13T09:02:22.710Z"
+stopped_at: "Plan 09: OPS-11 repair6bb6e3f7 verified locally; exact disabled rollout/account decision, provider delivery and inquiry/reply pending; Contact disabled"
+last_updated: "2026-10-13T10:38:21.268Z"
 last_activity: 2026-10-13
-last_activity_desc: Approved coordinator completed3diagnosticGETs/fourproviderGETs; LIVEPayMongo/SANDBOXDidit;48local checks; Contact disabled
+last_activity_desc: OPS-11 repair passes six canonical gates and flags-on staff runtime proof; Production/account unchanged; Contact disabled
 state_head: 58897a94
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -61,6 +61,8 @@ progress:
   completed_plans: 144
   percent: 15
 ---
+OPS-11 preparation 2026-10-13T10:38:21.268Z: new candidate6bb6e3f7, manifesta8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499, passes3,459unit/1,510design/59browser plus types/lint/build; additional38 staff HTTP/Flight denials/upload403. Existing flags-on staff account provenance observed; no Production account or deployment changed. New exact disabled rollout and account disposition remainpending; provider signed delivery/actual inquiry/reply/Plan09 stillopen. Contactdisabled, matrix35/35 at588,20/21plans,144/151curated, sevenpending requirements. Read27-OPS11-REPAIR-RESULT.md.
+
 
 Latest checkpoint 2026-10-13T06:42:33.291Z: both Contact controls accepted at58897a94, matrix35/35. Global99+realHTTP100, distinct-runtime429/3512, natural scheduler1then0 and exact one Resend delivery with direct owner receipt. Window158.745seconds; baseline restored, exact2quota+1newincident cleanup within approved15minutes, primary0/1/0. Guarddisabledv21, savedflagsfalse, Ops/aliases/schedulers14+1 preserved. Partial inventory, OPS-11 and actual inquiry/Reply-To/reply plus enablement authority remain; Contact disabled, Plan09incomplete20/21, curated144/151 and seven requirements pending. Read27-CONTACT-GLOBAL-ALERT-FRESH-RESULT.md.
 

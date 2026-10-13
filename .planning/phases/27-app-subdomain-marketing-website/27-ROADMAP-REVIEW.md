@@ -1,5 +1,7 @@
 # Phase 27 roadmap review — October 13, 2026
 
+Latest OPS-11 preparation 2026-10-13T10:38:21.268Z: exact6bb6e3f7 code repair verified locally (six gates plus38 staff HTML/Flight denials/upload403); Production stays58897a94 and Contactdisabled. Owner account disposition and exact disabled rollout remain pending. Provider configuration was observedLIVE/SANDBOX earlier today; signed delivery/inquiry/reply/Plan09 remainopen. Read27-OPS11-REPAIR-RESULT.md; earlier prose retains its historical date.
+
 Phase 27's goal remains moving the existing customer app to app.fitout.live and serving six marketing destinations on fitout.live, with isolated Ops, transition continuity and a working monitored Contact route. The implementation and production host transition are delivered. The phase remains in Plan 09's final release acceptance.
 
 This review reads the numbered plan/SUMMARY pairs, ROADMAP, STATE, REQUIREMENTS, current structured inventory/evidence, and the saved final unchanged verifier results. It performs no fresh external audit, deployment, provider change, account repair or Contact enablement. Production facts below are the latest recorded observations, not new live probes.

@@ -1,0 +1,556 @@
+{
+  "schemaVersion": 1,
+  "status": "prepared-code-repair-verified",
+  "recordedAt": "2026-10-13T10:38:21.268Z",
+  "sourceRevision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+  "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+  "archiveSha256": "8feb311adca91cbbfa5c0eb27991ebc8f8f7c0e2dcc4cebc24f6484c8eb9a8ea",
+  "manifestFileCount": 1113,
+  "gates": [
+    {
+      "command": "node node_modules/vitest/vitest.mjs run --maxWorkers=4",
+      "startedAt": "2026-10-13T10:18:36.308Z",
+      "finishedAt": "2026-10-13T10:25:52.300Z",
+      "durationSeconds": 435.992,
+      "exitCode": 0,
+      "status": "pass",
+      "result": "Test Files  272 passed | 2 skipped (274)\nTests  3459 passed | 5 skipped (3464)",
+      "resultData": {
+        "runner": "vitest",
+        "files": {
+          "passed": 272,
+          "failed": 0,
+          "skipped": 2
+        },
+        "tests": {
+          "passed": 3459,
+          "failed": 0,
+          "skipped": 5
+        }
+      },
+      "terminalSummary": "Test Files  272 passed | 2 skipped (274)\nTests  3459 passed | 5 skipped (3464)",
+      "evidenceKind": "raw-log",
+      "rawLogAvailable": true,
+      "rawLogPath": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/unit.log",
+      "logSha256": "7903bbb2550c06f58518ddf525c2058167a0cbdad8e07f201e53b60224f2df52",
+      "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+      "testedSource": {
+        "provenance": "snapshot",
+        "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/unit-source.json",
+        "sha256": "0075709c20e96d223f9ffa5e719a99e34b8e5b1de33607710b517b662b71076a",
+        "revision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+        "dirty": false,
+        "claim": "clean-revision",
+        "capturedAt": "2026-10-13T10:18:36.288Z",
+        "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499"
+      },
+      "timedOut": false,
+      "signal": null,
+      "sourceGuardPassed": true,
+      "skipGuardPassed": true,
+      "acceptancePassed": true
+    },
+    {
+      "command": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts --maxWorkers=2",
+      "startedAt": "2026-10-13T10:25:55.461Z",
+      "finishedAt": "2026-10-13T10:27:34.378Z",
+      "durationSeconds": 98.917,
+      "exitCode": 0,
+      "status": "pass",
+      "result": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+      "resultData": {
+        "runner": "vitest",
+        "files": {
+          "passed": 91,
+          "failed": 0,
+          "skipped": 0
+        },
+        "tests": {
+          "passed": 1510,
+          "failed": 0,
+          "skipped": 6
+        }
+      },
+      "terminalSummary": "Test Files  91 passed (91)\nTests  1510 passed | 6 skipped (1516)",
+      "evidenceKind": "raw-log",
+      "rawLogAvailable": true,
+      "rawLogPath": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/design.log",
+      "logSha256": "719e64f2cde359bf97d2e3efebcf5482de8500a89b0a9d6b54976be242d4a789",
+      "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+      "testedSource": {
+        "provenance": "snapshot",
+        "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/design-source.json",
+        "sha256": "c273cb1ec418c2ba618a5d51b078efb445401f7b48706d00b0a7b2eaff28f81b",
+        "revision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+        "dirty": false,
+        "claim": "clean-revision",
+        "capturedAt": "2026-10-13T10:25:55.443Z",
+        "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499"
+      },
+      "timedOut": false,
+      "signal": null,
+      "sourceGuardPassed": true,
+      "skipGuardPassed": true,
+      "acceptancePassed": true
+    },
+    {
+      "command": "node node_modules/typescript/bin/tsc --noEmit",
+      "startedAt": "2026-10-13T10:27:37.338Z",
+      "finishedAt": "2026-10-13T10:28:37.865Z",
+      "durationSeconds": 60.527,
+      "exitCode": 0,
+      "status": "pass",
+      "result": "No TypeScript diagnostics.",
+      "resultData": {
+        "runner": "typescript",
+        "errors": 0
+      },
+      "terminalSummary": "No TypeScript diagnostics.",
+      "evidenceKind": "raw-log",
+      "rawLogAvailable": true,
+      "rawLogPath": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/types.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+      "testedSource": {
+        "provenance": "snapshot",
+        "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/types-source.json",
+        "sha256": "d00a195ee49de507e3db939f881ce98191eda1286efbce5092197282c09a2ee9",
+        "revision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+        "dirty": false,
+        "claim": "clean-revision",
+        "capturedAt": "2026-10-13T10:27:37.320Z",
+        "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499"
+      },
+      "timedOut": false,
+      "signal": null,
+      "sourceGuardPassed": true,
+      "skipGuardPassed": true,
+      "acceptancePassed": true
+    },
+    {
+      "command": "node node_modules/eslint/bin/eslint.js .",
+      "startedAt": "2026-10-13T10:28:41.059Z",
+      "finishedAt": "2026-10-13T10:30:12.634Z",
+      "durationSeconds": 91.575,
+      "exitCode": 0,
+      "status": "pass",
+      "result": "33 problems (0 errors, 33 warnings)",
+      "resultData": {
+        "runner": "eslint",
+        "errors": 0,
+        "warnings": 33
+      },
+      "terminalSummary": "33 problems (0 errors, 33 warnings)",
+      "evidenceKind": "raw-log",
+      "rawLogAvailable": true,
+      "rawLogPath": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/lint.log",
+      "logSha256": "f495d5c6a37660b80ab4de86ac99178072a8e6010595054dca8afe08329d7969",
+      "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+      "testedSource": {
+        "provenance": "snapshot",
+        "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/lint-source.json",
+        "sha256": "e1555dc723b0724963b6b59418843539853019257e558139b78aadb7afa31202",
+        "revision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+        "dirty": false,
+        "claim": "clean-revision",
+        "capturedAt": "2026-10-13T10:28:41.040Z",
+        "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499"
+      },
+      "timedOut": false,
+      "signal": null,
+      "sourceGuardPassed": true,
+      "skipGuardPassed": true,
+      "acceptancePassed": true
+    },
+    {
+      "command": "node node_modules/next/dist/bin/next build",
+      "startedAt": "2026-10-13T10:30:16.682Z",
+      "finishedAt": "2026-10-13T10:31:40.132Z",
+      "durationSeconds": 83.45,
+      "exitCode": 0,
+      "status": "pass",
+      "result": "✓ Compiled successfully in 38.8s\n✓ Generating static pages using 7 workers (49/49) in 4.1s\nFinalizing page optimization ...",
+      "resultData": {
+        "runner": "next-build",
+        "compiled": true,
+        "generated": true,
+        "errors": 0
+      },
+      "terminalSummary": "✓ Compiled successfully in 38.8s\n✓ Generating static pages using 7 workers (49/49) in 4.1s\nFinalizing page optimization ...",
+      "evidenceKind": "raw-log",
+      "rawLogAvailable": true,
+      "rawLogPath": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/build.log",
+      "logSha256": "c0fca07e734fbde7622b2e1a18378bec4ef322f2976baffe3527beae92804de4",
+      "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+      "testedSource": {
+        "provenance": "snapshot",
+        "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/build-source.json",
+        "sha256": "b242a6981047cfdfea9228eca75b3d1c37b7f5ea5b0c842ad5a42eca0fcc1b18",
+        "revision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+        "dirty": false,
+        "claim": "clean-revision",
+        "capturedAt": "2026-10-13T10:30:16.661Z",
+        "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499"
+      },
+      "timedOut": false,
+      "signal": null,
+      "sourceGuardPassed": true,
+      "skipGuardPassed": true,
+      "acceptancePassed": true
+    },
+    {
+      "command": "node node_modules/@playwright/test/cli.js test e2e/marketing-tracer.spec.ts e2e/marketing-host-matrix.spec.ts e2e/marketing-journeys.spec.ts e2e/marketing-contact.spec.ts e2e/marketing-search-contract.spec.ts e2e/marketing-streaming.spec.ts --config playwright.streaming.config.ts --project=chromium --workers=1",
+      "startedAt": "2026-10-13T10:31:43.787Z",
+      "finishedAt": "2026-10-13T10:33:14.846Z",
+      "durationSeconds": 91.059,
+      "exitCode": 0,
+      "status": "pass",
+      "result": "59 passed (1.5m)",
+      "resultData": {
+        "runner": "playwright",
+        "tests": {
+          "passed": 59,
+          "failed": 0,
+          "skipped": 0
+        }
+      },
+      "terminalSummary": "59 passed (1.5m)",
+      "evidenceKind": "raw-log",
+      "rawLogAvailable": true,
+      "rawLogPath": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/browser.log",
+      "logSha256": "6e17f22435c27ca2c4bfb70c35d2c3638264abcf75930862b49c5c5129441f03",
+      "logFiltering": "credential patterns redacted; runner terminal totals preserved",
+      "testedSource": {
+        "provenance": "snapshot",
+        "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/browser-source.json",
+        "sha256": "4025f814a7f1ffe075a59cdf4920650157069b9cf2f507ede01c80decb449ac8",
+        "revision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+        "dirty": false,
+        "claim": "clean-revision",
+        "capturedAt": "2026-10-13T10:31:43.768Z",
+        "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499"
+      },
+      "timedOut": false,
+      "signal": null,
+      "sourceGuardPassed": true,
+      "skipGuardPassed": true,
+      "acceptancePassed": true
+    }
+  ],
+  "canonicalRun": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b",
+  "staffBuiltProof": {
+    "schemaVersion": 1,
+    "revision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+    "startedAt": "2026-10-13T10:33:31.708Z",
+    "finishedAt": "2026-10-13T10:33:39.308Z",
+    "exitCode": 0,
+    "stats": {
+      "startTime": "2026-10-13T10:33:32.441Z",
+      "duration": 5439.61,
+      "expected": 1,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "sourceUnchanged": true,
+    "allPassed": true,
+    "canonicalRun": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b",
+    "proofDirectory": "playwright/.cache/phase27-08/ops11-repair-20261013/built-proof",
+    "noProductionActions": true,
+    "denialsPath": "playwright/.cache/phase27-08/ops11-repair-20261013/runtime-denials.json",
+    "protectedResponses": 38,
+    "http404": 13,
+    "http200Neutral": 25,
+    "uploadStatus": 403
+  },
+  "directCallCoverage": {
+    "actions": 29,
+    "pageLayoutFunctions": 20
+  },
+  "production": {
+    "sourceRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "webDeployment": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+    "opsDeployment": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+    "contactEnabled": false,
+    "accountChanged": false,
+    "sourceRolledOut": false
+  },
+  "remaining": [
+    "exact disabled Production rollout and live guard proof",
+    "owner disposition of the existing flags-on staff account",
+    "signed provider delivery",
+    "actual Contact inquiry/Reply-To/reply",
+    "Plan09 and phase-wide acceptance"
+  ],
+  "captured": [
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/chromium-debug.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/dependencies.log",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/expand.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/export.index",
+      "sha256": "21e995dc02ebda28688e61b901f892e6a2af2494dc57be30ce128f8a9f9f96d0"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/browser-post-source.json",
+      "sha256": "664e8dde67008307a6e10710ac05a6fe20bd1a9ff9e74626de317d0ae1efdf23"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/browser-record.json",
+      "sha256": "aad218e390abac19d706cde8f986cac7865fdf7b0a3ebb2a6ed6d9eba5db01d1"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/browser-source.json",
+      "sha256": "4025f814a7f1ffe075a59cdf4920650157069b9cf2f507ede01c80decb449ac8"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/browser.log",
+      "sha256": "6e17f22435c27ca2c4bfb70c35d2c3638264abcf75930862b49c5c5129441f03"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/build-post-source.json",
+      "sha256": "3eeba754e51c0eeb6327d316fa293e8d379b1c1d25391c1175f42b27623404fd"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/build-record.json",
+      "sha256": "057ecf00d688bea3317a36c7a36ebfb83887b6cedf49ca43d3fd5a2060956a51"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/build-source.json",
+      "sha256": "b242a6981047cfdfea9228eca75b3d1c37b7f5ea5b0c842ad5a42eca0fcc1b18"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/build.log",
+      "sha256": "c0fca07e734fbde7622b2e1a18378bec4ef322f2976baffe3527beae92804de4"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/design-post-source.json",
+      "sha256": "2d1ea2f2536db5546d7a60c62e3593c69412775058aa996917e1fc9586d443a2"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/design-record.json",
+      "sha256": "f7a84c786539f9c72574ea5fb3f082b4d3a9d70a9818f73d8be0829e31e82ef8"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/design-source.json",
+      "sha256": "c273cb1ec418c2ba618a5d51b078efb445401f7b48706d00b0a7b2eaff28f81b"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/design.log",
+      "sha256": "719e64f2cde359bf97d2e3efebcf5482de8500a89b0a9d6b54976be242d4a789"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/lint-post-source.json",
+      "sha256": "c0bf65e2fde276f0dc58f5a6635f7cdb3202930683f10d5054351145d76569a3"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/lint-record.json",
+      "sha256": "7f514ac9d2e8f2a8d4af97ea999f189cef154045d0fb469d93821b5961430c60"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/lint-source.json",
+      "sha256": "e1555dc723b0724963b6b59418843539853019257e558139b78aadb7afa31202"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/lint.log",
+      "sha256": "f495d5c6a37660b80ab4de86ac99178072a8e6010595054dca8afe08329d7969"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/report.json",
+      "sha256": "6138f04a8ee59681cc3f4707f8ce7942a48d7ff4faf36f941b21ce78627d394a"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/types-post-source.json",
+      "sha256": "887883e11524c64c814436024fab47ae3ddb5e5b379890ff84288f0a87b1f0c9"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/types-record.json",
+      "sha256": "f3d284505a2f6c6c140cb35324995d8569b9e81fd79c1bca359c1fecd2f57f4d"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/types-source.json",
+      "sha256": "d00a195ee49de507e3db939f881ce98191eda1286efbce5092197282c09a2ee9"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/types.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/unit-post-source.json",
+      "sha256": "d66d238efded362e085df2efc76418085b57aa9795e5765e35646e2bfc655ed2"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/unit-record.json",
+      "sha256": "42a120476f251cf6f89efed3c62fd89e4f82e9e572ec70d6cd47e77191640efa"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/unit-source.json",
+      "sha256": "0075709c20e96d223f9ffa5e719a99e34b8e5b1de33607710b517b662b71076a"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/gates/unit.log",
+      "sha256": "7903bbb2550c06f58518ddf525c2058167a0cbdad8e07f201e53b60224f2df52"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/initial-source.json",
+      "sha256": "bc7fce417dec0d8bb60a4d0cb6adf852ba6688f6699a3160b5f47c548ea5ddb2"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/runtime-preflight.json",
+      "sha256": "7729315a43bd67a4a3dc9362c64ec51130a2d6a39684d80575c40c32127e568b"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/source-export.json",
+      "sha256": "9852d2dc2b4328ca0ee786572b7ecb9e4f1ae7b708cfc50e551a8ad27eab3756"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/source.zip",
+      "sha256": "8feb311adca91cbbfa5c0eb27991ebc8f8f7c0e2dcc4cebc24f6484c8eb9a8ea"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/full-6bb6e3f7-14e13269-e36a-4a00-b19f-d6b703c3d34b/typegen.log",
+      "sha256": "adba4af9194e10e47dda75ff0fd0f8c2b756474896d0eba5612799c527ff372a"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/built-proof/playwright-result.json",
+      "sha256": "70d022b9287f13bfee03ceef7714c9b9492b87fbfa6e03adfdabc3818ec4de30"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/built-proof/process.log",
+      "sha256": "5b9bf05d81b5d58b81c16dd2c58a686bc3adbf0ace0a384fb6e7fd053a66ad35"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/built-proof/result.json",
+      "sha256": "290f96758d906378ef828b32aea007c92690ab01bed3d8d947e8701a725fc067"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/built-proof/runtime-preflight.json",
+      "sha256": "7729315a43bd67a4a3dc9362c64ec51130a2d6a39684d80575c40c32127e568b"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/built-proof/server-stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/built-proof/server-stdout.log",
+      "sha256": "1711ff609c8da2c67500131a7c59e50b7a3fb65ec8d4221a6cf8aa587da7dab0"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/built-proof/server.json",
+      "sha256": "fa0d84515f77f91e42f34feae9e374b17ef5c4be33d56b0d660954dc429bdc87"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/built-proof/source-after.json",
+      "sha256": "0a063a1c83bdf4605b290f6dc9ffe1cdd4d349aab16c9983c80e06397eed97ff"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/built-proof/source-before.json",
+      "sha256": "d31fb9026491ddc351d9f72a3352855091b154ea9d6c13aefb00b7b554bb169b"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/customer-role-aggregate.json",
+      "sha256": "99deacbbbec4ddb27268ac99957f7e752147cae9784053c0a63611c5f7c7f912"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/old-booking-state.json",
+      "sha256": "ea013eddd728eba73f7742dfb281d0e7b7177eb4f835830b8f52b4f6896077be"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/platform-disabled-baseline.json",
+      "sha256": "23901ee794c44434383b4a9bb1e45efbf88befa5f0237a3161264018c66d7cd9"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/primary-provenance.json",
+      "sha256": "a95018096735f4668ac0c32b82621f29000966489f89d5a941b03c11c81c7bca"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/runtime-denials.json",
+      "sha256": "8ab34298dda610120f62cec6eb550f24877e967d9481cc4bb2bf166280d410d7"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/page-read-proof/page-reads.test.ts",
+      "sha256": "8f88402163d014dd3aa522b906669a4aa7ad3551a67cb5e800fdc84555692ad4"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/page-read-proof/process.log",
+      "sha256": "e4e68eca015c1339a0725d0d08a2f4b19b2eed6c3ae94d5e8885497b57061270"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/page-read-proof/result.json",
+      "sha256": "29162b6d77ad56c8bc984174142fd0921188ae6030840b02e809256de758c06f"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/page-read-proof/source-after.json",
+      "sha256": "3a36037cc1d4ab1217c2550d91f41bf6129e31a021e4e96278ad8908aea28184"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/page-read-proof/source-before.json",
+      "sha256": "eb812be9c725c68a19b5feb09b35633fc7a66d45b7a32a8ce3736eb263380fb9"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/page-read-proof/vitest.config.ts",
+      "sha256": "fe2bda5fea2fb53e41fc60106cc7d2c9aaf855fcf6dd3ccfa56dd3fe8ee420f3"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/validators/deployed.log",
+      "sha256": "c0355074479ffc4ddf884aee9667cb00c290dc123e004318b214a5decf4e8cb4"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/validators/live.log",
+      "sha256": "7b0fc9e0e130e1bab69e76437521f4e134d4c6b9eb72e6fe41515db6a02ef6c8"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/ops11-repair-20261013/validators/prepared.log",
+      "sha256": "36bb7f4868285929ec900a6ca412050c70124def213ed28f5faf7aa95375d31b"
+    }
+  ],
+  "pageReadProof": {
+    "schemaVersion": 1,
+    "revision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+    "startedAt": "2026-10-13T10:44:34.614Z",
+    "finishedAt": "2026-10-13T10:44:49.004Z",
+    "exitCode": 0,
+    "sourceUnchanged": true,
+    "allPassed": true,
+    "scope": "Supplementary isolated test harness: all20 flags-on staff page/layout functions deny before any protected select/execute; nine unrelated original cases deliberately filtered, not a full-suite result",
+    "applicationSourceChanged": false,
+    "directory": "playwright/.cache/phase27-08/ops11-repair-20261013/page-read-proof"
+  },
+  "phaseValidators": {
+    "binding": "Existing accepted588 phase evidence; the old approval does not authorize the new6bb release",
+    "prepared": "pass",
+    "deployed": "fail",
+    "live": "fail",
+    "remaining": [
+      "partial provider inventory/signed delivery",
+      "existing staff account/new guards not serving",
+      "actual inquiry/Reply-To/reply and separate enablement authority"
+    ]
+  },
+  "supportingWorkingTreeHistory": {
+    "sourceCapture": "unavailable; these are retained terminal summaries from uncommitted preparation, not exact-revision gate proof",
+    "initialFocusPassed": 30,
+    "blockingOpsPassed": 52,
+    "broad": {
+      "testFiles": 125,
+      "passed": 1394,
+      "failed": 137,
+      "skipped": 5
+    },
+    "repairedFixtureSuites": {
+      "files": 7,
+      "passed": 176
+    }
+  },
+  "finalRecordedAt": "2026-10-13T10:46:46.030Z"
+}

@@ -244,3 +244,8 @@ Contact follow-up 2026-10-12T05:55:57.485Z: owner Docker-ready reply received; D
 
 
 Contact local readiness 2026-10-12T06:33:18.850Z: Docker desktop-linux responds. Existing stopped fitout-db-1 started without volume changes; pg_isready, fitout_test SQL and host5432 pass. Fresh exact588 isolated rehearsal passed: disabled gate no quota/mail; three-process/shared-backend race5 reservations/3 denials plus restart denial; global99 seed plus real HTTP100th slot, different-runtime global denial, one natural incident, first local monitor processes1/stub-alert1 and second0, no inquiry/real email. Unique owned schema removed. Both exact live packets remain unexecuted; verifier-binding repair still proposed, authoritative checker unchanged, Contactdisabled, currentmatrix33/35. Proof: playwright/.cache/phase27-08/contact-controls-ready-be1b8a83-3a7a-4e42-88bd-70c36abd2ba5/report.json.
+
+
+## OPS-11 code preparation — October13
+
+Read-only provenance confirms one separate legacy staff identity with both customer capabilitiestrue, three ended booking windows and a payout destination. Positive customer-role guards are repaired at6bb6e3f7 and pass all six canonical gates plus actual local flags-on staff HTML/Flight/upload denial. The owner must still settle that exact account's disposition and approve the new disabled source rollout; no Production account changed. Keep this high threat open until its serving/data scope is observed. Status-only probes would misread25 streaming200 neutral not-found responses; protected-body denial is independently observed. Strict transport status remediation is a separate planning decision. Read27-OPS11-REPAIR-RESULT.md/.json; no Phase28 assignment or requirement closure.

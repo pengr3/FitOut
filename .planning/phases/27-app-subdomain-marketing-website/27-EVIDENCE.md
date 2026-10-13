@@ -1,5 +1,7 @@
 # Phase27 actual production evidence — incomplete
 
+OPS-11 preparation 2026-10-13T10:38:21.268Z: source6bb6e3f7 passes all six engineering gates and separate flags-on staff runtime proof. Serving Production remains58897a94; account repair/disabled rollout, provider signed delivery and actual inquiry/reply remain open. Contact disabled. Read27-OPS11-REPAIR-RESULT.md.
+
 Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disabled. Matrix35/35. Protected current-Production configuration proof observesPayMongoLIVE andDiditSANDBOX with matching provider signing configuration; directCogas diagnostic andsuccessfulsigneddelivery are notclaimed. Provider delivery/inquiry/reply andOPS-11 gates remain. Plan09 stays20/21, curated144/151, all7requirements pending. Read27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md; older sections retain their historical dates.
 
 ```json
@@ -563,7 +565,7 @@ Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disab
     }
   ],
   "highThreats": [
-    "OPS-11 data consistency: readonly primary aggregate shows one separate staff account with both customer capabilities true; activation denies staff roles, but booking/host gates include capability-only checks. Account provenance and safe remediation remain unverified; no account changed."
+    "OPS-11: one historical staff account remains flags-on. Provenance is observed and code repair6bb6e3f7 passes local gates, but the new guards are not serving and the exact account disposition/repair remains unapproved."
   ],
   "rollbackVerified": true,
   "contactControlsVerified": true,
@@ -1822,6 +1824,16 @@ Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disab
     "scope": "Protected current-Production extension with qualified serving metadata/source continuity; no directCogas diagnostic",
     "successfulSignedProviderDeliveryObserved": false,
     "contactDisabled": true
+  },
+  "ops11PreparedRepair": {
+    "sourceRevision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+    "status": "prepared-code-repair-verified",
+    "result": ".planning/phases/27-app-subdomain-marketing-website/27-OPS11-REPAIR-RESULT.json",
+    "resultSha256": "b05c9935ce3f568201d8efb47d679d99407d4d758da6623b85f4e289659140a6",
+    "contactEnabled": false,
+    "productionRolledOut": false,
+    "accountChanged": false
   }
 }
 ```

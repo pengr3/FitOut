@@ -1,5 +1,7 @@
 # Phase 27 engineering evidence
 
+OPS-11 preparation 2026-10-13T10:38:21.268Z: source6bb6e3f7 passes all six engineering gates and separate flags-on staff runtime proof. Serving Production remains58897a94; account repair/disabled rollout, provider signed delivery and actual inquiry/reply remain open. Contact disabled. Read27-OPS11-REPAIR-RESULT.md.
+
 Current reconciliation (2026-10-11T09:33:12.518Z): active engineering candidate is exact58897a94, manifest 8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a. All six fresh full gates pass. D67 is archived with its original source labels and logs. See27-RELEASE-SOURCE-RECONCILIATION.md. Earlier prose below is dated history.
 
 Engineering preparation and live account facts remain separate. Full unit/design and the first full browser gate failed. A successful build/typecheck/lint is insufficient to claim the engineering contract complete. No checkout, payout, legal, provider, deployment or live mail release occurred.
@@ -5654,7 +5656,17 @@ raw recovery nor deployment acceptance is fabricated.
         }
       }
     }
-  ]
+  ],
+  "ops11PreparedRepair": {
+    "sourceRevision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+    "status": "prepared-code-repair-verified",
+    "result": ".planning/phases/27-app-subdomain-marketing-website/27-OPS11-REPAIR-RESULT.json",
+    "resultSha256": "b05c9935ce3f568201d8efb47d679d99407d4d758da6623b85f4e289659140a6",
+    "contactEnabled": false,
+    "productionRolledOut": false,
+    "accountChanged": false
+  }
 }
 ```
 
