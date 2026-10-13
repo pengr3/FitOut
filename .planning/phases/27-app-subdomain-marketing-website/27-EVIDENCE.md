@@ -1,5 +1,8 @@
 # Phase27 actual production evidence — incomplete
 
+Provider signed-delivery result 2026-10-13T13:05:35.708Z: Didit Sandbox provider Test Not Started reached the actual6bb webG8 function with200, fresh signed eventd5a49c51-c418-4c12-95bd-613a257175e2 and complete Sandbox envelope; four apex/app unsigned controls have direct400 and matched current function records. FivePOSTs total, one Didit send/no repeat observed through2026-10-13T12:55:55.215Z; no PayMongo send. Business/audit hashes, aliases, false Contact flags, provider metadata and14+1 scheduler registrations remain unchanged. The run ledger closed33.430seconds beyond its900-second limit after final UI selector failures: functional proofs are observed, strict packet execution is not accepted. No further send or configuration change occurred during the overrun. PayMongo LIVE signed delivery and actual Contact inquiry/reply remain pending; testing accounts stay unchanged, Contact disabled, phase20/21 and curated144/151 with seven requirements pending. Read27-PROVIDER-SIGNED-DELIVERY-RESULT.md/.json.
+
+
 Signed-delivery preparation 2026-10-13T12:32:51Z: current disabled6bb webG8/Ops3qt pair and all eight aliases/three false values read back; 84/84 exact-source webhook tests pass. PayMongo LIVE has no eligible nonfinancial replay (only old payment history, Retry disabled). Didit's12 historical test failures were404; inspected unsent Not Started preview omits event_id/environment and has a stale timestamp. Fresh packet proposes four unsigned controls and one Didit diagnostic dispatch, maximum15minutes/up to three natural Didit attempts; no PayMongo send, deployment/configuration/account mutation or Contact enablement. The diagnostic can retain synthetic audit outcomes; a mismatch may appear in the existing automatic Ops digest. Preparation only: no delivery proof or phase count advances. Read27-PROVIDER-SIGNED-DELIVERY-PACKET.md and27-PROVIDER-SIGNED-DELIVERY-PREPARATION.json. Existing test accounts remain unchanged.
 
 
@@ -1894,7 +1897,28 @@ Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disab
       "roleBoundaryStillEnforced": true,
       "accountCleanupCancelled": true
     }
-  ]
+  ],
+  "providerSignedDelivery": {
+    "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "result": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-SIGNED-DELIVERY-RESULT.json",
+    "resultSha256": "f570eb694fa2d381e0c8192b14e1c25173d010b4546b3417bb6fe5980d9fea67",
+    "functionalAssertions": {
+      "fourUnsignedDirectFunctionDenials": true,
+      "diditProviderOriginSandboxSignatureAccepted": true,
+      "diditFreshCompleteEnvelopeObserved": true,
+      "diditHarmlessNotStartedProcessing": true,
+      "dispatchWithinFiveMinutes": true,
+      "businessAndAuditUnchanged": true,
+      "noAdditionalDiditRequestInObservedPeriod": true
+    },
+    "strictPacketExecutionAccepted": false,
+    "durationLimitPassed": false,
+    "overrunSeconds": 33.42999999999995,
+    "diditSandboxSignedPathObserved": true,
+    "paymongoLiveSignedDelivery": "pending",
+    "contactDisabled": true,
+    "testAccountsUnchanged": true
+  }
 }
 ```
 

@@ -1,5 +1,8 @@
 # Phase 27 — Current external inventory
 
+Provider signed-delivery result 2026-10-13T13:05:35.708Z: Didit Sandbox provider Test Not Started reached the actual6bb webG8 function with200, fresh signed eventd5a49c51-c418-4c12-95bd-613a257175e2 and complete Sandbox envelope; four apex/app unsigned controls have direct400 and matched current function records. FivePOSTs total, one Didit send/no repeat observed through2026-10-13T12:55:55.215Z; no PayMongo send. Business/audit hashes, aliases, false Contact flags, provider metadata and14+1 scheduler registrations remain unchanged. The run ledger closed33.430seconds beyond its900-second limit after final UI selector failures: functional proofs are observed, strict packet execution is not accepted. No further send or configuration change occurred during the overrun. PayMongo LIVE signed delivery and actual Contact inquiry/reply remain pending; testing accounts stay unchanged, Contact disabled, phase20/21 and curated144/151 with seven requirements pending. Read27-PROVIDER-SIGNED-DELIVERY-RESULT.md/.json.
+
+
 Signed-delivery preparation 2026-10-13T12:32:51Z: current disabled6bb webG8/Ops3qt pair and all eight aliases/three false values read back; 84/84 exact-source webhook tests pass. PayMongo LIVE has no eligible nonfinancial replay (only old payment history, Retry disabled). Didit's12 historical test failures were404; inspected unsent Not Started preview omits event_id/environment and has a stale timestamp. Fresh packet proposes four unsigned controls and one Didit diagnostic dispatch, maximum15minutes/up to three natural Didit attempts; no PayMongo send, deployment/configuration/account mutation or Contact enablement. The diagnostic can retain synthetic audit outcomes; a mismatch may appear in the existing automatic Ops digest. Preparation only: no delivery proof or phase count advances. Read27-PROVIDER-SIGNED-DELIVERY-PACKET.md and27-PROVIDER-SIGNED-DELIVERY-PREPARATION.json. Existing test accounts remain unchanged.
 
 
@@ -113,17 +116,17 @@ content remains unproved here. No request used a protection bypass.
     },
     {
       "id": "didit",
-      "status": "partial",
+      "status": "observed",
       "owner": "Didit application owner",
-      "current": "Actual staged Production runtime explicitlyacceptsSANDBOX; workflow63f24717-7167-4cee-867e-688284d4c2ee GET200 matchesFitOut Host Verification andconsoleapp8c987e39-86bd-452f-a18b-a5153beda380. Callbackapp.fitout.live/host/verify. Exactuniqueapexdestinatione887a8c1-7d92-4a14-9fc1-1a7f7efae154 GET200enabled/v3/status.updated andruntime signing secretmatches. PriorSept23Testdelivery12failures retained; no newtestevent/session.",
+      "current": "Retained Sandbox application/workflow/signing correspondence is supplemented by actual current6bb provider-origin Not Started event d5a49c51-c418-4c12-95bd-613a257175e2: fresh complete Sandbox envelope, exact apex Vercel function200, no new audit or business-state change. Four current apex/app unsigned controls deny400. Destination history retains12 old404 entries; synchronous Test sender receipt and actual request supply the current delivery evidence. No real identity session or provider setting changed.",
       "target": "Direct old/new /api/didit/webhook; browser return https://app.fitout.live/host/verify; eligibility unchanged",
       "requiredProof": "Exact application/workflow receiver and signature/retry read-back; browser return; no real identity session required for inventory",
       "rollback": "Restore saved webhook/return registration; never redirect webhook POST or alter approval policy",
-      "observedAt": "2026-10-13T08:58:31.086Z",
-      "observationType": "Approved bounded current-Production configuration observation on protected staged588 extension; serving mapping qualified by unchanged metadata",
-      "source": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md",
+      "observedAt": "2026-10-13T12:55:55.215Z",
+      "observationType": "Actual approved provider Test dispatch to serving6bb Sandbox receiver plus exact Vercel function and unchanged primary/configuration observations; duration deviation separately retained",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-SIGNED-DELIVERY-RESULT.md",
       "providerReadbackDate": "2026-10-09",
-      "remainingProof": "Current provider-origin Sandbox delivery and processing remain pending. All12 historical Test deliveries were404; unsent Not Started preview has a stale timestamp and no event_id/environment. One separately approved diagnostic will test actual sender enrichment; queued or environment-mismatch200 alone is not acceptance.",
+      "remainingProof": "Current retained Sandbox signed-path inventory proof observed. Broader identity/verification acceptance is outside this packet. The duration exception remains disclosed and is not retroactively approved.",
       "signedDeliveryPreparation": {
         "at": "2026-10-13T12:32:51Z",
         "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
@@ -131,6 +134,22 @@ content remains unproved here. No request used a protection bypass.
         "packetSha256": "8366ab3111d47b42687f4a51bbd8a6d11e2a2b00478f682184e76259601960e4",
         "providerSends": 0,
         "status": "prepared-not-approved"
+      },
+      "historyBeforeSignedDelivery": {
+        "observedAt": "2026-10-13T08:58:31.086Z",
+        "current": "Actual staged Production runtime explicitlyacceptsSANDBOX; workflow63f24717-7167-4cee-867e-688284d4c2ee GET200 matchesFitOut Host Verification andconsoleapp8c987e39-86bd-452f-a18b-a5153beda380. Callbackapp.fitout.live/host/verify. Exactuniqueapexdestinatione887a8c1-7d92-4a14-9fc1-1a7f7efae154 GET200enabled/v3/status.updated andruntime signing secretmatches. PriorSept23Testdelivery12failures retained; no newtestevent/session.",
+        "remainingProof": "Current provider-origin Sandbox delivery and processing remain pending. All12 historical Test deliveries were404; unsent Not Started preview has a stale timestamp and no event_id/environment. One separately approved diagnostic will test actual sender enrichment; queued or environment-mismatch200 alone is not acceptance.",
+        "source": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md"
+      },
+      "evidenceBoundary": "Observed current Sandbox signed transport/envelope/Not Started no-op only; no LIVE Didit, configured-workflow verdict or app-origin signed delivery. Ledger close exceeded approved duration33.430seconds, so strict packet execution is not accepted.",
+      "signedDeliveryResult": {
+        "result": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-SIGNED-DELIVERY-RESULT.json",
+        "resultSha256": "f570eb694fa2d381e0c8192b14e1c25173d010b4546b3417bb6fe5980d9fea67",
+        "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+        "signatureAccepted": true,
+        "harmlessProcessingObserved": true,
+        "durationLimitPassed": false,
+        "strictPacketExecutionAccepted": false
       }
     },
     {
@@ -855,6 +874,17 @@ content remains unproved here. No request used a protection bypass.
     "testAccountsUnchanged": true,
     "approved": false,
     "executed": false
+  },
+  "providerSignedDeliveryResult": {
+    "result": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-SIGNED-DELIVERY-RESULT.json",
+    "resultSha256": "f570eb694fa2d381e0c8192b14e1c25173d010b4546b3417bb6fe5980d9fea67",
+    "recordedAt": "2026-10-13T13:05:35.708Z",
+    "paymongoLive": "pending",
+    "diditSandbox": "observed-functional-path",
+    "durationLimitPassed": false,
+    "strictPacketExecutionAccepted": false,
+    "contactDisabled": true,
+    "testAccountsUnchanged": true
   }
 }
 ```
