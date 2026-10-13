@@ -39,10 +39,9 @@
 // out of it that the probe closes. It also means the caller CANNOT render a branch on failure, which is
 // what keeps D-102's copy and STATE-05's ban on an error affordance intact by construction.
 
+import { readCustomerUserId } from "@/lib/customer-access";
 import { eq } from "drizzle-orm";
-import { headers } from "next/headers";
 
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { booking } from "@/lib/db/schema";
 import { rateLimit } from "@/lib/rate-limit";
@@ -117,8 +116,7 @@ export async function reconcilePaymentNow(bookingId: string): Promise<ReconcileN
   // (1) SESSION FIRST. An unauthenticated caller must not be able to make FitOut hit PayMongo, so this
   // gate sits above everything including the rate limiter — an anonymous flood must mint no buckets and
   // cost no round trips.
-  const session = await auth.api.getSession({ headers: await headers() });
-  const userId = session?.user?.id ?? null;
+  const userId = await readCustomerUserId();
   if (!userId) return "denied";
 
   // (2) RATE-LIMIT ON THE AUTHENTICATED IDENTITY, never on anything a caller can type (the key-space rule

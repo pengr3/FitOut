@@ -47,6 +47,7 @@
 // uploader appends ?listingId=<id> to the endpoint URL — we accept it from the query string as a
 // fallback so the ownership gate can still scope the signature to the owned listing.
 
+import { readCustomerUserId } from "@/lib/customer-access";
 import { and, eq, isNull } from "drizzle-orm";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
@@ -103,6 +104,10 @@ export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session?.user) {
     return new Response("Unauthorized", { status: 401 });
+  }
+
+  if (session.user.id !== await readCustomerUserId()) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   // 2. Resolve the target listingId (body first, then the widget's ?listingId= query fallback).

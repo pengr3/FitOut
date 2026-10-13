@@ -30,13 +30,12 @@
 //   - SPAM (T-07-73): rate-limited per identity with an audited denial.
 //   - POST-ONLY: a POST server action invoked from a button, never a GET side-effect.
 
+import { readCustomerUserId } from "@/lib/customer-access";
 import { eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { auth } from "@/lib/auth";
 import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import { booking, listing, user } from "@/lib/db/schema";
@@ -86,8 +85,7 @@ const TOO_FAST: ReRequestResult = {
 
 /** Resolve the signed-in user's id, or null if there is no session (cloned from host-requests.ts). */
 async function requireUserId(): Promise<string | null> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user?.id ?? null;
+  return readCustomerUserId();
 }
 
 // Aliased user joins: one read reaches BOTH the listing host (the new request's recipient) and the booker

@@ -60,7 +60,8 @@
 // once-ever destination that is dead weight the moment it succeeds. The way in is a conditional
 // advisory row on the dashboard — see `src/components/host/host-signals.tsx`.
 
-import { redirect } from "next/navigation";
+import { isCustomerRole } from "@/lib/customer-role";
+import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 
 import { HostingPausedNotice } from "@/components/host/hosting-paused-notice";
@@ -81,6 +82,8 @@ import { loadHostVerification } from "@/lib/host/verification-status";
 
 export default async function HostVerifyPage() {
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   if (!session?.user) {
     redirect("/login");
   }

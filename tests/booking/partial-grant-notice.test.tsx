@@ -294,7 +294,7 @@ async function renderPage(search: Record<string, string> = {}) {
 const alertEl = (container: HTMLElement) => container.querySelector('[data-slot="alert"]');
 
 beforeEach(() => {
-  getSession.mockResolvedValue({ user: { id: "usr_1" } });
+  getSession.mockResolvedValue({ user: { role: "user", id: "usr_1" } });
   seed(openBooking(1), OPEN_LISTING);
   dbState.resolve = (table) => rows[getTableName(table as never)] ?? [];
 });

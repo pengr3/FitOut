@@ -96,6 +96,7 @@
 // on the one document a booker holds beside a bank statement. When the match fails the receipt shows the
 // frozen total alone, which is always true.
 
+import { isCustomerRole } from "@/lib/customer-role";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
@@ -136,6 +137,8 @@ export default async function BookingReceiptPage({
 
   // A session is required to own a booking — no session can never be the owner (→ 404, reveal nothing).
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   const userId = session?.user?.id;
   if (!userId) notFound();
 

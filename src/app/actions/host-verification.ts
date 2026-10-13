@@ -69,12 +69,11 @@
 // else. The phone and the email never enter `audit.meta` (a durable jsonb column under an explicit
 // no-secrets/no-PII rule), never a log line, and never a column this action writes.
 
+import { readCustomerUserId } from "@/lib/customer-access";
 import { eq, sql } from "drizzle-orm";
-import { headers } from "next/headers";
 import { z } from "zod";
 
 import { recordAudit } from "@/lib/audit";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hostVerification, user } from "@/lib/db/schema";
 import {
@@ -207,8 +206,7 @@ const AUDIT_ACTION = "request_host_verification";
 
 /** Resolve the signed-in user's id, or null if there is no session (copied from capability.ts). */
 async function requireUserId(): Promise<string | null> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user?.id ?? null;
+  return readCustomerUserId();
 }
 
 /** The one token an operator greps for when a host says the check would not start. */

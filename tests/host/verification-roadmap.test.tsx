@@ -71,7 +71,7 @@ function queueSelectResult(...results: unknown[][]) {
 beforeEach(() => {
   h.startPayoutOnboardingMock.mockReset();
   h.getSessionMock.mockResolvedValue({
-    user: {
+    user: { role: "user",
       id: "host_zero",
       firstName: "Maria",
       email: "maria@example.com",

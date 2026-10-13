@@ -313,7 +313,7 @@ const FACTS = (totalTerm: string): readonly string[] => [
 ];
 
 beforeEach(() => {
-  getSession.mockResolvedValue({ user: { id: USER_ID, email: "jane@example.com" } });
+  getSession.mockResolvedValue({ user: { role: "user", id: USER_ID, email: "jane@example.com" } });
   clock.now = new Date("2026-08-20T02:00:00.000Z");
   probe.session = null;
   dbState.resolve = null;

@@ -1,5 +1,6 @@
 "use server";
 
+import { isCustomerRole } from "@/lib/customer-role";
 import { eq, sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -21,8 +22,8 @@ async function currentHost(): Promise<{ userId: string } | null> {
   const session = await auth.api.getSession({ headers: await headers() });
   const userId = session?.user?.id;
   if (!userId) return null;
-  const [row] = await db.select({ canHost: user.canHost }).from(user).where(eq(user.id, userId));
-  return row?.canHost ? { userId } : null;
+  const [row] = await db.select({ canHost: user.canHost, role: user.role }).from(user).where(eq(user.id, userId));
+  return row?.canHost && isCustomerRole(row.role) ? { userId } : null;
 }
 
 /**

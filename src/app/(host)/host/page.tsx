@@ -50,8 +50,9 @@
 // which is also what `tests/design/blocking-session-gate.test.ts` requires: an await in a group layout
 // blocks navigation for the whole group and makes the `loading.tsx` beneath it useless.
 
+import { isCustomerRole } from "@/lib/customer-role";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { and, count, eq, isNull } from "drizzle-orm";
 import { Building2Icon } from "lucide-react";
@@ -100,6 +101,8 @@ const UNTITLED_SPACE_LABEL = "Your space";
 export default async function HostDashboardPage() {
   // ─── GATE 2, UNCHANGED. Session first, host capability second, both re-checked ON THE PAGE. ───────
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   if (!session?.user) {
     redirect("/login");
   }

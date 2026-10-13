@@ -19,12 +19,11 @@
 // (RESEARCH Q1 — booking-vs-booking is the money-critical DB invariant; the Phase-4 insert tx guards
 // block-vs-booking). unit NULL = whole listing; else a single unit.
 
+import { readCustomerUserId } from "@/lib/customer-access";
 import { randomUUID } from "node:crypto";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { TZDate } from "@date-fns/tz";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listing, availabilityBlock } from "@/lib/db/schema";
 import { blockSchema, type BlockInput } from "@/lib/validation/availability";
@@ -35,8 +34,7 @@ export type AvailabilityResult =
 
 /** Resolve the signed-in user's id, or null if there is no session (cloned from listing.ts). */
 async function requireUserId(): Promise<string | null> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user?.id ?? null;
+  return readCustomerUserId();
 }
 
 /**

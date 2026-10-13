@@ -3,6 +3,7 @@
 // a listing that isn't the caller's returns notFound() (we don't leak existence). lat/lng are read
 // back out of the PostGIS point with the correct axis order (y = latitude, x = longitude).
 
+import { isCustomerRole } from "@/lib/customer-role";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
@@ -29,6 +30,8 @@ export default async function EditListingPage({
   const { id } = await params;
 
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   if (!session?.user) {
     redirect("/login");
   }

@@ -110,6 +110,7 @@
 // imports the constant. An instruction is obeyed as long as the next author reads the header; a constant
 // is obeyed by construction.
 
+import { isCustomerRole } from "@/lib/customer-role";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -222,6 +223,8 @@ export default async function BookingConfirmationPage({
 
   // A session is required to own a booking — no session can never be the owner (→ 404, reveal nothing).
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   const userId = session?.user?.id;
   if (!userId) notFound();
 

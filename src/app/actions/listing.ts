@@ -39,14 +39,13 @@
 //     shape of a system they control nothing about.
 //   - Soft-deleted rows (deletedAt IS NOT NULL) are excluded from normal reads/writes.
 
+import { readCustomerUserId } from "@/lib/customer-access";
 import { randomUUID } from "node:crypto";
 // `desc` is here for the D-02 reuse read's `ORDER BY created_at DESC` and nothing else — added by
 // plan 19-06. The alternative was raw SQL for the ordering clause; the helper keeps the column
 // reference type-aware, so a rename of `createdAt` reddens at compile time instead of at runtime.
 import { and, desc, eq, isNull, sql, type InferInsertModel } from "drizzle-orm";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import {
   listing,
@@ -123,8 +122,7 @@ export type CreateDraftListingResult =
 
 /** Resolve the signed-in user's id, or null if there is no session (copied from capability.ts). */
 async function requireUserId(): Promise<string | null> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user?.id ?? null;
+  return readCustomerUserId();
 }
 
 /**

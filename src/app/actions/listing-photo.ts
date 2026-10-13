@@ -31,11 +31,10 @@
 //     delivery origin, publicId scoped to fitout/listings/<listingId>/ — and FAILS CLOSED when the
 //     cloud name is unconfigured. The stored url is rendered as <img src> on a PUBLIC page.
 
+import { readCustomerUserId } from "@/lib/customer-access";
 import { randomUUID } from "node:crypto";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listing, listingPhoto } from "@/lib/db/schema";
 import { destroyListingPhoto } from "@/lib/cloudinary";
@@ -62,8 +61,7 @@ export type PersistPhotoResult =
 
 /** Resolve the signed-in user's id, or null if there is no session (copied from listing.ts). */
 async function requireUserId(): Promise<string | null> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user?.id ?? null;
+  return readCustomerUserId();
 }
 
 /**

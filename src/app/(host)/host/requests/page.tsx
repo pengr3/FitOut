@@ -68,7 +68,8 @@
 // `tests/design/empty-state-adoption.test.ts` passes with zero edits, which is the proof that nothing
 // here was re-decided.
 
-import { redirect } from "next/navigation";
+import { isCustomerRole } from "@/lib/customer-role";
+import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { and, asc, eq } from "drizzle-orm";
 
@@ -102,6 +103,8 @@ import {
 export default async function HostRequestsPage() {
   // Defense in depth: the (host) layout already gates, but never render the inbox without a real session.
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   if (!session?.user) {
     redirect("/login");
   }
