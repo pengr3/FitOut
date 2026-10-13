@@ -1,5 +1,8 @@
 # Phase27 actual production evidence — incomplete
 
+PayMongo acceptance reconciliation 2026-10-13T13:31:51.382Z: Plan09's original denied-signature plus destination read-back alternative is observed for current6bb webG8. Current apex/app direct400 function records, the retained Enabled LIVE hook/five subscriptions, private runtime signing match and qualified unchanged configuration/source correspondence support this limited disposition. No successful LIVE provider delivery or public-key account attribution is claimed; payment/payout/legal HOLDs and the prior33.430-second packet duration failure remain. Only Resend-inquiry and support-mailbox inquiry rows remain partial. Contact stays disabled, test accounts unchanged;20/21 plans,144/151 curated and seven requirements pending. Read27-PAYMONGO-ACCEPTANCE-RECONCILIATION.md/.json. Earlier provider-success expectations are retained as dated history.
+
+
 Provider signed-delivery result 2026-10-13T13:05:35.708Z: Didit Sandbox provider Test Not Started reached the actual6bb webG8 function with200, fresh signed eventd5a49c51-c418-4c12-95bd-613a257175e2 and complete Sandbox envelope; four apex/app unsigned controls have direct400 and matched current function records. FivePOSTs total, one Didit send/no repeat observed through2026-10-13T12:55:55.215Z; no PayMongo send. Business/audit hashes, aliases, false Contact flags, provider metadata and14+1 scheduler registrations remain unchanged. The run ledger closed33.430seconds beyond its900-second limit after final UI selector failures: functional proofs are observed, strict packet execution is not accepted. No further send or configuration change occurred during the overrun. PayMongo LIVE signed delivery and actual Contact inquiry/reply remain pending; testing accounts stay unchanged, Contact disabled, phase20/21 and curated144/151 with seven requirements pending. Read27-PROVIDER-SIGNED-DELIVERY-RESULT.md/.json.
 
 
@@ -1917,7 +1920,22 @@ Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disab
     "diditSandboxSignedPathObserved": true,
     "paymongoLiveSignedDelivery": "pending",
     "contactDisabled": true,
-    "testAccountsUnchanged": true
+    "testAccountsUnchanged": true,
+    "paymongoPhase27ReceiverContinuity": "observed-original-plan-denial-plus-destination-alternative",
+    "paymongoLiveSignedDeliveryGap": ".planning/phases/27-app-subdomain-marketing-website/deferred-items.md#p27-g-paymongo-live--positive-delivery-and-public-key-attribution"
+  },
+  "paymongoAcceptanceReconciliation": {
+    "recordedAt": "2026-10-13T13:31:51.382Z",
+    "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "webDeploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+    "status": "observed-original-contract-alternative",
+    "result": ".planning/phases/27-app-subdomain-marketing-website/27-PAYMONGO-ACCEPTANCE-RECONCILIATION.json",
+    "resultSha256": "aef28fe37d1a834de3ea3f0132cd809d721da4b5571db974466ac23889b3252e",
+    "selectedAlternative": "Existing safely denied invalid-signature probes plus explicit destination read-back",
+    "successfulLiveDeliveryObserved": false,
+    "configurationDirectOnServingDeployment": false,
+    "priorDurationExceptionWaived": false,
+    "contactDisabled": true
   }
 }
 ```

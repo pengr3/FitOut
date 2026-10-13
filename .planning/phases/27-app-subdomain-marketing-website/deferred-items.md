@@ -255,3 +255,10 @@ Read-only provenance confirms one separate legacy staff identity with both custo
 
 Owner test-account disposition recorded 2026-10-13T12:03:48.437Z: cancel the proposed account cleanup and preserve the existing test accounts as they are. No repair authority, attempt or Production credential was created. The deployed6bb6e3f7 customer-role guards remain; both Contact settings stay false. Retain the legacy flags-on staff identity as an explicit owner-approved testing fixture, not a repaired data invariant. Account cleanup is no longer awaiting approval. Provider signed delivery and actual inquiry/reply gates remain open; phase/requirement counts are unchanged. See 27-OPS11-TEST-ACCOUNT-DISPOSITION.md.
 The earlier mandatory account-cleanup recommendation is superseded. No role/capability or historical-record mutation is authorized for these testing accounts. The deployed guards remain required and are not reverted.
+
+
+## P27-G-PAYMONGO-LIVE — positive delivery and public-key attribution
+
+Recorded 2026-10-13T13:31:51.382Z. Phase27 receiver continuity is observed through the original Plan09 safe-denial plus destination-read-back alternative; see27-PAYMONGO-ACCEPTANCE-RECONCILIATION.md. This does not establish successful current-release LIVE provider-origin signed delivery or business processing. The separate public key is LIVE-mode, but its account has not been independently attributed. The observed LIVE hook has no eligible harmless nonfinancial replay; its lone historical payment event has Retry disabled. A TEST sender is not evidence for this LIVE hook.
+
+Carry these gaps into payment-release planning under the existing checkout/payout/legal HOLDs. Determine a provider-supported safe positive proof and key-account check before any payment release; preserve exact event identity, signature/deduplication, release binding and unchanged business records. No payment, payout, merchant-state event, new signed synthetic ledger fixture, provider setting change or account change is authorized by this reconciliation. No new phase or completion count is assigned.

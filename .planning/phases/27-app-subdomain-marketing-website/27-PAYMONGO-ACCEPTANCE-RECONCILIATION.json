@@ -1,0 +1,1605 @@
+{
+  "schemaVersion": 1,
+  "status": "observed-phase27-contract-alternative",
+  "recordedAt": "2026-10-13T13:31:51.382Z",
+  "authority": "Direct owner instruction: go ahead with PayMongo acceptance reconciliation; Contact disabled.",
+  "contract": {
+    "plan": ".planning/phases/27-app-subdomain-marketing-website/27-09-PLAN.md",
+    "originalCommit": "edec99b8",
+    "originalPlanSha256": "0ea3216a2313d71e0ae099a5f6b1879c1de92e6e1561b21f66ceeb4e389d7f92",
+    "currentPlanSha256": "cfb893fe2e0feb1925bfb31ccdc8da56cefd135b656db7822434bf5d12fca633",
+    "alternative": "Validate signed receiver continuity using approved provider test event or existing safely denied invalid-signature probe and explicit destination read-back; never manufacture a successful financial event or trigger checkout/payout."
+  },
+  "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+  "webDeploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+  "opsDeploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+  "sourceManifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+  "sourceArchiveSha256": "8feb311adca91cbbfa5c0eb27991ebc8f8f7c0e2dcc4cebc24f6484c8eb9a8ea",
+  "configurationObservedAt": "2026-10-13T08:58:31.086Z",
+  "configurationDiagnosticDeploymentId": "dpl_7GKcUipbZpTX5H13i9QfCGcySWtb",
+  "servingConfigurationEvidence": "Qualified inheritance from unchanged Production metadata and identical handler/library source, not direct serving plaintext credentials.",
+  "configuration": {
+    "secretMode": "live",
+    "publicMode": "live",
+    "modesAgree": true,
+    "httpStatus": 200,
+    "hookIdMatches": true,
+    "destinationMatches": true,
+    "enabled": true,
+    "eventsMatch": true,
+    "providerModeMatches": true,
+    "signingSecretMatches": true
+  },
+  "denials": [
+    {
+      "sequence": 1,
+      "url": "https://fitout.live/api/paymongo/webhook",
+      "method": "POST",
+      "body": "{}",
+      "marker": "FitOut-P27-Unsigned-d96019e8-c0a9-4c42-8e3d-aa40ff9f9b79-1",
+      "intendedAt": "2026-10-13T12:45:50.451Z",
+      "consumed": true,
+      "status": 400,
+      "responseBody": "Invalid signature",
+      "requestId": "sin1::iad1::mhc4w-1791895551050-fc78dfc07a13",
+      "location": null,
+      "finishedAt": "2026-10-13T12:45:51.686Z",
+      "providerRequestId": "mhc4w-1791895551050-fc78dfc07a13",
+      "providerStatus": 400,
+      "providerSource": "serverless",
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+      "matched": true
+    },
+    {
+      "sequence": 2,
+      "url": "https://app.fitout.live/api/paymongo/webhook",
+      "method": "POST",
+      "body": "{}",
+      "marker": "FitOut-P27-Unsigned-d96019e8-c0a9-4c42-8e3d-aa40ff9f9b79-2",
+      "intendedAt": "2026-10-13T12:45:51.687Z",
+      "consumed": true,
+      "status": 400,
+      "responseBody": "Invalid signature",
+      "requestId": "sin1::iad1::gpvw7-1791895552067-340f72cf25cd",
+      "location": null,
+      "finishedAt": "2026-10-13T12:45:52.120Z",
+      "providerRequestId": "gpvw7-1791895552067-340f72cf25cd",
+      "providerStatus": 400,
+      "providerSource": "serverless",
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+      "matched": true
+    }
+  ],
+  "retainedHook": {
+    "runtimeMode": "LIVE, earlier protected runtime correspondence proof",
+    "hookId": "hook_6UWbRKJQBt1CUnuhRfoFC6XE",
+    "enabled": true,
+    "url": "https://fitout.live/api/paymongo/webhook",
+    "events": [
+      "checkout_session.payment.paid",
+      "merchant.activated",
+      "merchant.declined",
+      "payment.refunded",
+      "payment.refund.updated"
+    ],
+    "primaryProcessedCounts": [
+      {
+        "type": "checkout_session.payment.paid",
+        "count": 1
+      }
+    ],
+    "visibleHistory": {
+      "type": "checkout_session.payment.paid",
+      "status": "Success",
+      "createdAt": "2026-09-27 11:42 UTC+8",
+      "retries": 0,
+      "retryDisabled": true
+    },
+    "eligibleNonfinancialLiveReplay": false,
+    "liveSignedDelivery": "pending"
+  },
+  "platformReadback": {
+    "path": "playwright/.cache/phase27-08/paymongo-acceptance-reconciliation-20261013/platform-readback.json",
+    "sha256": "e81a2adf5f9e28466400e5d426ac60b2d6b9032cd05b560b7d46e19a81c528f1",
+    "recordedAt": "2026-10-13T13:25:24.952Z"
+  },
+  "metadataCorrespondence": [
+    {
+      "key": "PAYMONGO_SECRET_KEY",
+      "matches": true,
+      "prior": [
+        {
+          "id": "7weae3NT6eoj6WUQ",
+          "key": "PAYMONGO_SECRET_KEY",
+          "type": "sensitive",
+          "target": [
+            "production"
+          ],
+          "updatedAt": 1790479421000,
+          "gitBranch": null,
+          "configurationId": null
+        }
+      ],
+      "current": [
+        {
+          "id": "7weae3NT6eoj6WUQ",
+          "key": "PAYMONGO_SECRET_KEY",
+          "type": "sensitive",
+          "target": [
+            "production"
+          ],
+          "updatedAt": 1790479421000,
+          "gitBranch": null,
+          "configurationId": null
+        }
+      ]
+    },
+    {
+      "key": "PAYMONGO_PUBLIC_KEY",
+      "matches": true,
+      "prior": [
+        {
+          "id": "1Ly4wLr7cokgrgPh",
+          "key": "PAYMONGO_PUBLIC_KEY",
+          "type": "sensitive",
+          "target": [
+            "production"
+          ],
+          "updatedAt": 1790479684447,
+          "gitBranch": null,
+          "configurationId": null
+        }
+      ],
+      "current": [
+        {
+          "id": "1Ly4wLr7cokgrgPh",
+          "key": "PAYMONGO_PUBLIC_KEY",
+          "type": "sensitive",
+          "target": [
+            "production"
+          ],
+          "updatedAt": 1790479684447,
+          "gitBranch": null,
+          "configurationId": null
+        }
+      ]
+    },
+    {
+      "key": "PAYMONGO_WEBHOOK_SECRET",
+      "matches": true,
+      "prior": [
+        {
+          "id": "45NnTBHVFL7WUNHQ",
+          "key": "PAYMONGO_WEBHOOK_SECRET",
+          "type": "sensitive",
+          "target": [
+            "production"
+          ],
+          "updatedAt": 1789719586852,
+          "gitBranch": null,
+          "configurationId": null
+        }
+      ],
+      "current": [
+        {
+          "id": "45NnTBHVFL7WUNHQ",
+          "key": "PAYMONGO_WEBHOOK_SECRET",
+          "type": "sensitive",
+          "target": [
+            "production"
+          ],
+          "updatedAt": 1789719586852,
+          "gitBranch": null,
+          "configurationId": null
+        }
+      ]
+    }
+  ],
+  "sourceCorrespondence": [
+    {
+      "path": "src/app/api/paymongo/webhook/route.ts",
+      "baseSource": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+      "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+      "baseBlobSha256": "73b24608ea2761cae9e5afb0fc9e787de4a2641a4ce311f039f8828df15ba311",
+      "sourceBlobSha256": "73b24608ea2761cae9e5afb0fc9e787de4a2641a4ce311f039f8828df15ba311",
+      "acceptedExportSha256": "4d9cd2811345b0246349c08ccd5c6f6f3139c7aeb60269f3ae81c9827619cfc1",
+      "sameGitBlob": true,
+      "normalizedExportEqual": true
+    },
+    {
+      "path": "src/lib/paymongo.ts",
+      "baseSource": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+      "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+      "baseBlobSha256": "95e8d9bef6d18bf970c41746c2e1cdfaaf3ca324a2356c4f725e4e9f2bb3e150",
+      "sourceBlobSha256": "95e8d9bef6d18bf970c41746c2e1cdfaaf3ca324a2356c4f725e4e9f2bb3e150",
+      "acceptedExportSha256": "24f73cac5bb3a4c4abd0a1f72a9e853639c4ba7819d75d86423fcc1b9a76a0a6",
+      "sameGitBlob": true,
+      "normalizedExportEqual": true
+    }
+  ],
+  "checks": [
+    {
+      "id": "original-contract-alternative",
+      "passed": true,
+      "detail": "Original edec99b8 and current Plan09 retain the same explicit alternative."
+    },
+    {
+      "id": "authoritative-copy-27-09-PLAN.md",
+      "passed": true,
+      "detail": "Record raw hashes separately; allow only existing LF/CRLF differences."
+    },
+    {
+      "id": "authoritative-copy-27-PROVIDER-SIGNED-DELIVERY-PACKET.md",
+      "passed": true,
+      "detail": "Record raw hashes separately; allow only existing LF/CRLF differences."
+    },
+    {
+      "id": "authoritative-copy-27-PROVIDER-SIGNED-DELIVERY-PREPARATION.json",
+      "passed": true,
+      "detail": "Record raw hashes separately; allow only existing LF/CRLF differences."
+    },
+    {
+      "id": "authoritative-copy-27-PROVIDER-SIGNED-DELIVERY-RESULT.json",
+      "passed": true,
+      "detail": "Record raw hashes separately; allow only existing LF/CRLF differences."
+    },
+    {
+      "id": "authoritative-copy-27-PROVIDER-SIGNED-DELIVERY-RESULT.md",
+      "passed": true,
+      "detail": "Record raw hashes separately; allow only existing LF/CRLF differences."
+    },
+    {
+      "id": "authoritative-copy-27-PROVIDER-RUNTIME-COORDINATOR-RESULT.json",
+      "passed": true,
+      "detail": "Record raw hashes separately; allow only existing LF/CRLF differences."
+    },
+    {
+      "id": "authoritative-copy-27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md",
+      "passed": true,
+      "detail": "Record raw hashes separately; allow only existing LF/CRLF differences."
+    },
+    {
+      "id": "authoritative-verifier-unchanged",
+      "passed": true,
+      "detail": "Use the existing authoritative verifier. The root checkout has an older checker; do not overwrite it or use its results for acceptance."
+    },
+    {
+      "id": "frozen-signed-result-digest",
+      "passed": true
+    },
+    {
+      "id": "frozen-approved-packet-digest",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-actual-sample-check.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-approval.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-approved-packet.md",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-business-baseline.sql",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-didit-after-send-dom.txt",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-didit-before-send.png",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-didit-history-after.txt",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-didit-provider-result-validated.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-didit-provider-result.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-didit-send-settled-dom.txt",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-execution.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-final-readback.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-observer-preflight.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-preflight.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-registrations-after.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-registrations-before.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-request-logs-didit-1791895556999.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-request-logs-didit-1791895785539.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-request-logs-didit-1791896145012.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-request-logs-paymongo-1791895556801.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-request-logs-paymongo-1791896142977.json",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-vercel-didit-success-dom.txt",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-vercel-didit-success.png",
+      "passed": true
+    },
+    {
+      "id": "capture-signed-zero-matches-before-send.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-approval.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-preflight-schema-refusal-original-marker.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-preflight-schema-repair.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-reviewed-artifacts.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-prepared-result.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-preflight-platform.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-export-result.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-final-added-files.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-stage-created.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-ready-deployment.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-platform-after-staging.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-build-attempt.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-reconciled.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-inngest-financial-restored.txt",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-inngest-contact-restored.txt",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-request-journal.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-diagnostic-attempt.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-runtime-proof.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-coordinator-finished.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-final-platform.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-final-registrations.json",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-inngest-financial-final.txt",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-inngest-contact-final.txt",
+      "passed": true
+    },
+    {
+      "id": "capture-runtime-didit-destination-summary.txt",
+      "passed": true
+    },
+    {
+      "id": "capture-release-accepted.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-account-driver-missing-approval.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-account-policy-local-audit-fixture-complete-result.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-account-policy-local-result.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-assign-candidate-app.fitout.live.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-assign-candidate-fitout-ops-pengr3s-projects.vercel.app.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-assign-candidate-fitout-ops.vercel.app.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-assign-candidate-fitout-web-pengr3s-projects.vercel.app.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-assign-candidate-fitout-web-psi.vercel.app.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-assign-candidate-fitout.live.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-assign-candidate-ops.fitout.live.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-assign-candidate-www.fitout.live.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-authority.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-baseline-registrations.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-browser-customer-after.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-browser-customer-ready.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-browser-watchdog-armed.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-browser-watchdog-ended.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-browser-watchdog-heartbeat.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-browser-watchdog-smoke-passed.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-candidate-alias-assignments.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-cutover-started.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-operator-health.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-ops-build-attempt.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-ops-export.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-ops-generated-alias-reconciled.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-ops-post-stage.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-ops-preflight.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-ops-ready.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-ops-resumed-preflight.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-ops-stage-created.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-ops-stage-stopped.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-platform-preflight.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-primary-after.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-promotion-health-passed.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-promotion-preflight.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-promotion-ready.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-release-registrations.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-scheduler-functions.png",
+      "passed": true
+    },
+    {
+      "id": "capture-release-staging-registrations.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-tester-ready.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-tester-result-customer-handoff-2.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-tester-result-customer-handoff-3.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-tester-result-staff-browser-customer-4.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-tester-result.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-tester-started-customer-handoff-2.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-tester-started-customer-handoff-3.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-tester-started-staff-browser-customer-4.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-tester-started.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-watchdog-ended.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-watchdog-heartbeat.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-watchdog-started.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-web-build-attempt.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-web-export.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-web-post-stage.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-web-preflight.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-web-ready.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-web-stage-created.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-primary-aggregate-before-staff.json",
+      "passed": true
+    },
+    {
+      "id": "capture-release-prepared.log",
+      "passed": true
+    },
+    {
+      "id": "capture-release-deployed.log",
+      "passed": true
+    },
+    {
+      "id": "capture-release-live.log",
+      "passed": true
+    },
+    {
+      "id": "accepted-release-source",
+      "passed": true,
+      "detail": "Accepted archive/manifest establish source; inherited parent Git metadata does not."
+    },
+    {
+      "id": "source-continuity-route.ts",
+      "passed": true,
+      "detail": "Git LF and exported CRLF hashes are retained separately."
+    },
+    {
+      "id": "source-continuity-paymongo.ts",
+      "passed": true,
+      "detail": "Git LF and exported CRLF hashes are retained separately."
+    },
+    {
+      "id": "observed-runtime-configuration",
+      "passed": true
+    },
+    {
+      "id": "two-exact-current-function-denials",
+      "passed": true
+    },
+    {
+      "id": "metadata-continuity-PAYMONGO_SECRET_KEY",
+      "passed": true,
+      "detail": "Metadata continuity supports configuration inheritance; it is not plaintext observation from the serving deployment."
+    },
+    {
+      "id": "metadata-continuity-PAYMONGO_PUBLIC_KEY",
+      "passed": true,
+      "detail": "Metadata continuity supports configuration inheritance; it is not plaintext observation from the serving deployment."
+    },
+    {
+      "id": "metadata-continuity-PAYMONGO_WEBHOOK_SECRET",
+      "passed": true,
+      "detail": "Metadata continuity supports configuration inheritance; it is not plaintext observation from the serving deployment."
+    },
+    {
+      "id": "both-hosts-still-serving-current-release",
+      "passed": true
+    },
+    {
+      "id": "ops-still-serving-approved-release",
+      "passed": true
+    },
+    {
+      "id": "all-contact-flags-false",
+      "passed": true
+    },
+    {
+      "id": "observed-hook-retained",
+      "passed": true
+    },
+    {
+      "id": "duration-exception-preserved",
+      "passed": true,
+      "detail": "Observed denial/configuration facts may satisfy the contract; prior packet execution remains outside its duration limit."
+    },
+    {
+      "id": "no-positive-live-proof-invented",
+      "passed": true
+    },
+    {
+      "id": "remaining-gates-retained",
+      "passed": true
+    }
+  ],
+  "captures": [
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/actual-sample-check.json",
+      "sha256": "e4d9fb6a47c523be842ccd363c5f9e43a362ddc693e655a8829fd1bf75d4750e",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/approval.json",
+      "sha256": "25759ffed6c3788d8fe1e0b0e3603812d0028e66c6ab39237c517e05f390bfd5",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/approved-packet.md",
+      "sha256": "8366ab3111d47b42687f4a51bbd8a6d11e2a2b00478f682184e76259601960e4",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/business-baseline.sql",
+      "sha256": "5529c45fe05aae44284419c3bd1d06a0d4e09b0616ac7c43c0a89ca06ed4abd6",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/didit-after-send-dom.txt",
+      "sha256": "8d27d69dfea5d50a5f40ee7c51244cf3bb5b7f907f3137be6004954c59adaa18",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/didit-before-send.png",
+      "sha256": "3ff32f9b2da708e01d59026a44059a3dcb4e1361ac90fb28002500bb854cb6cb",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/didit-history-after.txt",
+      "sha256": "3b4d43043cfd7c1783335f9fa6062a9fb9c3fb5d2d96feb2b2b53c0b825f912e",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/didit-provider-result-validated.json",
+      "sha256": "2e2d602eafd87f1fb465c22c9af435babc7b03117aa4d896f839317b7ba13480",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/didit-provider-result.json",
+      "sha256": "af12ecb4060e24df8e9cb696de2bcc2d7b6893aea6f9d8d64bc744402c0d07b1",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/didit-send-settled-dom.txt",
+      "sha256": "46934a407793d07787f4b9d8b2455cc1c8ff4967dd7f80fd20263b01aca7fa4c",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/execution.json",
+      "sha256": "030bc6d9a5b4fbb42f5b9b05a269d723e88316a38a741b46417e13df04641d00",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/final-readback.json",
+      "sha256": "3779c94e6e236e13463709057cf1aa837fa4bbbb944023d776a352c513539233",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/observer-preflight.json",
+      "sha256": "c1dd56673b5fc26a1955c08d5bd59f3b96feb5cc97314f999a856ca5d47eaa72",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/preflight.json",
+      "sha256": "8b07e5cd492363aed3ce371f8859b1f24e5a85600b6d6a3c0e4a363fd3982dda",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/registrations-after.json",
+      "sha256": "c8fb045b96d137d0cc8c4d7642359e47b3f62d2fd150b4c3d0e5d61e6fdaab12",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/registrations-before.json",
+      "sha256": "0f5493b42c0ef1c59c7d27da0abc671140d8afe60eaa059ab1fc4645a01cd3dd",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/request-logs-didit-1791895556999.json",
+      "sha256": "ddeda5f2a0a2d5d99ca45b433338b6dfdcccb524c2ee9c12ae029fc705fc8668",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/request-logs-didit-1791895785539.json",
+      "sha256": "e31f62a300a9b49d5fcb5d469fd26bf2d36c50ff63bfcb1fd661d067f04c3173",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/request-logs-didit-1791896145012.json",
+      "sha256": "45e6d883cc86b55d45464ece3d9f91099e7d5bbb90cf60bf73b67db17c46d3f3",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/request-logs-paymongo-1791895556801.json",
+      "sha256": "63de9d1b04a08ac51e251527f0cb2e143187c47981b46cb0857d9aab962edd9d",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/request-logs-paymongo-1791896142977.json",
+      "sha256": "a31dc168c2cc3baad8470e920382f5df2cf9ff4452ab03286707ac1ed5a5ac9b",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/vercel-didit-success-dom.txt",
+      "sha256": "53792a85aaa9a8525fdde5b373b0f83970819265dbfe21db3591eb752dce316e",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/vercel-didit-success.png",
+      "sha256": "8e1addd3417ae37aa7192fb7e9bb72c92c11f799c307017f09b6b3b39c55c598",
+      "matched": true
+    },
+    {
+      "group": "signed",
+      "path": "playwright/.cache/phase27-08/provider-signed-run-6bb-20261013-d96019e8/zero-matches-before-send.json",
+      "sha256": "d580abafbf38eaea0489ff89de82be14fc98085612ec0f01a65400208e16f3db",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/approval.json",
+      "sha256": "63965de0a9899aae40ca8c4861cbb31beb8ce2b38435266dcab2818164df9804",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/preflight-schema-refusal-original-marker.json",
+      "sha256": "ce633ac067b3a13573bb95d2949d1b72e58abac756cde8875d625fc76c0568db",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/preflight-schema-repair.json",
+      "sha256": "a067d7485bd1ff2057478074d9f1a670bb965b4401c210e222de64ace78b6042",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/reviewed-artifacts.json",
+      "sha256": "e71c5fa5e481e19da8b8df1b0d9740994fc45c996375760c04141525b97f179e",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/prepared-result.json",
+      "sha256": "dc3b6f08cf9410613540fa5a3ca687c967e45655d70c3ad5c52a02a689ed9666",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/preflight-platform.json",
+      "sha256": "fa9c779cad58b9316bd8cf7b6a3675326dfd8258e7738966efc3f90b5af76bd6",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/export-result.json",
+      "sha256": "01939ebd7c355df9359d7441aae2864677b9bed8ade289e1b3e9b18554918120",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/final-added-files.json",
+      "sha256": "b991a9850adaaf4ebfe764d899ca38c112db32348ab12bdb1db3cbec171b6d86",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/stage-created.json",
+      "sha256": "4abf3a97117e2e6344d09b68ca190f4251481e17cea3831d84dcc71a8901aa09",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/ready-deployment.json",
+      "sha256": "5c4cfb6caa2c293c3d0c6d3d2d2c93430e8e7f1b6ba49d59566225a9423ea1b2",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/platform-after-staging.json",
+      "sha256": "531d76c4cdd7b00cf18c40f5bbe563774af59c58d3b692271ec71a2230db58b1",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/build-attempt.json",
+      "sha256": "0b94afe406a090e19bb45812dd99cc3638c87096d5a9b2d958386d19d5ee6f7b",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/reconciled.json",
+      "sha256": "a423e427dbadf564a6aadc1408bd48d53ef31622cd6e9d94d758424c682dcc8d",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/inngest-financial-restored.txt",
+      "sha256": "0693214ff499b6b5dd47aa76b31dcd5cd79728888a84dfed0d11c85fd187ca6b",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/inngest-contact-restored.txt",
+      "sha256": "35fee0ad7954ff31839bc31a091d30499280d127343544efa0557820bcaa7916",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/request-journal.json",
+      "sha256": "9f732f4eed5853062980e8956312d65000aa146d5d1096f7b7e79b0aecf764a5",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/diagnostic-attempt.json",
+      "sha256": "92dda1f81b9dd204f56d0baadc0644252fef9d940e288dba014edf3fadb0da0f",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/runtime-proof.json",
+      "sha256": "2d6905c9b71ca50718193f59efbd6de10f545d263544bfe456cd7108fdd84d48",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/coordinator-finished.json",
+      "sha256": "d7bab8619f938c194ad0a0ef024a952cb18e18ee15813cc9de51c1f759edea63",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/final-platform.json",
+      "sha256": "33eee90c0ceee38dbfa8fab617b9af0ad3611c83e8ddcbda43514836476b8b27",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/final-registrations.json",
+      "sha256": "5ea87c7d0b5a0cfcbf48ab67615088557a1d6f94cb6e7e228a27f5c88688b8bf",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/inngest-financial-final.txt",
+      "sha256": "d22725c5dbcd60740fb2235785d5725f81945938e9c5b19d56afd588d1a510f0",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/inngest-contact-final.txt",
+      "sha256": "35fee0ad7954ff31839bc31a091d30499280d127343544efa0557820bcaa7916",
+      "matched": true
+    },
+    {
+      "group": "runtime",
+      "path": "playwright/.cache/phase27-08/provider-runtime-coordinator-retry-20261013/didit-destination-summary.txt",
+      "sha256": "4b41602c9f059e20bf5e7aea9aedf06ddea255060b75cd61e22d9bcef2d9d151",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/accepted.json",
+      "sha256": "db44bf0fdbbab5c425550980cb88f6c45636c7df635caa04ed3e1c27ec9f532d",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/account-driver-missing-approval.json",
+      "sha256": "f898a8c9a59f4222a2f77735aa07e61ef6599a62ee547838bd70c539db32c61a",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/account-policy-local-audit-fixture-complete-result.json",
+      "sha256": "8a91c44c50bf1904cf4037b931ed41792a04abadef090b20b7731a51ea82655c",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/account-policy-local-result.json",
+      "sha256": "87a6d704fd72b28ae10ab4443d84c73bb1dbc62d7563850cde88943c1279b54c",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-app.fitout.live.json",
+      "sha256": "00cfa69850b4ed57729f35664c9cbdff33950b996b0088122ed088d3a9629953",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-fitout-ops-pengr3s-projects.vercel.app.json",
+      "sha256": "e2a2e6567e753b07ba4b5eb95215499fe471fe940f854470889119620afdf609",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-fitout-ops.vercel.app.json",
+      "sha256": "050624588d34a569291980a933e4a50d0e8567131f5bfebac8335f55ea384830",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-fitout-web-pengr3s-projects.vercel.app.json",
+      "sha256": "f5710df71e543e150737f9fab13ca48e5280d2bc9bce883945de266eae233eb7",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-fitout-web-psi.vercel.app.json",
+      "sha256": "1c27efe37973c05b03267b630f2ef7a41f8dfa5421aed1e936f0fddd03746762",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-fitout.live.json",
+      "sha256": "6055f2b4016a488e5808b8b2fd0aada8e0f170604966ce7325044c17282cb517",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-ops.fitout.live.json",
+      "sha256": "74c39075e8887029fba30ef60912c7a54cdec259b6116bfea43dd43d4650f8df",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/assign-candidate-www.fitout.live.json",
+      "sha256": "7e7f7cbb9710e1ed119da023806e059b8fa47c8f15cb68cf18998cce4b5cf5a4",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/authority.json",
+      "sha256": "8069e976949e699e4821b898c6a9a500e661e8ddcdb18d8cda85bccacfa33b46",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/baseline-registrations.json",
+      "sha256": "82781366a82e4199f87ae22c4926f8a54fd5ad4d3867da7d67fb275edf7c1682",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/browser-customer-after.json",
+      "sha256": "871a13d999c38c36026bfbce782b8a60a38e276809f9054b2434cb2cd81850a2",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/browser-customer-ready.json",
+      "sha256": "448b8e32b03d0b99e30ba148226e685582b5674ce99a1a3c850bdd1069966763",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/browser-watchdog-armed.json",
+      "sha256": "1795a63e7a9638c74292f9bafa85abf4afb20b46337318db11335b8232827ea9",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/browser-watchdog-ended.json",
+      "sha256": "3dcc6bd31b4dfff04909112779e844bf016f601ce0fd10e8ec790a1962b363e6",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/browser-watchdog-heartbeat.json",
+      "sha256": "500c79b8b4cd1c808128927b2a6d4420ee2a7c01e62f3cec151887c592650d4b",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/browser-watchdog-smoke-passed.json",
+      "sha256": "5eae1987193b8821786011e7a5296d1eac5b3a9d783aa0f6affdd2041a655b2c",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/candidate-alias-assignments.json",
+      "sha256": "e4219f9858b4dda7827b8e54d5acba8ee74a95020aa328ca3646fd797d43013f",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/cutover-started.json",
+      "sha256": "c7bfe3da894f212918158c1a34b733ec6ec56efd87ab30ba9ee7b0e9c9d4ef81",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/operator-health.json",
+      "sha256": "0708b642588bc64f196ac89d2cf76a56e191690ec96c35194c8577603dbc9838",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-build-attempt.json",
+      "sha256": "b16f28a850b240ffdadf14dedafbc16ffd11e21bd248a0cc31fc4839cd4cac4f",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-export.json",
+      "sha256": "deba1bc132fe18432d0257f51ae19bb64db4abc501c035ca8cbc15a613f34a44",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-generated-alias-reconciled.json",
+      "sha256": "77e1431098eb9bbf7f0a209d347666174a59f558af917fa807b04776c0b762b7",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-post-stage.json",
+      "sha256": "d4ffb31d75d616763800593bfbe1dc5122900df2e39f211b87a58c4481d053bf",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-preflight.json",
+      "sha256": "0a66386fb8b063a3bb534669d7910ba219de65568b833685ef3eea84e2552ff6",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-ready.json",
+      "sha256": "08a71fc1043db0d6bdd03a5caf0d41f076a27c6e574e30ed7c0a7261879042ac",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-resumed-preflight.json",
+      "sha256": "ad96d57c45650b3c4e958864ef7ad51541ba68f8dda76654341e873de9fb6e19",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-stage-created.json",
+      "sha256": "fd388d9dc8c55618166af7bdbf4e18c6bfbd351a32107b11559ff756358ff020",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/ops-stage-stopped.json",
+      "sha256": "d37bd2f3c950bce0689e2954132527b45510ca6b80c82541deceb2686ed74612",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/platform-preflight.json",
+      "sha256": "564b3898b45997d951dfae959eeb42a97405cbf8d9d97c23b885a706f7a57df2",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/primary-after.json",
+      "sha256": "90816897f06485a34c49a6a3f5cf37d6d97adb890126fdc730d4278249bdb518",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/promotion-health-passed.json",
+      "sha256": "c5482557de96c3db8528e24eb88fefebde246499f29faaccf63e39fd4496bacc",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/promotion-preflight.json",
+      "sha256": "aac215b4f047f6e1f828377a65e3a25c0a63c36518e0a1d179037043c11ff4f3",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/promotion-ready.json",
+      "sha256": "5c232109f6411a40c4aa408ff1d90f19721ae24c7fd8b3b649981eef23e70f2e",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/release-registrations.json",
+      "sha256": "14d374d6948e8c28d2b3aae61114722a2a2198797b7587ae96161125a49c8bbe",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/scheduler-functions.png",
+      "sha256": "1dc411922d7d1463ea2271ac16b5226d5ce836f3bbc48d54bdff5a7c7893acc2",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/staging-registrations.json",
+      "sha256": "96c2887c6f6d035d8088230044f9d8348c77f421286a01686566d5d59e64a599",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-ready.json",
+      "sha256": "555d6f2f45b9c2b471b8fc79e5195685b4f241e1b29d8de8e191f9a4af64522e",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-result-customer-handoff-2.json",
+      "sha256": "540eb5406d7164a0a68393804f42d00d6b2d390a677899350931a35ab9f33e96",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-result-customer-handoff-3.json",
+      "sha256": "a72e228c6a0362e2e22fb7264e5e6d0323dfb898d55643c810d85c573cf19e34",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-result-staff-browser-customer-4.json",
+      "sha256": "0fb587e0b8c9b692b44191a9c935a48d9cfa5bc8c6fa2b78076f9dcfaa1abe4d",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-result.json",
+      "sha256": "dcfd13fa6effab4c402d0e001f9feacebfafee2c6c6f2be311073226f77bf72d",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-started-customer-handoff-2.json",
+      "sha256": "074c276b7a809c092d596c7d46daafe65555fe00afe2e23d1f346d3a0b3f14a0",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-started-customer-handoff-3.json",
+      "sha256": "c51c34bed2e2a685a58d8cdffca33f8ba46e2647c73d5b8b3f75fd3a9845fabd",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-started-staff-browser-customer-4.json",
+      "sha256": "21b5baf743be5a62435bca1e4ee425667eeb199ddd311975325070cc2618865d",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/tester-started.json",
+      "sha256": "07881287fdc3e470137341511581d396eeb2a56ba7b55fbaa62288e783a0dbf9",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/watchdog-ended.json",
+      "sha256": "0b280a9072b8a43d6ae1a51c38bcb06470a4a800d0fc81de22f617204cdf1aff",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/watchdog-heartbeat.json",
+      "sha256": "d5422d4182f5e84718aa974f877abb909daf46359e52a7d8c5adf594808b03cb",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/watchdog-started.json",
+      "sha256": "0d2b74ab353810a3816c429bb75506dbeb94661aef3b15320e31bb7346502690",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/web-build-attempt.json",
+      "sha256": "e9a30413ab7db321485cc564d6897adcbc0bffa368f89d1262f1dd7563e73614",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/web-export.json",
+      "sha256": "c793360421a8c91eed019ed5aa8232f0fcc444f1b1e9a2d4d04df622b8794334",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/web-post-stage.json",
+      "sha256": "9883ef730ee8ba4d517e288d389bae05e0363b3920d1286ffbe6dfd30e49be08",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/web-preflight.json",
+      "sha256": "05e0c4d89f77df7fe45daaa21f567dd76aa22c828ffb5fadd1e42c6d203bc2b6",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/web-ready.json",
+      "sha256": "e6cddba81217f9891e868d4434c5ec92f8a78ee8195dace8e7759dff8bdee7de",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/web-stage-created.json",
+      "sha256": "2b1fc61543442ade7c1dc7004ddc3aa92e7c880bdb7a26ec26102518bcbc924f",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/primary-aggregate-before-staff.json",
+      "sha256": "eae0d7ded5f97c5ad26db35b88fd9df36c1da80ff176b6f39e07915a3fbe5524",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/validators/prepared.log",
+      "sha256": "36bb7f4868285929ec900a6ca412050c70124def213ed28f5faf7aa95375d31b",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/validators/deployed.log",
+      "sha256": "c0355074479ffc4ddf884aee9667cb00c290dc123e004318b214a5decf4e8cb4",
+      "matched": true
+    },
+    {
+      "group": "release",
+      "path": "playwright/.cache/phase27-08/ops11-rollout-6bb-20261013/validators/live.log",
+      "sha256": "7b0fc9e0e130e1bab69e76437521f4e134d4c6b9eb72e6fe41515db6a02ef6c8",
+      "matched": true
+    }
+  ],
+  "inputsFrozen": [
+    {
+      "path": ".planning/phases/27-app-subdomain-marketing-website/27-09-PLAN.md",
+      "sha256": "cfb893fe2e0feb1925bfb31ccdc8da56cefd135b656db7822434bf5d12fca633",
+      "authoritativeSha256": "d552e794f34a9a1dabe1e6743fb123992496fcca0ef313d279ce7a36bf19197a"
+    },
+    {
+      "path": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-SIGNED-DELIVERY-PACKET.md",
+      "sha256": "8366ab3111d47b42687f4a51bbd8a6d11e2a2b00478f682184e76259601960e4",
+      "authoritativeSha256": "8366ab3111d47b42687f4a51bbd8a6d11e2a2b00478f682184e76259601960e4"
+    },
+    {
+      "path": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-SIGNED-DELIVERY-PREPARATION.json",
+      "sha256": "efd7b2d709979c07222c3b3f834155120503e7fe2af21ec59436c39f763f34d2",
+      "authoritativeSha256": "efd7b2d709979c07222c3b3f834155120503e7fe2af21ec59436c39f763f34d2"
+    },
+    {
+      "path": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-SIGNED-DELIVERY-RESULT.json",
+      "sha256": "f570eb694fa2d381e0c8192b14e1c25173d010b4546b3417bb6fe5980d9fea67",
+      "authoritativeSha256": "f570eb694fa2d381e0c8192b14e1c25173d010b4546b3417bb6fe5980d9fea67"
+    },
+    {
+      "path": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-SIGNED-DELIVERY-RESULT.md",
+      "sha256": "60bb4db0a629924272342ed8838721a187b80453c13e08d9455f0dfcb131bcfe",
+      "authoritativeSha256": "60bb4db0a629924272342ed8838721a187b80453c13e08d9455f0dfcb131bcfe"
+    },
+    {
+      "path": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-COORDINATOR-RESULT.json",
+      "sha256": "a07ab29185e371b5f81fc6226a5db3a4dc98c23cd3e9382a7871981421211d1c",
+      "authoritativeSha256": "a07ab29185e371b5f81fc6226a5db3a4dc98c23cd3e9382a7871981421211d1c"
+    },
+    {
+      "path": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md",
+      "sha256": "c059962de240ab2dc65c8862e0632ed19840abaa238c572e92616b75ae3b7bc8",
+      "authoritativeSha256": "c059962de240ab2dc65c8862e0632ed19840abaa238c572e92616b75ae3b7bc8"
+    },
+    {
+      "path": "scripts/verify-phase27-evidence.mjs",
+      "sha256": "71d590882b5e80f2cb6b59b81366f4b1af5ee4c79b5214b9785bc4dc3b0fe82a",
+      "authoritativeSha256": "dadddf0404e3eb3f26cb7c38b6b6e971399fedb527b08b4ed232b6eb9975ca57"
+    }
+  ],
+  "validatorLocation": "C:/Users/Admin/.codex/worktrees/phase27-production-continuity/FitOut",
+  "retainedInitialAudit": {
+    "path": "playwright/.cache/phase27-08/paymongo-acceptance-reconciliation-20261013/initial-audit-result.json",
+    "disposition": "Two initial guard failures: harmless Plan LF/CRLF variation and older root-checkout verifier. Switched validation to the unchanged authoritative worktree checker; original failed output retained."
+  },
+  "validationBefore": [
+    {
+      "stage": "prepared",
+      "exitCode": 0,
+      "startedAt": "2026-10-13T13:28:52.032Z",
+      "finishedAt": "2026-10-13T13:28:53.035Z",
+      "log": {
+        "path": "playwright/.cache/phase27-08/paymongo-acceptance-reconciliation-20261013/before-wt-prepared.log",
+        "sha256": "0443fcfb0cd9c5af6136de2b8c3d787ce5c5e65261a12603eed2e891be5500b2"
+      }
+    },
+    {
+      "stage": "deployed",
+      "exitCode": 1,
+      "startedAt": "2026-10-13T13:28:53.042Z",
+      "finishedAt": "2026-10-13T13:28:54.050Z",
+      "log": {
+        "path": "playwright/.cache/phase27-08/paymongo-acceptance-reconciliation-20261013/before-wt-deployed.log",
+        "sha256": "3a5f0ff4c980254f05a3076d57592e2336f9987b239e0e90fcbd91cac17104ad"
+      }
+    },
+    {
+      "stage": "live",
+      "exitCode": 1,
+      "startedAt": "2026-10-13T13:28:54.057Z",
+      "finishedAt": "2026-10-13T13:28:55.062Z",
+      "log": {
+        "path": "playwright/.cache/phase27-08/paymongo-acceptance-reconciliation-20261013/before-wt-live.log",
+        "sha256": "e12a6d224d59ee39994e25a97ba474469e57a54ff64b57f98e6f3efd33dc1547"
+      }
+    }
+  ],
+  "limits": {
+    "successfulLiveDeliveryObserved": false,
+    "publicKeySameAccountIndependentlyProved": false,
+    "directServingPlaintextCredentialObservation": false,
+    "priorPacketDurationWaived": false,
+    "strictPriorPacketExecutionAccepted": false,
+    "overrunSeconds": 33.42999999999995,
+    "historical588MatrixRelabeled": false,
+    "phaseComplete": false,
+    "plan09Complete": false
+  },
+  "externalActions": {
+    "readOnlyVercelGets": 7,
+    "receiverPosts": 0,
+    "providerSends": 0,
+    "deployments": 0,
+    "configChanges": 0,
+    "accountWrites": 0,
+    "mail": 0,
+    "financialJobs": 0
+  },
+  "contactDisabled": true,
+  "testAccountsUnchanged": true,
+  "auditResult": {
+    "path": "playwright/.cache/phase27-08/paymongo-acceptance-reconciliation-20261013/audit-result.json",
+    "sha256": "5f946a3e630998eac2401a820ba95461680db0f8d4a545b89c74c25612d5c84d"
+  },
+  "decision": {
+    "phase27ReceiverContinuity": "observed",
+    "selectedAlternative": "Existing safely denied invalid-signature probes plus explicit destination read-back",
+    "successfulLiveProcessing": "unproved-separate-payment-release-gap",
+    "priorSignedDeliveryPacketDuration": "failed-not-waived",
+    "phaseCounts": "20/21; 144/151; seven requirements pending"
+  },
+  "validationAfter": [
+    {
+      "stage": "prepared",
+      "exitCode": 0,
+      "startedAt": "2026-10-13T13:35:11.397Z",
+      "finishedAt": "2026-10-13T13:35:12.413Z",
+      "log": {
+        "path": "playwright/.cache/phase27-08/paymongo-acceptance-reconciliation-20261013/after-prepared.log",
+        "sha256": "0443fcfb0cd9c5af6136de2b8c3d787ce5c5e65261a12603eed2e891be5500b2"
+      },
+      "failures": []
+    },
+    {
+      "stage": "deployed",
+      "exitCode": 1,
+      "startedAt": "2026-10-13T13:35:12.413Z",
+      "finishedAt": "2026-10-13T13:35:13.463Z",
+      "log": {
+        "path": "playwright/.cache/phase27-08/paymongo-acceptance-reconciliation-20261013/after-deployed.log",
+        "sha256": "3a5f0ff4c980254f05a3076d57592e2336f9987b239e0e90fcbd91cac17104ad"
+      },
+      "failures": [
+        "Unknown/partial external inventory blocks deployed proof"
+      ]
+    },
+    {
+      "stage": "live",
+      "exitCode": 1,
+      "startedAt": "2026-10-13T13:35:13.463Z",
+      "finishedAt": "2026-10-13T13:35:14.492Z",
+      "log": {
+        "path": "playwright/.cache/phase27-08/paymongo-acceptance-reconciliation-20261013/after-live.log",
+        "sha256": "e12a6d224d59ee39994e25a97ba474469e57a54ff64b57f98e6f3efd33dc1547"
+      },
+      "failures": [
+        "Unknown/partial external inventory blocks deployed proof",
+        "Actual owner-observed receipt/Reply-To/reply missing",
+        "Controlled inquiry authority/Contact enablement read-back missing"
+      ]
+    }
+  ],
+  "finalizedAt": "2026-10-13T13:35:14.495Z",
+  "remainingPartialInventory": [
+    "resend-sender",
+    "support-mailbox"
+  ],
+  "frozenInputsVerifiedAfter": true,
+  "checkerAndApplicationChanged": false
+}

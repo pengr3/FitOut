@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: Didit Sandbox signed path observed; duration deviation logged; PayMongo LIVE and actual inquiry/reply pending; Contact disabled"
-last_updated: "2026-10-13T13:05:35.708Z"
+stopped_at: "Plan09: PayMongo receiver continuity reconciled; actual Contact inquiry/Reply-To/reply and its scoped authority pending; Contact disabled"
+last_updated: "2026-10-13T13:31:51.382Z"
 last_activity: 2026-10-13
-last_activity_desc: Observed Didit Sandbox signed receipt and four unsigned denials; preserve Contact disabled and test accounts
+last_activity_desc: Reconciled PayMongo original-contract alternative; preserve LIVE processing gap and disabled Contact
 state_head: 6bb6e3f7
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -2377,3 +2377,8 @@ Latest checkpoint 2026-10-13T05:26:16.241Z: User-requested fresh repaired-driver
 
 
 Global packet preparation 2026-10-13T05:50:48.497Z: currentquota0/pending0/recentnatural0, retainedsynthetic1, originalreceivers14+1, false flags and firewall19 verified read-only. Fresh exact588 localHTTP rehearsal passes,13SQL cleanup/refusal checks pass, offlineglobaldriver completion/refusal/drift scenarios pass. Prepared scope5ContactPOSTs,300secondwindow/240secondwatchdog, freshG/H protected builds,15minute scheduled observation and1owner control alert. NoProductionmutation/POST/build/Sandbox/email. Approval pending; matrix34/35 and other phase gates unchanged. Read27-CONTACT-GLOBAL-ALERT-FRESH-PACKET.md.
+
+
+## PayMongo acceptance reconciliation — October 13
+
+PayMongo acceptance reconciliation 2026-10-13T13:31:51.382Z: Plan09's original denied-signature plus destination read-back alternative is observed for current6bb webG8. Current apex/app direct400 function records, the retained Enabled LIVE hook/five subscriptions, private runtime signing match and qualified unchanged configuration/source correspondence support this limited disposition. No successful LIVE provider delivery or public-key account attribution is claimed; payment/payout/legal HOLDs and the prior33.430-second packet duration failure remain. Only Resend-inquiry and support-mailbox inquiry rows remain partial. Contact stays disabled, test accounts unchanged;20/21 plans,144/151 curated and seven requirements pending. Read27-PAYMONGO-ACCEPTANCE-RECONCILIATION.md/.json. Earlier provider-success expectations are retained as dated history.

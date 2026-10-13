@@ -1124,7 +1124,7 @@ Plans:
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Complete    | 2026-09-10 |
 | 23. The Support Path Becomes Reachable | v1.2 | 0/3 | Planned — fitout.live domain, monitored support replies, and constrained provider callbacks | - |
 | 24. Search Bar Rework | v1.2 | 0/8 | Planned — progressive activity, location, and party-size journey ready to execute | - |
-| 27. App Subdomain & Marketing Website | v1.2 | 20/21 | Executing Plan 09 — matrix35/35 at588; OPS-11 repair6bb locally verified, rollout/account disposition and provider delivery/inquiry acceptance pending; Contact disabled | - |
+| 27. App Subdomain & Marketing Website | v1.2 | 20/21 | Executing Plan09 — disabled6bb rollout accepted; PayMongo continuity reconciled; actual Contact inquiry/Reply-To/reply pending; Contact disabled | - |
 
 ### Phase 24: Search Bar Rework
 

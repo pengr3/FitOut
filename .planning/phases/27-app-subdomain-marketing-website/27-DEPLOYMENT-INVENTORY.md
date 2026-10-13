@@ -1,5 +1,8 @@
 # Phase 27 — Current external inventory
 
+PayMongo acceptance reconciliation 2026-10-13T13:31:51.382Z: Plan09's original denied-signature plus destination read-back alternative is observed for current6bb webG8. Current apex/app direct400 function records, the retained Enabled LIVE hook/five subscriptions, private runtime signing match and qualified unchanged configuration/source correspondence support this limited disposition. No successful LIVE provider delivery or public-key account attribution is claimed; payment/payout/legal HOLDs and the prior33.430-second packet duration failure remain. Only Resend-inquiry and support-mailbox inquiry rows remain partial. Contact stays disabled, test accounts unchanged;20/21 plans,144/151 curated and seven requirements pending. Read27-PAYMONGO-ACCEPTANCE-RECONCILIATION.md/.json. Earlier provider-success expectations are retained as dated history.
+
+
 Provider signed-delivery result 2026-10-13T13:05:35.708Z: Didit Sandbox provider Test Not Started reached the actual6bb webG8 function with200, fresh signed eventd5a49c51-c418-4c12-95bd-613a257175e2 and complete Sandbox envelope; four apex/app unsigned controls have direct400 and matched current function records. FivePOSTs total, one Didit send/no repeat observed through2026-10-13T12:55:55.215Z; no PayMongo send. Business/audit hashes, aliases, false Contact flags, provider metadata and14+1 scheduler registrations remain unchanged. The run ledger closed33.430seconds beyond its900-second limit after final UI selector failures: functional proofs are observed, strict packet execution is not accepted. No further send or configuration change occurred during the overrun. PayMongo LIVE signed delivery and actual Contact inquiry/reply remain pending; testing accounts stay unchanged, Contact disabled, phase20/21 and curated144/151 with seven requirements pending. Read27-PROVIDER-SIGNED-DELIVERY-RESULT.md/.json.
 
 
@@ -95,16 +98,16 @@ content remains unproved here. No request used a protection bypass.
     },
     {
       "id": "paymongo",
-      "status": "partial",
+      "status": "observed",
       "owner": "PayMongo account owner",
-      "current": "Actual staged Production runtime usesLIVE secret/public modes. GET200 exactEnabledhook_6UWbRKJQBt1CUnuhRfoFC6XE matchesapex destination/fiveevents/LIVE mode; runtime signing secret matches privately. Seven provider envmetadata entries unchanged andpredateCogas. Public-key account correspondence not independently established; directCogas diagnostic andsuccessfulsigneddelivery notclaimed.",
+      "current": "Current6bb apex/app PayMongo POSTs returned400 Invalid signature directly from webG8 functions, without redirects. Retained Enabled LIVE hook_6UWbRKJQBt1CUnuhRfoFC6XE keeps the exact apex destination/five subscriptions. Earlier protected Production runtime observed LIVE secret/public modes and private signing-secret equality. Current source and three credential metadata entries are unchanged; serving configuration correspondence is qualified inheritance, not direct serving secret retrieval. This observes the explicit Plan09 denial-plus-destination alternative only.",
       "target": "Direct old https://fitout.live/api/paymongo/webhook and new https://app.fitout.live/api/paymongo/webhook; browser success/cancel returns app; no financial events",
-      "requiredProof": "Account-mode receiver/event/signature configuration read-back, retained old receiver, unsigned denial and bounded signed nonfinancial proof authority",
+      "requiredProof": "Account-mode receiver/event/signature configuration read-back and both-host direct receiver continuity, using Plan09 approved provider test event OR safely denied invalid-signature probes with explicit destination read-back; no manufactured financial event.",
       "rollback": "Restore exact prior receiver/event registration; keep both direct handlers and unchanged signing/deduplication; checkout HOLD",
-      "observedAt": "2026-10-13T08:58:31.086Z",
-      "observationType": "Approved bounded current-Production configuration observation on protected staged588 extension; serving mapping qualified by unchanged metadata",
-      "source": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md",
-      "remainingProof": "Current LIVE provider-origin signed nonfinancial delivery remains pending. Read-only primary contains only one historical checkout paid event; dashboard Retry is disabled. No eligible nonfinancial replay; Test-mode sender does not prove this LIVE hook. Current packet permits unsigned controls only.",
+      "observedAt": "2026-10-13T13:25:24.952Z",
+      "observationType": "Reconciliation of dated hash-bound observations against the original Plan09 alternative, with fresh read-only Vercel alias/metadata/disabled-flag check",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-PAYMONGO-ACCEPTANCE-RECONCILIATION.md",
+      "remainingProof": "None for the bounded Phase27 receiver-continuity alternative. Successful LIVE provider-origin delivery/processing and independent public-key account attribution remain unproved follow-up payment-release gaps; existing payment/payout/legal HOLDs stay in force.",
       "signedDeliveryPreparation": {
         "at": "2026-10-13T12:32:51Z",
         "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
@@ -112,6 +115,41 @@ content remains unproved here. No request used a protection bypass.
         "packetSha256": "8366ab3111d47b42687f4a51bbd8a6d11e2a2b00478f682184e76259601960e4",
         "providerSends": 0,
         "status": "prepared-not-approved"
+      },
+      "historyBeforeAcceptanceReconciliation": {
+        "id": "paymongo",
+        "status": "partial",
+        "owner": "PayMongo account owner",
+        "current": "Actual staged Production runtime usesLIVE secret/public modes. GET200 exactEnabledhook_6UWbRKJQBt1CUnuhRfoFC6XE matchesapex destination/fiveevents/LIVE mode; runtime signing secret matches privately. Seven provider envmetadata entries unchanged andpredateCogas. Public-key account correspondence not independently established; directCogas diagnostic andsuccessfulsigneddelivery notclaimed.",
+        "target": "Direct old https://fitout.live/api/paymongo/webhook and new https://app.fitout.live/api/paymongo/webhook; browser success/cancel returns app; no financial events",
+        "requiredProof": "Account-mode receiver/event/signature configuration read-back, retained old receiver, unsigned denial and bounded signed nonfinancial proof authority",
+        "rollback": "Restore exact prior receiver/event registration; keep both direct handlers and unchanged signing/deduplication; checkout HOLD",
+        "observedAt": "2026-10-13T08:58:31.086Z",
+        "observationType": "Approved bounded current-Production configuration observation on protected staged588 extension; serving mapping qualified by unchanged metadata",
+        "source": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-RUNTIME-COORDINATOR-RESULT.md",
+        "remainingProof": "Current LIVE provider-origin signed nonfinancial delivery remains pending. Read-only primary contains only one historical checkout paid event; dashboard Retry is disabled. No eligible nonfinancial replay; Test-mode sender does not prove this LIVE hook. Current packet permits unsigned controls only.",
+        "signedDeliveryPreparation": {
+          "at": "2026-10-13T12:32:51Z",
+          "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+          "packet": ".planning/phases/27-app-subdomain-marketing-website/27-PROVIDER-SIGNED-DELIVERY-PACKET.md",
+          "packetSha256": "8366ab3111d47b42687f4a51bbd8a6d11e2a2b00478f682184e76259601960e4",
+          "providerSends": 0,
+          "status": "prepared-not-approved"
+        }
+      },
+      "evidenceBoundary": "Missing-signature rejection demonstrates direct routing and rejection, not positive HMAC acceptance or business-event processing. The runtime proof is a protected Production diagnostic; serving correspondence uses unchanged configuration metadata and handler/library source. Previous packet duration failure remains disclosed and unwaived.",
+      "acceptanceReconciliation": {
+        "recordedAt": "2026-10-13T13:31:51.382Z",
+        "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+        "webDeploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "status": "observed-original-contract-alternative",
+        "result": ".planning/phases/27-app-subdomain-marketing-website/27-PAYMONGO-ACCEPTANCE-RECONCILIATION.json",
+        "resultSha256": "aef28fe37d1a834de3ea3f0132cd809d721da4b5571db974466ac23889b3252e",
+        "selectedAlternative": "Existing safely denied invalid-signature probes plus explicit destination read-back",
+        "successfulLiveDeliveryObserved": false,
+        "configurationDirectOnServingDeployment": false,
+        "priorDurationExceptionWaived": false,
+        "contactDisabled": true
       }
     },
     {
@@ -885,6 +923,19 @@ content remains unproved here. No request used a protection bypass.
     "strictPacketExecutionAccepted": false,
     "contactDisabled": true,
     "testAccountsUnchanged": true
+  },
+  "paymongoAcceptanceReconciliation": {
+    "recordedAt": "2026-10-13T13:31:51.382Z",
+    "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "webDeploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+    "status": "observed-original-contract-alternative",
+    "result": ".planning/phases/27-app-subdomain-marketing-website/27-PAYMONGO-ACCEPTANCE-RECONCILIATION.json",
+    "resultSha256": "aef28fe37d1a834de3ea3f0132cd809d721da4b5571db974466ac23889b3252e",
+    "selectedAlternative": "Existing safely denied invalid-signature probes plus explicit destination read-back",
+    "successfulLiveDeliveryObserved": false,
+    "configurationDirectOnServingDeployment": false,
+    "priorDurationExceptionWaived": false,
+    "contactDisabled": true
   }
 }
 ```

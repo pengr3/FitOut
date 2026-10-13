@@ -1,5 +1,8 @@
 # Phase 27 — read-only inventory reconciliation
 
+PayMongo acceptance reconciliation 2026-10-13T13:31:51.382Z: Plan09's original denied-signature plus destination read-back alternative is observed for current6bb webG8. Current apex/app direct400 function records, the retained Enabled LIVE hook/five subscriptions, private runtime signing match and qualified unchanged configuration/source correspondence support this limited disposition. No successful LIVE provider delivery or public-key account attribution is claimed; payment/payout/legal HOLDs and the prior33.430-second packet duration failure remain. Only Resend-inquiry and support-mailbox inquiry rows remain partial. Contact stays disabled, test accounts unchanged;20/21 plans,144/151 curated and seven requirements pending. Read27-PAYMONGO-ACCEPTANCE-RECONCILIATION.md/.json. Earlier provider-success expectations are retained as dated history.
+
+
 Recorded 2026-10-13T07:39:52.164Z. **Four of eight partial inventory rows reconciled. Contact remains disabled.** No application change, deployment, provider setting change, Contact POST, provider test event or manual financial invocation occurred.
 
 | Inventory row | Disposition |
