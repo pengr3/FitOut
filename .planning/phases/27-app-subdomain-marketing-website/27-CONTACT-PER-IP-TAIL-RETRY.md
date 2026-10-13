@@ -19,3 +19,6 @@ Maximum ten new Contact POSTs: two preflights + seven no-mail probes + one recov
 Prepared helpers: C:/Users/Admin/Roaming/FitOut/playwright/.cache/phase27-08/per-ip-tail-retry-prepared/. approval.json remains status prepared. The pair and immediate B-tail helpers pass syntax/check-only; no HTTP is sent by preparation. The authoritative 206-regression observer and unchanged588 application source are retained. Source manifest8618880bf767b385d46ff9988bd2737c73f8de06bfeda396b322fa3dab96ac7a. Acceptance remains33/35, Plan09incomplete20/21, curated144/151, all seven requirements pending.
 
 Owner approval requested: “Approve this exact ten-request retry.”
+
+
+Owner approved “Approve this exact ten-request retry” at2026-10-13T03:43:17.296Z. Attempt executed and closed: A3 reservations; B/spoof not sent after route-capture delays consumed headroom. Six actual POSTs; restoration, disabled recovery and exact cleanup complete. See27-CONTACT-PER-IP-TAIL-RESULT.md. No timer extension or new attempt is inferred from this approval.

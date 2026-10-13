@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: per-IP partial window closed; spoof and global-alert controls pending"
-last_updated: "2026-10-13T03:39:27.657Z"
+stopped_at: "Plan09: per-IP attempt incomplete; fresh API-trace packet approval pending"
+last_updated: "2026-10-13T04:37:21.254Z"
 last_activity: 2026-10-13
-last_activity_desc: Guarded A/B shared per-IP proof passed; final spoof missed cutoff; disabled restoration and cleanup complete
+last_activity_desc: Ten-request retry restored; automated API-trace and explicit eight-minute observer profile prepared, unapproved
 state_head: 58897a94
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -62,7 +62,7 @@ progress:
   percent: 15
 ---
 
-Latest checkpoint 2026-10-13T03:39:27.657Z: Fresh guarded operator preflight passed on Cogas under published guard v12. Current A/B shared per-IP subproof passed: A reserved three, a distinct B runtime reserved two and denied request six (429, Retry-After 769). Both stages had two actual provider-confirmed GET route captures. The final spoof stage was stopped before HTTP at the 210-second probe cutoff; the entire control is NOT accepted. Cogas restored in 223.047 seconds, disabled recovery 503/no-store, exactly two owned quota rows removed under lock 27018,1, temporary Deny disabled/published v13. Primary quota 0, alert 1 sent, pending 0; public pins, saved false flags, original financial receiver/14 functions and separate Contact receiver/1 function preserved. Actual cumulative POSTs 11 of approved 12; this window is closed and no unused request authorizes another window. Matrix 33/35, Plan 09 20/21, curated 144/151 and all seven requirements remain pending. Prepared faster fresh retry requires its own approval. Read 27-CONTACT-PER-IP-READINESS-RESULT.md and 27-CONTACT-PER-IP-TAIL-RETRY.md.
+Latest checkpoint 2026-10-13T04:37:21.254Z: Owner-approved ten-request retry closed incomplete. Fresh operator503 and unique cloud403 were matched under guard v14; Sandbox stopped after28.471seconds. A route GET1 still served Cogas; later GET3/4 actually served A. Premature DOM matching, one browser timeout and agent round trips consumed B-tail headroom. A reserved3; B/spoof were not sent. API restoration200.304seconds and actual disabled recovery503 at256.185seconds, within300. Exact2ownedrows removed; primaryquota0/alert1/pending0; temporaryDeny disabled/publishedv15; pins/falseflags/scheduler14+1 retained. Actual6POSTs of10; unused4 cannot reopen the closed window. Matrix33/35, Plan09 20/21, curated144/151 and all7requirements pending. Read-only Vercel OTEL trace retrieval proves actual deployment/source; measured availability within33.813seconds. Automated eight-minute/six-minute-watchdog proposal is unapproved, including a strict IP-only observer profile. Isolated proposal220tests pass; authoritative206observer remains unchanged. Read27-CONTACT-PER-IP-TAIL-RESULT.md and27-CONTACT-PER-IP-API-TRACE-RETRY.md.
 
 
 Current release-source checkpoint (2026-10-11T09:33:12.518Z): Release-source reconciliation completed at58897a94: six fresh full gates and prepared validation pass; old D67 proof/approval archived faithfully. Current web b61cb4a4 and Ops D67 remain disabled, four health200/Contact503, primaryquota0/pendingalerts0. No external mutation or inquiry. Deployed/live validation retains actual candidate-deployment/source/authority and other live gaps. Plan09 remains20/21; curated144/151; all7requirements pending;30/35 dated multi-source observations. Read27-RELEASE-SOURCE-RECONCILIATION.md and revised packet.
