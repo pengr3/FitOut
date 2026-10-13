@@ -5569,31 +5569,8 @@ raw recovery nor deployment acceptance is fabricated.
     }
   ],
   "observerVerification": {
-    "schemaVersion": 1,
-    "source": {
-      "path": "playwright/.cache/phase27-08/contact-binding-chronology-5e198bb9-5127-4891-8504-dc6c558adbde/observer-source.json",
-      "sha256": "45c973ff1baf8a076fa5d4d76fbda21c725841035c2622242427c98c8a1b7e8e"
-    },
-    "gate": {
-      "command": "node --test --test-reporter=spec tests/scripts/phase27-evidence.test.mjs tests/scripts/phase27-contact-binding.test.mjs",
-      "status": "pass",
-      "exitCode": 0,
-      "startedAt": "2026-10-12T07:29:51.137Z",
-      "finishedAt": "2026-10-12T07:29:52.117Z",
-      "log": {
-        "path": "playwright/.cache/phase27-08/contact-binding-chronology-5e198bb9-5127-4891-8504-dc6c558adbde/observer-test.log",
-        "sha256": "6771b390bb54361321eaecbcfe5833bc364f1ab2729cef21018d9ead9bb28633"
-      },
-      "terminalSummary": "ℹ pass 206\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0",
-      "resultData": {
-        "runner": "node-test",
-        "tests": {
-          "passed": 206,
-          "failed": 0,
-          "skipped": 0
-        }
-      }
-    }
+    "path": "playwright/.cache/phase27-08/per-ip-api-trace-prepared/observer-verification.json",
+    "sha256": "9f869b1735f3e316387d875ab671866d49a541493414f94d28f0b4746246533c"
   },
   "observerVerificationHistory": [
     {
@@ -5847,3 +5824,6 @@ Owner requested the verifier-binding repair and continued Contact tests while ke
 
 
 Observer chronology repair 2026-10-12T07:32:41.130Z:206 actual checker tests pass,0fail/skip. A protected variant may precede bounded-window approval only with a separate, exact, owner-approved staging authority (same packet/source/manifest/baseline/Ops/project) recorded before its creation. Window authority still must precede live execution. Missing/late/historical staging authority fails closed. Initial chronology gate203pass/2fail is retained: a shared function-array fixture was contaminated by an earlier negative case; cloning the array fixes fixture isolation, with an explicit regression. Existing191 observer proof and all unchanged588 application gates retain their original bytes and timestamps. No live Contact acceptance or phase completion is claimed.
+
+
+IP-only API trace observer adopted under direct owner approval. Fresh captured observer source passes all 220 tests; original application source and historical gates retain their bytes. Eight-minute profile requires a fresh matching attempt, six-minute watchdog and six actual route traces. No Contact matrix acceptance is inferred.

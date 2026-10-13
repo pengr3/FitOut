@@ -51,7 +51,7 @@ export function claimsForRole(b, role) {
  testDeployments:b.testDeployments,savedContactFlag:b.savedContactFlag,savedVerificationFlag:b.savedVerificationFlag,
  originsUnchanged:b.originsUnchanged,opsUnchanged:b.opsUnchanged };
  case "guard": return {guard:b.guard};
- case "runtime": return {window:b.window,requests:b.requests,contactPosts:b.contactPosts,inquiryCalls:b.inquiryCalls};
+ case "runtime": return {window:b.window,requests:b.requests,contactPosts:b.contactPosts,inquiryCalls:b.inquiryCalls,...(b.apiRouteProofs?{apiRouteProofs:b.apiRouteProofs}:{})};
  case "quota": return {quota:b.quota,...(b.scenario===CONTROL_ROWS[0]?{perIp:b.perIp}:{global:b.global})};
  case "restoration": return {restoredId:b.restoredId,restoration:b.restoration,financialInvocations:b.financialInvocations};
  case "scheduler": case "delivery": case "cleanup": return {global:b.global,alert:b.alert};
@@ -105,10 +105,15 @@ export function validateControlledContact({ row, live, packet, engineering, root
   if (!b) return errors;
   const a = packet?.contactTestAuthorities?.[row.id], c = live.deployments?.customer, ops = live.deployments?.ops;
   check(b.schemaVersion === CONTACT_BINDING_VERSION && b.scenario === row.id, "controlled binding version/scenario");
+
+  const apiEight = row.id === CONTROL_ROWS[0] && a?.maxWindowSeconds === 480 &&
+   a.windowProfile === "api-trace-eight-minute-v1" &&
+   a.routeProofMethod === "vercel-otel-actual-request" && a.watchdogSeconds === 360 &&
+   nonempty(a.attemptId) && a.attemptId === b.attemptId && b.window?.attemptId === a.attemptId;
   check(a?.status === "approved" && nonempty(a?.packetId) && nonempty(a?.ownerInstruction) && utc(a?.approvedAt) &&
    a.revision === live.deployedRevision && a.manifest === live.sourceManifestSha256 &&
    a.baselineId === c?.id && a.opsId === ops?.id && nonempty(a.projectId) &&
-   a.maxWindowSeconds === 300 && Number.isInteger(a.maxPosts) && a.maxPosts > 0 && a.maxPosts <= 12 &&
+   (a.maxWindowSeconds === 300 || apiEight) && Number.isInteger(a.maxPosts) && a.maxPosts > 0 && a.maxPosts <= 12 &&
    b.packetId === a.packetId, "exact current bounded authority missing");
   check(b.baselineId === c?.id && b.restoredId === c?.id && b.opsId === ops?.id &&
    b.revision === live.deployedRevision && b.manifest === live.sourceManifestSha256,
@@ -150,9 +155,43 @@ export function validateControlledContact({ row, live, packet, engineering, root
    "fresh exact published real-network restriction proof");
   const w = b.window;
   check(utc(w?.startedAt) && utc(w?.restoredAt) && Date.parse(w.restoredAt) > Date.parse(w.startedAt) &&
-   Date.parse(w.restoredAt)-Date.parse(w.startedAt) <= 300000 &&
+   Date.parse(w.restoredAt)-Date.parse(w.startedAt) <= (apiEight ? 480000 : 300000) &&
    utc(row.observedAt) && Date.parse(row.observedAt) >= Date.parse(w.restoredAt),
-   "five-minute window/restoration/observation chronology");
+   apiEight ? "eight-minute window/restoration/observation chronology" : "five-minute window/restoration/observation chronology");
+
+  if (apiEight) {
+   check(w?.watchdogSeconds === 360, "explicit six-minute watchdog missing");
+   const proofs = b.apiRouteProofs;
+   check(Array.isArray(proofs) && proofs.length === 6 &&
+    ["A","B","R"].every(phase=>proofs.filter(p=>p?.phase===phase).length===2),
+    "API profile requires A/B/recovery route pairs");
+   const seen = new Set();
+   if (Array.isArray(proofs)) for (const p of proofs) {
+    const http = safeArtifact(p?.http, root, readLog, check, "API route HTTP", true);
+    const provider = safeArtifact(p?.provider, root, readLog, check, "API route provider", true);
+    if (!http || !provider) continue;
+    const expected = p.phase === "R" ? c?.id : ds?.[p.phase === "A" ? 0 : 1]?.id;
+    const requestId = String(http.requestId ?? "").split("::").at(-1);
+    const trace = provider.trace ?? provider;
+    const roots = Array.isArray(trace.spans) ? trace.spans.filter(s=>!s.parentSpanId &&
+     s.attributes?.["vercel.request_id"]===requestId) : [];
+    const attr = roots[0]?.attributes;
+    const firstPost = b.requests?.find(r=>r.deploymentId===expected)?.at;
+    const chronology = utc(http.at) && (p.phase === "R"
+     ? Date.parse(http.at)>=Date.parse(w?.restoredAt) && Date.parse(http.at)<=Date.parse(w?.startedAt)+480000
+     : Date.parse(http.at)>=Date.parse(w?.startedAt) && Date.parse(http.at)<=Date.parse(firstPost));
+    check(["A","B","R"].includes(p.phase) && http.stage===p.phase &&
+     http.status===405 && nonempty(http.requestId) && nonempty(http.marker) &&
+     !seen.has(http.requestId) && chronology && roots.length===1 &&
+     attr?.["http.method"]==="GET" && attr?.["http.target"]==="/api/contact" &&
+     attr?.["server.address"]==="fitout.live" && attr?.["deployment.environment"]==="production" &&
+     attr?.["vercel.project_id"]===a.projectId && attr?.["vercel.deployment_id"]===expected &&
+     attr?.["vcs.ref.head.revision"]===b.revision &&
+     attr?.["http.request.header.user-agent"]===http.marker,
+     "actual API route source/request/chronology mismatch");
+    seen.add(http.requestId);
+   }
+  }
   const ip = row.id === CONTROL_ROWS[0], rs = b.requests, expectedCount = ip ? 7 : 2;
   check(Array.isArray(rs) && rs.length === expectedCount &&
    rs.every(r=>utc(r?.at) && Date.parse(r.at)>=Date.parse(w?.startedAt) && Date.parse(r.at)<=Date.parse(w?.restoredAt) &&

@@ -155,3 +155,37 @@ const stagingRejects=[
 for(const [name,change]of stagingRejects)test("actual checker rejects protected staging authority "+name,()=>{const x=stagedFixture();change(x);assert.ok(validateEvidence(x.f).some(e=>e.includes("variant/authority chronology")));});
 
 test("controlled fixture function mutations cannot contaminate later current-release cases",()=>{const x=controlledFixture(),y=controlledFixture();x.b.restoration.financialFunctions[0]="wrong";assert.deepEqual(validateEvidence(y.f),[]);});
+
+function apiEightFixture(){
+ const x=stagedFixture();
+ Object.assign(x.authority,{maxWindowSeconds:480,windowProfile:"api-trace-eight-minute-v1",routeProofMethod:"vercel-otel-actual-request",watchdogSeconds:360});
+ x.b.window.restoredAt="2026-10-08T21:07:00.000Z";x.b.window.watchdogSeconds=360;
+ x.authority.attemptId="hypotheticalFreshApiAttempt";x.b.attemptId=x.authority.attemptId;x.b.window.attemptId=x.authority.attemptId;
+ x.b.quota.cleanedAt="2026-10-08T21:07:10.000Z";x.row.observedAt="2026-10-08T21:09:00.000Z";
+ x.b.apiRouteProofs=[];x.apiSamples=[];
+ for(const phase of ["A","B","R"])for(let n=0;n<2;n++){
+  const id="hypotheticalRoute"+phase+n,marker="hypothetical-"+id,dep=phase==="R"?x.b.baselineId:x.b.testDeployments[phase==="A"?0:1].id;
+  const at=phase==="A"?"2026-10-08T21:00:1"+n+".000Z":phase==="B"?"2026-10-08T21:01:02."+ (n?"200":"100")+"Z":"2026-10-08T21:07:0"+(n+5)+".000Z";
+  const http={stage:phase,at,status:405,requestId:id,marker};
+  const provider={trace:{spans:[{parentSpanId:"",attributes:{"vercel.request_id":id,"http.method":"GET","http.target":"/api/contact","server.address":"fitout.live","deployment.environment":"production","vercel.project_id":x.authority.projectId,"vercel.deployment_id":dep,"vcs.ref.head.revision":x.b.revision,"http.request.header.user-agent":marker}}]}};
+  const proof={phase,http:x.put("playwright/.cache/phase27-08/api-http-"+phase+n+".json",http),provider:x.put("playwright/.cache/phase27-08/api-provider-"+phase+n+".json",provider)};
+  x.b.apiRouteProofs.push(proof);x.apiSamples.push({proof,http,provider});
+ }
+ x.writeBinding();return x;
+}
+test("explicit API eight-minute IP profile with all real-shape routes passes structure only",()=>assert.deepEqual(validateEvidence(apiEightFixture().f),[]));
+for(const [name,change]of [
+ ["missing profile",x=>delete x.authority.windowProfile],
+ ["missing exact attempt",x=>delete x.authority.attemptId],
+ ["different historical attempt",x=>x.b.window.attemptId="olderAttempt"],
+ ["wrong method",x=>x.authority.routeProofMethod="generic405"],
+ ["missing watchdog",x=>delete x.authority.watchdogSeconds],
+ ["old approval not widened",x=>{x.authority.maxWindowSeconds=300;delete x.authority.windowProfile;}],
+ ["over eight minutes",x=>x.b.window.restoredAt="2026-10-08T21:08:00.001Z"],
+ ["missing API captures",x=>x.b.apiRouteProofs.pop()],
+ ["wrong actual source",x=>{const s=x.apiSamples[0];s.provider.trace.spans[0].attributes["vcs.ref.head.revision"]="wrong";s.proof.provider=x.put(s.proof.provider.path,s.provider);}],
+ ["wrong actual deployment",x=>{const s=x.apiSamples[0];s.provider.trace.spans[0].attributes["vercel.deployment_id"]="dpl_wrong";s.proof.provider=x.put(s.proof.provider.path,s.provider);}],
+ ["duplicate GET",x=>{const s=x.apiSamples[1];s.http.requestId=x.apiSamples[0].http.requestId;s.proof.http=x.put(s.proof.http.path,s.http);}],
+ ["recovery outside eight minutes",x=>{const s=x.apiSamples[5];s.http.at="2026-10-08T21:08:00.001Z";s.proof.http=x.put(s.proof.http.path,s.http);}]
+])test("API eight-minute profile rejects "+name,()=>{const x=apiEightFixture();change(x);x.writeBinding();assert.ok(validateEvidence(x.f).length>0);});
+test("eight-minute profile does not extend global-budget authority",()=>{const x=stagedFixture(true);Object.assign(x.authority,{maxWindowSeconds:480,windowProfile:"api-trace-eight-minute-v1",routeProofMethod:"vercel-otel-actual-request",watchdogSeconds:360});x.writeBinding();assert.ok(validateEvidence(x.f).some(e=>e.includes("bounded authority")));});
