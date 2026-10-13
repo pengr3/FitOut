@@ -5569,8 +5569,31 @@ raw recovery nor deployment acceptance is fabricated.
     }
   ],
   "observerVerification": {
-    "path": "playwright/.cache/phase27-08/per-ip-api-trace-prepared/observer-verification.json",
-    "sha256": "9f869b1735f3e316387d875ab671866d49a541493414f94d28f0b4746246533c"
+    "schemaVersion": 1,
+    "source": {
+      "path": "playwright/.cache/phase27-08/per-ip-api-trace-prepared/observer-source.json",
+      "sha256": "a18c42e6479d0ca38600b270c0a65c5ca9f89ee58b48178257e4b99ad14d03b5"
+    },
+    "gate": {
+      "command": "node --test --test-reporter=spec tests/scripts/phase27-evidence.test.mjs tests/scripts/phase27-contact-binding.test.mjs",
+      "status": "pass",
+      "exitCode": 0,
+      "startedAt": "2026-10-13T04:49:16.922Z",
+      "finishedAt": "2026-10-13T04:49:18.059Z",
+      "log": {
+        "path": "playwright/.cache/phase27-08/per-ip-api-trace-prepared/observer-test.log",
+        "sha256": "67089d1fa2e02a9201e8c4147dad7c4d9455787237f287f2825e771621ed6578"
+      },
+      "terminalSummary": "ℹ pass 220\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0",
+      "resultData": {
+        "runner": "node-test",
+        "tests": {
+          "passed": 220,
+          "failed": 0,
+          "skipped": 0
+        }
+      }
+    }
   },
   "observerVerificationHistory": [
     {

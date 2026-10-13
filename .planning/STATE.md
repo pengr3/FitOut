@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: per-IP attempt incomplete; fresh API-trace packet approval pending"
-last_updated: "2026-10-13T04:37:21.254Z"
+stopped_at: "Plan09: API-trace attempt closed after local import denial; recovery verified, Contact disabled"
+last_updated: "2026-10-13T04:58:30.235Z"
 last_activity: 2026-10-13
-last_activity_desc: Ten-request retry restored; automated API-trace and explicit eight-minute observer profile prepared, unapproved
+last_activity_desc: API-trace attempt safely closed; observer220pass, route matcher repair prepared; per-IP/global proofs pending
 state_head: 58897a94
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
