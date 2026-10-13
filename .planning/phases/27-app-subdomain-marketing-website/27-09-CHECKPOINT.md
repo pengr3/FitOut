@@ -116,3 +116,6 @@ Bounded per-IP attempt 2026-10-12T09:54:21.307Z: ownerapproved exactwindow execu
 
 
 Final rollback checks 2026-10-12T09:56:52.803Z: allfour publichealth statuses pass(apex/app/Ops200, retiredfallback404); originalCogas financialreceiver14 and separateContactreceiver1 freshly confirmed unchanged. Readiness helpers syntax/check-only pass; missing routeproof blocksPOST, missingapprovedwindow blocksreadinessGET, zeroHTTPrequests in offlinechecks. No application sourcechange. Freshretrypacket remainsunapproved.
+
+
+Readiness retry 2026-10-13T02:51:05.804Z: ownerapproved exactscope; activeguard re-enabledv10, one disabledoperatorPOST403 at02:46:15Z. ExactrestrictionDeny1/uniqueUA/currentIPfingerprint differs fromsavedexemption, providerConverge vs priorPLDT. StoppedonIPdrift perpacket; noSandbox/livewindow/alias/quota/mail. Guardcleanupdisabled/publishedv11, primaryquota0/alert1/pending0, publichealth/pins/savedflagsunchanged. Actual1POST consumed; no automaticretry/exemptionedit. Narrow reviewable11-totalPOST single-IP amendment27-CONTACT-CURRENT-OPERATOR-IP-AMENDMENT.md preparedunapproved. Evidence C:/Users/Admin/Roaming/FitOut/playwright/.cache/phase27-08/per-ip-route-readiness-38e870d8-5302-46b3-b0bf-09a9036f465c/outcome.json;33/35unchanged.
