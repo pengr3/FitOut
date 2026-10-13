@@ -1,0 +1,221 @@
+{
+  "schemaVersion": 1,
+  "status": "aborted-before-contact-window-build-failure",
+  "recordedAt": "2026-10-13T15:00:40.207Z",
+  "parentPacket": {
+    "path": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-INQUIRY-PACKET.md",
+    "sha256": "b950f5574a9b33c18718623e3491422e840e00e8053da90f4faccb77c990fa6c",
+    "approved": true,
+    "recordedApprovalAt": "2026-10-13T14:28:35.000Z"
+  },
+  "claimedBaseSource": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+  "failedTransport": {
+    "deploymentId": "dpl_Bb3oRUfNd7yvWKZjB7jatTJ4romP",
+    "state": "ERROR",
+    "exportSubsetManifestFiles": 1113,
+    "completeAcceptedPayload": false,
+    "requiredConfigOmitted": "config/design-tokens-source.mjs",
+    "sourceMetaIsNotCompleteTransportProof": true,
+    "error": "Cannot find module ../../../config/design-tokens-source.mjs",
+    "neverReady": true,
+    "removed": true,
+    "providerGetAfterRemoval": 404
+  },
+  "counts": {
+    "buildsConsumed": 1,
+    "additionalBuildsAttempted": 0,
+    "contactPosts": 0,
+    "contactWindowSeconds": 0,
+    "sandboxesCreated": 0,
+    "firewallChanges": 0,
+    "operatorIpChanges": 0,
+    "aliasChanges": 0,
+    "inngestChanges": 0,
+    "quotaWrites": 0,
+    "inquiryEmails": 0,
+    "replies": 0,
+    "accountChanges": 0,
+    "manualFinancialInvocations": 0
+  },
+  "recovery": {
+    "allEightAliasesRetained": true,
+    "web": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+    "ops": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+    "financialFunctions": 14,
+    "contactFunctions": 1,
+    "financialReceiverUnchanged": true,
+    "privateReceiverQueryUnchanged": true,
+    "publicContactDisabled": true,
+    "primary": [
+      {
+        "observed_at": "2026-10-13T14:51:49.102Z",
+        "quota_rows": 0,
+        "pending_alerts": 0,
+        "alert_rows": 1,
+        "alert_snapshot_md5": "f10f0474d68fe574a2830467d6244d8d"
+      }
+    ]
+  },
+  "repair": {
+    "completeAcceptedArchiveFiles": 2459,
+    "allArchiveFileDigestsVerified": true,
+    "all1113ManifestFileDigestsVerified": true,
+    "archiveSha256": "8feb311adca91cbbfa5c0eb27991ebc8f8f7c0e2dcc4cebc24f6484c8eb9a8ea",
+    "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+    "requiredConfig": [
+      {
+        "path": "config/design-leak-patterns.mjs",
+        "sha256": "54a45b7d83b5ca93a1b83b01d98dc86156ae5adc397fb098efb056ee1cc35711"
+      },
+      {
+        "path": "config/design-tokens-source.mjs",
+        "sha256": "15ff8d80c21269b9cb13441a499f0c99e65987da20b7330fcead4adeaf8708eb"
+      }
+    ],
+    "localTypes": {
+      "results": [
+        {
+          "name": "next-typegen",
+          "startedAt": "2026-10-13T14:48:37.591Z",
+          "finishedAt": "2026-10-13T14:48:45.924Z",
+          "exitCode": 0
+        },
+        {
+          "name": "typescript",
+          "startedAt": "2026-10-13T14:48:45.924Z",
+          "finishedAt": "2026-10-13T14:49:44.453Z",
+          "exitCode": 0
+        }
+      ],
+      "noProviderCredentials": true,
+      "noProductionDatabase": true,
+      "noApplicationSourcePatch": true
+    },
+    "noApplicationSourcePatch": true,
+    "noProviderCredentials": true,
+    "noProductionDatabase": true,
+    "guardChecks": 47,
+    "preparedReplacementAuthorityRefused": true
+  },
+  "replacementAmendment": {
+    "path": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-INQUIRY-BUILD-RETRY.md",
+    "sha256": "b5b44e30e226da78573c17689f00ed082eb6bcdc3212d61e5c121ef4dc986e1b",
+    "status": "prepared-awaiting-owner-approval",
+    "additionalBuilds": 1,
+    "cumulativeBuilds": 2,
+    "cumulativeMaxContactPosts": 4,
+    "postsUsed": 0,
+    "leaseExtended": false,
+    "originalLeaseExpiresAt": "2026-10-13T15:28:35.000Z"
+  },
+  "captures": [
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/approval-prepared.json",
+      "sha256": "a6a3932d08746992680a1ab5ef6229c0931cfd3d2051419d3f722ba18c2001da"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/approval.json",
+      "sha256": "c55c164869ac07968a6091192385d8fbf1f2ff550c33bf4e99ccdc3773805836"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/execution-ledger.json",
+      "sha256": "2f4e99126a61a2d31a7b9558e27eae4507361c04c0427e37a37f0c935219b587"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/platform-execution-before.json",
+      "sha256": "b1d0beab55608ab48db8c4f0e5d90af7c910f7f010bc2a1747313da1119dd1db"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/control-execution-before.json",
+      "sha256": "5f7b9be19c193084d2eaf23b1aab737bcad016bbcbd41271d9bbb99618fce922"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/financial-registration-before.json",
+      "sha256": "2c8c6cfa7a1f72c61e2a81e3607dc5477394550334d3a7271f4c245cabe3a47b"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/contact-registration-before.json",
+      "sha256": "d2d098784ec3425ddc9bd93f3dd197a572a7d567603de830150b6b017b3d2b96"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/registration-after-failed-build.json",
+      "sha256": "aa198ca0dfc712872601123f1638898256b5e191da067259cc5ffa0fd32693a3"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/execution-preflight.json",
+      "sha256": "852d980724613ac0a303ed7f9d83f5294393eb2eeebac49558dcb7adaf30f4cf"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/build-attempt.json",
+      "sha256": "511e44bbfa89e729d4d40cbc6578ff302013e968d053967a24dfd4e52711b682"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/stage-created.json",
+      "sha256": "c091cea87456c59f58679882b716a9f68ca15825c9050e3fd23d9b9c212b3f5c"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/test-deployment-observation.json",
+      "sha256": "efbbc0f6eab2fb224bd226e24c829f0b639850f31e7b27b77ac8a491fe36f40b"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/failed-build-events.json",
+      "sha256": "c9d048430be4d815becea2d1e0d78adece0a04730dfe03dba7f781129662ea81"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/failed-build-errors.json",
+      "sha256": "3beb14ecf591e8f28ad6700c899f6a58288645b0115c860e755e0aa1e5c2dec4"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/aliases-after-failed-build.json",
+      "sha256": "6574949338b56f360ebb25bcaf01f9fe8fa890e9dcfd1d5966fdc2854c4e6335"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/test-removal-attempt.json",
+      "sha256": "a5cb15f29f8b52a05299ece78726e7efcf0c170e0a89f39399c3cee9f932e18d"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/test-removal-result.json",
+      "sha256": "0f2bf9d9c394c6a17f62bc08d9a055ae98f72cf09d578b95add007f5aff7d427"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/failed-attempt-final-readback.json",
+      "sha256": "052534aa3c08bd13a6393f42c92598ae13485fb34e62da1f22ff3c5d32c185b3"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/repaired-export.json",
+      "sha256": "8dbb77cb223ccdbe429bea97eecce244d6c9d5081967bcd2495db4aa707c7c5f"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/repaired-types.json",
+      "sha256": "dafa6377575a8a18687d3eaa5beefacff709c77821b33f5b1ee4ce8b7e8c7490"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/repaired-next-typegen.log",
+      "sha256": "10aff7986e9bfc4ebc9ea54307987449c2c7dcce67a513f2bffdb8c04dd10ece"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/repaired-typescript.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/replacement-tests.log",
+      "sha256": "1411bb3bdc1a14e8470744b3d5dc858cb9bd7f5c63da72db192b5c774c9e6dd4"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/replacement-pending-refusal.log",
+      "sha256": "6adcffa31afbeda99630115e281398bac00e3177afaff7024fb2be0a1282a74b"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/retry-stage.mjs",
+      "sha256": "7886c1c8e570fec39bef02fba6a4c3083c228044d614cd17b18b730236dbe13e"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/retry-authority.mjs",
+      "sha256": "008961e05d5ea812fa7fb732b20ba61816e7bfbe00b382e7f5ec6c8c30d65688"
+    }
+  ],
+  "contactDisabled": true,
+  "phaseComplete": false,
+  "plan09Complete": false,
+  "phaseCounts": "20/21; 144/151; seven requirements pending"
+}

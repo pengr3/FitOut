@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: controlled Contact inquiry packet prepared; scoped test approval and actual receipt/Reply-To/reply pending; Contact disabled"
-last_updated: "2026-10-13T14:06:51.213Z"
+stopped_at: "Plan09: inquiry attempt stopped on export omission; complete archive/typecheck repaired; one replacement-build approval pending; Contact disabled"
+last_updated: "2026-10-13T15:00:40.207Z"
 last_activity: 2026-10-13
-last_activity_desc: Prepared source-bound Contact inquiry packet and tested guarded-window helpers; no send or enablement
+last_activity_desc: Removed failed owned test build; complete export repaired and validated; no Contact send
 state_head: 6bb6e3f7
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -2387,3 +2387,8 @@ PayMongo acceptance reconciliation 2026-10-13T13:31:51.382Z: Plan09's original d
 ## Controlled Contact inquiry prepared — October 13
 
 Contact inquiry packet prepared 2026-10-13T14:06:51.213Z: exact6bb source1113 files and disabledG8/Ops baseline verified;37 offline window/POST/watchdog/cleanup guards pass, and stage/watchdog refuse pending authority. Controlled sender supplied by owner; one protected build/four ContactPOSTs/one inquiry/one reply proposed, guarded300secondwindow with240secondwatchdog and exact cleanup. No build, ContactPOST, email, external mutation or account change occurred. Approval pending for27-CONTACT-INQUIRY-PACKET.md; Contact disabled,20/21 and144/151/all7requirements pending.
+
+
+## Contact inquiry attempt stopped and export repaired — October 13
+
+Contact inquiry attempt 2026-10-13T15:00:40.207Z: approved test build failed beforeREADY because the manifest-only export omitted required config/design-tokens-source.mjs. Zero ContactPOSTs/windows/emails; all eight aliases and14+1 receivers unchanged, primary0/0/retained1. Only owned failed test deployment removed and404 verified. Complete accepted archive2,459files plus1,113manifest checks now match; local Next typegen/TypeScript and47guard checks pass. One-build replacement amendment prepared, approvalpending; originalleaseends15:28:35Z with no extension. Contactdisabled, no account changes;20/21/144of151/all7requirements pending.
