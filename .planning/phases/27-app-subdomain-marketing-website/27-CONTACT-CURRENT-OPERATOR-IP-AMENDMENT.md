@@ -19,3 +19,6 @@ Prepared helper C:/Users/Admin/Roaming/FitOut/playwright/.cache/phase27-08/per-i
 
 Proof C:/Users/Admin/Roaming/FitOut/playwright/.cache/phase27-08/per-ip-route-readiness-38e870d8-5302-46b3-b0bf-09a9036f465c/outcome.json, operator-result.json, operator-firewall-denial.txt, operator-ip-drift.json, guard-enable-published.json, guard-disable-published.json, final-health.json.
 Matrix33/35; Plan09incomplete.
+
+
+Executed IP amendment 2026-10-13T03:17:29.044Z: exactsingle-IP refresh publishedv12 at03:06:43.724Z whileContactfalse; originalLog/systemmitigations preserved, pinsCogas/Ops5WY and savedflagsfalse verified. Replacement503 at03:00:36.718Z was prematurely executed beforepublication and is explicitly NOT guardedoperatorproof; retainedconsumedrequest. Authorizedcloud403 at03:07:49.971Z matched exactDeny/uniqueUA count1, distinctAWS/USsource; Sandboxstopped20.917seconds. Primaryquota0/alert1/pending0, no publicwindow or acceptedmatrixrow. Total3POSTs consumed under11cap. Narrow one-additional-request timingrepair27-CONTACT-GUARDED-OPERATOR-TIMING-REPAIR.md proposescap12; approvalpending. Aliashelperrequires the not-yet-created operator-guarded-final-result.json, so earlier503 cannot unlockpromotion. BothContactlivecontrols remainpending33/35.
