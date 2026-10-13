@@ -1,5 +1,8 @@
 # Phase27 actual production evidence — incomplete
 
+Contact inquiry delivered 2026-10-13T17:48:57.629Z: one actual6bb browserPOST200 and Resend01a13655-48fc-7bf4-8d9e-b8fa22c37953 delivery with exact recipient/body/Reply-To. Original64.170second window stopped without sending on missing trace Git; separately authorized source-join follow-up reused protectedT and restoredG8 after69.242seconds. One fresh build,5POSTs/5API GETs total, one27.872second cloud denial machine; no account/IP/financial-job changes. Exact2quota cleanup, retainedalert unchanged, all8aliases/3false flags, temporaryDeny disabled23/no draft, original14+1 receivers, testT removed404 and staging worktree archived. Owner inbox receipt/Reply-To/reply arrival remain pending; Contact staysdisabled. No phase/count advance:20/21,144/151,sevenrequirements pending. Read27-CONTACT-INQUIRY-DELIVERY-RESULT.md/.json. Earlier checkpoints and source labels remain dated history.
+
+
 Contact IP lookup repaired 2026-10-13T16:52:08.761Z: pinned workspace CLI63.1.2 resolves the existing and fresh marked GET to the verified operator exemption; actual G8 trace and browser-page original IP match. Native staging checkout is clean6bb/all2459 archive+1113 manifest files verified;62 local guard checks pass. Unsent hydrated form/visual email pair, Verified Resend sender and14+1original receivers prepared. No Production mutation/build/ContactPOST/email/account change. Fresh four-POST inquiry packet is prepared awaiting exact owner approval; old attempt remains closed, no lease started. Contactdisabled;20/21 and144/151/all7requirements pending. Read27-CONTACT-IP-LOOKUP-REPAIR.md and27-CONTACT-INQUIRY-FRESH-PACKET.md.
 
 
@@ -593,10 +596,10 @@ Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disab
   "contactEnabledReadback": false,
   "inquiryAuthority": "pending separate checkpoint",
   "inbox": {
-    "owner": "project owner",
-    "receipt": "pending deployed inquiry",
-    "replyTo": "pending deployed inquiry",
-    "reply": "pending deployed inquiry"
+    "owner": "pengr.clmc.3@gmail.com",
+    "receipt": "pending owner confirmation for P27-CONTACT-20261014-6BB",
+    "replyTo": "provider observed; owner confirmation pending",
+    "reply": "pending owner round-trip confirmation"
   },
   "holds": {
     "checkout": "HOLD",
@@ -1942,6 +1945,44 @@ Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disab
     "configurationDirectOnServingDeployment": false,
     "priorDurationExceptionWaived": false,
     "contactDisabled": true
+  },
+  "controlledInquiryCurrentSource": {
+    "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "sourceManifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+    "authority": "approved original packet plus direct broader follow-up authority",
+    "contactEnabledReadback": {
+      "scope": "single guarded test deployment only",
+      "observed": true,
+      "webStatus": 200,
+      "providerId": "01a13655-48fc-7bf4-8d9e-b8fa22c37953"
+    },
+    "finalDisabled": true,
+    "proof": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-INQUIRY-DELIVERY-RESULT.json",
+    "inquiry": {
+      "reference": "P27-CONTACT-20261014-6BB",
+      "sender": "francisgerard.silva@gmail.com",
+      "recipient": "pengr.clmc.3@gmail.com",
+      "from": "FitOut <updates@send.fitout.live>",
+      "subject": "FitOut contact inquiry",
+      "replyTo": "francisgerard.silva@gmail.com",
+      "providerId": "01a13655-48fc-7bf4-8d9e-b8fa22c37953",
+      "providerDelivered": true,
+      "webStatus": 200,
+      "actualRequest": {
+        "timestamp": 1791912914919,
+        "deploymentId": "dpl_24YzGby4bpSUjkzUpjY426aQCMPL",
+        "domain": "fitout.live",
+        "requestPath": "/api/contact",
+        "requestMethod": "POST",
+        "responseStatusCode": 200,
+        "source": "serverless-middleware",
+        "traceId": ""
+      },
+      "ownerReceipt": "pending",
+      "ownerReplyTo": "pending",
+      "replyArrival": "pending",
+      "normalReply": "Received P27-CONTACT-20261014-6BB."
+    }
   }
 }
 ```

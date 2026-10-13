@@ -5,10 +5,10 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: executing
-stopped_at: "Plan09: IP lookup repaired; fresh inquiry packet prepared awaiting approval; Contact disabled"
-last_updated: "2026-10-13T16:52:08.761Z"
+stopped_at: "Plan09: current-source inquiry delivered; disabled recovery/cleanup complete; owner reply round trip pending"
+last_updated: "2026-10-13T17:48:57.629Z"
 last_activity: 2026-10-14
-last_activity_desc: Verified IP lookup and native source; fresh inquiry packet prepared, no Contact send
+last_activity_desc: Delivered one controlled Contact inquiry; recovered disabled G8 and cleaned only owned artifacts
 state_head: 6bb6e3f7
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -160,10 +160,19 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
+Phase: 27 (App Subdomain & Marketing Website) — Plan09 live verification
+Plan: 27-09 incomplete; 20/21 phase plans complete, 144/151 curated complete, seven requirements pending.
+Status: Current-source inquiry delivered; named owner inbox/Reply-To/normal reply confirmation pending. Contact disabled; exact cleanup and test deployment removal verified.
+Last activity: 2026-10-14 — One actual Contact POST200 and delivered Resend email. Prepared verifier passes; deployed verifier fails only partial inventory. No account or financial changes.
+
+### Earlier position recorded October9 — superseded
+
+
 Phase: 27 (App Subdomain & Marketing Website) — ACCOUNT/CUTOVER CHECKPOINT
 Plan: 08 of 09 current, incomplete; 7 of 9 complete
 Status: Awaiting actual account evidence and cutover authority; local full-suite acceptance remains unmet
 Last activity: 2026-10-09 — Marketing/integration and four review fixes committed; final local browser/types/lint/build and focused checks pass. Eight unit/nine design failures and external prerequisites remain pending. Plan 09 has not started.
+
 
 ## Performance Metrics
 

@@ -1,5 +1,8 @@
 # Phase 27 — Current external inventory
 
+Contact inquiry delivered 2026-10-13T17:48:57.629Z: one actual6bb browserPOST200 and Resend01a13655-48fc-7bf4-8d9e-b8fa22c37953 delivery with exact recipient/body/Reply-To. Original64.170second window stopped without sending on missing trace Git; separately authorized source-join follow-up reused protectedT and restoredG8 after69.242seconds. One fresh build,5POSTs/5API GETs total, one27.872second cloud denial machine; no account/IP/financial-job changes. Exact2quota cleanup, retainedalert unchanged, all8aliases/3false flags, temporaryDeny disabled23/no draft, original14+1 receivers, testT removed404 and staging worktree archived. Owner inbox receipt/Reply-To/reply arrival remain pending; Contact staysdisabled. No phase/count advance:20/21,144/151,sevenrequirements pending. Read27-CONTACT-INQUIRY-DELIVERY-RESULT.md/.json. Earlier checkpoints and source labels remain dated history.
+
+
 PayMongo acceptance reconciliation 2026-10-13T13:31:51.382Z: Plan09's original denied-signature plus destination read-back alternative is observed for current6bb webG8. Current apex/app direct400 function records, the retained Enabled LIVE hook/five subscriptions, private runtime signing match and qualified unchanged configuration/source correspondence support this limited disposition. No successful LIVE provider delivery or public-key account attribution is claimed; payment/payout/legal HOLDs and the prior33.430-second packet duration failure remain. Only Resend-inquiry and support-mailbox inquiry rows remain partial. Contact stays disabled, test accounts unchanged;20/21 plans,144/151 curated and seven requirements pending. Read27-PAYMONGO-ACCEPTANCE-RECONCILIATION.md/.json. Earlier provider-success expectations are retained as dated history.
 
 
@@ -208,28 +211,38 @@ content remains unproved here. No request used a protection bypass.
       "id": "resend-sender",
       "status": "partial",
       "owner": "Resend sending-domain owner",
-      "current": "Fresh verifiedsend.fitout.live domain and Production EMAIL_FROM FitOut<updates@send.fitout.live>. Exact Resend APIlogb3f9134c-374a-4a69-b642-474bb08e3a10 identifiesSending-access keyfitout-production-mail, HTTP200 POST/emails and provider01a133e7-75a7-71ec-a52e-247e07a30a3f for the received natural Contact alert. Sender/key correspondence is now directly observed; actual real inquiry/Reply-To/reply remains separate and pending.",
+      "current": "Current6bb controlled inquiry has actualPOST200, single Resend sent/delivered01a13655-48fc-7bf4-8d9e-b8fa22c37953, exact fixed From/recipient/body and Francis sender Reply-To. G8 disabled recovery and exact cleanup observed. Owner inbox receipt/Reply-To and normal reply arrival pending.",
       "target": "Retain verified send.fitout.live sender, fixed From, existing monitored SUPPORT_EMAIL and validated Contact Reply-To",
       "requiredProof": "Current candidate sender/key correspondence plus actual controlled inquiry/Reply-To/reply after separate authority.",
       "rollback": "Retain sender DNS/key; set Contact false first; restore previous sender config only if changed",
-      "observedAt": "2026-10-13T07:39:52.164Z",
+      "observedAt": "2026-10-13T17:48:57.629Z",
       "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation",
-      "source": ".planning/phases/27-app-subdomain-marketing-website/27-INVENTORY-RECONCILIATION.md",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-INQUIRY-DELIVERY-RESULT.md",
       "providerReadbackDate": "2026-10-09",
-      "remainingProof": "Only the separately authorized actual current-source inquiry/Reply-To/reply portion of this original row remains. No need to repeat the control alert or reveal a key."
+      "remainingProof": "Only named owner confirmation of actual inbox receipt/readable fields, Reply-To and normal reply arriving in the controlled sender inbox. Do not resend; Contact staysdisabled.",
+      "previousInquiryDisposition": {
+        "observedAt": "2026-10-13T07:39:52.164Z",
+        "current": "Fresh verifiedsend.fitout.live domain and Production EMAIL_FROM FitOut<updates@send.fitout.live>. Exact Resend APIlogb3f9134c-374a-4a69-b642-474bb08e3a10 identifiesSending-access keyfitout-production-mail, HTTP200 POST/emails and provider01a133e7-75a7-71ec-a52e-247e07a30a3f for the received natural Contact alert. Sender/key correspondence is now directly observed; actual real inquiry/Reply-To/reply remains separate and pending.",
+        "remainingProof": "Only the separately authorized actual current-source inquiry/Reply-To/reply portion of this original row remains. No need to repeat the control alert or reveal a key."
+      }
     },
     {
       "id": "support-mailbox",
       "status": "partial",
       "owner": "Existing SUPPORT_EMAIL mailbox owner",
-      "current": "Owner Gmailpengr.clmc.3@gmail.com is the exact-source public SUPPORT_EMAIL constant and confirmed today's natural scheduled alert receipt. Earlier standalone transport/reply and old-link mail remain dated history; current deployed Contact inquiry/Reply-To/reply has not been exercised.",
+      "current": "Current6bb controlled inquiry has actualPOST200, single Resend sent/delivered01a13655-48fc-7bf4-8d9e-b8fa22c37953, exact fixed From/recipient/body and Francis sender Reply-To. G8 disabled recovery and exact cleanup observed. Owner inbox receipt/Reply-To and normal reply arrival pending.",
       "target": "Existing monitored inbox receives one safe authorized inquiry and owner confirms Reply-To plus reply arrival",
       "requiredProof": "Separately authorized actual candidate Contact inquiry with controlled reply-capable sender, owner receipt and matching Reply-To/reply arrival.",
       "rollback": "Disable Contact and retain recoverable failure; no new mailbox/ticketing system",
-      "observedAt": "2026-10-13T07:39:52.164Z",
+      "observedAt": "2026-10-13T17:48:57.629Z",
       "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation",
-      "source": ".planning/phases/27-app-subdomain-marketing-website/27-INVENTORY-RECONCILIATION.md",
-      "remainingProof": "One separately approved bounded harmless inquiry from a controlled reply-capable sender, actual readable owner receipt, matching Reply-To and reply arrival; Contact remainsfalse now."
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-INQUIRY-DELIVERY-RESULT.md",
+      "remainingProof": "Only named owner confirmation of actual inbox receipt/readable fields, Reply-To and normal reply arriving in the controlled sender inbox. Do not resend; Contact staysdisabled.",
+      "previousInquiryDisposition": {
+        "observedAt": "2026-10-13T07:39:52.164Z",
+        "current": "Owner Gmailpengr.clmc.3@gmail.com is the exact-source public SUPPORT_EMAIL constant and confirmed today's natural scheduled alert receipt. Earlier standalone transport/reply and old-link mail remain dated history; current deployed Contact inquiry/Reply-To/reply has not been exercised.",
+        "remainingProof": "One separately approved bounded harmless inquiry from a controlled reply-capable sender, actual readable owner receipt, matching Reply-To and reply arrival; Contact remainsfalse now."
+      }
     },
     {
       "id": "contact-waf-global",
@@ -936,6 +949,31 @@ content remains unproved here. No request used a protection bypass.
     "configurationDirectOnServingDeployment": false,
     "priorDurationExceptionWaived": false,
     "contactDisabled": true
+  },
+  "contactInquiryDelivered": {
+    "reference": "P27-CONTACT-20261014-6BB",
+    "sender": "francisgerard.silva@gmail.com",
+    "recipient": "pengr.clmc.3@gmail.com",
+    "from": "FitOut <updates@send.fitout.live>",
+    "subject": "FitOut contact inquiry",
+    "replyTo": "francisgerard.silva@gmail.com",
+    "providerId": "01a13655-48fc-7bf4-8d9e-b8fa22c37953",
+    "providerDelivered": true,
+    "webStatus": 200,
+    "actualRequest": {
+      "timestamp": 1791912914919,
+      "deploymentId": "dpl_24YzGby4bpSUjkzUpjY426aQCMPL",
+      "domain": "fitout.live",
+      "requestPath": "/api/contact",
+      "requestMethod": "POST",
+      "responseStatusCode": 200,
+      "source": "serverless-middleware",
+      "traceId": ""
+    },
+    "ownerReceipt": "pending",
+    "ownerReplyTo": "pending",
+    "replyArrival": "pending",
+    "normalReply": "Received P27-CONTACT-20261014-6BB."
   }
 }
 ```
