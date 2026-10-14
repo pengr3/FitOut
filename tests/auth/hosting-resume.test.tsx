@@ -3,6 +3,13 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
+// Production auth options are captured by the static helper import below.
+// Supply inert Google configuration before that graph is evaluated; no provider call occurs.
+vi.hoisted(() => {
+  vi.stubEnv("GOOGLE_CLIENT_ID", "test-google-client.apps.googleusercontent.com");
+  vi.stubEnv("GOOGLE_CLIENT_SECRET", "test-google-secret-not-a-real-credential");
+});
+
 const mocks = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn(), email: vi.fn(), social: vi.fn(), signup: vi.fn(), signUpEmail: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => mocks, useSearchParams: () => new URLSearchParams(window.location.search) }));
 vi.mock("@/lib/auth-client", () => ({ authClient: { signIn: { email: mocks.email, social: mocks.social } } }));
@@ -141,7 +148,7 @@ describe("installed auth hosting returns", () => {
     vi.stubGlobal("Uint8Array", Object.getPrototypeOf(Buffer));
     database = await setupTestDb(); auth = makeTestAuth(database);
   });
-  afterAll(async () => { await teardownTestDb(database); vi.unstubAllGlobals(); });
+  afterAll(async () => { await teardownTestDb(database); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
   it("issued signup verification resumes hosting without granting the host capability", async () => {
     let authError: unknown;
     mocks.signUpEmail.mockImplementation(async (args) => {

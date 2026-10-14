@@ -54,6 +54,7 @@ beforeAll(async () => {
   vi.stubEnv("BETTER_AUTH_URL", PUBLIC_ORIGIN);
   vi.stubEnv("NEXT_PUBLIC_APP_URL", PUBLIC_ORIGIN);
   vi.stubEnv("OPS_APP_URL", OPS_ORIGIN);
+  vi.stubEnv("MARKETING_APP_URL", "https://marketing.example.test");
   vi.stubEnv("VERCEL_URL", new URL(PREVIEW_ORIGIN).host);
   const [{ setupTestDb }, { makeTestAuth, signUp }] = await Promise.all([
     import("../helpers/db"),

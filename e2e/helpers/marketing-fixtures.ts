@@ -2,13 +2,14 @@ import { expect, type Page } from "@playwright/test";
 import { createHmac, randomUUID } from "node:crypto";
 import { assertTestDatabase } from "../../tests/helpers/test-db-url";
 import postgres from "postgres";
+import { browserTestDatabase } from "./browser-test-database";
 
-export const MARKETING_TEST_DATABASE = "postgresql://fitout:fitout@localhost:5432/fitout_test";
+export const MARKETING_TEST_DATABASE = browserTestDatabase();
 
 export function assertMarketingSafety() {
   const raw = process.env.DATABASE_URL ?? MARKETING_TEST_DATABASE;
   if (raw !== MARKETING_TEST_DATABASE || Boolean(process.env.RESEND_API_KEY) || process.env.FITOUT_E2E_REAL_EMAIL === "1") {
-    throw new Error("Marketing fixtures require the explicit local fitout_test database and disabled real mail.");
+    throw new Error("Marketing fixtures require the guarded fitout_test database and disabled real mail.");
   }
   assertTestDatabase(raw, "marketing capture database");
 }

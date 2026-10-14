@@ -22,6 +22,7 @@ const COLD_IMPORT_TIMEOUT_MS = 30_000;
 beforeEach(() => {
   vi.resetModules();
   vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
+  vi.stubEnv("BETTER_AUTH_URL", "https://app.example.com");
   vi.stubEnv("MARKETING_APP_URL", "https://marketing.example.com");
 });
 

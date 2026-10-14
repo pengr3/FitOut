@@ -1264,12 +1264,12 @@ jobs:
         env:
           POSTGRES_USER: fitout
           POSTGRES_PASSWORD: fitout
-          POSTGRES_DB: fitout
+          POSTGRES_DB: fitout_test
         # ⚠️ NO `ports:` MAPPING HERE, AND THAT ABSENCE IS DELIBERATE — see the DATABASE_URL
         # comment below. Publishing a port would not break this job, but it would make the
         # `localhost` spelling appear to work and quietly invite the wrong one back.
         options: >-
-          --health-cmd "pg_isready -U fitout -d fitout"
+          --health-cmd "pg_isready -U fitout -d fitout_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
@@ -1289,7 +1289,7 @@ jobs:
       #
       # Both the app under test (the dev server Playwright boots) and the spec's own postgres.js
       # client read this one variable, so they cannot drift onto different databases.
-      DATABASE_URL: postgres://fitout:fitout@postgres:5432/fitout
+      DATABASE_URL: postgres://fitout:fitout@postgres:5432/fitout_test
 
     steps:
       - uses: actions/checkout@v4
@@ -1303,8 +1303,8 @@ jobs:
       - run: npm ci
 
       # The spec seeds and tears down its own rows, but the TABLES have to exist first. Only
-      # the dev database `fitout` is needed here — this job runs no vitest, so the `fitout_test`
-      # provisioning `gate-db` does is deliberately absent.
+      # the ephemeral browser database `fitout_test` is created by its service. This job runs
+      # no Vitest, so the separate `gate-db` provisioning step is deliberately absent.
       - name: Migrate the database
         run: npm run db:migrate
 
@@ -1412,7 +1412,7 @@ jobs:
         env:
           POSTGRES_USER: fitout
           POSTGRES_PASSWORD: fitout
-          POSTGRES_DB: fitout
+          POSTGRES_DB: fitout_test
         # ⚠️ NO `ports:` MAPPING, AND THAT ABSENCE IS DELIBERATE — see the DATABASE_URL comment
         # below. Publishing a port would not break this job, but it would make the `localhost`
         # spelling appear to work and quietly invite the wrong one back. The parser now asserts the
@@ -1420,7 +1420,7 @@ jobs:
         # Without a health check the first step races the server's own initdb and fails with a
         # connection error that reads like a flaky service.
         options: >-
-          --health-cmd "pg_isready -U fitout -d fitout"
+          --health-cmd "pg_isready -U fitout -d fitout_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
@@ -1453,7 +1453,7 @@ jobs:
       # DO NOT "fix" a red here by unsetting it. An UNSET DATABASE_URL is strictly worse than a
       # wrong one: `postgres(undefined!)` falls back to libpq defaults and may find a real database
       # on some future runner, at which point the job is green and the property is gone silently.
-      DATABASE_URL: postgres://fitout:fitout@postgres:5432/fitout
+      DATABASE_URL: postgres://fitout:fitout@postgres:5432/fitout_test
 
     steps:
       - uses: actions/checkout@v4
@@ -1502,9 +1502,8 @@ jobs:
           cache: npm
       - run: npm ci
 
-      # The TABLES have to exist before anything can be seeded into them. Only the dev database
-      # `fitout` is needed: this job runs no vitest, so the `fitout_test` provisioning job 2 does is
-      # deliberately absent, exactly as in job 3 and `baselines.yml`.
+      # The TABLES have to exist before seeding. The service creates the ephemeral `fitout_test`
+      # database directly; this job needs no separate Vitest provisioning step.
       #
       # BYTE-IDENTICAL TO `baselines.yml`'s migrate command, and asserted.
       - name: Migrate the database
@@ -1678,13 +1677,13 @@ jobs:
         env:
           POSTGRES_USER: fitout
           POSTGRES_PASSWORD: fitout
-          POSTGRES_DB: fitout
+          POSTGRES_DB: fitout_test
         # ⚠️ NO `ports:` MAPPING HERE, AND THAT ABSENCE IS DELIBERATE — see the DATABASE_URL
         # comment below. A containerized job reaches a service by its LABEL. Publishing a port
         # would not break this job, but it would make the `localhost` spelling appear to work
         # and quietly invite the wrong one back.
         options: >-
-          --health-cmd "pg_isready -U fitout -d fitout"
+          --health-cmd "pg_isready -U fitout -d fitout_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 10
@@ -1705,7 +1704,7 @@ jobs:
       #
       # The ops response gateway signs its inward handoff with the same secret Better Auth uses.
       # CI has no deployment secret, so use a fixed test-only value for this disposable database.
-      DATABASE_URL: postgres://fitout:fitout@postgres:5432/fitout
+      DATABASE_URL: postgres://fitout:fitout@postgres:5432/fitout_test
       BETTER_AUTH_SECRET: fitout-ci-e2e-only-secret-never-use-in-deployments
 
     steps:
@@ -1753,8 +1752,8 @@ jobs:
         run: node scripts/refuse-mail-credential.mjs
 
       # The specs seed and tear down their own rows, but the TABLES have to exist first. Only
-      # the dev database `fitout` is needed here — this job runs no vitest, so the `fitout_test`
-      # provisioning `gate-db` does is deliberately absent.
+      # the ephemeral browser database `fitout_test` is created by its service. This job runs
+      # no Vitest, so the separate `gate-db` provisioning step is deliberately absent.
       - name: Migrate the database
         run: npm run db:migrate
 

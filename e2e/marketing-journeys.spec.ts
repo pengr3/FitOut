@@ -1,9 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
-import { marketingFixture } from "./helpers/marketing-fixtures";
+import { marketingFixture, MARKETING_TEST_DATABASE } from "./helpers/marketing-fixtures";
 
-// Explicit local test DB only; this spec cannot inherit a production connection.
-const sql = postgres("postgresql://fitout:fitout@localhost:5432/fitout_test", { max: 1 });
+// Explicit guarded test DB only; this spec cannot inherit a production connection.
+const sql = postgres(MARKETING_TEST_DATABASE, { max: 1 });
 const accounts: string[] = [];
 const password = "averylongpassword";
 const marketing = "http://marketing.localhost:3000";
