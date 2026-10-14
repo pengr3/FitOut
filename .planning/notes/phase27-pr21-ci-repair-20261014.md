@@ -18,3 +18,9 @@ Four auth suites now supply the origin and Google dummy inputs their contracts n
 Verified locally at 2026-10-14T03:28:02.744Z. Fresh remote CI must pass before merge; no bypass or job skip is authorized by this repair record.
 
 Original6bb/588/live-provider evidence, Phase27 completion counters and public Contact enablement retain their dates/source identities. Production settings/aliases, provider receivers, accounts, mail and financial jobs are unchanged. The owner's dirty root drafts remain untouched.
+
+## Config-import follow-up at ab4cca136152b60bf73b97cb483dd0e76405138e
+
+GitHub run38506443377 at91c75e3b independently passed the full unit,price-parity and visual jobs. Functional remained in progress at this record. The DB-free design job failed five mail-safety harness assertions because it imports Playwright configuration under that job's unreachable database sentinel, and config-mutated auth origin values survived into the next tests. These are retained failures.
+
+The harness now stubs the exact ephemeral CI URL before importing configuration, supplies matching inert app/marketing/Ops origins, and restores all mutated environment values after each test. It starts no server or database connection. Existing zero-mail/one-captured-send controls remain unchanged; additional assertions pin the fixture database and shared signer/origin agreement. Lint,all13 focused config/database assertions under reproduced CI flags/sentinel/build origins,and TypeScript pass. The initial partial-environment typecheck failure is also retained; the selector input is typed as Partial<ProcessEnv>, with no runtime relaxation. Fresh final-head CI remains required before merge.

@@ -89,5 +89,45 @@
       "path": "playwright/.cache/phase27-merge-20261014/ci-failed.log",
       "sha256": "cb3fbe8d3b6fc9cf0252aaa7d8da6a6ce0f1f09c1974843ef696669527c034f6"
     }
-  ]
+  ],
+  "configImportRepair": {
+    "source": "ab4cca136152b60bf73b97cb483dd0e76405138e",
+    "verifiedAt": "2026-10-14T03:34:20.318Z",
+    "remoteRun": "https://github.com/pengr3/FitOut/actions/runs/38506443377",
+    "remoteCompleted": {
+      "unit": "success",
+      "priceParity": "success",
+      "visual": "success",
+      "dbFree": "failure",
+      "functional": "in progress when recorded"
+    },
+    "cause": "database-free config-import test inherited the unreachable sentinel and retained config-mutated auth origins",
+    "local": {
+      "lint": "passed",
+      "designAssertions": 13,
+      "typecheck": "passed"
+    },
+    "evidence": [
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/ci-91c75-dbfree-failure.log",
+        "sha256": "2a3aa3a3b7098581c3f22036cd67279ddea4b7754400615e207cd8c3ac2993d7"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/config-import-result.json",
+        "sha256": "c92e4b52f35055eb70302563215b0047770b6c275d4aade8318fd3136ce46b9f"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/config-import-lint.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/config-import-design.log",
+        "sha256": "e6ab83da2a2a4755b665c5be024c60f5c758bf063b44a7db4dfd57cf50445092"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/config-import-typecheck.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  }
 }

@@ -1,6 +1,6 @@
 ---
 phase: 27-app-subdomain-marketing-website
-verified: "2026-10-14T03:28:02.744Z"
+verified: "2026-10-14T03:34:20.318Z"
 status: passed
 score: 66/66
 roadmap_score: 5/5
@@ -110,7 +110,12 @@ covered_files:
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-confirmed-verifier-results.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-round-trip-confirmation.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/requirement-format-normalization.json
+  - playwright/.cache/phase27-merge-20261014/ci-91c75-dbfree-failure.log
   - playwright/.cache/phase27-merge-20261014/ci-failed.log
+  - playwright/.cache/phase27-merge-20261014/config-import-design.log
+  - playwright/.cache/phase27-merge-20261014/config-import-lint.log
+  - playwright/.cache/phase27-merge-20261014/config-import-result.json
+  - playwright/.cache/phase27-merge-20261014/config-import-typecheck.log
   - playwright/.cache/phase27-merge-20261014/local-repair-final.json
   - playwright/.cache/phase27-merge-20261014/local-repair-pre-import-failure.json
   - playwright/.cache/phase27-merge-20261014/local-repair.json
@@ -234,6 +239,7 @@ covered_files:
   - tests/contact/contact-mail.test.ts
   - tests/contact/contact-route.test.ts
   - tests/design/browser-test-database.test.ts
+  - tests/design/e2e-email-silence.test.ts
   - tests/design/email-shell.test.ts
   - tests/design/listing-reuse-predicate-census.test.ts
   - tests/design/listing-vocabulary-parity.test.ts
@@ -255,7 +261,7 @@ covered_files:
   - tests/security/audit-durable.test.ts
   - tests/security/audit.test.ts
   - tests/validation/listing-schema.test.ts
-covered_digest: "v1:sha256:becc0fe5acbc3e9006c2d7fa21c0061c27e4ff2eb6052c43bbbe4e3296c843b7"
+covered_digest: "v1:sha256:353b11fca2e1708fa17977f5aeca8cd1038664973074bac4b42fe3ba1d15af55"
 closure_verified: "2026-10-14T00:25:56.970Z"
 closure_covered_digest: "v1:sha256:2b37fe7169e261e62f4b06b4d9518370816a628a6f4e8034b262309f7648d163"
 shipping_source_revision: 1937320dd0d50b99b46a9a13268ae02a9eac3bbb
@@ -263,6 +269,7 @@ shipping_overlay_revision: c81059b8495dd3166b0ebf2ba831c013d5458d6d
 shipping_evidence: .planning/notes/phase27-marketing-ui-shipping-20261014.md
 ci_repair_revision: eb81418d5a649fa3ceeceb2e52576738eef43335
 ci_repair_evidence: .planning/notes/phase27-pr21-ci-repair-20261014.md
+ci_config_import_revision: ab4cca136152b60bf73b97cb483dd0e76405138e
 ---
 
 # Phase27 goal verification
@@ -274,6 +281,8 @@ The original6bb closure below is dated history. Public Contact was subsequently 
 ## PR21 CI repair addendum — 2026-10-14T03:28:02.744Z
 
 The merge preparation at eb81418d5a649fa3ceeceb2e52576738eef43335 repairs ephemeral browser database routing and auth-test input isolation only. Local lint/types,55 affected auth cases and57 workflow invariants pass;1518 distinct design assertions pass across the full run plus the focused metadata-timeout rerun. Fresh GitHub CI remains required before merge. See .planning/notes/phase27-pr21-ci-repair-20261014.md; all original completion/live source identities and closure digest remain preserved.
+
+The CI config-import follow-up at ab4cca136152b60bf73b97cb483dd0e76405138e passes13 focused assertions,lint and types. The preceding remote run passed unit/price/visual; final-head CI is still pending. Historical failures and source cohorts remain in .planning/notes/phase27-pr21-ci-repair-20261014.md.
 
 ## Original6bb goal closure
 
