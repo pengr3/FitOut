@@ -47,7 +47,8 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("@hero real progressive search", async ({ page }) => {
-  const fixture = await marketingGallery();
+  expect(test.info().config.workers, "isolated capture fixtures require one worker").toBe(1);
+  const fixture = await marketingGallery({ isolateCatalog: true });
   try {
     await page.goto("/");
     await page.getByRole("button", { name: "Search location", exact: true }).click();

@@ -1146,6 +1146,9 @@ test.describe("Phase 24 progressive search accessibility states", () => {
       await expect(page).toHaveURL(/lat=/);
       await page.getByRole("button", { name: "Search party size" }).click();
       await expect(page.getByRole("heading", { name: "Who is this for?" })).toBeFocused();
+      // The dialog fade changes composited contrast before the final palette is visible.
+      // Audit its settled state; a permanently translucent dialog still fails this assertion.
+      await expect(page.getByRole("dialog", { name: "Search spaces" })).toHaveCSS("opacity", "1");
       await expect(page).toHaveTitle(/\S/);
       await expectAxeClean(page, `progressive party · ${width}px`);
 
