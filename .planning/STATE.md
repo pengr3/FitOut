@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: phase_complete
-stopped_at: "Phase27 complete; public Contact enabled and sending/monitoring verified"
-last_updated: "2026-10-14T01:37:54.695Z"
+stopped_at: "Phase27 complete; PR21 open into dev; public Contact remains enabled"
+last_updated: "2026-10-14T02:33:16.557Z"
 last_activity: 2026-10-14
-last_activity_desc: Public Contact release accepted; real inquiry delivered and natural monitor healthy
-state_head: 876f8168
+last_activity_desc: Phase27 plus owner marketing UI pushed; PR21 open into dev, awaiting CI and merge
+state_head: e9202675
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -2415,3 +2415,7 @@ Contact inquiry packet prepared 2026-10-13T14:06:51.213Z: exact6bb source1113 fi
 ## Contact inquiry attempt stopped and export repaired — October 13
 
 Contact inquiry attempt 2026-10-13T15:00:40.207Z: approved test build failed beforeREADY because the manifest-only export omitted required config/design-tokens-source.mjs. Zero ContactPOSTs/windows/emails; all eight aliases and14+1 receivers unchanged, primary0/0/retained1. Only owned failed test deployment removed and404 verified. Complete accepted archive2,459files plus1,113manifest checks now match; local Next typegen/TypeScript and47guard checks pass. One-build replacement amendment prepared, approvalpending; originalleaseends15:28:35Z with no extension. Contactdisabled, no account changes;20/21/144of151/all7requirements pending.
+
+## Git integration — October 14, 2026
+
+Phase27 and the owner marketing UI are pushed on codex/phase27-marketing-ui. PR #21 targets dev: https://github.com/pengr3/FitOut/pull/21. Local integrated-source checks and the security gate passed; the PR is open and not merged. Public Contact stays enabled under the existing accepted release. Root user drafts and the separate CI-cost edits are preserved. See .planning/notes/phase27-marketing-ui-shipping-20261014.md for sources, 1510 design/659 selected unit/42 combined browser checks and retained limits. Counters remain 145/151 and Phase27 remains 21/21; no new phase or financial release is completed by this push.
