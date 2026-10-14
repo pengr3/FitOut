@@ -17,6 +17,7 @@
 //
 // NO CORAL ANYWHERE — a calm host workflow surface, mirroring /host/bookings and /host/earnings.
 
+import { isCustomerRole } from "@/lib/customer-role";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -43,6 +44,8 @@ export default async function HostBookingDetailPage({
 }) {
   // Defense in depth: the (host) layout already gates, but never render a booking without a real session.
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   if (!session?.user) {
     redirect("/login");
   }

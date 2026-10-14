@@ -211,7 +211,7 @@ describe("D-03 — the creation-failure copy module", () => {
 
 /** A session for a host who may host. The page's own guards are not the subject of this file. */
 function seedSession() {
-  getSession.mockResolvedValue({ user: { id: "host-1", canHost: true, emailVerified: true } });
+  getSession.mockResolvedValue({ user: { role: "user", id: "host-1", canHost: true, emailVerified: true } });
 }
 
 /** Render `/host/listings` with a given `?create=` value (or none), and hand back its text and HTML. */

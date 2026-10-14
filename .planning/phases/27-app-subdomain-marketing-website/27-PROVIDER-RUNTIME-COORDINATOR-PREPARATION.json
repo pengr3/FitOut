@@ -1,0 +1,59 @@
+{
+  "preparedAt": "2026-10-13T08:48:47.721Z",
+  "attemptId": "p27-provider-runtime-coordinator-retry-20261013",
+  "status": "prepared-awaiting-fresh-approval",
+  "tests": {
+    "passed": 48,
+    "failed": 0,
+    "fixtureOnly": true
+  },
+  "cliAdapterSyntaxPassed": true,
+  "preparedLiveRunnerRefused": true,
+  "privateKeyExportInCoordinator": false,
+  "externalCalls": 0,
+  "newBuilds": 0,
+  "contactDisabled": true,
+  "artifacts": [
+    {
+      "path": "coordinator.mjs",
+      "sha256": "ffbc39f8d2262a980a833690f9dc45360cc7d67713df05ea37bb0a17e0e58b5a"
+    },
+    {
+      "path": "coordinator.test.mjs",
+      "sha256": "774992d29b40d822b12757f0a08987e3ca7d1802141f96996475f67dc385a9c9"
+    },
+    {
+      "path": "driver.mjs",
+      "sha256": "905cc7e832d5593c65fd3e1d8565ad29fa67f745cd8a5cee63ddc13287015a80"
+    },
+    {
+      "path": "driver.test.mjs",
+      "sha256": "d64f0e453fd42a0e5cf91a05042974bdc302c773141196d8305c99dfd7de1810"
+    },
+    {
+      "path": "prepare-export.mjs",
+      "sha256": "efc2837578142377c9f3905a791d65747a4ae2e47430734bfe9e80aeb4ee4f59"
+    },
+    {
+      "path": "probe-config.json",
+      "sha256": "9a5c4f59eb8fd130fcd7131ad524631c33a75a6f1caf23ca51479fbe4f9cd980"
+    },
+    {
+      "path": "probe.mjs",
+      "sha256": "b6a09e472f2bfc9c738f86de15f2a944f1046f7266b3acf21a4c9d945291da2a"
+    },
+    {
+      "path": "probe.test.mjs",
+      "sha256": "3ef8998d0238f9662c4058717794081b9bee6ea3cafa19cf186c07777171dc54"
+    },
+    {
+      "path": "route.ts",
+      "sha256": "06891a030b8d0b53795e35a901a0344643c2f88ad78c0213a8f1791941ca9149"
+    },
+    {
+      "path": "run-coordinator.mjs",
+      "sha256": "3a62b22397ea339fea8f69a1ed6ff9bec6e005a62a6d1caad2846835cc514a1f"
+    }
+  ],
+  "bundleSha256": "42f7c9628a1d8914f78fe4602c57c9a6e9a05d85fdd03bebacf273fcbdcfb312"
+}

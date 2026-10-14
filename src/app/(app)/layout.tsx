@@ -21,6 +21,7 @@
 // blocks navigation, so while this file awaited three database reads a `loading.tsx` anywhere under
 // (app) bought nothing — STATE-01 was unverifiable on most of the group.
 
+import { isCustomerRole } from "@/lib/customer-role";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
@@ -83,8 +84,8 @@ export default async function AppLayout({
             </Suspense>
             <NavIconMenu
               current="book"
-              canBook={u.canBook ?? false}
-              canHost={u.canHost ?? false}
+              canBook={isCustomerRole(u.role) && (u.canBook ?? false)}
+              canHost={isCustomerRole(u.role) && (u.canHost ?? false)}
             />
           </>
         }

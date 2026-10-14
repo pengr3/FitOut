@@ -25,13 +25,12 @@
 //   - POST-ONLY (T-04-GETHOLD): placeHold mints the hold via this POST server action + redirect, never a
 //     GET render side-effect (Pitfall 2 — a GET duplicates holds on prefetch/refresh/Back).
 
+import { readCustomerUserId } from "@/lib/customer-access";
 import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
-import { absolutePublicUrl } from "@/lib/app-origins";
+import { absoluteAppUrl, absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import {
   booking,
@@ -113,8 +112,7 @@ const PASSES_FIXED_MESSAGE = "To add more passes, book them separately.";
 
 /** Resolve the signed-in user's id, or null if there is no session (cloned from blocks.ts). */
 async function requireUserId(): Promise<string | null> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user?.id ?? null;
+  return readCustomerUserId();
 }
 
 /**
@@ -1086,8 +1084,8 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
       name: `Booking ${ref}`,
       referenceNumber: holdId,
       metadata: { booking_id: holdId },
-      successUrl: absolutePublicUrl(`/bookings/${holdId}?paid=1`),
-      cancelUrl: absolutePublicUrl(`/listings/${bk.listingId}/book?hold=${holdId}`),
+      successUrl: absoluteAppUrl(`/bookings/${holdId}?paid=1`),
+      cancelUrl: absoluteAppUrl(`/listings/${bk.listingId}/book?hold=${holdId}`),
       idempotencyKey:
         bk.declaredPax == null
           ? `checkout:${holdId}`

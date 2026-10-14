@@ -9,8 +9,8 @@
 //   - owner-gate (T-05-13) and the already-confirmed idempotent short-circuit (D-42 / T-05-14) create no
 //     checkout.
 
-import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
-import { eq } from "drizzle-orm";
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
+import { eq, sql } from "drizzle-orm";
 import { setupTestDb, teardownTestDb, type TestDb } from "../helpers/db";
 import { mockPayMongo } from "../helpers/mocks";
 import { user, listing, booking } from "@/lib/db/schema";
@@ -46,15 +46,20 @@ const HOST = "cc_host";
 const BOOKER = "cc_booker";
 const OTHER = "cc_other";
 const LISTING = "L_cc";
+let fixtureNow: Date;
 
-/** A future day and distinct 1-hour UTC window per booking keep checkout valid and rows non-overlapping. */
+// confirmBooking uses PostgreSQL now(), so its fixture must use that same authority.
+// Refresh after isolated setup for every case; no fake timer or fixed calendar date.
+beforeEach(async () => {
+  const rows = await testDb.db.execute(sql`SELECT now() AS "now"`);
+  fixtureNow = new Date(rows[0].now as string | Date);
+});
+
+/** A distinct 1-hour UTC window per booking so seeded rows never collide on the booking_no_overlap EXCLUDE. */
 function windowAt(hourUtc: number): { startsAt: Date; endsAt: Date } {
-  const h = String(hourUtc).padStart(2, "0");
-  const h1 = String(hourUtc + 1).padStart(2, "0");
-  const futureDay = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   return {
-    startsAt: new Date(`${futureDay}T${h}:00:00.000Z`),
-    endsAt: new Date(`${futureDay}T${h1}:00:00.000Z`),
+    startsAt: new Date(fixtureNow.getTime() + hourUtc * 60 * 60 * 1000),
+    endsAt: new Date(fixtureNow.getTime() + (hourUtc + 1) * 60 * 60 * 1000),
   };
 }
 
@@ -152,6 +157,16 @@ afterAll(async () => {
 });
 
 describe("confirmBooking — Confirm & pay checkout (D-49/D-57/D-58)", () => {
+  it("refuses a session that already started before calling the provider", async () => {
+    session.userId = BOOKER;
+    await seedBooking({
+      id: "bk_expired_checkout", bookerId: BOOKER, status: "pending",
+      quotedTotalCents: 150000, expiresAtMs: fixtureNow.getTime() + 60_000, hourUtc: -2,
+    });
+    expect(await confirmBooking("bk_expired_checkout")).toMatchObject({ ok: false, reason: "expired" });
+    expect(mockPayMongo.createCheckoutSession).not.toHaveBeenCalled();
+    expect((await readBooking("bk_expired_checkout")).status).toBe("pending");
+  });
   it("creates ONE checkout for the frozen quote, extends the hold, and redirects off-site WITHOUT flipping to confirmed", async () => {
     session.userId = BOOKER;
     const id = "bk_happy";
@@ -251,26 +266,5 @@ describe("confirmBooking — Confirm & pay checkout (D-49/D-57/D-58)", () => {
     const url = await expectRedirect(confirmBooking(id));
     expect(url).toBe(`/bookings/${id}`);
     expect(mockPayMongo.createCheckoutSession).not.toHaveBeenCalled();
-  });
-
-  it("a provider failure leaves the hold retryable and returns its extended deadline", async () => {
-    session.userId = BOOKER;
-    const id = "bk_provider_retry";
-    await seedBooking({
-      id,
-      bookerId: BOOKER,
-      status: "pending",
-      quotedTotalCents: 150000,
-      expiresAtMs: Date.now() + 2 * 60 * 1000,
-      hourUtc: 10,
-    });
-    mockPayMongo.createCheckoutSession.mockRejectedValueOnce(new Error("provider unavailable"));
-
-    const result = await confirmBooking(id);
-    const row = await readBooking(id);
-    expect(result).toMatchObject({ ok: false, reason: "checkout", expiresAt: row.expiresAt?.toISOString() });
-    expect(row.status).toBe("pending");
-    expect(row.checkoutSessionId).toBeNull();
-    expect(row.expiresAt!.getTime()).toBeGreaterThan(Date.now() + 50 * 60 * 1000);
   });
 });

@@ -23,8 +23,9 @@
 // blocks navigation, so while this file awaited FOUR database reads a `loading.tsx` anywhere under
 // (host) bought nothing — STATE-01 was unverifiable on most of the group.
 
+import { isCustomerRole } from "@/lib/customer-role";
 import { Suspense } from "react";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { AmbientHostNav, AmbientNotifications } from "@/components/patterns/ambient-notifications";
@@ -40,6 +41,8 @@ export default async function HostLayout({
   children: React.ReactNode;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   if (!session?.user) {
     redirect("/login");
   }

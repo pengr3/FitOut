@@ -85,8 +85,9 @@
 //     taste call. A handle implies draggability; drag is not implemented; an affordance that lies is
 //     worse than no affordance. The visible close button is the dismiss affordance.
 
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { XIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import {
   Dialog,
@@ -150,6 +151,13 @@ export type ResponsiveDialogProps = {
    * opened after an upload resolves — has no trigger element at all.
    */
   trigger?: ReactNode;
+  /** An anchored adopter measures its actual trigger without creating another overlay tree. */
+  triggerRef?: Ref<HTMLButtonElement>;
+  /** Presentation overrides for the same content node, such as the anchored search panel. */
+  contentClassName?: string;
+  contentRef?: Ref<HTMLDivElement>;
+  /** Search owns a visible Cancel action; other adopters retain the existing close control. */
+  showCloseButton?: boolean;
   /**
    * The accessible name of the overlay. REQUIRED, and it has no default.
    *
@@ -224,6 +232,10 @@ export function ResponsiveDialog({
   open,
   onOpenChange,
   trigger,
+  triggerRef,
+  contentClassName,
+  contentRef,
+  showCloseButton = true,
   title,
   hideTitle = false,
   description,
@@ -247,11 +259,12 @@ export function ResponsiveDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
+      {trigger ? <DialogTrigger ref={triggerRef} asChild>{trigger}</DialogTrigger> : null}
       <DialogContent
+        ref={contentRef}
         data-testid="responsive-dialog"
-        className={SHEET_PRESENTATION}
-        showCloseButton={closeLabel === undefined}
+        className={cn(SHEET_PRESENTATION, contentClassName)}
+        showCloseButton={showCloseButton && closeLabel === undefined}
         onOpenAutoFocus={onOpenAutoFocus}
         onCloseAutoFocus={onCloseAutoFocus}
         {...describedBy}

@@ -150,7 +150,8 @@ describe("DS-14 — the identity metadata is FitOut's, not create-next-app's", (
     vi.resetModules();
     vi.stubEnv("BETTER_AUTH_URL", "");
     vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
-    vi.stubEnv("OPS_APP_URL", "http://ops.localhost:3000");
+    vi.stubEnv("OPS_APP_URL", "https://fitout-ops-preview.vercel.app");
+    vi.stubEnv("MARKETING_APP_URL", "https://fitout-marketing-preview.vercel.app");
     vi.stubEnv("VERCEL", "1");
     vi.stubEnv("VERCEL_ENV", "preview");
     vi.stubEnv("VERCEL_URL", "fitout-metadata-preview.vercel.app");

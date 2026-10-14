@@ -64,3 +64,6 @@ next-env.d.ts
 *-win32.png
 *-darwin.png
 .neon
+
+# Owned short immutable exports for native Windows build gates
+/.p27/

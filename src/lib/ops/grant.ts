@@ -227,11 +227,11 @@ export async function writeRole(
   return dbConn.transaction(async (tx): Promise<StaffWriteResult> => {
     const action = input.role === STAFF_ROLE ? GRANT_ACTION : REVOKE_ACTION;
 
-    if (input.role === DEFAULT_ROLE) {
-      await tx.execute(
-        sql`SELECT pg_advisory_xact_lock(hashtextextended('fitout:staff-role-policy', 0))`,
-      );
-    }
+    // Grants/conversions and customer activation must serialize before either reads capability
+    // state; otherwise an ordinary grant can race a capability flip and leave staff bookable.
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended('fitout:staff-role-policy', 0))`,
+    );
 
     const found = await resolveTarget(tx, input.target);
     if (found === "not_found" || found === "ambiguous") {

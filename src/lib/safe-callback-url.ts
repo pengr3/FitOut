@@ -130,3 +130,15 @@ export function safeCallbackPath(raw: string | null | undefined, origin: string)
 
   return candidate;
 }
+
+/** Customer app auth returns never enter ops or loop back through logged-out auth routes. */
+export function safeAppCallbackPath(raw: string | null | undefined, origin: string): string {
+  if (raw && (/[\\\u0000-\u0020\u007f]/.test(raw) || /%(?:0[0-9a-f]|1[0-9a-f]|7f|5c)/i.test(raw))) return "/";
+  const checked = safeCallbackPath(raw, origin);
+  try {
+    const decoded = decodeURIComponent(new URL(checked, origin).pathname);
+    if (decoded.startsWith("//") || /[\\\u0000-\u0020\u007f]/.test(decoded) ||
+      ["/ops", "/_ops-auth", "/ops-gateway", "/_ops-cloak", "/login", "/signup", "/auth/session-check"].some((path) => decoded === path || decoded.startsWith(`${path}/`))) return "/";
+  } catch { return "/"; }
+  return checked;
+}

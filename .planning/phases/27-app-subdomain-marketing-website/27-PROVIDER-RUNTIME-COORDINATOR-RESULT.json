@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 1,
+  "packetId": "p27-provider-runtime-20261013",
+  "attemptId": "p27-provider-runtime-coordinator-retry-20261013",
+  "status": "observed-runtime-configuration",
+  "recordedAt": "2026-10-13T09:02:22.710Z",
+  "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+  "baselineId": "dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg",
+  "opsId": "dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4",
+  "diagnosticDeploymentId": "dpl_7GKcUipbZpTX5H13i9QfCGcySWtb",
+  "runtime": {
+    "schemaVersion": 1,
+    "packetId": "p27-provider-runtime-20261013",
+    "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "observedAt": "2026-10-13T08:58:31.086Z",
+    "deploymentId": "dpl_7GKcUipbZpTX5H13i9QfCGcySWtb",
+    "contactDisabled": true,
+    "paymongo": {
+      "secretMode": "live",
+      "publicMode": "live",
+      "modesAgree": true,
+      "httpStatus": 200,
+      "hookIdMatches": true,
+      "destinationMatches": true,
+      "enabled": true,
+      "eventsMatch": true,
+      "providerModeMatches": true,
+      "signingSecretMatches": true
+    },
+    "didit": {
+      "effectiveEnvironment": "sandbox",
+      "environmentDefaulted": false,
+      "workflowId": "63f24717-7167-4cee-867e-688284d4c2ee",
+      "callback": "https://app.fitout.live/host/verify",
+      "workflowHttpStatus": 200,
+      "workflowIdMatches": true,
+      "workflowLabelMatches": true,
+      "workflowArchived": false,
+      "destinationListHttpStatus": 200,
+      "uniqueApexDestination": true,
+      "destinationId": "e887a8c1-7d92-4a14-9fc1-1a7f7efae154",
+      "destinationHttpStatus": 200,
+      "destinationMatches": true,
+      "enabled": true,
+      "versionMatches": true,
+      "eventsMatch": true,
+      "signingSecretMatches": true
+    }
+  },
+  "diagnosticGets": 3,
+  "providerGets": 4,
+  "contactPosts": 0,
+  "providerWrites": 0,
+  "mailSent": 0,
+  "identitySessionsCreated": 0,
+  "manualFinancialJobs": 0,
+  "contactDisabled": true,
+  "privateKeyPersisted": false,
+  "privateKeyProcessExited": true,
+  "helperBundleSha256": "42f7c9628a1d8914f78fe4602c57c9a6e9a05d85fdd03bebacf273fcbdcfb312",
+  "offlineTests": {
+    "passed": 48,
+    "failed": 0
+  },
+  "qualifiedServingCorrespondence": {
+    "unchangedProviderMetadata": true,
+    "allEntriesPredateServingBuild": true,
+    "directCogasRuntimeObservation": false
+  },
+  "application": {
+    "diditOrganizationId": "fe0feee2-9b63-4e40-90f8-36dc06890879",
+    "diditApplicationId": "8c987e39-86bd-452f-a18b-a5153beda380",
+    "consoleFullWorkflowIdMatched": true,
+    "consoleDestinationIdIndependentlyDisplayed": false
+  },
+  "remainingGaps": [
+    "PayMongo harmless signed delivery",
+    "Didit historical Test-delivery/retry diagnosis and current signed delivery",
+    "OPS-11",
+    "Real Contact inquiry/Reply-To/reply"
+  ],
+  "livePhaseAccepted": false,
+  "captures": [
+    {
+      "path": "approval.json",
+      "sha256": "63965de0a9899aae40ca8c4861cbb31beb8ce2b38435266dcab2818164df9804"
+    },
+    {
+      "path": "preflight-schema-refusal-original-marker.json",
+      "sha256": "ce633ac067b3a13573bb95d2949d1b72e58abac756cde8875d625fc76c0568db"
+    },
+    {
+      "path": "preflight-schema-repair.json",
+      "sha256": "a067d7485bd1ff2057478074d9f1a670bb965b4401c210e222de64ace78b6042"
+    },
+    {
+      "path": "reviewed-artifacts.json",
+      "sha256": "e71c5fa5e481e19da8b8df1b0d9740994fc45c996375760c04141525b97f179e"
+    },
+    {
+      "path": "prepared-result.json",
+      "sha256": "dc3b6f08cf9410613540fa5a3ca687c967e45655d70c3ad5c52a02a689ed9666"
+    },
+    {
+      "path": "preflight-platform.json",
+      "sha256": "fa9c779cad58b9316bd8cf7b6a3675326dfd8258e7738966efc3f90b5af76bd6"
+    },
+    {
+      "path": "export-result.json",
+      "sha256": "01939ebd7c355df9359d7441aae2864677b9bed8ade289e1b3e9b18554918120"
+    },
+    {
+      "path": "final-added-files.json",
+      "sha256": "b991a9850adaaf4ebfe764d899ca38c112db32348ab12bdb1db3cbec171b6d86"
+    },
+    {
+      "path": "stage-created.json",
+      "sha256": "4abf3a97117e2e6344d09b68ca190f4251481e17cea3831d84dcc71a8901aa09"
+    },
+    {
+      "path": "ready-deployment.json",
+      "sha256": "5c4cfb6caa2c293c3d0c6d3d2d2c93430e8e7f1b6ba49d59566225a9423ea1b2"
+    },
+    {
+      "path": "platform-after-staging.json",
+      "sha256": "531d76c4cdd7b00cf18c40f5bbe563774af59c58d3b692271ec71a2230db58b1"
+    },
+    {
+      "path": "build-attempt.json",
+      "sha256": "0b94afe406a090e19bb45812dd99cc3638c87096d5a9b2d958386d19d5ee6f7b"
+    },
+    {
+      "path": "reconciled.json",
+      "sha256": "a423e427dbadf564a6aadc1408bd48d53ef31622cd6e9d94d758424c682dcc8d"
+    },
+    {
+      "path": "inngest-financial-restored.txt",
+      "sha256": "0693214ff499b6b5dd47aa76b31dcd5cd79728888a84dfed0d11c85fd187ca6b"
+    },
+    {
+      "path": "inngest-contact-restored.txt",
+      "sha256": "35fee0ad7954ff31839bc31a091d30499280d127343544efa0557820bcaa7916"
+    },
+    {
+      "path": "request-journal.json",
+      "sha256": "9f732f4eed5853062980e8956312d65000aa146d5d1096f7b7e79b0aecf764a5"
+    },
+    {
+      "path": "diagnostic-attempt.json",
+      "sha256": "92dda1f81b9dd204f56d0baadc0644252fef9d940e288dba014edf3fadb0da0f"
+    },
+    {
+      "path": "runtime-proof.json",
+      "sha256": "2d6905c9b71ca50718193f59efbd6de10f545d263544bfe456cd7108fdd84d48"
+    },
+    {
+      "path": "coordinator-finished.json",
+      "sha256": "d7bab8619f938c194ad0a0ef024a952cb18e18ee15813cc9de51c1f759edea63"
+    },
+    {
+      "path": "final-platform.json",
+      "sha256": "33eee90c0ceee38dbfa8fab617b9af0ad3611c83e8ddcbda43514836476b8b27"
+    },
+    {
+      "path": "final-registrations.json",
+      "sha256": "5ea87c7d0b5a0cfcbf48ab67615088557a1d6f94cb6e7e228a27f5c88688b8bf"
+    },
+    {
+      "path": "inngest-financial-final.txt",
+      "sha256": "d22725c5dbcd60740fb2235785d5725f81945938e9c5b19d56afd588d1a510f0"
+    },
+    {
+      "path": "inngest-contact-final.txt",
+      "sha256": "35fee0ad7954ff31839bc31a091d30499280d127343544efa0557820bcaa7916"
+    },
+    {
+      "path": "didit-destination-summary.txt",
+      "sha256": "4b41602c9f059e20bf5e7aea9aedf06ddea255060b75cd61e22d9bcef2d9d151"
+    }
+  ]
+}

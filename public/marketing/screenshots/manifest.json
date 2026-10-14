@@ -1,0 +1,225 @@
+{
+  "version": 1,
+  "captures": {
+    "search": {
+      "path": "/marketing/screenshots/search.png",
+      "sha256": "df186a27e76238a2f25a0fe5b7792ab73f8a4654177e35fbd498e256121593a1",
+      "width": 1120,
+      "height": 1033,
+      "route": "/?lat=14.565&lng=121.03&locationLabel=Current+location",
+      "assertedState": "Real location search with five photographed bookable spaces across courts, gyms and studios",
+      "capturedAt": "2026-10-11T16:39:35.386Z",
+      "captureDate": "2026-10-12",
+      "timezone": "Asia/Manila",
+      "sessionDate": null,
+      "fixtureIds": [
+        "marketing_listing_8df7322f-900e-4a7a-bcff-484729a400de",
+        "marketing_gallery_tennis_5acab860-12ce-43e6-b5b0-96cbc046b4a8",
+        "marketing_gallery_badminton_00a606d4-0448-448e-bd2e-534f40b05ef4",
+        "marketing_gallery_gym_879d3f97-3677-470f-bc2a-a54d0ea8f3f7",
+        "marketing_gallery_studio_cf6c6090-74b0-448e-9290-39422a27858c"
+      ],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-gallery.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "Five synthetic bookable spaces with licensed Unsplash/Pexels reference photographs; sources in public/marketing/photos/manifest.json",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-12 Asia/Manila",
+        "reviewedSha256": "df186a27e76238a2f25a0fe5b7792ab73f8a4654177e35fbd498e256121593a1",
+        "notes": "Inspected exact retained PNG: authentic app state, licensed venue photographs where shown, empty signup fields or synthetic venue content, no personal contact, identity, bank details or hold credentials. Future session and unpaid review only; no payment submitted."
+      }
+    },
+    "account": {
+      "path": "/marketing/screenshots/account.png",
+      "sha256": "29aa3485357c1a4a55d02fe994d4631c8b968a8adf4422cc3a03ab1eb4d0b041",
+      "width": 384,
+      "height": 682,
+      "route": "/signup",
+      "assertedState": "Genuine host account signup; empty personal fields",
+      "capturedAt": "2026-10-11T16:39:43.297Z",
+      "captureDate": "2026-10-12",
+      "timezone": "Asia/Manila",
+      "sessionDate": null,
+      "fixtureIds": [],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-gallery.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "Five synthetic bookable spaces with licensed Unsplash/Pexels reference photographs; sources in public/marketing/photos/manifest.json",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-12 Asia/Manila",
+        "reviewedSha256": "29aa3485357c1a4a55d02fe994d4631c8b968a8adf4422cc3a03ab1eb4d0b041",
+        "notes": "Inspected exact retained PNG: authentic app state, licensed venue photographs where shown, empty signup fields or synthetic venue content, no personal contact, identity, bank details or hold credentials. Future session and unpaid review only; no payment submitted."
+      }
+    },
+    "verification": {
+      "path": "/marketing/screenshots/verification.png",
+      "sha256": "608739840486edd34d07af2c8f547a76bfb8dbdd25995aa5b7aafa2f9d54b7f0",
+      "width": 736,
+      "height": 530,
+      "route": "/host",
+      "assertedState": "Unverified demo host; real four-step account-check and payout roadmap; no bank or identity fields",
+      "capturedAt": "2026-10-11T16:39:54.496Z",
+      "captureDate": "2026-10-12",
+      "timezone": "Asia/Manila",
+      "sessionDate": null,
+      "fixtureIds": [
+        "jeB7BDRP4cXq9VjoK3UyDe6H0RRXD2wV"
+      ],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-gallery.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "Five synthetic bookable spaces with licensed Unsplash/Pexels reference photographs; sources in public/marketing/photos/manifest.json",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-12 Asia/Manila",
+        "reviewedSha256": "608739840486edd34d07af2c8f547a76bfb8dbdd25995aa5b7aafa2f9d54b7f0",
+        "notes": "Inspected exact retained PNG: authentic app state, licensed venue photographs where shown, empty signup fields or synthetic venue content, no personal contact, identity, bank details or hold credentials. Future session and unpaid review only; no payment submitted."
+      }
+    },
+    "listing": {
+      "path": "/marketing/screenshots/listing.png",
+      "sha256": "87b9f7f71e6ce872d71af75f8ceaf495c88e8280ff9b351b01ff2cc32c386cb6",
+      "width": 1280,
+      "height": 610,
+      "route": "/host/listings/marketing_listing_5af2cae9-9165-4ed9-86f8-a787ae4e9dfc/edit",
+      "assertedState": "Genuine draft listing setup wizard, space-type first step, after existing host approval gate; owned local seeded draft",
+      "capturedAt": "2026-10-08T18:15:21.104Z",
+      "captureDate": "2026-10-09",
+      "timezone": "Asia/Manila",
+      "sessionDate": null,
+      "fixtureIds": [
+        "FhtFU1WcOBassAKFj7vei3hmGzEeMxBg",
+        "marketing_listing_5af2cae9-9165-4ed9-86f8-a787ae4e9dfc"
+      ],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-fixtures.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "No photographs: app's empty photo state; no external, generated or sketch assets",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-09 Asia/Manila",
+        "reviewedSha256": "87b9f7f71e6ce872d71af75f8ceaf495c88e8280ff9b351b01ff2cc32c386cb6",
+        "notes": "Inspected exact retained PNG: actual safe host signup/roadmap/draft setup/Live demo states; no personal contact, ID, banking details, URL tokens or photographs. Local seeded approvals are demo context only."
+      }
+    },
+    "bookable": {
+      "path": "/marketing/screenshots/bookable.png",
+      "sha256": "ac4d9d2a56d943034b368debf56efa550ac450b7172382c4ccc6b760eeedfb3a",
+      "width": 1280,
+      "height": 962,
+      "route": "/host/listings",
+      "assertedState": "Five real Live listings with photographs after all local readiness gates pass",
+      "capturedAt": "2026-10-11T16:40:06.013Z",
+      "captureDate": "2026-10-12",
+      "timezone": "Asia/Manila",
+      "sessionDate": null,
+      "fixtureIds": [
+        "jeB7BDRP4cXq9VjoK3UyDe6H0RRXD2wV",
+        "marketing_listing_484e9220-c229-4e12-a6f6-0894f56a3b00",
+        "marketing_gallery_tennis_5abca453-a0d8-49d4-a594-ef74961111ef",
+        "marketing_gallery_badminton_8ebc4de5-e1ce-4cba-b30f-fddab674aa2c",
+        "marketing_gallery_gym_bbe84b5e-1d6b-43df-80b3-dd8005f7e50d",
+        "marketing_gallery_studio_4a512754-a683-4bc5-8003-62c121415275"
+      ],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-gallery.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "Five synthetic bookable spaces with licensed Unsplash/Pexels reference photographs; sources in public/marketing/photos/manifest.json",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-12 Asia/Manila",
+        "reviewedSha256": "ac4d9d2a56d943034b368debf56efa550ac450b7172382c4ccc6b760eeedfb3a",
+        "notes": "Inspected exact retained PNG: authentic app state, licensed venue photographs where shown, empty signup fields or synthetic venue content, no personal contact, identity, bank details or hold credentials. Future session and unpaid review only; no payment submitted."
+      }
+    },
+    "session": {
+      "path": "/marketing/screenshots/session.png",
+      "sha256": "40675b053d3b9c21af4c8c2641bbad63a26cf7ce73601e590a887b1e783f1732",
+      "width": 584,
+      "height": 465,
+      "route": "/listings/marketing_listing_08d18c97-d31b-46fb-8e04-8afbb4a3b3b7?date=2026-10-15&start=14:00&end=15:00",
+      "assertedState": "Real available future 14:00–15:00 Manila session selected in genuine calendar/hour picker; book CTA enabled",
+      "capturedAt": "2026-10-11T16:40:20.300Z",
+      "captureDate": "2026-10-12",
+      "timezone": "Asia/Manila",
+      "sessionDate": "2026-10-15",
+      "fixtureIds": [
+        "marketing_listing_08d18c97-d31b-46fb-8e04-8afbb4a3b3b7",
+        "lCueQcTDkyzmCzJWh9oKcF4YQHBpNTKK"
+      ],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-gallery.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "Five synthetic bookable spaces with licensed Unsplash/Pexels reference photographs; sources in public/marketing/photos/manifest.json",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-12 Asia/Manila",
+        "reviewedSha256": "40675b053d3b9c21af4c8c2641bbad63a26cf7ce73601e590a887b1e783f1732",
+        "notes": "Inspected exact retained PNG: authentic app state, licensed venue photographs where shown, empty signup fields or synthetic venue content, no personal contact, identity, bank details or hold credentials. Future session and unpaid review only; no payment submitted."
+      }
+    },
+    "booking": {
+      "path": "/marketing/screenshots/booking.png",
+      "sha256": "cf957ac5fd13cc97d5f295be6c516c211e10eef99e588a75bfb13fd21944cdb9",
+      "width": 896,
+      "height": 565,
+      "route": "/listings/marketing_listing_08d18c97-d31b-46fb-8e04-8afbb4a3b3b7/book",
+      "assertedState": "Actual unpaid hold review with frozen price and Confirm & pay; payment never submitted",
+      "capturedAt": "2026-10-11T16:40:37.700Z",
+      "captureDate": "2026-10-12",
+      "timezone": "Asia/Manila",
+      "sessionDate": "2026-10-15",
+      "fixtureIds": [
+        "marketing_listing_08d18c97-d31b-46fb-8e04-8afbb4a3b3b7",
+        "lCueQcTDkyzmCzJWh9oKcF4YQHBpNTKK"
+      ],
+      "provenance": {
+        "source": "actual-local-app-browser",
+        "fixture": "e2e/helpers/marketing-gallery.ts",
+        "spec": "e2e/marketing-captures.spec.ts",
+        "imagery": "Five synthetic bookable spaces with licensed Unsplash/Pexels reference photographs; sources in public/marketing/photos/manifest.json",
+        "demoState": true,
+        "providersCalled": false,
+        "paymentConfirmed": false
+      },
+      "pixelReview": {
+        "disposition": "approved-safe",
+        "reviewer": "Codex image viewer, 2026-10-12 Asia/Manila",
+        "reviewedSha256": "cf957ac5fd13cc97d5f295be6c516c211e10eef99e588a75bfb13fd21944cdb9",
+        "notes": "Inspected exact retained PNG: authentic app state, licensed venue photographs where shown, empty signup fields or synthetic venue content, no personal contact, identity, bank details or hold credentials. Future session and unpaid review only; no payment submitted."
+      }
+    }
+  }
+}

@@ -42,14 +42,13 @@
 // review page discloses the concrete instant each rung changes (D-81 / `rungBoundaries`) so a booker near a
 // boundary can see it coming rather than be surprised by it.
 
+import { readCustomerUserId } from "@/lib/customer-access";
 import { randomUUID } from "node:crypto";
 
 import { eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-import { auth } from "@/lib/auth";
 import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import { availabilityBlock, booking, listing, user } from "@/lib/db/schema";
@@ -198,8 +197,7 @@ const MIN_API_REFUND_CENTS = 100;
 
 /** Resolve the signed-in user's id, or null if there is no session (cloned from host-requests.ts). */
 async function requireUserId(): Promise<string | null> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user?.id ?? null;
+  return readCustomerUserId();
 }
 
 // Aliased user joins: one read reaches BOTH the listing host (their cancellation notice) and the booker

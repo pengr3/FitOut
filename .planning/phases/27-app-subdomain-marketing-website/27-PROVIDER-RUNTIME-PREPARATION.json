@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "packetId": "p27-provider-runtime-20261013",
+  "preparedAt": "2026-10-13T08:04:52.774Z",
+  "status": "prepared-awaiting-owner-approval",
+  "tests": {
+    "passed": 34,
+    "failed": 0,
+    "fixtureOnly": true
+  },
+  "routeTypecheckPassed": true,
+  "exported": {
+    "packetId": "p27-provider-runtime-20261013",
+    "source": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "destination": "C:\\Users\\Admin\\Roaming\\FitOut\\.p27\\provider-proof-prepared-v2-20261013",
+    "verifiedBaselineFiles": 2404,
+    "archiveSha256": "3f53df5520314a308ff5699918b5c7edf1f58750618969f9a4ceee4e6fa512fd",
+    "addedFiles": [
+      "src/app/api/phase27-provider-proof/route.ts",
+      "src/app/api/phase27-provider-proof/probe.mjs",
+      "src/app/api/phase27-provider-proof/probe-config.json"
+    ],
+    "approval": "prepared-inert"
+  },
+  "artifacts": [
+    {
+      "path": "driver.mjs",
+      "sha256": "905cc7e832d5593c65fd3e1d8565ad29fa67f745cd8a5cee63ddc13287015a80"
+    },
+    {
+      "path": "driver.test.mjs",
+      "sha256": "d64f0e453fd42a0e5cf91a05042974bdc302c773141196d8305c99dfd7de1810"
+    },
+    {
+      "path": "prepare-export.mjs",
+      "sha256": "efc2837578142377c9f3905a791d65747a4ae2e47430734bfe9e80aeb4ee4f59"
+    },
+    {
+      "path": "probe-config.json",
+      "sha256": "9a5c4f59eb8fd130fcd7131ad524631c33a75a6f1caf23ca51479fbe4f9cd980"
+    },
+    {
+      "path": "probe.mjs",
+      "sha256": "b6a09e472f2bfc9c738f86de15f2a944f1046f7266b3acf21a4c9d945291da2a"
+    },
+    {
+      "path": "probe.test.mjs",
+      "sha256": "3ef8998d0238f9662c4058717794081b9bee6ea3cafa19cf186c07777171dc54"
+    },
+    {
+      "path": "route.ts",
+      "sha256": "06891a030b8d0b53795e35a901a0344643c2f88ad78c0213a8f1791941ca9149"
+    }
+  ],
+  "bundleSha256": "1238a9bedb6b3ef7862b8be925e13596bafe5106387f2623473e18a88d6c7cb2",
+  "externalProviderCalls": 0,
+  "productionBuildsCreated": 0,
+  "contactPosts": 0,
+  "applicationChanges": 0,
+  "priorExportFailure": "Windows archive line ending conversion; retained first export; command-scoped LF export matched all 2404 Git blobs"
+}

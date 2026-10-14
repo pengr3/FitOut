@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { ActivityStep, CATALOGUE, type CatalogueOption } from "@/components/search/activity-step";
@@ -11,6 +11,10 @@ import type { ResolvedAddress } from "@/components/listing/address-autocomplete"
 import { Button } from "@/components/ui/button";
 import { SEARCH_BAR_SHELL_MIN_HEIGHT } from "@/lib/design/measurements";
 import { searchParamsSchema } from "@/lib/validation/booking";
+
+const subscribeHydration = () => () => {};
+const clientHydrated = () => true;
+const serverHydrated = () => false;
 
 export type SearchAnswerKey = "activity" | "location" | "party";
 export type ProgressiveSearchScreen = "idle" | SearchAnswerKey;
@@ -154,6 +158,7 @@ function SearchExperienceCoordinator({ canonicalSearchKey, initialAnswers, hasCo
   children: ReactNode;
 }) {
   const router = useRouter();
+  const hydrated = useSyncExternalStore(subscribeHydration, clientHydrated, serverHydrated);
   const [state, setState] = useState(() => initialState(initialAnswers, hasCompletedSearch));
   const [filter, setFilter] = useState("");
   const [returnFocus, setReturnFocus] = useState<HTMLElement | null>(null);
@@ -276,13 +281,13 @@ function SearchExperienceCoordinator({ canonicalSearchKey, initialAnswers, hasCo
       <p role="status" aria-live="polite" aria-label="Search progress" className="sr-only">{state.progress}</p>
 
       <div className={`grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-2 sm:mx-auto sm:max-w-3xl ${SEARCH_BAR_SHELL_MIN_HEIGHT}`} role="group" aria-label="Search spaces">
-        <Button type="button" variant="ghost" aria-label="Search activity" className="h-auto min-h-14 flex-col items-start rounded-xl px-3 text-left" onClick={(event) => editAnswer("activity", event.currentTarget)}>
+        <Button disabled={!hydrated} type="button" variant="ghost" aria-label="Search activity" className="h-auto min-h-14 flex-col items-start rounded-xl px-3 text-left" onClick={(event) => editAnswer("activity", event.currentTarget)}>
           <span className="text-xs font-semibold">Activity</span><span className="max-w-full truncate text-sm text-muted-foreground">{answers.category ? categoryLabel(answers.category) : "Any activity"}</span>
         </Button>
-        <Button type="button" variant="ghost" aria-label="Search location" className="h-auto min-h-14 flex-col items-start rounded-xl px-3 text-left" onClick={(event) => editAnswer("location", event.currentTarget)}>
+        <Button disabled={!hydrated} type="button" variant="ghost" aria-label="Search location" className="h-auto min-h-14 flex-col items-start rounded-xl px-3 text-left" onClick={(event) => editAnswer("location", event.currentTarget)}>
           <span className="text-xs font-semibold">Location</span><span className="max-w-full truncate text-sm text-muted-foreground">{answers.locationLabel || (answers.lat !== undefined && answers.lng !== undefined ? "Selected location" : "Any location")}</span>
         </Button>
-        <Button type="button" variant="ghost" aria-label="Search party size" className="h-auto min-h-14 flex-col items-start rounded-xl px-3 text-left" onClick={(event) => editAnswer("party", event.currentTarget)}>
+        <Button disabled={!hydrated} type="button" variant="ghost" aria-label="Search party size" className="h-auto min-h-14 flex-col items-start rounded-xl px-3 text-left" onClick={(event) => editAnswer("party", event.currentTarget)}>
           <span className="text-xs font-semibold">People</span><span className="max-w-full truncate text-sm text-muted-foreground">{answers.partySize ? `${answers.partySize} ${answers.partySize === 1 ? "person" : "people"}` : "Any group"}</span>
         </Button>
       </div>
@@ -304,7 +309,7 @@ function SearchExperienceCoordinator({ canonicalSearchKey, initialAnswers, hasCo
             </div>
             <div role="group" aria-label="Search journey actions" className="order-2 flex justify-between gap-2 max-sm:-mx-4 max-sm:-mb-4 max-sm:mt-auto max-sm:border-t max-sm:border-border max-sm:bg-card max-sm:p-4 sm:order-1 sm:mb-2">
               <span className="text-sm text-muted-foreground">Search with any one field</span>
-              <Button type="button" variant="ghost" onClick={cancel}>Cancel</Button>
+              <Button disabled={!hydrated} type="button" variant="ghost" onClick={cancel}>Cancel</Button>
             </div>
           </div>
         ) : null}

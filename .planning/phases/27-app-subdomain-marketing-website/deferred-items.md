@@ -1,0 +1,264 @@
+---
+phase: 27-app-subdomain-marketing-website
+status: deferred-for-planning
+recorded_at: 2026-10-09T06:39:40Z
+decision_source: direct-user
+scope_expansion: false
+repair_started: false
+---
+
+Latest checkpoint 2026-10-11T16:28:21.817Z: Current Production pair: exact 58897a94 on web dpl_CogasJRD4eqwEDh7yKtFT65i1Fmg and Ops dpl_5WYzByZ9jSXRZ8pr9v1i46ytL4L4. Contact remains disabled. Fresh matrix27/35; historical30 observations remain archived with original source/IDs/time. Source-only recovery passed; full topology rollback and extended monitoring remain incomplete. Plan09 remains20/21, curated144/151, all7requirements pending. Read27-DISABLED-PRODUCTION-PAIR.md. Earlier source statements below are dated history.
+
+
+# Phase 27 deferred findings
+
+The user decided: "let's keep the scope as is, then log findings as gaps and
+we'll fix it after the execution so we could properly plan if any". Keep the
+existing execution scope, continue authorized preparation, and route these
+findings to later gap planning. Do not re-ask whether to expand the repair scope.
+This records repair scheduling; it does not turn failed tests green, authorize
+external changes, settle disputed product behavior, or complete a requirement.
+
+## Evidence and planning boundary
+
+The retained full unit run has **8 failures** (3304 passed / 5 skipped); the
+retained full design run has **9 failures** (1497 passed / 6 skipped). These
+are the October 8 runs, not fresh October 9 results. Exact attribution is in
+`27-ENGINEERING-EVIDENCE.md`, "Final suite baseline attribution", against phase
+execution base `edec99b89bffa62df9ba47b4cf85c12f96acfa3f` and preserved dirty work.
+No assertion, date, source behavior, financial policy or baseline is changed here.
+The ten entries below account for all seventeen failed assertions; related
+assertions share a planning item. Determine each repair's scope and expected
+behavior before promoting it to a GSD gap plan. Supplementary plans 27-10–17 are now created and checked; observations remain open until actual repair proof.
+
+| ID | Failures / evidence | Finding and provenance | Decision or bounded repair to plan | Verification after repair |
+|---|---|---|---|---|
+| P27-G01 | Unit 2; tests/validation/listing-schema.test.ts | Assertions expect both rates; preserved dirty src/lib/validation/listing.ts accepts one. Phase 27 introduced neither policy nor assertions. | D-21 direct user: hourly required, day optional. Plan 27-15 preserves all other constraints and unrelated work. | Focused schema tests, then full unit suite. |
+| P27-G02 | Unit 3; tests/payments/checkout-create.test.ts | Execution-base fixture uses 2026-10-01 times; the October 8 run expires the booking before provider/error expectations. Unrelated checkout edits also exist. | Plan deterministic fixture time/clock handling while retaining expiry, authorization and payment assertions. Do not enable checkout or send provider events. | Focused checkout tests in guarded local test DB, then full unit suite. |
+| P27-G03 | Unit 2; tests/availability/slot-picker-end-boundary.test.tsx | Preexisting untracked fixture expects bg-brand/15; actual selected boundary uses bg-muted/ring-brand/disabled:opacity-100. | Resolve the intended selected-boundary visual contract before editing fixture or source. Keep occupancy/bookability policy and deriveBookable untouched. | Focused boundary tests, then full unit/design suites as applicable. |
+| P27-G04 | Unit 1; tests/payments/ops-cancel.test.ts | Existing sweep fixture excludes oc_b_sweep before cancellation, invalidating its expected before/after witness. Test/action/payout implementation are unchanged at execution base. | Repair the witness/setup with an explicit precondition; retain cancellation and payout safeguards. | Focused cancellation test in guarded local test DB, then full unit suite. |
+| P27-G05 | Design 1; tests/design/email-shell.test.ts | Pure renderer fixture expects no mailto link without setting SUPPORT_EMAIL null; execution base already has a configured support value. Contact transport is not invoked. | Make the fixture's support configuration explicit; keep the actual monitored mailbox configuration. | Focused email-shell test, then full design suite. |
+| P27-G06 | Design 1; tests/design/listing-reuse-predicate-census.test.ts | controlled_checkout_grant lacks an explicit child-table disposition; table and relationship predate Phase 27. | Plan the correct census disposition from existing schema/usage. No schema change is implied. | Focused census test, then full design suite. |
+| P27-G07 | Design 1; tests/design/live-regions.test.tsx | Owned host-surface closure is 21 at execution base and 22 with the preexisting untracked host-location-map.tsx reached through the dirty wizard import. Marketing Contact is outside these trees. | Reconcile the actual owned-tree/a11y census; do not blindly widen a count or absorb unrelated wizard work. | Focused live-region test, then full design suite. |
+| P27-G08 | Design 1; tests/design/loading-coverage.test.ts | Raw h-3/w-28/w-40 measurements in src/app/(public)/loading.tsx already exist at execution base. New start-hosting fallback passes. | Plan a bounded baseline loading-design repair preserving its loading behavior and design rules. | Focused loading test, then full design suite. |
+| P27-G09 | Design 4; tests/design/one-tree.test.ts and selector-contract.test.ts | Execution-base progressive-search-overlay.tsx has two viewport branches, a second matchMedia call, and undeclared mobile-sheet/desktop-overlay IDs. Source/assertions are unchanged by Phase 27. | Plan the existing search component's tree/selector repair separately, including responsive behavior and existing dirty search changes. Do not weaken census assertions. | Focused tree/selector tests, relevant real responsive search browser tests, then full design suite. |
+| P27-G10 | Design 1; tests/design/suspense-fallback-overlay.test.ts | Mutation expects ProfileLink, SiteChrome import; execution-base host layout imports only SiteChrome. APPLIED=false fails before the intended mutated defect is measured. | Repair the mutation target and retain the explicit applied guard, proving the test still detects the forbidden fallback. | Focused mutation test, then full design suite. |
+
+## Additional observation for later investigation
+
+**P27-G11:** The final 52-case Chromium run passed with an unattributed Next dev
+streaming TypeError, digest2206780199, between cases47/48. Retained frames provide
+no route/action/source attribution; independent re-review established no actionable
+new defect. Preserve the observation and raw log. A later investigation should
+reproduce and identify it before assigning a fix; do not claim an error-free
+runtime or count it as an eighteenth failed assertion. Scoped assisted Windows
+teardown is separately disclosed in the original evidence.
+
+October9 update: clean-source Chromium reproduces the same streaming TypeError
+with digest1244386673, and the receiver/wizard focused retries reproduce it with
+digest3994520977. Both focused cases pass in ordinary Next development mode.
+This supplies reproducibility evidence beyond the original dirty run; no source
+stack or causal route attribution is established. Preserve all logs and inspect
+the streaming lifecycle in follow-up planning; do not claim an error-free runtime.
+
+## Additional clean-source findings on October 9
+
+The clean committed export is additional evidence, not a rerun of the same dirty
+source. Preserve the historical counts above; do not sum different-source runs
+into a single suite result. Commands, timings, logs and source captures are in
+27-CLEAN-SOURCE-PREPARATION.md. No repair has started.
+
+| ID | Finding | Follow-up to plan |
+|---|---|---|
+| P27-G12 | Three clean unit assertions in tests/security/audit.test.ts and audit-durable.test.ts fail because their db mocks omit transaction, now required by the Phase27 capability guard. | Adapt the caller-level mocks to the authoritative transaction/role check while preserving audit-success and broken-sink assertions; run those tests and real role-policy/concurrency tests, then full unit. Do not loosen the capability guard. |
+| P27-G13 | Clean unit reports ten ops-cloak-probe import SyntaxErrors plus one absent committed Phase20 partition JSON transcript. Direct Node syntax/import checks of the exported script pass; the ten import errors have no established product-source attribution. | Reproduce the export/Vitest import behavior and separately reconcile the existing partition evidence using genuine retained proof; do not invent a transcript or infer a live staff check. |
+| P27-G14 | Clean typecheck has four bouldering_gym enum/vocabulary diagnostics; the network-enabled production build compiles then stops on the first. The enum already exists at the Plan08 base. | Plan vocabulary/schema-type reconciliation without changing bookability or money policy; verify typecheck and canonical production build. This tested revision cannot be deployed with the error. |
+| P27-G15 | Two clean owned-browser cases cannot find the app Search spaces group although the app heading loads. The prior dirty-source pass does not establish this committed app contract. | Reconcile the actual committed search UI, Phase24 work and intended accessible selector; preserve real app browsing assertions instead of dropping the selector to claim a pass. |
+| P27-G16 | Approved-host /new returns200 but once misses the existing five-second edit-URL assertion; the same test passes unchanged in the focused ordinary-dev retry. | Investigate cold compilation/navigation and the repeated streaming observation; preserve the failed full run and do not widen timeouts without an established cause. |
+
+Resolved preparation observations are not pending product fixes: one metadata
+timeout passed in the unchanged focused and later full design runs; NODE_ENV
+empty was corrected in the local wrapper; the one missing inert Google fixture
+failure passed in the subsequent 24-case hosting-resume run. Failed attempts
+remain retained. Inngest local introspection received500 with cloud mode and no
+signing key; the existing local INNGEST_DEV=1 precondition passes in the focused
+receiver test and is not production signature or scheduler proof. No full
+acceptance waiver or clean release is claimed.
+
+## Remaining Phase 27 prerequisites (not deferred by this decision)
+
+These remain in the current execution scope and must not be silently reclassified
+as the out-of-scope baseline findings above:
+
+- Exact reviewed deployable revision and fresh source-bound acceptance evidence;
+  existing dirty-tree passes do not prove a clean release. The optional candidate
+  replacement contract requires six complete later gates and retains history.
+- Verified compatibility rollout, app project attachment and www307 path/query
+  redirect. Current app has TLS but returns DEPLOYMENT_NOT_FOUND; no cutover has run.
+- Isolated Preview and production provider bindings, old/new direct receiver
+  continuity/signatures, app-origin Google roundtrip and production audience proof.
+- Concrete verified deployment-wide Contact per-client/global-mailbox controls
+  before enabling Contact. Process-local limits and the observed firewall404 are
+  insufficient proof. No new infrastructure, package or schema is authorized.
+- Scoped exact remaining external actions, rollback/monitoring operator and
+  approved controlled inquiry with available inbox owner and actual receipt/reply.
+- Owner-coordinated ops-share-link and Inngest-serve bypass replacement/invalidation
+  preserving jobs. Values are excluded and were not used or revoked.
+
+The approved Google registration additions and current-apex sign-in proof remain
+valid; do not request that approval again. All seven requirements remain pending,
+Contact stays disabled, and payment/payout/legal HOLD remains unchanged. Plans08/09
+remain incomplete until their actual prerequisites and evidence are satisfied.
+
+When execution reaches its authorized endpoint, use this ledger alongside phase
+verification/evidence to discuss and plan follow-up gaps. Do not label this ledger
+a completed verification report or create an 08 SUMMARY to advance the initializer.
+
+
+## Supplementary repair routing — 2026-10-09
+
+User authorizes planning and continuous local work; D-21 resolves G01. Planning does not close any observation. Original 08/09 and external gates remain pending.
+
+| Plan | Gaps | Status |
+|---|---|---|
+| 27-10 | P27-G14 | Repaired: b91eeb31 clean parity 3/3, types and build exit 0; see 27-10-SUMMARY |
+| 27-11 | P27-G02, P27-G04, P27-G12 | Repaired with targeted proof: audit/role 29, checkout/cutoff 9, cancellation 20; full clean gates pending |
+| 27-12 | P27-G13 | Repaired: probe 13/13 in both layouts; runner 12/12. Transcript was committed; LF-only reader misdiagnosed CRLF as missing. |
+| 27-13 | P27-G05, P27-G06, P27-G08, P27-G10 | Repaired: design 64 and shared CRUD 25; grant cannot be exempted, so its draft-reuse predicate is now covered. |
+| 27-14 | P27-G09, P27-G15 | Repaired within search scope: clean focused design96, owned browser17+6; full broad Menu failure retained as G17. |
+| 27-15 | P27-G01, P27-G03, P27-G07 | Pricing36 clean pass; preserved untracked boundary fixture5 pass; G07 dirty map closure remains separately owned. See fixture disposition. |
+| 27-16 | P27-G11, P27-G16 | Checkpoint: native cancellation race reproduced32/32 on24.13,0/32 on existing24.19; owned preflight refuses bad runtime. Built cold/warm probe and original9 journeys pass; cold-dev deadline still fails. No SUMMARY or dependent acceptance. |
+| 27-17 | P27-G01, P27-G02, P27-G03, P27-G04, P27-G05, P27-G06, P27-G07, P27-G08, P27-G09, P27-G10, P27-G11, P27-G12, P27-G13, P27-G14, P27-G15, P27-G16 | Planned; no repair proof yet |
+
+G07 remains a separately owned dirty-source observation with explicit disposition. G11's native runtime cause is established within the bounded local reproduction; G16's complete cold-development acceptance remains unmet. This checkpoint blocks dependent acceptance, and does not attribute every historical stream error.
+
+## P27-G18 / G19 — bounded streaming investigation findings
+
+G18: Cold development compilation remains outside the unchanged five-second edit
+URL deadline. On existing24.19 with no inspector, Next reports7.1s compilation;
+warm navigation succeeds. An explicit-root export variant also fails. Built
+production cold/warm and original journeys pass. Keep dev failure and runtime
+attribution separate; no wider deadline, route patch, config promotion or warmed-only
+acceptance. See27-STREAMING-DIAGNOSIS and27-16-CHECKPOINT. Plan17 stays dependent.
+
+G19: Combining the original9 journeys and the new streaming probe exhausts the
+local signup endpoint fixture budget. The combined attempt is1 failed/9 passed;
+the standalone fresh-server probe passes. Preserve production auth/rate controls
+and plan isolated, deterministic fixture ownership before combining full suites.
+This is an actual retained failure, not a waiver or an instruction to bypass limits.
+
+Resource/provenance prerequisite: C: reachedENOSPC during a diagnostic. Only old
+duplicated node_modules copies were reclaimed; source/log/archive/cache evidence
+is preserved. The current fixed runtime is already installed, not system/deployment
+configuration. Future full gates require enough space, an explicit runtime and a
+built-server config with byte-bound provenance. No candidate/full-gate record added.
+
+## Additional bounded verification finding — P27-G17
+
+Full unchanged e2e/one-tree.spec.ts on built production with inert boot keys reports
+1 failed/19 passed/2 declared unreachable skips. At320px the global Menu locator
+finds two controls: account/menu and primary navigation. Keep the assertion and
+source untouched; inspect owner/name/scope in later planning rather than absorb
+unrelated nav work into search. The six existing search/host rows and all17 owned
+marketing/search cases pass. Broad failure is retained at playwright/.cache/phase27-08/gap14b-c5353509-08b8dacd-6ebb-464a-9cbd-3108b3fab153/browser-wide-inert/browser-record.json.
+This is not a whole-suite pass or full release acceptance.
+
+
+### G20 — search progress announcement hidden by modal (October9)
+
+The full clean run at77ba1254 exposes an accessible progress region outside the
+modal. Move the single shared announcement into the open dialog, retaining one
+region and input-tree continuity. Focused amended search/ops unit36 and design63
+pass, but full acceptance is still pending. Historical unit17/design3/browser3
+failures remain in playwright/.cache/phase27-08/full-77ba1254-c40637c5-421d-4362-8cf2-4d37ed889cf8/gates/report.json and the engineering ledger.
+The browser fixture repair has42 focused passes on the retained build, explicitly
+dirty fixture-only proof. Fixed production cookie semantics and an inert Didit
+workflow ID preserve real auth and invalid-signature guards. Full fresh proof
+will run with unit4/design2 workers and unchanged test deadlines.
+
+
+October9 verified disposition: G19 fixture budget and G20 progress accessibility
+are repaired on the accepted local candidate. G18 cold-development compilation,
+G17 broader Menu ambiguity and G07 unrelated dirty-map ownership remain explicit.
+All historical failures are retained. See27-GAP-VERIFICATION for the six full
+passes and fresh same-build cold-server proof; this is not deployed acceptance.
+
+
+## Production walkthrough findings — October10
+
+- Controlled QRPh Test Court — Not Public appears in actual public app search. Existing listing visibility/data-policy gap; no listing mutation or financial action performed. Plan a separate visibility/readiness review.
+- Unused unadvertised /opengraph-image GET404 is retained. Actual declared public marketing screenshot OG image returnsPNG200; six marketing canonical/sitemap routes are correct. Do not misclassify this unused-route probe as advertised OG failure.
+- Final live completion still needs staff-only capability denial, previously issued valid auth links, actual production trusted-ingress/global quota/alert control and rollback observations. Per-owner unchanged-scope direction these remain explicit evidence gates, not fabricated test passes.
+- Automatic Production domain assignment remainsfalse while dev is unaligned to exact release source; full request-percentage metric and extended monitoring unproved. Reconcile release controls after acceptance.
+
+## Verification scheduling finding — October 11
+
+Exact candidate `58897a94`, physical export run
+`playwright/.cache/phase27-08/reconciled-export-full-58897a94-20261011/gates/report.json`:
+full unit run retained one failure in
+`tests/contact/contact-instances.test.ts`. All eight race requests returned 503
+while `contact-quota.test.ts` deliberately held the same database advisory lock
+`(27018, 1)` to test timeout behavior. Separate file schemas do not isolate that
+database-wide lock. The earlier direct-worktree unit run passed all 3,449 tests;
+the actual bounded Vercel A/B ingress proof also remains source-specific history.
+Neither result rewrites this failed full run.
+
+Reconciliation uses an ignored scheduling-only harness to run all eight Contact
+files serially after the other 265 files. Collection is guarded: all 273 original
+files occur exactly once, with unchanged assertions, skips and test deadlines.
+The first inheritance configuration was refused for duplicate collection and
+retained before test execution. Results remain pending until the final full run
+finishes; see `27-RELEASE-SOURCE-RECONCILIATION.md` for its final disposition.
+Plan a permanent default test scheduling fix after execution. No production
+quota timeout, application source or acceptance criterion is changed here.
+
+Final disposition: the scheduling-only full run passed all six gates at exact
+`58897a94`, with 3,449 unit passes/original five skips, 1,510 design
+passes/original six skips, and all 59 browser cases. All source guards passed.
+The failed parallel run and refused duplicate collection are retained; the
+permanent default scheduling fix remains deferred.
+
+
+- Disabled58897a94 rollout: actual staff activateHosting denial is proved via home navigation, while the required matrix URL fixes POST /start-hosting. Plan a proper captured exact-route replay or explicitly reviewed acceptance-contract correction; never relabel the home action as that path.
+- Previously issued valid verify/reset links remainunavailable/unconfirmed; reset TTL1hour makes an original pre-cutover reset link unavailable a daylater. Plan a controlled issued-link transition test without changing the owner password or collecting bearer links.
+- Current customer browse shows a broken seed-listing image; captured staff-denial screenshot retains it. UI/media cleanup remainsoutside this release-source proof scope.
+
+
+## October 12 remaining-proof follow-up
+
+Exact authenticated POST /start-hosting is now observed: staff denied for ineligible_role, both capabilities unchanged false, own new session signed out and cleared. The home-route-only proof gap is resolved by the new exact-route artifact; preserve earlier dated evidence. Unknown-host live ingress denial also passes. Fresh count29/35; six matrix cases remain pending.
+
+New OPS-11 data consistency gap: readonly primary aggregate at 2026-10-11T23:15:21.097Z finds one separate staff row with both can_book and can_host true. It is not the earlier documented host@fitout.test seed. Capability activation uses authoritative role equality and refuses staff, but committed placeHold/rebook capability checks and host layout include capability-only guards. No production booking/listing action was attempted and no account was changed. Investigate provenance and any business records, then plan explicit role/data remediation and regression proof; do not silently clear flags or treat the flags-off staff test as coverage of this account.
+
+Prepared controlled legacy continuity/rollback packet requires fresh local exact-source rehearsal and provider prerequisites before an exact public-origin/auth-mail/fixture window. Current Contactfalse stops quota exercise before parsing; retain scoped historical ingress/alert tests with their original deployments. No gate is waived.
+
+
+Latest checkpoint 2026-10-12T02:54:42.912Z: Approved legacy packet executed. Exact588 web A/B staged with deployment-only origin overrides, original web Cogas aliases restored in290.383seconds, Ops5WY unchanged. Old-only session, genuine original verification/reset links and full origin/session/provider rollback pass. Original Inngest receiver restored with14 functions; separate Contact monitor unchanged. Exact disposable fixture/auth rows cleaned after zero-business checks. Contactfalse throughout; zero ContactPOSTs, two auth emails, no password/financial invocation/DNS/migration/global-setting change. Fresh33/35; two Contact scenarios plus inventory/staff-data/inquiry/monitoring/release-control gates remain. Plan09 20/21, curated144/151, all7requirements pending. Read27-LEGACY-CONTINUITY-EXECUTION.md.
+Do not repeat the completed legacy/email/rollback packet. Current pending Contact scenarios require a separately bounded operator-only no-mail packet; keep public Contact disabled. Existing flags-on staff data consistency, partial provider inventory, deployed inquiry and extended monitoring gates remain open.
+
+
+Contact preparation 2026-10-12T03:30:23.610Z: two separate current-release no-mail packets prepared; no new live window, deployment, flag/rule/quota change or alert email. Fresh saved flagsfalse, Cogas/5WY aliases, primaryquota0/retainedalert1/pending0; four public200 and one empty Contact503/no-store. Guard exists but isdisabled; fresh operator IP and independent current denial remain prerequisites. Compile-only contained harness passes; loopbackDB rehearsal blocked because Docker engine is unavailable, owner runtime handoff pending. Binding gap confirmed: current immutable Contactfalse cannot reach limits, while checker demands its exact ID. Prefer planned strict variant-binding repair before repeating live per-IP proof. Matrix33/35, Plan09 20/21, curated144/151/all7requirements pending. Read27-CONTACT-TEST-BINDING-GAP.md and both current-release packets.
+
+
+Contact follow-up 2026-10-12T05:55:57.485Z: owner Docker-ready reply received; Desktop processes confirmed. Fresh isolated rehearsal stillCONNECT_TIMEOUT before schema creation; both desktop-linux/default CLI engine calls timeout. Runtime stages0; no Production mutation. Owner Restart/own-PowerShell docker ps handoff requested. Independent strict Contact binding specification/reference prepared and45 Node tests pass; no authoritative checker/app source/33-of35 acceptance change. Read27-CONTACT-TEST-BINDING-REPAIR-PLAN.md. Prepared exact per-IP/global packets remain unexecuted and keep public Contactdisabled.
+
+
+Contact local readiness 2026-10-12T06:33:18.850Z: Docker desktop-linux responds. Existing stopped fitout-db-1 started without volume changes; pg_isready, fitout_test SQL and host5432 pass. Fresh exact588 isolated rehearsal passed: disabled gate no quota/mail; three-process/shared-backend race5 reservations/3 denials plus restart denial; global99 seed plus real HTTP100th slot, different-runtime global denial, one natural incident, first local monitor processes1/stub-alert1 and second0, no inquiry/real email. Unique owned schema removed. Both exact live packets remain unexecuted; verifier-binding repair still proposed, authoritative checker unchanged, Contactdisabled, currentmatrix33/35. Proof: playwright/.cache/phase27-08/contact-controls-ready-be1b8a83-3a7a-4e42-88bd-70c36abd2ba5/report.json.
+
+
+## OPS-11 code preparation — October13
+
+Read-only provenance confirms one separate legacy staff identity with both customer capabilitiestrue, three ended booking windows and a payout destination. Positive customer-role guards are repaired at6bb6e3f7 and pass all six canonical gates plus actual local flags-on staff HTML/Flight/upload denial. The owner must still settle that exact account's disposition and approve the new disabled source rollout; no Production account changed. Keep this high threat open until its serving/data scope is observed. Status-only probes would misread25 streaming200 neutral not-found responses; protected-body denial is independently observed. Strict transport status remediation is a separate planning decision. Read27-OPS11-REPAIR-RESULT.md/.json; no Phase28 assignment or requirement closure.
+
+
+## Owner disposition — retained OPS-11 testing fixture
+
+Owner test-account disposition recorded 2026-10-13T12:03:48.437Z: cancel the proposed account cleanup and preserve the existing test accounts as they are. No repair authority, attempt or Production credential was created. The deployed6bb6e3f7 customer-role guards remain; both Contact settings stay false. Retain the legacy flags-on staff identity as an explicit owner-approved testing fixture, not a repaired data invariant. Account cleanup is no longer awaiting approval. Provider signed delivery and actual inquiry/reply gates remain open; phase/requirement counts are unchanged. See 27-OPS11-TEST-ACCOUNT-DISPOSITION.md.
+The earlier mandatory account-cleanup recommendation is superseded. No role/capability or historical-record mutation is authorized for these testing accounts. The deployed guards remain required and are not reverted.
+
+
+## P27-G-PAYMONGO-LIVE — positive delivery and public-key attribution
+
+Recorded 2026-10-13T13:31:51.382Z. Phase27 receiver continuity is observed through the original Plan09 safe-denial plus destination-read-back alternative; see27-PAYMONGO-ACCEPTANCE-RECONCILIATION.md. This does not establish successful current-release LIVE provider-origin signed delivery or business processing. The separate public key is LIVE-mode, but its account has not been independently attributed. The observed LIVE hook has no eligible harmless nonfinancial replay; its lone historical payment event has Retry disabled. A TEST sender is not evidence for this LIVE hook.
+
+Carry these gaps into payment-release planning under the existing checkout/payout/legal HOLDs. Determine a provider-supported safe positive proof and key-account check before any payment release; preserve exact event identity, signature/deduplication, release binding and unchanged business records. No payment, payout, merchant-state event, new signed synthetic ledger fixture, provider setting change or account change is authorized by this reconciliation. No new phase or completion count is assigned.

@@ -16,6 +16,7 @@
 // Times are timestamptz UTC, displayed venue-local at the edge (SC#2). Prices are the server-FROZEN quote
 // (booking.quotedTotalCents, D-49) — never a client recompute.
 
+import { isCustomerRole } from "@/lib/customer-role";
 import { notFound, redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { asc, eq } from "drizzle-orm";
@@ -67,6 +68,8 @@ export default async function ReservePage({
   // Session gate first — a hold belongs to a booker, so no session can never be the owner (→ 404, not a
   // login bounce: reaching this page always follows an authenticated placeHold redirect).
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   const userId = session?.user?.id;
   if (!userId || !holdId) notFound();
 

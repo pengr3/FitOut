@@ -48,6 +48,7 @@
 // rate-limited by its own normalized value, so re-submitting cannot turn one link into a mail bomb aimed at
 // one inbox.
 
+import { readCustomerUserId } from "@/lib/customer-access";
 import { randomUUID } from "node:crypto";
 
 import { sql } from "drizzle-orm";
@@ -265,7 +266,7 @@ export async function createGroup(bookingId: string): Promise<CreateGroupResult>
   if (!parsed.success) return { ok: false, error: DENIED };
 
   const session = await readSession();
-  if (!session) return { ok: false, error: NEEDS_SESSION };
+  if (!session || session.id !== await readCustomerUserId()) return { ok: false, error: NEEDS_SESSION };
   const userId = session.id;
 
   // Owner + status gate BEFORE any write. Missing, cross-user and not-yet-confirmed all fall through to
@@ -595,7 +596,7 @@ export async function removeAttendee(rsvpId: string): Promise<RemoveAttendeeResu
   if (!parsed.success) return { ok: false, error: DENIED };
 
   const session = await readSession();
-  if (!session) return { ok: false, error: NEEDS_SESSION };
+  if (!session || session.id !== await readCustomerUserId()) return { ok: false, error: NEEDS_SESSION };
   const userId = session.id;
 
   // Owner gate BEFORE any write, owner scope IN the read. Missing and not-mine are the same answer.
@@ -703,7 +704,7 @@ export async function regenerateLink(groupId: string): Promise<RegenerateLinkRes
   if (!parsed.success) return { ok: false, error: DENIED };
 
   const session = await readSession();
-  if (!session) return { ok: false, error: NEEDS_SESSION };
+  if (!session || session.id !== await readCustomerUserId()) return { ok: false, error: NEEDS_SESSION };
   const userId = session.id;
 
   const owned = await getOwnedGroupById(db, { groupId: parsed.data.groupId, organizerId: userId });

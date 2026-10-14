@@ -1,0 +1,254 @@
+{
+  "status": "closed-incomplete-before-guarded-window",
+  "recordedAt": "2026-10-13T15:29:50.139Z",
+  "closedAt": "2026-10-13T15:27:01.938Z",
+  "originalLeaseEndsAt": "2026-10-13T15:28:35.000Z",
+  "closedWithinOriginalLease": true,
+  "approval": {
+    "status": "approved",
+    "id": "p27-contact-inquiry-build-retry-20261013-6bb",
+    "amendmentSha256": "b5b44e30e226da78573c17689f00ed082eb6bcdc3212d61e5c121ef4dc986e1b",
+    "parentPacketSha256": "b950f5574a9b33c18718623e3491422e840e00e8053da90f4faccb77c990fa6c",
+    "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "additionalBuilds": 1,
+    "maximumTotalBuilds": 2,
+    "maximumTotalPosts": 4,
+    "leaseExtended": false,
+    "approvedAt": "2026-10-13T15:08:17.000Z",
+    "ownerInstruction": "Approve this exact one-build replacement amendment within the original lease",
+    "questionItemId": "call_bd2dee46cfa149e787388f4a4e08a98a",
+    "receiptTimestampMeaning": "Recorded receipt; exact owner-click timestamp unavailable"
+  },
+  "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+  "acceptedArchiveSha256": "8feb311adca91cbbfa5c0eb27991ebc8f8f7c0e2dcc4cebc24f6484c8eb9a8ea",
+  "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+  "sourceTransport": {
+    "completeArchiveFiles": 2459,
+    "manifestFiles": 1113,
+    "verifiedBeforeCreation": true,
+    "localTypegenAndTypecheckPassed": true
+  },
+  "replacement": {
+    "id": "dpl_6tC7FvDY3TM3iFSUzgkb2CC3Nno5",
+    "ready": true,
+    "removed": true,
+    "providerGet404": true,
+    "servingAliasChanges": 0
+  },
+  "counts": {
+    "cumulativeBuilds": 2,
+    "contactPosts": 0,
+    "inquiryEmails": 0,
+    "sandboxCreates": 0,
+    "guardedWindows": 0,
+    "firewallChanges": 0,
+    "operatorIpChanges": 0,
+    "quotaWritesOrDeletes": 0,
+    "accountChanges": 0,
+    "manualFinancialInvocations": 0,
+    "markedContactGets": 1
+  },
+  "stopReason": "Current original operator-IP proof was not obtained before sufficient preparation/recovery headroom remained; no guarded window or request was started",
+  "toolingFindings": [
+    "Installed Vercel CLI59.10.0 does not expose the attempted firewall traffic inspect command; command failed before any mutation.",
+    "The provisional route observer could send the one approved GET405 but its handwritten trace API lookup failed. The existing purpose-built get_project_trace connector successfully bound that same request to G8; no replacement GET was sent.",
+    "Inngest auto-refreshed its financial receiver to T on staging. The original G8 URL and private managed query were restored;14 functions plus separate1 monitor are preserved.",
+    "Accessible resync dialog controls required the observed CSS button role and Override Input switch; attempted role locators failed. No wrong URL was submitted.",
+    "The prepared form tab did not survive the turn; it would need to be reopened before any new attempt. No form submission occurred."
+  ],
+  "actualMarkedGet": {
+    "id": "k4fc4-1791904612940-1e28823fd903",
+    "traceId": "01bcf63e3de37846c7762ea6664ed540",
+    "method": "GET",
+    "path": "/api/contact",
+    "host": "fitout.live",
+    "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+    "environment": "production",
+    "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+    "marker": "FitOut-P27-Inquiry-IP-1-20261013",
+    "currentOperatorIpVerified": false
+  },
+  "currentOperatorIpVerifiedBeforeClosure": false,
+  "final": {
+    "aliases": [
+      {
+        "alias": "app.fitout.live",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "www.fitout.live",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": "fitout.live"
+      },
+      {
+        "alias": "fitout.live",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-web-pengr3s-projects.vercel.app",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-web-psi.vercel.app",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "ops.fitout.live",
+        "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-ops-pengr3s-projects.vercel.app",
+        "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-ops.vercel.app",
+        "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "redirect": null
+      }
+    ],
+    "flags": [
+      {
+        "id": "dnMtMhC8l8iT0R29",
+        "key": "CONTACT_PRODUCTION_ENABLED",
+        "value": "false",
+        "updatedAt": 1791704419042
+      },
+      {
+        "id": "NftlOnb5TDKNewez",
+        "key": "CONTACT_INGRESS_VERIFICATION_MODE",
+        "value": "false",
+        "updatedAt": 1791704423844
+      },
+      {
+        "id": "rQL4dNKbzaXbN08K",
+        "key": "CONTACT_PRODUCTION_ENABLED",
+        "value": "false",
+        "updatedAt": 1791630164853
+      }
+    ],
+    "primary": [
+      {
+        "observed_at": "2026-10-13T15:25:46.096Z",
+        "quota_rows": 0,
+        "alert_rows": 1,
+        "pending_alerts": 0,
+        "alert_snapshot_md5": "f10f0474d68fe574a2830467d6244d8d"
+      }
+    ],
+    "firewall": {
+      "version": 21,
+      "draft": null,
+      "temporaryDenyActive": false,
+      "originalLogActive": true
+    },
+    "registrations": {
+      "receiver": "https://fitout-116qj6x3i-pengr3s-projects.vercel.app/api/inngest",
+      "privateQueryUnchanged": true,
+      "financialFunctions": 14,
+      "contactFunctions": 1
+    }
+  },
+  "sourceMetadataBoundary": "The complete verified archive supplies application-source provenance. Vercel also inherited parent checkout Git SHA1ab05b8fcfe34ccd599f33b092c4d9c3c7b3463e; do not mislabel this Git metadata as6bb or claim an actual route/source6bb trial. No T route proof or inquiry is accepted.",
+  "contactDisabled": true,
+  "phaseCompletion": false,
+  "plans": "20/21",
+  "curatedPlans": "144/151",
+  "pendingRequirements": 7,
+  "evidence": [
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/retry-approval.json",
+      "sha256": "bdf8e345ef44fb3d29d4d2006d057392b013f87611f4812044817bbd1c36811a"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/retry-preflight.json",
+      "sha256": "85674a5727f6aa3bd3f9a55044ad854f60496803b5c4e41f9eb2a3dd98fa8119"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/retry-preflight-evidence.json",
+      "sha256": "a8031ac0e962c01c798921cc723afbfc3b7c0828d51775d0777746b823a30a23"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/replacement-build-attempt.json",
+      "sha256": "6792b2655ef3754f1e4098ec802d232f2246b39d3e8fb0f9888cd9df76fcea4c"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/replacement-stage-created.json",
+      "sha256": "5dd58c76ac7fd5418503da83b9be48b09cbccbafeedb3eff3f663b7e3880676f"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/replacement-ready.json",
+      "sha256": "4f7640669e0965fef4641020cad524a9cba8e9e7cf71e5ccf86bf4db6fb2f7c3"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/route-IP.json",
+      "sha256": "156de95867b14e494603dc809dd47373e6a4a997b9cca0c2d8d62bc898746fc2"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/replacement-final-flags-trace.json",
+      "sha256": "b7ea9480d9e095f9a93fb6f12b373383bfcdb0e466f905f5917db77982ee7d9e"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/registration-after-replacement.json",
+      "sha256": "efea196f39de5b5f645f95e0b1f6affb5ff24520b7f54c4b11f9ed713420c6ba"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/replacement-removal-attempt.json",
+      "sha256": "5cd1f91c069a4777040b7d8f43f9f0156b4e606cc17c08dc70d5d9b32c7cc9e2"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/replacement-removal-result.json",
+      "sha256": "d46497784aecf3d2126f85cb7016476b1198821713e37e6efb7b825b862de89b"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/replacement-closeout-readbacks.json",
+      "sha256": "ce84db55b3e89c54f5adaca1f6ea7e4fcc6d35cef4b43fcd43f3867757a84632"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/control-after-replacement.json",
+      "sha256": "013f18473df9bf18708fd7cca15f6bde9d8348c23b3d90545dc99011e85bc1ab"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/execution-ledger.json",
+      "sha256": "6645b042f21162a728e9846210a4eaa3ceccad905f2e173ea28be9fbf10bd6cb"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/replacement-restored-functions-viewport.png",
+      "sha256": "a1953edff53166955402962d319329c6d173759176fa85d265706aa0dc3b48e7"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/provider-proof-adapter.mjs",
+      "sha256": "8d78dcffadf611347b4707307a8206ce2c57425ec0924800159dc53ffb57ff8a"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/provider-proof-adapter.test.mjs",
+      "sha256": "b09df0114386b292981d87f32bfa39f67f1f425db296ebf28b593ac789a6654d"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/adapter-repair-read-only-result.json",
+      "sha256": "56c154edb260124beff53bc218bf52a726cad5fa2a08330871bd3be4488e1fcd"
+    }
+  ],
+  "excludedCaptures": [
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/replacement-receiver-functions.png",
+      "reason": "Invalid off-viewport crop; retained as a failed capture and excluded from proof."
+    }
+  ],
+  "postClosureReadOnlyRepair": {
+    "result": "playwright/.cache/phase27-08/contact-inquiry-6bb-20261013/adapter-repair-read-only-result.json",
+    "traceAdapterVerified": true,
+    "localChecksPassed": 9,
+    "currentIpAdapterVerified": false,
+    "freshPacketReady": false,
+    "newContactRequests": 0,
+    "originalLeaseReopened": false,
+    "legacyObservabilityQuery": "Read-only query returned400; no authorization or production state changed",
+    "browserQueryBuilder": "Observed marked user-agent count1 in read-only query; original-IP grouping remains unverified. No paid upgrade."
+  }
+}

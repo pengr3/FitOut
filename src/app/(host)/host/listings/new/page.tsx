@@ -58,7 +58,8 @@
 // button and lands on *Account check* has learned the product; a host who cannot find the button
 // concludes it is broken.
 
-import { redirect } from "next/navigation";
+import { isCustomerRole } from "@/lib/customer-role";
+import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -72,6 +73,8 @@ import { HOST_VERIFICATION_LISTING_REFUSED } from "@/lib/host/verification-refus
 
 export default async function NewListingPage() {
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   if (!session?.user) {
     redirect("/login");
   }

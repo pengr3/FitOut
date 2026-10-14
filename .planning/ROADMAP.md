@@ -1124,6 +1124,7 @@ Plans:
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Complete    | 2026-09-10 |
 | 23. The Support Path Becomes Reachable | v1.2 | 0/3 | Planned — fitout.live domain, monitored support replies, and constrained provider callbacks | - |
 | 24. Search Bar Rework | v1.2 | 0/8 | Planned — progressive activity, location, and party-size journey ready to execute | - |
+| 27. App Subdomain & Marketing Website | v1.2 | 21/21 | Complete — public Contact enabled and verified | 2026-10-14 |
 
 ### Phase 24: Search Bar Rework
 
@@ -1261,6 +1262,111 @@ Plans:
 
 - [ ] 26-08-DEFERRED.md — Full agreement and operative terms publication moved to later work by user direction; preserved outside active execution.
 - [x] 26-09-PLAN.md — Account capability and controlled-proof packet records an owned HOLD without live money movement.
+
+### Phase 27: App Subdomain & Marketing Website
+
+**Goal:** Move the existing fitout-web application from `fitout.live` to `app.fitout.live`, and make
+`fitout.live` FitOut's public marketing website so visitors understand the product and hosts and
+players can see how to get started.
+**Requirements**: [MKT-01, MKT-02, MKT-03, CONTACT-01, DOMAIN-01, DOMAIN-02, DOMAIN-03]
+**Depends on:** Phase 26
+**Plans:** 21/21 numbered plans complete (nine original plus twelve supplementary gap plans); two supporting runbooks also have completion records.
+
+**Verified October 14, 2026:** All seven requirements, five roadmap outcomes and 21 numbered plans are complete. Prepared/deployed/live validation and the goal audit pass. The dated 35/35 matrix remains attributed to 588; current 6bb staff/customer and actual owner-confirmed inquiry/Reply-To/reply proofs are separate. Contact was disabled at phase closeout; its subsequent owner-authorized October14 public release is accepted with actual delivery and healthy monitoring. Payment/payout and binding-terms holds remain independent. See [public Contact release](releases/2026-10-14-contact-public/RESULT.md). See [Phase 27 verification](phases/27-app-subdomain-marketing-website/27-VERIFICATION.md) and the dated [roadmap review](phases/27-app-subdomain-marketing-website/27-ROADMAP-REVIEW.md).
+
+**Scope captured from the user (2026-10-08):**
+
+- **App domain:** `app.fitout.live` becomes the existing application's production entry point.
+  Account, search, booking, and host workflows continue there.
+- **Marketing domain:** `fitout.live` becomes the public marketing website, with these six
+  navigation items in this order: **Home, For Hosts, For Players, About, FAQ, Contact**.
+- **Home:** Help first-time visitors understand what FitOut does, who it serves, and how to get started.
+- **For Hosts** (working label): Explain the host value proposition and onboarding journey,
+  including the steps to become a host and list a space, with a clear handoff into the app.
+- **For Players** (working label): Explain the player value proposition and getting-started journey,
+  including finding and booking a space, with a clear handoff into the app.
+- **About:** Explain FitOut and its purpose using confirmed product and company information.
+- **FAQ:** Provide separate, clearly identified host and player FAQs under the FAQ navigation item.
+- **Contact:** Provide a usable contact route using confirmed FitOut contact details.
+
+**Success Criteria** (what must be TRUE):
+
+1. `app.fitout.live` serves the existing application, and its sign-in, host, search, and booking
+   journeys work on the new origin. Domain-dependent configuration, authentication/session behavior,
+   email links, payment return URLs, and service callbacks are inventoried and updated as needed;
+   the existing ops host remains correctly isolated.
+2. `fitout.live` serves the marketing website, with all six navigation destinations usable on desktop
+   and mobile and accessible with a keyboard.
+3. Home explains FitOut clearly, and the host and player destinations explain their respective
+   onboarding journeys and lead visitors to the appropriate app entry points.
+4. About, separate host/player FAQ content, and Contact are present with accurate content; marketing
+   makes no unsupported promises about product capabilities, verification, payments, or payouts.
+5. Existing app URLs on the apex domain have a documented compatibility/redirect policy, so known
+   app deep links reach the corresponding app destination while marketing destinations remain on
+   `fitout.live`. Deployment verification covers both origins and the existing ops routing.
+
+**Design reference:** The user supplied a Sports360 homepage screenshot, preserved at
+`.planning/phases/27-app-subdomain-marketing-website/27-marketing-reference.png`. It is a visual
+reference for a prominent navigation bar, clear hero message, product imagery, and an obvious call
+to action. FitOut's branding and actual capabilities determine the content; screenshot text and
+Sports360-specific navigation are reference material, not additional requirements.
+
+**To resolve during discussion/planning:** Final host/player labels, content and visual direction,
+contact behavior, deployment/routing architecture, and the apex deep-link compatibility policy.
+
+Plans:
+**Wave 1**
+
+- [x] 27-01-PLAN.md — Prove apex-to-app tracer, exact origins and reversible legacy host policy.
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 27-02-PLAN.md — Preserve issued auth links, app email/metadata and provider return continuity.
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 27-03-PLAN.md — Carry checked hosting intent through authentication and explicit activation.
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [x] 27-04-PLAN.md — Capture seven genuine safe app screenshots with dated provenance.
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [x] 27-05-PLAN.md — Build Court Variant B shell, Home and illustrated Hosts/Players journeys.
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [x] 27-06-PLAN.md — Complete truthful About, stacked FAQ and marketing crawl metadata.
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [x] 27-07-PLAN.md — Deliver exact Contact form through existing Resend with recovery and abuse controls.
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
+- [x] 27-08-PLAN.md — Run complete local host/browser gates and prepare reviewable cutover packet.
+
+Plan 08 is complete with its SUMMARY and approved cutover/database-target authority recorded. The integrated source and later exact58897a94 reconciliation passed six full engineering gates; historical failures remain retained. Plan09 now has its completed SUMMARY and accepted current6bb rollout, inventory, customer-role guards and actual inquiry/reply supplement. The35/35matrix retains its original dated588source. Requirements are complete from final verification, not preparation alone.
+
+**Wave 9** *(blocked on Wave 8 completion)*
+
+- [x] 27-09-PLAN.md — Perform authorized reversible cutover and prove live hosts/Contact receipt.
+
+Supplementary engineering repairs were approved beginning 2026-10-09. All twelve numbered supplementary plans below and original Plans08/09 are complete. Public Contact is enabled following the separately authorized October14 release; the numbered phase plan count is unchanged.
+
+- [x] 27-10-PLAN.md — Reconcile committed listing vocabulary with the existing database enum (wave 10; P27-G14)
+- [x] 27-11-PLAN.md — Repair audit and payment test preconditions without changing money behavior (wave 11; P27-G02, P27-G04, P27-G12)
+- [x] 27-12-PLAN.md — Repair ops evidence loading and retain unique source-bound gate records (wave 12; P27-G13)
+- [x] 27-13-PLAN.md — Repair design fixture drift and the public loading contract (wave 13; P27-G05, P27-G06, P27-G08, P27-G10)
+- [x] 27-14-PLAN.md — Restore one search tree and the real anonymous app handoff (wave 14; P27-G09, P27-G15)
+- [x] 27-15-PLAN.md — Apply approved hourly-only publishing and reconcile boundary/census fixtures (wave 15; P27-G01, P27-G03, P27-G07)
+- [x] 27-16-PLAN.md — Fixed native runtime and built cold/warm hosting proof; development G18 retained under D-22
+- [x] 27-17-PLAN.md — Six clean-source gates pass at 596b4746; return to original external checkpoint
+- [x] 27-18-PLAN.md — Atomic shared Contact quotas and additive migration; focused and actual Neon race proof (D-23)
+- [x] 27-19-PLAN.md — Schema-only Preview branch and saved isolated bindings; deployment proof belongs to Plan20 (D-23)
+- [x] 27-20-PLAN.md — Six guarded full gates/cold proof and actual isolated Preview write/session/Contact checks; original production checkpoint remains (D-23)
+- [x] 27-21-PLAN.md — Preserve deployed production source, resolve Contact migration collision, and reverify exact integrated source before cutover
 
 ## Carried Forward (not v1.2 scope until promoted)
 
@@ -1454,3 +1560,15 @@ to review.
 **Plans:**
 
 - [ ] TBD (promote with /gsd:review-backlog when ready)
+
+Phase27 latest bounded preparation status (October10):18/20 plans,142/150 curated total. Original08/09 remain pending. Exact b8358b11 full gates and bounded Preview checks pass; the full production matrix and compatibility/authority checkpoint are separate. Contact off, all HOLDs persist.
+
+Phase27 latest bounded preparation status (2026-10-10T07:43:28.083Z):19/21 plans,143/151 curated total. Integrated d67fbecf full/cold/A/B local proof passes; production36455580 source/migrations preserved. Original08/09 and all seven requirements pending. Stable ownerb835 Preview retained; Contact off, all HOLDs persist.
+
+Phase27 current execution (2026-10-10T11:07:41.631Z): Plan08 preparation complete;20/21 plans and144/151 curated. Exact packet authority and database owner attestation resolved. Original09 staged production rollout/live Contact proof remains incomplete; no requirement completion or money/legal release.
+
+## Phase27 automatic alert progress
+
+Automatic Contact alerts are live on web dpl_9cVVMaYaB4j9PgK8RGX2R8q1yE68 / b61cb4a43c8dd4c10e7444014fb66646aba36ec5. Separate app fitout-contact-alerts, signed receiver https://fitout.live/api/contact-alerts/inngest, every five minutes. Primary ledger39 with additive0038 hash c09257eb07ccee4a840abd0400283313d0821973bc8c64a0d10dc993a993f4d9. First real scheduled run 01M4MSYB70J1M05HRHPVN6PQQQ processed1 synthetic incident; Resend delivered 01a1299f-3ff8-7eff-a94c-783d416d5993 and owner confirmed inbox receipt. Next scheduled run 01M4MT7G60J1M05HRHPVN6PQQQ processed0; one test email, no duplicate. Contact remains false/503, quota0, Ops stays D67. No public inquiry was sent. Other Plan09 evidence and money/legal HOLDs remain.
+
+Plan counters unchanged; original09 incomplete.

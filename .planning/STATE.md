@@ -2,22 +2,24 @@
 gsd_state_version: "1.0"
 milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
-current_phase: 26
-current_phase_name: settlement-aware-host-payouts
-status: executing
-stopped_at: Phase 26 active plans summarized; verification human_needed
-last_updated: "2026-09-29T12:01:58Z"
-last_activity: 2026-09-29
-last_activity_desc: Phase 26 engineering and account HOLD packet summarized; terms publication deferred; live account, ops ownership, and controlled transfer proof still require evidence
-state_head: e0889e9f7c513f733451b079408b84e67ec6fc3e
+current_phase: 27
+current_phase_name: App Subdomain & Marketing Website
+status: phase_complete
+stopped_at: "Phase27 complete; PR21 open into dev; public Contact remains enabled"
+last_updated: "2026-10-14T02:33:16.557Z"
+last_activity: 2026-10-14
+last_activity_desc: Phase27 plus owner marketing UI pushed; PR21 open into dev, awaiting CI and merge
+state_head: e9202675
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
   # of 2026-09-04. The plan counters cover phases 18 + 18.1 ONLY -- phases 19-23
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 13
-  completed_phases: 2
-  total_plans: 130
+  completed_phases: 3
+  total_plans: 151
+  # 2026-10-09: Phase 27 has seventeen plans (nine original plus eight gaps); no new plan or phase
+  # was executed/completed by planning. Preserve curated phase/completion totals.
   # 19.1-14 HALTED at Task 3 (PM decision `hold`), so it is NOT counted complete.
   # `state.record-metric` bumped this 58 -> 59 on 2026-09-06; corrected back by hand.
   # A halted plan counted as a completed one is the same fabricated counter this file
@@ -56,18 +58,74 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 124
-  percent: 15
+  # 2026-10-14: Phase27 Plan09 completed (+1 only); two supporting summaries are excluded.
+  completed_plans: 145
+  percent: 23
 ---
 
+Latest public release 2026-10-14T01:37:54.695Z: the owner authorized public Contact after Phase27 completion. WebHs/native876 is READY and serves all five web aliases; Contact=true, verification=false, Ops=false. One public browser inquiry has exact-deployment POST200/ResendDelivered proof; natural9:21monitor completed active/quotaAvailabletrue with0pending/stale. OriginalG8financial receiver/private query/14functions and separate1Contact monitor retained. Public Contact remains enabled; no new phase/plan/count, account, schema or financial change. Read releases/2026-10-14-contact-public/RESULT.md/.json. Earlier keep-disabled paragraphs are dated history.
+
+
+Phase 27 completed 2026-10-14T00:33:55.618Z: all 21 numbered plans and seven requirements are verified. The unchanged prepared, deployed and live validators pass; the goal audit covers 66 truths, 39 artifacts and five roadmap outcomes. The owner explicitly confirmed the original inquiry receipt, validated Reply recipient and normal reply arrival for P27-CONTACT-20261014-6BB. Current disabled Production remains the exact 6bb web G8/Ops 3qt pair; all eight aliases, three false Contact settings and empty pending quota/alert state are retained. Public Contact remains disabled by owner direction. Testing accounts, UI drafts, and checkout/payout/binding-terms holds are preserved. No additional live operation occurred in this closeout. Two nonnumbered supporting runbooks are recorded separately; curated progress advances only Plan09, from 144 to 145 of 151. See 27-09-SUMMARY.md and 27-VERIFICATION.md.
+
+The following dated checkpoints are retained history and do not supersede this completion.
+
+Contact IP lookup repaired 2026-10-13T16:52:08.761Z: pinned workspace CLI63.1.2 resolves the existing and fresh marked GET to the verified operator exemption; actual G8 trace and browser-page original IP match. Native staging checkout is clean6bb/all2459 archive+1113 manifest files verified;62 local guard checks pass. Unsent hydrated form/visual email pair, Verified Resend sender and14+1original receivers prepared. No Production mutation/build/ContactPOST/email/account change. Fresh four-POST inquiry packet is prepared awaiting exact owner approval; old attempt remains closed, no lease started. Contactdisabled;20/21 and144/151/all7requirements pending. Read27-CONTACT-IP-LOOKUP-REPAIR.md and27-CONTACT-INQUIRY-FRESH-PACKET.md.
+
+Contact inquiry replacement closed 2026-10-13T15:27:01.938Z: the owner-approved complete6bb replacement built READY and was removed after exact identity/no-alias/original-receiver checks; provider404 confirmed. Current operator original-IP proof was not obtained before sufficient lease headroom remained, so no window or Contact POST/email was started. Two cumulative builds consumed;0POSTs,0Sandbox,0firewall/IP/quota/account changes. Inngest automatic receiver drift was restored toG8/private query unchanged with14+1 functions. Final8 aliases remainG8/Ops3qt;3 saved valuesfalse; guarddisabled/version21/no draft; primaryquota0/pending0/retainedalert1/hash unchanged. Closed before original15:28:35Z lease, with no extension. Contact disabled;20/21 and144/151/all7 requirements pending. Read27-CONTACT-INQUIRY-REPLACEMENT-RESULT.md/.json; next attempt needs a fresh packet after the ingress tooling is repaired.
+
+Provider signed-delivery result 2026-10-13T13:05:35.708Z: Didit Sandbox provider Test Not Started reached the actual6bb webG8 function with200, fresh signed eventd5a49c51-c418-4c12-95bd-613a257175e2 and complete Sandbox envelope; four apex/app unsigned controls have direct400 and matched current function records. FivePOSTs total, one Didit send/no repeat observed through2026-10-13T12:55:55.215Z; no PayMongo send. Business/audit hashes, aliases, false Contact flags, provider metadata and14+1 scheduler registrations remain unchanged. The run ledger closed33.430seconds beyond its900-second limit after final UI selector failures: functional proofs are observed, strict packet execution is not accepted. No further send or configuration change occurred during the overrun. PayMongo LIVE signed delivery and actual Contact inquiry/reply remain pending; testing accounts stay unchanged, Contact disabled, phase20/21 and curated144/151 with seven requirements pending. Read27-PROVIDER-SIGNED-DELIVERY-RESULT.md/.json.
+
+Signed-delivery preparation 2026-10-13T12:32:51Z: current disabled6bb webG8/Ops3qt pair and all eight aliases/three false values read back; 84/84 exact-source webhook tests pass. PayMongo LIVE has no eligible nonfinancial replay (only old payment history, Retry disabled). Didit's12 historical test failures were404; inspected unsent Not Started preview omits event_id/environment and has a stale timestamp. Fresh packet proposes four unsigned controls and one Didit diagnostic dispatch, maximum15minutes/up to three natural Didit attempts; no PayMongo send, deployment/configuration/account mutation or Contact enablement. The diagnostic can retain synthetic audit outcomes; a mismatch may appear in the existing automatic Ops digest. Preparation only: no delivery proof or phase count advances. Read27-PROVIDER-SIGNED-DELIVERY-PACKET.md and27-PROVIDER-SIGNED-DELIVERY-PREPARATION.json. Existing test accounts remain unchanged.
+
+Owner test-account disposition recorded 2026-10-13T12:03:48.437Z: cancel the proposed account cleanup and preserve the existing test accounts as they are. No repair authority, attempt or Production credential was created. The deployed6bb6e3f7 customer-role guards remain; both Contact settings stay false. Retain the legacy flags-on staff identity as an explicit owner-approved testing fixture, not a repaired data invariant. Account cleanup is no longer awaiting approval. Provider signed delivery and actual inquiry/reply gates remain open; phase/requirement counts are unchanged. See 27-OPS11-TEST-ACCOUNT-DISPOSITION.md.
+
+OPS-11 disabled release accepted 2026-10-13T11:38:29.375Z: source6bb6e3f7, webG8ZbTT/Ops3qtket, all eight serving aliases and false Contact values verified. Staff page/action denial and customer control passed; 30/40GETs,1hostingPOST,0ContactPOSTs/account mutations/manual financial jobs. Receivers14/16triggers plus separate1 verified; both watchdogs ended. The legacy staff flag repair selected by the owner is prepared separately and awaiting its account-write approval. Provider signed delivery and actual inquiry/reply remain open. The35/35matrix remains dated588;20/21plans,144/151curated, sevenpending requirements. Read27-OPS11-DISABLED-ROLLOUT-RESULT.md and27-OPS11-ACCOUNT-REPAIR-PACKET.md.
+
+OPS-11 preparation 2026-10-13T10:38:21.268Z: new candidate6bb6e3f7, manifesta8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499, passes3,459unit/1,510design/59browser plus types/lint/build; additional38 staff HTTP/Flight denials/upload403. Existing flags-on staff account provenance observed; no Production account or deployment changed. New exact disabled rollout and account disposition remainpending; provider signed delivery/actual inquiry/reply/Plan09 stillopen. Contactdisabled, matrix35/35 at588,20/21plans,144/151curated, sevenpending requirements. Read27-OPS11-REPAIR-RESULT.md.
+
+
+Latest checkpoint 2026-10-13T06:42:33.291Z: both Contact controls accepted at58897a94, matrix35/35. Global99+realHTTP100, distinct-runtime429/3512, natural scheduler1then0 and exact one Resend delivery with direct owner receipt. Window158.745seconds; baseline restored, exact2quota+1newincident cleanup within approved15minutes, primary0/1/0. Guarddisabledv21, savedflagsfalse, Ops/aliases/schedulers14+1 preserved. Partial inventory, OPS-11 and actual inquiry/Reply-To/reply plus enablement authority remain; Contact disabled, Plan09incomplete20/21, curated144/151 and seven requirements pending. Read27-CONTACT-GLOBAL-ALERT-FRESH-RESULT.md.
+
+
+Latest checkpoint 2026-10-13T05:26:16.241Z: User-requested fresh repaired-driver attempt passes. TenContactPOSTs, sixrouteGETs, actualA3+B2reservations, sixth429/825 and forged-header429/822 across distinct runtimes. ActualCogas restored in143.571seconds; recovery503/no-store in174.743seconds; exact2ownedrows removed, primary0/1/0, guarddisabledpublishedv19, originalflags/aliases/scheduler14+1 retained. Strict220-tested observer binding accepts per-IP only; matrix34/35. Global-budget proof is pending and not authorized by this packet; broader inventory/threat/inquiry gates, Plan09incomplete20/21, curated144/151 and sevenrequirements remain. Read27-CONTACT-PER-IP-REPAIRED-DRIVER-RESULT.md.
+
+
+Current release-source checkpoint (2026-10-11T09:33:12.518Z): Release-source reconciliation completed at58897a94: six fresh full gates and prepared validation pass; old D67 proof/approval archived faithfully. Current web b61cb4a4 and Ops D67 remain disabled, four health200/Contact503, primaryquota0/pendingalerts0. No external mutation or inquiry. Deployed/live validation retains actual candidate-deployment/source/authority and other live gaps. Plan09 remains20/21; curated144/151; all7requirements pending;30/35 dated multi-source observations. Read27-RELEASE-SOURCE-RECONCILIATION.md and revised packet.
+
+Earlier paragraphs are dated history.
+
+
+Current live checkpoint (2026-10-10T11:57:15.492Z): Stage C topology is deployed at approved d67fbecf; 29/35 matrix scenarios are observed. Plan 09 remains incomplete: 20/21 phase plans and 144/151 curated plans. All seven requirements remain pending. Contact is disabled and all HOLDs remain. Read 27-EVIDENCE.md and 27-09-CHECKPOINT.md.
+
+
+Current execution (2026-10-10T11:07:41.631Z): Plan08 complete,20/21 Phase27 plans and144/151 curated. Owner approved exact d67fbecf cutover and confirmed both Production database targets. Plan09 staged Production rollout is in progress; auto-domain assignment is disabled, Stage A settings are saved and0037 quota is applied with readback. Contact false, no real mail or financial event, all money/legal HOLDs remain. All seven live requirements stay pending. Older paragraphs below retain dated history.
+
+
 # Project State
+
+October10 continuation: Plan21 complete;19/21 phase plans and143/151 total. Exact integrated candidate d67fbecfa41e902cbf506c93dbcf53b60085e802 passes six full gates, cold and separately built compatibility A/B proof, preserving30 deployed payment/scheduler files and migrations0034–0036. Contact is0037 with unchanged reviewed SQL. Work is in the attached managed worktree; unrelated shared drafts and stableb835 UI Preview remain preserved. Prepared evidence validates in the integrated worktree. Original08/09 and all seven requirements remain pending; exact production authority/database binding and deployed provider/Contact receipt-reply proof remain. Contact off, all HOLDs persist. Read27-21-SUMMARY.md. Earlier paragraphs are history.
+
+**Latest focus (2026-10-10):** Bounded plans18–20 complete; 18/20 phase plans and142/150 total. All six guarded gates and fresh cold/warm pass at b8358b11. Exact paired Preview deployments are READY; disposable writes reach the explicit schema-only branch, owned session works, ops rejects the actual app Preview cookie, Contact returns503 and browser retains fields. One disposable account/session remains and zero bookings. Normal owner-browser production/Preview host-cookie isolation is observed; no production token was exported/replayed and the full production matrix remains unproved. Production aliases/env metadata unchanged, Contact off; original08/09 and all seven requirements pending; all HOLDs persist.
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** Find & book a space — search → real availability → reserve a time slot → pay, with confidence the booking is real.
-**Current focus:** Phase 25.1 — PayMongo Production Release Readiness & Controlled Proofs (INSERTED)
+**Latest focus (2026-10-09):** Plans 10–17 complete within local scope; 15/17 plans and 139 total completed. Six full gates plus fresh cold/warm production proof pass at 596b4746. Original 08 task 3, plan 09 and all seven requirements remain pending. Preview isolation, Contact controls, inbox ownership and the compatibility-first cutover remain account prerequisites. Contact is off and all HOLDs remain. Read 27-GAP-VERIFICATION.md and 27-REMAINING-RELEASE-REPAIRS.md.
+
+**Earlier preparation focus:** Phase 27 — App Subdomain & Marketing Website — AWAITING RELEASE/ACCOUNT CHECKPOINT. Plans 27-01 through 27-07 complete (7/17); 27-08 remains incomplete with SUMMARY absent and 27-09 has not started. Four original review findings are independently closed. Earlier dirty-source local checks passed 52 Chromium cases, 147 focused tests, types/lint/build; assisted Windows teardown and an unattributed streaming error remain disclosed. Full unit/design still retain eight/nine failures and no clean deployable SHA is proved. October 9 continuation repaired evidence replacement validation (104 offline tests and focused lint pass), retaining historical failures and requiring six fresh clean full gates before deployment acceptance. All requested provider/browser access and bounded readbacks are now available; approved Google origin/callback additions are saved and current-apex sign-in passed for an existing account. DNS/TLS and wildcard zone records are observed, but app returns DEPLOYMENT_NOT_FOUND and www lacks its planned redirect. Preview isolation, production provider bindings/signatures, compatibility revision, exact remaining mutation authority, global Contact controls and inbox receipt/reply remain pending. The separate ops share-link and Inngest serve bypasses need owner-coordinated invalidation/replacement; values are excluded and were never used. Contact is disabled, all seven requirements remain pending, and payment/payout/legal HOLD is unchanged. Resume from the phase `.continue-here.md`, checkpoint, dated inventory and packet.
+
+October 9 user disposition: keep the existing scope, continue authorized preparation,
+and plan repairs after execution. The phase deferred-items.md records all seventeen
+failed assertions plus the separate runtime observation. Do not re-ask the repair-scope
+decision. The subsequent user request now authorizes planning and continuous local repairs; use supplementary plans 10–17. This does not mark failed gates green, approve
+the external packet or supply missing release/compatibility/Contact evidence.
+Continued readbacks confirm both Preview scopes point OPS_APP_URL at production ops;
+Preview isolation remains an in-scope prerequisite. No configuration was changed.
+
+The following milestone sequencing note is retained as historical context:
 requirements, and phases 18 and 18.1 are counted inside it rather than re-planned.** Numbering continues
 from 19; coverage is 25/25 with no orphans and no duplicates. The order is dependency-derived, not
 brief-derived: **19** (cheap independents — the `/host/listings` card fix, the reproduction-gated
@@ -111,10 +169,20 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 26 (settlement-aware-host-payouts) — EXECUTING
-Plan: 7 of 9
-Status: Ready to execute
-Last activity: 2026-09-29 — Phase 26 Plan 07 legal publication packet complete; product/legal approval, terms publication, and money-movement proofs remain HOLD
+Phase: 27 — App Subdomain & Marketing Website
+Plan: 21/21 numbered plans complete; 2 supporting completion records
+Status: Verified complete; Contact publicly enabled and sending/monitoring verified
+Last activity: 2026-10-14 — Public Contact release accepted; real inquiry delivered and scheduled monitor healthy
+Next: Review the owner's UI feedback. Public Contact release is now accepted; no other phase has been started.
+
+### Earlier position recorded October9 — superseded
+
+
+Phase: 27 (App Subdomain & Marketing Website) — ACCOUNT/CUTOVER CHECKPOINT
+Plan: 08 of 09 current, incomplete; 7 of 9 complete
+Status: Awaiting actual account evidence and cutover authority; local full-suite acceptance remains unmet
+Last activity: 2026-10-09 — Marketing/integration and four review fixes committed; final local browser/types/lint/build and focused checks pass. Eight unit/nine design failures and external prerequisites remain pending. Plan 09 has not started.
+
 
 ## Performance Metrics
 
@@ -891,6 +959,8 @@ deferred walk is inconsistent rather than honest.*
   above is a TEST helper and is not a precedent for it.
 
 ### Roadmap Evolution
+
+- Phase 27 added (2026-10-08): **App Subdomain & Marketing Website** — move fitout-web from `fitout.live` to `app.fitout.live`; use `fitout.live` for marketing with Home, For Hosts, For Players, About, FAQ, and Contact. Include host/player onboarding explanations, separate host/player FAQs, app handoffs, and domain-migration continuity. Sports360 screenshot retained as a visual reference. Status: not planned; current execution focus remains unchanged.
 
 - Phase 24 added (2026-09-14): **Search Bar Rework** — replace the always-visible search options with an intentionally simple progressive flow: a plain search bar that expands on interaction and asks activity, location, then number of pax one at a time.
 
@@ -1837,11 +1907,14 @@ un-stamped format the SDK reads as `missing`. What genuinely remains is below.
 
 ## Session Continuity
 
-Last session: 2026-09-29T10:06:08.944Z
-Stopped at: Completed 26-07-PLAN.md
-complete-and-verified 18 and 18.1, and `.planning/REQUIREMENTS.md`'s traceability table maps all 25
-outstanding requirements to exactly one phase each. Nothing was executed and no source file changed.
-Next step is `/gsd-plan-phase 19`.
+Last session: 2026-10-09 (Asia/Manila)
+Stopped at: Phase 27 plans 01–07 complete; Plan 08 incomplete at blocking-human account/cutover checkpoint; Plan 09 not started.
+Marketing and integration are implemented; four code-review findings have committed fixes. Final 52
+browser cases, focused tests, types, lint and build pass with captured dirty-tree provenance. Full unit
+and design acceptance retains eight and nine failures. Independent re-review is clean, with all four findings closed. No live cutover,
+Contact inquiry, inbox receipt or reply proof has run. Contact is disabled and payment/payout/legal HOLD
+remains in force. Resume from `.planning/phases/27-app-subdomain-marketing-website/.continue-here.md`.
+Do not create Plan 08 SUMMARY, count it complete, start Plan 09 or infer approval from sleeping-user autonomy.
 
 ⚠ The prior `Stopped at` (18.1-10, wave 4) was stale — 18.1 finished at 18.1-16 and verified 9/9 on
 2026-09-03. It is corrected here rather than carried forward.
@@ -1991,7 +2064,7 @@ per-run seed renders a different booking reference, date, listing title, invite 
 on every dispatch, so there is nothing stable to photograph. `visual-baselines.ts` now carries all 42
 rows with the blocker named per row, and `deferred-items.md` carries the committed Phase-13 fixture that
 unblocks them. Only `booking-not-found` is shot, so 13-16's dispatch mints 54 PNGs, two of them Phase 13's.
-Resume file: None
+Resume file: .planning/phases/27-app-subdomain-marketing-website/27-CONTEXT.md
 
 Prior session: 2026-08-20T01:23:11.708Z
 Stopped at: Phase 13 context gathered
@@ -2242,3 +2315,107 @@ Resume file: None
   `.planning/todos/pending/2026-09-01-ops-staff-management-surface-and-invite-flow.md`, so the next
   reader does not follow the older ruling. Note the seeded UAT account `host@fitout.test` violates the
   rule today (`role='staff'` **and** `can_host = t`) and must be re-seeded or split in the same plan.
+
+October10 exact cutover approval (2026-10-10T10:01:21Z): owner approved d67fbecf packet. Approval is recorded; do not ask again. Runtime Production database targets remain unproved for both projects; no production mutation. Counts remain19/21 and143/151 until original08 prerequisites resolve; Contact off and checkout/payout/legal HOLD.
+
+
+Approved release source preparation (2026-10-10T10:08:34Z): exact d67fbecfa41e902cbf506c93dbcf53b60085e802 is published and read back at refs/heads/codex/phase27-cutover-d67fbecf in pengr3/FitOut. Browser environment rows confirm both projects track dev for Production and other unassigned branches use Preview. Automatic isolated Preview builds dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay (web) and dpl_3eFqxwfjD2m7DPmeev4ytQ6B6Q1Z (ops) started; current states dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay=BUILDING, dpl_3eFqxwfjD2m7DPmeev4ytQ6B6Q1Z=QUEUED. These are release-source preparation, not approved Stage A/B/C production deployments or final runtime acceptance. All five Production/walkthrough aliases are unchanged. No Production environment/domain/provider setting or migration changed; no Contact send. Read playwright/.cache/phase27-08/approved-release-branch-20261010.json. Actual both-project Production database binding remains required.
+
+
+Final approved-source Preview build readback (2026-10-10T10:12:06Z): web dpl_A9X3qDaZ92oV7DNB9TYVo65yMbay and ops dpl_3eFqxwfjD2m7DPmeev4ytQ6B6Q1Z are both READY at exact d67fbecfa41e902cbf506c93dbcf53b60085e802 on codex/phase27-cutover-d67fbecf. Existing Production and all three b835 walkthrough aliases are freshly read back unchanged. Source publication/build preparation is complete; these isolated Preview builds are not Stage A/B/C Production builds and do not supply live runtime acceptance. No new access link, provider setting, Production environment/domain/migration or Contact inquiry. Both actual Production DATABASE_URL bindings remain the immediate human/account prerequisite. Authority is approved and must not be requested again. Counts stay19/21, original08/09 and all seven requirements pending. Proof: playwright/.cache/phase27-08/approved-release-builds-final-20261010.json.
+
+
+Production binding confirmation (2026-10-10T10:58:41.869Z): owner affirmed both exact Production database targets. Record as owner-confirmed, not secret readback. Proceed with approved d67fbecf staged cutover; maintain current pins until fresh staged builds/checks succeed. No new code, Contact enablement, mail or fund movement is authorized by the target confirmation. Counts remain19/21 pending original08/09 completion.
+
+
+## Bounded Contact test completed — October 11
+
+2026-10-11T05:31:14.208Z: Owner mobile-data denial was observed from a distinct original IP. Exact-source staged deployment dpl_FTxX4Sa4pq8jcW21kmuwiV5vxUFW was promoted for six no-mail probes: global429 Retry-After3311; malformed requests400; sixth request429 Retry-After895 despite rotated synthetic forwarding headers. The active operator immediately restored customer dpl_Ez9zfWHoNoYwTS72RJxEuUbnhrtW and savedflagfalse; Ops remained dpl_9QYdHByiE7JzzqnGW4qVMS5grYFQ with falseflag. Fresh503, all3surfaces200 and field retention passed. Exact100-reservation fixture matched and was removed; primaryquota0. Temporary guard disabled and published, originalLogrule preserved. No mail success or transport call was recorded. See27-CONTACT-BOUNDED-TEST-RESULT.md for limits. Automatic alert and deployed shared cross-instance per-IP proof remain open; scoped rollback does not establish full cutover rollback. No new matrix pass or plan completion:20/21,144/151,29/35,all7requirementspending.
+
+
+## Shared per-IP process test — October 11
+
+Shared per-IP enforcement passed through HTTP in three independent local Node processes with three distinct Postgres backends. Eight concurrent attempts reserved exactly five slots; the other three received 429. Each process handled at most three race requests, so its local five-attempt cap could not explain the denials. A restarted process was still denied by the stored quota. Missing trusted identity returned 403; a second IP and an expired IP window could reserve slots. No email was sent. All 233 Contact and host-routing tests, TypeScript, and scoped lint passed, with clean test database containment. Both production flags remain false, public Contact returns 503, and the production database has zero quota rows and one previously sent alert with none pending. Test commit: 3aaf4bb4; production source: b61cb4a4. Actual Vercel client-IP handling across deployed instances remains unverified. Counts remain 20/21 phase plans, 144/151 curated plans, 29/35 historical matrix observations, and all seven requirements pending. See 27-CONTACT-PER-IP-INSTANCE-TEST.md.
+
+
+## Actual Vercel ingress preparation — October 11
+
+Actual Vercel ingress preparation: no-mail verification candidate 58897a94 is committed on codex/phase27-contact-ingress-58897a94. Both protected Preview builds are READY (web dpl_C9qrNjxKPHVk5jTsgvH1Cr9JFn9Q; Ops Preview dpl_CHPg7gJKmrFVKNUz6QaFgJL6b4TK). Cloud web build compiled in 25.9s and finished TypeScript in 27.9s. Contact/routing 237 passed; full design 1510 passed, 6 skipped; types/lint pass and test database containment is clean. The exact saved narrow Deny rule is now published active while Contact stays disabled, with the original Log rule unchanged. The allowed verifier returned 503 and all four health reads returned 200; primary quota is zero and retained alert state is one sent/zero pending. Production aliases remain web b61cb4a4 and Ops D67, with both saved flags false. No Production test build, promotion, fixture, inquiry email or financial invocation occurred. Await exact amended-packet approval and the owner mobile-data denial, including matching provider evidence. The live window has not started and the matrix row stays pending. Read 27-CONTACT-VERCEL-INGRESS-TEST-PACKET.md. Counts and all money/legal HOLDs are unchanged.
+
+
+## Actual Vercel ingress completed — October11
+
+Actual Vercel ingress passed at exact 58897a94 under the owner-approved bounded no-mail packet. A reserved3, distinct runtime B reserved2 and denied the sixth429 (Retry-After844); forged client-IP headers remained429 (806) with identical two quota fingerprints. Both aliases restored to disabled b61cb4a4 within151 seconds; saved flagsfalse, quota0, alert1sent/pending0, four health reads200, unsigned alert receiver401, OpsD67 unchanged. Exactly two owned rows removed under advisory lock. Temporary Deny disabled/published; original Log retained. Auto domain assignment restoredfalse. Automatic Inngest refresh reconciled with14 unchanged functions on a new disabled baseline-source build. No inquiry email or manual financial invocation. One matrix row now passes:30/35 dated observations (29 D67 history plus this scoped588 proof), not single-release acceptance. Plan09 remains incomplete,20/21 and144/151; all7requirements and money/legal HOLDs remain. Read 27-CONTACT-VERCEL-INGRESS-RESULT.md.
+
+
+Offline live validator rerun after recording this result still FAILs. It specifically rejects contact-trusted-ingress-per-ip for candidate identity mismatch: the independently approved58897a94 scoped test is newer than the D67 engineering/cutover packet. The actual ingress test passed; it does not supply single-release acceptance. Other reported gaps are partial external inventory/high threats, staff capability denial, genuine issued verification/reset links, aggregate quota-to-alert chain, full rollback/Contact controls, actual inquiry receipt/Reply-To/reply and controlled inquiry authority. Preserve these failures and reconcile the release packet rather than weakening the validator or relabeling historical source evidence.
+
+
+Contact preparation 2026-10-12T03:30:23.610Z: two separate current-release no-mail packets prepared; no new live window, deployment, flag/rule/quota change or alert email. Fresh saved flagsfalse, Cogas/5WY aliases, primaryquota0/retainedalert1/pending0; four public200 and one empty Contact503/no-store. Guard exists but isdisabled; fresh operator IP and independent current denial remain prerequisites. Compile-only contained harness passes; loopbackDB rehearsal blocked because Docker engine is unavailable, owner runtime handoff pending. Binding gap confirmed: current immutable Contactfalse cannot reach limits, while checker demands its exact ID. Prefer planned strict variant-binding repair before repeating live per-IP proof. Matrix33/35, Plan09 20/21, curated144/151/all7requirements pending. Read27-CONTACT-TEST-BINDING-GAP.md and both current-release packets.
+
+
+Contact follow-up 2026-10-12T05:55:57.485Z: owner Docker-ready reply received; Desktop processes confirmed. Fresh isolated rehearsal stillCONNECT_TIMEOUT before schema creation; both desktop-linux/default CLI engine calls timeout. Runtime stages0; no Production mutation. Owner Restart/own-PowerShell docker ps handoff requested. Independent strict Contact binding specification/reference prepared and45 Node tests pass; no authoritative checker/app source/33-of35 acceptance change. Read27-CONTACT-TEST-BINDING-REPAIR-PLAN.md. Prepared exact per-IP/global packets remain unexecuted and keep public Contactdisabled.
+
+
+Contact local readiness 2026-10-12T06:33:18.850Z: Docker desktop-linux responds. Existing stopped fitout-db-1 started without volume changes; pg_isready, fitout_test SQL and host5432 pass. Fresh exact588 isolated rehearsal passed: disabled gate no quota/mail; three-process/shared-backend race5 reservations/3 denials plus restart denial; global99 seed plus real HTTP100th slot, different-runtime global denial, one natural incident, first local monitor processes1/stub-alert1 and second0, no inquiry/real email. Unique owned schema removed. Both exact live packets remain unexecuted; verifier-binding repair still proposed, authoritative checker unchanged, Contactdisabled, currentmatrix33/35. Proof: playwright/.cache/phase27-08/contact-controls-ready-be1b8a83-3a7a-4e42-88bd-70c36abd2ba5/report.json.
+
+
+Verifier-binding repair implemented 2026-10-12T06:51:07.882Z:191 actual checker/regression tests pass,0failed/skip; observer code captured and hash-bound independently of unchanged deployed588 source/archivedsix gates. Only two Contact rows support same-source no-mail variants with exact fresh authority, typed/hash-bound captures, real restriction/runtime/quota/scheduler evidence and baseline restoration. Ordinary33 identities unchanged. Current Contact tests stillunexecuted, flagsfalse, matrix33/35; no phase/count/requirement completion.
+
+
+Current observer update 2026-10-12T07:32:41.134Z: strict separate protected-staging and live-window chronology implemented;206 actual checker/regression tests pass,0failed/skip. Fresh captured observer proof playwright/.cache/phase27-08/contact-binding-chronology-5e198bb9-5127-4891-8504-dc6c558adbde/observer-verification.json. The original191pass and intermediate203pass/2fixture-fail gates are retained as history. Exact588 application source/gates and33/35 current acceptance unchanged. A/B now READY, protected unsigned sign-in redirects confirmed, all public aliases remainCogas/5WY and savedflagsfalse. Inngest original Cogas receiver restored with14 unchanged functions after explicit owner approval. Temporary exact ContactDeny now published with fresh operator IP; operator503 confirmed; independent owner mobile report awaits provider correlation. First live window and owned quota cleanup require their exact bounded authority; global-budget test remains second andunexecuted.
+
+
+Contact preflight handoff 2026-10-12T07:50:01.422Z: verifier repair committedde06bd9d (initial606b262a);206 actual tests pass, prepared checker passes, currentmatrix33/35. A/B READY/protected at588, savedflagsfalse andpublicpins unchanged. Original Inngest Cogas14 restored after owner approval. TestDeny published withfreshprivateoperatorIP; operator503. Owner confirmsmobiledata/Wi-Fi-off, but uncertainform result and no matching current-hour Deny; runtime list shows onlyoperatorprobes. Four preflight attempts retained as incomplete, zeroenabledwindow/quota/mail. Exact unapproved two-request renewed preflight in27-CONTACT-PER-IP-PREFLIGHT-RETRY.md; no further phone submission or live promotion without that renewal/readiness. Currentguardactive, originalLog/systemmitigationsretained. Health apex/app/Ops200, retiredfallback404 asoriginalcontract; primaryquota0/alert1/pending0. Global test remains second/unstarted.
+
+
+Approved disabled preflight retry 2026-10-12T08:19:42.400Z: owner explicitly approved only two fresh requests. One operator probe503 is correlated in Vercel to requestt8f68-1791792973534-5d55c9db3920, exactCogas, marked UA, zerooutgoingcalls, productionapex. Published five-condition Deny and privateoriginalIPfingerprint are unchanged, savedflagsfalse. Restriction current-hour Deny baseline0 recorded08:18:39Z; one marked phone request now handed off with newexample.invalid marker and immediateclock/result reply. Await owner attempt and actual distinct-IP providerDenial; no repeats, fixture, cleanup, aliaschange, emails, financialjobs or livewindow. Earlier four-request incomplete attempt retained. Proof playwright/.cache/phase27-08/per-ip-preflight-retry-b98c8894-2acd-44cf-923a-a22d599f4371/status.json. Canonical33/35;206 observerregressions unchanged.
+
+
+Renewed phone proof 2026-10-12T08:41:29.974Z: exact iPhone submission matched at08:23:17.319Z/4:23:17PM Manila, requestt5hdj-1791793397319-fdc0daf1a39b, ProductionCogas, POSTfitout.live/api/contact, referer/contact. WAFAllowed, handler503, zerooutgoingcalls. Disabled gate passes; independent restriction denial doesnot. Two-request approval exhausted, no automaticrepeat or livewindow. OriginalIP not exposed; device/network relationship handoff pending. CLI scoped rule-inspect confirmsactive exactDeny andunchangedoperatorIPfingerprint; full overview unavailable402 IPBypass-onHobby, MCPactiveconfig404. Passive card counts do not support request-specific IP attribution. Primaryquota0/alert1/pending0. Read27-CONTACT-RESTRICTION-ALLOWED-PHONE-GAP.md. Both livecontrols remainpending, currentmatrix33/35.
+
+
+## Read-only diagnosis continuation 2026-10-12T09:06:29.857Z
+
+Owner confirms the computer uses separate internet. This resolves the physical-network handoff, not the phone original-IP attribution. Correct CLI list endpoint /v1/security/firewall/config returns active version8, firewallEnabled:true, two valid active rules, no IP rules, draft:null. Published at07:24:24.515Z. The earlier MCP /config/active404 was an endpoint inspection limitation, now resolved; no rules were edited.
+
+Vercel preset Query Builder explicitly retained4:23pm–4:24pm and reported7 requests matching the exempt operator IP (PH/PLDT/ASN9299). This is passive aggregate evidence, not the exact phone original IP. Persisted redacted operator-ip-phone-minute-query.txt/.json. No further Contact POSTs. Rule-order/exemption cause remains unresolved. Prepared27-CONTACT-EXTERNAL-DISABLED-PREFLIGHT.md proposes exactly one cloud-network request with one nonpersistent two-minute Sandbox, approval pending. No livewindow/fixture/mail authority. Matrix33/35 unchanged.
+
+
+## Approved external disabled probe outcome 2026-10-12T09:20:44.387Z
+
+Owner approved the exact single-request packet; executed once09:13Z. HTTP403 and exact-rule Vercel Deny1 match uniqueUA and sole distinct cloud originalIP; marker-preset query count1. Owned Sandbox stopped after41.244seconds, no persistent snapshot/source/secrets/ports. Primary after09:14:20.821Z remainsquota0/alert1/pending0; apexCogas/Ops5WY and Contactfalse readback unchanged. Independent-network restriction prerequisite passes via this expressly approved cloud alternative. Exact phone Allowed503 remains unresolved history. No livewindow or completedContactcontrol;33/35 unchanged. Evidence C:/Users/Admin/Roaming/FitOut/playwright/.cache/phase27-08/per-ip-external-preflight-7781be9b-3b1e-4530-9e83-1c033a98d5a0/status.json. Next exact reviewable window27-CONTACT-PER-IP-WINDOW-AMENDMENT.md is prepared, approval pending;3 historical preflightposts+7 enabled no-mail+1 recovery=11/12 with no automaticretry.
+
+
+Bounded per-IP attempt 2026-10-12T09:54:21.307Z: ownerapproved exactwindow executedA only; first503 confirmed byprovidertrace servedCogas afterAPIassignment, next2reserved onA. Sharedcounts2/runtimeevents2, so stoppedbeforeB/spoof and restoredCogas in116.343seconds. Recovery503/no-store; exactowned2rows cleaned, primaryquota0/alert1/pending0. TemporaryDeny cleanup publishedv9, originalLog/systemmitigations retained, publicpins/savedflags restored. Actual4newPOSTs; chargedsequence7/12closed, no retries inferred. No accepted control/matrix33/35 unchanged. Prepared read-only served-route barrier and fresh unapproved retry packet27-CONTACT-PER-IP-ROUTE-READINESS-RETRY.md. Evidence C:/Users/Admin/Roaming/FitOut/playwright/.cache/phase27-08/per-ip-external-preflight-7781be9b-3b1e-4530-9e83-1c033a98d5a0/bounded-window/outcome.json. BothContactlivecontrols remainpending; source588/observer206 unchanged.
+
+
+Readiness retry 2026-10-13T02:51:05.804Z: ownerapproved exactscope; activeguard re-enabledv10, one disabledoperatorPOST403 at02:46:15Z. ExactrestrictionDeny1/uniqueUA/currentIPfingerprint differs fromsavedexemption, providerConverge vs priorPLDT. StoppedonIPdrift perpacket; noSandbox/livewindow/alias/quota/mail. Guardcleanupdisabled/publishedv11, primaryquota0/alert1/pending0, publichealth/pins/savedflagsunchanged. Actual1POST consumed; no automaticretry/exemptionedit. Narrow reviewable11-totalPOST single-IP amendment27-CONTACT-CURRENT-OPERATOR-IP-AMENDMENT.md preparedunapproved. Evidence C:/Users/Admin/Roaming/FitOut/playwright/.cache/phase27-08/per-ip-route-readiness-38e870d8-5302-46b3-b0bf-09a9036f465c/outcome.json;33/35unchanged.
+
+
+Executed IP amendment 2026-10-13T03:17:29.044Z: exactsingle-IP refresh publishedv12 at03:06:43.724Z whileContactfalse; originalLog/systemmitigations preserved, pinsCogas/Ops5WY and savedflagsfalse verified. Replacement503 at03:00:36.718Z was prematurely executed beforepublication and is explicitly NOT guardedoperatorproof; retainedconsumedrequest. Authorizedcloud403 at03:07:49.971Z matched exactDeny/uniqueUA count1, distinctAWS/USsource; Sandboxstopped20.917seconds. Primaryquota0/alert1/pending0, no publicwindow or acceptedmatrixrow. Total3POSTs consumed under11cap. Narrow one-additional-request timingrepair27-CONTACT-GUARDED-OPERATOR-TIMING-REPAIR.md proposescap12; approvalpending. Aliashelperrequires the not-yet-created operator-guarded-final-result.json, so earlier503 cannot unlockpromotion. BothContactlivecontrols remainpending33/35.
+
+
+Latest checkpoint 2026-10-13T05:26:16.241Z: User-requested fresh repaired-driver attempt passes. TenContactPOSTs, sixrouteGETs, actualA3+B2reservations, sixth429/825 and forged-header429/822 across distinct runtimes. ActualCogas restored in143.571seconds; recovery503/no-store in174.743seconds; exact2ownedrows removed, primary0/1/0, guarddisabledpublishedv19, originalflags/aliases/scheduler14+1 retained. Strict220-tested observer binding accepts per-IP only; matrix34/35. Global-budget proof is pending and not authorized by this packet; broader inventory/threat/inquiry gates, Plan09incomplete20/21, curated144/151 and sevenrequirements remain. Read27-CONTACT-PER-IP-REPAIRED-DRIVER-RESULT.md.
+
+
+Global packet preparation 2026-10-13T05:50:48.497Z: currentquota0/pending0/recentnatural0, retainedsynthetic1, originalreceivers14+1, false flags and firewall19 verified read-only. Fresh exact588 localHTTP rehearsal passes,13SQL cleanup/refusal checks pass, offlineglobaldriver completion/refusal/drift scenarios pass. Prepared scope5ContactPOSTs,300secondwindow/240secondwatchdog, freshG/H protected builds,15minute scheduled observation and1owner control alert. NoProductionmutation/POST/build/Sandbox/email. Approval pending; matrix34/35 and other phase gates unchanged. Read27-CONTACT-GLOBAL-ALERT-FRESH-PACKET.md.
+
+
+## PayMongo acceptance reconciliation — October 13
+
+PayMongo acceptance reconciliation 2026-10-13T13:31:51.382Z: Plan09's original denied-signature plus destination read-back alternative is observed for current6bb webG8. Current apex/app direct400 function records, the retained Enabled LIVE hook/five subscriptions, private runtime signing match and qualified unchanged configuration/source correspondence support this limited disposition. No successful LIVE provider delivery or public-key account attribution is claimed; payment/payout/legal HOLDs and the prior33.430-second packet duration failure remain. Only Resend-inquiry and support-mailbox inquiry rows remain partial. Contact stays disabled, test accounts unchanged;20/21 plans,144/151 curated and seven requirements pending. Read27-PAYMONGO-ACCEPTANCE-RECONCILIATION.md/.json. Earlier provider-success expectations are retained as dated history.
+
+
+## Controlled Contact inquiry prepared — October 13
+
+Contact inquiry packet prepared 2026-10-13T14:06:51.213Z: exact6bb source1113 files and disabledG8/Ops baseline verified;37 offline window/POST/watchdog/cleanup guards pass, and stage/watchdog refuse pending authority. Controlled sender supplied by owner; one protected build/four ContactPOSTs/one inquiry/one reply proposed, guarded300secondwindow with240secondwatchdog and exact cleanup. No build, ContactPOST, email, external mutation or account change occurred. Approval pending for27-CONTACT-INQUIRY-PACKET.md; Contact disabled,20/21 and144/151/all7requirements pending.
+
+
+## Contact inquiry attempt stopped and export repaired — October 13
+
+Contact inquiry attempt 2026-10-13T15:00:40.207Z: approved test build failed beforeREADY because the manifest-only export omitted required config/design-tokens-source.mjs. Zero ContactPOSTs/windows/emails; all eight aliases and14+1 receivers unchanged, primary0/0/retained1. Only owned failed test deployment removed and404 verified. Complete accepted archive2,459files plus1,113manifest checks now match; local Next typegen/TypeScript and47guard checks pass. One-build replacement amendment prepared, approvalpending; originalleaseends15:28:35Z with no extension. Contactdisabled, no account changes;20/21/144of151/all7requirements pending.
+
+## Git integration — October 14, 2026
+
+Phase27 and the owner marketing UI are pushed on codex/phase27-marketing-ui. PR #21 targets dev: https://github.com/pengr3/FitOut/pull/21. Local integrated-source checks and the security gate passed; the PR is open and not merged. Public Contact stays enabled under the existing accepted release. Root user drafts and the separate CI-cost edits are preserved. See .planning/notes/phase27-marketing-ui-shipping-20261014.md for sources, 1510 design/659 selected unit/42 combined browser checks and retained limits. Counters remain 145/151 and Phase27 remains 21/21; no new phase or financial release is completed by this push.

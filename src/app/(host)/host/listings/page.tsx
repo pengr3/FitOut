@@ -9,8 +9,9 @@
 // learn that their live listing shows every date as closed. It is a signal only: no listing's
 // bookability, badge, or search eligibility changes because of it.
 
+import { isCustomerRole } from "@/lib/customer-role";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { Building2Icon } from "lucide-react";
@@ -66,6 +67,8 @@ export default async function HostListingsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   if (!session?.user) {
     redirect("/login");
   }

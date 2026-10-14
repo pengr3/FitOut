@@ -1,6 +1,6 @@
 // LIST-03 / D-02 / D-03: the shared draft/publish Zod contract. draftSchema autosaves a partial
-// listing (accepts {}); publishSchema is the strict gate — all core fields, an hourly rate as positive
-// INTEGER cents (Pitfall 5), coordinates present (D-10). Structure mirrors auth-schema.test.ts.
+// listing (accepts {}); publishSchema is the strict gate — all core fields, required hourly price,
+// optional valid day price (D-27-G01), INTEGER cents (Pitfall 5), coordinates present (D-10).
 //
 // Wave-0 FOUNDATION anchor — PASSES from Task 2 onward (the schemas exist).
 
@@ -116,7 +116,7 @@ describe("publishSchema (D-02/D-03 strict publish gate)", () => {
     expect(publishSchema.safeParse({ ...validPublish, hourlyRateCents: 25.5 }).success).toBe(false);
   });
 
-  it("rejects when the hourly rate is missing", () => {
+  it("rejects when both rates are missing because hourly pricing is required (D-27-G01)", () => {
     expect(
       publishSchema.safeParse({
         ...validPublish,
@@ -126,10 +126,11 @@ describe("publishSchema (D-02/D-03 strict publish gate)", () => {
     ).toBe(false);
   });
 
-  it("accepts an hourly rate without a day rate", () => {
+  it("accepts hourly-only publishing and rejects day-only publishing (D-27-G01)", () => {
     expect(
       publishSchema.safeParse({ ...validPublish, dayRateCents: undefined }).success,
     ).toBe(true);
+    expect(publishSchema.safeParse({ ...validPublish, hourlyRateCents: undefined }).success).toBe(false);
   });
 
   it("rejects missing coordinates (D-10 lat/lng required at publish)", () => {
@@ -254,7 +255,7 @@ describe("publishSchema — surcharge reachability (Gap C / deferred item 7)", (
 // ── OPEN-01 / 09-06: the MODE FORK. `hourlyRateCents` / `dayRateCents` moved from object-level required to
 // superRefine-required-for-exclusive so that a drop-in listing (which has no rates at all — OC-08) can
 // publish. The load-bearing pair of properties is therefore symmetric: an OPEN listing publishes with NO
-// rates, while an EXCLUSIVE listing still needs an hourly rate. If that superRefine is deleted,
+// rates, and an EXCLUSIVE listing still cannot. If the exclusive branch of the superRefine is ever deleted,
 // the second half of that pair goes red.
 describe("publishSchema — open-capacity mode fork (OPEN-01 / OC-08 / OC-10 / D-110)", () => {
   it("PUBLISHES a drop-in listing with a price per person and NO hourly or day rate (the headline)", () => {
@@ -264,7 +265,7 @@ describe("publishSchema — open-capacity mode fork (OPEN-01 / OC-08 / OC-10 / D
     expect(publishSchema.safeParse(validOpenPublish).success).toBe(true);
   });
 
-  it("keeps the exclusive gate intact — BOTH rates still required, with host-facing copy", () => {
+  it("requires an hourly rate and accepts an optional day rate, with host-facing copy", () => {
     expect(publishSchema.safeParse(validPublish).success).toBe(true);
 
     const noHourly = publishSchema.safeParse({ ...validPublish, hourlyRateCents: undefined });
@@ -273,6 +274,7 @@ describe("publishSchema — open-capacity mode fork (OPEN-01 / OC-08 / OC-10 / D
 
     const noDay = publishSchema.safeParse({ ...validPublish, dayRateCents: undefined });
     expect(noDay.success).toBe(true);
+    expect(EXCLUSIVE_RATES_REQUIRED_MESSAGE).toBe("Set an hourly rate to publish.");
 
     // A listing that never set occupancyMode at all reads as exclusive (the column's NOT NULL DEFAULT).
     const legacy = publishSchema.safeParse({
@@ -283,6 +285,14 @@ describe("publishSchema — open-capacity mode fork (OPEN-01 / OC-08 / OC-10 / D
     });
     expect(legacy.success).toBe(false);
     expect(messagesFor(legacy, "hourlyRateCents")).toContain(EXCLUSIVE_RATES_REQUIRED_MESSAGE);
+  });
+
+  it("rejects an invalid supplied day price while accepting its absence", () => {
+    for (const dayRateCents of [0, -1, 25.5, "18000", null]) {
+      expect(publishSchema.safeParse({ ...validPublish, dayRateCents }).success).toBe(false);
+    }
+    expect(publishSchema.safeParse({ ...validPublish, dayRateCents: undefined }).success).toBe(true);
+    expect(publishSchema.safeParse({ ...validPublish, occupancyMode: undefined, dayRateCents: undefined }).success).toBe(true);
   });
 
   it("REJECTS a drop-in listing with no price per person", () => {

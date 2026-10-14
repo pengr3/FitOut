@@ -34,7 +34,7 @@ import { sendVerificationEmail, sendResetPassword } from "@/lib/email";
 import {
   AUTH_ALLOWED_HOSTS,
   AUTH_TRUSTED_ORIGINS,
-  PUBLIC_APP_ORIGIN,
+  APP_ORIGIN,
 } from "@/lib/app-origins";
 
 // WR-03 — fail CLOSED on a missing signing secret in production.
@@ -64,7 +64,7 @@ export const auth = betterAuth({
   secret: BETTER_AUTH_SECRET,
   baseURL: {
     allowedHosts: AUTH_ALLOWED_HOSTS,
-    fallback: PUBLIC_APP_ORIGIN,
+    fallback: APP_ORIGIN,
     protocol: "auto",
   },
   trustedOrigins: AUTH_TRUSTED_ORIGINS,

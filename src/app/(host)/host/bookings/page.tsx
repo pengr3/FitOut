@@ -135,8 +135,9 @@
 // Space title into an extra line. The Space cell still wraps, and the When cell does not. The geometry
 // spec pins both seeded title shapes and zero table overflow. Full timing is visible on mobile/detail.
 
+import { isCustomerRole } from "@/lib/customer-role";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { asc, eq } from "drizzle-orm";
 import { CalendarIcon, HistoryIcon } from "lucide-react";
@@ -200,6 +201,8 @@ export default async function HostBookingsPage({
 }) {
   // Defense in depth: the (host) layout already gates, but never render bookings without a real session.
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   if (!session?.user) {
     redirect("/login");
   }

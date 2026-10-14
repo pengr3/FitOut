@@ -923,6 +923,7 @@ const BANNED_Z = /(?<![\w-])-?z-(?:10|50)(?![\w-])/g;
  * stays. 11-08 predicted 11 for the positive map alone; it was counting the negatives with them.
  */
 const STICKY_INVENTORY: Readonly<Record<string, number>> = {
+  "src/app/marketing/layout.tsx": 1, // keyboard-visible skip link above marketing content
   // MOVED BY PLAN 12-10, in that plan's own commit. `booking/booking-sticky-bar.tsx` is RESP-02's
   // listing-page bottom bar and it is the SECOND surface in the app to occupy this layer for its
   // literal purpose — `patterns/site-chrome.tsx` is the first, from the other edge of the viewport.
@@ -1071,9 +1072,9 @@ describe("DS-03 z scan — the counts, so a DELETE cannot pass as a MIGRATION (T
     const sticky =
       totalOf(zScan.byName["z-(--z-sticky)"]) + totalOf(zScan.byName["-z-(--z-sticky)"]);
     const dialog = totalOf(zScan.byName["z-(--z-dialog)"]);
-    expect(sticky, "the sticky layer lost or gained a surface").toBe(13);
+    expect(sticky, "the sticky layer lost or gained a surface").toBe(14);
     expect(dialog, "the dialog layer lost or gained a surface").toBe(9);
-    expect(sticky + dialog).toBe(22);
+    expect(sticky + dialog).toBe(23);
   });
 
   it("pins the 11 positive sticky sites to the files that own them", () => {

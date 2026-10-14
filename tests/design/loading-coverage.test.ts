@@ -319,9 +319,10 @@ const APP_DIR = resolve(process.cwd(), "src/app");
 // reset) and this async invitation lookup with its sibling loading state. The async host payout
 // destination page also has a sibling fallback. The current split is measured at 41 = 25 async
 // + 16 synchronous, with one loading file per async page.
-const EXPECTED_PAGES = 41;
-const EXPECTED_QUALIFYING = 25;
-const EXPECTED_NON_QUALIFYING = 16;
+const PHASE_27_STATIC_PAGES = ["marketing", "marketing/hosts", "marketing/players", "marketing/about", "marketing/faq", "marketing/contact"];
+const EXPECTED_PAGES = 41 + PHASE_27_STATIC_PAGES.length + 1;
+const EXPECTED_QUALIFYING = 25 + 1; // start-hosting awaits the real session
+const EXPECTED_NON_QUALIFYING = 16 + PHASE_27_STATIC_PAGES.length;
 
 /**
  * Phase 20's exact ops-auth page census.
@@ -663,6 +664,18 @@ describe("AC#15 — every async-default page has a loading state, and nothing el
       "these routes await on the server and have no loading.tsx, so the visitor gets the previous " +
         "screen frozen with nothing announced while the page renders (AC#15 / STATE-01).",
     ).toEqual([]);
+  });
+
+  it("classifies the six Phase 27 static marketing pages and the session-backed hosting entry explicitly", () => {
+    for (const dir of PHASE_27_STATIC_PAGES) {
+      const page = PAGES.find((item) => item.dir === `src/app/${dir}`);
+      expect(page, dir).toBeDefined();
+      expect(page?.qualifies, dir).toBe(false);
+      expect(page?.hasLoading, dir).toBe(false);
+    }
+    const entry = PAGES.find((item) => item.dir === "src/app/start-hosting");
+    expect(entry?.qualifies).toBe(true);
+    expect(entry?.hasLoading).toBe(true);
   });
 
   it("gives NO sync-default page a loading.tsx", () => {

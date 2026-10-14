@@ -204,7 +204,7 @@ describe("guard-the-guard — the probe has teeth", () => {
     expect(ESCAPED).toContain("&amp;");
   });
 
-  it(`covers all ${SENDER_COUNT} exported senders, and the record is total by construction`, () => {
+  it(`covers all ${SENDER_COUNT} transactional senders, and the record is total by construction`, () => {
     // The union is derived from the email module, so a missing entry is a COMPILE error rather than a
     // silently unprobed sender. This runtime count catches the other direction: a sender DELETED from
     // the module and from this record, which would compile cleanly and shrink the probe in silence.

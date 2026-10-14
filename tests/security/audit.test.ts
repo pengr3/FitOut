@@ -12,17 +12,27 @@ import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from "vite
 
 // Hoisted mock fns so the vi.mock factories (hoisted above imports) can close over them.
 const h = vi.hoisted(() => {
-  const whereMock = vi.fn(async () => undefined);
+  const returningMock = vi.fn();
+  const whereMock = vi.fn(() => ({ returning: returningMock }));
   const setMock = vi.fn(() => ({ where: whereMock }));
   const updateMock = vi.fn(() => ({ set: setMock }));
+  const roleWhereMock = vi.fn();
+  const selectMock = vi.fn(() => ({ from: () => ({ where: roleWhereMock }) }));
+  const executeMock = vi.fn(async () => []);
+  const valuesMock = vi.fn(async () => undefined);
+  const insertMock = vi.fn(() => ({ values: valuesMock }));
+  const transactionMock = vi.fn(async (callback: (tx: unknown) => unknown) =>
+    callback({ execute: executeMock, select: selectMock, update: updateMock }),
+  );
   const getSessionMock = vi.fn();
   const headersMock = vi.fn(async () => new Headers());
-  return { whereMock, setMock, updateMock, getSessionMock, headersMock };
+  return { whereMock, setMock, updateMock, returningMock, roleWhereMock, selectMock,
+    executeMock, valuesMock, insertMock, transactionMock, getSessionMock, headersMock };
 });
 
 vi.mock("next/headers", () => ({ headers: h.headersMock }));
 vi.mock("@/lib/auth", () => ({ auth: { api: { getSession: h.getSessionMock } } }));
-vi.mock("@/lib/db", () => ({ db: { update: h.updateMock } }));
+vi.mock("@/lib/db", () => ({ db: { transaction: h.transactionMock, insert: h.insertMock } }));
 
 // Import the REAL actions AFTER the mocks are registered. rate-limit + audit run for real.
 import { activateHosting, activateBooking } from "@/app/actions/capability";
@@ -37,9 +47,9 @@ function auditEntries(spy: Mock) {
 let infoSpy: Mock;
 
 beforeEach(() => {
-  h.updateMock.mockClear();
-  h.setMock.mockClear();
-  h.whereMock.mockClear();
+  vi.clearAllMocks();
+  h.roleWhereMock.mockResolvedValue([{ role: "user" }]);
+  h.returningMock.mockResolvedValue([{ id: "updated-customer" }]);
   h.getSessionMock.mockReset();
   infoSpy = vi.spyOn(console, "info").mockImplementation(() => {}) as unknown as Mock;
 });
@@ -57,6 +67,11 @@ describe("recordAudit on privileged escalations (WR-06)", () => {
 
     // The privileged flip happened.
     expect(h.updateMock).toHaveBeenCalledTimes(1);
+    expect(h.transactionMock).toHaveBeenCalledOnce();
+    expect(h.executeMock).toHaveBeenCalledOnce();
+    expect(h.selectMock).toHaveBeenCalledOnce();
+    expect(h.returningMock).toHaveBeenCalledOnce();
+    expect(h.insertMock).toHaveBeenCalledOnce();
 
     // Exactly one audit entry, carrying the actor, action, and successful outcome.
     const entries = auditEntries(infoSpy);
@@ -93,6 +108,27 @@ describe("recordAudit on privileged escalations (WR-06)", () => {
 
     // No privileged db write and no audit entry for a call that never passed the session gate.
     expect(h.updateMock).not.toHaveBeenCalled();
+    expect(h.transactionMock).not.toHaveBeenCalled();
+    expect(h.insertMock).not.toHaveBeenCalled();
     expect(auditEntries(infoSpy)).toHaveLength(0);
+  });
+
+  it("records denial without a capability update when the authoritative row is staff", async () => {
+    h.getSessionMock.mockResolvedValue({ user: { id: "audit-staff-denied", role: "user" } });
+    h.roleWhereMock.mockResolvedValue([{ role: "staff" }]);
+    expect(await activateHosting()).toMatchObject({ ok: false });
+    expect(h.updateMock).not.toHaveBeenCalled();
+    expect(auditEntries(infoSpy)).toEqual([
+      expect.objectContaining({ outcome: "denied", meta: { reason: "ineligible_role" } }),
+    ]);
+  });
+
+  it("never reports successful activation when the conditional update returns no row", async () => {
+    h.getSessionMock.mockResolvedValue({ user: { id: "audit-zero-update" } });
+    h.returningMock.mockResolvedValue([]);
+    expect(await activateBooking()).toMatchObject({ ok: false });
+    expect(auditEntries(infoSpy)).toEqual([
+      expect.objectContaining({ outcome: "denied", meta: { reason: "ineligible_role" } }),
+    ]);
   });
 });

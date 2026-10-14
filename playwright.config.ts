@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { browserTestDatabase } from "./e2e/helpers/browser-test-database";
 
 // E2E config for the auth flows (signup -> login persistence, password reset,
 // mode switch). Specs live in /e2e (added by Plans 02-04).
@@ -52,6 +53,12 @@ const RUN_VISUAL_PROJECT = process.platform === "linux";
  * "never print the credential" rule is satisfied structurally rather than by remembering.
  */
 const REAL_EMAIL = process.env.FITOUT_E2E_REAL_EMAIL === "1";
+
+// Keep signed synthetic fixtures and the server on the same fixed test identity.
+// Neither side may inherit a deployment auth secret or an external app origin.
+const BROWSER_AUTH_SECRET = "phase27-inert-auth-marker-not-a-real-credential";
+process.env.BETTER_AUTH_SECRET = BROWSER_AUTH_SECRET;
+process.env.BETTER_AUTH_URL = "http://localhost:3000";
 
 /**
  * `[19.1-10]` — THE PUBLIC CLOUDINARY CLOUD NAME, SUPPLIED AS AN INVENTED LITERAL.
@@ -174,7 +181,9 @@ export default defineConfig({
       : []),
   ],
   webServer: {
-    command: "npm run dev",
+    // Keep the listener distinct from every trusted Host so Next's local redirect
+    // relativization cannot turn a cross-authority app handoff into a marketing loop.
+    command: "node node_modules/next/dist/bin/next dev --hostname 0.0.0.0",
     url: "http://localhost:3000",
 
     // ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -233,6 +242,18 @@ export default defineConfig({
     env: {
       ...(REAL_EMAIL ? {} : { RESEND_API_KEY: "" }),
       NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: CLOUDINARY_PUBLIC_CLOUD_NAME,
+      DATABASE_URL: browserTestDatabase(),
+      BETTER_AUTH_SECRET: BROWSER_AUTH_SECRET,
+      // The SDK otherwise treats GitHub Actions as cloud even under next dev.
+      INNGEST_DEV: "1",
+      BETTER_AUTH_URL: "http://localhost:3000",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      OPS_APP_URL: "http://ops.localhost:3000",
+      MARKETING_APP_URL: "http://marketing.localhost:3000",
+      MARKETING_PREVIEW_URL: "",
+      VERCEL_URL: "",
+      VERCEL_ENV: "",
+      VERCEL: "",
     },
 
     timeout: 120_000,

@@ -14,11 +14,10 @@
 //   - Times are stored as Postgres `time` (venue-local wall clock) — the read model combines them with a
 //     concrete date via TZDate to get a UTC instant. Hours are listing-wide (all units share, D-25).
 
+import { readCustomerUserId } from "@/lib/customer-access";
 import { randomUUID } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { listing, operatingHours } from "@/lib/db/schema";
 import { composeDateLabel } from "@/lib/booking/when-label";
@@ -62,8 +61,7 @@ function canonicalWindowsByDay(
 
 /** Resolve the signed-in user's id, or null if there is no session (cloned from listing.ts). */
 async function requireUserId(): Promise<string | null> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user?.id ?? null;
+  return readCustomerUserId();
 }
 
 /**

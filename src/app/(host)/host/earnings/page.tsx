@@ -1,4 +1,5 @@
-import { redirect } from "next/navigation";
+import { isCustomerRole } from "@/lib/customer-role";
+import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { and, eq, isNotNull, or, sql } from "drizzle-orm";
@@ -31,6 +32,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 export default async function HostEarningsPage() {
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   if (!session?.user) redirect("/login");
   const user = session.user as typeof session.user & { canHost?: boolean };
   if (!user.canHost) redirect("/");

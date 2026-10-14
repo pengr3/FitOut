@@ -12,6 +12,9 @@ const TOKEN_URL = "https://fitout.app/reset?token=SECRET-LIVE-TOKEN-123";
 
 beforeEach(() => {
   vi.resetModules();
+  vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3000");
+  vi.stubEnv("MARKETING_APP_URL", "http://marketing.localhost:3000");
 });
 
 afterEach(() => {

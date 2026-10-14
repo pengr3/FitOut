@@ -111,9 +111,9 @@ function makeFailingDbProxy(real: TestDb["db"]): TestDb["db"] {
       if (prop === "select" && failure.mode === "throw-read") {
         return (...args: unknown[]) => {
           failure.selectCalls += 1;
-          // The FIRST select is `loadHostVerification`'s (verification-status.ts). It must succeed, or
+          // The role read and host verification read must succeed before the injected reuse failure, or
           // this case would be measuring the verification read instead of the reuse read.
-          if (failure.selectCalls >= 2) {
+          if (failure.selectCalls >= 3) {
             throw new Error(INJECTED_MESSAGE);
           }
           return (target.select as (...a: unknown[]) => unknown).apply(target, args);

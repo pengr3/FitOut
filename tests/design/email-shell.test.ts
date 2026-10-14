@@ -147,10 +147,13 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("@/lib/site", async (original) => ({
+  ...await original<typeof import("@/lib/site")>(), SUPPORT_EMAIL: null,
+}));
 
 import { renderEmail, escapeHtml, type EmailContent } from "@/lib/email-shell";
-import { SUPPORT_EMAIL } from "@/lib/site";
 
 import { stripComments } from "./helpers/strip-comments";
 
@@ -620,13 +623,29 @@ describe("15-UI-SPEC § Type — exactly five font sizes, and no send may add a 
 // ═════════════════════════════════════════════════════════════════════════════════════════════════
 
 describe("D-26 — the support slot is guarded, and the guard exists in source", () => {
-  it("renders the support mailto only when a monitored address is configured", () => {
+  it("renders the configured support address in both projections", async () => {
+    vi.doMock("@/lib/site", async () => ({
+      ...await vi.importActual<typeof import("@/lib/site")>("@/lib/site"),
+      SUPPORT_EMAIL: "support@example.test",
+    }));
+    try {
+      vi.resetModules();
+      const shell = await import("@/lib/email-shell");
+      const rendered = shell.renderEmail(VERIFY);
+      expect(count(rendered.html, "mailto:support@example.test")).toBe(1);
+      expect(rendered.text).toContain("Questions? Email support@example.test.");
+    } finally {
+      vi.doUnmock("@/lib/site");
+      vi.resetModules();
+    }
+  });
+  it("renders no mailto: while SUPPORT_EMAIL is null", () => {
     for (const rendered of [verify, digest, nasty]) {
       expect(
         count(rendered.html, "mailto:"),
         "a support address rendered while the app has no monitored inbox. D-26: nothing false " +
           "ships — no placeholder, no dead link, no \"coming soon\".",
-      ).toBe(SUPPORT_EMAIL === null ? 0 : 1);
+      ).toBe(0);
     }
   });
 

@@ -1,4 +1,4 @@
-import { MATERIAL_FIELDS, type MaterialField } from "@/lib/listing/re-review";
+import { MATERIAL_FIELDS, type MaterialField } from "@/lib/listing/material-fields";
 
 /** Host-readable labels for the byte-frozen material-field authority, in its declared key order. */
 export const MATERIAL_FIELD_LABELS = {

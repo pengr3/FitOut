@@ -1,0 +1,26 @@
+/* Marketing display scale. Court colors, Geist type and app controls stay shared. */
+.marketing-display {
+  max-width: 12ch;
+  font-size: clamp(2.75rem, 5.6vw, 5.25rem);
+  line-height: 1.02;
+  font-weight: 650;
+  letter-spacing: -0.055em;
+}
+.marketing-hero-photo { aspect-ratio: 1.05; }
+.marketing-hero-inset { width: 47%; left: -6%; bottom: -5%; }
+.marketing-section-title {
+  font-size: clamp(2rem, 3.3vw, 3.25rem);
+  line-height: 1.1;
+  letter-spacing: -0.045em;
+  font-weight: 600;
+}
+.marketing-preview { box-shadow: 0 16px 50px color-mix(in oklch, var(--foreground) 7%, transparent); }
+@media (max-width: 1023px) {
+  .marketing-display { max-width: 16ch; }
+  .marketing-hero-photo { aspect-ratio: 1.5; }
+  .marketing-hero-visual:has(.marketing-hero-inset) { margin-bottom: 1.5rem; margin-left: 1rem; }
+}
+@media (max-width: 639px) {
+  .marketing-hero-photo { aspect-ratio: 1.15; }
+  .marketing-hero-inset { left: -4%; }
+}

@@ -37,14 +37,14 @@
 // page renders neither, and must not: a second wordmark on an auth screen recreates byte-for-byte
 // the SHELL-01 duplication the composition exists to end.
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 import { authClient } from "@/lib/auth-client";
-import { safeCallbackPath } from "@/lib/safe-callback-url";
+import { safeAppCallbackPath } from "@/lib/safe-callback-url";
 import { loginSchema, type LoginInput } from "@/lib/validation/auth";
 import { PanelCard } from "@/components/patterns/panel-card";
 import {
@@ -57,6 +57,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+
+const subscribeHydration = () => () => {};
+const clientHydrated = () => true;
+const serverHydrated = () => false;
 
 // Shows the "password updated" confirmation after a successful reset (?reset=1).
 // In its own Suspense-wrapped component because useSearchParams() needs a boundary.
@@ -104,11 +108,21 @@ function ResetNotice() {
 function safeCallbackUrl(): string {
   if (typeof window === "undefined") return "/";
   const raw = new URLSearchParams(window.location.search).get("callbackURL");
-  return safeCallbackPath(raw, window.location.origin);
+  return safeAppCallbackPath(raw, window.location.origin);
+}
+
+function SignupLink() {
+  const params = useSearchParams();
+  const callback = safeAppCallbackPath(params.get("callbackURL"), "http://internal.invalid");
+  return <Link href={callback === "/" ? "/signup" : `/signup?callbackURL=${encodeURIComponent(callback)}`}
+    className="font-medium underline">Create an account</Link>;
 }
 
 export default function LoginPage() {
   const router = useRouter();
+  // Server and first hydration render stay disabled. The client snapshot enables
+  // submission only after React has attached the validated submit handler.
+  const hydrated = useSyncExternalStore(subscribeHydration, clientHydrated, serverHydrated);
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<LoginInput>({
@@ -121,6 +135,7 @@ export default function LoginPage() {
     const { error } = await authClient.signIn.email({
       email: values.email,
       password: values.password,
+      callbackURL: safeCallbackUrl(),
     });
     if (error) {
       // Generic, non-enumerating message regardless of the underlying cause (T-03-06).
@@ -134,7 +149,12 @@ export default function LoginPage() {
 
   async function onGoogle() {
     setFormError(null);
-    await authClient.signIn.social({ provider: "google", callbackURL: safeCallbackUrl() });
+    const callbackURL = safeCallbackUrl();
+    try {
+      const { error } = await authClient.signIn.social({ provider: "google", callbackURL,
+        errorCallbackURL: callbackURL === "/" ? "/login" : `/login?callbackURL=${encodeURIComponent(callbackURL)}` });
+      if (error) setFormError("We couldn't sign in with Google. Please try again.");
+    } catch { setFormError("We couldn't sign in with Google. Please try again."); }
   }
 
   return (
@@ -147,7 +167,7 @@ export default function LoginPage() {
         <ResetNotice />
       </Suspense>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
             name="email"
@@ -159,6 +179,7 @@ export default function LoginPage() {
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
+                    disabled={!hydrated}
                     {...field}
                   />
                 </FormControl>
@@ -191,6 +212,7 @@ export default function LoginPage() {
                     type="password"
                     autoComplete="current-password"
                     placeholder="Your password"
+                    disabled={!hydrated}
                     {...field}
                   />
                 </FormControl>
@@ -215,7 +237,7 @@ export default function LoginPage() {
             variant="brand"
             size="touch"
             className="w-full"
-            disabled={form.formState.isSubmitting}
+            disabled={!hydrated || form.formState.isSubmitting}
           >
             {form.formState.isSubmitting ? "Logging in…" : "Log in"}
           </Button>
@@ -238,9 +260,7 @@ export default function LoginPage() {
 
       <p className="text-center text-sm text-muted-foreground">
         New to FitOut?{" "}
-        <Link href="/signup" className="font-medium underline">
-          Create an account
-        </Link>
+        <Suspense fallback={null}><SignupLink /></Suspense>
       </p>
     </PanelCard>
   );

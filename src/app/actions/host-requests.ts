@@ -34,11 +34,10 @@
 // Nothing is ever refunded or voided here (D-63): no money moved at request time, so approve just opens
 // the payment window and decline just frees the (non-occupying-once-declined) slot.
 
+import { readCustomerUserId } from "@/lib/customer-access";
 import { eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { auth } from "@/lib/auth";
 import { absolutePublicUrl } from "@/lib/app-origins";
 import { db } from "@/lib/db";
 import { booking, listing, user } from "@/lib/db/schema";
@@ -74,8 +73,7 @@ const NOT_PENDING: RequestActionResult = {
 
 /** Resolve the signed-in user's id, or null if there is no session (cloned from blocks.ts). */
 async function requireUserId(): Promise<string | null> {
-  const session = await auth.api.getSession({ headers: await headers() });
-  return session?.user?.id ?? null;
+  return readCustomerUserId();
 }
 
 // Aliased user joins: the request row reaches BOTH the listing host (ownership + canHost re-check) and

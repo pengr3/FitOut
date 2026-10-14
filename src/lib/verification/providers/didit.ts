@@ -1,6 +1,6 @@
 import "server-only";
 
-import { absolutePublicUrl } from "@/lib/app-origins";
+import { absoluteAppUrl } from "@/lib/app-origins";
 
 // The DIDIT verification provider (D-258) — a REGISTRATION behind the shipped port, not a
 // re-architecture.
@@ -368,7 +368,7 @@ export async function beginDiditVerification(userId: string): Promise<DiditSessi
   const body = {
     workflow_id: workflowId,
     vendor_data: userId,
-    callback: absolutePublicUrl(CALLBACK_PATH),
+    callback: absoluteAppUrl(CALLBACK_PATH),
   };
 
   let res: Response;

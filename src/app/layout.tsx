@@ -5,7 +5,7 @@ import "./globals.css";
 import { FaviconSwap } from "@/components/theme/favicon-swap";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ThemeQueryParam } from "@/components/theme/theme-query-param";
-import { PUBLIC_APP_ORIGIN } from "@/lib/app-origins";
+import { APP_ORIGIN } from "@/lib/app-origins";
 import { SITE_TAGLINE } from "@/lib/site";
 
 const geistSans = Geist({
@@ -93,7 +93,7 @@ const geistMono = Geist_Mono({
  * `alternates` metadata — which is why this is a guard rather than a bug fix.
  */
 function resolveMetadataBase(): URL {
-  return new URL(PUBLIC_APP_ORIGIN);
+  return new URL(APP_ORIGIN);
 }
 
 export const metadata: Metadata = {

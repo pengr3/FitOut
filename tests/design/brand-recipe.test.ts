@@ -806,7 +806,7 @@ describe("DS-08 — the repo-wide scan reaches the trees it now claims to police
 });
 
 describe("DS-08 / D-21 — coral appears on exactly the 22 buttons someone asked for it", () => {
-  it("adopts the brand variant at exactly 29 call sites across src/app and src/components", () => {
+  it("adopts the prior 29 brand sites plus the explicit hosting-intent action", () => {
     // 15 from plan 10-08 (bookings, booking, group, search) + 5 from plan 10-09 (the host surface) +
     // 1 from plan 12-10 (RESP-02's sticky bottom bar, the mobile listing page's single focal action) +
     // 1 from plan 12-11 (BFLOW-06's checkout bar, the mobile checkout's single focal action). The
@@ -869,7 +869,8 @@ describe("DS-08 / D-21 — coral appears on exactly the 22 buttons someone asked
     // THE SCOPED 19 ABOVE IS UNMOVED ACROSS BOTH COMMITS, which is the cross-check that all four
     // conversions really landed in `(auth)` and nowhere else.
     const total = Object.values(scan.adoption).reduce((sum, n) => sum + n, 0);
-    expect(total).toBe(29);
+    expect(scan.adoption["src/components/marketing/hosting-intent.tsx"]).toBe(1);
+    expect(total).toBe(29 + scan.adoption["src/components/marketing/hosting-intent.tsx"]);
   });
 
   it("lands the 5 host conversions on the host surface, not somewhere convenient", () => {

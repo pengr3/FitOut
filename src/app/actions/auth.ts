@@ -22,6 +22,8 @@
 
 import { auth } from "@/lib/auth";
 import { signupSchema, type SignupInput } from "@/lib/validation/auth";
+import { APP_ORIGIN } from "@/lib/app-origins";
+import { safeAppCallbackPath } from "@/lib/safe-callback-url";
 
 export type SignupResult =
   | { ok: true; redirectTo: string }
@@ -33,13 +35,16 @@ export type SignupResult =
  * client can navigate after the session cookie is set. We intentionally do NOT call
  * Next's redirect() here so the client can show inline errors without a thrown control-flow.
  */
-export async function signup(input: SignupInput): Promise<SignupResult> {
+export async function signup(input: SignupInput, callbackURL?: string): Promise<SignupResult> {
   // 1. Re-validate server-side with the shared schema (never trust the client).
   const parsed = signupSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: "Please check the form and try again." };
   }
-  const { email, password, firstName, intent } = parsed.data;
+  const { email, password, firstName, intent: signupIntent } = parsed.data;
+  const callback = safeAppCallbackPath(callbackURL, APP_ORIGIN);
+  // Hosting resume must reach the explicit authenticated activation, even with a modified form.
+  const intent = callback === "/start-hosting" ? "book" : signupIntent;
 
   // 2. Create the user AND grant the chosen capability in a SINGLE write. `name` is the first
   //    name (Plan-02 firstName/name decision); `firstName` populates the public-display column.
@@ -59,10 +64,11 @@ export async function signup(input: SignupInput): Promise<SignupResult> {
         name: string;
         firstName: string;
         intent: "book" | "host";
+        callbackURL?: string;
       };
     }) => ReturnType<typeof auth.api.signUpEmail>;
     const result = await signUp({
-      body: { email, password, name: firstName, firstName, intent },
+      body: { email, password, name: firstName, firstName, intent, ...(callback !== "/" ? { callbackURL: callback } : {}) },
     });
 
     const userId = (result as { user?: { id?: string } }).user?.id;

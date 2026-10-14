@@ -39,8 +39,8 @@
 // The wordmark and the `<main>` landmark are the layout's (plan 15-06, D-162); this page renders
 // neither.
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useSyncExternalStore } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,6 +48,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { authClient } from "@/lib/auth-client";
 import { signup } from "@/app/actions/auth";
 import { signupSchema, type SignupInput } from "@/lib/validation/auth";
+import { safeAppCallbackPath } from "@/lib/safe-callback-url";
 import { PanelCard } from "@/components/patterns/panel-card";
 import {
   Form,
@@ -60,8 +61,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
+const subscribeHydration = () => () => {};
+const clientHydrated = () => true;
+const serverHydrated = () => false;
+
 export default function SignupPage() {
+  return <Suspense fallback={null}><SignupForm /></Suspense>;
+}
+
+function SignupForm() {
   const router = useRouter();
+  const hydrated = useSyncExternalStore(subscribeHydration, clientHydrated, serverHydrated);
+  const params = useSearchParams();
+  const callbackURL = safeAppCallbackPath(params.get("callbackURL"), "http://internal.invalid");
+  const hostingResume = callbackURL === "/start-hosting";
   const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<SignupInput>({
@@ -79,19 +92,23 @@ export default function SignupPage() {
 
   async function onSubmit(values: SignupInput) {
     setFormError(null);
-    const result = await signup(values);
+    const result = await signup(hostingResume ? { ...values, intent: "book" } : values, callbackURL);
     if (!result.ok) {
       setFormError(result.error);
       return;
     }
     // Session cookie was set by the server action (autoSignIn + nextCookies); navigate.
-    router.push(result.redirectTo);
+    router.push(callbackURL !== "/" ? callbackURL : result.redirectTo);
     router.refresh();
   }
 
   async function onGoogle() {
     setFormError(null);
-    await authClient.signIn.social({ provider: "google", callbackURL: "/" });
+    try {
+      const { error } = await authClient.signIn.social({ provider: "google", callbackURL,
+        errorCallbackURL: callbackURL === "/" ? "/signup" : `/signup?callbackURL=${encodeURIComponent(callbackURL)}` });
+      if (error) setFormError("We couldn't sign in with Google. Please try again.");
+    } catch { setFormError("We couldn't sign in with Google. Please try again."); }
   }
 
   return (
@@ -101,9 +118,9 @@ export default function SignupPage() {
       description="Book a space or list one of your own."
     >
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form method="post" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           {/* Intent (D-02) — maps to canBook/canHost server-side. */}
-          <FormField
+          {hostingResume ? <p className="text-sm text-muted-foreground">Create your account, then continue host setup.</p> : <FormField
             control={form.control}
             name="intent"
             render={({ field }) => (
@@ -147,7 +164,7 @@ export default function SignupPage() {
                 <FormMessage />
               </FormItem>
             )}
-          />
+          />}
 
           <FormField
             control={form.control}
@@ -159,6 +176,7 @@ export default function SignupPage() {
                   <Input
                     autoComplete="given-name"
                     placeholder="Alex"
+                    disabled={!hydrated}
                     {...field}
                   />
                 </FormControl>
@@ -178,6 +196,7 @@ export default function SignupPage() {
                     type="email"
                     autoComplete="email"
                     placeholder="you@example.com"
+                    disabled={!hydrated}
                     {...field}
                   />
                 </FormControl>
@@ -197,6 +216,7 @@ export default function SignupPage() {
                     type="password"
                     autoComplete="new-password"
                     placeholder="At least 10 characters"
+                    disabled={!hydrated}
                     {...field}
                   />
                 </FormControl>
@@ -216,6 +236,7 @@ export default function SignupPage() {
                     type="password"
                     autoComplete="new-password"
                     placeholder="Enter your password again"
+                    disabled={!hydrated}
                     {...field}
                   />
                 </FormControl>
@@ -240,11 +261,11 @@ export default function SignupPage() {
             variant="brand"
             size="touch"
             className="w-full"
-            disabled={form.formState.isSubmitting}
+            disabled={!hydrated || form.formState.isSubmitting}
           >
             {form.formState.isSubmitting
               ? "Creating account…"
-              : intent === "host"
+              : hostingResume ? "Create account" : intent === "host"
                 ? "Sign up to host"
                 : "Sign up to book"}
           </Button>
@@ -267,7 +288,7 @@ export default function SignupPage() {
 
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium underline">
+        <Link href={callbackURL === "/" ? "/login" : `/login?callbackURL=${encodeURIComponent(callbackURL)}`} className="font-medium underline">
           Log in
         </Link>
       </p>

@@ -1,0 +1,532 @@
+{
+  "recordedAt": "2026-10-13T17:48:57.629Z",
+  "status": "owner-confirmed-round-trip",
+  "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+  "sourceManifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+  "archiveSha256": "8feb311adca91cbbfa5c0eb27991ebc8f8f7c0e2dcc4cebc24f6484c8eb9a8ea",
+  "originalPacket": {
+    "id": "p27-contact-inquiry-20261014-6bb",
+    "sha256": "21ee6bae264ca0d0c9448832754ab2df80a265ef376878533cbc45832aa446d1",
+    "receiptRecordedAt": "2026-10-13T17:09:25.4066279Z",
+    "windowMs": 64170,
+    "posts": 3,
+    "inquiries": 0,
+    "disposition": "Strict trace Git attribute absent; restored without sending; failure retained"
+  },
+  "followUp": {
+    "id": "p27-contact-inquiry-source-join-20261014-6bb",
+    "sha256": "8812e4889aeb36808d2430d7a62f1aab18407c2246ad36f2d0e8f81aa83c6b32",
+    "authority": "Direct owner authorization for follow-up packets; no exact-packet phrase fabricated",
+    "deadline": "2026-10-13T18:09:25.406Z",
+    "newBuilds": 0,
+    "newCloudMachines": 0,
+    "newPosts": 2,
+    "windowMs": 69242,
+    "sourceBinding": "exact trace deployment ID -> official deployment gitCommitSha -> independent native archive/manifest",
+    "providerGitRevision": null,
+    "deploymentGitRevision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "tests": {
+      "passed": 17,
+      "failed": 0
+    }
+  },
+  "totalThisExecution": {
+    "freshBuilds": 1,
+    "historicalInquiryBuilds": 2,
+    "cumulativeInquiryBuilds": 3,
+    "contactPosts": 5,
+    "contactApiGets": 5,
+    "inquiries": 1,
+    "cloudMachines": 1,
+    "cloudDurationMs": 27872,
+    "ipExemptionChanges": 0,
+    "accountMutations": 0,
+    "manualFinancialJobs": 0
+  },
+  "inquiry": {
+    "reference": "P27-CONTACT-20261014-6BB",
+    "sender": "francisgerard.silva@gmail.com",
+    "recipient": "pengr.clmc.3@gmail.com",
+    "from": "FitOut <updates@send.fitout.live>",
+    "subject": "FitOut contact inquiry",
+    "replyTo": "francisgerard.silva@gmail.com",
+    "providerId": "01a13655-48fc-7bf4-8d9e-b8fa22c37953",
+    "providerDelivered": true,
+    "webStatus": 200,
+    "actualRequest": {
+      "timestamp": 1791912914919,
+      "deploymentId": "dpl_24YzGby4bpSUjkzUpjY426aQCMPL",
+      "domain": "fitout.live",
+      "requestPath": "/api/contact",
+      "requestMethod": "POST",
+      "responseStatusCode": 200,
+      "source": "serverless-middleware",
+      "traceId": ""
+    },
+    "ownerReceipt": "observed",
+    "ownerReplyTo": "observed",
+    "replyArrival": "observed",
+    "normalReply": "Received P27-CONTACT-20261014-6BB.",
+    "ownerObservedAt": "2026-10-14T00:13:29Z"
+  },
+  "cleanup": {
+    "observedAt": "2026-10-13T17:45:21.838Z",
+    "aliases": [
+      {
+        "alias": "app.fitout.live",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "www.fitout.live",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": "fitout.live"
+      },
+      {
+        "alias": "fitout.live",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-web-pengr3s-projects.vercel.app",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-web-psi.vercel.app",
+        "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "ops.fitout.live",
+        "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+        "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-ops-pengr3s-projects.vercel.app",
+        "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+        "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-ops.vercel.app",
+        "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+        "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "redirect": null
+      }
+    ],
+    "flags": [
+      {
+        "id": "dnMtMhC8l8iT0R29",
+        "key": "CONTACT_PRODUCTION_ENABLED",
+        "value": "false"
+      },
+      {
+        "id": "NftlOnb5TDKNewez",
+        "key": "CONTACT_INGRESS_VERIFICATION_MODE",
+        "value": "false"
+      },
+      {
+        "id": "rQL4dNKbzaXbN08K",
+        "key": "CONTACT_PRODUCTION_ENABLED",
+        "value": "false"
+      }
+    ],
+    "firewall": {
+      "version": 23,
+      "draft": null,
+      "enabled": true,
+      "temporaryDeny": false,
+      "originalLog": true
+    },
+    "primary": {
+      "observed_at": "2026-10-13T17:41:46.421Z",
+      "quota_rows": "0",
+      "pending_alerts": "0",
+      "alert_rows": "1",
+      "retained_alert_hash": "1118751b32ca888fcd28cf74fd5aee0d"
+    },
+    "health": [
+      {
+        "name": "marketing",
+        "url": "https://fitout.live/",
+        "status": 200,
+        "location": null,
+        "pass": true
+      },
+      {
+        "name": "customer",
+        "url": "https://app.fitout.live/",
+        "status": 200,
+        "location": null,
+        "pass": true
+      },
+      {
+        "name": "ops",
+        "url": "https://ops.fitout.live/login",
+        "status": 200,
+        "location": null,
+        "pass": true
+      },
+      {
+        "name": "legacy-login-handoff",
+        "url": "https://fitout.live/login",
+        "status": 307,
+        "location": "https://app.fitout.live/login",
+        "pass": true,
+        "expectedStatus": 307,
+        "expectedLocation": "https://app.fitout.live/login"
+      }
+    ],
+    "allHealthPassed": true,
+    "originalReceiver": "https://fitout-116qj6x3i-pengr3s-projects.vercel.app/api/inngest",
+    "privateQueryUnchanged": true,
+    "functions": [
+      14,
+      1
+    ],
+    "testRemoved": true,
+    "newPosts": 2,
+    "cumulativePosts": 5,
+    "newInquiry": 1,
+    "windowMs": 69242,
+    "disabled": true,
+    "accountsChanged": 0,
+    "manualFinancialJobs": 0,
+    "correction": {
+      "originalRetained": "final-readback.json",
+      "mistakenHelperExpectation": 404,
+      "actualAcceptedContract": {
+        "revision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+        "path": "src/proxy.ts",
+        "sha256": "159a01c3a4d8ce9bf4543d1249356ae73bd35817c3eb69ed032d6652cf9d3fd9",
+        "line": 175
+      },
+      "additionalRequests": 0
+    },
+    "confirmedAt": "2026-10-13T17:46:11.942Z",
+    "ownedRowsRemoved": 2,
+    "sourceWorktreeArchived": true,
+    "sourceWorktreeArchiveIdentity": "C:/Users/Admin/.codex/worktrees/phase27-contact-inquiry-6bb/FitOut",
+    "retainedAlertSerialization": "md5(string_agg(row_to_json(contact_alert)::text, ordered by id)); unchanged1118751b32ca888fcd28cf74fd5aee0d from fresh baseline through cleanup; earlier differently serializedf10f fingerprint remains historical"
+  },
+  "historyNotes": [
+    "Original strict trace gate failure retained; revised source join does not fabricate missing trace Git metadata",
+    "Stale helper expected404 for legacy/login; actual307 destination matches exact6bb proxy.ts175; original failed check and explicit corrected interpretation retained",
+    "Contact screenshot after restoration rendered poorly; provider-delivery screenshot is the final visual evidence",
+    "35/35 control matrix remains dated588; not relabelled6bb",
+    "Prior Didit33.430second duration overrun and payment/payout/legal holds remain"
+  ],
+  "evidence": [
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/approval.json",
+      "sha256": "1c76437482ac37095bcc65112179d76de5cc6b02948a7c77b641ddf8f0d4d8b2"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/existing-source-join-rehearsal.json",
+      "sha256": "3c971bd8a331a4a31e2e50862232bf93c58d13359625bf522d1f59ad4d943198"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/follow-up-tests.log",
+      "sha256": "bc257acb441dd3ad35794be3832becf96c14a867b33dca322a08297b68bca3ac"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/window.json",
+      "sha256": "184445f94ae129391e65ef3dbe2d104f41e81a45e4e37120fbdffb8d6ac2c066"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/route-T-provider.json",
+      "sha256": "c2a92286386304aea0156f83bf2147152a6439457f71d7c599862e0b16b094b3"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/route-T-proof.json",
+      "sha256": "3766dfae28709245bb6ca17aab6b65111d8d041cb99830ab9355635adcab7fd0"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/recovery-route-provider.json",
+      "sha256": "646121f2c69b7ef248291e6c283a1382d3f4c78fd85a3358dbf071702b0313f2"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/recovery-route-proof.json",
+      "sha256": "be59f08685185a7700e4292980715f06163a1f996ace82bc7e322fa155620132"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/recovery-disabled-proof.json",
+      "sha256": "4b0748577480ca9c05b2bc402775661b0afa00ac625f71dc3f072ff23c50bdf8"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/browser-send-outcome.json",
+      "sha256": "80db96967d20cf417e204230b0de4f87a5a1a53aa0d21aa46c57abefa922cf6a"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/browser-send-final.json",
+      "sha256": "74de08bdb3e0687a6fc46754ec4645bd8f119ea669fa64cc036e0387ba40efe3"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/inquiry-request-logs.json",
+      "sha256": "a383c54f43a0d5bc810c822b951418eb017ddb5f88a13da7dcc6248a76f19db4"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owned-quota.json",
+      "sha256": "a1bf267a919278fb080df79cd14d248d826a73e838110b75e92df60e8d4f99ce"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/quota-cleanup-sql.json",
+      "sha256": "93181af4693cd4ada093af4d995e4d5e0a994fe61ff02f012527a8984079a233"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/quota-cleanup-result.json",
+      "sha256": "9ae358f8859bc54925fa27f3e61e4ac91c0c6b51a732a4b84f3bde08479ca1bd"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/guard-disable-published.json",
+      "sha256": "69d39a6aed3bf3a3b95a02be35ff554f7d43ce8089145ad8826063254477ad42"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/registrations-final.json",
+      "sha256": "28ca1bef1470be0cc5f5a0bdc2d55f8efc5933c05e35b1d8a1aa70d81c0ab0de"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/test-removal-attempt.json",
+      "sha256": "75b2d29a18dff83f32ff47f8dc7f52592dd8e1f4881431a662fd5af7ab8240c6"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/test-removal-result.json",
+      "sha256": "e35a23b4ca381b02959fc81d9c6f3bdb298950c04414484c0f3779b4f5495a76"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/test-removed-readback.json",
+      "sha256": "46201bce5b28f400e76077f75c2edd76d0c733927c09924c34047c9e73e4ec05"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/final-readback.json",
+      "sha256": "b18b0f972d8fa4d350b6655b954b4604b2e0526f58b11b42ed4b852ef1f49be8"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/final-confirmed-readback.json",
+      "sha256": "d7cb7da29f1115f1072db5d6943805c4673751350bf2c5ba88d3c7a1b68e570e"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/resend-delivery-proof.json",
+      "sha256": "142d7232e2d6fad182ae0a07522e8b959868cfec429883d7d12436863b512231"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/resend-list-proof.json",
+      "sha256": "5aa0f24419083da3becc7f211f11c8978933f0890b829a87c29e9c3f900ef2e3"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/resend-delivered.png",
+      "sha256": "62996cbf0084adfe394e7751a47c741b3ff00c80b1f62de68d409dabc7290bb8"
+    }
+  ],
+  "phase": {
+    "plansComplete": 20,
+    "plansTotal": 21,
+    "curatedComplete": 144,
+    "curatedTotal": 151,
+    "requirementsPending": 7,
+    "contactDisabled": true,
+    "plan09Complete": false
+  },
+  "formalVerification": {
+    "at": "2026-10-13T17:50:00Z",
+    "prepared": {
+      "exitCode": 0,
+      "output": "Phase 27 prepared: evidence structure validated; engineering=candidate gates pass; historical gates retained; external approval=approved.\n"
+    },
+    "deployed": {
+      "exitCode": 1,
+      "output": "Phase 27 deployed: FAIL\n- Unknown/partial external inventory blocks deployed proof\n"
+    },
+    "live": {
+      "run": false,
+      "reason": "Named owner inbox/Reply-To/reply observations required before live-stage validation"
+    }
+  },
+  "finalContactReload": {
+    "normalLayoutObserved": true,
+    "screenshot": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/disabled-contact-final.png",
+    "additionalPosts": 0
+  },
+  "contactSourceCorrespondence": {
+    "observedAt": "2026-10-13T17:54:00.173Z",
+    "oldRevision": "58897a9459cf31b7c8937254dc17ab61ae0ce1d5",
+    "currentRevision": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "files": [
+      {
+        "path": "src/app/api/contact-alerts/inngest/route.ts",
+        "oldSha256": "2ead334e77c88f11819e591c5c4c918ffdb70572e62b3d5e5286ec78b6ce6ad7",
+        "currentSha256": "2ead334e77c88f11819e591c5c4c918ffdb70572e62b3d5e5286ec78b6ce6ad7"
+      },
+      {
+        "path": "src/app/api/contact/route.ts",
+        "oldSha256": "99367ce7bfb6c8e492e86984e7885578bda2e898ba40ba9fc3afc996b6b70ca5",
+        "currentSha256": "99367ce7bfb6c8e492e86984e7885578bda2e898ba40ba9fc3afc996b6b70ca5"
+      },
+      {
+        "path": "src/components/marketing/contact-form.tsx",
+        "oldSha256": "e506add87d6fc4c9d64c897ffbc58abea0616d8d8e00cdc1c62425e8db8ab22d",
+        "currentSha256": "e506add87d6fc4c9d64c897ffbc58abea0616d8d8e00cdc1c62425e8db8ab22d"
+      },
+      {
+        "path": "src/lib/contact-alert-mail.ts",
+        "oldSha256": "f65dd45cb885aff23c6b656658ed3fc50fba0fc80687b3c5596844c018729cc9",
+        "currentSha256": "f65dd45cb885aff23c6b656658ed3fc50fba0fc80687b3c5596844c018729cc9"
+      },
+      {
+        "path": "src/lib/contact-alerts.ts",
+        "oldSha256": "232915111be3969e2b1e55705784391778ccfc549dcb2a09164ef7d9281c0e37",
+        "currentSha256": "232915111be3969e2b1e55705784391778ccfc549dcb2a09164ef7d9281c0e37"
+      },
+      {
+        "path": "src/lib/contact-quota.ts",
+        "oldSha256": "da26650bcb3213e6abd7b92eb01ea92bb02468ce92c2b9a8233b5c6a1c441492",
+        "currentSha256": "da26650bcb3213e6abd7b92eb01ea92bb02468ce92c2b9a8233b5c6a1c441492"
+      },
+      {
+        "path": "src/lib/contact.ts",
+        "oldSha256": "aecc8592ece51b4174b09056a1725b68a6bba08f8dfc99f074af67b76f1086cc",
+        "currentSha256": "aecc8592ece51b4174b09056a1725b68a6bba08f8dfc99f074af67b76f1086cc"
+      },
+      {
+        "path": "src/lib/rate-limit.ts",
+        "oldSha256": "00d653d7e314c62771e686b1f6cfd7a4844439bd83f17a0d6ff64569213a2f61",
+        "currentSha256": "00d653d7e314c62771e686b1f6cfd7a4844439bd83f17a0d6ff64569213a2f61"
+      },
+      {
+        "path": "src/lib/validation/contact.ts",
+        "oldSha256": "3d2d75af6d23eb04a407c912123b73e82043f482827bc046aabfe9166240c056",
+        "currentSha256": "3d2d75af6d23eb04a407c912123b73e82043f482827bc046aabfe9166240c056"
+      }
+    ],
+    "changedFiles": [],
+    "codeIdentical": true,
+    "boundary": "Read-only source/configuration correspondence supports qualification; actual exhaustion/alert matrix remains dated588, never relabelled current6bb. Current6bb inquiry/one reservation and disabled recovery are separate direct proofs."
+  },
+  "receiverAfterTestRemoval": {
+    "at": "2026-10-13T17:54:43.03Z",
+    "financialReceiver": "https://fitout-116qj6x3i-pengr3s-projects.vercel.app/api/inngest",
+    "privateQueryUnchanged": true,
+    "financialFunctions": 14,
+    "contactFunctions": 1,
+    "testRemoved": true,
+    "manualFinancialInvocations": 0
+  },
+  "ownerConfirmation": {
+    "recordedAt": "2026-10-14T00:13:29Z",
+    "owner": "pengr.clmc.3@gmail.com",
+    "reference": "P27-CONTACT-20261014-6BB",
+    "source": "direct human reply to call_c5d64d7fe998474e889ee2a9535d96f3",
+    "answer": "Yes—all three confirmed",
+    "priorReferenceReply": "Received P27-CONTACT-20261014-6BB",
+    "receipt": "observed",
+    "replyTo": "observed",
+    "reply": "observed",
+    "replyRecipient": "francisgerard.silva@gmail.com",
+    "providerId": "01a13655-48fc-7bf4-8d9e-b8fa22c37953",
+    "inquiryResent": false,
+    "productionChanges": 0
+  },
+  "freshDisabledReadback": {
+    "recordedAt": "2026-10-14T00:13:29Z",
+    "controls": [
+      {
+        "type": "flag",
+        "id": "dnMtMhC8l8iT0R29",
+        "key": "CONTACT_PRODUCTION_ENABLED",
+        "value": "false"
+      },
+      {
+        "type": "flag",
+        "id": "NftlOnb5TDKNewez",
+        "key": "CONTACT_INGRESS_VERIFICATION_MODE",
+        "value": "false"
+      },
+      {
+        "type": "flag",
+        "id": "rQL4dNKbzaXbN08K",
+        "key": "CONTACT_PRODUCTION_ENABLED",
+        "value": "false"
+      },
+      {
+        "type": "aliases",
+        "aliases": [
+          {
+            "alias": "app.fitout.live",
+            "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+            "redirect": null,
+            "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+          },
+          {
+            "alias": "www.fitout.live",
+            "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+            "redirect": "fitout.live",
+            "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+          },
+          {
+            "alias": "fitout.live",
+            "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+            "redirect": null,
+            "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+          },
+          {
+            "alias": "fitout-web-pengr3s-projects.vercel.app",
+            "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+            "redirect": null,
+            "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+          },
+          {
+            "alias": "fitout-web-psi.vercel.app",
+            "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+            "redirect": null,
+            "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+          }
+        ]
+      },
+      {
+        "type": "aliases",
+        "aliases": [
+          {
+            "alias": "ops.fitout.live",
+            "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+            "redirect": null,
+            "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj"
+          },
+          {
+            "alias": "fitout-ops-pengr3s-projects.vercel.app",
+            "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+            "redirect": null,
+            "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj"
+          },
+          {
+            "alias": "fitout-ops.vercel.app",
+            "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+            "redirect": null,
+            "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj"
+          }
+        ]
+      },
+      {
+        "type": "primary",
+        "rows": [
+          {
+            "observed_at": "2026-10-14T00:13:02.922Z",
+            "quota_rows": "0",
+            "pending_alerts": "0",
+            "alert_rows": "1",
+            "retained_alert_hash": "1118751b32ca888fcd28cf74fd5aee0d"
+          }
+        ]
+      }
+    ],
+    "readOnly": true,
+    "newContactRequests": 0,
+    "productionChanges": 0
+  }
+}

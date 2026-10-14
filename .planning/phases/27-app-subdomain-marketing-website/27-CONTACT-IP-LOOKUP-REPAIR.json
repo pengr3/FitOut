@@ -1,0 +1,342 @@
+{
+  "status": "ip-lookup-repaired-and-verified-read-only",
+  "recordedAt": "2026-10-13T16:52:08.761Z",
+  "oldCliVersion": "59.10.0",
+  "pinnedLookupCliVersion": "63.1.2",
+  "appOrGlobalToolChanges": 0,
+  "ipLookup": {
+    "cliVersion": "63.1.2",
+    "existingMarkedRequestVerified": true,
+    "freshMarkedRequest": {
+      "marker": "FitOut-P27-Inquiry-Preparation-IP-20261014",
+      "requestId": "sin1::52bvh-1791908207411-d68524f83f42",
+      "at": "2026-10-13T16:16:46.807Z",
+      "lookupAt": "2026-10-13T16:17:50.289Z",
+      "originalIpSha256": "c2c29fa2cacf12031462993e9a24d4bfde83bc78e9f9b53ce865aaa7bdb28bbf",
+      "ipFamily": 4,
+      "matchingRequests": 1,
+      "action": "allow",
+      "providerPeriod": {
+        "start": "2026-10-13T16:16:00.000Z",
+        "end": "2026-10-13T16:17:00.000Z",
+        "granularity": {
+          "minutes": 1
+        }
+      },
+      "historical": false,
+      "current": true,
+      "cliVersion": "63.1.2",
+      "matchesSavedExemption": true
+    },
+    "browserProof": {
+      "at": "2026-10-13T16:28:19.537Z",
+      "actualBrowserPage": "https://fitout.live/contact",
+      "originalIpSha256": "c2c29fa2cacf12031462993e9a24d4bfde83bc78e9f9b53ce865aaa7bdb28bbf",
+      "providerPeriod": {
+        "start": "2026-10-13T16:24:00.000Z",
+        "end": "2026-10-13T16:26:00.000Z",
+        "granularity": {
+          "minutes": 1
+        }
+      },
+      "matchingPageRequests": 6,
+      "soleOriginalIp": true,
+      "matchesCliAndExemption": true,
+      "contactPosts": 0,
+      "note": "Browser navigation/prefetch can create multiple page GETs; all matching page traffic must share the sole operator IP."
+    },
+    "actualDisabledRoute": {
+      "requestId": "sin1::52bvh-1791908207411-d68524f83f42",
+      "status": 405,
+      "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+      "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+      "marker": "FitOut-P27-Inquiry-Preparation-IP-20261014",
+      "at": "2026-10-13T16:16:46.807Z",
+      "traceId": "63febaff92d79444f38a8fd895848d73",
+      "providerGitRevision": null,
+      "actualRouteVerified": true
+    },
+    "rawIpPersisted": false,
+    "freshExecutionRefreshRequired": true
+  },
+  "sourceMetadataRepair": {
+    "at": "2026-10-13T16:29:56.332Z",
+    "path": "C:/Users/Admin/.codex/worktrees/phase27-contact-inquiry-6bb/FitOut",
+    "gitHead": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "gitClean": true,
+    "archiveFilesVerified": 2459,
+    "manifestFilesVerified": 1113,
+    "archiveSha256": "8feb311adca91cbbfa5c0eb27991ebc8f8f7c0e2dcc4cebc24f6484c8eb9a8ea",
+    "manifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+    "generatedNextEnvSha256": "4e4da12aa061aac172fb1bcb48e9b6e4b293080d2f494327925fdba8f39632ac",
+    "link": {
+      "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+      "orgId": "team_EZAfhT8qJ6msqrCzas3rvdjG"
+    },
+    "applicationEdits": 0,
+    "deployments": 0
+  },
+  "tests": {
+    "passed": 62,
+    "failed": 0,
+    "type": "Local guard/unit checks, not deployed inquiry proof"
+  },
+  "contactDisabled": true,
+  "contactPosts": 0,
+  "emails": 0,
+  "phaseComplete": false,
+  "packet": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-INQUIRY-FRESH-PACKET.md",
+  "packetSha256": "21ee6bae264ca0d0c9448832754ab2df80a265ef376878533cbc45832aa446d1",
+  "evidence": [
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/existing-marked-lookup.json",
+      "sha256": "4af38f63799a38f2a9fdc058965eff53ac602903f24b1aa1c29f69f32c329f26"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/fresh-http.json",
+      "sha256": "26f7b7f06e37de62f1ec2471274e2d6c0994f03b2be4a658bd200dde93d6751f"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/fresh-ip-proof.json",
+      "sha256": "59b6fb3638c4b9cbd34508b51f9fbfadfc5e4464c2f72e6667e6f752408bea05"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/fresh-traffic-sanitized.json",
+      "sha256": "4b84981453156751097d0b37ff35942f70469298e563bfffcc799d2d3fce2f9c"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/fresh-provider-trace.json",
+      "sha256": "391459415bea01e49ae3349fa3a4c32a0ae0cf6c4649fe1d6e08ffe7582c046a"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/fresh-route-proof.json",
+      "sha256": "5defb154451305d53e99ea2321b68520a0cfa2b9f3859ac2148ee7ef7f7a35e5"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/browser-contact-get.json",
+      "sha256": "c200f28fec333e87f815b2fe63b7cb7a6a099325df0781197bb2e2c06d1f4065"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/browser-traffic-sanitized.json",
+      "sha256": "f3b51ba22dc5243ba46471487c00cd587fb59476eb7b87541a41e60228753e32"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/browser-traffic-stable.json",
+      "sha256": "02e77d556eb144e47022abb935a6fa649a1aa8e8b98169246348f6a1d9144fb6"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/browser-ip-proof.json",
+      "sha256": "f1c65c80459b9eea2c0bef766bca669dc314de34e2db58e63838375759a5f6ee"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/browser-api-navigation-gap.json",
+      "sha256": "320214a7224d27cfaeb2197da40da9dc6b248c7904412aebb45b72e4637b1494"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/native-source-first-check.json",
+      "sha256": "af1935faa698a680f618cfa337dfc69cbe1fb4cb5078578fd598c447d36d1b0f"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/native-source-proof.json",
+      "sha256": "053cea568f77849e72323c2ea8b58299f95c8fe69acd8af01eb63721b0dc4a7d"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/source-recheck.json",
+      "sha256": "ee2bfa0bd5ed71be5232ed7b27d2bf316e9760284445b082022f186b99584d3a"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/platform-prepared.json",
+      "sha256": "42e48f0aa0bf03bb367f35719514cbabcd97c085e86fe66213f04dd8faa5c542"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/control-prepared.json",
+      "sha256": "ecb0a4dbc51e394dcdfe8dc8cf6694db4a96e7b4270cca88f1b11aa7515e9d00"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/registrations-prepared.json",
+      "sha256": "3a4935e4be379908bf4f337e9240aea10cd228735ade67997d206630cc08e5a5"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/form-readiness.json",
+      "sha256": "d9e3f420776ec64772d725f855a7e9b4ad7bb4c22e38e5602deacf61dfb1163d"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/form-visual-verification.json",
+      "sha256": "5f182acdbfe10267dfe339eb6426ea17f200ac0090b2eb90f2cabff1726644e5"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/form-prepared.png",
+      "sha256": "6a1f2db33ca9b6956a318033a17ec4c902b704315d60374976d197821035912f"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/resend-domain-prepared.txt",
+      "sha256": "29711dceca85c0edb65fb57aea95a442533c10a2e47a437974f4903db1762aee"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/guard-tests.log",
+      "sha256": "8eca7dc66e72ea6a2cdedd69cf81c82a7a20c97535abf046cf034f9561bdea00"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/ip-lookup.mjs",
+      "sha256": "e988cd61a0aa9cb1c0879aa155d5479c20bbb10d9073c70809d47bdfa71861c4"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/ip-lookup.test.mjs",
+      "sha256": "7bbd61dd9d10e4e240d0561988ca47184700aa65f392013cf1e4601b36b3e26c"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/provider-proof-adapter.mjs",
+      "sha256": "8d78dcffadf611347b4707307a8206ce2c57425ec0924800159dc53ffb57ff8a"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/provider-proof-adapter.test.mjs",
+      "sha256": "b09df0114386b292981d87f32bfa39f67f1f425db296ebf28b593ac789a6654d"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/protocol.mjs",
+      "sha256": "4355192b6692ab72f788bc71781f09d013bff642db1f6ddf0c9ada7c3b02be34"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/protocol.test.mjs",
+      "sha256": "6009f75bb97457025a45e8e0861ad9fcfc1564bdb6fe3a8025766bc269338f0d"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/recovery-authority.test.mjs",
+      "sha256": "6904c72a5883862fc1583ad3be8d15af1f573ac67442519d6f31f57fd7666c2a"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/stage.mjs",
+      "sha256": "6691225f75067293a7fe2e96d1f0086d69cb511ff900e5d6c68c44e245c1eed1"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/watchdog.mjs",
+      "sha256": "0810c68cbdd700db6d4945b2253cb5ebe429e75424be229213e407d9cb3fd9fd"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/consume-post.mjs",
+      "sha256": "4034462c8937768fe3c012fdb57b7d2a094e31db18be07922fbb86a4bcc6d1ab"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/EXECUTION-HANDOFF.md",
+      "sha256": "ff94cb15b0d4ba4aac9c6868cf70c95a003f59751e1570b15bcacc3bb0b0b361"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/prepared-refusals.json",
+      "sha256": "602bdb3d05fff592dacdb0b1a68460225c8ecbc37966af8db86a7a74b39b0edf"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/stage.mjs-prepared-refusal.log",
+      "sha256": "fe4608b7547b60c73f319f732ef1a5e85c24e7f9f491bbccfae44fb926c65b15"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/watchdog.mjs-prepared-refusal.log",
+      "sha256": "2855d54d48bc1837b1eb62d648a98ebca7661df36c5fbd4692e8112e139819e3"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/consume-post.mjs-prepared-refusal.log",
+      "sha256": "582f87e6fddd2a05fd47ab2697e791ed199b0277a6b49d4e773fdfdab00c0af2"
+    },
+    {
+      "path": "playwright/.cache/phase27-08/contact-inquiry-prep-6bb-20261014/final-disabled-readback.json",
+      "sha256": "0b9b0c33b68eb5a3f91bb9bab61f9a9f129a324edbbe714d0c0fbdadc9873a67"
+    }
+  ],
+  "preparedAuthorityRefusals": {
+    "at": "2026-10-13T16:54:08.869Z",
+    "results": [
+      {
+        "name": "stage.mjs",
+        "exitCode": 1,
+        "exactPreparedAuthorityRefusal": true
+      },
+      {
+        "name": "watchdog.mjs",
+        "exitCode": 1,
+        "exactPreparedAuthorityRefusal": true
+      },
+      {
+        "name": "consume-post.mjs",
+        "exitCode": 1,
+        "exactPreparedAuthorityRefusal": true
+      }
+    ],
+    "externalActions": 0,
+    "buildAttempts": 0,
+    "postConsumption": 0,
+    "watchdogStarts": 0
+  },
+  "finalDisabledReadback": {
+    "observedAt": "2026-10-13T16:59:21.081Z",
+    "aliases": [
+      {
+        "alias": "app.fitout.live",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "www.fitout.live",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": "fitout.live"
+      },
+      {
+        "alias": "fitout.live",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-web-pengr3s-projects.vercel.app",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-web-psi.vercel.app",
+        "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+        "redirect": null
+      },
+      {
+        "alias": "ops.fitout.live",
+        "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-ops-pengr3s-projects.vercel.app",
+        "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "redirect": null
+      },
+      {
+        "alias": "fitout-ops.vercel.app",
+        "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+        "redirect": null
+      }
+    ],
+    "flags": [
+      {
+        "id": "dnMtMhC8l8iT0R29",
+        "key": "CONTACT_PRODUCTION_ENABLED",
+        "value": "false",
+        "updatedAt": 1791704419042
+      },
+      {
+        "id": "NftlOnb5TDKNewez",
+        "key": "CONTACT_INGRESS_VERIFICATION_MODE",
+        "value": "false",
+        "updatedAt": 1791704423844
+      },
+      {
+        "id": "rQL4dNKbzaXbN08K",
+        "key": "CONTACT_PRODUCTION_ENABLED",
+        "value": "false",
+        "updatedAt": 1791630164853
+      }
+    ],
+    "primary": [
+      {
+        "observed_at": "2026-10-13T16:59:21.286Z",
+        "quota_rows": 0,
+        "alert_rows": 1,
+        "pending_alerts": 0,
+        "alert_snapshot_md5": "f10f0474d68fe574a2830467d6244d8d"
+      }
+    ]
+  }
+}

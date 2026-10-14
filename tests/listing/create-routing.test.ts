@@ -67,7 +67,7 @@ vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("@/lib/auth", () => ({
   auth: {
     api: {
-      getSession: async () => ({ user: { id: HOST_ID, canHost: true } }),
+      getSession: async () => ({ user: { role: "user", id: HOST_ID, canHost: true } }),
     },
   },
 }));

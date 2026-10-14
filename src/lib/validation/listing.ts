@@ -48,8 +48,7 @@ export const SURCHARGE_UNREACHABLE_MESSAGE =
 // 09-UI-SPEC § Copywriting O1 — never "occupancy mode", "exclusive", "open capacity", "per-head", or "cap"
 // as a bare noun; say whole space, drop-in passes, price per person, people per day.
 
-/** The unchanged Phase-2/D-03 both-rates requirement, now stated in host words because the requirement MOVED
- *  into the superRefine (see publishSchema) and a moved requirement needs its own voice. */
+/** D-27-G01: whole-space publishing requires hourly pricing; day pricing is optional. */
 export const EXCLUSIVE_RATES_REQUIRED_MESSAGE = "Set an hourly rate to publish.";
 export const PER_HEAD_PRICE_REQUIRED_MESSAGE = "Set a price per person to publish drop-in passes.";
 export const DROP_IN_CAP_REQUIRED_MESSAGE =
@@ -149,7 +148,7 @@ export const draftSchema = z.object({
 });
 
 /**
- * Strict draft→publish gate (D-02/D-03/LIST-03). All core fields required; BOTH rates required and
+ * Strict draft→publish gate (D-02/D-03/LIST-03). All core fields required; hourly pricing required, day pricing optional, and
  * validated as positive INTEGER cents (never float — Pitfall 5); coordinates required (D-10).
  */
 export const publishSchema = z.object({
@@ -170,8 +169,8 @@ export const publishSchema = z.object({
   // WR-04: bounded ABOVE as well as below. In open mode this number is the day's admissions cap and is one
   // half of the money product that must stay inside int4 (see the ceiling block near the top of this file).
   maxOccupancy: z.number().int().positive().max(MAX_OPEN_CAPACITY, DROP_IN_CAP_TOO_HIGH_MESSAGE),
-  // The mode fork: whole-space listings need an hourly price. A day price is optional and enables the
-  // separate full-day booking choice. Drop-in listings use the per-person price instead.
+  // Mode-specific pricing: whole-space requires hourly pricing in superRefine below; day pricing
+  // is optional, but a supplied rate must still be positive integer cents. Drop-in uses per-head pricing.
   hourlyRateCents: z.number().int().positive().optional(),
   dayRateCents: z.number().int().positive().optional(),
   bookingMode: z.enum(bookingModeValues),
@@ -214,7 +213,7 @@ export const publishSchema = z.object({
   const mode = data.occupancyMode ?? "exclusive";
 
   if (mode === "exclusive") {
-    // Whole-space listings need an hourly price; leaving the day price blank offers hourly bookings only.
+    // D-27-G01: require hourly pricing; an absent day rate offers hourly bookings only.
     if (data.hourlyRateCents == null) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

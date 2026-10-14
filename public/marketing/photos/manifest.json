@@ -1,0 +1,11 @@
+{
+  "purpose": "Licensed reference photographs for the marketing pages and synthetic Preview venue fixtures. These are not claims of actual FitOut partner inventory.",
+  "photos": {
+    "tennis": { "path": "/marketing/photos/tennis.jpg", "source": "https://unsplash.com/photos/lfOsU31xeBQ", "photographer": "Frankie Lopez", "license": "https://unsplash.com/license" },
+    "basketball": { "path": "/marketing/photos/basketball.jpg", "source": "https://www.pexels.com/photo/interior-of-indoors-basketball-court-in-sports-center-4946389/", "photographer": "Maria Orlova", "license": "https://www.pexels.com/license/" },
+    "badminton": { "path": "/marketing/photos/badminton.jpg", "source": "https://unsplash.com/photos/AILEpOyczIk", "photographer": "Palak Pitroda", "license": "https://unsplash.com/license" },
+    "gym": { "path": "/marketing/photos/gym.jpg", "source": "https://unsplash.com/photos/XKimW0pke6w", "photographer": "Mark Bertulfo", "license": "https://unsplash.com/license" },
+    "studio": { "path": "/marketing/photos/studio.jpg", "source": "https://www.pexels.com/photo/an-empty-dancing-studio-7319683/", "photographer": "MART PRODUCTION", "license": "https://www.pexels.com/license/" }
+  }
+}
+

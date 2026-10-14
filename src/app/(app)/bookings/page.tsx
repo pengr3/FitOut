@@ -15,8 +15,9 @@
 // MONEY: every figure is the server-frozen quote rendered through formatMoney; the page and both row
 // components do ZERO price arithmetic (the Phase-4 PriceBreakdown contract).
 
+import { isCustomerRole } from "@/lib/customer-role";
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { CalendarIcon, HistoryIcon } from "lucide-react";
 import { auth } from "@/lib/auth";
@@ -70,6 +71,8 @@ export default async function BookingsPage({
 }) {
   // Defense in depth: the (app) layout already gates, but never render bookings without a real session.
   const session = await auth.api.getSession({ headers: await headers() });
+  // OPS-11: capability flags cannot admit a staff identity. Session reads are uncached.
+  if (session?.user && !isCustomerRole(session.user.role)) notFound();
   if (!session?.user) {
     redirect("/login");
   }

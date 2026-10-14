@@ -1,0 +1,275 @@
+{
+  "recordedAt": "2026-10-14T01:37:54.695Z",
+  "status": "accepted",
+  "publicContactEnabled": true,
+  "ownerInstruction": "okay go ahead and enable Contact publicly now, then verify sending and monitoring. continue autonomously with what you can.",
+  "productionUrl": "https://fitout.live/contact",
+  "project": {
+    "id": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+    "teamId": "team_EZAfhT8qJ6msqrCzas3rvdjG",
+    "autoAssignCustomDomains": false,
+    "protection": {
+      "deploymentType": "all_except_custom_domains"
+    }
+  },
+  "deployment": {
+    "id": "dpl_HsQkSddz6LrjvEji4MY62Exko4g8",
+    "url": "fitout-2026wv6h7-pengr3s-projects.vercel.app",
+    "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+    "teamId": "team_EZAfhT8qJ6msqrCzas3rvdjG",
+    "readyState": "READY",
+    "target": "production",
+    "source": "876f8168578cfcd38848619f1032a6991c98c336",
+    "metaKeys": [
+      "gitCommitAuthorName",
+      "gitCommitAuthorEmail",
+      "gitCommitMessage",
+      "gitCommitRef",
+      "gitCommitSha",
+      "gitRootDirectory",
+      "contactPublicRelease",
+      "applicationManifestBase",
+      "actor",
+      "lambdaRuntimeStats",
+      "bundler"
+    ],
+    "createdAt": 1791940212180,
+    "ready": 1791940344689
+  },
+  "createdToReadySeconds": 132.509,
+  "applicationSource": {
+    "nativeCommit": "876f8168578cfcd38848619f1032a6991c98c336",
+    "testedBase": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
+    "manifest": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
+    "verifiedFiles": 1113,
+    "lineEndingOnlyFiles": 49,
+    "applicationContentChanges": 0
+  },
+  "cutoverAt": "2026-10-14T01:19:00.802Z",
+  "aliases": [
+    {
+      "alias": "app.fitout.live",
+      "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+      "deploymentId": "dpl_HsQkSddz6LrjvEji4MY62Exko4g8",
+      "redirect": null
+    },
+    {
+      "alias": "www.fitout.live",
+      "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+      "deploymentId": "dpl_HsQkSddz6LrjvEji4MY62Exko4g8",
+      "redirect": "fitout.live"
+    },
+    {
+      "alias": "fitout.live",
+      "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+      "deploymentId": "dpl_HsQkSddz6LrjvEji4MY62Exko4g8",
+      "redirect": null
+    },
+    {
+      "alias": "fitout-web-pengr3s-projects.vercel.app",
+      "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+      "deploymentId": "dpl_HsQkSddz6LrjvEji4MY62Exko4g8",
+      "redirect": null
+    },
+    {
+      "alias": "fitout-web-psi.vercel.app",
+      "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz",
+      "deploymentId": "dpl_HsQkSddz6LrjvEji4MY62Exko4g8",
+      "redirect": null
+    },
+    {
+      "alias": "ops.fitout.live",
+      "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+      "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+      "redirect": null
+    },
+    {
+      "alias": "fitout-ops-pengr3s-projects.vercel.app",
+      "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+      "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+      "redirect": null
+    },
+    {
+      "alias": "fitout-ops.vercel.app",
+      "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj",
+      "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+      "redirect": null
+    }
+  ],
+  "flags": [
+    {
+      "id": "dnMtMhC8l8iT0R29",
+      "key": "CONTACT_PRODUCTION_ENABLED",
+      "value": "true",
+      "type": "plain",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1791940703711
+    },
+    {
+      "id": "NftlOnb5TDKNewez",
+      "key": "CONTACT_INGRESS_VERIFICATION_MODE",
+      "value": "false",
+      "type": "plain",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1791704423844
+    },
+    {
+      "id": "rQL4dNKbzaXbN08K",
+      "key": "CONTACT_PRODUCTION_ENABLED",
+      "value": "false",
+      "type": "plain",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1791630164853
+    }
+  ],
+  "firewall": {
+    "version": 23,
+    "draft": false,
+    "enabled": true,
+    "temporaryDeny": false,
+    "originalLogActive": true,
+    "originalLogAction": "log"
+  },
+  "onlySavedEnvironmentChange": [
+    {
+      "id": "dnMtMhC8l8iT0R29",
+      "key": "CONTACT_PRODUCTION_ENABLED",
+      "type": "plain",
+      "target": [
+        "production"
+      ],
+      "updatedAt": 1791940703711,
+      "gitBranch": null
+    }
+  ],
+  "publicInquiry": {
+    "attempt": {
+      "at": "2026-10-14T01:20:45.430Z",
+      "reference": "CONTACT-PUBLIC-20261014",
+      "method": "Cua browser form submission",
+      "expectedDeploymentId": "dpl_HsQkSddz6LrjvEji4MY62Exko4g8",
+      "fromSender": "francisgerard.silva@gmail.com",
+      "support": "pengr.clmc.3@gmail.com",
+      "name": "FitOut public release check",
+      "message": "Public Contact release verification. Reference CONTACT-PUBLIC-20261014. One test inquiry; no reply required.",
+      "mobile": "",
+      "website": "",
+      "consumed": true,
+      "retryAllowed": false
+    },
+    "requestLog": {
+      "timestamp": 1791940873148,
+      "path": "/api/contact",
+      "method": "POST",
+      "status": 200,
+      "level": "info",
+      "deploymentId": "dpl_HsQkSddz6LrjvEji4MY62Exko4g8"
+    },
+    "requestAt": "2026-10-14T01:21:13.148Z",
+    "delivery": {
+      "observedAt": "2026-10-14T01:27:32.334Z",
+      "providerId": "01a137ff-d6a7-76c1-b021-b4728d959932",
+      "url": "https://resend.com/emails/01a137ff-d6a7-76c1-b021-b4728d959932",
+      "status": "Delivered",
+      "localSentTime": "2026-10-14 09:21 Asia/Manila",
+      "from": "FitOut <updates@send.fitout.live>",
+      "to": "pengr.clmc.3@gmail.com",
+      "replyTo": "francisgerard.silva@gmail.com",
+      "reference": "CONTACT-PUBLIC-20261014",
+      "body": "Public Contact release verification. Reference CONTACT-PUBLIC-20261014. One test inquiry; no reply required.",
+      "browserSuccess": "Your message was sent to FitOut.",
+      "newInboxHumanAttestation": false,
+      "newReplySent": false
+    },
+    "browserConsoleErrors": 0
+  },
+  "monitor": {
+    "observedAt": "2026-10-14T01:27:29.903Z",
+    "runId": "01M4VZZ630J1M05HRHPVN6PQQQ",
+    "url": "https://app.inngest.com/env/production/runs/01M4VZZ630J1M05HRHPVN6PQQQ",
+    "status": "Completed",
+    "trigger": "inngest/scheduled.timer",
+    "cron": "1-59/5 * * * *",
+    "startedAt": "2026-10-14T01:21:00Z",
+    "endedAt": "2026-10-14T01:21:06Z",
+    "durationSeconds": 6.325,
+    "output": {
+      "active": true,
+      "pendingProcessed": 0,
+      "quotaAvailable": true,
+      "staleCount": 0
+    },
+    "manualInvocation": false
+  },
+  "registrations": {
+    "at": "2026-10-14T01:34:21.065Z",
+    "financialReceiver": "https://fitout-116qj6x3i-pengr3s-projects.vercel.app/api/inngest",
+    "originalReceiverPresent": true,
+    "privateQueryUnchanged": true,
+    "financialFunctions14": true,
+    "financialFunctionAndTriggerLinksUnchanged": true,
+    "contactReceiver": "https://fitout.live/api/contact-alerts/inngest",
+    "contactReceiverPresent": true,
+    "contactFunctions1": true,
+    "contactCronPresent": true,
+    "manualFinancialInvocations": 0
+  },
+  "errorScan": {
+    "from": "2026-10-14T01:19:00.802Z",
+    "to": "2026-10-14T01:29:15.187Z",
+    "errorRecords": 0,
+    "requestRecords": 35
+  },
+  "screenshots": [
+    {
+      "name": "contact-success.jpg",
+      "path": "C:/Users/Admin/Roaming/FitOut/playwright/.cache/contact-public-release-20261014/contact-success.jpg",
+      "sha256": "5855208529132a1a5f83dde070f2466297e3238059be9547d28e9fda121cb23b",
+      "bytes": 39637
+    },
+    {
+      "name": "resend-delivered.jpg",
+      "path": "C:/Users/Admin/Roaming/FitOut/playwright/.cache/contact-public-release-20261014/resend-delivered.jpg",
+      "sha256": "9b50f7a495867dac71aab989a680b6802926e509aa2ea77f5d4085c39946de11",
+      "bytes": 77454
+    },
+    {
+      "name": "monitor-completed.jpg",
+      "path": "C:/Users/Admin/Roaming/FitOut/playwright/.cache/contact-public-release-20261014/monitor-completed.jpg",
+      "sha256": "da25f63296730a15f7c869dccbc0b4c795cf6dfde65607cf60fe9f22ce7db255",
+      "bytes": 86692
+    }
+  ],
+  "nonblockingFindings": [
+    {
+      "id": "CONTACT-PUBLIC-FAVICON-404",
+      "path": "/favicon.ico",
+      "status": 404,
+      "requestAt": "2026-10-14T01:20:24.841Z",
+      "scope": "Future UI polish; icon-court.svg is served. No Contact or monitor failure."
+    }
+  ],
+  "accountsChanged": 0,
+  "manualFinancialJobs": 0,
+  "publicQuotaFixtures": 0,
+  "publicQuotaCleanup": 0,
+  "newControlAlertEmails": 0,
+  "newInboxHumanConfirmation": false,
+  "newReplyRequested": false,
+  "phase27": {
+    "numberedPlans": "21/21",
+    "requirements": "7/7",
+    "curatedPlans": "145/151",
+    "milestoneComplete": false
+  },
+  "holds": {
+    "financial": "unchanged",
+    "bindingTerms": "unchanged"
+  }
+}

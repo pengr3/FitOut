@@ -40,11 +40,13 @@
 // CONSTRAINT 3, ABSOLUTE: this module must NEVER call a sign-in / sign-up / session-create API. The
 // only cookie mutation it may ever perform is an EXPIRY. Gated by a grep in the plan's verify block.
 //
-// EDGE-SAFETY: the ONLY value import here is next/server, because src/proxy.ts imports this file into
-// the Edge bundle. Better Auth is referenced by STRUCTURAL TYPE only. If a future edit adds
+// EDGE-SAFETY: value imports remain Next's response API and a pure URL guard; Proxy imports this file.
+// Better Auth is referenced by STRUCTURAL TYPE only. If a future edit adds
 // @/lib/auth or @/lib/db, `npm run build` breaks LOUDLY — a visible failure mode, chosen on purpose.
 
 import { NextResponse, type NextRequest } from "next/server";
+import { safeAppCallbackPath } from "@/lib/safe-callback-url";
+import { APP_ORIGIN, absoluteAppUrl } from "@/lib/app-origins";
 
 /** The delegation endpoint. Deliberately NOT under /api/auth/* — that is Better Auth's catch-all. */
 export const SESSION_CHECK_PATH = "/auth/session-check";
@@ -160,7 +162,7 @@ export async function sessionCheckResponse(
     const authHeaders = new Headers(request.headers);
     if (!authHeaders.has("host")) authHeaders.set("host", request.nextUrl.host);
     const res = await auth.handler(
-      new Request(new URL("/api/auth/get-session", request.url), { headers: authHeaders }),
+      new Request(absoluteAppUrl("/api/auth/get-session"), { headers: authHeaders }),
     );
 
     // NOT AUTHORITATIVE unless it is a clean 200. Better Auth answers 200 + body `null` for "no
@@ -178,7 +180,9 @@ export async function sessionCheckResponse(
   }
 
   const signedIn = Boolean(session?.user);
-  const out = NextResponse.redirect(new URL(signedIn ? "/" : target, request.url));
+  const callback = new URL(target, APP_ORIGIN).searchParams.get("callbackURL");
+  const destination = signedIn ? safeAppCallbackPath(callback, APP_ORIGIN) : target;
+  const out = NextResponse.redirect(new URL(destination, APP_ORIGIN));
 
   // Forward whatever the framework emitted: the clearing headers for a dead session, or the
   // sliding-session refresh for a live one. Never reconstructed by hand.
@@ -209,7 +213,7 @@ export async function sessionCheckResponse(
  * lockout and never a cleared cookie we were not sure about.
  */
 function degradedRedirect(target: string, request: NextRequest): Response {
-  const res = NextResponse.redirect(new URL(target, request.url));
+  const res = NextResponse.redirect(new URL(target, APP_ORIGIN));
   res.headers.set("cache-control", "no-store");
   return res;
 }

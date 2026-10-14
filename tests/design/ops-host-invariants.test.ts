@@ -241,7 +241,7 @@ describe("OPS-12 exact host partition invariants", () => {
     expect(property(dynamicBaseURL, "allowedHosts")?.initializer.getText()).toBe(
       "AUTH_ALLOWED_HOSTS",
     );
-    expect(property(dynamicBaseURL, "fallback")?.initializer.getText()).toBe("PUBLIC_APP_ORIGIN");
+    expect(property(dynamicBaseURL, "fallback")?.initializer.getText()).toBe("APP_ORIGIN");
     expect(property(dynamicBaseURL, "protocol")?.initializer.getText()).toBe("\"auto\"");
     expect(property(authOptions, "trustedOrigins")?.initializer.getText()).toBe(
       "AUTH_TRUSTED_ORIGINS",

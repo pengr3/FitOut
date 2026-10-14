@@ -1,0 +1,113 @@
+# Concrete remaining release repairs — October 9
+
+Local repairs and their gate proof are separate from deployed observations. No
+production account or Contact enablement is claimed by this preparation.
+
+## Preview isolation
+
+Vercel API readback confirms both project Preview OPS_APP_URL values still point
+at production ops.fitout.live. fitout-web has a separate write-only Preview
+DATABASE_URL entry; its destination is unavailable through the API and UI.
+The UI Value field is blank and its db.example.com/app placeholder is an example,
+not the actual database. fitout-ops has no Preview DATABASE_URL entry in the
+readback. Preserve the existing secrets rather than guessing or rotating them.
+
+Prepare a dedicated nonproduction Neon branch for both Preview projects, set the
+branch's database binding through the owner-approved credential flow, and bind
+each build's customer/ops origins to its actual isolated Preview deployment.
+Production-branch aliases are not evidence of isolation. Retain Contact false,
+mail absent and production provider keys absent. Verify the resulting deployment
+can read/write only disposable branch fixtures and cannot accept production staff
+or customer sessions before treating this prerequisite as closed.
+
+Authenticated Neon readback found project misty-bar-13534461, “FitOut - Live App
+Database”. Its primary branch is production (br-divine-lake-b3in9zag); the three
+nonprimary branches are older phase26/release test branches initialized from
+parent data. None is a dedicated schema-only Preview branch. Their existence
+does not prove the write-only Vercel secret's destination. Prefer a dedicated
+schema-only branch for Preview so production users, sessions and bookings are
+not copied into the browser test environment. The Neon CLI is unavailable;
+authenticated MCP read tools were used. No branch, role or credential changed.
+
+## Contact shared quota proposal
+
+The current Map is defense in depth in each process. A concrete implementation
+can use the existing Neon database with one dedicated Contact quota table and
+zero new runtime packages. This requires a schema migration, outside the current
+zero-migration repair scope. Do not reuse auth verification/session rows or the
+permanent audit trail as mutable quota storage.
+
+Proposed table: bounded quota keys, JSON timestamps and expiration, with a unique
+key and timestamp index. One database transaction obtains a fixed global advisory
+lock, uses database time, prunes timestamps older than each rolling window, and
+reserves both budgets atomically: at most five attempts per original trusted IP
+in any fifteen minutes and at most one hundred delivery attempts in any hour
+across instances/regions. Counting delivery attempts conservatively also caps
+accepted mail. Use a purpose-separated HMAC of the trusted original IP; store no
+raw IP, inquiry, email or credential. Expire per-IP rows after their budget window.
+Bound key growth by reserving the global budget before creating a new key.
+
+Database unavailability or corrupt quota state must return recoverable 503 before
+calling Resend. Never refund an ambiguous delivery reservation. Contact remains
+disabled until the real distributed control, budget/alert owner and disable
+switch are proved. Tests must use separate connections with concurrent requests,
+cross-window edges and simulated store outages, plus assertions that rejected
+attempts never invoke mail. Then repeat all six clean-source gates.
+
+## Cutover sequence
+
+Pin the current customer and ops rollback deployment IDs. Establish and test the
+compatibility-first application revision at app.fitout.live before the final apex
+marketing promotion, preserving old callbacks and issued links. Apply the exact
+reviewed candidate and origin changes only after all six local gates pass and
+Preview/provider prerequisites are proved. Configure www's temporary 307 redirect
+with full path/query preservation. Observe the full deployed matrix and rollback.
+
+The Google app-origin/callback additions already approved and saved remain in
+place. Publishing the Google audience and provider destination migration are
+separate account actions. No fund movement or checkout/payout/legal release is
+part of these repairs. One controlled Contact inquiry and inbox reply still need
+an available monitored mailbox owner after the quota controls are verified.
+
+
+## October 10 continuation
+
+The project owner confirms the monitored launch support inbox. One authorized standalone Resend transport test is Delivered with the expected Reply-To; owner receipt and a deployed Contact endpoint/reply are still pending. Preview has a hidden web database binding, no returned ops database binding and production ops origins in both projects. No dedicated schema-only Preview branch exists; isolation is unproved. Quota-table and dedicated Preview branch decisions remain pending. See 27-INBOX-AND-PREVIEW-READBACK-20261010.md; no settings or deployment changed.
+
+
+## D-23 execution readback — October10 (supersedes prior settings above)
+
+The owner confirms receipt and reply-sent. Plans18/19 implement the shared quota and additive migration, create the schema-only Preview branch, and save isolated Preview database/auth/origin/Contact-off settings. Real Preview quota contention passes; production settings are unchanged. The first new full candidate run has two hosting-fixture failures, retained and being repaired. Six new complete passes and fresh cold proof remain required before paired Preview deployment/session/Contact-off checks. Those deployed observations, production migration/enablement/alert-and-disable proof and compatibility-first cutover remain pending. No further transport test was sent. See27-PREVIEW-ISOLATION-EVIDENCE.md.
+
+
+## Superseding Plan 20 checkpoint — October 10
+
+Quota repair and Preview settings plans 18/19 are complete. All six full guarded gates plus fresh cold/warm proof pass on b8358b11. Paired Preview builds and dedicated aliases are ready; browser negatives pass. Protected automated API access requires explicit approval for temporary links after automatic review rejection. Positive deployment write binding and actual signed-cookie replay remain unproved. No production changes or new mail. See 27-20-PREVIEW-ACCESS-CHECKPOINT.md; counts remain 17/20 and 141/150.
+
+
+## Completed bounded Preview verification — October 10
+
+The owner explicitly approved the described temporary 23-hour access links by saying “go ahead execute.” Link/cookie bytes remained private. Initial access attempts were rejected by Vercel login despite link creation; recreating access invalidated earlier test access, so verification ran sequentially per origin with an accepted private protection cookie. These failures remain retained and were not counted as passed tests. The first disposable signup request returned400 because the harness omitted required firstName; a safe diagnostic identified MISSING_FIELD. Adding the existing required field to the harness resolved it without application/source changes.
+
+Actual final outcomes at 2026-10-09T19:30:15.979Z:
+
+| Observed check | Result |
+|---|---|
+| Anonymous app Preview session | HTTP200, null session |
+| One disposable signup | HTTP200; returned user ID matches exactly one row read from explicit br-silent-glade-b31mruln |
+| Owned app Preview session | HTTP200; matches the same disposable user |
+| Disabled marketing Contact | HTTP503, ok=false; no real delivery/provider credential available |
+| Ops anonymous session | HTTP200, null session |
+| Replay actual app Preview auth cookie to ops | HTTP200, null session; cookie rejected |
+| Explicit branch after all stages | users1, sessions1, accounts1, bookings0 |
+
+The existing signed-in production browser remains separate from anonymous customer Preview through normal host-only cookie behavior. No production token was exported or forcibly replayed; that stronger production/deployed matrix remains in original08/09. This bounded preparation completion does not claim all live session scenarios or any requirement are accepted. Both Preview deployments remain READY at b8358b11. Final API readbacks reconfirm all production environment metadata unchanged (web33 entries, ops32), real Preview provider keys absent, Contact false, and production aliases pinned to their original deployment IDs.
+
+Proof: `playwright/.cache/phase27-08/preview-runtime-proof-20261010.json`, SHA256 `e5b637cbb0019877112e3063b23e0f9c28f59253739c0e252c4bb5194e3f1cff`. Independent final readback: `playwright/.cache/phase27-08/preview-final-readback-20261010.json`, SHA256 `2bb4e4b2bbb72d3bc02323b96d277ee6b5c3ea6bbe54784516cb08fefbbb9804`. Final browser screenshot: `playwright/.cache/phase27-08/preview-contact-disabled-final-20261010.png`.
+
+Retained failed harness/access attempts (no secret bytes):
+- `playwright/.cache/phase27-08/preview-runtime-failed-05d715fb-750d-4ef9-a4a0-5b4d33ad6842.json` — SHA256 `f3ffc87a177a228cc051db655956b12e77e3667e923428d6b72434b6fd0155eb`
+- `playwright/.cache/phase27-08/preview-runtime-failed-09be3428-2ac7-4816-afa7-2d6baf6e92c3.json` — SHA256 `33d6b3502f2cfccda22c3916ad82b6624aecf6b721bcafc70dc8300789ecb823`
+- `playwright/.cache/phase27-08/preview-runtime-failed-c5b19446-de44-4d4e-b598-86ea5b688690.json` — SHA256 `81b06c04104cb27a84f17f7d7efb1e36fddc8f15c4dd73afa7f0d35817ca165b`
+
+Plan20 completed its two bounded preparation tasks. Counts are18/20 and142/150; original08/09 and all seven requirements remain pending. The original production checkpoint still requires exact cutover authority, compatibility rollout/prerequisites and the full observed live matrix/Contact inquiry-reply. No production migration/deployment, additional real mail or fund movement occurred. Checkout/payout/legal HOLD persists.

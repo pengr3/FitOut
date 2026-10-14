@@ -855,26 +855,11 @@ describe.runIf(SUPPORT_EMAIL !== null)(
       ).toContain("@");
     });
 
-    it("renders EXACTLY ONE `mailto:` usage", () => {
-      const usages = mailtoUsages(FOOTER, footerSource);
-      expect(
-        usages.length,
-        `${FOOTER} renders ${usages.length} \`mailto:\` usages; SUPPORT_EMAIL is set to a non-null ` +
-          `address, so the footer MUST render exactly one. Setting the constant without rendering ` +
-          `the link is the drift this branch exists to catch.`,
-      ).toBe(1);
-    });
-
-    it("interpolates the CONSTANT rather than a retyped address", () => {
-      const usages = mailtoUsages(FOOTER, footerSource);
-      for (const u of usages) {
-        expect(
-          u.interpolatesConstant,
-          `${u.file}:${u.line} writes the address into the \`mailto:\` instead of interpolating ` +
-            `SUPPORT_EMAIL. Two spellings of one address is the drift src/lib/site.ts exists to end.`,
-        ).toBe(true);
-        expect(u.text.match(ADDRESS) ?? [], `${u.file}:${u.line} hardcodes an address`).toEqual([]);
-      }
+    it("routes public support through Contact without publishing the private recipient", () => {
+      // Owner correction, October12: form-based contact supersedes the footer mailto requirement.
+      expect(mailtoUsages(FOOTER, footerSource)).toHaveLength(0);
+      expect(footerSource).toContain('absoluteMarketingUrl("/contact")');
+      expect(addressesIn(FOOTER, footerSource)).toEqual([]);
     });
   },
 );

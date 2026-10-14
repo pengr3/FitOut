@@ -1,0 +1,11 @@
+{
+  "output": "TAP version 13\n1..2\nnot ok 1 - tests/design/marketing-about.test.tsx > marketing About > connects player plans and host spaces through real actions # time=120.38ms\n    ---\n    error:\n        name: \"AssertionError\"\n        message: \"About needs one clear explanation heading: expected [] to have a length of 1 but got +0\"\n    at: \"C:/Users/Admin/Roaming/FitOut/tests/design/marketing-about.test.tsx:14:111\"\n    actual: \"0\"\n    expected: \"1\"\n    ...\nok 2 - tests/design/marketing-about.test.tsx > marketing About > keeps audience destinations and its own canonical # SKIP\n# tests 1\n# pass 0\n# fail 1\n",
+  "rawOutput": "TAP version 13\n1..2\nnot ok 1 - tests/design/marketing-about.test.tsx > marketing About > connects player plans and host spaces through real actions # time=120.38ms\n    ---\n    error:\n        name: \"AssertionError\"\n        message: \"About needs one clear explanation heading: expected [] to have a length of 1 but got +0\"\n    at: \"C:/Users/Admin/Roaming/FitOut/tests/design/marketing-about.test.tsx:14:111\"\n    actual: \"0\"\n    expected: \"1\"\n    ...\nok 2 - tests/design/marketing-about.test.tsx > marketing About > keeps audience destinations and its own canonical # SKIP\n",
+  "targetTest": "tests/design/marketing-about.test.tsx > marketing About > connects player plans and host spaces through real actions",
+  "adapter": "Vitest tap-flat omits footer; append actual non-SKIP counts only.",
+  "command": "node node_modules/vitest/vitest.mjs run --config vitest.design.config.ts tests/design/marketing-about.test.tsx --reporter=tap-flat -t 'connects player plans'",
+  "exitCode": 1,
+  "expected": "One clear About H1 connecting players and hosts",
+  "actual": "Rendered heading count zero",
+  "targetFile": "tests/design/marketing-about.test.tsx"
+}

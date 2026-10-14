@@ -57,8 +57,12 @@ type EmailFunctionName = {
  * The senders. `renderOpsAlertDigest` is excluded by name because it is a PURE RENDERER rather than a
  * send — it returns the two projections and never reaches the transport, so it has no recipient and
  * nothing for a probe to capture. `tests/ops/alert-digest.test.ts` reads it directly instead.
+ * Contact has a fixed SUPPORT_EMAIL recipient and validated matching-email inputs: replacing every
+ * string with markup is a rejected input, not a rendered-message probe. Its full transport contract
+ * is tested in tests/contact/contact-mail.test.ts. Keeping it out of this transactional preview
+ * harness also prevents an operator's chosen preview recipient from being silently ignored.
  */
-export type SenderName = Exclude<EmailFunctionName, "renderOpsAlertDigest">;
+export type SenderName = Exclude<EmailFunctionName, "renderOpsAlertDigest" | "sendContactInquiry">;
 
 /** One realistic call of one sender. */
 export type SenderCall = {
