@@ -40,7 +40,8 @@ for (const width of [320, 375, 768, 1440]) {
       // Still require the exact authority, path and query, including every non-root path.
       expect(new URL((await page.locator('link[rel="canonical"]').getAttribute("href"))!).href).toBe(new URL(`${marketing}${path}`).href);
       expect(new URL((await page.locator('meta[property="og:url"]').getAttribute("content"))!).href).toBe(new URL(`${marketing}${path}`).href);
-      await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", `${marketing}/marketing/screenshots/search.png`);
+      const ogImagePath = path === "/" || path === "/about" ? "/marketing/photos/tennis.jpg" : "/marketing/screenshots/search.png";
+      await expect(page.locator('meta[property="og:image"]')).toHaveAttribute("content", `${marketing}${ogImagePath}`);
       await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /index, follow/);
       for (const screenshot of await page.locator('main img[alt^="FitOut demo"]').all()) {
         await screenshot.scrollIntoViewIfNeeded();
