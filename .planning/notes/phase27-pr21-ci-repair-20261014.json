@@ -306,5 +306,71 @@
         "sha256": "7a8da478eea8d1776730a4a39c2fe2f0d365277066bfb11caaa30f1d4d8757ca"
       }
     ]
+  },
+  "contextCooldown": {
+    "source": "4cc30f273996e7247b34852361c70bebe4465b57",
+    "streamingRevision": "d25812340edcc159a7bd1b3e12c203c31b9bc48b",
+    "verifiedAt": "2026-10-14T04:45:17.061Z",
+    "precedingRun": "https://github.com/pengr3/FitOut/actions/runs/38510818318",
+    "precedingFunctional": {
+      "passed": 250,
+      "failed": 1,
+      "didNotRun": 302
+    },
+    "diagnosis": "signup setup failure pattern matches the live five-per-minute shared-IP rule; old failure assertion did not retain HTTP status",
+    "local": {
+      "lint": "passed",
+      "types": "passed",
+      "cooldownCases": 10,
+      "streamingContextCases": 8,
+      "browser": "not run: local Docker unavailable"
+    },
+    "sourceFiles": [
+      "e2e/marketing-streaming.spec.ts",
+      "e2e/helpers/streaming-test-context.ts",
+      "tests/design/streaming-test-context.test.ts",
+      "e2e/helpers/signup-fixture.ts",
+      "e2e/helpers/marketing-fixtures.ts",
+      "e2e/marketing-journeys.spec.ts",
+      "tests/design/signup-fixture-cooldown.test.ts"
+    ],
+    "evidence": [
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/ci-8c389-failed.log",
+        "sha256": "29295eb5b476d36249943b6a68f631ed3ce3abc2489f5355ac4abfcabfdfa4a4"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/streaming-context-result.json",
+        "sha256": "626cbfd120b5b2de60ac6ae4af7a9cb0093d408f5b6bb63fd17330d8139623df"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/streaming-context-lint.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/streaming-context-design.log",
+        "sha256": "33745c48290de28e36c39a5dffd841509fb3ab44a9ec7f8c078ac5633676fc7b"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/streaming-context-types.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/signup-fixture-result.json",
+        "sha256": "3265ff5b7afbab90fa968c3aef4a92670c74e45854a632ea6e8eecfa46d92645"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/signup-fixture-lint.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/signup-fixture-design.log",
+        "sha256": "f528f0aa5aea2110b1eb9c87b540e8b886031021c5f7084ed42986e03299809d"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/signup-fixture-types.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
   }
 }
