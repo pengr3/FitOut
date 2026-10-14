@@ -5,11 +5,11 @@ milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
 status: phase_complete
-stopped_at: "Phase 27 verified complete; Contact disabled; follow-up scope awaits owner direction"
-last_updated: "2026-10-14T00:33:55.618Z"
+stopped_at: "Phase27 complete; public Contact enabled and sending/monitoring verified"
+last_updated: "2026-10-14T01:37:54.695Z"
 last_activity: 2026-10-14
-last_activity_desc: Phase 27 complete; owner-confirmed Contact round trip and final verification passed
-state_head: 6bb6e3f7
+last_activity_desc: Public Contact release accepted; real inquiry delivered and natural monitor healthy
+state_head: 876f8168
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
   # verified, folded in rather than re-planned) plus 19-23 from the roadmap pass
@@ -62,6 +62,9 @@ progress:
   completed_plans: 145
   percent: 23
 ---
+
+Latest public release 2026-10-14T01:37:54.695Z: the owner authorized public Contact after Phase27 completion. WebHs/native876 is READY and serves all five web aliases; Contact=true, verification=false, Ops=false. One public browser inquiry has exact-deployment POST200/ResendDelivered proof; natural9:21monitor completed active/quotaAvailabletrue with0pending/stale. OriginalG8financial receiver/private query/14functions and separate1Contact monitor retained. Public Contact remains enabled; no new phase/plan/count, account, schema or financial change. Read releases/2026-10-14-contact-public/RESULT.md/.json. Earlier keep-disabled paragraphs are dated history.
+
 
 Phase 27 completed 2026-10-14T00:33:55.618Z: all 21 numbered plans and seven requirements are verified. The unchanged prepared, deployed and live validators pass; the goal audit covers 66 truths, 39 artifacts and five roadmap outcomes. The owner explicitly confirmed the original inquiry receipt, validated Reply recipient and normal reply arrival for P27-CONTACT-20261014-6BB. Current disabled Production remains the exact 6bb web G8/Ops 3qt pair; all eight aliases, three false Contact settings and empty pending quota/alert state are retained. Public Contact remains disabled by owner direction. Testing accounts, UI drafts, and checkout/payout/binding-terms holds are preserved. No additional live operation occurred in this closeout. Two nonnumbered supporting runbooks are recorded separately; curated progress advances only Plan09, from 144 to 145 of 151. See 27-09-SUMMARY.md and 27-VERIFICATION.md.
 
@@ -168,9 +171,9 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 Phase: 27 — App Subdomain & Marketing Website
 Plan: 21/21 numbered plans complete; 2 supporting completion records
-Status: Verified complete; Contact remains disabled
-Last activity: 2026-10-14 — Final evidence and owner round trip accepted
-Next: Review the owner's UI feedback or define a separate public Contact release scope. No other phase has been started.
+Status: Verified complete; Contact publicly enabled and sending/monitoring verified
+Last activity: 2026-10-14 — Public Contact release accepted; real inquiry delivered and scheduled monitor healthy
+Next: Review the owner's UI feedback. Public Contact release is now accepted; no other phase has been started.
 
 ### Earlier position recorded October9 — superseded
 

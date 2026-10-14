@@ -1124,7 +1124,7 @@ Plans:
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Complete    | 2026-09-10 |
 | 23. The Support Path Becomes Reachable | v1.2 | 0/3 | Planned — fitout.live domain, monitored support replies, and constrained provider callbacks | - |
 | 24. Search Bar Rework | v1.2 | 0/8 | Planned — progressive activity, location, and party-size journey ready to execute | - |
-| 27. App Subdomain & Marketing Website | v1.2 | 21/21 | Complete — Contact remains disabled | 2026-10-14 |
+| 27. App Subdomain & Marketing Website | v1.2 | 21/21 | Complete — public Contact enabled and verified | 2026-10-14 |
 
 ### Phase 24: Search Bar Rework
 
@@ -1272,7 +1272,7 @@ players can see how to get started.
 **Depends on:** Phase 26
 **Plans:** 21/21 numbered plans complete (nine original plus twelve supplementary gap plans); two supporting runbooks also have completion records.
 
-**Verified October 14, 2026:** All seven requirements, five roadmap outcomes and 21 numbered plans are complete. Prepared/deployed/live validation and the goal audit pass. The dated 35/35 matrix remains attributed to 588; current 6bb staff/customer and actual owner-confirmed inquiry/Reply-To/reply proofs are separate. Contact stays disabled; payment/payout and binding-terms holds remain independent. See [Phase 27 verification](phases/27-app-subdomain-marketing-website/27-VERIFICATION.md) and the dated [roadmap review](phases/27-app-subdomain-marketing-website/27-ROADMAP-REVIEW.md).
+**Verified October 14, 2026:** All seven requirements, five roadmap outcomes and 21 numbered plans are complete. Prepared/deployed/live validation and the goal audit pass. The dated 35/35 matrix remains attributed to 588; current 6bb staff/customer and actual owner-confirmed inquiry/Reply-To/reply proofs are separate. Contact was disabled at phase closeout; its subsequent owner-authorized October14 public release is accepted with actual delivery and healthy monitoring. Payment/payout and binding-terms holds remain independent. See [public Contact release](releases/2026-10-14-contact-public/RESULT.md). See [Phase 27 verification](phases/27-app-subdomain-marketing-website/27-VERIFICATION.md) and the dated [roadmap review](phases/27-app-subdomain-marketing-website/27-ROADMAP-REVIEW.md).
 
 **Scope captured from the user (2026-10-08):**
 
@@ -1353,7 +1353,7 @@ Plan 08 is complete with its SUMMARY and approved cutover/database-target author
 
 - [x] 27-09-PLAN.md — Perform authorized reversible cutover and prove live hosts/Contact receipt.
 
-Supplementary engineering repairs were approved beginning 2026-10-09. All twelve numbered supplementary plans below and original Plans08/09 are complete. Public Contact remains disabled by owner direction.
+Supplementary engineering repairs were approved beginning 2026-10-09. All twelve numbered supplementary plans below and original Plans08/09 are complete. Public Contact is enabled following the separately authorized October14 release; the numbered phase plan count is unchanged.
 
 - [x] 27-10-PLAN.md — Reconcile committed listing vocabulary with the existing database enum (wave 10; P27-G14)
 - [x] 27-11-PLAN.md — Repair audit and payment test preconditions without changing money behavior (wave 11; P27-G02, P27-G04, P27-G12)
