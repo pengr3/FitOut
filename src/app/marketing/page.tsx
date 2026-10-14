@@ -37,7 +37,7 @@ export default function MarketingHome() {
             { name: "Gyms", photo: "gym", detail: "Find your rhythm.", alt: "A well-equipped fitness floor with weights and exercise machines." },
             { name: "Studios", photo: "studio", detail: "Make room to move.", alt: "An open, light-filled dance studio with wall mirrors." },
           ].map((space) => (
-            <Link key={space.name} href="/players" className="group min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4">
+            <Link key={space.name} href="/players" className="group min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background">
               <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-muted">
                 <Image src={`/marketing/photos/${space.photo}.jpg`} alt={space.alt} fill unoptimized sizes="(max-width: 639px) calc(100vw - 32px), 33vw" className="object-cover transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none" />
               </div>
