@@ -1,0 +1,93 @@
+{
+  "verifiedAt": "2026-10-14T03:28:02.744Z",
+  "codeRevision": "eb81418d5a649fa3ceeceb2e52576738eef43335",
+  "pr": "https://github.com/pengr3/FitOut/pull/21",
+  "failedRun": "https://github.com/pengr3/FitOut/actions/runs/38501646166",
+  "localPassed": true,
+  "remoteStatus": "pending fresh checks",
+  "design": {
+    "initialPassed": 1517,
+    "initialFailed": 1,
+    "skipped": 6,
+    "focusedPassed": 14,
+    "distinctCombinedPassed": 1518,
+    "initialFailure": "metadata import exceeded 5-second local test timeout"
+  },
+  "unit": {
+    "passed": 55,
+    "failed": 0,
+    "ambientOriginsAndGoogleInputsRemoved": true
+  },
+  "workflowInvariants": 57,
+  "sourceFiles": [
+    ".github/workflows/baselines.yml",
+    ".github/workflows/ci.yml",
+    "e2e/helpers/browser-test-database.ts",
+    "e2e/helpers/marketing-fixtures.ts",
+    "e2e/marketing-journeys.spec.ts",
+    "playwright.config.ts",
+    "tests/auth/email-dev-fallback.test.ts",
+    "tests/auth/hosting-resume.test.tsx",
+    "tests/auth/ops-host-auth.test.ts",
+    "tests/auth/secret-config.test.ts",
+    "tests/design/browser-test-database.test.ts"
+  ],
+  "evidence": [
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/local-repair.json",
+      "sha256": "269ef04f631b50d73a42ce4241079c44e556b7e0064852fadb0e8ae37bac4f3c"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/local-repair-pre-import-failure.json",
+      "sha256": "eedbbe66b87f7424fa73f318ab059d2cd4ea1bf86be5bd56c470e57106a11d16"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/local-repair-final.json",
+      "sha256": "edc854fbf9cc15916bdf1252b0fc9a1eb057e37c81c13cf48de4d5dbafe90d39"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/repair-design.log",
+      "sha256": "87bda25d725a78cd40ff9a8e76216a7f504cc7d4975729983cd8afec9490bebd"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/repair-design-focused.log",
+      "sha256": "4f3bf4f5ad63a4f992cc4c25bffcf7af0d8d696937047e0737ac74b1fcd33f46"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/repair-unit-pre-import-failure.log",
+      "sha256": "050a2ca56b2310ff7bf9d4034227fb3aeb249d14fa3cfaa6955f979ad0bd2c61"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/repair-unit.log",
+      "sha256": "9cdc68f1a7bbd1975756512290c317e101523d6550fe1dbe26afdbf61fe1f64b"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/repair-lint-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/repair-typecheck-initial-failure.log",
+      "sha256": "c3b73ffaa90b69f275f57d3205d597c51155e1ce83aaab8f5ed1e7f788d7e5d8"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/repair-database-type-lint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/repair-database-type-design.log",
+      "sha256": "954f0f5bfbc82cd68b84b0d433c06b6a64952381fb22c251d9e6fbbd6b6811d3"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/repair-typecheck.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/repair-workflow-final.log",
+      "sha256": "3bc9651ac4148b8dc286789f0674d476e15a265597825e38170ceae339c1d04d"
+    },
+    {
+      "path": "playwright/.cache/phase27-merge-20261014/ci-failed.log",
+      "sha256": "cb3fbe8d3b6fc9cf0252aaa7d8da6a6ce0f1f09c1974843ef696669527c034f6"
+    }
+  ]
+}

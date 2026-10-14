@@ -1,6 +1,6 @@
 ---
 phase: 27-app-subdomain-marketing-website
-verified: "2026-10-14T02:30:59.635Z"
+verified: "2026-10-14T03:28:02.744Z"
 status: passed
 score: 66/66
 roadmap_score: 5/5
@@ -14,10 +14,13 @@ source_manifest: a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a49
 numbered_plans: 21
 supporting_completion_records: 2
 covered_files:
+  - .github/workflows/baselines.yml
   - .github/workflows/ci.yml
   - .planning/notes/marketing-ui-20261012.md
   - .planning/notes/phase27-marketing-ui-shipping-20261014.json
   - .planning/notes/phase27-marketing-ui-shipping-20261014.md
+  - .planning/notes/phase27-pr21-ci-repair-20261014.json
+  - .planning/notes/phase27-pr21-ci-repair-20261014.md
   - .planning/phases/27-app-subdomain-marketing-website/27-01-PLAN.md
   - .planning/phases/27-app-subdomain-marketing-website/27-01-RED.json
   - .planning/phases/27-app-subdomain-marketing-website/27-01-SUMMARY.md
@@ -87,6 +90,7 @@ covered_files:
   - .planning/phases/27-app-subdomain-marketing-website/27-PREVIEW-ISOLATION-EVIDENCE.md
   - .planning/phases/27-app-subdomain-marketing-website/27-RELEASE-CONTROL-SCOPE.md
   - .planning/phases/27-app-subdomain-marketing-website/27-SECURITY.md
+  - e2e/helpers/browser-test-database.ts
   - e2e/helpers/marketing-fixtures.ts
   - e2e/helpers/marketing-gallery.ts
   - e2e/marketing-captures.spec.ts
@@ -106,6 +110,20 @@ covered_files:
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-confirmed-verifier-results.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-round-trip-confirmation.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/requirement-format-normalization.json
+  - playwright/.cache/phase27-merge-20261014/ci-failed.log
+  - playwright/.cache/phase27-merge-20261014/local-repair-final.json
+  - playwright/.cache/phase27-merge-20261014/local-repair-pre-import-failure.json
+  - playwright/.cache/phase27-merge-20261014/local-repair.json
+  - playwright/.cache/phase27-merge-20261014/repair-database-type-design.log
+  - playwright/.cache/phase27-merge-20261014/repair-database-type-lint.log
+  - playwright/.cache/phase27-merge-20261014/repair-design-focused.log
+  - playwright/.cache/phase27-merge-20261014/repair-design.log
+  - playwright/.cache/phase27-merge-20261014/repair-lint-final.log
+  - playwright/.cache/phase27-merge-20261014/repair-typecheck-initial-failure.log
+  - playwright/.cache/phase27-merge-20261014/repair-typecheck.log
+  - playwright/.cache/phase27-merge-20261014/repair-unit-pre-import-failure.log
+  - playwright/.cache/phase27-merge-20261014/repair-unit.log
+  - playwright/.cache/phase27-merge-20261014/repair-workflow-final.log
   - playwright/.cache/phase27-ship-20261014/browser-1937320d.log
   - playwright/.cache/phase27-ship-20261014/browser-c81059b8.log
   - playwright/.cache/phase27-ship-20261014/build-1937320d.log
@@ -200,18 +218,22 @@ covered_files:
   - src/lib/verification/providers/didit.ts
   - src/proxy.ts
   - tests/auth/app-origin-continuity.test.ts
+  - tests/auth/email-dev-fallback.test.ts
   - tests/auth/email-injection.test.ts
   - tests/auth/hosting-intent.test.tsx
   - tests/auth/hosting-resume.test.tsx
   - tests/auth/legacy-auth-links.test.ts
   - tests/auth/marketing-host-routing.test.ts
   - tests/auth/ops-cloak-probe.test.ts
+  - tests/auth/ops-host-auth.test.ts
   - tests/auth/ops-host-routing.test.ts
   - tests/auth/public-origin-callers.test.ts
+  - tests/auth/secret-config.test.ts
   - tests/auth/service-origin-continuity.test.ts
   - tests/contact/contact-form.test.tsx
   - tests/contact/contact-mail.test.ts
   - tests/contact/contact-route.test.ts
+  - tests/design/browser-test-database.test.ts
   - tests/design/email-shell.test.ts
   - tests/design/listing-reuse-predicate-census.test.ts
   - tests/design/listing-vocabulary-parity.test.ts
@@ -233,12 +255,14 @@ covered_files:
   - tests/security/audit-durable.test.ts
   - tests/security/audit.test.ts
   - tests/validation/listing-schema.test.ts
-covered_digest: "v1:sha256:c055ab460993e5a69f6917133d454b3d2a35de34771f4abe5d57f27f875de882"
+covered_digest: "v1:sha256:becc0fe5acbc3e9006c2d7fa21c0061c27e4ff2eb6052c43bbbe4e3296c843b7"
 closure_verified: "2026-10-14T00:25:56.970Z"
 closure_covered_digest: "v1:sha256:2b37fe7169e261e62f4b06b4d9518370816a628a6f4e8034b262309f7648d163"
 shipping_source_revision: 1937320dd0d50b99b46a9a13268ae02a9eac3bbb
 shipping_overlay_revision: c81059b8495dd3166b0ebf2ba831c013d5458d6d
 shipping_evidence: .planning/notes/phase27-marketing-ui-shipping-20261014.md
+ci_repair_revision: eb81418d5a649fa3ceeceb2e52576738eef43335
+ci_repair_evidence: .planning/notes/phase27-pr21-ci-repair-20261014.md
 ---
 
 # Phase27 goal verification
@@ -246,6 +270,10 @@ shipping_evidence: .planning/notes/phase27-marketing-ui-shipping-20261014.md
 ## Current Git integration addendum — 2026-10-14T02:30:59.635Z
 
 The original6bb closure below is dated history. Public Contact was subsequently enabled and verified in .planning/releases/2026-10-14-contact-public/RESULT.md. The owner's later marketing UI is now integrated on codex/phase27-marketing-ui, with1510design/659selected-unit assertions, successful build/type/lint,42combined browser cases and the L1 audit. See .planning/notes/phase27-marketing-ui-shipping-20261014.md for exact source cohorts, failures/repairs and retained limits. The current fingerprint covers the reviewed overlay; closure_covered_digest preserves the original immutable closure identity. No later live test is attributed to this UI source.
+
+## PR21 CI repair addendum — 2026-10-14T03:28:02.744Z
+
+The merge preparation at eb81418d5a649fa3ceeceb2e52576738eef43335 repairs ephemeral browser database routing and auth-test input isolation only. Local lint/types,55 affected auth cases and57 workflow invariants pass;1518 distinct design assertions pass across the full run plus the focused metadata-timeout rerun. Fresh GitHub CI remains required before merge. See .planning/notes/phase27-pr21-ci-repair-20261014.md; all original completion/live source identities and closure digest remain preserved.
 
 ## Original6bb goal closure
 
