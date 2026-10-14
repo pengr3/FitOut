@@ -8,7 +8,9 @@ export async function signUpFixture(request: APIRequestContext, data: {
   const send = () => request.post("/api/auth/sign-up/email", { data, failOnStatusCode: false });
   const response = await send();
   if (response.status() !== 429) return response;
-  const seconds = Number(response.headers()["retry-after"]);
+  // Better Auth 1.6 emits X-Retry-After; retain standard-header support too.
+  const headers = response.headers();
+  const seconds = Number(headers["retry-after"] ?? headers["x-retry-after"]);
   if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 60) return response;
   const waitMs = Math.min(60_000, seconds * 1_000 + 1_000);
   onCooldown(waitMs);

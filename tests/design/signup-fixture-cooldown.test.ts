@@ -14,6 +14,12 @@ describe("signup fixture cooldown", () => {
     await vi.advanceTimersByTimeAsync(1); expect((await pending).status()).toBe(200);
     expect(post).toHaveBeenCalledTimes(2); expect(onCooldown).toHaveBeenCalledWith(2_000);
   });
+  it("honors the installed Better Auth X-Retry-After header", async () => {
+    const limited = { status: () => 429, headers: () => ({ "x-retry-after": "1" }) } as unknown as APIResponse;
+    const post = vi.fn().mockResolvedValueOnce(limited).mockResolvedValueOnce(response(200));
+    const pending = signUpFixture(request(post), data, vi.fn());
+    await vi.advanceTimersByTimeAsync(2_000); expect((await pending).status()).toBe(200); expect(post).toHaveBeenCalledTimes(2);
+  });
   it.each([undefined, "0", "-1", "NaN", "61", "999999"])("refuses missing or unbounded Retry-After %s", async (cooldown) => {
     const post = vi.fn().mockResolvedValue(response(429, cooldown)); const onCooldown = vi.fn();
     expect((await signUpFixture(request(post), data, onCooldown)).status()).toBe(429);
