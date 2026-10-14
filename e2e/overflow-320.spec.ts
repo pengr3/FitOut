@@ -26,6 +26,7 @@ import { FLOOR_PX, expectNoOverflow, expectNoOverflowWithin } from "./helpers/ov
 import { seedPaymentStates, type SeededPaymentStates } from "./helpers/seed-payment-states";
 import { BASE_URL as BASE, installTruncator } from "./helpers/served-document";
 import { seedTheme } from "./helpers/theme";
+import { MARKETING_ORIGIN, MARKETING_SURFACES } from "./helpers/marketing-surfaces";
 // The support constant is imported rather than re-declared, for `site.ts`'s own stated reason: it is
 // pure and isomorphic (no `server-only` guard) precisely so a gate can read it. The D-83 case below
 // branches on it, so a spec carrying its own copy would go green the day the real one changed.
@@ -540,6 +541,18 @@ type RouteRow = {
  * alphabetically".
  */
 const ROUTES: readonly RouteRow[] = [
+  ...MARKETING_SURFACES.map((surface) => ({
+    origin: MARKETING_ORIGIN, name: `marketing ${surface.path}`,
+    path: surface.path, tell: surface.tell,
+  })),
+  {
+    name: "/start-hosting",
+    path: async (page) => {
+      await signUpThroughTheForm(page, "book");
+      return "/start-hosting";
+    },
+    tell: 'h1:has-text("Start hosting with FitOut")',
+  },
   {
     name: "/",
     path: "/",
@@ -3863,6 +3876,12 @@ type SurfaceCoverage = {
  * measurement covers this file, or why no measurement does. Both are answers; an ABSENCE is not.
  */
 const SURFACE_INVENTORY: readonly SurfaceCoverage[] = [
+  // Disk-derived namespace keys map to measured documents on the real marketing host.
+  ...MARKETING_SURFACES.map((surface) => ({
+    surface: surface.path === "/" ? "/marketing" : `/marketing${surface.path}`,
+    coveredBy: [`marketing ${surface.path}`],
+  })),
+  { surface: "/start-hosting", coveredBy: ["/start-hosting"] },
   // ─── PAGE ROUTES · PUBLIC ─────────────────────────────────────────────────────────────────────
   { surface: "/", coveredBy: ["/"] },
   { surface: "/listings/[id]", coveredBy: ["/listings/[id]", "/listings/[id] · sheet open"] },

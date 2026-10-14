@@ -3,6 +3,7 @@ import { readdirSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
 import { expectAxeClean } from "./helpers/axe";
+import { MARKETING_ORIGIN, MARKETING_SURFACES } from "./helpers/marketing-surfaces";
 import { BASE_URL as BASE, installTruncator } from "./helpers/served-document";
 import { seedTheme } from "./helpers/theme";
 import {
@@ -433,6 +434,17 @@ function declaredRouteFiles(): string[] {
  * that silence stops being available.
  */
 const ROWS: readonly SweepRow[] = [
+  // Phase 27: each new document joins the same two-width, full-rule scan.
+  ...MARKETING_SURFACES.map((surface) => ({
+    ...surface, origin: MARKETING_ORIGIN, name: `marketing ${surface.path}`,
+  })),
+  {
+    file: "src/app/start-hosting/page.tsx",
+    name: "/start-hosting",
+    path: "/start-hosting",
+    session: "booker",
+    tell: 'h1:has-text("Start hosting with FitOut")',
+  },
   // ─── the public tier ─────────────────────────────────────────────────────────────────────────────
   {
     file: "src/app/(public)/page.tsx",
