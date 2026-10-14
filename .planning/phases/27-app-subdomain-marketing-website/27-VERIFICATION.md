@@ -1,6 +1,6 @@
 ---
 phase: 27-app-subdomain-marketing-website
-verified: "2026-10-14T04:45:17.061Z"
+verified: "2026-10-14T05:05:58.125Z"
 status: passed
 score: 66/66
 roadmap_score: 5/5
@@ -115,11 +115,18 @@ covered_files:
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-confirmed-verifier-results.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-round-trip-confirmation.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/requirement-format-normalization.json
+  - playwright/.cache/phase27-merge-20261014/auth-header-design.log
+  - playwright/.cache/phase27-merge-20261014/auth-header-lint.log
+  - playwright/.cache/phase27-merge-20261014/auth-header-result.json
+  - playwright/.cache/phase27-merge-20261014/auth-header-types-initial-failure.log
+  - playwright/.cache/phase27-merge-20261014/auth-header-types.log
+  - playwright/.cache/phase27-merge-20261014/auth-sdk-header-control.json
   - playwright/.cache/phase27-merge-20261014/capture-design.log
   - playwright/.cache/phase27-merge-20261014/capture-fix-result.json
   - playwright/.cache/phase27-merge-20261014/capture-lint.log
   - playwright/.cache/phase27-merge-20261014/capture-types.log
   - playwright/.cache/phase27-merge-20261014/ci-16f03-failed.log
+  - playwright/.cache/phase27-merge-20261014/ci-49e2a-failed.log
   - playwright/.cache/phase27-merge-20261014/ci-5cf91-failed.log
   - playwright/.cache/phase27-merge-20261014/ci-5cf91-unit-success.log
   - playwright/.cache/phase27-merge-20261014/ci-8c389-failed.log
@@ -302,7 +309,7 @@ covered_files:
   - tests/security/audit-durable.test.ts
   - tests/security/audit.test.ts
   - tests/validation/listing-schema.test.ts
-covered_digest: "v1:sha256:59d33a3668a68da7fbf965987b3174256f43fa89c7e2727c174e2c852b7bc89d"
+covered_digest: "v1:sha256:7e3b5072630665ffd2da5401f4050bec1b2707da216bda0416fa10ff2ef8e0fe"
 closure_verified: "2026-10-14T00:25:56.970Z"
 closure_covered_digest: "v1:sha256:2b37fe7169e261e62f4b06b4d9518370816a628a6f4e8034b262309f7648d163"
 shipping_source_revision: 1937320dd0d50b99b46a9a13268ae02a9eac3bbb
@@ -315,6 +322,7 @@ ci_route_coverage_revision: 8378a375736301385f3240c87767459d857fd161
 ci_capture_revision: 61bff2b2f60397c689326ca1837c5804d5c5c540
 ci_inngest_mode_revision: 218b462b6e9f405972fe80c8a1d788a8a8a9fc1d
 ci_context_cooldown_revision: 4cc30f273996e7247b34852361c70bebe4465b57
+ci_auth_header_revision: 43cc1f1018ca209697736afabc75f87da37bfd65
 ---
 
 # Phase27 goal verification
@@ -336,6 +344,8 @@ Capture isolation and settled-dialog auditing at 61bff2b2f60397c689326ca1837c580
 The local Inngest test-mode correction at 218b462b6e9f405972fe80c8a1d788a8a8a9fc1d passes lint/types/13 config assertions and an actual-SDK cloud500/dev200 control with zero functions/network calls. The preceding run passes1521 design/3464 unit cases and240 functional cases, including repaired captures, before the cloud-default introspection failure. Fresh final-head CI remains required. See .planning/notes/phase27-pr21-ci-repair-20261014.md.
 
 Context/cooldown source 4cc30f273996e7247b34852361c70bebe4465b57 passes lint/types/18 guards. Real auth limits stay unchanged; ordinary dev and strict standalone production proof contexts are distinguished. The prior run passes250 functional cases including repaired receivers, but signup setup fails without retained HTTP status; its rate-limit diagnosis remains an inference until fresh diagnostics. Final-head CI is still required. See .planning/notes/phase27-pr21-ci-repair-20261014.md.
+
+Installed auth header correction at 43cc1f1018ca209697736afabc75f87da37bfd65 passes lint/types/11 cooldown cases and a real-SDK invalid-password control showing sixth-request429 with X-Retry-After60 and zero network calls. The preceding CI confirms429 after250 functional passes. The initial standard-header assumption is preserved as a failure; final-head CI is still required. See .planning/notes/phase27-pr21-ci-repair-20261014.md.
 
 ## Original6bb goal closure
 

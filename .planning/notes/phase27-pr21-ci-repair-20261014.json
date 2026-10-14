@@ -372,5 +372,62 @@
         "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
       }
     ]
+  },
+  "authHeader": {
+    "source": "43cc1f1018ca209697736afabc75f87da37bfd65",
+    "verifiedAt": "2026-10-14T05:05:58.125Z",
+    "precedingRun": "https://github.com/pengr3/FitOut/actions/runs/38513045076",
+    "observedFailure": "real signup fixture HTTP429; no retry taken because only standard Retry-After was read",
+    "precedingFunctional": {
+      "passed": 250,
+      "failed": 1,
+      "didNotRun": 302
+    },
+    "local": {
+      "lint": "passed",
+      "types": "passed",
+      "cooldownCases": 11,
+      "sdkStatuses": [
+        400,
+        400,
+        400,
+        400,
+        400,
+        429
+      ],
+      "sdkHeader": "X-Retry-After: 60",
+      "standardHeader": null,
+      "networkAttempts": 0
+    },
+    "evidence": [
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/ci-49e2a-failed.log",
+        "sha256": "9fec27a71ef12697f795e4fe491206ec5d3916c964a3bd301e33c6b6cd92ff78"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/auth-header-result.json",
+        "sha256": "b747d413bc5ab0a85d996c683bc7b1a2353b8e0775b0ae735bac2f8383f3ad56"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/auth-header-lint.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/auth-header-design.log",
+        "sha256": "b5d99867feed549a1bc02019e769b7347292d87d004a575d310523739e1725ea"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/auth-header-types.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/auth-header-types-initial-failure.log",
+        "sha256": "bfd598b29e92571f93ca195b618ddbc8346d99b233532eb83ca5bfeeb68d7b2a"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/auth-sdk-header-control.json",
+        "sha256": "4233a0b973246856767987a7b01ea212b949ba6738a867d810da906150b64bb0"
+      }
+    ]
   }
 }
