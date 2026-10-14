@@ -129,5 +129,71 @@
         "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
       }
     ]
+  },
+  "routeCoverageRepair": {
+    "source": "8378a375736301385f3240c87767459d857fd161",
+    "verifiedAt": "2026-10-14T03:43:54.654Z",
+    "remoteRun": "https://github.com/pengr3/FitOut/actions/runs/38506968123",
+    "precedingRemote": {
+      "dbFree": "success",
+      "unit": "success",
+      "priceParity": "success",
+      "visual": "success",
+      "functional": "failure: seven Phase27 routes absent from axe census"
+    },
+    "sourceFiles": [
+      "e2e/axe-sweep.spec.ts",
+      "e2e/overflow-320.spec.ts",
+      "e2e/helpers/marketing-surfaces.ts"
+    ],
+    "newScans": 28,
+    "local": {
+      "lint": "passed",
+      "typecheck": "passed",
+      "censusAssertions": 10,
+      "browserScans": "not run: local Docker database unavailable"
+    },
+    "evidence": [
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/ci-91c75-e2e-failure.log",
+        "sha256": "62d050e2af5e53168a7832a2bbde6fb37a007258f9b01269c172d1c5140dea5c"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/ci-16f03-failed.log",
+        "sha256": "9e74adcf0dbaf7549501f5d2dc65c6e31eb8b9bc2b8a42563b6aba96ba0438fb"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/route-coverage-result.json",
+        "sha256": "c274702bae9c320f9fcc6d4e0bd19d7079000eb61af0c5ec605e8ef50e3e9e88"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/route-lint.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/route-types.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/route-test-seed.log",
+        "sha256": "9b954c612abf4e25443d61395ad266e36835257b72d8486cc68fa1e0fe6a753c"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/route-census-initial-selection-failure.log",
+        "sha256": "dd8a96059145cb6436d7f402d186bf3089f23ad302fb85c23b3880720e91fb66"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/route-census-initial-selection-failure.json",
+        "sha256": "004ab71e95d7a352c4f45ca770a8eda8528cc2a59ac2b51c124b00f069008b93"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/route-census-result.json",
+        "sha256": "1f35e010aac5d3ad7f2df00093a30f9acc989f5000f129f108cafe2ac314c66f"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/route-census.log",
+        "sha256": "75fd053d794dc5310d17debb81861a12b7c9b7c0111af3a3673da1e95db5514a"
+      }
+    ]
   }
 }

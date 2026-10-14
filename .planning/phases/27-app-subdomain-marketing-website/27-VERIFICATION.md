@@ -1,6 +1,6 @@
 ---
 phase: 27-app-subdomain-marketing-website
-verified: "2026-10-14T03:34:20.318Z"
+verified: "2026-10-14T03:43:54.654Z"
 status: passed
 score: 66/66
 roadmap_score: 5/5
@@ -90,9 +90,11 @@ covered_files:
   - .planning/phases/27-app-subdomain-marketing-website/27-PREVIEW-ISOLATION-EVIDENCE.md
   - .planning/phases/27-app-subdomain-marketing-website/27-RELEASE-CONTROL-SCOPE.md
   - .planning/phases/27-app-subdomain-marketing-website/27-SECURITY.md
+  - e2e/axe-sweep.spec.ts
   - e2e/helpers/browser-test-database.ts
   - e2e/helpers/marketing-fixtures.ts
   - e2e/helpers/marketing-gallery.ts
+  - e2e/helpers/marketing-surfaces.ts
   - e2e/marketing-captures.spec.ts
   - e2e/marketing-contact.spec.ts
   - e2e/marketing-host-matrix.spec.ts
@@ -100,6 +102,7 @@ covered_files:
   - e2e/marketing-streaming.spec.ts
   - e2e/marketing-tracer.spec.ts
   - e2e/marketing-ui-feedback.spec.ts
+  - e2e/overflow-320.spec.ts
   - playwright.config.ts
   - playwright.marketing-captures.config.ts
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/anti-pattern-audit.json
@@ -110,7 +113,9 @@ covered_files:
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-confirmed-verifier-results.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-round-trip-confirmation.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/requirement-format-normalization.json
+  - playwright/.cache/phase27-merge-20261014/ci-16f03-failed.log
   - playwright/.cache/phase27-merge-20261014/ci-91c75-dbfree-failure.log
+  - playwright/.cache/phase27-merge-20261014/ci-91c75-e2e-failure.log
   - playwright/.cache/phase27-merge-20261014/ci-failed.log
   - playwright/.cache/phase27-merge-20261014/config-import-design.log
   - playwright/.cache/phase27-merge-20261014/config-import-lint.log
@@ -129,6 +134,14 @@ covered_files:
   - playwright/.cache/phase27-merge-20261014/repair-unit-pre-import-failure.log
   - playwright/.cache/phase27-merge-20261014/repair-unit.log
   - playwright/.cache/phase27-merge-20261014/repair-workflow-final.log
+  - playwright/.cache/phase27-merge-20261014/route-census-initial-selection-failure.json
+  - playwright/.cache/phase27-merge-20261014/route-census-initial-selection-failure.log
+  - playwright/.cache/phase27-merge-20261014/route-census-result.json
+  - playwright/.cache/phase27-merge-20261014/route-census.log
+  - playwright/.cache/phase27-merge-20261014/route-coverage-result.json
+  - playwright/.cache/phase27-merge-20261014/route-lint.log
+  - playwright/.cache/phase27-merge-20261014/route-test-seed.log
+  - playwright/.cache/phase27-merge-20261014/route-types.log
   - playwright/.cache/phase27-ship-20261014/browser-1937320d.log
   - playwright/.cache/phase27-ship-20261014/browser-c81059b8.log
   - playwright/.cache/phase27-ship-20261014/build-1937320d.log
@@ -261,7 +274,7 @@ covered_files:
   - tests/security/audit-durable.test.ts
   - tests/security/audit.test.ts
   - tests/validation/listing-schema.test.ts
-covered_digest: "v1:sha256:353b11fca2e1708fa17977f5aeca8cd1038664973074bac4b42fe3ba1d15af55"
+covered_digest: "v1:sha256:f18c6b2d42a6d068737746e2e7417cfc7ba296f81acfe8aca53036bfb71cdc1e"
 closure_verified: "2026-10-14T00:25:56.970Z"
 closure_covered_digest: "v1:sha256:2b37fe7169e261e62f4b06b4d9518370816a628a6f4e8034b262309f7648d163"
 shipping_source_revision: 1937320dd0d50b99b46a9a13268ae02a9eac3bbb
@@ -270,6 +283,7 @@ shipping_evidence: .planning/notes/phase27-marketing-ui-shipping-20261014.md
 ci_repair_revision: eb81418d5a649fa3ceeceb2e52576738eef43335
 ci_repair_evidence: .planning/notes/phase27-pr21-ci-repair-20261014.md
 ci_config_import_revision: ab4cca136152b60bf73b97cb483dd0e76405138e
+ci_route_coverage_revision: 8378a375736301385f3240c87767459d857fd161
 ---
 
 # Phase27 goal verification
@@ -283,6 +297,8 @@ The original6bb closure below is dated history. Public Contact was subsequently 
 The merge preparation at eb81418d5a649fa3ceeceb2e52576738eef43335 repairs ephemeral browser database routing and auth-test input isolation only. Local lint/types,55 affected auth cases and57 workflow invariants pass;1518 distinct design assertions pass across the full run plus the focused metadata-timeout rerun. Fresh GitHub CI remains required before merge. See .planning/notes/phase27-pr21-ci-repair-20261014.md; all original completion/live source identities and closure digest remain preserved.
 
 The CI config-import follow-up at ab4cca136152b60bf73b97cb483dd0e76405138e passes13 focused assertions,lint and types. The preceding remote run passed unit/price/visual; final-head CI is still pending. Historical failures and source cohorts remain in .planning/notes/phase27-pr21-ci-repair-20261014.md.
+
+Route coverage at 8378a375736301385f3240c87767459d857fd161 adds28 real scan cases for the seven new documents;10 local census assertions,lint and types pass. Local DOM scans could not start with Docker unavailable; final-head GitHub functional/DOM checks are required before merge. The preceding run passes all four other gates. See .planning/notes/phase27-pr21-ci-repair-20261014.md for preserved failures.
 
 ## Original6bb goal closure
 
