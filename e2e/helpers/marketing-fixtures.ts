@@ -1,8 +1,9 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { createHmac, randomUUID } from "node:crypto";
 import { assertTestDatabase } from "../../tests/helpers/test-db-url";
 import postgres from "postgres";
 import { browserTestDatabase } from "./browser-test-database";
+import { signUpFixture } from "./signup-fixture";
 
 export const MARKETING_TEST_DATABASE = browserTestDatabase();
 
@@ -69,10 +70,10 @@ export async function marketingFixture() {
     async account(page: Page, intent: "book" | "host") {
       const email = `marketing.${randomUUID()}@example.com`;
       accounts.push(email);
-      const response = await page.request.post("/api/auth/sign-up/email", {
-        data: { email, password: "FitOutDemoPassword123!", name: "FitOut Demo", firstName: "FitOut", intent },
+      const response = await signUpFixture(page.request, { email, password: "FitOutDemoPassword123!", name: "FitOut Demo", firstName: "FitOut", intent }, (waitMs) => {
+        const info = test.info(); info.setTimeout(info.timeout + waitMs + 10_000);
       });
-      expect(response.ok(), "real local account signup succeeds").toBe(true);
+      expect(response.ok(), `real local account signup succeeds; HTTP${response.status()}`).toBe(true);
       const [user] = await seed.sql`SELECT id FROM "user" WHERE email = ${email}`;
       expect(user).toBeTruthy();
       return user.id as string;

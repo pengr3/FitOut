@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import postgres from "postgres";
+import { signUpFixture } from "./helpers/signup-fixture";
 import { marketingFixture, MARKETING_TEST_DATABASE } from "./helpers/marketing-fixtures";
 
 // Explicit guarded test DB only; this spec cannot inherit a production connection.
@@ -51,10 +52,10 @@ test.afterAll(async () => {
 async function createAccount(page: Page, intent: "book" | "host") {
   const email = `e2e.host-intent.${Date.now()}.${Math.random().toString(36).slice(2)}@example.com`;
   accounts.push(email);
-  const response = await page.request.post("/api/auth/sign-up/email", {
-    data: { email, password, name: "Journey", firstName: "Journey", intent },
+  const response = await signUpFixture(page.request, { email, password, name: "Journey", firstName: "Journey", intent }, (waitMs) => {
+    const info = test.info(); info.setTimeout(info.timeout + waitMs + 10_000);
   });
-  expect(response.ok()).toBe(true);
+  expect(response.ok(), `real signup fixture must succeed; HTTP${response.status()}`).toBe(true);
   return email;
 }
 
