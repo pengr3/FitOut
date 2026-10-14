@@ -100,6 +100,17 @@ async function loadWebServer(flag: string): Promise<WebServer> {
 beforeEach(() => {
   captured.length = 0;
   vi.resetModules();
+  // Import configuration only: no browser server or database connection is started.
+  // Exercise the real CI selector with its exact ephemeral fixture, and restore
+  // every config-mutated value so LINK 2 never inherits a mismatched build origin.
+  vi.stubEnv("CI", "true");
+  vi.stubEnv("GITHUB_ACTIONS", "true");
+  vi.stubEnv("DATABASE_URL", "postgres://fitout:fitout@postgres:5432/fitout_test");
+  vi.stubEnv("BETTER_AUTH_SECRET", "phase27-inert-auth-marker-not-a-real-credential");
+  vi.stubEnv("BETTER_AUTH_URL", "http://localhost:3000");
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", "http://localhost:3000");
+  vi.stubEnv("MARKETING_APP_URL", "http://marketing.localhost:3000");
+  vi.stubEnv("OPS_APP_URL", "http://ops.localhost:3000");
 });
 
 afterEach(() => {
@@ -120,6 +131,9 @@ describe("LINK 1 — playwright.config.ts silences Resend for every server it bo
     expect(webServer.env, "webServer must declare an env block at all").toBeTruthy();
     expect(Object.keys(webServer.env ?? {})).toContain("RESEND_API_KEY");
     expect(webServer.env?.RESEND_API_KEY).toBe("");
+    expect(webServer.env?.DATABASE_URL).toBe("postgres://fitout:fitout@postgres:5432/fitout_test");
+    expect(webServer.env?.BETTER_AUTH_SECRET).toBe(process.env.BETTER_AUTH_SECRET);
+    expect(webServer.env?.BETTER_AUTH_URL).toBe(process.env.BETTER_AUTH_URL);
   });
 
   it(`with ${REAL_EMAIL_FLAG}=1 the config emits NO RESEND_API_KEY key at all`, async () => {
