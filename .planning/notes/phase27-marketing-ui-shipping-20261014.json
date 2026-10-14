@@ -1,0 +1,99 @@
+{
+  "verifiedAt": "2026-10-14T02:30:59.635Z",
+  "codeRevision": "1937320dd0d50b99b46a9a13268ae02a9eac3bbb",
+  "overlayRevision": "c81059b8495dd3166b0ebf2ba831c013d5458d6d",
+  "passed": true,
+  "counts": {
+    "designPassed": 1510,
+    "designSkipped": 6,
+    "unitPassed": 659,
+    "browserFirstPassed": 34,
+    "browserRerunPassed": 8,
+    "browserTotal": 42,
+    "lintErrors": 0,
+    "lintWarnings": 33,
+    "workflowInvariants": 57
+  },
+  "sourceDelta": [
+    ".github/workflows/ci.yml",
+    "e2e/marketing-host-matrix.spec.ts"
+  ],
+  "evidence": [
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/verification-result.json",
+      "sha256": "86fd0ac7b772a913a63708b8dff534b47dd3ee2012faa34ca36b010ffccc0d03"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/verification-result-1937320d.json",
+      "sha256": "91243a1876ddbf75fafa9463626e6b43507a6aff124a4a2467d951aa2508ebaa"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/verification-result-c81059b8.json",
+      "sha256": "e6e527849130b8ddad2d7f7985bff432433a0f1c254591214751a4ec254ef9bb"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/source-proof.json",
+      "sha256": "025d57778bf10dd6613a24b548b9e984c8848d411e2f1302c3e3f8f7744c5336"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/source-correspondence.json",
+      "sha256": "c58618996b13443e4d66936f498c32339cff92e9247c0d548f9f0ef6bc967d96"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/source-correspondence-1937320d.json",
+      "sha256": "24dbcb5cfa6f1885a9d5177351bb6cc08257de3b21f2d5b1db808b84e1b52080"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/source-correspondence-c81059b8.json",
+      "sha256": "cb3bafb1965e95d495fd2253eea6d448e9f9b6f23b3778bab8ab545b7816a940"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/source-correspondence-c81059b8-post.json",
+      "sha256": "1894251b05fa580df80d4fa98ae02815adfbc8c3cbb33ef3c0af0eb07e109e1e"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/first-browser-last-run.json",
+      "sha256": "ffcb206c06953165b0bc5ec69073d9cfbc082b1410f720de3e00529fded2b1ab"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/lint-1937320d.log",
+      "sha256": "fbec67dc3e29ad6ffc3f417c4abcee0834a841d81b343ce98fe79b8d84ed1a71"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/design-1937320d.log",
+      "sha256": "b8525ae0f888fabdae6333ea11b5238b8f9d5cb4ade86351f5a688388e4fe62c"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/build-1937320d.log",
+      "sha256": "8b1f154b7472b2b1305584525d1c49bb9af67785a8c8f3db975b9384bb5e4e78"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/unit-1937320d.log",
+      "sha256": "73e1303d4551bf8d9f233ae1cacff8918355f998e653dd5263c3a12e8e5447e3"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/browser-1937320d.log",
+      "sha256": "90e678fd3ae6f16a41fb584945506af2a382360e72dc0f8b93c8777af656e89e"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/lint-c81059b8.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/typecheck-c81059b8.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/ci-design-c81059b8.log",
+      "sha256": "35f4f81b78b7a9a10f7ff2de1eef655bcff44084c082602fb80c77cac6c095d7"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/browser-c81059b8.log",
+      "sha256": "df2690373b6ddd84c6d9bec10e426416feaad824797a547f46102b839212d5e7"
+    },
+    {
+      "path": "playwright/.cache/phase27-ship-20261014/workflow-invariants.log",
+      "sha256": "1dc836fd5fa5c04bca4dae7906c367ff6a853116666f8aae981c231010a0e690"
+    }
+  ]
+}

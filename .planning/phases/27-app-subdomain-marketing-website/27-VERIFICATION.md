@@ -1,6 +1,6 @@
 ---
 phase: 27-app-subdomain-marketing-website
-verified: 2026-10-14T00:25:56.970Z
+verified: "2026-10-14T02:30:59.635Z"
 status: passed
 score: 66/66
 roadmap_score: 5/5
@@ -14,6 +14,10 @@ source_manifest: a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a49
 numbered_plans: 21
 supporting_completion_records: 2
 covered_files:
+  - .github/workflows/ci.yml
+  - .planning/notes/marketing-ui-20261012.md
+  - .planning/notes/phase27-marketing-ui-shipping-20261014.json
+  - .planning/notes/phase27-marketing-ui-shipping-20261014.md
   - .planning/phases/27-app-subdomain-marketing-website/27-01-PLAN.md
   - .planning/phases/27-app-subdomain-marketing-website/27-01-RED.json
   - .planning/phases/27-app-subdomain-marketing-website/27-01-SUMMARY.md
@@ -82,14 +86,18 @@ covered_files:
   - .planning/phases/27-app-subdomain-marketing-website/27-OPS11-TEST-ACCOUNT-DISPOSITION.md
   - .planning/phases/27-app-subdomain-marketing-website/27-PREVIEW-ISOLATION-EVIDENCE.md
   - .planning/phases/27-app-subdomain-marketing-website/27-RELEASE-CONTROL-SCOPE.md
+  - .planning/phases/27-app-subdomain-marketing-website/27-SECURITY.md
   - e2e/helpers/marketing-fixtures.ts
+  - e2e/helpers/marketing-gallery.ts
   - e2e/marketing-captures.spec.ts
   - e2e/marketing-contact.spec.ts
   - e2e/marketing-host-matrix.spec.ts
   - e2e/marketing-journeys.spec.ts
   - e2e/marketing-streaming.spec.ts
   - e2e/marketing-tracer.spec.ts
+  - e2e/marketing-ui-feedback.spec.ts
   - playwright.config.ts
+  - playwright.marketing-captures.config.ts
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/anti-pattern-audit.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/canonical-phase-complete-result.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/final-tracking-audit.json
@@ -98,6 +106,31 @@ covered_files:
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-confirmed-verifier-results.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-round-trip-confirmation.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/requirement-format-normalization.json
+  - playwright/.cache/phase27-ship-20261014/browser-1937320d.log
+  - playwright/.cache/phase27-ship-20261014/browser-c81059b8.log
+  - playwright/.cache/phase27-ship-20261014/build-1937320d.log
+  - playwright/.cache/phase27-ship-20261014/ci-design-c81059b8.log
+  - playwright/.cache/phase27-ship-20261014/design-1937320d.log
+  - playwright/.cache/phase27-ship-20261014/first-browser-last-run.json
+  - playwright/.cache/phase27-ship-20261014/lint-1937320d.log
+  - playwright/.cache/phase27-ship-20261014/lint-c81059b8.log
+  - playwright/.cache/phase27-ship-20261014/source-correspondence-1937320d.json
+  - playwright/.cache/phase27-ship-20261014/source-correspondence-c81059b8-post.json
+  - playwright/.cache/phase27-ship-20261014/source-correspondence-c81059b8.json
+  - playwright/.cache/phase27-ship-20261014/source-correspondence.json
+  - playwright/.cache/phase27-ship-20261014/source-proof.json
+  - playwright/.cache/phase27-ship-20261014/typecheck-c81059b8.log
+  - playwright/.cache/phase27-ship-20261014/unit-1937320d.log
+  - playwright/.cache/phase27-ship-20261014/verification-result-1937320d.json
+  - playwright/.cache/phase27-ship-20261014/verification-result-c81059b8.json
+  - playwright/.cache/phase27-ship-20261014/verification-result.json
+  - playwright/.cache/phase27-ship-20261014/workflow-invariants.log
+  - public/marketing/photos/badminton.jpg
+  - public/marketing/photos/basketball.jpg
+  - public/marketing/photos/gym.jpg
+  - public/marketing/photos/manifest.json
+  - public/marketing/photos/studio.jpg
+  - public/marketing/photos/tennis.jpg
   - public/marketing/screenshots/account.png
   - public/marketing/screenshots/bookable.png
   - public/marketing/screenshots/booking.png
@@ -107,7 +140,10 @@ covered_files:
   - public/marketing/screenshots/session.png
   - public/marketing/screenshots/verification.png
   - scripts/capture-marketing.mjs
+  - scripts/lib/marketing-spaces.d.mts
+  - scripts/lib/marketing-spaces.mjs
   - scripts/run-phase27-gates.mjs
+  - scripts/seed-marketing-preview.mjs
   - scripts/verify-ops-cloak.mjs
   - scripts/verify-phase27-evidence.mjs
   - src/app/(auth)/login/page.tsx
@@ -125,18 +161,23 @@ covered_files:
   - src/app/marketing/faq/page.tsx
   - src/app/marketing/hosts/page.tsx
   - src/app/marketing/layout.tsx
+  - src/app/marketing/marketing.css
   - src/app/marketing/page.tsx
   - src/app/marketing/players/page.tsx
   - src/app/marketing/robots.ts
   - src/app/marketing/robots.txt/route.ts
   - src/app/marketing/sitemap.ts
   - src/app/start-hosting/page.tsx
+  - src/components/listing/listing-card.tsx
+  - src/components/marketing/app-preview.tsx
   - src/components/marketing/audience-steps.tsx
   - src/components/marketing/contact-form.tsx
   - src/components/marketing/faq.tsx
   - src/components/marketing/footer.tsx
   - src/components/marketing/header.tsx
+  - src/components/marketing/hero.tsx
   - src/components/marketing/hosting-intent.tsx
+  - src/components/patterns/site-footer.tsx
   - src/components/search/progressive-search-overlay.tsx
   - src/lib/app-origins.ts
   - src/lib/auth.ts
@@ -147,6 +188,10 @@ covered_files:
   - src/lib/host-route-policy.ts
   - src/lib/legacy-auth-links.ts
   - src/lib/listing-vocab.ts
+  - src/lib/listing/material-fields.ts
+  - src/lib/listing/re-review-copy.ts
+  - src/lib/listing/re-review.ts
+  - src/lib/marketing-assets.ts
   - src/lib/safe-callback-url.ts
   - src/lib/session-check.ts
   - src/lib/site.ts
@@ -173,10 +218,12 @@ covered_files:
   - tests/design/marketing-about.test.tsx
   - tests/design/marketing-assets.test.ts
   - tests/design/marketing-audiences.test.tsx
+  - tests/design/marketing-contact-state.test.tsx
   - tests/design/marketing-faq.test.tsx
   - tests/design/marketing-home.test.tsx
   - tests/design/marketing-metadata.test.ts
   - tests/design/marketing-shell.test.tsx
+  - tests/design/site-contacts.test.ts
   - tests/design/suspense-fallback-overlay.test.ts
   - tests/helpers/email-fixtures.ts
   - tests/listing/crud.test.ts
@@ -186,10 +233,21 @@ covered_files:
   - tests/security/audit-durable.test.ts
   - tests/security/audit.test.ts
   - tests/validation/listing-schema.test.ts
-covered_digest: v1:sha256:2b37fe7169e261e62f4b06b4d9518370816a628a6f4e8034b262309f7648d163
+covered_digest: "v1:sha256:c055ab460993e5a69f6917133d454b3d2a35de34771f4abe5d57f27f875de882"
+closure_verified: "2026-10-14T00:25:56.970Z"
+closure_covered_digest: "v1:sha256:2b37fe7169e261e62f4b06b4d9518370816a628a6f4e8034b262309f7648d163"
+shipping_source_revision: 1937320dd0d50b99b46a9a13268ae02a9eac3bbb
+shipping_overlay_revision: c81059b8495dd3166b0ebf2ba831c013d5458d6d
+shipping_evidence: .planning/notes/phase27-marketing-ui-shipping-20261014.md
 ---
 
 # Phase27 goal verification
+
+## Current Git integration addendum — 2026-10-14T02:30:59.635Z
+
+The original6bb closure below is dated history. Public Contact was subsequently enabled and verified in .planning/releases/2026-10-14-contact-public/RESULT.md. The owner's later marketing UI is now integrated on codex/phase27-marketing-ui, with1510design/659selected-unit assertions, successful build/type/lint,42combined browser cases and the L1 audit. See .planning/notes/phase27-marketing-ui-shipping-20261014.md for exact source cohorts, failures/repairs and retained limits. The current fingerprint covers the reviewed overlay; closure_covered_digest preserves the original immutable closure identity. No later live test is attributed to this UI source.
+
+## Original6bb goal closure
 
 **The approved app/marketing/Ops separation, transition continuity, truthful Court marketing and controlled real Contact round trip are verified. Contact remains disabled for public sending by owner direction; financial/terms release holds are independent.**
 
