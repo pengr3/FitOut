@@ -248,5 +248,63 @@
         "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
       }
     ]
+  },
+  "inngestTestMode": {
+    "source": "218b462b6e9f405972fe80c8a1d788a8a8a9fc1d",
+    "verifiedAt": "2026-10-14T04:19:32.523Z",
+    "precedingRun": "https://github.com/pengr3/FitOut/actions/runs/38509252903",
+    "preceding": {
+      "designPassed": 1521,
+      "designSkipped": 6,
+      "unitPassed": 3464,
+      "unitSkipped": 5,
+      "functionalPassed": 240,
+      "functionalFailed": 1,
+      "functionalSkipped": 41,
+      "functionalDidNotRun": 312
+    },
+    "local": {
+      "lint": "passed",
+      "types": "passed",
+      "configAssertions": 13,
+      "sdkCloudStatus": 500,
+      "sdkDevStatus": 200,
+      "networkAttempts": 0,
+      "registeredFunctions": 0
+    },
+    "evidence": [
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/ci-db1b6-failed.log",
+        "sha256": "3ffb195a3c53f56f9a303fff67548d1c756646409c5a9d0e0b4a8043987c4d82"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/ci-db1b6-build-success.log",
+        "sha256": "fd07b0b21e8ef6f63e606e3b92d7ce2a56149a6687fb6559fe78cb1423ec74aa"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/ci-db1b6-unit-success.log",
+        "sha256": "d9df37df63e7cbe540682ae3ce8a0773f8ce7e633f5b38ced92429e50858d706"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/inngest-test-mode-result.json",
+        "sha256": "d97632ef8d35b934ae18101d3a1180f2a14cc76085a823cfc417c715b1214c70"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/inngest-mode-lint.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/inngest-mode-design.log",
+        "sha256": "b4b7678c62139cf12dbf500637673938bfc9743d7a5c3aeda39d8a64a3f32a51"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/inngest-mode-types.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/inngest-sdk-control.json",
+        "sha256": "7a8da478eea8d1776730a4a39c2fe2f0d365277066bfb11caaa30f1d4d8757ca"
+      }
+    ]
   }
 }

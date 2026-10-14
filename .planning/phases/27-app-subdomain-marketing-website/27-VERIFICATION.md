@@ -1,6 +1,6 @@
 ---
 phase: 27-app-subdomain-marketing-website
-verified: "2026-10-14T04:01:11.003Z"
+verified: "2026-10-14T04:19:32.523Z"
 status: passed
 score: 66/66
 roadmap_score: 5/5
@@ -122,11 +122,19 @@ covered_files:
   - playwright/.cache/phase27-merge-20261014/ci-5cf91-unit-success.log
   - playwright/.cache/phase27-merge-20261014/ci-91c75-dbfree-failure.log
   - playwright/.cache/phase27-merge-20261014/ci-91c75-e2e-failure.log
+  - playwright/.cache/phase27-merge-20261014/ci-db1b6-build-success.log
+  - playwright/.cache/phase27-merge-20261014/ci-db1b6-failed.log
+  - playwright/.cache/phase27-merge-20261014/ci-db1b6-unit-success.log
   - playwright/.cache/phase27-merge-20261014/ci-failed.log
   - playwright/.cache/phase27-merge-20261014/config-import-design.log
   - playwright/.cache/phase27-merge-20261014/config-import-lint.log
   - playwright/.cache/phase27-merge-20261014/config-import-result.json
   - playwright/.cache/phase27-merge-20261014/config-import-typecheck.log
+  - playwright/.cache/phase27-merge-20261014/inngest-mode-design.log
+  - playwright/.cache/phase27-merge-20261014/inngest-mode-lint.log
+  - playwright/.cache/phase27-merge-20261014/inngest-mode-types.log
+  - playwright/.cache/phase27-merge-20261014/inngest-sdk-control.json
+  - playwright/.cache/phase27-merge-20261014/inngest-test-mode-result.json
   - playwright/.cache/phase27-merge-20261014/local-repair-final.json
   - playwright/.cache/phase27-merge-20261014/local-repair-pre-import-failure.json
   - playwright/.cache/phase27-merge-20261014/local-repair.json
@@ -281,7 +289,7 @@ covered_files:
   - tests/security/audit-durable.test.ts
   - tests/security/audit.test.ts
   - tests/validation/listing-schema.test.ts
-covered_digest: "v1:sha256:9927161da076055a0dba179d399e46c2c896c3006febc59d93df340d184ebffe"
+covered_digest: "v1:sha256:e8ca14ab30fe1d7d47097bc1c818ffc90b5b06051eb69b95d52c2507de100813"
 closure_verified: "2026-10-14T00:25:56.970Z"
 closure_covered_digest: "v1:sha256:2b37fe7169e261e62f4b06b4d9518370816a628a6f4e8034b262309f7648d163"
 shipping_source_revision: 1937320dd0d50b99b46a9a13268ae02a9eac3bbb
@@ -292,6 +300,7 @@ ci_repair_evidence: .planning/notes/phase27-pr21-ci-repair-20261014.md
 ci_config_import_revision: ab4cca136152b60bf73b97cb483dd0e76405138e
 ci_route_coverage_revision: 8378a375736301385f3240c87767459d857fd161
 ci_capture_revision: 61bff2b2f60397c689326ca1837c5804d5c5c540
+ci_inngest_mode_revision: 218b462b6e9f405972fe80c8a1d788a8a8a9fc1d
 ---
 
 # Phase27 goal verification
@@ -309,6 +318,8 @@ The CI config-import follow-up at ab4cca136152b60bf73b97cb483dd0e76405138e passe
 Route coverage at 8378a375736301385f3240c87767459d857fd161 adds28 real scan cases for the seven new documents;10 local census assertions,lint and types pass. Local DOM scans could not start with Docker unavailable; final-head GitHub functional/DOM checks are required before merge. The preceding run passes all four other gates. See .planning/notes/phase27-pr21-ci-repair-20261014.md for preserved failures.
 
 Capture isolation and settled-dialog auditing at 61bff2b2f60397c689326ca1837c5804d5c5c540 pass local lint/types/three cleanup safety cases. The preceding GitHub run passes3464 unit cases and all other nonfunctional gates, but stops after198 functional passes on an ambient placeholder-image decode failure. Final-head full browser validation remains required. See .planning/notes/phase27-pr21-ci-repair-20261014.md; original phase/live identities stay preserved.
+
+The local Inngest test-mode correction at 218b462b6e9f405972fe80c8a1d788a8a8a9fc1d passes lint/types/13 config assertions and an actual-SDK cloud500/dev200 control with zero functions/network calls. The preceding run passes1521 design/3464 unit cases and240 functional cases, including repaired captures, before the cloud-default introspection failure. Fresh final-head CI remains required. See .planning/notes/phase27-pr21-ci-repair-20261014.md.
 
 ## Original6bb goal closure
 
