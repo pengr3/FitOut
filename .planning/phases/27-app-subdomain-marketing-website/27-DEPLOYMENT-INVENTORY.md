@@ -1,5 +1,13 @@
 # Phase 27 — Current external inventory
 
+Phase 27 completed 2026-10-14T00:33:55.618Z: all 21 numbered plans and seven requirements are verified. The unchanged prepared, deployed and live validators pass; the goal audit covers 66 truths, 39 artifacts and five roadmap outcomes. The owner explicitly confirmed the original inquiry receipt, validated Reply recipient and normal reply arrival for P27-CONTACT-20261014-6BB. Current disabled Production remains the exact 6bb web G8/Ops 3qt pair; all eight aliases, three false Contact settings and empty pending quota/alert state are retained. Public Contact remains disabled by owner direction. Testing accounts, UI drafts, and checkout/payout/binding-terms holds are preserved. No additional live operation occurred in this closeout. Two nonnumbered supporting runbooks are recorded separately; curated progress advances only Plan09, from 144 to 145 of 151. See 27-09-SUMMARY.md and 27-VERIFICATION.md.
+
+The following dated checkpoints are retained history and do not supersede this completion.
+
+
+Owner round trip confirmed 2026-10-14T00:13:29Z (October14,8:13AM Manila): named owner explicitly confirms original inbox receipt, Reply addressed to the validated sender, and normal reply arrival in Francis's inbox for P27-CONTACT-20261014-6BB. This is direct human evidence, not inferred from Resend. Fresh read-only checks confirm the same8G8/Ops baseline aliases,3false saved values,quota0/pending0/retainedalert1 unchanged. No new inquiry, deployment,ContactPOST,account or financial operation. Final live validation and goal review now proceed; phase counts remain20/21 and144/151 until those pass.
+
+
 Contact inquiry delivered 2026-10-13T17:48:57.629Z: one actual6bb browserPOST200 and Resend01a13655-48fc-7bf4-8d9e-b8fa22c37953 delivery with exact recipient/body/Reply-To. Original64.170second window stopped without sending on missing trace Git; separately authorized source-join follow-up reused protectedT and restoredG8 after69.242seconds. One fresh build,5POSTs/5API GETs total, one27.872second cloud denial machine; no account/IP/financial-job changes. Exact2quota cleanup, retainedalert unchanged, all8aliases/3false flags, temporaryDeny disabled23/no draft, original14+1 receivers, testT removed404 and staging worktree archived. Owner inbox receipt/Reply-To/reply arrival remain pending; Contact staysdisabled. No phase/count advance:20/21,144/151,sevenrequirements pending. Read27-CONTACT-INQUIRY-DELIVERY-RESULT.md/.json. Earlier checkpoints and source labels remain dated history.
 
 
@@ -209,17 +217,17 @@ content remains unproved here. No request used a protection bypass.
     },
     {
       "id": "resend-sender",
-      "status": "partial",
+      "status": "observed",
       "owner": "Resend sending-domain owner",
-      "current": "Current6bb controlled inquiry has actualPOST200, single Resend sent/delivered01a13655-48fc-7bf4-8d9e-b8fa22c37953, exact fixed From/recipient/body and Francis sender Reply-To. G8 disabled recovery and exact cleanup observed. Owner inbox receipt/Reply-To and normal reply arrival pending.",
+      "current": "Current6bb controlled inquiry has actualPOST200 and single Resend sent/delivered01a13655-48fc-7bf4-8d9e-b8fa22c37953 with exact envelope/body/Reply-To. Named owner explicitly confirms inbox receipt, reply recipient and normal reply arrival in the controlled sender inbox. G8 remainsdisabled after exact cleanup.",
       "target": "Retain verified send.fitout.live sender, fixed From, existing monitored SUPPORT_EMAIL and validated Contact Reply-To",
       "requiredProof": "Current candidate sender/key correspondence plus actual controlled inquiry/Reply-To/reply after separate authority.",
       "rollback": "Retain sender DNS/key; set Contact false first; restore previous sender config only if changed",
-      "observedAt": "2026-10-13T17:48:57.629Z",
-      "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation",
-      "source": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-INQUIRY-DELIVERY-RESULT.md",
+      "observedAt": "2026-10-14T00:13:29Z",
+      "observationType": "Direct current6bb web/provider proof plus direct named owner round-trip confirmation",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-INQUIRY-DELIVERY-RESULT.json",
       "providerReadbackDate": "2026-10-09",
-      "remainingProof": "Only named owner confirmation of actual inbox receipt/readable fields, Reply-To and normal reply arriving in the controlled sender inbox. Do not resend; Contact staysdisabled.",
+      "remainingProof": "None for the original bounded inquiry/Reply-To/reply contract; public Contact staysdisabled by owner direction.",
       "previousInquiryDisposition": {
         "observedAt": "2026-10-13T07:39:52.164Z",
         "current": "Fresh verifiedsend.fitout.live domain and Production EMAIL_FROM FitOut<updates@send.fitout.live>. Exact Resend APIlogb3f9134c-374a-4a69-b642-474bb08e3a10 identifiesSending-access keyfitout-production-mail, HTTP200 POST/emails and provider01a133e7-75a7-71ec-a52e-247e07a30a3f for the received natural Contact alert. Sender/key correspondence is now directly observed; actual real inquiry/Reply-To/reply remains separate and pending.",
@@ -228,16 +236,16 @@ content remains unproved here. No request used a protection bypass.
     },
     {
       "id": "support-mailbox",
-      "status": "partial",
+      "status": "observed",
       "owner": "Existing SUPPORT_EMAIL mailbox owner",
-      "current": "Current6bb controlled inquiry has actualPOST200, single Resend sent/delivered01a13655-48fc-7bf4-8d9e-b8fa22c37953, exact fixed From/recipient/body and Francis sender Reply-To. G8 disabled recovery and exact cleanup observed. Owner inbox receipt/Reply-To and normal reply arrival pending.",
+      "current": "Current6bb controlled inquiry has actualPOST200 and single Resend sent/delivered01a13655-48fc-7bf4-8d9e-b8fa22c37953 with exact envelope/body/Reply-To. Named owner explicitly confirms inbox receipt, reply recipient and normal reply arrival in the controlled sender inbox. G8 remainsdisabled after exact cleanup.",
       "target": "Existing monitored inbox receives one safe authorized inquiry and owner confirms Reply-To plus reply arrival",
       "requiredProof": "Separately authorized actual candidate Contact inquiry with controlled reply-capable sender, owner receipt and matching Reply-To/reply arrival.",
       "rollback": "Disable Contact and retain recoverable failure; no new mailbox/ticketing system",
-      "observedAt": "2026-10-13T17:48:57.629Z",
-      "observationType": "Fresh read-only provider/configuration observations reconciled with preserved source-bound actual proof; no external mutation",
-      "source": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-INQUIRY-DELIVERY-RESULT.md",
-      "remainingProof": "Only named owner confirmation of actual inbox receipt/readable fields, Reply-To and normal reply arriving in the controlled sender inbox. Do not resend; Contact staysdisabled.",
+      "observedAt": "2026-10-14T00:13:29Z",
+      "observationType": "Direct current6bb web/provider proof plus direct named owner round-trip confirmation",
+      "source": ".planning/phases/27-app-subdomain-marketing-website/27-CONTACT-INQUIRY-DELIVERY-RESULT.json",
+      "remainingProof": "None for the original bounded inquiry/Reply-To/reply contract; public Contact staysdisabled by owner direction.",
       "previousInquiryDisposition": {
         "observedAt": "2026-10-13T07:39:52.164Z",
         "current": "Owner Gmailpengr.clmc.3@gmail.com is the exact-source public SUPPORT_EMAIL constant and confirmed today's natural scheduled alert receipt. Earlier standalone transport/reply and old-link mail remain dated history; current deployed Contact inquiry/Reply-To/reply has not been exercised.",
@@ -970,10 +978,26 @@ content remains unproved here. No request used a protection bypass.
       "source": "serverless-middleware",
       "traceId": ""
     },
-    "ownerReceipt": "pending",
-    "ownerReplyTo": "pending",
-    "replyArrival": "pending",
-    "normalReply": "Received P27-CONTACT-20261014-6BB."
+    "ownerReceipt": "observed",
+    "ownerReplyTo": "observed",
+    "replyArrival": "observed",
+    "normalReply": "Received P27-CONTACT-20261014-6BB.",
+    "ownerObservedAt": "2026-10-14T00:13:29Z"
+  },
+  "ownerRoundTripConfirmation": {
+    "recordedAt": "2026-10-14T00:13:29Z",
+    "owner": "pengr.clmc.3@gmail.com",
+    "reference": "P27-CONTACT-20261014-6BB",
+    "source": "direct human reply to call_c5d64d7fe998474e889ee2a9535d96f3",
+    "answer": "Yes—all three confirmed",
+    "priorReferenceReply": "Received P27-CONTACT-20261014-6BB",
+    "receipt": "observed",
+    "replyTo": "observed",
+    "reply": "observed",
+    "replyRecipient": "francisgerard.silva@gmail.com",
+    "providerId": "01a13655-48fc-7bf4-8d9e-b8fa22c37953",
+    "inquiryResent": false,
+    "productionChanges": 0
   }
 }
 ```

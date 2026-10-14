@@ -1,6 +1,6 @@
 {
   "recordedAt": "2026-10-13T17:48:57.629Z",
-  "status": "provider-delivered-awaiting-owner-round-trip",
+  "status": "owner-confirmed-round-trip",
   "source": "6bb6e3f74e2acb4b3fe9ec7c8de4fecc7a5f05d3",
   "sourceManifestSha256": "a8b68c81fffbe53301b4c9b9566a80116ca02d2a16d5e3b563591098b293a499",
   "archiveSha256": "8feb311adca91cbbfa5c0eb27991ebc8f8f7c0e2dcc4cebc24f6484c8eb9a8ea",
@@ -63,10 +63,11 @@
       "source": "serverless-middleware",
       "traceId": ""
     },
-    "ownerReceipt": "pending",
-    "ownerReplyTo": "pending",
-    "replyArrival": "pending",
-    "normalReply": "Received P27-CONTACT-20261014-6BB."
+    "ownerReceipt": "observed",
+    "ownerReplyTo": "observed",
+    "replyArrival": "observed",
+    "normalReply": "Received P27-CONTACT-20261014-6BB.",
+    "ownerObservedAt": "2026-10-14T00:13:29Z"
   },
   "cleanup": {
     "observedAt": "2026-10-13T17:45:21.838Z",
@@ -416,5 +417,116 @@
     "contactFunctions": 1,
     "testRemoved": true,
     "manualFinancialInvocations": 0
+  },
+  "ownerConfirmation": {
+    "recordedAt": "2026-10-14T00:13:29Z",
+    "owner": "pengr.clmc.3@gmail.com",
+    "reference": "P27-CONTACT-20261014-6BB",
+    "source": "direct human reply to call_c5d64d7fe998474e889ee2a9535d96f3",
+    "answer": "Yes—all three confirmed",
+    "priorReferenceReply": "Received P27-CONTACT-20261014-6BB",
+    "receipt": "observed",
+    "replyTo": "observed",
+    "reply": "observed",
+    "replyRecipient": "francisgerard.silva@gmail.com",
+    "providerId": "01a13655-48fc-7bf4-8d9e-b8fa22c37953",
+    "inquiryResent": false,
+    "productionChanges": 0
+  },
+  "freshDisabledReadback": {
+    "recordedAt": "2026-10-14T00:13:29Z",
+    "controls": [
+      {
+        "type": "flag",
+        "id": "dnMtMhC8l8iT0R29",
+        "key": "CONTACT_PRODUCTION_ENABLED",
+        "value": "false"
+      },
+      {
+        "type": "flag",
+        "id": "NftlOnb5TDKNewez",
+        "key": "CONTACT_INGRESS_VERIFICATION_MODE",
+        "value": "false"
+      },
+      {
+        "type": "flag",
+        "id": "rQL4dNKbzaXbN08K",
+        "key": "CONTACT_PRODUCTION_ENABLED",
+        "value": "false"
+      },
+      {
+        "type": "aliases",
+        "aliases": [
+          {
+            "alias": "app.fitout.live",
+            "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+            "redirect": null,
+            "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+          },
+          {
+            "alias": "www.fitout.live",
+            "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+            "redirect": "fitout.live",
+            "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+          },
+          {
+            "alias": "fitout.live",
+            "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+            "redirect": null,
+            "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+          },
+          {
+            "alias": "fitout-web-pengr3s-projects.vercel.app",
+            "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+            "redirect": null,
+            "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+          },
+          {
+            "alias": "fitout-web-psi.vercel.app",
+            "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+            "redirect": null,
+            "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+          }
+        ]
+      },
+      {
+        "type": "aliases",
+        "aliases": [
+          {
+            "alias": "ops.fitout.live",
+            "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+            "redirect": null,
+            "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj"
+          },
+          {
+            "alias": "fitout-ops-pengr3s-projects.vercel.app",
+            "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+            "redirect": null,
+            "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj"
+          },
+          {
+            "alias": "fitout-ops.vercel.app",
+            "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+            "redirect": null,
+            "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj"
+          }
+        ]
+      },
+      {
+        "type": "primary",
+        "rows": [
+          {
+            "observed_at": "2026-10-14T00:13:02.922Z",
+            "quota_rows": "0",
+            "pending_alerts": "0",
+            "alert_rows": "1",
+            "retained_alert_hash": "1118751b32ca888fcd28cf74fd5aee0d"
+          }
+        ]
+      }
+    ],
+    "readOnly": true,
+    "newContactRequests": 0,
+    "productionChanges": 0
   }
 }

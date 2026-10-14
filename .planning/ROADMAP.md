@@ -1124,7 +1124,7 @@ Plans:
 | 22. Ops Decides With the Whole Picture | v1.2 | 0/TBD | Complete    | 2026-09-10 |
 | 23. The Support Path Becomes Reachable | v1.2 | 0/3 | Planned — fitout.live domain, monitored support replies, and constrained provider callbacks | - |
 | 24. Search Bar Rework | v1.2 | 0/8 | Planned — progressive activity, location, and party-size journey ready to execute | - |
-| 27. App Subdomain & Marketing Website | v1.2 | 20/21 | Executing Plan09 — disabled6bb rollout accepted; PayMongo continuity reconciled; actual Contact inquiry/Reply-To/reply pending; Contact disabled | - |
+| 27. App Subdomain & Marketing Website | v1.2 | 21/21 | Complete — Contact remains disabled | 2026-10-14 |
 
 ### Phase 24: Search Bar Rework
 
@@ -1270,9 +1270,9 @@ Plans:
 players can see how to get started.
 **Requirements**: [MKT-01, MKT-02, MKT-03, CONTACT-01, DOMAIN-01, DOMAIN-02, DOMAIN-03]
 **Depends on:** Phase 26
-**Plans:** 21 numbered plans (nine original plus twelve supplementary gap plans); 20 complete, Plan 09 remains open.
+**Plans:** 21/21 numbered plans complete (nine original plus twelve supplementary gap plans); two supporting runbooks also have completion records.
 
-**Reviewed October 13, 2026:** Implementation and local preparation are complete. Current-source host/provider matrix is 35/35, including shared per-IP limits and natural global-budget-to-scheduled-alert delivery. Prepared validation passes; deployed/live acceptance still fails for partial inventory, OPS-11 staff capability consistency, and the separately authorized real Contact inquiry/Reply-To/reply. Contact remains disabled; seven requirements await final acceptance. See [Phase 27 roadmap review](phases/27-app-subdomain-marketing-website/27-ROADMAP-REVIEW.md) for the next sequence and evidence boundaries.
+**Verified October 14, 2026:** All seven requirements, five roadmap outcomes and 21 numbered plans are complete. Prepared/deployed/live validation and the goal audit pass. The dated 35/35 matrix remains attributed to 588; current 6bb staff/customer and actual owner-confirmed inquiry/Reply-To/reply proofs are separate. Contact stays disabled; payment/payout and binding-terms holds remain independent. See [Phase 27 verification](phases/27-app-subdomain-marketing-website/27-VERIFICATION.md) and the dated [roadmap review](phases/27-app-subdomain-marketing-website/27-ROADMAP-REVIEW.md).
 
 **Scope captured from the user (2026-10-08):**
 
@@ -1347,13 +1347,13 @@ Plans:
 
 - [x] 27-08-PLAN.md — Run complete local host/browser gates and prepare reviewable cutover packet.
 
-Plan 08 is complete with its SUMMARY and approved cutover/database-target authority recorded. The integrated source and later exact58897a94 reconciliation passed six full engineering gates; historical failures remain retained. Production rollout and current-source 35/35 matrix are recorded under Plan 09. Final inventory, staff capability consistency and real inquiry/reply acceptance remain there; no requirement is marked complete by preparation alone.
+Plan 08 is complete with its SUMMARY and approved cutover/database-target authority recorded. The integrated source and later exact58897a94 reconciliation passed six full engineering gates; historical failures remain retained. Plan09 now has its completed SUMMARY and accepted current6bb rollout, inventory, customer-role guards and actual inquiry/reply supplement. The35/35matrix retains its original dated588source. Requirements are complete from final verification, not preparation alone.
 
 **Wave 9** *(blocked on Wave 8 completion)*
 
-- [ ] 27-09-PLAN.md — Perform authorized reversible cutover and prove live hosts/Contact receipt.
+- [x] 27-09-PLAN.md — Perform authorized reversible cutover and prove live hosts/Contact receipt.
 
-Supplementary engineering repairs were approved beginning 2026-10-09. All twelve numbered supplementary plans below are complete; original Plan 08 is complete. Plan 09's final live acceptance remains pending.
+Supplementary engineering repairs were approved beginning 2026-10-09. All twelve numbered supplementary plans below and original Plans08/09 are complete. Public Contact remains disabled by owner direction.
 
 - [x] 27-10-PLAN.md — Reconcile committed listing vocabulary with the existing database enum (wave 10; P27-G14)
 - [x] 27-11-PLAN.md — Repair audit and payment test preconditions without changing money behavior (wave 11; P27-G02, P27-G04, P27-G12)
@@ -1560,7 +1560,6 @@ to review.
 **Plans:**
 
 - [ ] TBD (promote with /gsd:review-backlog when ready)
-
 
 Phase27 latest bounded preparation status (October10):18/20 plans,142/150 curated total. Original08/09 remain pending. Exact b8358b11 full gates and bounded Preview checks pass; the full production matrix and compatibility/authority checkpoint are separate. Contact off, all HOLDs persist.
 

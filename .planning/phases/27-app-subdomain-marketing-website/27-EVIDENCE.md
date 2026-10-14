@@ -1,4 +1,12 @@
-# Phase27 actual production evidence — incomplete
+# Phase27 actual production evidence — verified completion
+
+Phase 27 completed 2026-10-14T00:33:55.618Z: all 21 numbered plans and seven requirements are verified. The unchanged prepared, deployed and live validators pass; the goal audit covers 66 truths, 39 artifacts and five roadmap outcomes. The owner explicitly confirmed the original inquiry receipt, validated Reply recipient and normal reply arrival for P27-CONTACT-20261014-6BB. Current disabled Production remains the exact 6bb web G8/Ops 3qt pair; all eight aliases, three false Contact settings and empty pending quota/alert state are retained. Public Contact remains disabled by owner direction. Testing accounts, UI drafts, and checkout/payout/binding-terms holds are preserved. No additional live operation occurred in this closeout. Two nonnumbered supporting runbooks are recorded separately; curated progress advances only Plan09, from 144 to 145 of 151. See 27-09-SUMMARY.md and 27-VERIFICATION.md.
+
+The following dated checkpoints are retained history and do not supersede this completion.
+
+
+Owner round trip confirmed 2026-10-14T00:13:29Z (October14,8:13AM Manila): named owner explicitly confirms original inbox receipt, Reply addressed to the validated sender, and normal reply arrival in Francis's inbox for P27-CONTACT-20261014-6BB. This is direct human evidence, not inferred from Resend. Fresh read-only checks confirm the same8G8/Ops baseline aliases,3false saved values,quota0/pending0/retainedalert1 unchanged. No new inquiry, deployment,ContactPOST,account or financial operation. Final live validation and goal review now proceed; phase counts remain20/21 and144/151 until those pass.
+
 
 Contact inquiry delivered 2026-10-13T17:48:57.629Z: one actual6bb browserPOST200 and Resend01a13655-48fc-7bf4-8d9e-b8fa22c37953 delivery with exact recipient/body/Reply-To. Original64.170second window stopped without sending on missing trace Git; separately authorized source-join follow-up reused protectedT and restoredG8 after69.242seconds. One fresh build,5POSTs/5API GETs total, one27.872second cloud denial machine; no account/IP/financial-job changes. Exact2quota cleanup, retainedalert unchanged, all8aliases/3false flags, temporaryDeny disabled23/no draft, original14+1 receivers, testT removed404 and staging worktree archived. Owner inbox receipt/Reply-To/reply arrival remain pending; Contact staysdisabled. No phase/count advance:20/21,144/151,sevenrequirements pending. Read27-CONTACT-INQUIRY-DELIVERY-RESULT.md/.json. Earlier checkpoints and source labels remain dated history.
 
@@ -593,13 +601,16 @@ Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disab
   "highThreats": [],
   "rollbackVerified": true,
   "contactControlsVerified": true,
-  "contactEnabledReadback": false,
-  "inquiryAuthority": "pending separate checkpoint",
+  "contactEnabledReadback": true,
+  "inquiryAuthority": "approved",
   "inbox": {
     "owner": "pengr.clmc.3@gmail.com",
-    "receipt": "pending owner confirmation for P27-CONTACT-20261014-6BB",
-    "replyTo": "provider observed; owner confirmation pending",
-    "reply": "pending owner round-trip confirmation"
+    "receipt": "observed",
+    "replyTo": "observed",
+    "reply": "observed",
+    "observedAt": "2026-10-14T00:13:29Z",
+    "reference": "P27-CONTACT-20261014-6BB",
+    "proof": "playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-round-trip-confirmation.json"
   },
   "holds": {
     "checkout": "HOLD",
@@ -1978,12 +1989,125 @@ Current Production pair: exact58897a94 webCogas andOps5WY. Contact remains disab
         "source": "serverless-middleware",
         "traceId": ""
       },
-      "ownerReceipt": "pending",
-      "ownerReplyTo": "pending",
-      "replyArrival": "pending",
-      "normalReply": "Received P27-CONTACT-20261014-6BB."
+      "ownerReceipt": "observed",
+      "ownerReplyTo": "observed",
+      "replyArrival": "observed",
+      "normalReply": "Received P27-CONTACT-20261014-6BB.",
+      "ownerObservedAt": "2026-10-14T00:13:29Z"
+    },
+    "ownerConfirmation": {
+      "recordedAt": "2026-10-14T00:13:29Z",
+      "owner": "pengr.clmc.3@gmail.com",
+      "reference": "P27-CONTACT-20261014-6BB",
+      "source": "direct human reply to call_c5d64d7fe998474e889ee2a9535d96f3",
+      "answer": "Yes—all three confirmed",
+      "priorReferenceReply": "Received P27-CONTACT-20261014-6BB",
+      "receipt": "observed",
+      "replyTo": "observed",
+      "reply": "observed",
+      "replyRecipient": "francisgerard.silva@gmail.com",
+      "providerId": "01a13655-48fc-7bf4-8d9e-b8fa22c37953",
+      "inquiryResent": false,
+      "productionChanges": 0
+    },
+    "finalDisabledReadback": {
+      "recordedAt": "2026-10-14T00:13:29Z",
+      "controls": [
+        {
+          "type": "flag",
+          "id": "dnMtMhC8l8iT0R29",
+          "key": "CONTACT_PRODUCTION_ENABLED",
+          "value": "false"
+        },
+        {
+          "type": "flag",
+          "id": "NftlOnb5TDKNewez",
+          "key": "CONTACT_INGRESS_VERIFICATION_MODE",
+          "value": "false"
+        },
+        {
+          "type": "flag",
+          "id": "rQL4dNKbzaXbN08K",
+          "key": "CONTACT_PRODUCTION_ENABLED",
+          "value": "false"
+        },
+        {
+          "type": "aliases",
+          "aliases": [
+            {
+              "alias": "app.fitout.live",
+              "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+              "redirect": null,
+              "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+            },
+            {
+              "alias": "www.fitout.live",
+              "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+              "redirect": "fitout.live",
+              "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+            },
+            {
+              "alias": "fitout.live",
+              "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+              "redirect": null,
+              "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+            },
+            {
+              "alias": "fitout-web-pengr3s-projects.vercel.app",
+              "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+              "redirect": null,
+              "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+            },
+            {
+              "alias": "fitout-web-psi.vercel.app",
+              "deploymentId": "dpl_G8ZbTTydH4XrhQ5Kpx3XrVrH1cQA",
+              "redirect": null,
+              "projectId": "prj_my7iigeFoojFO2QmXYYfr49p8uiz"
+            }
+          ]
+        },
+        {
+          "type": "aliases",
+          "aliases": [
+            {
+              "alias": "ops.fitout.live",
+              "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+              "redirect": null,
+              "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj"
+            },
+            {
+              "alias": "fitout-ops-pengr3s-projects.vercel.app",
+              "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+              "redirect": null,
+              "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj"
+            },
+            {
+              "alias": "fitout-ops.vercel.app",
+              "deploymentId": "dpl_3qtketSXoaeS6JMoCKa5KJznqzkL",
+              "redirect": null,
+              "projectId": "prj_cUmYg0pQne8gkYKrHd8KY2O4rAQj"
+            }
+          ]
+        },
+        {
+          "type": "primary",
+          "rows": [
+            {
+              "observed_at": "2026-10-14T00:13:02.922Z",
+              "quota_rows": "0",
+              "pending_alerts": "0",
+              "alert_rows": "1",
+              "retained_alert_hash": "1118751b32ca888fcd28cf74fd5aee0d"
+            }
+          ]
+        }
+      ],
+      "readOnly": true,
+      "newContactRequests": 0,
+      "productionChanges": 0
     }
-  }
+  },
+  "contactEnabledReadbackScope": "Single approved protected6bb guarded inquiry variant only; actualPOST200+Resend acceptance. Public G8 remainsdisabled, as freshly re-read."
 }
 ```
 

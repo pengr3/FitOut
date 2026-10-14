@@ -4,11 +4,11 @@ milestone: v1.2
 milestone_name: Verification & Operations — Phases 18–23 (IN PROGRESS)
 current_phase: 27
 current_phase_name: App Subdomain & Marketing Website
-status: executing
-stopped_at: "Plan09: current-source inquiry delivered; disabled recovery/cleanup complete; owner reply round trip pending"
-last_updated: "2026-10-13T17:48:57.629Z"
+status: phase_complete
+stopped_at: "Phase 27 verified complete; Contact disabled; follow-up scope awaits owner direction"
+last_updated: "2026-10-14T00:33:55.618Z"
 last_activity: 2026-10-14
-last_activity_desc: Delivered one controlled Contact inquiry; recovered disabled G8 and cleaned only owned artifacts
+last_activity_desc: Phase 27 complete; owner-confirmed Contact round trip and final verification passed
 state_head: 6bb6e3f7
 progress:
   # v1.2 spans SEVEN phases: 18 and 18.1 (built ahead of the cycle, complete and
@@ -16,7 +16,7 @@ progress:
   # of 2026-09-04. The plan counters cover phases 18 + 18.1 ONLY -- phases 19-23
   # are not yet planned, so `percent` is derived from PHASES, not from plans.
   total_phases: 13
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 151
   # 2026-10-09: Phase 27 has seventeen plans (nine original plus eight gaps); no new plan or phase
   # was executed/completed by planning. Preserve curated phase/completion totals.
@@ -58,9 +58,15 @@ progress:
   # one completed plan, and `state.record-metric` later rewrote the hand-corrected
   # 62 back to 63. Corrected after each verb and guarded again after the final verb;
   # this completed plan contributes exactly one, so the disk-truth total is 62.
-  completed_plans: 144
-  percent: 15
+  # 2026-10-14: Phase27 Plan09 completed (+1 only); two supporting summaries are excluded.
+  completed_plans: 145
+  percent: 23
 ---
+
+Phase 27 completed 2026-10-14T00:33:55.618Z: all 21 numbered plans and seven requirements are verified. The unchanged prepared, deployed and live validators pass; the goal audit covers 66 truths, 39 artifacts and five roadmap outcomes. The owner explicitly confirmed the original inquiry receipt, validated Reply recipient and normal reply arrival for P27-CONTACT-20261014-6BB. Current disabled Production remains the exact 6bb web G8/Ops 3qt pair; all eight aliases, three false Contact settings and empty pending quota/alert state are retained. Public Contact remains disabled by owner direction. Testing accounts, UI drafts, and checkout/payout/binding-terms holds are preserved. No additional live operation occurred in this closeout. Two nonnumbered supporting runbooks are recorded separately; curated progress advances only Plan09, from 144 to 145 of 151. See 27-09-SUMMARY.md and 27-VERIFICATION.md.
+
+The following dated checkpoints are retained history and do not supersede this completion.
+
 Contact IP lookup repaired 2026-10-13T16:52:08.761Z: pinned workspace CLI63.1.2 resolves the existing and fresh marked GET to the verified operator exemption; actual G8 trace and browser-page original IP match. Native staging checkout is clean6bb/all2459 archive+1113 manifest files verified;62 local guard checks pass. Unsent hydrated form/visual email pair, Verified Resend sender and14+1original receivers prepared. No Production mutation/build/ContactPOST/email/account change. Fresh four-POST inquiry packet is prepared awaiting exact owner approval; old attempt remains closed, no lease started. Contactdisabled;20/21 and144/151/all7requirements pending. Read27-CONTACT-IP-LOOKUP-REPAIR.md and27-CONTACT-INQUIRY-FRESH-PACKET.md.
 
 Contact inquiry replacement closed 2026-10-13T15:27:01.938Z: the owner-approved complete6bb replacement built READY and was removed after exact identity/no-alias/original-receiver checks; provider404 confirmed. Current operator original-IP proof was not obtained before sufficient lease headroom remained, so no window or Contact POST/email was started. Two cumulative builds consumed;0POSTs,0Sandbox,0firewall/IP/quota/account changes. Inngest automatic receiver drift was restored toG8/private query unchanged with14+1 functions. Final8 aliases remainG8/Ops3qt;3 saved valuesfalse; guarddisabled/version21/no draft; primaryquota0/pending0/retainedalert1/hash unchanged. Closed before original15:28:35Z lease, with no extension. Contact disabled;20/21 and144/151/all7 requirements pending. Read27-CONTACT-INQUIRY-REPLACEMENT-RESULT.md/.json; next attempt needs a fresh packet after the ingress tooling is repaired.
@@ -160,10 +166,11 @@ ALONE**, worktrees stay OFF so plans run SEQUENTIALLY on `dev`. **Next: `/gsd-pl
 
 ## Current Position
 
-Phase: 27 (App Subdomain & Marketing Website) — Plan09 live verification
-Plan: 27-09 incomplete; 20/21 phase plans complete, 144/151 curated complete, seven requirements pending.
-Status: Current-source inquiry delivered; named owner inbox/Reply-To/normal reply confirmation pending. Contact disabled; exact cleanup and test deployment removal verified.
-Last activity: 2026-10-14 — One actual Contact POST200 and delivered Resend email. Prepared verifier passes; deployed verifier fails only partial inventory. No account or financial changes.
+Phase: 27 — App Subdomain & Marketing Website
+Plan: 21/21 numbered plans complete; 2 supporting completion records
+Status: Verified complete; Contact remains disabled
+Last activity: 2026-10-14 — Final evidence and owner round trip accepted
+Next: Review the owner's UI feedback or define a separate public Contact release scope. No other phase has been started.
 
 ### Earlier position recorded October9 — superseded
 
