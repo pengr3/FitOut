@@ -1,6 +1,6 @@
 ---
 phase: 27-app-subdomain-marketing-website
-verified: "2026-10-14T03:43:54.654Z"
+verified: "2026-10-14T04:01:11.003Z"
 status: passed
 score: 66/66
 roadmap_score: 5/5
@@ -113,7 +113,13 @@ covered_files:
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-confirmed-verifier-results.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/owner-round-trip-confirmation.json
   - playwright/.cache/phase27-08/contact-inquiry-source-join-20261014/requirement-format-normalization.json
+  - playwright/.cache/phase27-merge-20261014/capture-design.log
+  - playwright/.cache/phase27-merge-20261014/capture-fix-result.json
+  - playwright/.cache/phase27-merge-20261014/capture-lint.log
+  - playwright/.cache/phase27-merge-20261014/capture-types.log
   - playwright/.cache/phase27-merge-20261014/ci-16f03-failed.log
+  - playwright/.cache/phase27-merge-20261014/ci-5cf91-failed.log
+  - playwright/.cache/phase27-merge-20261014/ci-5cf91-unit-success.log
   - playwright/.cache/phase27-merge-20261014/ci-91c75-dbfree-failure.log
   - playwright/.cache/phase27-merge-20261014/ci-91c75-e2e-failure.log
   - playwright/.cache/phase27-merge-20261014/ci-failed.log
@@ -261,6 +267,7 @@ covered_files:
   - tests/design/marketing-audiences.test.tsx
   - tests/design/marketing-contact-state.test.tsx
   - tests/design/marketing-faq.test.tsx
+  - tests/design/marketing-gallery-isolation.test.ts
   - tests/design/marketing-home.test.tsx
   - tests/design/marketing-metadata.test.ts
   - tests/design/marketing-shell.test.tsx
@@ -274,7 +281,7 @@ covered_files:
   - tests/security/audit-durable.test.ts
   - tests/security/audit.test.ts
   - tests/validation/listing-schema.test.ts
-covered_digest: "v1:sha256:f18c6b2d42a6d068737746e2e7417cfc7ba296f81acfe8aca53036bfb71cdc1e"
+covered_digest: "v1:sha256:9927161da076055a0dba179d399e46c2c896c3006febc59d93df340d184ebffe"
 closure_verified: "2026-10-14T00:25:56.970Z"
 closure_covered_digest: "v1:sha256:2b37fe7169e261e62f4b06b4d9518370816a628a6f4e8034b262309f7648d163"
 shipping_source_revision: 1937320dd0d50b99b46a9a13268ae02a9eac3bbb
@@ -284,6 +291,7 @@ ci_repair_revision: eb81418d5a649fa3ceeceb2e52576738eef43335
 ci_repair_evidence: .planning/notes/phase27-pr21-ci-repair-20261014.md
 ci_config_import_revision: ab4cca136152b60bf73b97cb483dd0e76405138e
 ci_route_coverage_revision: 8378a375736301385f3240c87767459d857fd161
+ci_capture_revision: 61bff2b2f60397c689326ca1837c5804d5c5c540
 ---
 
 # Phase27 goal verification
@@ -299,6 +307,8 @@ The merge preparation at eb81418d5a649fa3ceeceb2e52576738eef43335 repairs epheme
 The CI config-import follow-up at ab4cca136152b60bf73b97cb483dd0e76405138e passes13 focused assertions,lint and types. The preceding remote run passed unit/price/visual; final-head CI is still pending. Historical failures and source cohorts remain in .planning/notes/phase27-pr21-ci-repair-20261014.md.
 
 Route coverage at 8378a375736301385f3240c87767459d857fd161 adds28 real scan cases for the seven new documents;10 local census assertions,lint and types pass. Local DOM scans could not start with Docker unavailable; final-head GitHub functional/DOM checks are required before merge. The preceding run passes all four other gates. See .planning/notes/phase27-pr21-ci-repair-20261014.md for preserved failures.
+
+Capture isolation and settled-dialog auditing at 61bff2b2f60397c689326ca1837c5804d5c5c540 pass local lint/types/three cleanup safety cases. The preceding GitHub run passes3464 unit cases and all other nonfunctional gates, but stops after198 functional passes on an ambient placeholder-image decode failure. Final-head full browser validation remains required. See .planning/notes/phase27-pr21-ci-repair-20261014.md; original phase/live identities stay preserved.
 
 ## Original6bb goal closure
 

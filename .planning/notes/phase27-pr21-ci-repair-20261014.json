@@ -195,5 +195,58 @@
         "sha256": "75fd053d794dc5310d17debb81861a12b7c9b7c0111af3a3673da1e95db5514a"
       }
     ]
+  },
+  "captureRepair": {
+    "source": "61bff2b2f60397c689326ca1837c5804d5c5c540",
+    "verifiedAt": "2026-10-14T04:01:11.003Z",
+    "precedingRun": "https://github.com/pengr3/FitOut/actions/runs/38507776712",
+    "precedingUnit": {
+      "passed": 3464,
+      "skipped": 5
+    },
+    "precedingFunctional": {
+      "passed": 198,
+      "failed": 1,
+      "flaky": 1,
+      "didNotRun": 353
+    },
+    "sourceFiles": [
+      "e2e/helpers/marketing-gallery.ts",
+      "e2e/marketing-captures.spec.ts",
+      "e2e/axe-sweep.spec.ts",
+      "tests/design/marketing-gallery-isolation.test.ts"
+    ],
+    "local": {
+      "lint": "passed",
+      "types": "passed",
+      "restorationCases": 3,
+      "browser": "not run: Docker database remains unavailable"
+    },
+    "evidence": [
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/ci-5cf91-failed.log",
+        "sha256": "2bf1e0483a11e5503f5727ae9afcc3c8924d45d130586d051343e93a1a2f26fe"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/ci-5cf91-unit-success.log",
+        "sha256": "c71e9c66f8863cd96612f1f64469ae1443b0fefa6400594b404e0db59cec8617"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/capture-fix-result.json",
+        "sha256": "d3753bca6c6398f4396bc77b2bfdc7d2269c11d7f2d924deb279f96580aecfaa"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/capture-lint.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/capture-design.log",
+        "sha256": "51c665a861b6da3f35e94fa5e3e02af59adefc85034da7734b1d3ef7c060c3a5"
+      },
+      {
+        "path": "playwright/.cache/phase27-merge-20261014/capture-types.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
   }
 }
