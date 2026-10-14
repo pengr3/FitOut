@@ -134,6 +134,7 @@ describe("LINK 1 — playwright.config.ts silences Resend for every server it bo
     expect(webServer.env?.DATABASE_URL).toBe("postgres://fitout:fitout@postgres:5432/fitout_test");
     expect(webServer.env?.BETTER_AUTH_SECRET).toBe(process.env.BETTER_AUTH_SECRET);
     expect(webServer.env?.BETTER_AUTH_URL).toBe(process.env.BETTER_AUTH_URL);
+    expect(webServer.env?.INNGEST_DEV).toBe("1");
   });
 
   it(`with ${REAL_EMAIL_FLAG}=1 the config emits NO RESEND_API_KEY key at all`, async () => {

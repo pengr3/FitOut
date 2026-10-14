@@ -244,6 +244,8 @@ export default defineConfig({
       NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: CLOUDINARY_PUBLIC_CLOUD_NAME,
       DATABASE_URL: browserTestDatabase(),
       BETTER_AUTH_SECRET: BROWSER_AUTH_SECRET,
+      // The SDK otherwise treats GitHub Actions as cloud even under next dev.
+      INNGEST_DEV: "1",
       BETTER_AUTH_URL: "http://localhost:3000",
       NEXT_PUBLIC_APP_URL: "http://localhost:3000",
       OPS_APP_URL: "http://ops.localhost:3000",
