@@ -81,6 +81,10 @@ also becomes daily, with new persisted incidents delivered immediately. The exis
 windows and daily operator digest keep their business schedules. Targeted recovery checks continue only
 while an actual payment, verification or payout needs recovery.
 
+When the database explicitly reports exhausted compute/quota capacity, worker and audit steps wait
+one hour before retrying. Pending work remains persisted; unrelated transient errors retain normal
+retries. Cancelled timers skip their follow-up dispatcher when they wake.
+
 Bookings can be 90 days ahead. Distant work stays in the outbox until it is within 27 days, below
 Inngest Free's 30-day workflow duration. The daily audit publishes work as it enters that window.
 

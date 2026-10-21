@@ -43,6 +43,19 @@ describe("Durable Inngest worker",()=>{
     await expect((backgroundWork as unknown as Handler)({event:{data:{taskId:"task"}},step:steps})).rejects.toThrow("scheduling horizon");
     expect(steps.sleepUntil).not.toHaveBeenCalled();
   });
+  it("does not dispatch additional work when a timer was cancelled during its wait",async()=>{
+    mocks.read.mockResolvedValue({id:"task",dueAt:new Date(Date.now()+60_000).toISOString()});
+    mocks.process.mockResolvedValue({state:"obsolete"});
+    const {backgroundWork}=await import("@/inngest/functions/background-work");
+    expect(await (backgroundWork as unknown as Handler)({event:{data:{taskId:"task"}},step:step()})).toEqual({state:"obsolete"});
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+  it("backs off a database quota failure before planning or sleeping",async()=>{
+    mocks.read.mockRejectedValue(new Error("Failed query",{cause:new Error("Your account or project has exceeded the quota")}));
+    const {backgroundWork}=await import("@/inngest/functions/background-work");const steps=step();
+    await expect((backgroundWork as unknown as Handler)({event:{data:{taskId:"task"}},step:steps})).rejects.toMatchObject({name:"RetryAfterError",retryAfter:"3600"});
+    expect(steps.sleepUntil).not.toHaveBeenCalled();expect(mocks.process).not.toHaveBeenCalled();
+  });
   it("keeps exactly one daily automatic recovery audit in event mode",async()=>{
     await import("@/inngest/functions/background-work");
     expect(mocks.configs.find(item=>item.id==="background-recovery-audit")?.triggers).toEqual([{cron:"TZ=Asia/Manila 0 8 * * *"}]);
