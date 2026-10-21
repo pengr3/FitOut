@@ -9,7 +9,8 @@ import { withBackgroundRetry } from "@/lib/background-retry";
 
 export const backgroundWork = inngest.createFunction({
   id:"background-work",retries:8,
-  concurrency:[{limit:1,key:"event.data.taskId"},{limit:20}],
+  // Inngest rejects syncs above the account's five-step Free/Hobby allowance.
+  concurrency:[{limit:1,key:"event.data.taskId"},{limit:5}],
   triggers:[{event:BACKGROUND_EVENT}],
 },async ({event,step}) => {
   if (!eventDrivenBackground()) return {enabled:false};

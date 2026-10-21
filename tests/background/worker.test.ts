@@ -1,6 +1,6 @@
 import {afterEach,beforeEach,describe,expect,it,vi} from "vitest";
 
-const mocks=vi.hoisted(()=>({read:vi.fn(),process:vi.fn(),dispatch:vi.fn(),repair:vi.fn(),configs:[] as Array<{id:string;triggers:unknown}>}));
+const mocks=vi.hoisted(()=>({read:vi.fn(),process:vi.fn(),dispatch:vi.fn(),repair:vi.fn(),configs:[] as Array<{id:string;triggers:unknown;concurrency?:unknown}>}));
 vi.mock("@/inngest/client",()=>({inngest:{createFunction:(options:{id:string;triggers:unknown},handler:unknown)=>{
   mocks.configs.push(options);return handler;
 }}}));
@@ -20,6 +20,10 @@ afterEach(()=>vi.unstubAllEnvs());
 const step=()=>({run:vi.fn(async (_id:string,fn:()=>unknown)=>fn()),sleepUntil:vi.fn().mockResolvedValue(undefined)});
 
 describe("Durable Inngest worker",()=>{
+  it("registers within the current five-step cloud plan while serializing each task",async()=>{
+    await import("@/inngest/functions/background-work");
+    expect(mocks.configs.find(item=>item.id==="background-work")?.concurrency).toEqual([{limit:1,key:"event.data.taskId"},{limit:5}]);
+  });
   it("waits for the persisted deadline before running the database work",async()=>{
     const dueAt=new Date(Date.now()+60_000).toISOString();mocks.read.mockResolvedValue({id:"task",dueAt});
     const {backgroundWork}=await import("@/inngest/functions/background-work");
