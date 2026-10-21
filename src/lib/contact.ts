@@ -1,4 +1,5 @@
 import "server-only";
+import { dispatchBackgroundAfterResponse } from "@/lib/background-after";
 import { createHash, randomUUID } from "node:crypto";
 import { isIP } from "node:net";
 import { MARKETING_ORIGIN } from "@/lib/app-origins";
@@ -81,6 +82,7 @@ export async function handleContact(request: Request): Promise<Response> {
   }
   const budget = rateLimit(`contact:sender:${hashed(parsed.data.email)}`, { max: 3, window: 3600 });
   if (!budget.ok) { const retryAfter = Math.min(3600, Math.max(1, budget.retryAfter)); return response(429, { ok: false, error: "Too many attempts. Please wait before trying again.", retryAfter }, retryAfter); }
+  dispatchBackgroundAfterResponse();
   const shared = await reserveContactQuota(ip);
   const verification = process.env.CONTACT_INGRESS_VERIFICATION_MODE === "true";
   if (verification) {

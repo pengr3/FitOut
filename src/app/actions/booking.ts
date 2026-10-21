@@ -1,4 +1,6 @@
 "use server";
+import { dispatchBackgroundAfterResponse } from "@/lib/background-after";
+import { requireBookingBackgroundDelivery } from "@/lib/background-outbox";
 
 // Booking mutations (BOOK-01/02/03, D-40/D-41/D-42/D-44). Clones the blocks.ts server-action skeleton
 // (session → gate → Zod re-validate → mutate → revalidate) but swaps the HOST-ownership guard for a
@@ -126,12 +128,14 @@ async function requireUserId(): Promise<string | null> {
  * A double-submit (same idempotency key / window) returns the SAME booking (delegated to createPendingHold).
  */
 export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
+
   // (1) Session gate (D-41). The CTA (Plan 07) threads the return-to-checkout callbackURL; here we only
   // report that sign-in is required.
   const userId = await requireUserId();
   if (!userId) {
     return { ok: false, reason: "sign-in", error: "Sign in to book this space." };
   }
+  dispatchBackgroundAfterResponse();
 
   // (2) Capability gate (T-04-BOOKCAP) — re-read canBook from the DB (canBook is input:false, so the row
   // is the source of truth; a client flag is never trusted). Email + display name come along in the same
@@ -456,11 +460,13 @@ export async function placeHold(input: unknown): Promise<PlaceHoldResult> {
  * claim's transaction from the LISTING's own `per_head_price_cents` × the GRANTED heads (OC-07/OC-08).
  */
 export async function placeOpenHold(input: unknown): Promise<PlaceHoldResult> {
+
   // (1) Session gate (D-41) — same copy as placeHold; the CTA threads the return-to-booking callbackURL.
   const userId = await requireUserId();
   if (!userId) {
     return { ok: false, reason: "sign-in", error: "Sign in to book this space." };
   }
+  dispatchBackgroundAfterResponse();
 
   // (2) Capability gate (T-04-BOOKCAP) — re-read from the user ROW. Only the capability is selected here:
   // the open path emits no notification (see the tail of this action), so there is no name/email to carry.
@@ -623,8 +629,10 @@ export async function placeOpenHold(input: unknown): Promise<PlaceHoldResult> {
  * action folds in is what makes `space != hourlyRate × hours` for an ordinary hourly booking.
  */
 export async function updateDeclaredPax(holdId: string, pax: number): Promise<UpdatePaxResult> {
+
   const userId = await requireUserId();
   if (!userId) return { ok: false, error: "Sign in to change your booking." };
+  dispatchBackgroundAfterResponse();
 
   const parsed = declaredPaxSchema.safeParse(pax);
   if (!parsed.success) return { ok: false, error: "That headcount doesn't look right." };
@@ -800,10 +808,12 @@ export async function updateDeclaredPax(holdId: string, pax: number): Promise<Up
  * leaked secret (T-05-15).
  */
 export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
+
   const userId = await requireUserId();
   if (!userId) {
     return { ok: false, reason: "sign-in", error: "Sign in to confirm your booking." };
   }
+  dispatchBackgroundAfterResponse();
 
   // Owner-gated load (T-04-HOLDIDOR / T-05-13). A missing row OR a different booker both return the SAME
   // calm "can't show this booking" so a leaked/guessed id reveals nothing (owner-gate, D-43). The frozen
@@ -1143,5 +1153,10 @@ export async function confirmBooking(holdId: string): Promise<ConfirmResult> {
   await recordAudit({ actorId: userId, action: "confirm_pay", outcome: "ok", meta: { holdId } });
   // The webhook (Plan 04) — NOT this browser return — is the confirm authority (D-57); we only send the
   // booker off-site to pay. On return, /bookings/[id]?paid=1 renders the "finalizing…" interstitial.
+  try {
+    await requireBookingBackgroundDelivery(holdId);
+  } catch {
+    return {ok:false,reason:"checkout",error:"We're preparing your checkout. Please try again."};
+  }
   redirect(checkout.checkoutUrl);
 }

@@ -1,4 +1,5 @@
 "use server";
+import { dispatchBackgroundAfterResponse } from "@/lib/background-after";
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE FAST PATH (13.1-CONTEXT D-109) — one authenticated, one-shot reconcile for the person who is
@@ -138,6 +139,7 @@ export async function reconcilePaymentNow(bookingId: string): Promise<ReconcileN
     .where(eq(booking.id, bookingId));
 
   if (!row || row.bookerId !== userId) return "denied";
+  dispatchBackgroundAfterResponse();
 
   // (4) IS THERE ANYTHING TO ASK ABOUT? The status scope is `confirmPaidBooking`'s own claim — `pending`
   // is an instant hold, `approved` is a host-approved request being paid through the same checkout — and

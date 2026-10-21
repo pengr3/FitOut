@@ -274,6 +274,13 @@
       "when": 1791698400000,
       "tag": "0038_contact_alert",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1792551048064,
+      "tag": "0039_background_tasks",
+      "breakpoints": true
     }
   ]
 }

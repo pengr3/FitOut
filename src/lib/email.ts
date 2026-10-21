@@ -10,6 +10,7 @@
 // Source: resend.com/docs/send-with-nextjs.
 
 import { Resend } from "resend";
+import { previewRecipientAllowed } from "@/lib/preview-environment";
 
 // D-92 — a COPY CONSTANT, not a trigger. See `sendRefundIssued`'s header for why importing it here is
 // inside this phase's boundary and what it is asserted not to have moved.
@@ -56,6 +57,10 @@ async function send(
   text: string,
   options: { allowDevelopmentBodyLog?: boolean; replyTo?: string; requireProviderAcceptance?: boolean } = {},
 ): Promise<EmailDeliveryResult> {
+  if (process.env.VERCEL_ENV === "preview" &&
+      !previewRecipientAllowed(to, process.env.PREVIEW_EMAIL_RECIPIENTS)) {
+    return { delivered: false };
+  }
   if (!resend) {
     // WR-02 — the dev fallback logs the FULL email body, which includes the single-use
     // reset/verification link and its live token. That is acceptable locally but a credential

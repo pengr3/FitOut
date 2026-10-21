@@ -1,4 +1,5 @@
 "use server";
+import { dispatchBackgroundAfterResponse } from "@/lib/background-after";
 
 // THE HOST'S OWN VERIFICATION SUBMISSION (HVER-06 / HVER-08 · D-264 / D-266 / D-268 / D-269).
 //
@@ -325,6 +326,7 @@ const requestHostVerificationSchema = z.object({
 export async function requestHostVerification(
   input: RequestHostVerificationInput,
 ): Promise<HostVerificationResult> {
+
   // ── 1. THE SESSION. Before any read, any parse, and any spend. ───────────────────────────────
   const userId = await requireUserId();
   if (!userId) {
@@ -332,6 +334,7 @@ export async function requestHostVerification(
     // NOT NULL precisely so a trail row can never claim an actor it does not have.
     return SIGNED_OUT;
   }
+  dispatchBackgroundAfterResponse();
 
   // ── 2. THE BURST GUARD. Audited on the deny branch so a flood is non-repudiable. ─────────────
   const limit = rateLimit(`verify-submit:${userId}`, ACTIVATE_RATE_LIMIT);

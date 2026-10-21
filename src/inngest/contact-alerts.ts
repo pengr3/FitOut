@@ -1,3 +1,4 @@
+import { eventDrivenBackground } from "@/lib/background-policy";
 import { Inngest } from "inngest";
 import { inspectContactAlerts, deliverContactAlert } from "@/lib/contact-alerts";
 import { contactAlertMonitorEnabled, sendContactControlAlert } from "@/lib/contact-alert-mail";
@@ -6,7 +7,7 @@ import { contactAlertMonitorEnabled, sendContactControlAlert } from "@/lib/conta
 export const contactAlertClient = new Inngest({ id: "fitout-contact-alerts" });
 export const contactAlertMonitor = contactAlertClient.createFunction({
   id: "contact-control-monitor", retries: 5, concurrency: 1,
-  triggers: [{ cron: "1-59/5 * * * *" }],
+  triggers: [{ cron: eventDrivenBackground() ? "TZ=Asia/Manila 0 8 * * *" : "1-59/5 * * * *" }],
 }, async ({ step, event }) => {
   if (!contactAlertMonitorEnabled()) return { active: false };
   const state = await step.run("inspect-contact-controls", () => inspectContactAlerts());

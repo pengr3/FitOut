@@ -1,4 +1,5 @@
 "use server";
+import { dispatchBackgroundAfterResponse } from "@/lib/background-after";
 
 // Booker-initiated cancellation (BOOK-07 · PAY-06 · D-67/D-68/D-69/D-74/D-78/D-79/D-94) — ROADMAP SC#2.
 //
@@ -528,6 +529,7 @@ export async function cancelBookingAsBooker(
   bookingId: string,
   destination?: QrphRefundDestination,
 ): Promise<CancelActionResult> {
+
   // Re-validate the ONE field that crosses the boundary. A malformed id is a calm denial, not a 500.
   const parsed = cancellationSchema.safeParse({ bookingId });
   if (!parsed.success) return DENIED;
@@ -546,6 +548,7 @@ export async function cancelBookingAsBooker(
 
   const userId = await requireUserId();
   if (!userId) return NEEDS_SESSION;
+  dispatchBackgroundAfterResponse();
 
   // Owner-gate BEFORE any UPDATE (T-07-48). Missing vs cross-user → the SAME calm denial.
   const row = await loadOwnedBooking(parsed.data.bookingId, userId);
@@ -850,11 +853,13 @@ export async function cancelBookingAsBooker(
  * booker tidy it up would strand a row for no benefit — there is no money and no clawback to protect.
  */
 export async function cancelUnpaidHold(bookingId: string): Promise<CancelActionResult> {
+
   const parsed = cancellationSchema.safeParse({ bookingId });
   if (!parsed.success) return DENIED;
 
   const userId = await requireUserId();
   if (!userId) return NEEDS_SESSION;
+  dispatchBackgroundAfterResponse();
 
   const row = await loadOwnedBooking(parsed.data.bookingId, userId);
   if (!row) return DENIED;
@@ -1090,6 +1095,7 @@ export async function cancelBookingAsHost(
   bookingId: string,
   reason: HostCancelReason,
 ): Promise<CancelActionResult> {
+
   // Re-validate BOTH fields that cross the boundary. Server-action argument types are NOT enforced at
   // runtime, so a crafted reason string would otherwise land verbatim in an audit row and a durable column.
   // A malformed id or an unknown reason is a calm denial, never a throw.
@@ -1098,6 +1104,7 @@ export async function cancelBookingAsHost(
 
   const userId = await requireUserId();
   if (!userId) return NEEDS_SESSION;
+  dispatchBackgroundAfterResponse();
 
   // T-07-61 — HOST owner-gate BEFORE any write. Missing, cross-host, and de-capability'd → the SAME calm
   // denial the booker path returns, byte for byte.
@@ -1496,6 +1503,7 @@ async function explainOpsNoRows(
  * control, which is why the trail row below is not optional and is written on BOTH branches.
  */
 export async function cancelBookingAsOps(input: OpsCancelInput): Promise<CancelActionResult> {
+
   // ── EXACT OPS AUTHORITY FIRST, THEN STAFF — before parse, limiter, booking, or money. ──────────────
   //
   // The three owner/host actions above keep their ownership-first contracts. This public ops POST has
@@ -1504,6 +1512,7 @@ export async function cancelBookingAsOps(input: OpsCancelInput): Promise<CancelA
   // immediately second and answers with the same neutral `notFound()` control flow.
   await requireOpsMutationOrigin();
   const staff = await requireStaff();
+  dispatchBackgroundAfterResponse();
 
   // Re-parse EVERY field that crossed the boundary — a `"use server"` export is reachable by POST
   // whatever the UI shows, and this one moves money.

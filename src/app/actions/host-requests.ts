@@ -1,4 +1,5 @@
 "use server";
+import { dispatchBackgroundAfterResponse } from "@/lib/background-after";
 
 // Host approve / decline server actions for request-to-book (HOST-01 · BOOK-05 · PAY-05 · D-64/D-66).
 // The host side of the pay-on-approval fork: a `requested` hold is either APPROVED (→ `approved`, the
@@ -158,10 +159,12 @@ const whenLabelInput = (row: OwnedRequest): WhenLabelInput => ({
  * Rate-limited + audited (WR-06). No money moves here (D-63) — nothing is ever refunded/voided.
  */
 export async function approveRequest(requestId: string): Promise<RequestActionResult> {
+
   const userId = await requireUserId();
   if (!userId) {
     return { ok: false, error: "Sign in to manage your requests." };
   }
+  dispatchBackgroundAfterResponse();
 
   // Owner-gate BEFORE any UPDATE (T-06-19 / Security V4). Missing vs cross-host → the SAME calm denial.
   const row = await loadOwnedRequest(requestId, userId);
@@ -302,10 +305,12 @@ export async function approveRequest(requestId: string): Promise<RequestActionRe
  * actioned/lapsed) is a calm "no longer pending". Nothing is ever refunded (no money moved, D-63).
  */
 export async function declineRequest(requestId: string): Promise<RequestActionResult> {
+
   const userId = await requireUserId();
   if (!userId) {
     return { ok: false, error: "Sign in to manage your requests." };
   }
+  dispatchBackgroundAfterResponse();
 
   const row = await loadOwnedRequest(requestId, userId);
   if (!row) return DENIED;

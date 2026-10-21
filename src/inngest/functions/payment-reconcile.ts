@@ -1,3 +1,4 @@
+import { recoveryTriggers } from "@/lib/background-policy";
 import "server-only";
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -203,7 +204,7 @@ export type ReconcileResult = { bookingId: string; outcome: ReconcileOutcome };
  *
  * Takes an explicit `dbConn` so an isolated-schema test can inject a connection; defaults to the prod `db`.
  */
-export async function queryUnconfirmedPaid(dbConn: DbConn = db): Promise<UnconfirmedPaidRow[]> {
+export async function queryUnconfirmedPaid(dbConn: DbConn = db, bookingId?: string): Promise<UnconfirmedPaidRow[]> {
   return (await dbConn.execute(sql`
     SELECT id,
            checkout_session_id AS "checkoutSessionId",
@@ -219,6 +220,7 @@ export async function queryUnconfirmedPaid(dbConn: DbConn = db): Promise<Unconfi
       -- not have caught that; running it did.
       AND created_at >= ${RECONCILE_EPOCH.toISOString()}::timestamptz
       AND created_at <= now() - make_interval(mins => ${RECONCILE_MIN_AGE_MINUTES}::int)
+      ${bookingId ? sql`AND id=${bookingId}` : sql``}
     ORDER BY created_at ASC
     LIMIT ${RECONCILE_BATCH_LIMIT}
   `)) as unknown as UnconfirmedPaidRow[];
@@ -328,7 +330,7 @@ export const paymentReconcile = inngest.createFunction(
   {
     id: "payment-reconcile",
     concurrency: 1, // singleton — passes never overlap, so provider load stays bounded per pass
-    triggers: [{ cron: reconcileCron() }],
+    triggers: recoveryTriggers("payment-reconcile", reconcileCron()),
   },
   async ({ step }) => {
     const candidates = await step.run("find-unconfirmed-paid", () => queryUnconfirmedPaid(db));

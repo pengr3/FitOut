@@ -1,3 +1,4 @@
+import { recoveryTriggers } from "@/lib/background-policy";
 // D-85/D-87 reminders. AT-MOST-ONCE IS A DATABASE CONSTRAINT, NOT AN APPLICATION CHECK AND NOT A VENDOR
 // TTL. Inngest offers event-level `id` dedupe and function-level `idempotency`, but BOTH are documented as
 // "an idempotency key over a 24 hour period" and are "bypassed by debouncing, event batching, and function
@@ -472,7 +473,7 @@ export const remindersSweep = inngest.createFunction(
   {
     id: "reminders-sweep",
     concurrency: 1, // singleton — no overlapping sweeps
-    triggers: [{ cron: "TZ=Asia/Manila 45 * * * *" }], // hourly, minute 45 (offset from the three others)
+    triggers: recoveryTriggers("reminders", "TZ=Asia/Manila 45 * * * *"), // hourly, minute 45 (offset from the three others)
   },
   async ({ step }) => {
     const due = await step.run("find-due", async () => {

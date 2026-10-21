@@ -1,3 +1,4 @@
+import { dispatchBackgroundAfterResponse } from "@/lib/background-after";
 // The Didit `status.updated` webhook — the HIGHEST-SEVERITY TRUST BOUNDARY IN THIS PHASE (HVER-07).
 //
 // A forged delivery here is a FABRICATED IDENTITY CHECK that makes an unverified host sellable
@@ -240,6 +241,7 @@ export async function POST(req: Request): Promise<Response> {
   if (vendorData === "" || sessionId === "" || status === "") {
     return refuse("Invalid payload");
   }
+  dispatchBackgroundAfterResponse();
 
   // --- Apply. The transition is DERIVED from the VERIFIED envelope's status through the shared
   //     mapper, never from any other body field; `checked_at` comes from the adapter's clock, never
