@@ -18,6 +18,7 @@ async function consumers(preview = false) {
     OPS_APP_URL: ops, VERCEL_ENV: preview ? "preview" : "production",
     VERCEL_URL: preview ? "branch.example.vercel.app" : "", MARKETING_PREVIEW_URL: "",
     RESEND_API_KEY: "re_test_mock_key", EMAIL_FROM: "FitOut <sender@example.test>",
+    PREVIEW_EMAIL_RECIPIENTS: "booker@example.test,staff@example.test",
   })) vi.stubEnv(key, value);
   const { metadata } = await import("@/app/layout");
   const email = await import("@/lib/email");
@@ -33,6 +34,7 @@ describe("actual application metadata and transactional email origins", () => {
     await email.sendBookingConfirmed("booker@example.test", "Court", "Tomorrow", "FIT-TEST", origins.absolutePublicUrl("/bookings/id"), null);
     await email.sendRequestDeclined("booker@example.test", "Court", "Tomorrow");
     await email.sendResetPassword("booker@example.test", origins.absolutePublicUrl("/api/auth/reset-password/opaque?callbackURL=%2Freset-password"));
+    expect(mockResend.sent()).toHaveLength(3);
     for (const sent of mockResend.sent()) {
       const links = [...sent.html!.matchAll(/href="(https?:[^\"]+)"/g)].map((match) => match[1].replaceAll("&amp;", "&"));
       expect(links.length).toBeGreaterThan(0);
