@@ -1,3 +1,5 @@
+import { backgroundWork, backgroundRecoveryAudit } from "@/inngest/functions/background-work";
+import { dispatchBackgroundAfterResponse } from "@/lib/background-after";
 // The /api/inngest serve endpoint — the mount point Inngest invokes to run BOTH payout crons.
 //
 // ORDERING (the entire reason former Plan 05 was split): this file STATICALLY imports `payoutSweep` from
@@ -99,9 +101,11 @@ if (
 // on FitOut, with nobody prompted. Leave it out of this array and it does not exist: the recovery never
 // runs, and because a cron that never ticks raises no error anywhere, NOTHING FAILS TO SAY SO. Its plan
 // pins the identifier at exactly two occurrences in this file for that reason — see the ⚠ in the header.
-export const { GET, POST, PUT } = serve({
+const handlers = serve({
   client: inngest,
   functions: [
+    backgroundWork,
+    backgroundRecoveryAudit,
     payoutSweep,
     payoutReconcile,
     paymentReconcile,
@@ -116,3 +120,15 @@ export const { GET, POST, PUT } = serve({
     settlementAccountProbe,
   ],
 });
+
+export const GET = handlers.GET;
+export const POST = async (...args: Parameters<typeof handlers.POST>) => {
+  const response=await handlers.POST(...args);
+  if (response.status>=200 && response.status<300) dispatchBackgroundAfterResponse();
+  return response;
+};
+export const PUT = async (...args: Parameters<typeof handlers.PUT>) => {
+  const response=await handlers.PUT(...args);
+  if (response.status>=200 && response.status<300) dispatchBackgroundAfterResponse();
+  return response;
+};

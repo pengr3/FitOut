@@ -1,3 +1,4 @@
+import { recoveryTriggers } from "@/lib/background-policy";
 import "server-only";
 
 import { sql } from "drizzle-orm";
@@ -206,7 +207,7 @@ export function configuredSettlementAccount(): SettlementAccountEvidence | null 
   };
 }
 
-const paymongoReader: ProviderReader = {
+export const paymongoReader: ProviderReader = {
   listPayouts: listMerchantPayouts,
   getPayout: getMerchantPayout,
   listTransactions: listMerchantPayoutTransactions,
@@ -214,7 +215,7 @@ const paymongoReader: ProviderReader = {
 
 // Read-only recovery pass; no transfer creation. Disabled until account-authority mapping is configured.
 export const settlementReconcile = inngest.createFunction(
-  { id: "settlement-reconcile", concurrency: 1, triggers: [{ cron: "TZ=Asia/Manila 40 * * * *" }] },
+  { id: "settlement-reconcile", concurrency: 1, triggers: recoveryTriggers("settlement-reconcile", "TZ=Asia/Manila 40 * * * *") },
   async ({ step }) => {
     const account = configuredSettlementAccount();
     if (!account) return { state: "hold", reason: "account_evidence_unverified" };

@@ -1,3 +1,4 @@
+import { recoveryTriggers } from "@/lib/background-policy";
 // The dual-timer request-to-book expiry sweep (D-64, BOOK-05 / PAY-05) — the SECOND async-scheduled cron in
 // the codebase, a near-clone of payout-sweep.ts. Hourly (timezone-aware), it drives the VISIBLE terminal
 // flip + the booker notice for two lapsed request-to-book holds:
@@ -88,12 +89,13 @@ export type ExpireOneResult =
  * isolated-schema db (mirrors queryDuePayouts). `expires_at <= now()` is written per-branch so the predicate
  * reads identically for both statuses.
  */
-export async function queryExpired(dbConn: DbConn): Promise<ExpiredBooking[]> {
+export async function queryExpired(dbConn: DbConn, bookingId?: string): Promise<ExpiredBooking[]> {
   const rows = (await dbConn.execute(sql`
     SELECT id, status, listing_id AS "listingId", booker_id AS "bookerId"
     FROM booking
-    WHERE (status = 'requested' AND expires_at <= now())
-       OR (status = 'approved' AND expires_at <= now())
+    WHERE ((status = 'requested' AND expires_at <= now())
+       OR (status = 'approved' AND expires_at <= now()))
+      ${bookingId ? sql`AND id=${bookingId}` : sql``}
     ORDER BY expires_at ASC
     LIMIT ${EXPIRY_BATCH_SIZE}
   `)) as unknown as ExpiredBooking[];
@@ -119,7 +121,7 @@ export async function expireOne(dbConn: DbConn, row: ExpiredBooking): Promise<Ex
     // SLA auto-decline. `AND status = 'requested'` makes the flip idempotent — a re-run flips 0 rows.
     const flipped = (await dbConn.execute(sql`
       UPDATE booking SET status = 'declined', expires_at = NULL
-      WHERE id = ${row.id} AND status = 'requested'
+      WHERE id = ${row.id} AND status = 'requested' AND expires_at <= now()
       RETURNING id, checkout_session_id
     `)) as unknown as { id: string; checkout_session_id: string | null }[];
     if (flipped.length === 0) return { status: "noop" }; // already terminal → never re-notify / re-flip
@@ -145,7 +147,7 @@ export async function expireOne(dbConn: DbConn, row: ExpiredBooking): Promise<Ex
   // approved → cancelled (payment-window auto-release). NO email (D-66/A3 — the booker chose not to pay).
   const flipped = (await dbConn.execute(sql`
     UPDATE booking SET status = 'cancelled', expires_at = NULL
-    WHERE id = ${row.id} AND status = 'approved'
+    WHERE id = ${row.id} AND status = 'approved' AND expires_at <= now()
     RETURNING id, checkout_session_id
   `)) as unknown as { id: string; checkout_session_id: string | null }[];
   if (flipped.length === 0) return { status: "noop" }; // already terminal → never re-flip
@@ -310,7 +312,7 @@ export const requestExpirySweep = inngest.createFunction(
   {
     id: "request-expiry-sweep",
     concurrency: 1, // singleton — no overlapping sweeps
-    triggers: [{ cron: "TZ=Asia/Manila 15 * * * *" }], // hourly, minute 15 (offset from the payout crons)
+    triggers: recoveryTriggers("request-expiry", "TZ=Asia/Manila 15 * * * *"), // hourly, minute 15 (offset from the payout crons)
   },
   async ({ step }) => {
     const due = await step.run("find-expired", () => queryExpired(db));

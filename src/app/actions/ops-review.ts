@@ -1,4 +1,5 @@
 "use server";
+import { dispatchBackgroundAfterResponse } from "@/lib/background-after";
 
 // The FIVE ops decision actions (OPS-03 / OPS-05 / ENF-01 / HVER-01 / D-215/D-216/D-218/D-233).
 //
@@ -324,8 +325,10 @@ async function closeReviewCycle(
  * `approved` would light the badge (D-212) on a host nobody checked.
  */
 export async function approveHost(input: ApproveHostInput): Promise<OpsActionResult> {
+
   await requireOpsMutationOrigin();
   const staff = await requireStaff();
+  dispatchBackgroundAfterResponse();
 
   const parsed = approveHostSchema.safeParse(input);
   if (!parsed.success) {
@@ -420,8 +423,10 @@ export async function approveHost(input: ApproveHostInput): Promise<OpsActionRes
  * written to the durable column — deliberately, so the two cannot drift into different guard sets.
  */
 export async function rejectHost(input: RejectHostInput): Promise<OpsActionResult> {
+
   await requireOpsMutationOrigin();
   const staff = await requireStaff();
+  dispatchBackgroundAfterResponse();
 
   const parsed = rejectHostSchema.safeParse(input);
   if (!parsed.success) {
@@ -543,8 +548,10 @@ export async function rejectHost(input: RejectHostInput): Promise<OpsActionResul
  * a return value.
  */
 export async function suspendHost(input: SuspendHostInput): Promise<OpsActionResult> {
+
   await requireOpsMutationOrigin();
   const staff = await requireStaff();
+  dispatchBackgroundAfterResponse();
 
   const parsed = suspendHostSchema.safeParse(input);
   if (!parsed.success) {
@@ -643,8 +650,10 @@ export async function suspendHost(input: SuspendHostInput): Promise<OpsActionRes
  * (D-249) rather than through a second click here.
  */
 export async function approveListing(input: ApproveListingInput): Promise<OpsActionResult> {
+
   await requireOpsMutationOrigin();
   const staff = await requireStaff();
+  dispatchBackgroundAfterResponse();
 
   const parsed = approveListingSchema.safeParse(input);
   if (!parsed.success) {
@@ -726,8 +735,10 @@ export async function approveListing(input: ApproveListingInput): Promise<OpsAct
  * is the only thing that makes the edit purposeful — D-249's second guard, in its own words.
  */
 export async function rejectListing(input: RejectListingInput): Promise<OpsActionResult> {
+
   await requireOpsMutationOrigin();
   const staff = await requireStaff();
+  dispatchBackgroundAfterResponse();
 
   const parsed = rejectListingSchema.safeParse(input);
   if (!parsed.success) {

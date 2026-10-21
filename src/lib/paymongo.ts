@@ -18,6 +18,7 @@
 // test depends on a live PayMongo call.
 
 import { randomUUID } from "node:crypto";
+import { assertPreviewPaymentKey } from "@/lib/preview-environment";
 import { STANDARD_PAYOUT_TRANSFER_FEE_CENTS } from "@/lib/payments/payout-fee-policy";
 
 // Version-less base (Pitfall 3): PayMongo mixes /v1 (Checkout Sessions, Refunds, Linked Accounts) and
@@ -68,6 +69,7 @@ function authHeader(): string {
       "PayMongo is unavailable in this Preview deployment because payment credentials are intentionally not configured.",
     );
   }
+  if (isVercelPreview) assertPreviewPaymentKey(secret);
   return `Basic ${Buffer.from(`${secret}:`).toString("base64")}`;
 }
 

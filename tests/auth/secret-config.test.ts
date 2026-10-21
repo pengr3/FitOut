@@ -7,6 +7,10 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+// These assertions inspect auth options only. Importing a real database would couple
+// origin/secret validation to Preview's separate database boundary and require a connection.
+vi.mock("@/lib/db", () => ({ db: {} }));
+
 /**
  * Every test here does `vi.resetModules()` + a fresh dynamic `import("@/lib/auth")`, which re-transforms
  * and re-imports the whole Better Auth + drizzle + schema graph from cold. That is genuinely slow (~2s

@@ -1,3 +1,4 @@
+import { recoveryTriggers } from "@/lib/background-policy";
 import "server-only";
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -222,6 +223,7 @@ export type DiditReconcileResult = { userId: string; outcome: DiditReconcileOutc
  */
 export async function queryStalePendingVerifications(
   dbConn: DbConn = db,
+  userId?: string,
 ): Promise<StalePendingVerification[]> {
   return (await dbConn.execute(sql`
     SELECT user_id    AS "userId",
@@ -231,6 +233,7 @@ export async function queryStalePendingVerifications(
       AND vendor_ref IS NOT NULL
       AND btrim(vendor_ref) <> ''
       AND updated_at <= now() - make_interval(mins => ${DIDIT_RECONCILE_GRACE_MINUTES}::int)
+      ${userId ? sql`AND user_id=${userId}` : sql``}
     ORDER BY updated_at ASC
     LIMIT ${DIDIT_RECONCILE_BATCH_LIMIT}
   `)) as unknown as StalePendingVerification[];
@@ -342,7 +345,7 @@ export const diditReconcile = inngest.createFunction(
   {
     id: "didit-reconcile",
     concurrency: 1, // singleton — passes never overlap, so vendor load stays bounded per pass
-    triggers: [{ cron: diditReconcileCron() }],
+    triggers: recoveryTriggers("didit-reconcile", diditReconcileCron()),
   },
   async ({ step }) => {
     const candidates = await step.run("find-stale-pending", () =>

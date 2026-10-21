@@ -1,4 +1,5 @@
 "use server";
+import { dispatchBackgroundAfterResponse } from "@/lib/background-after";
 
 // D-97 one-click re-request on lapse (BOOK-07 / MANAGE-02) — the cheapest recovery from exactly the failure
 // mode D-89 deliberately accepted.
@@ -187,12 +188,14 @@ function isResendableLapse(row: SourceBooking): boolean {
  * mint before notification. The client sends one booking id and nothing else.
  */
 export async function reRequestSameWindow(bookingId: string): Promise<ReRequestResult> {
+
   // Re-validate the ONE field that crosses the boundary. A malformed id is a calm denial, not a 500.
   const parsed = reRequestSchema.safeParse({ bookingId });
   if (!parsed.success) return DENIED;
 
   const userId = await requireUserId();
   if (!userId) return NEEDS_SESSION;
+  dispatchBackgroundAfterResponse();
 
   // Owner-gate BEFORE any write (T-07-69). Missing vs cross-user → the SAME calm denial.
   const row = await loadOwnedLapsedBooking(parsed.data.bookingId, userId);

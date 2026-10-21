@@ -1,3 +1,4 @@
+import { recoveryTriggers } from "@/lib/background-policy";
 // The payout RECONCILE cron (D-59, PAY-03) — the SECOND async-scheduled job, the terminal half of the
 // `Held → Processing → Paid/Failed` payout lifecycle the Plan-05a sweep opens.
 //
@@ -103,7 +104,7 @@ export function mapTransferStatus(status: string): "paid" | "failed" | "processi
  * only (payout-sweep.ts invariant 4 + alertStuckHeld below). `tests/payments/payout-suspension-freeze.test.ts`
  * pins this with a case that FAILS if the exclusion is ever extended here.
  */
-export async function queryProcessingLedger(dbConn: DbConn = db): Promise<ProcessingLedgerRow[]> {
+export async function queryProcessingLedger(dbConn: DbConn = db, ledgerId?: string): Promise<ProcessingLedgerRow[]> {
   return (await dbConn.execute(sql`
     SELECT booking_id AS "bookingId", transfer_id AS "transferId", created_at AS "createdAt"
     FROM host_payout_ledger l
@@ -115,6 +116,7 @@ export async function queryProcessingLedger(dbConn: DbConn = db): Promise<Proces
     )
       AND NOT EXISTS (SELECT 1 FROM manual_host_payout_attempt m
         WHERE m.claim_id = l.id AND m.state LIKE 'api_%')
+      ${ledgerId ? sql`AND l.id=${ledgerId}` : sql``}
     ORDER BY created_at ASC
     LIMIT 200
   `)) as unknown as ProcessingLedgerRow[];
@@ -313,7 +315,7 @@ export async function reconcileOne(
  * suspended host normally has no ledger row here at all; the mirror exists for the row that was already
  * `held` when the suspension landed.
  */
-export async function alertStuckHeld(dbConn: DbConn = db): Promise<number> {
+export async function alertStuckHeld(dbConn: DbConn = db, bookingId?: string): Promise<number> {
   const rows = (await dbConn.execute(sql`
     SELECT p.booking_id AS "bookingId", p.created_at AS "createdAt"
     FROM host_payout_ledger p
@@ -335,6 +337,7 @@ export async function alertStuckHeld(dbConn: DbConn = db): Promise<number> {
       -- opposite question, so a host nobody has checked is NOT suspended and their stuck row still pages.
       AND COALESCE(hv.status::text, 'unverified') <> 'suspended'
       AND p.created_at <= now() - make_interval(hours => ${RECONCILE_STUCK_HOURS}::int)
+      ${bookingId ? sql`AND p.booking_id=${bookingId}` : sql``}
     ORDER BY p.created_at ASC
     LIMIT 200
   `)) as unknown as { bookingId: string; createdAt: Date | string }[];
@@ -360,7 +363,7 @@ export const payoutReconcile = inngest.createFunction(
   {
     id: "payout-reconcile",
     concurrency: 1, // singleton — no overlapping reconcile passes
-    triggers: [{ cron: "TZ=Asia/Manila 30 * * * *" }], // hourly, offset 30m from the sweep
+    triggers: recoveryTriggers("payout-reconcile", "TZ=Asia/Manila 30 * * * *"), // hourly, offset 30m from the sweep
   },
   async ({ step }) => {
     const inflight = await step.run("find-processing", () => queryProcessingLedger(db));

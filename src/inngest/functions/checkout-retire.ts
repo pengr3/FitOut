@@ -1,3 +1,4 @@
+import { recoveryTriggers } from "@/lib/background-policy";
 import "server-only";
 
 // ════════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -151,7 +152,7 @@ export type RetireResult = { bookingId: string; outcome: RetireOutcome };
  * certainly been retired on an earlier tick and costs a single `already-retired` GET. Under a backlog at
  * `RETIRE_BATCH_LIMIT`, this order spends the budget where money can actually still move.
  */
-export async function queryRetirableSessions(dbConn: DbConn = db): Promise<RetirableSession[]> {
+export async function queryRetirableSessions(dbConn: DbConn = db, bookingId?: string): Promise<RetirableSession[]> {
   return (await dbConn.execute(sql`
     SELECT id                  AS "bookingId",
            checkout_session_id AS "checkoutSessionId",
@@ -186,7 +187,7 @@ export async function queryRetirableSessions(dbConn: DbConn = db): Promise<Retir
       AND expires_at <= now()
       -- The lookback window (see RETIRE_LOOKBACK_MINUTES): six ticks of coverage, no marker column, and
       -- D-111's no-backfill guarantee as a structural fact rather than a constant somebody must maintain.
-      AND expires_at > now() - make_interval(mins => ${RETIRE_LOOKBACK_MINUTES}::int)
+      ${bookingId ? sql`AND id=${bookingId}` : sql`AND expires_at > now() - make_interval(mins => ${RETIRE_LOOKBACK_MINUTES}::int)`}
     ORDER BY expires_at DESC
     LIMIT ${RETIRE_BATCH_LIMIT}
   `)) as unknown as RetirableSession[];
@@ -223,7 +224,7 @@ export const checkoutRetireSweep = inngest.createFunction(
   {
     id: "checkout-retire-sweep",
     concurrency: 1, // singleton — passes never overlap, so provider load stays bounded per pass
-    triggers: [{ cron: retireCron() }],
+    triggers: recoveryTriggers("checkout-retire", retireCron()),
   },
   async ({ step }) => {
     const candidates = await step.run("find-retirable-sessions", () => queryRetirableSessions(db));

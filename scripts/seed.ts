@@ -22,6 +22,11 @@ import postgres from "postgres";
 const DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://fitout:fitout@localhost:5432/fitout";
 
+if (process.env.VERCEL_ENV === "production" ||
+    !["localhost", "127.0.0.1", "[::1]", "postgres", "db"].includes(new URL(DATABASE_URL).hostname)) {
+  throw new Error("db:seed is local-only. Use preview:seed with an explicit isolated PREVIEW_DATABASE_URL.");
+}
+
 const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {} });
 
 const HOST_ID = "seed_host_1";

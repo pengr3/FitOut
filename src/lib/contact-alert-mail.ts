@@ -2,6 +2,7 @@ import "server-only";
 import { Resend } from "resend";
 import { z } from "zod";
 import { renderEmail } from "@/lib/email-shell";
+import { previewRecipientAllowed } from "@/lib/preview-environment";
 export type ContactControlAlert = { id: string; kind: "global_budget" | "quota_unavailable"; observedAt: string; attemptCount?: number; synthetic?: boolean };
 export function contactAlertRecipient(): string | null {
   const parsed = z.email().safeParse(process.env.CONTACT_ALERT_EMAIL);
@@ -13,6 +14,9 @@ export function contactAlertMonitorEnabled(): boolean {
 export async function sendContactControlAlert(alert: ContactControlAlert): Promise<string> {
   const to = contactAlertRecipient(), key = process.env.RESEND_API_KEY;
   if (!to || !key) throw new Error("Contact alert transport is not configured");
+  if (process.env.VERCEL_ENV === "preview" && !previewRecipientAllowed(to,process.env.PREVIEW_EMAIL_RECIPIENTS)) {
+    throw new Error("Preview Contact alerts require an allowlisted tester recipient");
+  }
   const label = alert.kind === "global_budget" ? "hourly quota exhausted" : "quota store unavailable";
   const subject = (alert.synthetic ? "[Synthetic test] " : "") + "FitOut Contact alert: " + label;
   const { html, text } = renderEmail({ heading: subject, paragraphs: [

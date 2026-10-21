@@ -30,6 +30,25 @@ import {
   geometry,
 } from "drizzle-orm/pg-core";
 
+// Durable, identifier-only work. Database triggers enqueue in the domain transaction.
+export const backgroundTask = pgTable("background_task", {
+  id: text("id").primaryKey(),
+  entityKind: text("entity_kind").notNull(),
+  entityId: text("entity_id").notNull(),
+  kind: text("kind").notNull(),
+  generation: text("generation").notNull(),
+  dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+  availableAt: timestamp("available_at", { withTimezone: true }).notNull(),
+  checkNumber: integer("check_number").notNull().default(0),
+  publishAttempts: integer("publish_attempts").notNull().default(0),
+  leaseUntil: timestamp("lease_until", { withTimezone: true }),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index("background_task_ready_idx").on(t.availableAt).where(sql`published_at IS NULL AND completed_at IS NULL AND cancelled_at IS NULL`),
+  index("background_task_entity_idx").on(t.entityKind,t.entityId)]);
+
 // D-23: one dedicated shared Contact budget; no auth rows or inquiry contents.
 export const contactQuota = pgTable("contact_quota", {
   key: text("key").primaryKey(),

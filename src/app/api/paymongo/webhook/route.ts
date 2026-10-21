@@ -1,3 +1,4 @@
+import { dispatchBackgroundAfterResponse } from "@/lib/background-after";
 // PayMongo webhook — the architectural KEYSTONE of Phase 2 (PAY-04, D-14/D-15).
 //
 // For the legacy Linked Account model, this route verifies the Paymongo-Signature, dedupes by event id,
@@ -113,7 +114,8 @@ function parseSignature(header: string | null): SigParts | null {
 function verifySignature(rawBody: string, sig: SigParts, secret: string): boolean {
   const expected = createHmac("sha256", secret).update(`${sig.t}.${rawBody}`).digest("hex");
   const expectedBuf = Buffer.from(expected, "utf8");
-  for (const candidate of [sig.te, sig.li]) {
+  const candidates = process.env.VERCEL_ENV === "preview" ? [sig.te] : [sig.te, sig.li];
+  for (const candidate of candidates) {
     const candBuf = Buffer.from(candidate, "utf8");
     if (candBuf.length === expectedBuf.length && timingSafeEqual(candBuf, expectedBuf)) {
       return true;
@@ -259,6 +261,7 @@ export async function POST(req: Request): Promise<Response> {
   if (!eventId || !type) {
     return new Response("Invalid payload", { status: 400 });
   }
+  dispatchBackgroundAfterResponse();
 
   // --- Idempotency (T-06-REPLAY): PayMongo retries + may double-deliver. A seen event id → 200 skip. ---
   const seen = await db
